@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra Data Contract Check"
+  short_description: "Check a plan's data assumptions before running it"
+  default_prompt: "Use $mycelium-extra:data-contract-check to test this plan's assumptions about the sample table (cohort, unit of replication, pairing, batch) before anything runs."

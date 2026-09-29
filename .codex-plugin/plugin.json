@@ -1,6 +1,6 @@
 {
   "name": "mycelium-extra",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Repository-aware, bounded challenge and scoping for research and software work",
   "author": {
     "name": "Mikhael Manurung"
@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "Mycelium Extra",
     "shortDescription": "Challenge plans using repository evidence",
-    "longDescription": "Search project memory and code before asking, challenge consequential assumptions, ask only questions the user must answer, and return a sourced step-by-step plan that waits for approval before anything runs. Settle which past Mycelium decision binds a task, and record the user's resolution as a new decision entry.",
+    "longDescription": "Search project memory and code before asking, challenge consequential assumptions, ask only questions the user must answer, and return a sourced step-by-step plan that waits for approval before anything runs. Settle which past Mycelium decision binds a task, and record the user's resolution as a new decision entry. Check a plan's sample-table assumptions (cohort, unit of replication, pairing, batch) before anything runs.",
     "developerName": "Mikhael Manurung",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
