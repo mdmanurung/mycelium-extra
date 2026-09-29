@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra Init"
+  short_description: "Turn on the plan-approval gate in this repository"
+  default_prompt: "Use $mycelium-extra:init to turn on the mycelium-extra approval gate in this repository."

@@ -2,16 +2,78 @@
 
 A standalone plugin for planning analysis work before it runs. It works alongside [Mycelium](https://github.com/arjunrajlaboratory/mycelium) but does not fork, modify, or require it.
 
-It has three skills and one hook set:
+It has four skills and one hook set:
 
 | Part | What it does | Writes |
 |---|---|---|
 | `grill` | Turns a proposed task into a sourced, numbered plan | Nothing |
 | `decision-status` | Settles which past decision binds a task | Appends to `.living/decisions.md`, after you confirm |
 | `data-contract-check` | Tests a plan's sample-table assumptions | Nothing |
+| `init` | Turns on the approval gate in a repository | `.mycelium-extra/gate.json`, `.gitignore` |
 | Approval gate | Blocks analysis runs until you approve the plan | `.mycelium-extra/` only |
 
-## grill
+## Installation
+
+### Claude Code
+
+1. Add the marketplace, from GitHub or from a local clone:
+
+   ```bash
+   claude plugin marketplace add mdmanurung/mycelium-extra
+   # or
+   claude plugin marketplace add /absolute/path/to/mycelium-extra
+   ```
+
+2. Install the plugin for all your projects:
+
+   ```bash
+   claude plugin install mycelium-extra@mycelium-extra
+   ```
+
+   To enable it for one project only, run this from that project with `--scope local`.
+
+3. Start a new Claude Code session. Skills and hooks load when a session starts.
+
+**Update** after pulling or editing the plugin (Claude Code runs a cached copy, keyed by the `version` in `.claude-plugin/plugin.json`):
+
+```bash
+claude plugin marketplace update mycelium-extra
+claude plugin update mycelium-extra@mycelium-extra
+```
+
+**Try it without installing:** run `claude --plugin-dir /absolute/path/to/mycelium-extra` from the project.
+
+### Codex
+
+- **Plugin:** this folder includes `.codex-plugin/plugin.json` and `skills/*/SKILL.md`, ready to add to a Codex plugin marketplace. After installing, invoke `$mycelium-extra:<skill>`.
+- **Standalone skill:** copy one `skills/<skill>/` folder to your personal Codex skills location and invoke it as `$grill`. Namespacing then depends on how you installed it.
+
+The approval gate and `init` are Claude Code only.
+
+## Quick start
+
+A typical analysis task, in order:
+
+1. **Once per repository:** `/mycelium-extra:init` turns on the approval gate.
+2. **Plan:** `/mycelium-extra:grill <your task>`. Answer its questions (at most five).
+3. **Approve:** when the plan ends with `Plan status: READY`, type the `approve plan <hash>` line it shows.
+4. **Run:** execute the plan through your normal workflow (`/mycelium:analyze` in a Mycelium project).
+
+Common prompts:
+
+| Goal | Prompt |
+|---|---|
+| Plan a task from repo evidence | `/mycelium-extra:grill Redo monocyte pathway analysis across trials; inspect the repo before asking me anything.` |
+| Settle conflicting past decisions | `/mycelium-extra:decision-status Which batch-correction decision binds the integration rerun?` |
+| Check the sample table before running | `/mycelium-extra:data-contract-check Check the approved plan's cohort, pairing, and batch assumptions against the sample table.` |
+| Turn on the gate | `/mycelium-extra:init` |
+| Run a quick test without a plan | Type `allow explore`; type `stop explore` when done. |
+
+`grill` calls `decision-status` and `data-contract-check` itself when a plan depends on them, so you rarely need to invoke those directly.
+
+## Skills
+
+### grill
 
 `grill` reads the repository before it asks you anything. In a Mycelium project (any repository with `.living/`), it reads `MYCELIUM.md` or the Mycelium block in `CLAUDE.md`/`AGENTS.md`, `.living/INDEX.md`, relevant memory entries, manifests, analysis docs, and code. Elsewhere it reads the project's own docs and code.
 
@@ -19,7 +81,7 @@ It then tests the goal, evidence, assumptions, alternatives, failure modes, and 
 
 It asks only questions that you own and that could change the plan: one per message, at most five. It ends with `READY`, `READY_WITH_ASSUMPTIONS`, or one `DECISION_REQUIRED` item, plus a numbered plan. Each consequential choice in the plan cites its source: repository evidence, your answer, or a labeled default. Nothing runs until you approve or edit the plan.
 
-## decision-status
+### decision-status
 
 Use it when `.living/decisions.md` holds several entries on the same choice, for example a method that was confirmed, then held, then shelved.
 
@@ -29,7 +91,7 @@ Use it when `.living/decisions.md` holds several entries on the same choice, for
 
 The new entry uses the ordinary decision fields plus `Status`, `Supersedes`, `Scope`, `Revisit when`, and `Resolved-by`. Mycelium 0.7.2's scripts do not parse `Status` in `decisions.md`, so they read these fields as plain body text.
 
-## data-contract-check
+### data-contract-check
 
 It checks a plan's assumptions about the sample table before anything runs. The assumptions go into a small JSON contract:
 
@@ -41,12 +103,14 @@ It checks a plan's assumptions about the sample table before anything runs. The 
 
 A stdlib checker reports each mismatch with expected, observed, and evidence lines, in the shape of ClawBio's contract alerts. The checker, not the contract, decides what blocks: any failure of these kinds blocks. The skill never loosens a contract to make it pass without your agreement. v1 reads CSV/TSV tables; it does not yet check h5ad internals.
 
-## Approval gate
+### Approval gate
 
-Claude Code hooks in `hooks/` enforce grill's rule that nothing runs until you approve. The gate is off unless you turn it on per repository:
+Claude Code hooks in `hooks/` enforce grill's rule that nothing runs until you approve. The gate is off unless you turn it on per repository with `/mycelium-extra:init`, or by hand:
 
 1. Create `.mycelium-extra/gate.json`. `{}` uses the defaults.
 2. Add `.mycelium-extra/` to `.gitignore`. It holds short-lived execution state, not project knowledge.
+
+`init` checks whether the default paths exist and asks which folders to gate if they don't. It never changes a gate that is already on; after that, edit `gate.json` by hand.
 
 **Approving a plan.** When a reply ends with `Plan status: READY` or `READY_WITH_ASSUMPTIONS`, the Stop hook hashes the plan and shows `approve plan <hash>`. Type exactly that (a trailing `.` is fine) to record the approval in `.mycelium-extra/approvals/`. A bare `approve plan` lists pending hashes and approves nothing.
 
@@ -67,19 +131,6 @@ Reading gated files (`cat`, `rg`, `git`) is never gated.
 - It catches mistakes; it is not security. An agent set on bypassing it through Bash can do so.
 - Claude Code only; there is no Codex port yet.
 
-## Use
-
-- **Claude Code, one session:** run `claude --plugin-dir /absolute/path/to/mycelium-extra` from the project you want to examine.
-- **Claude Code, installed:** run `claude plugin marketplace add /absolute/path/to/mycelium-extra`, then `claude plugin install mycelium-extra@mycelium-extra` from the project (add `--scope local` to enable it for that project only). Hooks load when a session starts.
-- **Codex plugin:** this folder includes `.codex-plugin/plugin.json` and `skills/*/SKILL.md`, ready to add to a Codex plugin marketplace. After installing, invoke `$mycelium-extra:<skill>`.
-- **Codex standalone skill:** copy one `skills/<skill>/` folder to your personal Codex skills location and invoke it as `$grill`. Namespacing then depends on how you installed it.
-
-In Claude Code, invoke `/mycelium-extra:grill`, `/mycelium-extra:decision-status`, or `/mycelium-extra:data-contract-check`, followed by your task or plan.
-
-Example: `Grill my plan to redo monocyte pathway analysis across trials; inspect the repo before asking me anything.`
-
-Tests: `python3 skills/<skill>/tests/test_*.py` and `python3 hooks/tests/test_gate.py`.
-
 ## Relation to Mycelium
 
 - `grill` makes no edits. It never writes `.living/`, manifests, todo, or analysis files. It never runs repository scripts by path, because that would start Mycelium's post-action cycle. Its data checks use inline read-only probes.
@@ -87,3 +138,7 @@ Tests: `python3 skills/<skill>/tests/test_*.py` and `python3 hooks/tests/test_ga
 - `data-contract-check` is read-only and runs the same way. Its contract stays outside the repository until you approve the plan.
 - After you approve a plan, run it through your normal workflow. In a Mycelium project that is `/mycelium:analyze` (`$mycelium:analyze` in Codex), which logs the brief's "Decisions to record" through Mycelium's lifecycle.
 - `/mycelium:review grill` reviews an existing analysis or diff; `grill` plans before execution. Use both.
+
+## Development
+
+Tests: `python3 skills/<skill>/tests/test_*.py` and `python3 hooks/tests/test_gate.py`. Bump `version` in `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, and `.claude-plugin/marketplace.json` together, so `claude plugin update` picks up the change.
