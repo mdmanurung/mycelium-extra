@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "mycelium-extra",
+  "owner": {
+    "name": "mdmanurung",
+    "url": "https://github.com/mdmanurung"
+  },
+  "metadata": {
+    "description": "Repository-aware, bounded challenge and scoping for research and software work",
+    "version": "0.5.0"
+  },
+  "plugins": [
+    {
+      "name": "mycelium-extra",
+      "description": "Sourced step plans, decision status, data-contract checks, and a plan-approval gate for Mycelium repositories.",
+      "source": "./"
+    }
+  ]
+}
