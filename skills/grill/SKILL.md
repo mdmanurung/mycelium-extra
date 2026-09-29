@@ -1,44 +1,58 @@
 ---
 name: grill
-description: Critically scope and challenge a proposed research, analysis, software, or project task using the current repository before asking bounded, consequential questions. Use when the user invokes grill, asks to pressure-test a plan, or wants a repository-aware decision brief, especially in a Mycelium-enabled project.
+description: Read-only, pre-execution planning for a proposed research, bioinformatics, analysis, or software task. Searches the repository's accumulated knowledge first (Mycelium `.living/` memory, manifests, analysis docs, code), asks only consequential questions the user must answer, and returns a step-by-step plan in which every consequential choice is sourced, then waits for approval before anything runs. Use when the user invokes mycelium-extra grill, or asks to scope, plan, or pressure-test an analysis or task before executing it, especially in a Mycelium project. Not for reviewing finished code, diffs, or completed analyses (use Mycelium's review skill or its grill mode) and not for open-ended, unbounded interviews.
 ---
 
 # Mycelium Extra: Grill
 
-Turn a proposed task into a short, evidence-grounded decision brief. Inspect first, challenge the approach, ask only questions that the user must answer, then stop. Remain read-only during this skill unless the user separately requests implementation.
+Turn a proposed task into a sourced, step-by-step plan before anything runs. Retrieve first, decide what the evidence supports, ask the user only what remains, then stop and wait for approval. Make no edits during this skill.
 
-## 1. Orient and retrieve
+## 1. Retrieve before asking
 
-- Locate the project root and obey applicable repository instructions. Detect Mycelium through `MYCELIUM.md` and `.living/INDEX.md`; partial or absent structure is acceptable.
-- In a Mycelium project, read `MYCELIUM.md`, then `.living/INDEX.md`; drill into only relevant entries, manifests, analysis documentation, findings, decisions, learnings, conventions, code, and configuration. Use the repository's own guidance where present. Read [references/mycelium.md](references/mycelium.md) for locations and a safe fallback when the index or plugin scripts are missing.
-- In another repository, use its instructions, README, relevant docs, tests, and actual code. If no repository is available, use the user's supplied context and mark missing evidence.
-- Search narrowly with `rg` and inspect relevant files; avoid loading entire memory histories or large data. Do not run repository scripts just to gather context unless needed and safe. Do not assert that something is absent until a reasonable targeted search has checked it.
+- Locate the project root and obey its instructions (`CLAUDE.md`, `AGENTS.md`, and similar).
+- A repository uses Mycelium when `.living/` exists. `MYCELIUM.md` is optional: many Mycelium repositories carry only a Mycelium block in `CLAUDE.md` or `AGENTS.md`, or no guidance file at all. Partial structure is normal. Follow [references/mycelium.md](references/mycelium.md) for the lookup order, entry-ID caveats, and fallbacks.
+- In another repository, use its instructions, README, docs, tests, config, and code. With no repository, use the user's supplied context and mark missing evidence.
+- Search narrowly with `rg` and read excerpts; do not load whole memory histories or large data. Before stating that something is absent, run a targeted search for it.
+- Check whether findings, outputs, or a prior analysis already answer the task. If they do, say so first, cite them, and make reuse versus re-run an explicit choice in the plan.
+- Probe safely. Prefer file reads and `rg` (a file's header line often answers a column question). If a data property must be checked (columns, layers, dimensions, sample counts), use a brief inline read-only probe (`python3 -c`, `Rscript -e`, or heredoc stdin) that writes nothing, run with the interpreter or environment the repository documents (for example `conda run -n <env> python -c ...`). If the probe fails, do not debug it: mark the property unverified and make checking it the plan's first validation step. Never run a repository script, notebook, or pipeline by path during grilling: in a Mycelium repository that opens the post-action cycle, and the Stop hook then blocks until `.living/` is updated. If a Mycelium hook demands post-action updates anyway, tell the user which command tripped it and follow the hook.
 
 ## 2. Reconstruct and challenge
 
-Keep a compact internal evidence map: claim, source/path, date or commit if material, status (`intended`, `implemented`, `observed`, `proposed`), applicability, and confidence. Distinguish current user intent from repository evidence and your inference. A file's existence does not prove its outputs are current; a past decision does not prove the current implementation follows it.
+Keep a compact internal evidence map: claim, source/path, date or commit if material, status (`intended`, `implemented`, `observed`, `proposed`), applicability, and confidence. Distinguish current user intent from repository evidence and from your inference. A file's existence does not prove its outputs are current; a past decision does not prove the current implementation follows it.
 
-Test only relevant axes: goal, evidence/data, assumptions, meaningful alternatives, failure modes, and validation. For scientific work, distinguish exploration, prediction, and causal or mechanistic inference; identify the unit of analysis and obvious leakage or confounding risks when relevant. Challenge a premise directly when the repository contradicts it. Do not manufacture objections or expand the scope into an exhaustive audit.
+Test only relevant axes: goal, evidence/data, assumptions, meaningful alternatives, failure modes, and validation. For scientific work, distinguish exploration, prediction, and causal or mechanistic inference, and identify the unit of analysis and obvious leakage or confounding risks. For any bioinformatics or statistical analysis, walk [references/analysis-decisions.md](references/analysis-decisions.md): every applicable decision point must appear in the plan with a source, and none may stay implicit. The list sets coverage, not reading depth. A standing repository contract (for example scientific rules in `AGENTS.md` or an active convention) is valid `repo` evidence, and a point that cannot be sourced cheaply becomes a labeled default with a validation step.
 
-Resolve apparent conflicts by checking authority, recency, **applicability**, and whether a source explicitly supersedes another. Implementation describes what ran; conventions and decisions may describe what should run. Ask only if a remaining conflict would materially alter the next step and the user owns that choice. Otherwise choose a defensible path and expose the assumption.
+Challenge a premise directly when the repository contradicts it. When a prior decision or finding rejects the design the user asked for, do not silently override either side: present the evidence, recommend the repository's position or a reconciled design, and ask if the user owns the trade-off. Do not manufacture objections or expand the scope into an exhaustive audit.
 
-## 3. Gate every question
+Resolve apparent conflicts by checking authority, recency, **applicability**, and whether a source explicitly supersedes another. Implementation describes what ran; conventions and decisions may describe what should run.
 
-Before asking, check in order:
+## 3. Source every decision; gate every question
 
-1. Can repository evidence or another available source answer it? Investigate.
-2. Can you make a defensible technical choice within existing constraints? Decide and disclose the assumption.
-3. Could plausible answers materially change the scientific question, data, method, interpretation, deliverable, or next consequential action? If not, drop it.
-4. Does the user own this choice, and is it needed now? If not, defer it.
+Resolve each consequential decision by the first rule that applies:
 
-Ask the highest-value qualifying question, one at a time, with the evidence and a recommended default. Ask zero questions if the next action is already clear. Default to at most **two rounds and five total user questions**. This budget is a circuit breaker, not a target. At the limit, summarize established decisions, state recommended assumptions, and identify at most one genuinely blocking user decision. Do not restart a question tree or evade the budget by subdividing a question. If the user says “good enough,” stop and prepare the brief.
+1. Repository or other available evidence settles it: cite it (`repo: <path>`).
+2. A defensible technical choice exists within the project's constraints, and it does not settle something the user owns (the scientific question, the estimand, or an accepted trade-off): choose it and label it (`default: <reason>`).
+3. Plausible answers would change the scientific question, data, method, interpretation, deliverable, or next action, and the user owns the choice: ask (`user`).
+4. Otherwise drop it, or park it with a return condition if a later stage needs it.
 
-## 4. Converge and hand off
+Ask one question per message, the most consequential first, stating the evidence you found and a recommended default. Ask zero questions if nothing qualifies. Cap: **five questions per grill**. The cap is a circuit breaker, not a target. At the cap, turn remaining user-owned points into labeled defaults in the plan; the approval step is where the user overrides them. Do not restart a question tree or evade the cap by subdividing a question. If the user says "good enough," stop and write the plan.
 
-After each answer, ask internally: **Would plausible answers to any remaining user-owned unknown change the next consequential action?** If no, stop. Park issues whose answer is only needed at a later stage with a return condition. End with one status:
+## 4. Converge, brief, and wait
 
-- `READY`: no consequential unknown remains.
-- `READY_WITH_ASSUMPTIONS`: a stable next action exists with disclosed, reversible assumptions.
-- `DECISION_REQUIRED`: one specific user-owned choice truly blocks a stable next action; present options, recommendation, and consequence of each. Do not pretend an arbitrary question cap resolves a blocker.
+After each answer, check: **would plausible answers to any remaining user-owned unknown change the plan?** If not, stop. End with one status. Each status describes the plan; none grants permission to execute.
 
-Normally provide a 200–500 word brief with: objective; repository evidence (cite file paths and sections/lines when helpful); chosen approach and why; assumptions; key challenge or failure mode and validation; parked items; next action. Scale down for simple tasks. Label inferences clearly. Do not copy project knowledge into a giant specification. Do not write to `.living/`, manifests, todo, or analysis files during grilling; let the subsequent work follow the repository's normal lifecycle. Do not assume another plugin skill can be invoked programmatically; describe the next action in ordinary language.
+- `READY`: every consequential decision is sourced from the repository or the user.
+- `READY_WITH_ASSUMPTIONS`: the plan is stable, and some decisions rest on labeled, reversible defaults the user can override at approval without re-planning.
+- `DECISION_REQUIRED`: one user-owned choice leads to materially different plans (estimand, data, or deliverable), and no default is defensible without the user's intent. Give the options, a recommendation, and the consequence of each. Do not pretend the question cap resolves a blocker.
+
+Write a 200–500 word brief, plus the plan table (which does not count toward the limit). Scale down for simple tasks.
+
+- **Objective**: the question and, for scientific work, the estimand or contrast.
+- **Evidence**: file paths with sections or lines. For decisions and learnings, cite the heading title and line, not a bare positional `L-N` or `D-N`; finding IDs (`F-NNN`) are stable and can be cited with their topic file.
+- **Plan**: a numbered table. Each row gives the step, its consequential choice, the source (`repo: <path>`, `user`, or `default: <reason>`), and the validation check.
+- **Assumptions and risk**: each `default` row in one line, then the key failure mode and how the plan detects it.
+- **Parked**: deferred items, each with a return condition.
+- **Decisions to record**: user answers and defaults the executing workflow should log (for example to `.living/decisions.md`) once work begins.
+- **Next action**: approve or edit the plan, then the execution route: in a Mycelium repository, Mycelium's analyze skill (`/mycelium:analyze` in Claude Code, `$mycelium:analyze` in Codex); otherwise the repository's normal workflow.
+
+Then stop. In this turn, do not execute, create analysis folders, or write to `.living/`, manifests, todo, or analysis files. Execution starts only after the user approves or edits the plan, and it follows the repository's normal lifecycle, carrying the approved plan and the decisions to record. Name other skills rather than assuming they can be invoked programmatically.

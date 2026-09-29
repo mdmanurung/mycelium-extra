@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra Grill"
+  short_description: "Plan a task from repository evidence before running it"
+  default_prompt: "Use $mycelium-extra:grill to check this plan against the repository and return a sourced step-by-step plan before running anything."
