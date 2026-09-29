@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra Decision Status"
+  short_description: "Settle which past decision binds a task"
+  default_prompt: "Use $mycelium-extra:decision-status to check which past decisions in .living/decisions.md still bind this task, and ask me only about contested ones."

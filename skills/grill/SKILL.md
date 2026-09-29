@@ -24,7 +24,7 @@ Test only relevant axes: goal, evidence/data, assumptions, meaningful alternativ
 
 Challenge a premise directly when the repository contradicts it. When a prior decision or finding rejects the design the user asked for, do not silently override either side: present the evidence, recommend the repository's position or a reconciled design, and ask if the user owns the trade-off. Do not manufacture objections or expand the scope into an exhaustive audit.
 
-Resolve apparent conflicts by checking authority, recency, **applicability**, and whether a source explicitly supersedes another. Implementation describes what ran; conventions and decisions may describe what should run.
+Resolve apparent conflicts by checking authority, recency, **applicability**, and whether a source explicitly supersedes another. Implementation describes what ran; conventions and decisions may describe what should run. When two or more decision entries cover a choice the plan depends on, settle them with the decision-status skill's parser and resolution rules, but write nothing: a resolution the user confirms goes in the brief's "Decisions to record".
 
 ## 3. Source every decision; gate every question
 
