@@ -152,12 +152,53 @@ class GateTest(unittest.TestCase):
         self.assertIsNotNone(self.hook("stop", {"last_assistant_message": "x\n**Plan status**: READY"}))
 
     def test_plan_binding_is_by_path_token(self):
-        self.approve("run `nbs/a/b/x.ipynb` and analysis/b04_v3/run.py\n\nPlan status: READY")
+        self.approve("| 1 | run `nbs/a/b/x.ipynb` and analysis/b04_v3/run.py | user | ok |\n\n"
+                     "Plan status: READY")
         self.assertTrue(self.denied(self.bash("jupyter nbconvert --execute nbs/a/c/y.ipynb")))
         self.assertTrue(self.denied(self.bash("python analysis/b04/run.py")))
         self.assertIsNone(self.bash("python analysis/b04_v3/run.py"))
-        self.approve("rerun everything in nbs/a/ as before\n\nPlan status: READY")
+        self.approve("| 1 | rerun everything in nbs/a/ as before | user | ok |\n\nPlan status: READY")
         self.assertIsNone(self.bash("jupyter nbconvert --execute nbs/a/c/y.ipynb"))
+
+    def test_only_the_plan_table_approves(self):
+        plan = "\n".join([
+            "The table below had paths without the `nbs/cyto/` prefix; corrected here. No `sbatch`.",
+            "",
+            "- `nbs/cyto/08_focus/code/fit.R:10-40` is reused for contrasts.",
+            "",
+            "| # | Step (script) | Choice | Source | Validation |",
+            "|---|---|---|---|---|",
+            "| 1 | `nbs/cyto/13_vax/code/01_frame.R` | cohorts | user; `repo: nbs/cyto/03_surv/timing.R:144` "
+            "| counts |",
+            "| 2 | `nbs/cyto/13_vax/code/02_fit.R` | `~ g + (1\\|participant)` | nbs/cyto/06_sig/old.R "
+            "| weights |",
+            "| 3 | `nbs/cyto/13_vax/code/03_meta.R` | FE/REML | `repo: nbs/cyto/05_cox/rob.R:125` | Q |",
+            "",
+            "Plan status: READY_WITH_ASSUMPTIONS",
+        ])
+        notice = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
+        self.assertIn("approving lets these run: nbs/cyto/13_vax/code/01_frame.R, "
+                      "nbs/cyto/13_vax/code/02_fit.R, nbs/cyto/13_vax/code/03_meta.R.", notice)
+        self.hook("prompt", {"prompt": "approve plan " + notice.split("approve plan ")[1][:8]})
+        for script in ("01_frame.R", "02_fit.R", "03_meta.R"):
+            self.assertIsNone(self.bash("Rscript nbs/cyto/13_vax/code/" + script), script)
+        for command in [
+            "Rscript nbs/cyto/13_vax/code/05_extra.R",  # same folder, not in the table
+            "Rscript nbs/cyto/08_focus/code/fit.R",     # cited in Evidence
+            "Rscript nbs/cyto/03_surv/timing.R",        # cited in a Source cell
+            "Rscript nbs/cyto/06_sig/old.R",            # Source column, no `repo:` prefix
+            "Rscript nbs/cyto/05_cox/rob.R",
+            "sbatch job.sh",                            # named in prose only
+        ]:
+            self.assertTrue(self.denied(self.bash(command)), command)
+
+    def test_plan_without_table_approves_nothing(self):
+        text = "run analysis/x.py and sbatch job.sh\n\nPlan status: READY"
+        notice = self.hook("stop", {"last_assistant_message": text})["systemMessage"]
+        self.assertIn("no plan table", notice)
+        self.approve(text)
+        self.assertTrue(self.denied(self.bash("python analysis/x.py")))
+        self.assertTrue(self.denied(self.bash("sbatch job.sh")))
 
     def test_unknown_hash_says_so(self):
         result = self.hook("prompt", {"prompt": "approve plan deadbeef"})

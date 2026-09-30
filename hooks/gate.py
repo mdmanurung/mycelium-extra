@@ -46,6 +46,9 @@ VALUE_FLAGS = {"-n", "-p", "--name", "--prefix", "-e", "--environment", "--env",
 WRITERS = {">", ">>", "rm", "mv", "cp", "tee", "touch", "truncate", "ln", "install",
            "rsync", "dd", "chmod", "mkdir", "rmdir"}
 PATHLIKE = re.compile(r"[\w./~-]+")
+TABLE_ROW = re.compile(r"^\s*\|(.*)\|\s*$")
+TABLE_RULE = re.compile(r"^\s*\|?[\s|:]*-[\s|:-]*$")
+SOURCE_CITATION = re.compile(r"`?\brepo:\s*`?[^\s`|;,]+`?")
 INPUTS_LINE = re.compile(r"^[\s>*_`-]*inputs[\s*_`]*:(.*)$", re.IGNORECASE | re.MULTILINE)
 MAX_FOLDER_FILES = 5000
 LOCKFILES = ("renv.lock", "pixi.lock", "uv.lock", "poetry.lock", "Pipfile.lock", "conda-lock.yml",
@@ -489,21 +492,49 @@ def active_approvals(root, config):
 
 
 def covering(label, paths, approvals):
-    """The approvals whose plan covers a run, oldest first."""
+    """The approvals whose plan table covers a run, oldest first."""
     found = []
     for record in approvals:
-        plan = record.get("plan", "")
+        table = plan_table(record.get("plan", ""))
         if paths:
-            if all(path_in_plan(path, plan) for path in paths):
+            if all(path_in_plan(path, table) for path in paths):
                 found.append(record)
-        elif re.search(r"\b{}\b".format(re.escape(label)), plan):
+        elif names_command(label, table):
             found.append(record)
     return sorted(found, key=lambda record: record.get("approved_at", 0))
 
 
-def plan_paths(plan):
+def plan_table(plan):
+    """The text of the plan's table cells, minus Source cells and `repo:` citations.
+
+    Only the table approves runs: a path or command word in prose, Evidence,
+    or a source citation approves nothing. "" when the plan has no table.
+    """
+    lines = plan.splitlines()
+    cells, dropped = [], set()
+    for i, line in enumerate(lines):
+        if not TABLE_ROW.match(line):
+            dropped = set()
+            continue
+        if TABLE_RULE.match(line):
+            continue
+        parts = [cell.replace("\0", "|").strip()
+                 for cell in TABLE_ROW.match(line).group(1).replace("\\|", "\0").split("|")]
+        following = lines[i + 1] if i + 1 < len(lines) else ""
+        if TABLE_ROW.match(following) and TABLE_RULE.match(following):  # a header row
+            dropped = {j for j, cell in enumerate(parts) if "source" in cell.lower()}
+            continue
+        cells += [cell for j, cell in enumerate(parts) if j not in dropped]
+    return SOURCE_CITATION.sub(" ", "\n".join(cells))
+
+
+def names_command(command, table):
+    return re.search(r"\b{}\b".format(re.escape(command)), table) is not None
+
+
+def plan_paths(table):
     tokens = set()
-    for word in PATHLIKE.findall(plan):
+    for word in PATHLIKE.findall(table):
         word = word.rstrip(".,;:").rstrip("/")
         if word.startswith("./"):
             word = word[2:]
@@ -512,10 +543,24 @@ def plan_paths(plan):
     return tokens
 
 
-def path_in_plan(path, plan):
-    named = plan_paths(plan)
+def path_in_plan(path, table):
+    named = plan_paths(table)
     parts = path.split("/")
     return any("/".join(parts[:depth]) in named for depth in range(len(parts), 1, -1))
+
+
+def scope_notice(root, plan, config):
+    """Say which gated runs approving this plan would let through."""
+    table = plan_table(plan)
+    if not table.strip():
+        return ("mycelium-extra: this plan has no plan table, so approving it lets no gated run "
+                "through. Only paths and commands in the table count.")
+    runs = sorted(p for p in plan_paths(table) if gated_rel(root, root, p, config))
+    runs += [c for c in config["gated_commands"] if names_command(c, table)]
+    if not runs:
+        return ("mycelium-extra: the plan table names no gated script, folder, or command, so "
+                "approving it lets no gated run through.")
+    return "mycelium-extra: approving lets these run: {}.".format(listing(runs))
 
 
 # ---------------------------------------------------------------- pinned inputs
@@ -655,7 +700,8 @@ def on_tool(event, root, config):
     for label, paths in blocked:
         lines.append("  - {}{}".format(label, (" " + ", ".join(paths)) if paths else ""))
     lines.append("Active approved plans (last {} h): {}.".format(config["approval_hours"], hashes))
-    lines.append("Present a plan that names these paths and ends with the grill status line; "
+    lines.append("Present a plan whose plan table names these paths (prose, Evidence, and Source "
+                 "citations do not count) and that ends with the grill status line; "
                  "the user approves it by typing `approve plan <hash>`. Do not work around this "
                  "block; if the user wants an exploratory run instead, they will say so.")
     return deny("\n".join(lines))
@@ -746,6 +792,7 @@ def on_stop(event, root, config):
         entry["pins"] = pins or {}
         write_json(path, pending[-10:])
         notices.append("mycelium-extra: to approve this plan, type: approve plan " + digest)
+        notices.append(scope_notice(root, text, config))
         notices.append(pin_notice(pins, outside, previous))
     fresh = new_explore_runs(root, event.get("session_id"))
     if fresh:
