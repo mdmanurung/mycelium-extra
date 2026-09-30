@@ -150,7 +150,7 @@ Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip My
 
 **Limits.**
 
-- The gate denies the agent's Write/Edit calls into `.mycelium-extra/` and Bash commands that visibly modify it.
+- The gate denies the agent's Write/Edit calls into `.mycelium-extra/`. For Bash, it checks where a command writes: redirect targets, and the targets of `rm`, `cp`, `mv`, `tee`, `sed -i`, `find -delete`, and similar. A command that only mentions the folder passes, such as a learning about the gate appended to `.living/learnings.md`. An interpreter's code cannot be traced, so a runner is denied when it gets a path in the folder, or when its code mentions the folder and writes anything.
 - It passes a command by staying silent and never auto-allows, so your own permission prompts still apply.
 - On an internal error it fails open and says so.
 - It catches mistakes; it is not security. An agent set on bypassing it through Bash can do so.

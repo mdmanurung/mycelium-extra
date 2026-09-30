@@ -43,8 +43,18 @@ WRAPPERS = {"env", "time", "nohup", "nice", "command", "exec", "stdbuf", "timeou
             "conda", "mamba", "micromamba", "pixi", "uv", "run", "xvfb-run"}
 VALUE_FLAGS = {"-n", "-p", "--name", "--prefix", "-e", "--environment", "--env",
                "-J", "--job-name", "-t", "--time", "-A", "--account", "--partition"}
-WRITERS = {">", ">>", "rm", "mv", "cp", "tee", "touch", "truncate", "ln", "install",
-           "rsync", "dd", "chmod", "mkdir", "rmdir"}
+WRITE_ALL = {"rm", "rmdir", "mv", "tee", "touch", "truncate", "mkdir", "chmod", "chown", "shred",
+             "unlink"}  # every path argument is written
+WRITE_LAST = {"cp", "ln", "install", "rsync", "scp"}  # only the destination is written
+HEAD_SKIP = {"sudo", "do", "then", "else", "elif", "!", "{"}
+WRITE_CODE = re.compile(
+    r"""open\s*\([^)]*,\s*(mode\s*=\s*)?['"][^'"]*[wax+]|\.write(_text|_bytes|lines)?\s*\("""
+    r"|\b(json|pickle)\.dump\s*\(|\bshutil\.\w+\s*\(|\bsubprocess\.|\bos\.system\s*\("
+    r"|\bos\.(remove|unlink|rename|renames|replace|makedirs|mkdir|rmdir|removedirs|truncate|symlink"
+    r"|link|chmod)\s*\(|\.(unlink|touch|mkdir|rmdir|rename|replace|symlink_to|chmod)\s*\("
+    r"|\b(writeLines|saveRDS|save|write\.(csv|table|delim)|write_(csv|tsv|delim|lines|json|rds)"
+    r"|file\.(remove|rename|create|copy|append)|unlink|dir\.create|sink|system2?)\s*\("
+    r"|\bcat\s*\([^)]*\bfile\s*=")
 PATHLIKE = re.compile(r"[\w./~-]+")
 TABLE_ROW = re.compile(r"^\s*\|(.*)\|\s*$")
 TABLE_RULE = re.compile(r"^\s*\|?[\s|:]*-[\s|:-]*$")
@@ -443,13 +453,17 @@ def classify(tokens, root, cwd, config):
     return explore, (head if rel else None), ([rel] if rel else [])
 
 
+def cd_target(cwd, tokens):
+    target = tokens[1] if len(tokens) > 1 else os.path.expanduser("~")
+    return os.path.normpath(os.path.join(cwd, os.path.expanduser(target)))
+
+
 def analyse_command(command, root, cwd, config):
     """Yield (explore, label, paths, segment, tokens, cwd) for each gated segment."""
     virtual_cwd = cwd
     for tokens in segments(command):
         if tokens[0] == "cd":
-            target = tokens[1] if len(tokens) > 1 else os.path.expanduser("~")
-            virtual_cwd = os.path.normpath(os.path.join(virtual_cwd, os.path.expanduser(target)))
+            virtual_cwd = cd_target(virtual_cwd, tokens)
             continue
         explore, label, paths = classify(tokens, root, virtual_cwd, config)
         if label == "recurse":
@@ -465,16 +479,96 @@ def analyse_command(command, root, cwd, config):
             yield explore, label, paths, " ".join(tokens), tokens, virtual_cwd
 
 
-def writes_state(command):
+def writes_state(command, root, cwd):
+    """True if the command visibly writes into the gate's state folder.
+
+    Redirect and file-command targets are resolved against the folder, so a
+    command that only mentions it (reading it, or writing text about it
+    elsewhere) passes. A runner's code cannot be traced: it counts when it
+    gets a path in the folder, or when its code mentions the folder and writes.
+    """
     if STATE_DIR not in command:
         return False
-    tokens = tokenize(command)
-    words = {os.path.basename(t) for t in tokens}
-    if words & WRITERS:
-        return True
-    if any(RUNNERS.match(w) for w in words):
-        return True
-    return "sed" in words and any(t.startswith("-i") for t in tokens)
+    state = os.path.realpath(state_path(root))
+    bound = binds_state(tokenize(command))
+    virtual_cwd = cwd
+    for tokens in segments(command):
+        if tokens[0] == "cd":
+            virtual_cwd = cd_target(virtual_cwd, tokens)
+            continue
+
+        def inside(token):
+            if "$" in token or "`" in token:  # unresolvable: may hold a path into the folder
+                return STATE_DIR in token or bound
+            path = os.path.realpath(os.path.join(virtual_cwd, os.path.expanduser(token)))
+            return path == state or path.startswith(state + os.sep)
+
+        if segment_writes(tokens, command, inside, root, virtual_cwd):
+            return True
+    return False
+
+
+def binds_state(tokens):
+    """Whether a variable in the command may hold a path into the state folder."""
+    for j, token in enumerate(tokens):
+        if is_assignment(token) and STATE_DIR in token:
+            return True
+        if token == "in" and j >= 2 and tokens[j - 2] == "for":
+            for item in tokens[j + 1:]:
+                if is_separator(item):
+                    break
+                if STATE_DIR in item:
+                    return True
+    return False
+
+
+def segment_writes(tokens, command, inside, root, cwd):
+    for j, token in enumerate(tokens[:-1]):
+        if token in (">", ">>") and inside(tokens[j + 1]):
+            return True
+    i, previous = 0, ""
+    while i < len(tokens) and (tokens[i] in WRAPPERS or tokens[i] in HEAD_SKIP or is_assignment(tokens[i])
+                               or tokens[i].startswith("-") or previous in VALUE_FLAGS
+                               or re.match(r"^\d+[smhd]?$", tokens[i])):
+        previous = tokens[i]
+        i += 1
+    if i >= len(tokens):
+        return False
+    head, args = os.path.basename(tokens[i]), tokens[i + 1:]
+    code = [args[j + 1] for j, t in enumerate(args[:-1]) if t in ("-c", "-e", "--eval")]
+    stdin = [args[j + 1] for j, t in enumerate(args[:-1]) if t == "<"]
+    positional, skip = [], False
+    for token in args:
+        if skip or token in code:
+            skip = False
+            continue
+        skip = token in (">", ">>", "<", "<<", "<<-")
+        if not skip and not token.startswith("-") and not token.startswith(">"):
+            positional.append(token)
+    if head in SHELLS and code:
+        return any(writes_state(payload, root, cwd) for payload in code)
+    if head == "eval":
+        return writes_state(" ".join(args), root, cwd)
+    if head == "xargs":  # its targets arrive on stdin
+        return any(os.path.basename(t) in WRITE_ALL | WRITE_LAST for t in args)
+    if head in WRITE_ALL:
+        return any(inside(t) for t in positional)
+    if head in WRITE_LAST:
+        targets = positional[-1:] + [t.split("=", 1)[1] for t in args if t.startswith("--target-directory=")]
+        targets += [args[j + 1] for j, t in enumerate(args[:-1]) if t == "-t"]
+        return any(inside(t) for t in targets)
+    if head == "dd":
+        return any(t.startswith("of=") and inside(t[3:]) for t in args)
+    if head in ("sed", "perl") and any(re.match(r"^-\w*i", t) for t in args):
+        return any(inside(t) for t in positional)
+    if head == "find" and any(t in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for t in args):
+        return any(inside(t) for t in positional)
+    if RUNNERS.match(head):
+        if any(inside(t) for t in positional + stdin):
+            return True
+        text = "\n".join(code) if code else command  # heredoc bodies live only in the raw command
+        return STATE_DIR in text and WRITE_CODE.search(text) is not None
+    return False
 
 
 # ---------------------------------------------------------------- approvals
@@ -652,7 +746,7 @@ def on_tool(event, root, config):
     if tool != "Bash":
         return None
     command = tool_input.get("command", "")
-    if writes_state(command):
+    if writes_state(command, root, event.get("cwd") or root):
         return deny("mycelium-extra: this command appears to modify {}/, which holds gate state. "
                     "Reading it is fine; changing it is the user's call.".format(STATE_DIR))
     approvals = None

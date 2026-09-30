@@ -217,11 +217,43 @@ class GateTest(unittest.TestCase):
         ]:
             result = self.hook("tool", {"tool_name": tool, "tool_input": {field: path}})
             self.assertTrue(self.denied(result), path)
-        self.assertTrue(self.denied(self.bash("echo {} > .mycelium-extra/approvals/a.json")))
-        self.assertTrue(self.denied(self.bash("rm .mycelium-extra/gate.json")))
-        self.assertTrue(self.denied(self.bash(
-            "python3 -c \"open('.mycelium-extra/approvals/x.json','w').write('{}')\"")))
-        self.assertIsNone(self.bash("cat .mycelium-extra/gate.json"))
+        for command in [
+            "echo {} > .mycelium-extra/approvals/a.json",
+            "echo {} >.mycelium-extra/approvals/a.json",
+            "rm .mycelium-extra/gate.json",
+            "python3 -c \"open('.mycelium-extra/approvals/x.json','w').write('{}')\"",
+            "cd .mycelium-extra && rm gate.json",
+            "cp /tmp/a.json .mycelium-extra/approvals/",
+            "mv .mycelium-extra/gate.json /tmp/",
+            "sed -i s/24/9999/ .mycelium-extra/gate.json",
+            "D=.mycelium-extra; rm $D/gate.json",
+            'for f in .mycelium-extra/approvals/*; do rm "$f"; done',
+            "python3 - <<'EOF'\nimport json\njson.dump({}, open('.mycelium-extra/approvals/x.json', 'w'))\nEOF",
+            "find .mycelium-extra -name '*.json' -delete",
+            "dd if=/dev/zero of=.mycelium-extra/gate.json",
+            "echo x | tee -a .mycelium-extra/receipts.jsonl",
+            'bash -c "rm .mycelium-extra/gate.json"',
+            'eval "rm .mycelium-extra/gate.json"',
+            "ls .mycelium-extra/approvals | xargs rm",
+            "python3 tools/x.py .mycelium-extra/approvals/a.json",
+            "mkdir -p .mycelium-extra/approvals",
+        ]:
+            self.assertTrue(self.denied(self.bash(command)), command)
+        for command in [
+            "cat .mycelium-extra/gate.json",
+            "ls .mycelium-extra/ 2>/dev/null",
+            "git check-ignore -v .mycelium-extra/gate.json || echo NOT-ignored",
+            "cp .mycelium-extra/receipts.jsonl /tmp/r.jsonl",
+            "cat .mycelium-extra/gate.json > /tmp/g.json 2>&1",
+            # Mycelium's session-end writes, with text that mentions the folder
+            "printf '### Gate blocked a run\\n**What happened**: see .mycelium-extra/approvals\\n' "
+            ">> .living/learnings.md",
+            "cat >> .living/learnings.md <<'EOF'\napprovals live in .mycelium-extra/approvals\nEOF",
+            'python3 "$MYC/skills/core/scripts/upsert_registry_row.py" .living/log/LOG_REGISTRY.md s1 '
+            '"| read .mycelium-extra/receipts.jsonl |"',
+            "python3 - <<'EOF'\nimport json\nprint(json.load(open('.mycelium-extra/approvals/x.json')))\nEOF",
+        ]:
+            self.assertIsNone(self.bash(command), command)
         self.assertIsNone(self.hook("tool", {"tool_name": "Write",
                                              "tool_input": {"file_path": "analysis/x.py"}}))
 
