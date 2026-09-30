@@ -170,4 +170,4 @@ Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip My
 
 ## Development
 
-Tests: `python3 skills/<skill>/tests/test_*.py` and `python3 hooks/tests/test_gate.py`. Bump `version` in `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, and `.claude-plugin/marketplace.json` together, so `claude plugin update` picks up the change.
+Tests: `python3 skills/<skill>/tests/test_*.py` and `python3 hooks/tests/test_gate.py`. Hooks call bare `python3`, which is 3.6 on some HPC systems, so keep every script 3.6-compatible; the gate tests compile them all under `python3.6` when it is installed. Bump `version` in `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, and `.claude-plugin/marketplace.json` together, so `claude plugin update` picks up the change.

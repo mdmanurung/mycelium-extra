@@ -1,5 +1,6 @@
 """Run: python3 hooks/tests/test_gate.py"""
 
+import glob
 import json
 import os
 import shutil
@@ -486,6 +487,22 @@ class GateTest(unittest.TestCase):
         self.approve(PLAN.replace("analysis/x.py", "analysis/new.py"))
         self.post("python analysis/new.py", {"stdout": "3"})
         self.assertEqual(self.receipts()[-1]["script"]["git"], "untracked")
+
+
+class CompatibilityTest(unittest.TestCase):
+    def test_scripts_compile_on_python_36(self):
+        # Hooks call bare `python3`, which is 3.6 on some HPC systems. A SyntaxError there
+        # happens before gate.py can fail open and say so, so the gate silently switches off.
+        python36 = shutil.which("python3.6")
+        if not python36:
+            self.skipTest("python3.6 is not installed")
+        repo = os.path.join(os.path.dirname(GATE), "..")
+        for script in [GATE] + glob.glob(os.path.join(repo, "skills", "*", "scripts", "*.py")):
+            proc = subprocess.Popen(
+                [python36, "-c", "import sys; compile(open(sys.argv[1]).read(), sys.argv[1], 'exec')",
+                 script], stderr=subprocess.PIPE)
+            _, err = proc.communicate()
+            self.assertEqual(proc.returncode, 0, err.decode("utf-8"))
 
 
 if __name__ == "__main__":
