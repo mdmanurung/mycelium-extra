@@ -49,6 +49,7 @@ Write a 200–500 word brief, plus the plan table (which does not count toward t
 
 - **Objective**: the question and, for scientific work, the estimand or contrast.
 - **Evidence**: file paths with sections or lines. For decisions and learnings, cite the heading title and line, not a bare positional `L-N` or `D-N`; finding IDs (`F-NNN`) are stable and can be cited with their topic file.
+- **Inputs**: one line, `Inputs: <path>, <path>`, naming by repository path the files the plan's validity rests on: the sample table, config or params files, a lockfile, or a folder of raw files. Not scripts or outputs. Where the approval gate is enabled, it pins these files when it shows the approval hash and blocks a launch if one changes first. Write `Inputs: none` when nothing qualifies.
 - **Plan**: a numbered table. Each row gives the step, its consequential choice, the source (`repo: <path>`, `user`, or `default: <reason>`), and the validation check.
 - **Assumptions and risk**: each `default` row in one line, then the key failure mode and how the plan detects it.
 - **Parked**: deferred items, each with a return condition.
