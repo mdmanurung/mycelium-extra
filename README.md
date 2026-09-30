@@ -10,7 +10,7 @@ It has four skills and one hook set:
 | `decision-status` | Settles which past decision binds a task | Appends to `.living/decisions.md`, after you confirm |
 | `data-contract-check` | Tests a plan's sample-table assumptions | Nothing |
 | `init` | Turns on the approval gate in a repository | `.mycelium-extra/gate.json`, `.gitignore` |
-| Approval gate | Blocks analysis runs until you approve the plan | `.mycelium-extra/` only |
+| Approval gate | Blocks analysis runs until you approve the plan, blocks them if the plan's inputs changed, and records a receipt per run | `.mycelium-extra/` only |
 
 ## Installation
 
@@ -79,7 +79,7 @@ Common prompts:
 
 It then tests the goal, evidence, assumptions, alternatives, failure modes, and validation. For bioinformatics or statistical work it also walks a list of analysis decisions (unit of replication, matrix state, references, QC, batch, multiplicity, and more), so none stays implicit.
 
-It asks only questions that you own and that could change the plan: one per message, at most five. It ends with `READY`, `READY_WITH_ASSUMPTIONS`, or one `DECISION_REQUIRED` item, plus a numbered plan. Each consequential choice in the plan cites its source: repository evidence, your answer, or a labeled default. Nothing runs until you approve or edit the plan.
+It asks only questions that you own and that could change the plan: one per message, at most five. It ends with `READY`, `READY_WITH_ASSUMPTIONS`, or one `DECISION_REQUIRED` item, plus a numbered plan. Each consequential choice in the plan cites its source: repository evidence, your answer, or a labeled default. An `Inputs:` line names the files the plan rests on, which the approval gate pins. Nothing runs until you approve or edit the plan.
 
 ### decision-status
 
@@ -121,6 +121,29 @@ Claude Code hooks in `hooks/` enforce grill's rule that nothing runs until you a
 
 Reading gated files (`cat`, `rg`, `git`) is never gated.
 
+**Pinned inputs.** A grill brief has an `Inputs:` line naming, by repository path, the files the plan rests on: the sample table, config or params files, a lockfile, or a folder of raw files. When the Stop hook shows `approve plan <hash>`, it also fingerprints those files and lists them.
+
+- A file gets a sha256 while the per-hook budget lasts: `pin_hash_mb` bytes (default 200) and `pin_seconds` seconds (default 5) in `gate.json`. After that it gets size and mtime.
+- A folder gets a fingerprint of its file names, sizes, and mtimes, up to 5,000 files. Contents are not read. A folder the time limit cuts off is named as not pinned.
+- If the time limit cuts off the check before a run, the run goes ahead and the gate names the inputs it did not re-check.
+- A path outside the repository is named in the notice and not pinned. Symlinks inside the repository are followed.
+- Showing the same plan again re-pins it, and the notice names any file that changed since the plan was last shown.
+- A plan with no `Inputs:` line pins nothing, and the notice says so.
+
+Approving copies the pins into the approval. Before a covered run, the gate fingerprints them again and blocks the run if one changed, naming the file with its old and new fingerprint. Re-check the input (for example, re-run the data-contract check), show the plan again, and approve it. Explore runs skip this check.
+
+**Run receipts.** After each gated Bash call, a PostToolUse hook appends one line per run to `.mycelium-extra/receipts.jsonl` (schema `mycelium-extra.receipt.v1`). A receipt holds:
+
+- The approved plans that cover the run and their pins, or none. `pins_checked` is false for explore runs, which skip the pin check.
+- Git HEAD, whether tracked files have uncommitted changes, and whether each recorded file is committed, modified, untracked, or ignored.
+- The script's fingerprint (or the sha256 of an `sbatch --wrap` payload), and its `module load`, `conda activate`, and `#SBATCH` lines.
+- Lockfiles (`renv.lock`, `pixi.lock`, `environment.yml`, and similar) in the repository root, the working directory, and the script's folder.
+- The environment the hook itself runs in (`hook_env`), and any `conda run -n` environment in the command (`command_env`).
+- For `sbatch`, the job ID. For snakemake and nextflow, the Snakefile or pipeline, config and params fingerprints, report and trace paths, the nextflow run name, and a pointer to the engine's own record (`.snakemake/metadata`, `.nextflow/history`).
+- The exit status when Claude Code reports one, and the key names of its Bash result (`response_keys`).
+
+Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip Mycelium's Stop hook. A planned verify step will copy verified receipts into the analysis folder after you confirm them.
+
 **Exploratory runs.** Type `allow explore` to let runs prefixed with `MYCELIUM_EXTRA_EXPLORE=1` through for this session; type `stop explore` to end it. Without the grant the prefix is denied, so the agent cannot exempt itself. Each explore run is logged, and the Stop hook lists those runs as not reportable. Only the log marks them; their output files carry no label.
 
 **Limits.**
@@ -129,6 +152,10 @@ Reading gated files (`cat`, `rg`, `git`) is never gated.
 - It passes a command by staying silent and never auto-allows, so your own permission prompts still apply.
 - On an internal error it fails open and says so.
 - It catches mistakes; it is not security. An agent set on bypassing it through Bash can do so.
+- Size-and-mtime and folder fingerprints miss an edit that keeps both (for example `cp -p` or `rsync -t`). The notice says which fingerprint each input got.
+- A receipt records the environment a job declares, not the one it resolved. `hook_env` is Claude Code's environment, not the job's.
+- A job ID records a submission, not its outcome. Check `sacct` or the job log.
+- The shape of Claude Code's Bash result is not documented, so `exit_status` can be empty. Whether the receipt hook fires after a failed command is unverified.
 - Claude Code only; there is no Codex port yet.
 
 ## Relation to Mycelium
