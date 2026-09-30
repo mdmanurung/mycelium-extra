@@ -146,7 +146,7 @@ Approving copies the pins into the approval. Before a covered run, the gate fing
 
 Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip Mycelium's Stop hook. A planned verify step will copy verified receipts into the analysis folder after you confirm them.
 
-**Exploratory runs.** Type `allow explore` to let runs prefixed with `MYCELIUM_EXTRA_EXPLORE=1` through for this session; type `stop explore` to end it. Without the grant the prefix is denied, so the agent cannot exempt itself. Each explore run is logged, and the Stop hook lists those runs as not reportable. Only the log marks them; their output files carry no label.
+**Exploratory runs.** Type `allow explore` to let runs prefixed with `MYCELIUM_EXTRA_EXPLORE=1` through for this session; type `stop explore` to end it. Without the grant the prefix is denied, so the agent cannot exempt itself. Each explore run is logged, and the Stop hook lists those runs as not reportable. After each one, the receipt hook tells the agent the run is not reportable, so a learning or finding it records from the run (for example under Mycelium's post-action protocol) is labeled `Exploratory run (not reportable)`. Output files carry no label.
 
 **Limits.**
 

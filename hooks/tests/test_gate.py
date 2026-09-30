@@ -444,6 +444,14 @@ class GateTest(unittest.TestCase):
         self.assertEqual(receipt["engine"]["report"], "report.html")
         self.assertEqual(receipt["engine"]["record"], ".snakemake/metadata")
 
+    def test_explore_receipt_tells_agent_not_reportable(self):
+        notice = self.post("MYCELIUM_EXTRA_EXPLORE=1 python analysis/x.py", {"stdout": ""})
+        self.assertIn("explore run", notice["systemMessage"])
+        self.assertIn("Exploratory run (not reportable)", notice["hookSpecificOutput"]["additionalContext"])
+        self.assertTrue(self.receipts()[0]["explore"])
+        notice = self.post("python analysis/x.py", {"stdout": ""})
+        self.assertNotIn("hookSpecificOutput", notice)
+
     def test_ungated_and_uncovered_runs(self):
         self.assertIsNone(self.post("ls analysis", {"stdout": ""}))
         self.assertEqual(self.receipts(), [])

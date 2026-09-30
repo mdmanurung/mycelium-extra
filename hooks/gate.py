@@ -962,7 +962,14 @@ def on_post(event, root, config):
         what = "{} job {}".format(label, receipt["job_id"]) if receipt.get("job_id") else label
         notes.append("{} ({})".format(what, "plan " + receipt["plans"][-1] if records
                                       else "explore run" if explore else "no approved plan"))
-    return {"systemMessage": "mycelium-extra: run receipt recorded: {}.".format("; ".join(notes))}
+    result = {"systemMessage": "mycelium-extra: run receipt recorded: {}.".format("; ".join(notes))}
+    if any(run[0] for run in runs):
+        # Mycelium's post-action protocol asks for findings after any run; keep this one out of results.
+        result["hookSpecificOutput"] = {"hookEventName": "PostToolUse", "additionalContext": (
+            "mycelium-extra: that was an exploratory run, not reportable. If you record a learning or "
+            "finding from it (for example under Mycelium's post-action protocol), label it "
+            "`Exploratory run (not reportable)`, and do not cite its outputs as results.")}
+    return result
 
 
 def response_text(value):
