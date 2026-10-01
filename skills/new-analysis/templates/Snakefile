@@ -1,0 +1,25 @@
+"""@@NAME@@: run the numbered steps in order.
+
+From anywhere: snakemake -s @@DEST@@/Snakefile --cores 4   (or: bash @@DEST@@/run.sh)
+One step:      snakemake -s @@DEST@@/Snakefile --cores 4 <rule name>
+Interpreters:  --config rscript=/path/to/Rscript python=/path/to/python jupyter=/path/to/jupyter
+
+Paths are relative to this folder. Outputs go to outputs/ with the step's number as prefix;
+logs, benchmarks, and executed notebooks go to logs/. Wrap an output in protected() once it
+is expensive to recompute.
+"""
+
+workdir: workflow.basedir
+
+RSCRIPT = config.get("rscript", "Rscript")
+PYTHON = config.get("python", "python")
+JUPYTER = config.get("jupyter", "jupyter")
+THREADS = "OPENBLAS_NUM_THREADS={threads} OMP_NUM_THREADS={threads} MKL_NUM_THREADS={threads} "
+
+
+rule all:
+    input:
+        "@@LAST_OUTPUT@@",
+
+
+@@RULES@@

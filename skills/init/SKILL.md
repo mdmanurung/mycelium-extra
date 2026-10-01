@@ -1,6 +1,6 @@
 ---
 name: init
-description: Turn on the mycelium-extra plan-approval gate in a repository. Creates `.mycelium-extra/gate.json` and ignores `.mycelium-extra/` in `.gitignore`, so analysis scripts and job launchers (sbatch, snakemake, nextflow) cannot run until the user approves a grill plan. Use when the user invokes mycelium-extra init, or asks to set up, enable, start, or initialize the approval gate or `gate.json` in a repository. Never changes a gate that is already on. Not for setting up Mycelium itself (use Mycelium's own init) and not for editing an existing gate's settings.
+description: Turn on the mycelium-extra plan-approval gate in a repository. Creates `.mycelium-extra/gate.json` and ignores `.mycelium-extra/` in `.gitignore`, so analysis scripts and job launchers (sbatch, snakemake, nextflow) cannot run until the user approves a grill plan. Use when the user invokes mycelium-extra init, or asks to set up, enable, start, or initialize the approval gate or `gate.json` in a repository. Never changes a gate that is already on. Not for setting up Mycelium itself (use Mycelium's own init), not for editing an existing gate's settings, and not for creating an analysis folder (use new-analysis).
 ---
 
 # Mycelium Extra: Init

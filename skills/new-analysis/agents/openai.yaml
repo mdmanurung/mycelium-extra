@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra New Analysis"
+  short_description: "Scaffold a new analysis folder that plugs into Mycelium"
+  default_prompt: "Use $mycelium-extra:new-analysis to create a new analysis folder with numbered steps, a Snakefile, PLAN.md, and TRACKER.md."
