@@ -2,7 +2,7 @@
 
 A standalone plugin for planning analysis work before it runs. It works alongside [Mycelium](https://github.com/arjunrajlaboratory/mycelium) but does not fork, modify, or require it.
 
-It has four skills and one hook set:
+It has five skills and one hook set:
 
 | Part | What it does | Writes |
 |---|---|---|
@@ -10,6 +10,7 @@ It has four skills and one hook set:
 | `decision-status` | Settles which past decision binds a task | Appends to `.living/decisions.md`, after you confirm |
 | `data-contract-check` | Tests a plan's sample-table assumptions | Nothing |
 | `init` | Turns on the approval gate in a repository | `.mycelium-extra/gate.json`, `.gitignore` |
+| `new-analysis` | Creates a new analysis folder: numbered steps, a Snakefile, Mycelium's analysis doc, one plan, one tracker | The new folder only |
 | Approval gate | Blocks analysis runs until you approve the plan, blocks them if the plan's inputs changed, and records a receipt per run | `.mycelium-extra/` only |
 
 ## Installation
@@ -67,6 +68,7 @@ Common prompts:
 | Settle conflicting past decisions | `/mycelium-extra:decision-status Which batch-correction decision binds the integration rerun?` |
 | Check the sample table before running | `/mycelium-extra:data-contract-check Check the approved plan's cohort, pairing, and batch assumptions against the sample table.` |
 | Turn on the gate | `/mycelium-extra:init` |
+| Start a new analysis folder | `/mycelium-extra:new-analysis analysis/gdt-seminmf-dream: does semi-NMF program usage differ by arm? Link data/anndatas/gdt.h5ad.` |
 | Run a quick test without a plan | Type `allow explore`; type `stop explore` when done. |
 
 `grill` calls `decision-status` and `data-contract-check` itself when a plan depends on them, so you rarely need to invoke those directly.
@@ -102,6 +104,43 @@ It checks a plan's assumptions about the sample table before anything runs. The 
 - batch versus contrast nesting
 
 A stdlib checker reports each mismatch with expected, observed, and evidence lines, in the shape of ClawBio's contract alerts. The checker, not the contract, decides what blocks: any failure of these kinds blocks. The skill never loosens a contract to make it pass without your agreement. v1 reads CSV/TSV tables; it does not yet check h5ad internals.
+
+### new-analysis
+
+It creates the folder a new analysis lives in. It uses Mycelium's own pieces and adds only what Mycelium lacks.
+
+```
+analysis/<name>/
+├── 01_prepare_data.R  02_train_model.py  03_explore_model.ipynb
+├── Snakefile      # runs the steps in number order
+├── run.sh         # Mycelium's entry point; calls snakemake
+├── <NAME>.md      # Mycelium's analysis doc, plus a Steps table
+├── PLAN.md        # the one plan for this analysis
+├── TRACKER.md     # status of each plan item, and a dated log
+├── data/  code/   # symlinks to data and shared code
+├── outputs/       # flat; file names start with the step number
+├── logs/          # Snakemake and SLURM logs, executed notebooks
+└── reports/       # Mycelium's report skill
+```
+
+- **Steps.** The numbered steps sit at the folder root, so their order is visible at a glance. Each one is a stub that:
+  - states its input and output
+  - sets a seed
+  - stops with an error until you write it
+- **`<NAME>.md`.**
+  - It comes from Mycelium's `analysis-readme.md` template, found through `.mycelium/plugin-root`, or from a bundled copy.
+  - `/mycelium:analyze` reads it, Mycelium's post-action hook updates it, and `validate_structure.py` checks that it exists.
+  - Results go in its Key Findings section, citing `outputs/` files and `.living/findings` IDs.
+  - Outside a Mycelium repository the doc is `README.md`.
+- **`PLAN.md`.** It uses the grill brief's headings, so an approved brief goes straight in. Revise it in place; never start a second plan file.
+- **Snakefile.** It runs from the analysis folder, so every path is relative to it. The interpreters default to `Rscript`, `python`, and `jupyter` on PATH; override them with `--config`.
+- **Safety.**
+  - It refuses a non-empty folder, bad step names, and missing link targets.
+  - It never overwrites.
+  - It warns when git would ignore a file it creates. In scale, for example, `analysis/*/docs/` and `analysis/*/results/` are ignored.
+- **Mycelium's files.** It writes nothing to `.living/` or the manifests. It prints a suggested `ANALYSIS_MANIFEST.md` entry. `/mycelium:analyze <name>` then continues the folder as an existing analysis and records it.
+
+The robust-analysis protocols save figures to subfolders such as `outputs/figures/diagnostic/`. A flat `outputs/` holds only after you record it as a repo-local convention, which Mycelium applies before domain and core conventions.
 
 ### Approval gate
 
@@ -165,6 +204,7 @@ Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip My
 - `grill` makes no edits. It never writes `.living/`, manifests, todo, or analysis files. It never runs repository scripts by path, because that would start Mycelium's post-action cycle. Its data checks use inline read-only probes.
 - `decision-status` writes to `.living/decisions.md` only after you confirm a resolution, and only by appending. Its parser runs from stdin (`python3 - ... < decision_threads.py`), which the Mycelium 0.6.0 and 0.7.2 hooks do not treat as a post-action run.
 - `data-contract-check` is read-only and runs the same way. Its contract stays outside the repository until you approve the plan.
+- `new-analysis` writes only inside the new folder. Its script also runs from stdin. The folder uses Mycelium's layout (`<NAME>.md`, `outputs/`, `reports/`, `run.sh`) plus a plan, a tracker, a Snakefile, and `data/` and `code/` links, so `/mycelium:analyze` continues it as an existing analysis rather than building a second skeleton.
 - After you approve a plan, run it through your normal workflow. In a Mycelium project that is `/mycelium:analyze` (`$mycelium:analyze` in Codex), which logs the brief's "Decisions to record" through Mycelium's lifecycle.
 - `/mycelium:review grill` reviews an existing analysis or diff; `grill` plans before execution. Use both.
 
