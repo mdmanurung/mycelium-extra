@@ -13,6 +13,7 @@ receipt per gated run to .mycelium-extra/receipts.jsonl.
 """
 
 import fnmatch
+import functools
 import hashlib
 import json
 import os
@@ -29,6 +30,7 @@ DEFAULTS = {
     "pin_hash_mb": 200,
     "pin_seconds": 5,
 }
+SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
 APPROVE = re.compile(r"^\s*approve plan(?: ([0-9a-f]{8}))?\s*[.!]?\s*$", re.IGNORECASE)
 EXPLORE_GRANT = re.compile(r"^\s*(allow|stop) explore\s*[.!]?\s*$", re.IGNORECASE)
@@ -574,11 +576,16 @@ def segment_writes(tokens, command, inside, root, cwd):
 # ---------------------------------------------------------------- approvals
 
 def active_approvals(root, config):
+    """Approvals from the last `approval_hours`, or None if reading them ran out of time.
+    Approval files are kept (verify reads old ones), so the folder only grows."""
     folder = state_path(root, "approvals")
     horizon = time.time() - float(config["approval_hours"]) * 3600
+    deadline = time.time() + SCAN_SECONDS
     approvals = []
     if os.path.isdir(folder):
         for name in sorted(os.listdir(folder)):
+            if time.time() >= deadline:
+                return None
             record = read_json(os.path.join(folder, name), None)
             if record and record.get("approved_at", 0) >= horizon:
                 approvals.append(record)
@@ -598,6 +605,7 @@ def covering(label, paths, approvals):
     return sorted(found, key=lambda record: record.get("approved_at", 0))
 
 
+@functools.lru_cache(maxsize=None)
 def plan_table(plan):
     """The text of the plan's table cells, minus Source cells and `repo:` citations.
 
@@ -626,6 +634,7 @@ def names_command(command, table):
     return re.search(r"\b{}\b".format(re.escape(command)), table) is not None
 
 
+@functools.lru_cache(maxsize=None)
 def plan_paths(table):
     tokens = set()
     for word in PATHLIKE.findall(table):
@@ -634,7 +643,7 @@ def plan_paths(table):
             word = word[2:]
         if "/" in word:
             tokens.add(word)
-    return tokens
+    return frozenset(tokens)  # cached, so callers must not mutate it
 
 
 def path_in_plan(path, table):
@@ -764,6 +773,8 @@ def on_tool(event, root, config):
                         "around this block; ask the user.")
         if approvals is None:
             approvals = active_approvals(root, config)
+            if approvals is None:
+                return deny(SCAN_TIMEOUT)
         records = covering(label, paths, approvals)
         if not records:
             blocked.append((label, paths))
@@ -799,6 +810,13 @@ def on_tool(event, root, config):
                  "the user approves it by typing `approve plan <hash>`. Do not work around this "
                  "block; if the user wants an exploratory run instead, they will say so.")
     return deny("\n".join(lines))
+
+
+SCAN_TIMEOUT = (
+    "mycelium-extra gate: blocked because reading {}/approvals/ took longer than {} s, so the gate "
+    "cannot tell whether an approved plan covers this run. This happens when that folder holds very "
+    "many files or sits on a slow filesystem. The user can move approvals they no longer need to "
+    "verify out of it. Do not work around this block.".format(STATE_DIR, SCAN_SECONDS))
 
 
 def deny(reason):
@@ -935,7 +953,9 @@ def on_post(event, root, config):
     approvals = active_approvals(root, config)
     budget = hash_budget(config)
     git = git_state(root)
-    notes = []
+    unread = approvals is None
+    notes = ["approvals not read (time limit), so no plan is credited"] if unread else []
+    approvals = approvals or []
     for explore, label, paths, segment, tokens, cwd in runs:
         records = covering(label, paths, approvals)
         receipt = {
@@ -956,6 +976,8 @@ def on_post(event, root, config):
             "exit_status": exit_status(response),
             "response_keys": sorted(response) if isinstance(response, dict) else type(response).__name__,
         }
+        if unread:
+            receipt["approvals_unread"] = True
         receipt.update(launch_details(root, cwd, label, paths, tokens, output, budget))
         add_git_states(root, receipt, git is not None)
         append_line(state_path(root, "receipts.jsonl"), receipt)

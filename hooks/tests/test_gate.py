@@ -386,6 +386,30 @@ class GateTest(unittest.TestCase):
         with open(path) as handle:
             return [json.loads(line) for line in handle]
 
+    def test_slow_approval_scan_denies_and_degrades_receipt(self):
+        # A timeout killing the hook would print nothing and let the run through ungated.
+        digest, _ = self.approve()
+        sys.dont_write_bytecode = True
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        payload = {"tool_name": "Bash", "tool_input": {"command": "python analysis/x.py"},
+                   "session_id": "s1", "cwd": self.root}
+        config = gate.load_config(self.root)
+        self.assertIsNone(gate.on_tool(payload, self.root, config), "covered when the scan finishes")
+        saved, gate.SCAN_SECONDS = gate.SCAN_SECONDS, 0
+        try:
+            result = gate.on_tool(payload, self.root, config)
+            self.assertTrue(self.denied(result))
+            self.assertIn("took longer than", result["hookSpecificOutput"]["permissionDecisionReason"])
+            notice = gate.on_post(dict(payload, tool_response={"stdout": ""}), self.root, config)
+        finally:
+            gate.SCAN_SECONDS = saved
+        self.assertIn("approvals not read", notice["systemMessage"])
+        self.assertEqual(self.receipts()[-1]["plans"], [])
+        self.assertTrue(self.receipts()[-1]["approvals_unread"])
+        self.assertTrue(os.path.isfile(os.path.join(self.root, ".mycelium-extra", "approvals",
+                                                    digest + ".json")), "approvals are kept")
+
     def test_sbatch_receipt(self):
         self.write("job.sh", "#!/bin/bash\n#SBATCH -p cpu\n#SBATCH --mem=8G\nmodule load R/4.3\n"
                              "conda activate scanpy\nRscript analysis/x.R\n")
