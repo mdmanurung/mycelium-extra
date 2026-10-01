@@ -2,7 +2,7 @@
 
 A standalone plugin for planning analysis work before it runs. It works alongside [Mycelium](https://github.com/arjunrajlaboratory/mycelium) but does not fork, modify, or require it.
 
-It has five skills and one hook set:
+It has six skills and one hook set:
 
 | Part | What it does | Writes |
 |---|---|---|
@@ -11,6 +11,7 @@ It has five skills and one hook set:
 | `data-contract-check` | Tests a plan's sample-table assumptions | Nothing |
 | `init` | Turns on the approval gate in a repository | `.mycelium-extra/gate.json`, `.gitignore` |
 | `new-analysis` | Creates a new analysis folder: numbered steps, a Snakefile, Mycelium's analysis doc, one plan, one tracker | The new folder only |
+| `verify` | Checks an approved plan against what ran, then records provenance | `<analysis>/provenance/`, after you confirm |
 | Approval gate | Blocks analysis runs until you approve the plan, blocks them if the plan's inputs changed, and records a receipt per run | `.mycelium-extra/` only |
 
 ## Installation
@@ -49,7 +50,7 @@ claude plugin update mycelium-extra@mycelium-extra
 - **Plugin:** this folder includes `.codex-plugin/plugin.json` and `skills/*/SKILL.md`, ready to add to a Codex plugin marketplace. After installing, invoke `$mycelium-extra:<skill>`.
 - **Standalone skill:** copy one `skills/<skill>/` folder to your personal Codex skills location and invoke it as `$grill`. Namespacing then depends on how you installed it.
 
-The approval gate and `init` are Claude Code only.
+The approval gate, `init`, and `verify` are Claude Code only.
 
 ## Quick start
 
@@ -59,6 +60,7 @@ A typical analysis task, in order:
 2. **Plan:** `/mycelium-extra:grill <your task>`. Answer its questions (at most five).
 3. **Approve:** when the plan ends with `Plan status: READY`, type the `approve plan <hash>` line it shows.
 4. **Run:** execute the plan through your normal workflow (`/mycelium:analyze` in a Mycelium project).
+5. **Verify:** `/mycelium-extra:verify <hash>` checks what ran against the plan and, once you confirm, records provenance. It then names the `/mycelium:review` command that checks the code against the frozen plan.
 
 Common prompts:
 
@@ -69,6 +71,7 @@ Common prompts:
 | Check the sample table before running | `/mycelium-extra:data-contract-check Check the approved plan's cohort, pairing, and batch assumptions against the sample table.` |
 | Turn on the gate | `/mycelium-extra:init` |
 | Start a new analysis folder | `/mycelium-extra:new-analysis analysis/gdt-seminmf-dream: does semi-NMF program usage differ by arm? Link data/anndatas/gdt.h5ad.` |
+| Check a run against its plan | `/mycelium-extra:verify 99ddfd42` |
 | Run a quick test without a plan | Type `allow explore`; type `stop explore` when done. |
 
 `grill` calls `decision-status` and `data-contract-check` itself when a plan depends on them, so you rarely need to invoke those directly.
@@ -104,6 +107,25 @@ It checks a plan's assumptions about the sample table before anything runs. The 
 - batch versus contrast nesting
 
 A stdlib checker reports each mismatch with expected, observed, and evidence lines, in the shape of ClawBio's contract alerts. The checker, not the contract, decides what blocks: any failure of these kinds blocks. The skill never loosens a contract to make it pass without your agreement. v1 reads CSV/TSV tables; it does not yet check h5ad internals.
+
+### verify
+
+After an approved plan has run, `verify <hash>` compares the plan with the gate's receipts. It reuses the gate's own table parser, so a plan covers exactly the scripts it let through. Its report shows:
+
+- Each planned script: ran, failed, no receipt, or edited since it ran. Steps run inside a `run.sh` or Snakemake wrapper are matched through Snakemake's per-output records, and Slurm jobs through `sacct`.
+- Explore runs, runs under another plan, and scripts in the analysis folder that ran but are not in the plan table.
+- Pinned inputs that changed since the approval.
+- The files on the plan's `Outputs:` line: when each was written and which run likely wrote it. A file named exactly that was written before the approval blocks. Older files inside a named folder or glob are earlier runs' outputs, so they are counted, not checked.
+- Scripts that Mycelium's lineage saw run in the window but the gate did not, such as scratchpad scripts.
+
+It ends with `Verify status: CONFORMS`, `CONFORMS_WITH_GAPS`, or `DOES_NOT_CONFORM`.
+
+- **Blocks:** a failed run, an edited script, a changed input, an output older than the approval, or an incomplete Snakemake job.
+- **Gaps:** things the records cannot show. An output is tied to a run by time alone, so attribution only ever produces gaps.
+
+After you confirm, `verify` writes `<analysis>/provenance/`: the frozen plan, its receipts, an outputs table with each file's size, full sha256, and likely run, the report, and a `PROVENANCE.md` index. Commit it with the analysis. It never writes `PLAN.md`, `TRACKER.md`, or `specification.md`, so the analysis keeps one plan file. It then names the review command, `/mycelium:review <folder> — check the code against the approved plan in <folder>/provenance/plan-<hash>.md`.
+
+verify has not yet run on real receipts. The installed 0.6.1 gate never wrote any, so the first verified run after updating is its first real test.
 
 ### new-analysis
 
@@ -183,7 +205,7 @@ Approving copies the pins into the approval. Before a covered run, the gate fing
 - For `sbatch`, the job ID. For snakemake and nextflow, the Snakefile or pipeline, config and params fingerprints, report and trace paths, the nextflow run name, and a pointer to the engine's own record (`.snakemake/metadata`, `.nextflow/history`).
 - The exit status when Claude Code reports one, and the key names of its Bash result (`response_keys`).
 
-Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip Mycelium's Stop hook. A planned verify step will copy verified receipts into the analysis folder after you confirm them.
+Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip Mycelium's Stop hook. `verify` copies a plan's receipts into the analysis folder after you confirm.
 
 **Exploratory runs.** Type `allow explore` to let runs prefixed with `MYCELIUM_EXTRA_EXPLORE=1` through for this session; type `stop explore` to end it. Without the grant the prefix is denied, so the agent cannot exempt itself. Each explore run is logged, and the Stop hook lists those runs as not reportable. After each one, the receipt hook tells the agent the run is not reportable, so a learning or finding it records from the run (for example under Mycelium's post-action protocol) is labeled `Exploratory run (not reportable)`. Output files carry no label.
 
@@ -206,6 +228,7 @@ Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip My
 - `data-contract-check` is read-only and runs the same way. Its contract stays outside the repository until you approve the plan.
 - `new-analysis` writes only inside the new folder. Its script also runs from stdin. The folder uses Mycelium's layout (`<NAME>.md`, `outputs/`, `reports/`, `run.sh`) plus a plan, a tracker, a Snakefile, and `data/` and `code/` links, so `/mycelium:analyze` continues it as an existing analysis rather than building a second skeleton.
 - After you approve a plan, run it through your normal workflow. In a Mycelium project that is `/mycelium:analyze` (`$mycelium:analyze` in Codex), which logs the brief's "Decisions to record" through Mycelium's lifecycle.
+- `verify` reads Mycelium's lineage but never writes `.living/`. Its report is read-only. Its `write` step runs from stdin and writes only `<analysis>/provenance/`. Those new files make Mycelium's Stop hook ask for a `.living/` update, where you record the verify status through Mycelium's normal logging.
 - `/mycelium:review grill` reviews an existing analysis or diff; `grill` plans before execution. Use both.
 
 ## Development
