@@ -42,7 +42,7 @@ python3 - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb] [--data=PAT
 ```
 
 - Write every option as `--flag=value`. The approval gate reads a bare `analysis/...` argument as a script being run, and blocks it.
-- Never run the script by path. That opens Mycelium's post-action cycle.
+- Never run the script by path. That opens Mycelium's post-action cycle. If a Mycelium hook asks for `.living/` updates anyway, tell the user which command triggered it and follow the hook.
 - Read every line the dry run prints:
   - A `refused:` line means nothing was written. Fix the input.
   - A `WARNING: git ignores ...` line means that file would never be committed. Stop and ask the user. In scale, for example, `analysis/*/docs/` and `analysis/*/results/` are ignored, which is why this layout avoids those names.
