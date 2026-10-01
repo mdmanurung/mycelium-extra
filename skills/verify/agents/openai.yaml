@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra Verify"
+  short_description: "Check an approved plan against what ran, then record provenance"
+  default_prompt: "Use $mycelium-extra:verify to check the approved plan against what actually ran, and record provenance only after I confirm."
