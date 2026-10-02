@@ -312,6 +312,7 @@ class VerifyTest(unittest.TestCase):
     def test_write_provenance_and_rewrite(self):
         digest = self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/"))
         receipt = self.run_cmd("python " + FIT)
+        self.run_cmd("python3 -c 'import ast' " + FIT)  # kept in provenance, marked as not a run
         self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
         out = self.verify("write", digest, "--analysis-dir", "analysis/a")
         folder = os.path.join(self.root, "analysis/a/provenance")
@@ -319,7 +320,10 @@ class VerifyTest(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(folder, name.format(digest))), name)
             self.assertIn("wrote analysis/a/provenance/" + name.format(digest), out)
         with open(os.path.join(folder, "receipts-{}.jsonl".format(digest))) as handle:
-            self.assertEqual(json.loads(handle.readline())["command"], "python " + FIT)
+            ran, handed = [json.loads(line) for line in handle]
+        self.assertEqual(ran["command"], "python " + FIT)
+        self.assertNotIn("not_a_run", ran)
+        self.assertIn("other code", handed["not_a_run"])
         with open(os.path.join(folder, "outputs-{}.tsv".format(digest))) as handle:
             rows = [line.rstrip("\n").split("\t") for line in handle][1:]
         self.assertEqual([r[0] for r in rows], ["analysis/a/outputs/fit.tsv"])  # the script predates the plan

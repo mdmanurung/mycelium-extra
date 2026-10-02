@@ -576,7 +576,10 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             "analysis_dir": analysis_dir, "git": gate.git_state(root), "runs": len(mine),
             "scripts": scripts, "folders": folders, "commands": commands, "inputs": inputs,
             "outputs": outputs, "outputs_named": words, "findings": report.findings,
-            "status": report.status(), "receipts": mine, "plan": plan}
+            "status": report.status(), "plan": plan,
+            # Kept for the record (a scaffolder call can explain a moved input), marked as not runs.
+            "receipts": sorted(mine + [dict(r, not_a_run="only passed planned paths to other code")
+                                       for r in handed], key=lambda r: r.get("ts", 0))}
 
 
 # ---------------------------------------------------------------- output
