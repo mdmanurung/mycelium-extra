@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/gate.py\" prompt; fi",
+            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/gate_run.py\" prompt; fi",
             "timeout": 10
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/gate.py\" tool; fi",
+            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/gate_run.py\" tool; fi",
             "timeout": 10
           }
         ]
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/gate.py\" post; fi",
+            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/gate_run.py\" post; fi",
             "timeout": 20
           }
         ]
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/gate.py\" stop; fi",
+            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/gate_run.py\" stop; fi",
             "timeout": 10
           }
         ]

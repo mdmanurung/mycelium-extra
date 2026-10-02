@@ -1197,12 +1197,13 @@ def launch_details(root, cwd, label, paths, tokens, output, budget):
 HANDLERS = {"tool": on_tool, "prompt": on_prompt, "stop": on_stop, "post": on_post}
 
 
-def main(argv):
+def main(argv, text=None):
+    """`text` is the event when gate_run.py has already read stdin."""
     if len(argv) != 2 or argv[1] not in HANDLERS:
         print("usage: gate.py stop|prompt|tool|post", file=sys.stderr)
         return 0
     try:
-        event = json.load(sys.stdin)
+        event = json.loads(text) if text is not None else json.load(sys.stdin)
         root = find_root(event.get("cwd") or os.getcwd())
         if root is None:
             return 0

@@ -11,10 +11,13 @@ import time
 import unittest
 
 GATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "gate.py")
+LAUNCHER = os.path.join(os.path.dirname(GATE), "gate_run.py")
 PLAN = "## Plan\n| 1 | run `analysis/x.py` | repo | check |\n\nPlan status: READY"
 
 
 class GateTest(unittest.TestCase):
+    entry = GATE
+
     def setUp(self):
         self.root = tempfile.mkdtemp()
         os.makedirs(os.path.join(self.root, ".mycelium-extra"))
@@ -29,7 +32,7 @@ class GateTest(unittest.TestCase):
 
     def hook(self, event, payload, cwd=None):
         payload = dict(payload, session_id="s1", cwd=cwd or self.root)
-        proc = subprocess.Popen([sys.executable, GATE, event], stdin=subprocess.PIPE,
+        proc = subprocess.Popen([sys.executable, self.entry, event], stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = proc.communicate(json.dumps(payload).encode("utf-8"))
         self.assertEqual(proc.returncode, 0, err)
@@ -101,7 +104,7 @@ class GateTest(unittest.TestCase):
         self.hook("prompt", {"prompt": "allow explore"})
         payload = {"tool_name": "Bash", "session_id": "s2", "cwd": self.root,
                    "tool_input": {"command": "MYCELIUM_EXTRA_EXPLORE=1 python analysis/x.py"}}
-        proc = subprocess.Popen([sys.executable, GATE, "tool"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        proc = subprocess.Popen([sys.executable, self.entry, "tool"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         out, _ = proc.communicate(json.dumps(payload).encode("utf-8"))
         self.assertIn("deny", out.decode("utf-8"))
 
@@ -515,6 +518,55 @@ class GateTest(unittest.TestCase):
         self.assertEqual(self.receipts()[-1]["script"]["git"], "untracked")
 
 
+class LauncherTest(GateTest):
+    """Every gate test again, through the entry point hooks.json calls."""
+    entry = LAUNCHER
+
+
+class LauncherOnlyTest(unittest.TestCase):
+    def run_launcher(self, stdin, code=None):
+        args = [sys.executable, LAUNCHER, "tool"] if code is None else [sys.executable, "-c", code]
+        proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = proc.communicate(stdin.encode("utf-8"))
+        self.assertEqual(proc.returncode, 0, err)
+        return out.decode("utf-8")
+
+    def test_gate_off_prints_nothing_and_never_loads_the_gate(self):
+        folder = tempfile.mkdtemp()
+        try:
+            event = json.dumps({"tool_name": "Bash", "cwd": folder,
+                                "tool_input": {"command": "python analysis/x.py"}})
+            self.assertEqual(self.run_launcher(event), "")
+            probe = ("import runpy, sys; sys.argv = [{!r}, 'tool']\n"
+                     "try:\n    runpy.run_path({!r}, run_name='__main__')\n"
+                     "except SystemExit:\n    pass\n"
+                     "print('gate' in sys.modules)").format(LAUNCHER, LAUNCHER)
+            self.assertEqual(self.run_launcher(event, probe).strip(), "False")
+        finally:
+            shutil.rmtree(folder)
+
+    def test_unreadable_event_fails_open_like_the_gate(self):
+        message = self.run_launcher("{not json")
+        self.assertIn("mycelium-extra gate error (tool)", message)
+        proc = subprocess.Popen([sys.executable, GATE, "tool"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        self.assertEqual(message, proc.communicate(b"{not json")[0].decode("utf-8"))
+
+    def test_find_root_copies_agree(self):
+        sys.dont_write_bytecode = True
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        import gate_run
+        root = tempfile.mkdtemp()
+        try:
+            os.makedirs(os.path.join(root, ".mycelium-extra"))
+            open(os.path.join(root, ".mycelium-extra", "gate.json"), "w").close()
+            os.makedirs(os.path.join(root, "a", "b"))
+            for cwd in (root, os.path.join(root, "a", "b"), os.path.dirname(root), "", None):
+                self.assertEqual(gate.find_root(cwd), gate_run.find_root(cwd), cwd)
+        finally:
+            shutil.rmtree(root)
+
+
 class CompatibilityTest(unittest.TestCase):
     def test_scripts_compile_on_python_36(self):
         # Hooks call bare `python3`, which is 3.6 on some HPC systems. A SyntaxError there
@@ -523,7 +575,8 @@ class CompatibilityTest(unittest.TestCase):
         if not python36:
             self.skipTest("python3.6 is not installed")
         repo = os.path.join(os.path.dirname(GATE), "..")
-        for script in [GATE] + glob.glob(os.path.join(repo, "skills", "*", "scripts", "*.py")):
+        for script in glob.glob(os.path.join(repo, "hooks", "*.py")) + glob.glob(
+                os.path.join(repo, "skills", "*", "scripts", "*.py")):
             proc = subprocess.Popen(
                 [python36, "-c", "import sys; compile(open(sys.argv[1]).read(), sys.argv[1], 'exec')",
                  script], stderr=subprocess.PIPE)
