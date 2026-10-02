@@ -112,7 +112,7 @@ A stdlib checker reports each mismatch with expected, observed, and evidence lin
 
 After an approved plan has run, `verify <hash>` compares the plan with the gate's receipts. It reuses the gate's own table parser, so a plan covers exactly the scripts it let through. Its report shows:
 
-- Each planned script: ran, failed, no receipt, or edited since it ran. Steps run inside a `run.sh` or Snakemake wrapper are matched through Snakemake's per-output records, and Slurm jobs through `sacct`.
+- Each planned script: ran, failed, no receipt, edited or deleted since it ran, or only passed to other code. A lint or parse call (`Rscript -e 'lintr::lint()' x.R`) or another tool's script read from stdin gets the path but does not run it, so it is not counted as a run. Steps run inside a `run.sh` or Snakemake wrapper are matched through Snakemake's per-output records, and Slurm jobs through `sacct`.
 - Explore runs, runs under another plan, and scripts in the analysis folder that ran but are not in the plan table.
 - Pinned inputs that changed since the approval.
 - The files on the plan's `Outputs:` line: when each was written and which run likely wrote it. A file named exactly that was written before the approval blocks. Older files inside a named folder or glob are earlier runs' outputs, so they are counted, not checked.
@@ -125,7 +125,7 @@ It ends with `Verify status: CONFORMS`, `CONFORMS_WITH_GAPS`, or `DOES_NOT_CONFO
 
 After you confirm, `verify` writes `<analysis>/provenance/`: the frozen plan, its receipts, an outputs table with each file's size, full sha256, and likely run, the report, and a `PROVENANCE.md` index. Commit it with the analysis. It never writes `PLAN.md`, `TRACKER.md`, or `specification.md`, so the analysis keeps one plan file. It then names the review command, `/mycelium:review <folder> — check the code against the approved plan in <folder>/provenance/plan-<hash>.md`.
 
-verify has not yet run on real receipts. The installed 0.6.1 gate never wrote any, so the first verified run after updating is its first real test.
+verify was first run on real receipts on 2026-10-02 (42 receipts, three plans, Rscript, sbatch, and Snakemake runs). Four bugs it showed are fixed. One limit remains: an output is tied to a run by time, and a planned script that is only a Snakemake rule's input (not its step script) is still counted as run in that rule.
 
 ### new-analysis
 
