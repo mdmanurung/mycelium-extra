@@ -204,9 +204,9 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("(under plan {})".format(other), out)
         self.assertIn("1 other script(s) in the analysis folder", out)  # old.py, cited only in prose
 
-    def snakemake_record(self, output, rule, start, inputs, shellcmd):
+    def snakemake_record(self, output, rule, start, inputs, shellcmd, folder="analysis/a"):
         name = base64.urlsafe_b64encode(output.encode("utf-8")).decode("ascii")
-        self.write("analysis/a/.snakemake/metadata/" + name, json.dumps({
+        self.write(folder + "/.snakemake/metadata/" + name, json.dumps({
             "rule": rule, "starttime": start, "endtime": start + 1, "incomplete": False,
             "input": inputs, "shellcmd": shellcmd, "code": None}))
 
@@ -233,6 +233,21 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("via Snakemake rule `s01_step`", out)
         self.assertIn("via Snakemake rule `s02_plot`", out)
         self.assertIn("Verify status: CONFORMS", out)
+
+    def test_snakemake_records_beside_a_planned_script(self):
+        # run.sh `cd`s into its own folder, so Snakemake writes its records there, below the
+        # analysis folder; the Snakefile counts as run by the rules it defines.
+        top, step, snakefile = "analysis/p/top.R", "analysis/p/a/01_step.R", "analysis/p/a/Snakefile"
+        for path in (top, step):
+            self.write(path, "x\n", mtime=time.time() - 60)
+        self.write(snakefile, "rule s01_step:\n    input: script='01_step.R'\n", mtime=time.time() - 60)
+        digest = self.approve(plan("`{}`".format(top), "`{}`".format(step), "`{}`".format(snakefile)))
+        self.snakemake_record("outputs/t.tsv", "s01_step", time.time(), ["01_step.R"], "Rscript 01_step.R",
+                              folder="analysis/p/a")
+        out = self.verify("report", digest)
+        self.assertIn("analysis folder `analysis/p`", out)
+        self.assertIn("| `{}` | ran in Snakemake rule `s01_step` |".format(step), out)
+        self.assertIn("| `{}` | ran in Snakemake rule `s01_step` |".format(snakefile), out)
 
     def test_paths_only_passed_to_other_code_are_not_runs(self):
         digest = self.approve(plan("run `{}`".format(FIT), "sbatch job.sh"))

@@ -35,6 +35,7 @@ SKIP_FOLDERS = {"provenance", "logs", "outputs", "results", "_archive", "archive
 FAILED_JOB = {"FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_MEMORY", "NODE_FAIL", "PREEMPTED", "BOOT_FAIL",
               "DEADLINE"}
 LOOKUP = re.compile(r"^command\s+-[vV]\b")  # older receipts recorded these as runs
+SNAKE_RULE = re.compile(r"^\s*rule\s+(\w+)\s*:", re.MULTILINE)
 TOLERANCE = 5  # seconds of clock skew between the hook and the filesystem
 MAX_FILES = 5000
 SHOWN_OUTPUTS = 40
@@ -259,6 +260,18 @@ def mentions(command, root, rel, workdir):
     return any(re.search(r"(^|[\s'\"=])" + re.escape(name) + r"($|[\s'\"])", command) for name in names)
 
 
+def is_snakefile(path):
+    return os.path.basename(path).startswith("Snakefile") or path.endswith(".smk")
+
+
+def read_text(path):
+    try:
+        with open(path, errors="replace") as handle:
+            return handle.read()
+    except OSError:
+        return ""
+
+
 def ran_paths(receipt):
     """The receipt's paths that ran as the program. A path handed to `-e`/`-c` code or to a
     program read from stdin (a lint call, a parse check, another tool's script) did not run."""
@@ -341,8 +354,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             jobs[r["job_id"]] = sacct_state(sacct, r["job_id"], r["ts"])
 
     meta = {os.path.join(root, ".snakemake", "metadata")}
-    if analysis_dir:
-        meta.add(os.path.join(root, analysis_dir, ".snakemake", "metadata"))
+    for folder in ([analysis_dir] if analysis_dir else []) + folders + [os.path.dirname(p) for p in planned]:
+        meta.add(os.path.join(root, folder, ".snakemake", "metadata"))  # a wrapper may `cd` there first
     for r in mine:
         record = (r.get("engine") or {}).get("record")
         if record:
@@ -355,6 +368,10 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         row = {"path": path, "status": "no receipt", "last_run": None, "notes": []}
         direct = [r for r in mine if path in ran_paths(r)]
         inside = [m for m in smk if mentions(m["command"], root, path, m["workdir"])]
+        if not inside and is_snakefile(path):
+            rules = set(SNAKE_RULE.findall(read_text(os.path.join(root, path))))
+            folder = os.path.normpath(os.path.join(root, os.path.dirname(path)))
+            inside = [m for m in smk if m["rule"] in rules and os.path.normpath(m["workdir"]) == folder]
         if direct:
             last = direct[-1]
             row["last_run"] = last["ts"]
