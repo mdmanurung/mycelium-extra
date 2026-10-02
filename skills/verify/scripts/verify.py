@@ -393,7 +393,11 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             recorded = last.get("script") or {}
             if recorded.get("path") == path and not recorded.get("missing"):
                 now = gate.fingerprint(os.path.join(root, path), budget, pin=recorded)
-                if not gate.unchanged(recorded, now):
+                if now.get("missing"):
+                    row["notes"].append("deleted since it ran")
+                    report.add("block", "`{}` was deleted after its run at {}, so its outputs cannot be "
+                                        "checked against the code.".format(path, when(last["ts"])))
+                elif not gate.unchanged(recorded, now):
                     row["notes"].append("edited since it ran")
                     report.add("block", "`{}` was edited after its run at {}, so its outputs may not "
                                         "match the code.".format(path, when(last["ts"])))
@@ -499,6 +503,13 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     else:
         listed = set()
         for word, (files, exact) in expand_outputs(root, words).items():
+            local = os.path.join(analysis_dir, word) if analysis_dir else None
+            if not files and local and expand_outputs(root, [local])[local][0]:
+                files, exact = expand_outputs(root, [local])[local]
+                report.add("info", "Output `{}` read as `{}`; Outputs lines take repository paths.".format(
+                    word, local))
+            if not exact:  # code in a named folder is tracked as scripts, not outputs
+                files = [f for f in files if not (gate.SCRIPT_EXT.search(f) or is_snakefile(f))]
             if not files:
                 report.add("gap", "Output `{}` does not exist.".format(word))
             older = 0

@@ -265,6 +265,19 @@ class VerifyTest(unittest.TestCase):
         self.run_cmd("python3 - < " + FIT)  # the script itself read from stdin does run
         self.assertIn("| `{}` | ran ".format(FIT), self.verify("report", digest))
 
+    def test_deleted_script_and_code_in_an_output_folder(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs="outputs/"))
+        receipt = self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        self.write("analysis/a/outputs/helper.py", "x\n", mtime=receipt["ts"] - 1)
+        os.remove(os.path.join(self.root, FIT))
+        out = self.verify("report", digest)
+        self.assertIn("deleted since it ran", out)
+        self.assertNotIn("edited", out)
+        self.assertIn("Output `outputs/` read as `analysis/a/outputs/`", out)
+        self.assertIn("analysis/a/outputs/fit.tsv", out)
+        self.assertNotIn("helper.py", out)
+
     def test_sbatch_state_comes_from_sacct(self):
         self.write("analysis/a/job.sh", "#!/bin/bash\n#SBATCH -t 1:00:00\npython analysis/a/scripts/01_fit.py\n")
         digest = self.approve(plan("`sbatch analysis/a/job.sh`"))
