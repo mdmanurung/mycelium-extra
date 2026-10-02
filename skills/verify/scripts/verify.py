@@ -16,6 +16,7 @@ status line, so a reply quoting it is not offered for approval as a new plan.
 
 import argparse
 import base64
+import collections
 import glob
 import json
 import os
@@ -620,6 +621,8 @@ def list_plans(root):
     receipts = read_jsonl(gate.state_path(root, "receipts.jsonl"))
     folder = gate.state_path(root, "approvals")
     config = gate.load_config(root)
+    runs = collections.Counter(digest for r in receipts if not r.get("explore")
+                               for digest in set(r.get("plans", [])))
     rows = []
     for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
         record = gate.read_json(os.path.join(folder, name), None)
@@ -628,11 +631,10 @@ def list_plans(root):
         digest = record.get("hash", name[:8])
         table = gate.plan_table(record.get("plan", ""))
         scripts = [p for p in gate.plan_paths(table) if gate.gated_rel(root, root, p, config)]
-        runs = sum(1 for r in receipts if digest in r.get("plans", []) and not r.get("explore"))
-        rows.append((record.get("approved_at", 0), digest, len(scripts), runs))
+        rows.append((record.get("approved_at", 0), digest, len(scripts), runs[digest]))
     lines = ["| Plan | Approved | Scripts in table | Runs |", "|---|---|---|---|"]
-    for approved, digest, scripts, runs in sorted(rows, reverse=True):
-        lines.append("| {} | {} | {} | {} |".format(digest, when(approved), scripts, runs))
+    for approved, digest, scripts, count in sorted(rows, reverse=True):
+        lines.append("| {} | {} | {} | {} |".format(digest, when(approved), scripts, count))
     return "\n".join(lines) + "\n"
 
 

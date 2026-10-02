@@ -285,6 +285,10 @@ class VerifyTest(unittest.TestCase):
         digest = self.approve(plan("run `{}`".format(FIT)))
         self.assertIn("--analysis-dir", self.verify("write", digest, fails=True))
         self.assertIn("| {} |".format(digest), self.verify("list"))
+        self.run_cmd("python " + FIT)
+        self.run_cmd("python " + FIT)
+        row, = [line for line in self.verify("list").splitlines() if digest in line]
+        self.assertTrue(row.endswith("| 2 |"), row)
         self.assertIn("no approved plan", self.verify("report", "deadbeef", fails=True))
 
     def test_gate_must_be_on(self):
