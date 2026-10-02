@@ -58,6 +58,7 @@ class GateTest(unittest.TestCase):
             "timeout 60 python analysis/x.py 2>&1 | tail",
             "srun -p gpu -c 4 python analysis/x.py",
             "sbatch job.sh",
+            "command sbatch job.sh",
             "./analysis/run.sh",
             "jupyter nbconvert --to notebook --execute nbs/n.ipynb",
             "python -m analysis.x",
@@ -78,6 +79,7 @@ class GateTest(unittest.TestCase):
         for command in [
             "cat analysis/x.py", "rg foo analysis/", "sed -n 1,5p analysis/x.py",
             "git add analysis/x.py", "python tools/y.py", "ls nbs",
+            "command -v sbatch", "command -V snakemake && echo ok",
             "python3 - --contract /tmp/c.json < /plugin/check.py",
             "python3 - <<'EOF'\nimport os; os.system('python analysis/x.py')\nEOF",
             "python tools/plot.py analysis/b04/outputs/numbers.json",

@@ -394,6 +394,8 @@ def classify(tokens, root, cwd, config):
     previous = ""
     while i < len(tokens):
         word = os.path.basename(tokens[i])
+        if word == "command" and tokens[i + 1:i + 2] in (["-v"], ["-V"]):
+            return explore, None, []  # looks the name up, runs nothing
         if RUNNERS.match(word) or word in config["gated_commands"] or "/" in tokens[i]:
             break
         if (word in WRAPPERS or tokens[i].startswith("-") or previous in VALUE_FLAGS
