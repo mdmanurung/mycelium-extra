@@ -1,2 +1,3 @@
 # mycelium-extra approval gate: ephemeral execution state
 .mycelium-extra/
+__pycache__/
