@@ -14,11 +14,9 @@ receipt per gated run to .mycelium-extra/receipts.jsonl.
 
 import fnmatch
 import functools
-import hashlib
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 
@@ -146,9 +144,14 @@ def listing(items, limit=10):
 
 # ---------------------------------------------------------------- fingerprints
 
+def sha256(data=b""):
+    import hashlib  # here, not at the top: most hook calls never hash
+    return hashlib.sha256(data)
+
+
 def sha256_file(path, deadline=None):
     """The file's sha256, or None if the deadline passes first."""
-    digest = hashlib.sha256()
+    digest = sha256()
     with open(path, "rb") as handle:
         for block in iter(lambda: handle.read(1 << 20), b""):
             if deadline is not None and time.time() >= deadline:
@@ -198,7 +201,7 @@ def folder_fingerprint(path, budget):
         if len(lines) >= MAX_FOLDER_FILES:
             break
     text = "\n".join(lines).encode("utf-8", "surrogateescape")
-    record = {"folder": True, "files": len(lines), "listing_sha256": hashlib.sha256(text).hexdigest()}
+    record = {"folder": True, "files": len(lines), "listing_sha256": sha256(text).hexdigest()}
     if len(lines) >= MAX_FOLDER_FILES:
         record["truncated"] = True
     return record
@@ -891,7 +894,7 @@ def on_stop(event, root, config):
     text = (event.get("last_assistant_message") or "").strip()
     status = PLAN_STATUS.search(text)
     if status and status.group(1).upper() != "DECISION_REQUIRED":
-        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
+        digest = sha256(text.encode("utf-8")).hexdigest()[:8]
         session = safe_session(event.get("session_id"))
         path = state_path(root, "pending", session + ".json")
         pending = read_json(path, [])
@@ -920,8 +923,12 @@ def new_explore_runs(root, session_id):
     marker = state_path(root, "pending", safe_session(session_id) + ".explore-seen")
     seen = read_json(marker, 0)
     runs = []
+    # Skip other sessions' lines unparsed; the id is matched as JSON writes it.
+    needle = json.dumps(session_id)[1:-1] if isinstance(session_id, str) else ""
     with open(log) as handle:
         for line in handle:
+            if needle not in line:
+                continue
             try:
                 record = json.loads(line)
             except ValueError:
@@ -1018,9 +1025,11 @@ def exit_status(response):
 
 
 def git(root, *args):
+    import subprocess  # here, not at the top (~20 ms); outside the try, which names it
     try:
         proc = subprocess.run(("git", "-C", root) + args, stdout=subprocess.PIPE,
-                              stderr=subprocess.DEVNULL, universal_newlines=True, timeout=GIT_TIMEOUT)
+                              stderr=subprocess.DEVNULL, universal_newlines=True, timeout=GIT_TIMEOUT,
+                              env=dict(os.environ, GIT_OPTIONAL_LOCKS="0"))
     except (OSError, subprocess.SubprocessError):
         return None
     return proc.stdout if proc.returncode == 0 else None
@@ -1119,7 +1128,7 @@ def launch_details(root, cwd, label, paths, tokens, output, budget):
         wraps = flag_values(args, ("--wrap",))
         if wraps:
             job_text = wraps[0]
-            details["wrap_sha256"] = hashlib.sha256(job_text.encode("utf-8")).hexdigest()
+            details["wrap_sha256"] = sha256(job_text.encode("utf-8")).hexdigest()
         else:
             takes_path = ("-o", "-e", "-i", "--output", "--error", "--input", "-D", "--chdir")
             for j, token in enumerate(args):
