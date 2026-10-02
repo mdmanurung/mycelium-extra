@@ -234,6 +234,22 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("via Snakemake rule `s02_plot`", out)
         self.assertIn("Verify status: CONFORMS", out)
 
+    def test_paths_only_passed_to_other_code_are_not_runs(self):
+        digest = self.approve(plan("run `{}`".format(FIT), "sbatch job.sh"))
+        self.run_cmd("python3 -c 'import ast' " + FIT)  # a parse check
+        self.run_cmd("python3 - --code={} < /tmp/tool.py".format(FIT))  # another tool's script
+        with open(gate.state_path(self.root, "receipts.jsonl"), "a") as handle:  # older gates recorded these
+            handle.write(json.dumps({"command": "command -v sbatch", "kind": "sbatch", "paths": [],
+                                     "plans": [digest], "ts": time.time(), "cwd": "."}) + "\n")
+        out = self.verify("report", digest)
+        self.assertIn("| `{}` | not run: only passed to other code |".format(FIT), out)
+        self.assertIn("lint and parse calls look like this", out)
+        self.assertIn("0 run(s) under this plan", out)
+        self.assertIn("2 receipt(s) under this plan only passed planned paths", out)
+        self.assertIn("The plan names `sbatch`, but no `sbatch` run under it was recorded.", out)
+        self.run_cmd("python3 - < " + FIT)  # the script itself read from stdin does run
+        self.assertIn("| `{}` | ran ".format(FIT), self.verify("report", digest))
+
     def test_sbatch_state_comes_from_sacct(self):
         self.write("analysis/a/job.sh", "#!/bin/bash\n#SBATCH -t 1:00:00\npython analysis/a/scripts/01_fit.py\n")
         digest = self.approve(plan("`sbatch analysis/a/job.sh`"))

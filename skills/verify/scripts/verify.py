@@ -34,6 +34,7 @@ STEP_FOLDERS = {"code", "scripts", "src", "R", "py", "python", "workflow", "note
 SKIP_FOLDERS = {"provenance", "logs", "outputs", "results", "_archive", "archive", "__pycache__"}
 FAILED_JOB = {"FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_MEMORY", "NODE_FAIL", "PREEMPTED", "BOOT_FAIL",
               "DEADLINE"}
+LOOKUP = re.compile(r"^command\s+-[vV]\b")  # older receipts recorded these as runs
 TOLERANCE = 5  # seconds of clock skew between the hook and the filesystem
 MAX_FILES = 5000
 SHOWN_OUTPUTS = 40
@@ -258,6 +259,30 @@ def mentions(command, root, rel, workdir):
     return any(re.search(r"(^|[\s'\"=])" + re.escape(name) + r"($|[\s'\"])", command) for name in names)
 
 
+def ran_paths(receipt):
+    """The receipt's paths that ran as the program. A path handed to `-e`/`-c` code or to a
+    program read from stdin (a lint call, a parse check, another tool's script) did not run."""
+    paths = receipt.get("paths", [])
+    words = receipt.get("command", "").split()
+    head = next((i for i, w in enumerate(words) if gate.RUNNERS.match(os.path.basename(w))), None)
+    for word in words[head + 1:] if head is not None else []:
+        if word in ("-c", "-e", "--eval", "-", "<"):
+            cwd = receipt.get("cwd") or "."
+            stdin = {os.path.normpath(os.path.join(cwd, words[k + 1]))
+                     for k in range(len(words) - 1) if words[k] == "<"}
+            return [p for p in paths if p in stdin]
+        if not word.startswith("-"):
+            break
+    return paths
+
+
+def is_run(receipt, commands):
+    """False for a `command -v` lookup and for a receipt whose paths were only handed to other code."""
+    if LOOKUP.match(receipt.get("command", "")):
+        return False
+    return receipt.get("kind") in commands or bool(ran_paths(receipt))
+
+
 def is_wrapper(receipt):
     """A run that starts other steps: a shell script, Snakemake, Nextflow, or a Slurm job."""
     return receipt.get("kind") in ("bash", "sh", "zsh", "snakemake", "nextflow", "sbatch") or any(
@@ -297,7 +322,13 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     analysis_dir = rel_or_abs(root, analysis_dir) if analysis_dir else guess_analysis_dir(planned)
     budget = {"bytes": float(hash_mb) * 1024 * 1024, "deadline": time.time() + seconds}
 
-    receipts = read_jsonl(gate.state_path(root, "receipts.jsonl"))
+    receipts, handed = [], []
+    for r in read_jsonl(gate.state_path(root, "receipts.jsonl")):
+        if is_run(r, config["gated_commands"]):
+            receipts.append(r)
+        elif not LOOKUP.match(r.get("command", "")):
+            handed.append(r)
+    handed = [r for r in handed if digest in r.get("plans", []) and not r.get("explore")]
     # Re-approving the same plan text rewrites approved_at, so the plan's runs are every
     # non-explore receipt naming it, and its window opens at the earliest of them.
     mine = sorted((r for r in receipts if digest in r.get("plans", []) and not r.get("explore")),
@@ -322,7 +353,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     scripts = []
     for path in planned:
         row = {"path": path, "status": "no receipt", "last_run": None, "notes": []}
-        direct = [r for r in mine if path in r.get("paths", [])]
+        direct = [r for r in mine if path in ran_paths(r)]
         inside = [m for m in smk if mentions(m["command"], root, path, m["workdir"])]
         if direct:
             last = direct[-1]
@@ -371,6 +402,12 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                         path, when(last["end"])))
             except OSError:
                 pass
+        elif any(path in r.get("paths", []) for r in handed):
+            last = [r for r in handed if path in r.get("paths", [])][-1]
+            row["status"] = "not run: only passed to other code"
+            report.add("gap", "`{}` was only passed to other code (last: `{}` at {}), never run itself; "
+                              "lint and parse calls look like this.".format(
+                                  path, last.get("command", "")[:80], when(last["ts"])))
         else:
             report.add("gap", "`{}`: no run under this plan was recorded.".format(path))
         if direct and is_wrapper(direct[-1]):
@@ -383,8 +420,12 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                                   "inside it.".format(path))
         scripts.append(row)
 
+    if handed:
+        report.add("info", "{} receipt(s) under this plan only passed planned paths to other code "
+                           "(`-e`/`-c` code or a program read from stdin) and are not counted as runs."
+                   .format(len(handed)))
     for folder in folders:
-        runs = [r for r in mine if any(under(p, folder) for p in r.get("paths", []))]
+        runs = [r for r in mine if any(under(p, folder) for p in ran_paths(r))]
         report.add("info", "Folder `{}/` is planned as a whole; {} run(s) in it.".format(folder, len(runs)))
     for command in commands:
         runs = [r for r in mine if r.get("kind") == command]
@@ -396,7 +437,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     unplanned_files = []
     if analysis_dir:
         for r in since:
-            if r in mine or not any(under(p, analysis_dir) for p in r.get("paths", [])):
+            if r in mine or not any(under(p, analysis_dir) for p in ran_paths(r)):
                 continue
             if r.get("explore"):
                 report.add("gap", "Explore run in the analysis folder: {}.".format(describe_run(r, digest)))
@@ -413,7 +454,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                         and not any(under(rel, f) for f in folders):
                     unplanned_files.append(rel)
         ran = [rel for rel in unplanned_files  # explore runs are reported above
-               if any(rel in r.get("paths", []) and not r.get("explore") for r in since)
+               if any(rel in ran_paths(r) and not r.get("explore") for r in since)
                or any(mentions(m["command"], root, rel, m["workdir"]) for m in smk)]
         for rel in ran:
             report.add("gap", "`{}` ran since the approval but is not in the plan table.".format(rel))
@@ -483,7 +524,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                 report.add("info", "{} file(s) under `{}` predate this plan, so they are earlier runs' "
                                    "outputs and were not checked.".format(older, word))
 
-    seen = {p for r in since for p in r.get("paths", [])}
+    seen = {p for r in since for p in ran_paths(r)}
     plugins = [os.path.realpath(p) for p in (PLUGIN_ROOT, os.path.expanduser("~/.claude/plugins"),
                                               os.path.expanduser("~/.codex/plugins"))]
     inline = 0
