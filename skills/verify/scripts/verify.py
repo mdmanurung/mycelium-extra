@@ -272,7 +272,7 @@ def read_text(path):
         return ""
 
 
-def ran_paths(receipt):
+def ran_paths(root, receipt):
     """The receipt's paths that ran as the program. A path handed to `-e`/`-c` code or to a
     program read from stdin (a lint call, a parse check, another tool's script) did not run."""
     paths = receipt.get("paths", [])
@@ -280,20 +280,19 @@ def ran_paths(receipt):
     head = next((i for i, w in enumerate(words) if gate.RUNNERS.match(os.path.basename(w))), None)
     for word in words[head + 1:] if head is not None else []:
         if word in ("-c", "-e", "--eval", "-", "<"):
-            cwd = receipt.get("cwd") or "."
-            stdin = {os.path.normpath(os.path.join(cwd, words[k + 1]))
-                     for k in range(len(words) - 1) if words[k] == "<"}
+            cwd = os.path.join(root, receipt.get("cwd") or ".")  # resolved the way the gate recorded paths
+            stdin = {gate.repo_relative(root, cwd, words[k + 1]) for k in range(len(words) - 1) if words[k] == "<"}
             return [p for p in paths if p in stdin]
         if not word.startswith("-"):
             break
     return paths
 
 
-def is_run(receipt, commands):
+def is_run(root, receipt, commands):
     """False for a `command -v` lookup and for a receipt whose paths were only handed to other code."""
     if LOOKUP.match(receipt.get("command", "")):
         return False
-    return receipt.get("kind") in commands or bool(ran_paths(receipt))
+    return receipt.get("kind") in commands or bool(ran_paths(root, receipt))
 
 
 def is_wrapper(receipt):
@@ -337,7 +336,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
 
     receipts, handed = [], []
     for r in read_jsonl(gate.state_path(root, "receipts.jsonl")):
-        if is_run(r, config["gated_commands"]):
+        if is_run(root, r, config["gated_commands"]):
             receipts.append(r)
         elif not LOOKUP.match(r.get("command", "")):
             handed.append(r)
@@ -366,7 +365,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     scripts = []
     for path in planned:
         row = {"path": path, "status": "no receipt", "last_run": None, "notes": []}
-        direct = [r for r in mine if path in ran_paths(r)]
+        direct = [r for r in mine if path in ran_paths(root, r)]
         inside = [m for m in smk if mentions(m["command"], root, path, m["workdir"])]
         if not inside and is_snakefile(path):
             rules = set(SNAKE_RULE.findall(read_text(os.path.join(root, path))))
@@ -422,7 +421,9 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                     report.add("block", "`{}` was edited after its Snakemake run at {}.".format(
                         path, when(last["end"])))
             except OSError:
-                pass
+                row["notes"].append("deleted since it ran")
+                report.add("block", "`{}` was deleted after its Snakemake run at {}, so its outputs cannot "
+                                    "be checked against the code.".format(path, when(last["end"])))
         elif any(path in r.get("paths", []) for r in handed):
             last = [r for r in handed if path in r.get("paths", [])][-1]
             row["status"] = "not run: only passed to other code"
@@ -446,7 +447,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                            "(`-e`/`-c` code or a program read from stdin) and are not counted as runs."
                    .format(len(handed)))
     for folder in folders:
-        runs = [r for r in mine if any(under(p, folder) for p in ran_paths(r))]
+        runs = [r for r in mine if any(under(p, folder) for p in ran_paths(root, r))]
         report.add("info", "Folder `{}/` is planned as a whole; {} run(s) in it.".format(folder, len(runs)))
     for command in commands:
         runs = [r for r in mine if r.get("kind") == command]
@@ -458,7 +459,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     unplanned_files = []
     if analysis_dir:
         for r in since:
-            if r in mine or not any(under(p, analysis_dir) for p in ran_paths(r)):
+            if r in mine or not any(under(p, analysis_dir) for p in ran_paths(root, r)):
                 continue
             if r.get("explore"):
                 report.add("gap", "Explore run in the analysis folder: {}.".format(describe_run(r, digest)))
@@ -475,7 +476,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                         and not any(under(rel, f) for f in folders):
                     unplanned_files.append(rel)
         ran = [rel for rel in unplanned_files  # explore runs are reported above
-               if any(rel in ran_paths(r) and not r.get("explore") for r in since)
+               if any(rel in ran_paths(root, r) and not r.get("explore") for r in since)
                or any(mentions(m["command"], root, rel, m["workdir"]) for m in smk)]
         for rel in ran:
             report.add("gap", "`{}` ran since the approval but is not in the plan table.".format(rel))
@@ -552,7 +553,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                 report.add("info", "{} file(s) under `{}` predate this plan, so they are earlier runs' "
                                    "outputs and were not checked.".format(older, word))
 
-    seen = {p for r in since for p in ran_paths(r)}
+    seen = {p for r in since for p in ran_paths(root, r)}
     plugins = [os.path.realpath(p) for p in (PLUGIN_ROOT, os.path.expanduser("~/.claude/plugins"),
                                               os.path.expanduser("~/.codex/plugins"))]
     inline = 0
@@ -690,7 +691,8 @@ def list_plans(root):
     receipts = read_jsonl(gate.state_path(root, "receipts.jsonl"))
     folder = gate.state_path(root, "approvals")
     config = gate.load_config(root)
-    runs = collections.Counter(digest for r in receipts if not r.get("explore")
+    runs = collections.Counter(digest for r in receipts
+                               if not r.get("explore") and is_run(root, r, config["gated_commands"])
                                for digest in set(r.get("plans", [])))
     rows = []
     for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:

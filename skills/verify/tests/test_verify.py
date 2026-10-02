@@ -248,6 +248,10 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("analysis folder `analysis/p`", out)
         self.assertIn("| `{}` | ran in Snakemake rule `s01_step` |".format(step), out)
         self.assertIn("| `{}` | ran in Snakemake rule `s01_step` |".format(snakefile), out)
+        os.remove(os.path.join(self.root, step))
+        out = self.verify("report", digest)
+        self.assertIn("`{}` was deleted after its Snakemake run".format(step), out)
+        self.assertIn("Verify status: DOES_NOT_CONFORM", out)
 
     def test_paths_only_passed_to_other_code_are_not_runs(self):
         digest = self.approve(plan("run `{}`".format(FIT), "sbatch job.sh"))
@@ -262,7 +266,7 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("0 run(s) under this plan", out)
         self.assertIn("2 receipt(s) under this plan only passed planned paths", out)
         self.assertIn("The plan names `sbatch`, but no `sbatch` run under it was recorded.", out)
-        self.run_cmd("python3 - < " + FIT)  # the script itself read from stdin does run
+        self.run_cmd("python3 - < " + os.path.join(self.root, FIT))  # the script itself read from stdin runs
         self.assertIn("| `{}` | ran ".format(FIT), self.verify("report", digest))
 
     def test_deleted_script_and_code_in_an_output_folder(self):
@@ -331,6 +335,7 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("| {} |".format(digest), self.verify("list"))
         self.run_cmd("python " + FIT)
         self.run_cmd("python " + FIT)
+        self.run_cmd("python3 -c 'import ast' " + FIT)  # a parse check is not a run
         row, = [line for line in self.verify("list").splitlines() if digest in line]
         self.assertTrue(row.endswith("| 2 |"), row)
         self.assertIn("no approved plan", self.verify("report", "deadbeef", fails=True))
