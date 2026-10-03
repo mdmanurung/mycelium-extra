@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra Handoff"
+  short_description: "Write a short HANDOFF.md so a fresh session can continue"
+  default_prompt: "Use $mycelium-extra:handoff to write HANDOFF.md at the project root so I can continue in a fresh session."

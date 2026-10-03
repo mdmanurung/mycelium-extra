@@ -2,7 +2,7 @@
 
 A standalone plugin for planning analysis work before it runs. It works alongside [Mycelium](https://github.com/arjunrajlaboratory/mycelium) but does not fork, modify, or require it.
 
-It has six skills and one hook set:
+It has seven skills and one hook set:
 
 | Part | What it does | Writes |
 |---|---|---|
@@ -12,6 +12,7 @@ It has six skills and one hook set:
 | `init` | Turns on the approval gate in a repository | `.mycelium-extra/gate.json`, `.gitignore` |
 | `new-analysis` | Creates a new analysis folder: numbered steps, a Snakefile, Mycelium's analysis doc, one plan, one tracker | The new folder only |
 | `verify` | Checks an approved plan against what ran, then records provenance | `<analysis>/provenance/`, after you confirm |
+| `handoff` | Writes a short handoff so a fresh session can continue | `HANDOFF.md` at the project root |
 | Approval gate | Blocks analysis runs until you approve the plan, blocks them if the plan's inputs changed, and records a receipt per run | `.mycelium-extra/` only |
 
 ## Installation
@@ -72,6 +73,7 @@ Common prompts:
 | Turn on the gate | `/mycelium-extra:init` |
 | Start a new analysis folder | `/mycelium-extra:new-analysis analysis/gdt-seminmf-dream: does semi-NMF program usage differ by arm? Link data/anndatas/gdt.h5ad.` |
 | Check a run against its plan | `/mycelium-extra:verify 99ddfd42` |
+| Continue in a fresh session | `/mycelium-extra:handoff`, then `/clear` and paste the resume line it prints |
 | Run a quick test without a plan | Type `allow explore`; type `stop explore` when done. |
 
 `grill` calls `decision-status` and `data-contract-check` itself when a plan depends on them, so you rarely need to invoke those directly.
@@ -163,6 +165,12 @@ analysis/<name>/
 - **Mycelium's files.** It writes nothing to `.living/` or the manifests. It prints a suggested `ANALYSIS_MANIFEST.md` entry. `/mycelium:analyze <name>` then continues the folder as an existing analysis and records it.
 
 The robust-analysis protocols save figures to subfolders such as `outputs/figures/diagnostic/`. A flat `outputs/` holds only after you record it as a repo-local convention, which Mycelium applies before domain and core conventions.
+
+### handoff
+
+`handoff` writes `HANDOFF.md` at the project root so you can `/clear` and continue in a fresh session without carrying the old context. It records the goal, the exact next action, current state, decisions you locked in, dead ends not to redo, and a few `path:line` pointers to read first. It overwrites the previous handoff, keeps only what still holds, and stays under about 80 lines: it points to code and commits instead of copying them. It ends with a one-line resume prompt (`Read HANDOFF.md, then ...`).
+
+In a Mycelium project it links to `.mycelium/last-session.md` and `.living/` entries rather than copying them, and never writes to Mycelium's files. It does not commit the handoff or change `.gitignore`.
 
 ### Approval gate
 
