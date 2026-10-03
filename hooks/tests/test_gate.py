@@ -387,6 +387,25 @@ class GateTest(unittest.TestCase):
         self.write("data/fcs/b.fcs", "2")
         self.assertTrue(self.denied(self.bash("python analysis/x.py")))
 
+    def test_newest_covering_plan_decides_pins(self):
+        self.write("analysis/x.py", "print(1)\n")
+        self.approve()  # plan A: intent, pins nothing
+        time.sleep(0.01)
+        self.approve(self.inputs_plan("analysis/x.py"))  # plan B: run plan freezes the script
+        self.assertIsNone(self.bash("python analysis/x.py"))
+        self.write("analysis/x.py", "print(2)\n")
+        self.assertTrue(self.denied(self.bash("python analysis/x.py")),
+                        "plan A's approval must not let an edited frozen script run")
+
+    def test_newer_plan_repins_after_older_pins_went_stale(self):
+        self.write("data/samples.tsv", "x")
+        self.approve(self.inputs_plan("data/samples.tsv"))
+        self.write("data/samples.tsv", "changed")
+        self.assertTrue(self.denied(self.bash("python analysis/x.py")))
+        time.sleep(0.01)
+        self.approve(self.inputs_plan("data/samples.tsv"))
+        self.assertIsNone(self.bash("python analysis/x.py"))
+
     def test_explore_and_old_approvals_skip_pins(self):
         self.write("data/samples.tsv", "x")
         self.approve(self.inputs_plan("data/samples.tsv"))

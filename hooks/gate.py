@@ -803,12 +803,14 @@ def on_tool(event, root, config):
         if not records:
             blocked.append((label, paths))
             continue
-        checks = [(r["hash"],) + changed_pins(root, r.get("pins") or {}, budget, cache) for r in records]
-        if all(changes for _, changes, _ in checks):
-            stale.append(checks[-1][:2])
+        # The newest covering plan is the current intent: an older approval that pinned
+        # less (or nothing) must not let a run through after the newer plan's pins changed.
+        newest = records[-1]
+        changes, skipped = changed_pins(root, newest.get("pins") or {}, budget, cache)
+        if changes:
+            stale.append((newest["hash"], changes))
         else:
-            for _, changes, skipped in checks:
-                unchecked += [rel for rel in skipped if not changes and rel not in unchecked]
+            unchecked += [rel for rel in skipped if rel not in unchecked]
     if stale and not blocked:
         lines = []
         for digest, changes in stale:
