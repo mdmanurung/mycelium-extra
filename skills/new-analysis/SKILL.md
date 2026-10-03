@@ -87,5 +87,5 @@ Use Edit; the files already exist.
 - Next steps for the user:
   1. Plan the work with `/mycelium-extra:grill`. A plan whose table names this folder's scripts or its `run.sh` lets the approval gate pass them.
   2. Run `/mycelium:analyze <name>`. It continues the existing folder, adds the manifest entry (the script printed a suggested one), and records decisions. That includes the flat-`outputs/` convention, if the user wants it.
-  3. For a reportable run, once the code is written and linted, grill a run plan that freezes it (grill's `references/run-plans.md`): it revises this `PLAN.md` in place and dry-runs with `snakemake -n -s <folder>/Snakefile -d <folder>`, since `bash run.sh -n` stays gated.
+  3. For a reportable run, once the code is written and linted, grill a run plan that freezes it (grill's `references/run-plans.md`): it revises this `PLAN.md` in place and shows the job list from `bash run.sh -n`, run under the first plan's approval.
 - Offer to commit the new folder.

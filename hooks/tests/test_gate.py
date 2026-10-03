@@ -75,6 +75,8 @@ class GateTest(unittest.TestCase):
             "python -W ignore analysis/x.py",
             "source analysis/env.sh",
             ". analysis/env.sh",
+            "snakemake -n",  # a Snakefile is Python: a dry run still runs its top-level code
+            "bash analysis/x/run.sh -n",
         ]:
             self.assertTrue(self.denied(self.bash(command)), command)
 
