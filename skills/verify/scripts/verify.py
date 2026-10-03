@@ -873,7 +873,9 @@ def render_stale(result):
     for plan in result["stale"]:
         lines += ["## Plan {} · `{}`".format(plan["hash"], plan["analysis_dir"]), ""]
         lines += ["- " + change for change in plan["changes"]]
-        lines += ["- sessions: " + (", ".join(plan["sessions"]) or "none recorded"), ""]
+        lines += ["- sessions: " + (", ".join(plan["sessions"]) or "none recorded"),
+                  "- findings: `rg -n '{}' .living/findings/`".format(
+                      "|".join(plan["sessions"] + ["plan " + plan["hash"]])), ""]
     lines.append("{} of {} verified plans stale.".format(len(result["stale"]), result["plans"])
                  if result["plans"] else "No verified plans: no provenance/receipts-<hash>.jsonl found.")
     return "\n".join(lines) + "\n"

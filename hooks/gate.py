@@ -1080,8 +1080,11 @@ def on_post(event, root, config):
     unread = approvals is None
     notes = ["approvals not read (time limit), so no plan is credited"] if unread else []
     approvals = approvals or []
+    planned = []
     for explore, label, paths, segment, tokens, cwd in runs:
         records = covering(label, paths, approvals)
+        if records and not explore and records[-1]["hash"] not in planned:
+            planned.append(records[-1]["hash"])
         receipt = {
             "schema": "mycelium-extra.receipt.v1",
             "ts": time.time(),
@@ -1124,6 +1127,12 @@ def on_post(event, root, config):
             "mycelium-extra: that was an exploratory run, not reportable. If you record a learning or "
             "finding from it (for example under Mycelium's post-action protocol), label it "
             "`Exploratory run (not reportable)`, and do not cite its outputs as results.")
+    if planned and os.path.isdir(os.path.join(root, ".living")):
+        # Mycelium parses only the ledger's date cell, so the Run/Session cell can carry the plan.
+        context.append(
+            "mycelium-extra: if you record a finding from this run, write its Evidence Ledger "
+            "Run/Session cell as {}, so `verify stale` can link the finding to its plan.".format(
+                " or ".join("`{}; plan {}`".format(event.get("session_id"), digest) for digest in planned)))
     if context:
         result["hookSpecificOutput"] = {"hookEventName": "PostToolUse",
                                         "additionalContext": "\n\n".join(context)}

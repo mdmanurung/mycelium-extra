@@ -580,6 +580,16 @@ class GateTest(unittest.TestCase):
         self.assertIn("post-action protocol did not fire", both)
         self.assertIn("Exploratory run (not reportable)", both)
 
+    def test_planned_run_suggests_ledger_cell_with_plan(self):
+        context = lambda notice: (notice.get("hookSpecificOutput") or {}).get("additionalContext", "")
+        digest, _ = self.approve()
+        self.assertNotIn("Run/Session", context(self.post("python analysis/x.py", {"stdout": ""})),
+                         "no .living/: not a Mycelium repository")
+        os.makedirs(os.path.join(self.root, ".living"))
+        self.assertIn("`s1; plan {}`".format(digest), context(self.post("python analysis/x.py", {"stdout": ""})))
+        explore = context(self.post("MYCELIUM_EXTRA_EXPLORE=1 python analysis/x.py", {"stdout": ""}))
+        self.assertNotIn("Run/Session", explore)
+
     def test_ungated_and_uncovered_runs(self):
         self.assertIsNone(self.post("ls analysis", {"stdout": ""}))
         self.assertEqual(self.receipts(), [])

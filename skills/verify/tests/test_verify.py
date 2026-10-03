@@ -393,6 +393,7 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("output `analysis/a/outputs/fit.tsv` rewritten", out)
         self.assertIn("output `analysis/a/outputs/keep.tsv` deleted", out)
         self.assertIn("sessions: s1", out)
+        self.assertIn("findings: `rg -n 's1|plan {}' .living/findings/`".format(digest), out)
         self.assertIn("1 of 1 verified plans stale", out)
         self.assertNotIn("Plan status", out)
         self.assertEqual(json.loads(self.verify("stale", "--json"))["stale"][0]["hash"], digest)
