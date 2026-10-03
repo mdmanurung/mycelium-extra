@@ -402,6 +402,29 @@ def paths_in_text(root, cwd, text, config):
     return found
 
 
+SNAKEMAKE_DRY = {"-n", "--dry-run", "--dryrun"}
+SNAKEMAKE_SHORT_SAFE = set("nprqkF")  # bundled short flags that take no value, e.g. -np
+SNAKEMAKE_MUTATING = ("-t", "--touch", "--unlock", "--cleanup-metadata", "--cleanup-shadow",
+                      "--delete-all-output", "--delete-temp-output", "--conda-create-envs-only",
+                      "--conda-cleanup-envs", "--archive", "--report", "--generate-unit-tests",
+                      "--edit-notebook")
+
+
+def snakemake_dry_run(args):
+    """True for a snakemake dry run with no flag that writes; anything unclear stays gated."""
+    dry = False
+    for arg in args:
+        if arg in SNAKEMAKE_DRY:
+            dry = True
+        elif re.match(r"^-[A-Za-z]{2,}$", arg) and "n" in arg:
+            if not set(arg[1:]) <= SNAKEMAKE_SHORT_SAFE:
+                return False
+            dry = True
+        if any(arg == flag or arg.startswith(flag + "=") for flag in SNAKEMAKE_MUTATING):
+            return False
+    return dry
+
+
 def classify(tokens, root, cwd, config):
     """Return (explore, gated_label or None, [gated repo paths]) for one segment."""
     explore = False
@@ -436,8 +459,10 @@ def classify(tokens, root, cwd, config):
             rel = gated_rel(root, cwd, rest[j + 1], config)
             if rel:
                 paths.append(rel)
+    if word == "snakemake" and snakemake_dry_run(rest):
+        return explore, None, []  # plans the DAG, runs nothing
     if word in config["gated_commands"]:
-        wraps = [t.split("=", 1)[1] for t in rest if t.startswith("--wrap=")]
+        wraps =[t.split("=", 1)[1] for t in rest if t.startswith("--wrap=")]
         wraps += [rest[j + 1] for j, t in enumerate(rest) if t == "--wrap" and j + 1 < len(rest)]
         paths += [p for p in (gated_rel(root, cwd, t, config) for t in rest
                               if not t.startswith("-")) if p]

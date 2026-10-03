@@ -220,6 +220,26 @@ class GateTest(unittest.TestCase):
         self.assertTrue(self.denied(self.bash("python analysis/hidden.py")))
         self.assertTrue(self.denied(self.bash("sbatch job.sh")))
 
+    def test_snakemake_dry_run_passes_but_writing_flags_stay_gated(self):
+        for command in [
+            "snakemake -n",
+            "snakemake --dry-run -s analysis/x/Snakefile -d analysis/x",
+            "snakemake -np --cores 4",
+            "cd analysis/x && snakemake --dryrun",
+            "conda run -n smk snakemake -n",
+        ]:
+            self.assertIsNone(self.bash(command), command)
+        for command in [
+            "snakemake",
+            "snakemake -n --touch",
+            "snakemake -nt",
+            "snakemake -n --unlock",
+            "snakemake -n --report=report.html",
+            "snakemake -n --delete-all-output",
+            "bash analysis/x/run.sh -n",
+        ]:
+            self.assertTrue(self.denied(self.bash(command)), command)
+
     def test_plan_without_table_approves_nothing(self):
         text = "run analysis/x.py and sbatch job.sh\n\nPlan status: READY"
         notice = self.hook("stop", {"last_assistant_message": text})["systemMessage"]
