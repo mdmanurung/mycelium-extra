@@ -110,4 +110,4 @@ Before the user re-approves a revised plan (for example a run plan presented aga
 python3 - --plugin-root <skill-dir>/../.. diff <old-hash> <new-hash> < <skill-dir>/scripts/verify.py
 ```
 
-It compares the two approved plans' tables row by row (keyed by the step number) and their `Inputs:` lines. A changed Choice cell is flagged as a possible scientific change; whether it is one is the user's call, so name it and let them decide. Write nothing; the revision itself belongs in the analysis folder's `TRACKER.md`.
+It reads each plan from the approvals, or, for one shown but not yet approved, from the gate's pending plans, and compares their tables row by row (keyed by the step number) and their `Inputs:` lines. A changed Choice cell is flagged as a possible scientific change; whether it is one is the user's call, so name it and let them decide. Write nothing; the revision itself belongs in the analysis folder's `TRACKER.md`.

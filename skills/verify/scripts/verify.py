@@ -899,14 +899,28 @@ def plan_rows(plan):
     return rows
 
 
+def shown_plan(root, digest):
+    """The text of a plan the gate showed but nobody approved yet (pending/<session>.json), or None."""
+    folder = gate.state_path(root, "pending")
+    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        if not name.endswith(".json") or name.endswith(".hints.json"):
+            continue
+        entries = gate.read_json(os.path.join(folder, name), [])
+        for entry in entries if isinstance(entries, list) else []:
+            if isinstance(entry, dict) and entry.get("hash") == digest:
+                return entry.get("text", "")
+    return None
+
+
 def diff_plans(root, old, new):
     """What changed between two approved plans: table rows by step, and the `Inputs:` line."""
     plans = []
     for digest in (old, new):
         record = gate.read_json(gate.state_path(root, "approvals", digest + ".json"), None)
-        if not record:
-            sys.exit("verify: no approved plan {} (see `list`).".format(digest))
-        plans.append(record.get("plan", ""))
+        text = record.get("plan") if record else shown_plan(root, digest)
+        if text is None:
+            sys.exit("verify: no approved or shown plan {} (see `list`).".format(digest))
+        plans.append(text)
     before, after = plan_rows(plans[0]), plan_rows(plans[1])
     lines = ["# Plan diff {} -> {}".format(old, new), ""]
     for key in list(before) + [k for k in after if k not in before]:

@@ -359,7 +359,8 @@ class VerifyTest(unittest.TestCase):
         changed = plan("run `{}`".format(FIT), "run `analysis/a/scripts/03_report.py`", "run `analysis/a/run.sh`",
                        inputs="data/samples.tsv, analysis/a/Snakefile").replace(
             "| 1 | run `{}` | x |".format(FIT), "| 1 | run `{}` | donor-level |".format(FIT))
-        new = self.approve(changed)
+        notice = self.hook("stop", {"last_assistant_message": changed})["systemMessage"]
+        new = notice.split("approve plan ")[1][:8]  # shown, not yet approved: the moment to diff
         out = self.verify("diff", old, new)
         self.assertIn("Step 1, choice: `x` -> `donor-level`. **Possible scientific change.**", out)
         self.assertIn("Step 2, step: `run `analysis/a/scripts/02_plot.py`` -> "
