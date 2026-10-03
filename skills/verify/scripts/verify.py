@@ -879,6 +879,55 @@ def render_stale(result):
     return "\n".join(lines) + "\n"
 
 
+def plan_rows(plan):
+    """The plan table's rows keyed by their first cell, each a {lowercased header: cell} dict."""
+    rows, header = collections.OrderedDict(), None
+    lines = plan.splitlines()
+    for i, line in enumerate(lines):
+        match = gate.TABLE_ROW.match(line)
+        if not match:
+            header = None
+            continue
+        if gate.TABLE_RULE.match(line):
+            continue
+        cells = [cell.replace("\0", "|").strip() for cell in match.group(1).replace("\\|", "\0").split("|")]
+        following = lines[i + 1] if i + 1 < len(lines) else ""
+        if gate.TABLE_ROW.match(following) and gate.TABLE_RULE.match(following):
+            header = [cell.lower() for cell in cells]
+        elif header and cells[0]:
+            rows[cells[0]] = dict(zip(header, cells))
+    return rows
+
+
+def diff_plans(root, old, new):
+    """What changed between two approved plans: table rows by step, and the `Inputs:` line."""
+    plans = []
+    for digest in (old, new):
+        record = gate.read_json(gate.state_path(root, "approvals", digest + ".json"), None)
+        if not record:
+            sys.exit("verify: no approved plan {} (see `list`).".format(digest))
+        plans.append(record.get("plan", ""))
+    before, after = plan_rows(plans[0]), plan_rows(plans[1])
+    lines = ["# Plan diff {} -> {}".format(old, new), ""]
+    for key in list(before) + [k for k in after if k not in before]:
+        if key not in after:
+            lines.append("- Step {}: removed (was: {}).".format(key, " / ".join(before[key].values())))
+        elif key not in before:
+            lines.append("- Step {}: added: {}.".format(key, " / ".join(after[key].values())))
+        else:
+            for column in after[key]:
+                was, now = before[key].get(column, ""), after[key][column]
+                if was != now:
+                    flag = " **Possible scientific change.**" if column == "choice" else ""
+                    lines.append("- Step {}, {}: `{}` -> `{}`.{}".format(key, column, was, now, flag))
+    was, now = [gate.plan_inputs(text) or [] for text in plans]
+    lines += ["- Inputs: + {}".format(word) for word in now if word not in was]
+    lines += ["- Inputs: - {}".format(word) for word in was if word not in now]
+    if len(lines) == 2:
+        lines.append("No plan-table row or `Inputs:` entry changed.")
+    return "\n".join(lines) + "\n"
+
+
 def main(argv):
     parser = argparse.ArgumentParser(prog="verify")
     parser.add_argument("--plugin-root", required=True)
@@ -888,8 +937,9 @@ def main(argv):
     parser.add_argument("--rscript", default="Rscript")
     parser.add_argument("--hash-mb", type=float, default=2000)
     parser.add_argument("--seconds", type=float, default=120)
-    parser.add_argument("action", choices=["list", "report", "write", "stale"])
+    parser.add_argument("action", choices=["list", "report", "write", "stale", "diff"])
     parser.add_argument("hash", nargs="?")
+    parser.add_argument("new_hash", nargs="?")
     parser.add_argument("--analysis-dir")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
@@ -907,6 +957,11 @@ def main(argv):
         return 0
     if not args.hash or not re.match(r"^[0-9a-f]{8}$", args.hash):
         sys.exit("verify: give the plan's 8-character hash (see `list`).")
+    if args.action == "diff":
+        if not args.new_hash or not re.match(r"^[0-9a-f]{8}$", args.new_hash):
+            sys.exit("verify: `diff` needs the old and the new plan's 8-character hashes (see `list`).")
+        sys.stdout.write(diff_plans(root, args.hash, args.new_hash))
+        return 0
     if args.action == "write" and not args.analysis_dir:
         sys.exit("verify: `write` needs --analysis-dir, confirmed by the user.")
     result = check(root, args.hash, args.analysis_dir, args.sacct, args.hash_mb, args.seconds, args.scilintr,

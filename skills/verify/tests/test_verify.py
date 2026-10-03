@@ -353,6 +353,24 @@ class VerifyTest(unittest.TestCase):
         self.assertTrue(row.endswith("| 2 |"), row)
         self.assertIn("no approved plan", self.verify("report", "deadbeef", fails=True))
 
+    def test_diff_shows_changed_rows_and_flags_choice(self):
+        old = self.approve(plan("run `{}`".format(FIT), "run `analysis/a/scripts/02_plot.py`",
+                                inputs="data/samples.tsv"))
+        changed = plan("run `{}`".format(FIT), "run `analysis/a/scripts/03_report.py`", "run `analysis/a/run.sh`",
+                       inputs="data/samples.tsv, analysis/a/Snakefile").replace(
+            "| 1 | run `{}` | x |".format(FIT), "| 1 | run `{}` | donor-level |".format(FIT))
+        new = self.approve(changed)
+        out = self.verify("diff", old, new)
+        self.assertIn("Step 1, choice: `x` -> `donor-level`. **Possible scientific change.**", out)
+        self.assertIn("Step 2, step: `run `analysis/a/scripts/02_plot.py`` -> "
+                      "`run `analysis/a/scripts/03_report.py``.", out)
+        self.assertNotIn("Step 2, step: `run `analysis/a/scripts/02_plot.py`` -> "
+                         "`run `analysis/a/scripts/03_report.py``. **Possible", out)
+        self.assertIn("Step 3: added:", out)
+        self.assertIn("- Inputs: + analysis/a/Snakefile", out)
+        self.assertIn("No plan-table row", self.verify("diff", old, old))
+        self.assertIn("needs the old and the new", self.verify("diff", old, fails=True))
+
     def test_stale_lists_what_changed_since_provenance(self):
         self.assertIn("No verified plans", self.verify("stale"))
         self.write("data/samples.tsv", "a\n")
