@@ -583,6 +583,21 @@ class GateTest(unittest.TestCase):
         notice = self.post("python analysis/x.py", {"stdout": ""})
         self.assertNotIn("hookSpecificOutput", notice)
 
+    def test_runs_mycelium_misses_get_a_post_action_reminder(self):
+        context = lambda notice: (notice.get("hookSpecificOutput") or {}).get("additionalContext", "")
+        self.assertNotIn("post-action", context(self.post("bash analysis/x/run.sh", {"stdout": ""})),
+                         "no .living/: not a Mycelium repository")
+        os.makedirs(os.path.join(self.root, ".living"))
+        for command in ["bash analysis/x/run.sh", "snakemake -s analysis/x/Snakefile",
+                        "sbatch analysis/x/job.sh"]:
+            self.assertIn("post-action protocol did not fire", context(self.post(command, {"stdout": ""})),
+                          command)
+        for command in ["python analysis/x.py", "Rscript analysis/x.R"]:
+            self.assertNotIn("post-action", context(self.post(command, {"stdout": ""})), command)
+        both = context(self.post("MYCELIUM_EXTRA_EXPLORE=1 bash analysis/x/run.sh", {"stdout": ""}))
+        self.assertIn("post-action protocol did not fire", both)
+        self.assertIn("Exploratory run (not reportable)", both)
+
     def test_ungated_and_uncovered_runs(self):
         self.assertIsNone(self.post("ls analysis", {"stdout": ""}))
         self.assertEqual(self.receipts(), [])

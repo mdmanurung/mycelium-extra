@@ -57,6 +57,7 @@ PLAN_STATUS = re.compile(
 RUNNERS = re.compile(
     r"^(python[\d.]*|Rscript|R|bash|sh|zsh|jupyter|papermill|quarto|julia|perl|node|source|\.)$")
 SHELLS = {"bash", "sh", "zsh"}
+MYCELIUM_SEES = re.compile(r"^(python[\d.]*|Rscript|R|jupyter)$")  # Mycelium 0.7.2's run detector
 SCRIPT_EXT = re.compile(r"(\.(py|R|r|sh|ipynb|qmd|Rmd|rmd|jl|smk|pl)$|(^|/)Snakefile$)")
 WRAPPERS = {"env", "time", "nohup", "nice", "command", "exec", "stdbuf", "timeout", "srun",
             "conda", "mamba", "micromamba", "pixi", "uv", "run", "xvfb-run"}
@@ -1133,12 +1134,24 @@ def on_post(event, root, config):
         notes.append("{} ({})".format(what, "plan " + receipt["plans"][-1] if records
                                       else "explore run" if explore else "no approved plan"))
     result = {"systemMessage": "mycelium-extra: run receipt recorded: {}.".format("; ".join(notes))}
+    context = []
+    unseen = sorted({run[1] for run in runs if not MYCELIUM_SEES.match(run[1])})
+    if unseen and os.path.isdir(os.path.join(root, ".living")):
+        # Mycelium's own hooks detect only python, R and jupyter runs, so they stay silent here.
+        context.append(
+            "mycelium-extra: Mycelium's post-action protocol did not fire for this {} run (its hooks "
+            "detect only python, R, and jupyter). Once the run has finished (check its log or job "
+            "status), follow that protocol: learnings, decisions, findings, the manifest, and the "
+            "analysis doc.".format(", ".join(unseen)))
     if any(run[0] for run in runs):
         # Mycelium's post-action protocol asks for findings after any run; keep this one out of results.
-        result["hookSpecificOutput"] = {"hookEventName": "PostToolUse", "additionalContext": (
+        context.append(
             "mycelium-extra: that was an exploratory run, not reportable. If you record a learning or "
             "finding from it (for example under Mycelium's post-action protocol), label it "
-            "`Exploratory run (not reportable)`, and do not cite its outputs as results.")}
+            "`Exploratory run (not reportable)`, and do not cite its outputs as results.")
+    if context:
+        result["hookSpecificOutput"] = {"hookEventName": "PostToolUse",
+                                        "additionalContext": "\n\n".join(context)}
     return result
 
 
