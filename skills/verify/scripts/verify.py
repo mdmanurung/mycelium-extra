@@ -25,6 +25,7 @@ import glob
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -462,6 +463,81 @@ def describe_run(receipt, digest):
     return label + " (no approved plan)"
 
 
+CONDA_RUNNERS = ("conda", "mamba", "micromamba")
+ACTIVATE = re.compile(r"\b(?:conda|mamba|micromamba)\s+activate\s+([^\s;&|]+)")
+
+
+def conda_env(root, receipt):
+    """{env, prefix, source} of the conda env a run used, from its receipt; None if it names none."""
+    declared = receipt.get("command_env") or {}
+    if declared.get("manager") == "pixi":
+        return None  # pixi projects carry pixi.lock
+    name, source = None, None
+    if declared.get("manager") in CONDA_RUNNERS and declared.get("env"):
+        name, source = declared["env"], "`{} run`".format(declared["manager"])
+    for line in receipt.get("env_lines") or [] if not name else []:
+        match = ACTIVATE.search(line)
+        if match:
+            name, source = match.group(1), "`activate` in the job script"
+    if not name:
+        try:
+            words = shlex.split(receipt.get("command", ""))
+        except ValueError:
+            words = []
+        for word in words:
+            prefix = os.path.dirname(os.path.dirname(word))
+            if os.path.isabs(word) and os.path.basename(os.path.dirname(word)) == "bin" \
+                    and os.path.isdir(os.path.join(prefix, "conda-meta")):
+                return {"env": os.path.basename(prefix), "prefix": prefix, "source": "interpreter path"}
+    if not name:
+        prefix = (receipt.get("hook_env") or {}).get("CONDA_PREFIX")
+        return {"env": os.path.basename(prefix), "prefix": prefix, "source": "session `CONDA_PREFIX`"} \
+            if prefix else None
+    if "/" in name:
+        base = os.path.join(root, receipt.get("cwd") or ".")
+        return {"env": name, "prefix": os.path.normpath(os.path.join(base, os.path.expanduser(name))),
+                "source": source}
+    known = read_text(os.path.expanduser("~/.conda/environments.txt")).split()
+    matches = sorted({p for p in known if os.path.basename(p.rstrip("/")) == name})
+    return {"env": name, "prefix": matches[0] if len(matches) == 1 else None, "source": source}
+
+
+def conda_snapshots(root, runs, report):
+    """`conda list --explicit` of each conda env the plan's runs used and no conda-lock.yml pins,
+    read from the env's conda-meta records (conda itself need not be on PATH)."""
+    envs = collections.OrderedDict()
+    for r in runs:
+        if any(os.path.basename(l.get("path", "")) == "conda-lock.yml" for l in r.get("lockfiles") or []):
+            continue
+        env = conda_env(root, r)
+        if env:
+            env = envs.setdefault(env["prefix"] or env["env"], env)
+            env["last_run"] = max(env.get("last_run", 0), r.get("ts", 0))
+    snapshots = []
+    for env in envs.values():
+        meta = os.path.join(env["prefix"] or "", "conda-meta")
+        records = [gate.read_json(p, {}) for p in sorted(glob.glob(os.path.join(meta, "*.json")))]
+        urls = sorted("{}#{}".format(m["url"], m["md5"]) if m.get("md5") else m["url"]
+                      for m in records if m.get("url"))
+        if not env["prefix"] or not urls:
+            report.add("gap", "Conda env `{}` ({}) was not found, so its packages were not recorded.".format(
+                env["env"], env["source"]))
+            continue
+        try:
+            changed = os.stat(os.path.join(meta, "history")).st_mtime
+        except OSError:
+            changed = 0
+        stale = changed > env["last_run"] + TOLERANCE
+        if stale:
+            report.add("gap", "Conda env `{}` changed {}, after its last run here ({}); the recorded package "
+                              "list is the env as it is now.".format(env["env"], when(changed), when(env["last_run"])))
+        else:
+            report.add("info", "Conda env `{}` ({}): {} packages recorded.".format(env["env"], env["source"],
+                                                                                 len(urls)))
+        snapshots.append(dict(env, packages=urls, changed_after_run=stale))
+    return snapshots
+
+
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
           rscript="Rscript"):
     config = gate.load_config(root)
@@ -715,12 +791,13 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         report.add("info", "{} inline command(s) ran in the window (Mycelium lineage); read-only "
                            "probes are typical, and they are not checked.".format(inline))
 
+    envs = conda_snapshots(root, mine, report)
     linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds)
 
     return {"hash": digest, "approved_at": approved_at, "start": start, "session_id": approval.get("session_id"),
             "analysis_dir": analysis_dir, "git": gate.git_state(root), "runs": len(mine),
             "scripts": scripts, "folders": folders, "commands": commands, "inputs": inputs,
-            "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted,
+            "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted, "envs": envs,
             "status": report.status(), "plan": plan,
             # Kept for the record (a scaffolder call can explain a moved input), marked as not runs.
             "receipts": sorted(mine + [dict(r, not_a_run="only passed planned paths to other code")
@@ -806,6 +883,17 @@ def write(root, result):
     paths = {"plan": "plan-{}.md".format(digest), "receipts": "receipts-{}.jsonl".format(digest),
              "outputs": "outputs-{}.tsv".format(digest), "report": "verify-{}.md".format(digest),
              "lint": "lint-{}.txt".format(digest)}
+    if result.get("envs"):
+        paths["env"] = "env-{}.txt".format(digest)
+        with open(os.path.join(folder, paths["env"]), "w") as handle:
+            handle.write("# Conda envs of plan {}'s runs, read {} from each env's conda-meta (the format of "
+                         "`conda list --explicit --md5`).\n# One block per env: copy a block from `@EXPLICIT` "
+                         "into its own file for `conda create -n <name> --file <file>`.\n".format(digest, stamp))
+            for env in result["envs"]:
+                handle.write("\n# env: {}\n# prefix: {}\n# from: {}\n{}@EXPLICIT\n{}\n".format(
+                    env["env"], env["prefix"], env["source"],
+                    "# changed after the run: this is the env as it was when verify read it\n"
+                    if env["changed_after_run"] else "", "\n".join(env["packages"])))
     with open(os.path.join(folder, paths["plan"]), "w") as handle:
         handle.write("# Approved plan {}\n\nApproved {} in Claude Code session {}. Frozen copy of the plan "
                      "the mycelium-extra gate approved; do not edit it. Revise the analysis's own plan "
@@ -831,9 +919,10 @@ def write(root, result):
         handle.write("Written {} by mycelium-extra verify.\n\n".format(stamp))
         handle.write(render(result, all_outputs=True))
     index = os.path.join(folder, "PROVENANCE.md")
-    row = "| {} | {} | {} | {} | [plan]({}) · [receipts]({}) · [outputs]({}) · [lint]({}) · [report]({}) |".format(
+    row = "| {} | {} | {} | {} | [plan]({}) · [receipts]({}) · [outputs]({}) · [lint]({}) · [report]({}){} |".format(
         digest, when(result["approved_at"]), stamp, result["status"], paths["plan"], paths["receipts"],
-        paths["outputs"], paths["lint"], paths["report"])
+        paths["outputs"], paths["lint"], paths["report"],
+        " · [conda env]({})".format(paths["env"]) if "env" in paths else "")
     if os.path.isfile(index):
         with open(index) as handle:
             lines = [line.rstrip("\n") for line in handle if not line.startswith("| {} |".format(digest))]

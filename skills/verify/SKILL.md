@@ -65,6 +65,8 @@ It writes `<folder>/provenance/`:
 - `receipts-<hash>.jsonl`: the receipts of this plan's runs.
 - `outputs-<hash>.tsv`: each output's path, write time, size, full sha256 (or size and mtime past the hash budget), and likely run.
 - `verify-<hash>.md`: this report.
+- `lint-<hash>.txt`: the scilintr output and every `ANALYSIS_OK` waiver.
+- `env-<hash>.txt`, only when a run used a conda env (`conda run -n|-p`, `conda activate` in its job script, an interpreter under `<env>/bin/`, or the session's `CONDA_PREFIX`) and no `conda-lock.yml` was found: the env's packages in `conda list --explicit --md5` form, read from its `conda-meta` so conda need not be on PATH. An env changed after its last run (`conda-meta/history` is newer) or not found is a gap.
 - `PROVENANCE.md`: one row per verified plan.
 
 Writing again for the same plan replaces its files and its row. A non-conforming check can be written too, since its status is recorded with it. The files belong with the analysis, so commit them with it. The script warns if git ignores the folder.

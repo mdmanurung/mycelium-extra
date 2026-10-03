@@ -463,6 +463,52 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("scilintr (Python) not checked: `analysis/a/06_broken.ipynb` does not parse", out)
         self.assertIn("Verify status: CONFORMS_WITH_GAPS", out)
 
+    def conda_env(self):
+        """A fake conda env named fakeenv, listed in a fake ~/.conda/environments.txt."""
+        prefix = os.path.join(self.root, "envs", "fakeenv")
+        self.write("envs/fakeenv/conda-meta/b-2-0.json", json.dumps({"url": "https://x/b-2-0.conda", "md5": "bb"}))
+        self.write("envs/fakeenv/conda-meta/a-1-0.json", json.dumps({"url": "https://x/a-1-0.conda", "md5": "aa"}))
+        self.write("envs/fakeenv/conda-meta/history", "==> 2024 <==\n", mtime=time.time() - 7200)
+        self.write("envs/fakeenv/bin/python", "")
+        self.write("home/.conda/environments.txt", prefix + "\n/elsewhere/envs/other\n")
+        home = os.environ.get("HOME")
+        os.environ["HOME"] = os.path.join(self.root, "home")
+        self.addCleanup(lambda: os.environ.__setitem__("HOME", home) if home else os.environ.pop("HOME"))
+        return prefix
+
+    def test_conda_env_is_recorded_into_provenance(self):
+        self.conda_env()
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("conda run -n fakeenv python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        self.assertIn("Conda env `fakeenv` (`conda run`): 2 packages recorded", self.verify("report", digest))
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        with open(os.path.join(self.root, "analysis/a/provenance/env-{}.txt".format(digest))) as handle:
+            self.assertIn("@EXPLICIT\nhttps://x/a-1-0.conda#aa\nhttps://x/b-2-0.conda#bb\n", handle.read())
+        with open(os.path.join(self.root, "analysis/a/provenance/PROVENANCE.md")) as handle:
+            self.assertIn("[conda env](env-{}.txt)".format(digest), handle.read())
+        history = os.path.join(self.root, "envs/fakeenv/conda-meta/history")
+        os.utime(history, (receipt["ts"] + 100, receipt["ts"] + 100))
+        out = self.verify("report", digest)
+        self.assertIn("Conda env `fakeenv` changed", out)
+        self.assertIn("Verify status: CONFORMS_WITH_GAPS", out)
+
+    def test_conda_env_from_interpreter_path_and_missing_env(self):
+        prefix = self.conda_env()
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        self.run_cmd("{}/bin/python {}".format(prefix, FIT))
+        self.run_cmd("conda run -n nosuch python " + FIT)
+        out = self.verify("report", digest)
+        self.assertIn("Conda env `fakeenv` (interpreter path): 2 packages recorded", out)
+        self.assertIn("Conda env `nosuch` (`conda run`) was not found", out)
+
+    def test_conda_lock_means_no_snapshot(self):
+        self.conda_env()
+        self.write("conda-lock.yml", "version: 1\n")
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        self.run_cmd("conda run -n fakeenv python " + FIT)
+        self.assertNotIn("Conda env", self.verify("report", digest))
+
     def test_status_lists_plans_with_verify_lint_stale_and_manifest(self):
         self.assertIn("No plans", self.verify("status"))
         verified = self.approve(plan("run `{}`".format(FIT)))
