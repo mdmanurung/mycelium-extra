@@ -1,6 +1,6 @@
 ---
 name: verify
-description: After an approved mycelium-extra grill plan has run, check what actually ran against the plan, then, once the user confirms, write the frozen plan, its run receipts, and the check into the analysis folder's `provenance/`. Reports per planned script whether it ran, failed, has no receipt, was edited or deleted since it ran, or was only passed to other code (a lint or parse call); flags explore runs, runs and scripts outside the plan table, changed pinned inputs, outputs written before the approval or not tied to a run of the plan (from the plan's `Outputs:` line, the gate's receipts, Slurm, and Snakemake's records), and scratchpad computation Mycelium's lineage saw but the gate did not. Then names the `/mycelium:review` command that checks the code against the frozen plan. Use when the user invokes mycelium-extra verify, asks whether an analysis ran according to plan, or wants provenance recorded after an approved run. Its `stale` sweep lists every verified plan whose scripts, pinned inputs, or outputs changed since its provenance was written; use it when the user asks what is stale, out of date, or needs re-running. Claude Code only, since it reads the approval gate's receipts. Not for planning (use grill) and not for judging code quality (use Mycelium's review).
+description: After an approved mycelium-extra grill plan has run, check what actually ran against the plan, then, once the user confirms, write the frozen plan, its run receipts, and the check into the analysis folder's `provenance/`. Reports per planned script whether it ran, failed, has no receipt, was edited or deleted since it ran, or was only passed to other code (a lint or parse call); flags explore runs, runs and scripts outside the plan table, changed pinned inputs, outputs written before the approval or not tied to a run of the plan (from the plan's `Outputs:` line, the gate's receipts, Slurm, and Snakemake's records), and scratchpad computation Mycelium's lineage saw but the gate did not. Then names the `/mycelium:review` command that checks the code against the frozen plan. Use when the user invokes mycelium-extra verify, asks whether an analysis ran according to plan, or wants provenance recorded after an approved run. Its `stale` sweep lists every verified plan whose scripts, pinned inputs, or outputs changed since its provenance was written; use it when the user asks what is stale, out of date, or needs re-running. Its `status` table lists every approved or verified plan with its analysis folder, runs, verify status, staleness, recorded lint, and Mycelium manifest status; use it when the user asks for status, an overview, or what has been planned, run, or verified. Claude Code only, since it reads the approval gate's receipts. Not for planning (use grill) and not for judging code quality (use Mycelium's review).
 ---
 
 # Mycelium Extra: Verify
@@ -92,6 +92,14 @@ It reads the committed `provenance/receipts-<hash>.jsonl` and `outputs-<hash>.ts
 
 - In a Mycelium project, run each stale plan's `findings:` command, which searches `.living/findings/` for its session IDs and `plan <hash>` (the gate suggests `<session-id>; plan <hash>` as a ledger's Run/Session cell), to name the findings that rest on a stale plan. A finding's ledger may cite a run ID instead; if nothing matches, say the link is unknown, not that no finding is at risk.
 - Suggest, per stale plan: re-verify it (`verify <hash>`), or re-plan the re-run with grill. Write nothing.
+
+When the user asks for status or an overview, show one table, read-only:
+
+```bash
+python3 - --plugin-root <skill-dir>/../.. status [--json] < <skill-dir>/scripts/verify.py
+```
+
+One row per plan the gate approved (local, this clone only) or verify recorded (committed `provenance/`): the analysis folder (the provenance folder, else guessed from the plan table), runs, the verify status from `PROVENANCE.md` or `not verified`, `stale` changes, the lint recorded in `lint-<hash>.txt` (scilintr is not re-run), and the folder's entry in any `ANALYSIS_MANIFEST.md`: `listed: <first word of its status>`, `listed`, or `not listed`. A `not listed` analysis skipped Mycelium's manifest step. Show the table as printed, then suggest at most one next step, such as verifying the newest unverified plan. Write nothing.
 
 
 The report lists what it cannot see:

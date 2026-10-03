@@ -7,6 +7,7 @@ Mycelium's hooks do not open the post-action cycle:
     python3 - --plugin-root <root> report <hash> [--analysis-dir DIR] [--json] < verify.py
     python3 - --plugin-root <root> write <hash> --analysis-dir DIR < verify.py
     python3 - --plugin-root <root> stale [--json] < verify.py
+    python3 - --plugin-root <root> status [--json] < verify.py
 
 It reuses the approval gate's own parsers (`<root>/hooks/gate.py`), so a plan
 covers here exactly the scripts it let through. `report` only reads. `write`
@@ -778,7 +779,8 @@ def write(root, result):
     return [os.path.join(rel, name) for name in ["PROVENANCE.md"] + list(paths.values())]
 
 
-def list_plans(root):
+def approved_plans(root):
+    """(approved_at, hash, planned scripts, run count) for each approval the gate holds."""
     receipts = read_jsonl(gate.state_path(root, "receipts.jsonl"))
     folder = gate.state_path(root, "approvals")
     config = gate.load_config(root)
@@ -793,10 +795,14 @@ def list_plans(root):
         digest = record.get("hash", name[:8])
         table = gate.plan_table(record.get("plan", ""))
         scripts = [p for p in gate.plan_paths(table) if gate.gated_rel(root, root, p, config)]
-        rows.append((record.get("approved_at", 0), digest, len(scripts), runs[digest]))
+        rows.append((record.get("approved_at", 0), digest, scripts, runs[digest]))
+    return rows
+
+
+def list_plans(root):
     lines = ["| Plan | Approved | Scripts in table | Runs |", "|---|---|---|---|"]
-    for approved, digest, scripts, count in sorted(rows, reverse=True):
-        lines.append("| {} | {} | {} | {} |".format(digest, when(approved), scripts, count))
+    for approved, digest, scripts, count in sorted(approved_plans(root), reverse=True):
+        lines.append("| {} | {} | {} | {} |".format(digest, when(approved), len(scripts), count))
     return "\n".join(lines) + "\n"
 
 
@@ -881,6 +887,116 @@ def render_stale(result):
     return "\n".join(lines) + "\n"
 
 
+# ---------------------------------------------------------------- status
+
+MANIFEST_STATUS = re.compile(r"^[\s#>*-]*status[\s*]*:(.*)$", re.IGNORECASE)
+HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")
+
+
+def first_word(text):
+    match = re.search(r"[A-Za-z][\w-]*", text)
+    return match.group(0).lower() if match else ""
+
+
+def manifest_status(root, folder):
+    """`listed: <first status word>`, `listed`, or `not listed` in an ANALYSIS_MANIFEST.md.
+    An entry is a table row or a heading's section naming the folder's path, or a heading
+    that is the folder's name; Mycelium's YAML `status:`, `**Status**:` lines and a table's
+    Status cell are read."""
+    listed = gate.git(root, "ls-files", "-co", "--exclude-standard", "--", "*ANALYSIS_MANIFEST.md")
+    files = listed.split() if listed is not None else [
+        f for f in ["analysis/ANALYSIS_MANIFEST.md"] if os.path.isfile(os.path.join(root, f))]
+    path = re.compile(r"(?<![\w./-])" + re.escape(folder.rstrip("/")) + r"(?![\w.-])")
+    found = False
+    for rel in files:
+        lines = read_text(os.path.join(root, rel)).splitlines()
+        header, section, matched, fenced = None, [], False, False
+        for i, line in enumerate(lines + ["# end"]):
+            if line.lstrip().startswith("```"):
+                fenced = not fenced
+            heading = not fenced and HEADING.match(line)
+            if heading:
+                if matched:
+                    for text in section:
+                        status = MANIFEST_STATUS.match(text)
+                        if status and first_word(status.group(1)):
+                            return "listed: " + first_word(status.group(1))
+                    found = True
+                section, matched = [], heading.group(1).strip("`* ") == os.path.basename(folder)
+                continue
+            row = gate.TABLE_ROW.match(line)
+            if row and not gate.TABLE_RULE.match(line):
+                cells = [c.strip().lower() for c in row.group(1).split("|")]
+                following = lines[i + 1] if i + 1 < len(lines) else ""
+                if gate.TABLE_RULE.match(following):
+                    header = cells
+                elif path.search(line):
+                    found = True
+                    if header and "status" in header and header.index("status") < len(cells):
+                        word = first_word(cells[header.index("status")])
+                        if word:
+                            return "listed: " + word
+                continue
+            header = None if not row else header
+            section.append(line)
+            matched = matched or bool(path.search(line))
+    return "listed" if found else "not listed"
+
+
+def recorded_lint(folder, digest):
+    text = read_text(os.path.join(folder, "lint-{}.txt".format(digest)))
+    if not text:
+        return "not recorded"
+    text = text.split("# ANALYSIS_OK waivers")[0]
+    found = sum(1 for line in text.splitlines() if LINT_LINE.match(line))
+    if found:
+        return "{} finding(s)".format(found)
+    return "clean" if text.startswith("$ ") else "not run"
+
+
+def recorded_verify(folder, digest):
+    """(approved, verify status) from the analysis's PROVENANCE.md row for the plan."""
+    for line in read_text(os.path.join(folder, "PROVENANCE.md")).splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) >= 4 and cells[0] == digest:
+            return cells[1], cells[3]
+    return "?", "verified"
+
+
+def status(root, hash_mb, seconds):
+    """One row per approved or verified plan: folder, runs, verify status, staleness, lint, manifest."""
+    budget = {"bytes": float(hash_mb) * 1024 * 1024, "deadline": time.time() + seconds}
+    rows = {}
+    if gate.find_root(root):
+        for approved, digest, scripts, count in approved_plans(root):
+            rows[digest] = {"hash": digest, "approved": when(approved), "epoch": approved, "runs": count,
+                            "analysis_dir": guess_analysis_dir(scripts) or "?", "verified": "not verified",
+                            "stale": "-", "lint": "-"}
+    for rel in provenance_receipts(root):
+        plan = stale_plan(root, rel, budget)
+        folder = os.path.join(root, os.path.dirname(rel))
+        approved, verified = recorded_verify(folder, plan["hash"])
+        runs = sum(1 for r in read_jsonl(os.path.join(root, rel)) if not r.get("explore") and not r.get("not_a_run"))
+        row = rows.setdefault(plan["hash"], {"hash": plan["hash"], "approved": approved, "epoch": 0, "runs": runs})
+        row.update(analysis_dir=plan["analysis_dir"], verified=verified, lint=recorded_lint(folder, plan["hash"]),
+                   stale="{} change(s)".format(len(plan["changes"])) if plan["changes"] else "no",
+                   changes=plan["changes"])
+    for row in rows.values():
+        row["manifest"] = manifest_status(root, row["analysis_dir"]) if row["analysis_dir"] != "?" else "-"
+    return sorted(rows.values(), key=lambda r: (r["epoch"], r["approved"], r["hash"]), reverse=True)
+
+
+def render_status(rows):
+    if not rows:
+        return "No plans: nothing approved here and no provenance/receipts-<hash>.jsonl found.\n"
+    lines = ["| Plan | Analysis | Approved | Runs | Verified | Stale | Lint | Manifest |",
+             "|---|---|---|---|---|---|---|---|"]
+    for r in rows:
+        lines.append("| {hash} | `{analysis_dir}` | {approved} | {runs} | {verified} | {stale} | {lint} | "
+                     "{manifest} |".format(**r))
+    return "\n".join(lines) + "\n"
+
+
 def plan_rows(plan):
     """The plan table's rows keyed by their first cell, each a {lowercased header: cell} dict."""
     rows, header = collections.OrderedDict(), None
@@ -953,7 +1069,7 @@ def main(argv):
     parser.add_argument("--rscript", default="Rscript")
     parser.add_argument("--hash-mb", type=float, default=2000)
     parser.add_argument("--seconds", type=float, default=120)
-    parser.add_argument("action", choices=["list", "report", "write", "stale", "diff"])
+    parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff"])
     parser.add_argument("hash", nargs="?")
     parser.add_argument("new_hash", nargs="?")
     parser.add_argument("--analysis-dir")
@@ -961,10 +1077,15 @@ def main(argv):
     args = parser.parse_args(argv)
     load_gate(args.plugin_root)
     root = gate.find_root(os.path.abspath(args.repo))
-    if args.action == "stale":  # reads committed provenance, so it needs no gate
+    if args.action in ("stale", "status"):  # committed provenance suffices, so no gate needed
         top = gate.git(os.path.abspath(args.repo), "rev-parse", "--show-toplevel")
-        result = stale(root or (top.strip() if top else os.path.abspath(args.repo)), args.hash_mb, args.seconds)
-        sys.stdout.write(json.dumps(result, indent=1) + "\n" if args.json else render_stale(result))
+        base = root or (top.strip() if top else os.path.abspath(args.repo))
+        if args.action == "stale":
+            result = stale(base, args.hash_mb, args.seconds)
+            sys.stdout.write(json.dumps(result, indent=1) + "\n" if args.json else render_stale(result))
+        else:
+            rows = status(base, args.hash_mb, args.seconds)
+            sys.stdout.write(json.dumps(rows, indent=1) + "\n" if args.json else render_status(rows))
         return 0
     if root is None:
         sys.exit("verify: the approval gate is not on in this repository (no gate.json found).")

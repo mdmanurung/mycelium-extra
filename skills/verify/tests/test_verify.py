@@ -431,6 +431,41 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("[broad-exception]", text)
         self.assertIn("ANALYSIS_OK waivers (1)", text)
 
+    def test_status_lists_plans_with_verify_lint_stale_and_manifest(self):
+        self.assertIn("No plans", self.verify("status"))
+        verified = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        dirty = self.fake_tool("bin/scilintr-dirty", FIT + ":3:0: [broad-exception] broad except\\n", 1)
+        self.verify("write", verified, "--analysis-dir", "analysis/a", scilintr=dirty)
+        self.write("analysis/b/scripts/01_x.py", "print(1)\n", mtime=time.time() - 3600)
+        pending = self.approve(plan("run `analysis/b/scripts/01_x.py`"))
+        out = self.verify("status")
+        self.assertIn("| {} | `analysis/a` |".format(verified), out)
+        self.assertIn("| 1 | DOES_NOT_CONFORM | no | 1 finding(s) | not listed |", out)
+        self.assertIn("| {} | `analysis/b` |".format(pending), out)
+        self.assertIn("| 0 | not verified | - | - | not listed |", out)
+        shapes = {  # Mycelium's YAML template and the shapes real manifests use
+            "# Analysis Manifest\n\n### a\n```yaml\nname: a\n# a comment\nstatus: active\n```\n\n### b\n": "listed: active",
+            "| Analysis | Location | Status |\n|---|---|---|\n| A | `analysis/a/` | Complete 2026-09-25 in x |\n":
+                "listed: complete",
+            "## Fit\n\n**Status**: draft — 2026-07-21\nLives in `analysis/a`.\n": "listed: draft",
+            "| # | Name | Status |\n|---|---|---|\n| A1 | `analysis/a` | ✅\U0001F7E1 **Primary** x |\n":
+                "listed: primary",
+            "Folder `analysis/a` holds the fit.\n": "listed",
+            "See `analysis/ab/` and analysis/a.old\n": "not listed",
+        }
+        for text, expected in shapes.items():
+            with open(os.path.join(self.root, "analysis/ANALYSIS_MANIFEST.md"), "w", encoding="utf-8") as handle:
+                handle.write(text)
+            rows = {r["hash"]: r for r in json.loads(self.verify("status", "--json"))}
+            self.assertEqual(rows[verified]["manifest"], expected, text)
+        self.write(FIT, "print(2)\n")
+        os.remove(os.path.join(self.root, ".mycelium-extra", "gate.json"))  # provenance alone suffices
+        out = self.verify("status")
+        self.assertIn("| 1 change(s) |", out)
+        self.assertNotIn(pending, out)
+
     def test_gate_must_be_on(self):
         os.remove(os.path.join(self.root, ".mycelium-extra", "gate.json"))
         self.assertIn("not on", self.verify("list", fails=True))
