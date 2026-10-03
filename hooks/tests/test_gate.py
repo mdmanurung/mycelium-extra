@@ -198,6 +198,28 @@ class GateTest(unittest.TestCase):
         ]:
             self.assertTrue(self.denied(self.bash(command)), command)
 
+    def test_review_sources_do_not_authorize_execution(self):
+        plan = "\n".join([
+            "| # | Step | Choice | Source | Validation |",
+            "|---|---|---|---|---|",
+            "| 1 | `analysis/approved.py` | sensitivity check | "
+            "user (accepted review: biomni; PMID 123); user (accepted review: codex); "
+            "repo: analysis/hidden.py; sbatch | compare estimates |",
+            "",
+            "Plan status: READY",
+        ])
+        notice = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
+        self.assertIn("analysis/approved.py", notice)
+        self.assertNotIn("analysis/hidden.py", notice)
+        self.assertNotIn("sbatch", notice)
+        digest = notice.split("approve plan ")[1][:8]
+        repeated = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
+        self.assertIn("approve plan " + digest, repeated)
+        self.hook("prompt", {"prompt": "approve plan " + digest})
+        self.assertIsNone(self.bash("python analysis/approved.py"))
+        self.assertTrue(self.denied(self.bash("python analysis/hidden.py")))
+        self.assertTrue(self.denied(self.bash("sbatch job.sh")))
+
     def test_plan_without_table_approves_nothing(self):
         text = "run analysis/x.py and sbatch job.sh\n\nPlan status: READY"
         notice = self.hook("stop", {"last_assistant_message": text})["systemMessage"]

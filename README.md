@@ -2,11 +2,12 @@
 
 A standalone plugin for planning analysis work before it runs. It works alongside [Mycelium](https://github.com/arjunrajlaboratory/mycelium) but does not fork, modify, or require it.
 
-It has eight skills and one hook set:
+It has nine skills and one hook set:
 
 | Part | What it does | Writes |
 |---|---|---|
 | `grill` | Turns a proposed task into a sourced, numbered plan | Nothing |
+| `plan-review` | Challenges a grill plan with independent Codex engineering and Biomni biomedical reviews before approval | Nothing |
 | `decision-status` | Settles which past decision binds a task | Appends to `.living/decisions.md`, after you confirm |
 | `data-contract-check` | Tests a plan's sample-table assumptions | Nothing |
 | `init` | Turns on the approval gate in a repository | `.mycelium-extra/gate.json`, `.gitignore` |
@@ -49,7 +50,7 @@ claude plugin update mycelium-extra@mycelium-extra
 
 ### Codex
 
-- **Plugin:** this folder includes `.codex-plugin/plugin.json` and `skills/*/SKILL.md`, ready to add to a Codex plugin marketplace. After installing, invoke `$mycelium-extra:<skill>`. The Codex manifest disables the Claude-only approval-gate hooks, so Codex does not load them from `hooks/hooks.json`.
+- **Plugin:** this folder includes `.codex-plugin/plugin.json` and `skills/*/SKILL.md`, ready to add to a Codex plugin marketplace. After installing, invoke `$mycelium-extra:<skill>`. The Codex manifest disables the Claude-only approval-gate hooks, so Codex does not load them from `hooks/hooks.json`. In Codex, `plan-review` provides the engineering critique only; Claude Code leads the two-reviewer synthesis.
 - **Standalone skill:** copy one `skills/<skill>/` folder to your personal Codex skills location and invoke it as `$grill`. Namespacing then depends on how you installed it.
 
 The approval gate, `init`, and `verify` are Claude Code only.
@@ -60,15 +61,16 @@ A typical analysis task, in order:
 
 1. **Once per repository:** `/mycelium-extra:init` turns on the approval gate.
 2. **Plan:** `/mycelium-extra:grill <your task>`. Answer its questions (at most five).
-3. **Approve:** when the plan ends with `Plan status: READY`, type the `approve plan <hash>` line it shows.
-4. **Run:** execute the plan through your normal workflow (`/mycelium:analyze` in a Mycelium project).
-5. **Verify:** `/mycelium-extra:verify <hash>` checks what ran against the plan and, once you confirm, records provenance. It then names the `/mycelium:review` command that checks the code against the frozen plan.
+3. **Optional review:** before approval, invoke `/mycelium-extra:plan-review` in Claude Code for separate Codex and Biomni critiques. It recommends amendments but does not edit or approve the plan.
+4. **Approve:** after any requested revision, use the new plan's `approve plan <hash>` line.
+5. **Run and verify:** execute through your normal workflow (`/mycelium:analyze` in a Mycelium project), then use `/mycelium-extra:verify <hash>`.
 
 Common prompts:
 
 | Goal | Prompt |
 |---|---|
 | Plan a task from repo evidence | `/mycelium-extra:grill Redo monocyte pathway analysis across trials; inspect the repo before asking me anything.` |
+| Challenge a draft before approval | `/mycelium-extra:plan-review Review the current grill plan with Codex and Biomni.` |
 | Settle conflicting past decisions | `/mycelium-extra:decision-status Which batch-correction decision binds the integration rerun?` |
 | Check the sample table before running | `/mycelium-extra:data-contract-check Check the approved plan's cohort, pairing, and batch assumptions against the sample table.` |
 | Turn on the gate | `/mycelium-extra:init` |
@@ -82,6 +84,10 @@ Common prompts:
 `grill` calls `decision-status` and `data-contract-check` itself when a plan depends on them, so you rarely need to invoke those directly.
 
 ## Skills
+
+### plan-review
+
+Run this after grill and before approving a changed plan. Claude Code assembles one minimal, sourced packet and asks Codex for an engineering critique and a connected Phylo Biomni MCP for a biomedical critique. It shows you the packet and sends it only after you agree, since it leaves the machine. Biomni has no lookup-only tool, so its review is one consult-only Biomni task: no file uploads, run in Biomni's cloud at the cost of your Biomni credits, and treated as advice, never as a project result. If a reviewer is missing, fails, or is unsafe to invoke, it is reported unavailable. Claude keeps agreement, disagreement, and its reasons for accepting or rejecting recommendations visible. The skill edits no files, records no run receipts, and does not add an approval. A revised plan requires normal approval. Invoking the skill in Codex returns the Codex critique only, since Codex cannot be its own independent second reviewer or Claude adjudicator.
 
 ### grill
 

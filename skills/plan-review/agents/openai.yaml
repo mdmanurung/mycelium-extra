@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan review"
+  short_description: "Independent engineering and biomedical challenge before approval"
+  default_prompt: "Use $mycelium-extra:plan-review to challenge this grill plan before approval. Keep both reviewer conclusions and disagreements visible; do not edit or execute the plan."
