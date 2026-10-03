@@ -502,6 +502,29 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("Conda env `fakeenv` (interpreter path): 2 packages recorded", out)
         self.assertIn("Conda env `nosuch` (`conda run`) was not found", out)
 
+    def test_conda_env_from_prefix_and_job_script(self):
+        self.conda_env()
+        self.write("job.sh", "#!/bin/bash\n#SBATCH -p cpu\nconda activate fakeenv\npython {}\n".format(FIT))
+        digest = self.approve(plan("run `{}`".format(FIT), "sbatch `job.sh`"))
+        self.run_cmd("sbatch job.sh", stdout="Submitted batch job 4242\n")
+        self.assertIn("Conda env `fakeenv` (`activate` in the job script): 2 packages recorded",
+                      self.verify("report", digest))
+        self.run_cmd("conda run -p envs/fakeenv python " + FIT)  # one env, two sources: first one named
+        out = self.verify("report", digest)
+        self.assertEqual(out.count("Conda env "), 1, out)
+
+    def test_session_env_only_when_the_job_declares_none(self):
+        prefix = self.conda_env()
+        self.write("job.sh", "#!/bin/bash\nmodule load R/4.3\nRscript analysis/a/x.R\n")
+        digest = self.approve(plan("sbatch `job.sh`"))
+        os.environ["CONDA_PREFIX"] = prefix  # the gate's hook records the session's env
+        self.addCleanup(os.environ.pop, "CONDA_PREFIX")
+        self.run_cmd("sbatch job.sh", stdout="Submitted batch job 4243\n")
+        self.assertNotIn("Conda env", self.verify("report", digest))
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        self.run_cmd("python " + FIT)
+        self.assertIn("Conda env `fakeenv` (session `CONDA_PREFIX`)", self.verify("report", digest))
+
     def test_conda_lock_means_no_snapshot(self):
         self.conda_env()
         self.write("conda-lock.yml", "version: 1\n")

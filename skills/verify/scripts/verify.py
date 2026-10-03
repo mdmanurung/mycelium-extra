@@ -53,6 +53,8 @@ LIMITS = [
     "Code run through MCP notebook tools (`nb_*_execute`) bypasses both the gate and the lineage.",
     "A run of a planned script proves it ran, not that it implements the plan's choices; "
     "that is what the review step checks.",
+    "With `snakemake --use-conda`, rules run in their own envs under `.snakemake/conda/`; the conda env "
+    "recorded is the one Snakemake ran in, not the rules' envs.",
 ]
 
 
@@ -490,6 +492,8 @@ def conda_env(root, receipt):
                     and os.path.isdir(os.path.join(prefix, "conda-meta")):
                 return {"env": os.path.basename(prefix), "prefix": prefix, "source": "interpreter path"}
     if not name:
+        if declared or receipt.get("env_lines"):
+            return None  # a job's own module, venv or container env, not the session's
         prefix = (receipt.get("hook_env") or {}).get("CONDA_PREFIX")
         return {"env": os.path.basename(prefix), "prefix": prefix, "source": "session `CONDA_PREFIX`"} \
             if prefix else None
