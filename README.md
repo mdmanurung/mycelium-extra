@@ -49,7 +49,7 @@ claude plugin update mycelium-extra@mycelium-extra
 
 ### Codex
 
-- **Plugin:** this folder includes `.codex-plugin/plugin.json` and `skills/*/SKILL.md`, ready to add to a Codex plugin marketplace. After installing, invoke `$mycelium-extra:<skill>`.
+- **Plugin:** this folder includes `.codex-plugin/plugin.json` and `skills/*/SKILL.md`, ready to add to a Codex plugin marketplace. After installing, invoke `$mycelium-extra:<skill>`. The Codex manifest disables the Claude-only approval-gate hooks, so Codex does not load them from `hooks/hooks.json`.
 - **Standalone skill:** copy one `skills/<skill>/` folder to your personal Codex skills location and invoke it as `$grill`. Namespacing then depends on how you installed it.
 
 The approval gate, `init`, and `verify` are Claude Code only.
