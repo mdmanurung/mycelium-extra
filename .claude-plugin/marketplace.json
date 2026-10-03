@@ -7,12 +7,12 @@
   },
   "metadata": {
     "description": "Repository-aware, bounded challenge and scoping for research and software work",
-    "version": "0.9.13"
+    "version": "0.9.14"
   },
   "plugins": [
     {
       "name": "mycelium-extra",
-      "description": "Sourced step plans, decision status, data-contract checks, and a plan-approval gate for Mycelium repositories.",
+      "description": "Sourced plans, independent plan review, data contracts, and a plan-approval gate for Mycelium repositories.",
       "source": "./"
     }
   ]

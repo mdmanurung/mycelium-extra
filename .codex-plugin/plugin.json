@@ -1,6 +1,6 @@
 {
   "name": "mycelium-extra",
-  "version": "0.9.13",
+  "version": "0.9.14",
   "description": "Repository-aware, bounded challenge and scoping for research and software work",
   "author": {
     "name": "Mikhael Manurung"
@@ -11,7 +11,7 @@
   "interface": {
     "displayName": "Mycelium Extra",
     "shortDescription": "Challenge plans using repository evidence",
-    "longDescription": "Search project memory and code before asking, challenge consequential assumptions, ask only questions the user must answer, and return a sourced step-by-step plan that waits for approval before anything runs. Settle which past Mycelium decision binds a task, and record the user's resolution as a new decision entry. Check a plan's sample-table assumptions (cohort, unit of replication, pairing, batch) before anything runs. Turn on the plan-approval gate in a repository (Claude Code). Create a new analysis folder that plugs into Mycelium: numbered steps run by a Snakefile, Mycelium's analysis doc, one plan, and one tracker.",
+    "longDescription": "Search project memory and code before asking, challenge consequential assumptions, and return a sourced plan. Challenge a draft before approval with independent Codex engineering and Biomni biomedical reviews in Claude Code; Codex-host invocation provides engineering critique only. Settle past Mycelium decisions, check sample-table assumptions, and create a new analysis folder. The approval gate and execution verification remain Claude Code only.",
     "developerName": "Mikhael Manurung",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
