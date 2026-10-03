@@ -6,6 +6,7 @@ Mycelium's hooks do not open the post-action cycle:
     python3 - --plugin-root <root> list < verify.py
     python3 - --plugin-root <root> report <hash> [--analysis-dir DIR] [--json] < verify.py
     python3 - --plugin-root <root> write <hash> --analysis-dir DIR < verify.py
+    python3 - --plugin-root <root> stale [--json] < verify.py
 
 It reuses the approval gate's own parsers (`<root>/hooks/gate.py`), so a plan
 covers here exactly the scripts it let through. `report` only reads. `write`
@@ -17,6 +18,7 @@ status line, so a reply quoting it is not offered for approval as a new plan.
 import argparse
 import base64
 import collections
+import datetime
 import glob
 import json
 import os
@@ -712,6 +714,85 @@ def list_plans(root):
     return "\n".join(lines) + "\n"
 
 
+# ---------------------------------------------------------------- stale sweep
+
+def provenance_receipts(root):
+    """Every provenance/receipts-<hash>.jsonl git tracks or would track; a walk outside git."""
+    listed = gate.git(root, "ls-files", "-co", "--exclude-standard", "--", "*provenance/receipts-*.jsonl")
+    if listed is not None:
+        return sorted(line for line in listed.splitlines() if line)
+    found = []
+    for folder, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+        if os.path.basename(folder) == "provenance":
+            found += [os.path.relpath(os.path.join(folder, f), root) for f in files
+                      if re.match(r"^receipts-[0-9a-f]{8}\.jsonl$", f)]
+    return sorted(found)
+
+
+def stale_plan(root, rel, budget):
+    """What no longer matches one plan's provenance: scripts, pinned inputs, outputs."""
+    folder = os.path.dirname(rel)
+    digest = os.path.basename(rel)[len("receipts-"):-len(".jsonl")]
+    runs = [r for r in read_jsonl(os.path.join(root, rel)) if not r.get("explore") and not r.get("not_a_run")]
+    changes, scripts = [], {}
+    for r in runs:
+        script = r.get("script") or {}
+        if script.get("in_repo") and not script.get("missing"):
+            scripts[script["path"]] = (r, script)  # receipts are in time order, so the last run wins
+    for path, (r, recorded) in sorted(scripts.items()):
+        now = gate.fingerprint(os.path.join(root, path), budget, pin=recorded)
+        if now.get("missing"):
+            changes.append("script `{}` deleted since it ran at {}".format(path, when(r.get("ts"))))
+        elif not gate.unchanged(recorded, now):
+            changes.append("script `{}` edited since it ran at {}".format(path, when(r.get("ts"))))
+    pins = (runs[-1].get("pins") or {}) if runs else {}
+    for path, pin in sorted(pins.items()):
+        now = gate.fingerprint(os.path.join(root, path), budget, pin=pin)
+        if not gate.unchanged(pin, now):
+            changes.append("input `{}` changed (was {}, now {})".format(path, gate.describe(pin), gate.describe(now)))
+    table = os.path.join(root, folder, "outputs-{}.tsv".format(digest))
+    rows = []
+    if os.path.isfile(table):
+        with open(table) as handle:
+            rows = [line.rstrip("\n").split("\t") for line in handle][1:]
+    for row in rows:
+        if len(row) < 3:
+            continue
+        path, written, size = row[0], row[1], row[2]
+        try:
+            info = os.stat(os.path.join(root, path))
+        except OSError:
+            changes.append("output `{}` deleted since verify recorded it".format(path))
+            continue
+        try:
+            then = datetime.datetime.strptime(written, "%Y-%m-%dT%H:%M:%S%z").timestamp()
+        except ValueError:
+            then = None
+        if (size and str(info.st_size) != size) or (then is not None and abs(info.st_mtime - then) > 2):
+            changes.append("output `{}` rewritten {} (provenance out of date)".format(path, when(info.st_mtime)))
+    sessions = sorted({r["session_id"] for r in runs if r.get("session_id")})
+    return {"hash": digest, "analysis_dir": os.path.dirname(folder) or ".", "changes": changes,
+            "sessions": sessions}
+
+
+def stale(root, hash_mb, seconds):
+    budget = {"bytes": float(hash_mb) * 1024 * 1024, "deadline": time.time() + seconds}
+    plans = [stale_plan(root, rel, budget) for rel in provenance_receipts(root)]
+    return {"plans": len(plans), "stale": [p for p in plans if p["changes"]]}
+
+
+def render_stale(result):
+    lines = []
+    for plan in result["stale"]:
+        lines += ["## Plan {} · `{}`".format(plan["hash"], plan["analysis_dir"]), ""]
+        lines += ["- " + change for change in plan["changes"]]
+        lines += ["- sessions: " + (", ".join(plan["sessions"]) or "none recorded"), ""]
+    lines.append("{} of {} verified plans stale.".format(len(result["stale"]), result["plans"])
+                 if result["plans"] else "No verified plans: no provenance/receipts-<hash>.jsonl found.")
+    return "\n".join(lines) + "\n"
+
+
 def main(argv):
     parser = argparse.ArgumentParser(prog="verify")
     parser.add_argument("--plugin-root", required=True)
@@ -719,13 +800,18 @@ def main(argv):
     parser.add_argument("--sacct", default="sacct")
     parser.add_argument("--hash-mb", type=float, default=2000)
     parser.add_argument("--seconds", type=float, default=120)
-    parser.add_argument("action", choices=["list", "report", "write"])
+    parser.add_argument("action", choices=["list", "report", "write", "stale"])
     parser.add_argument("hash", nargs="?")
     parser.add_argument("--analysis-dir")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     load_gate(args.plugin_root)
     root = gate.find_root(os.path.abspath(args.repo))
+    if args.action == "stale":  # reads committed provenance, so it needs no gate
+        top = gate.git(os.path.abspath(args.repo), "rev-parse", "--show-toplevel")
+        result = stale(root or (top.strip() if top else os.path.abspath(args.repo)), args.hash_mb, args.seconds)
+        sys.stdout.write(json.dumps(result, indent=1) + "\n" if args.json else render_stale(result))
+        return 0
     if root is None:
         sys.exit("verify: the approval gate is not on in this repository (no gate.json found).")
     if args.action == "list":

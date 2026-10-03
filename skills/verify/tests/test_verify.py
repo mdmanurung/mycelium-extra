@@ -344,6 +344,35 @@ class VerifyTest(unittest.TestCase):
         self.assertTrue(row.endswith("| 2 |"), row)
         self.assertIn("no approved plan", self.verify("report", "deadbeef", fails=True))
 
+    def test_stale_lists_what_changed_since_provenance(self):
+        self.assertIn("No verified plans", self.verify("stale"))
+        self.write("data/samples.tsv", "a\n")
+        digest = self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/outputs/", inputs="data/samples.tsv"))
+        receipt = self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        self.write("analysis/a/outputs/keep.tsv", "y\n", mtime=receipt["ts"] - 1)
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        self.assertIn("0 of 1 verified plans stale", self.verify("stale"))
+        self.write(FIT, "print(2)\n")
+        self.write("data/samples.tsv", "a\nb\n")
+        self.write("analysis/a/outputs/fit.tsv", "x2\n")
+        os.remove(os.path.join(self.root, "analysis/a/outputs/keep.tsv"))
+        os.remove(os.path.join(self.root, ".mycelium-extra", "gate.json"))  # provenance alone suffices
+        out = self.verify("stale")
+        self.assertIn("## Plan {} · `analysis/a`".format(digest), out)
+        self.assertIn("script `{}` edited since it ran".format(FIT), out)
+        self.assertIn("input `data/samples.tsv` changed", out)
+        self.assertIn("output `analysis/a/outputs/fit.tsv` rewritten", out)
+        self.assertIn("output `analysis/a/outputs/keep.tsv` deleted", out)
+        self.assertIn("sessions: s1", out)
+        self.assertIn("1 of 1 verified plans stale", out)
+        self.assertNotIn("Plan status", out)
+        self.assertEqual(json.loads(self.verify("stale", "--json"))["stale"][0]["hash"], digest)
+        subprocess.check_call(["git", "-C", self.root, "init", "-q"])  # git lists untracked provenance too
+        self.assertIn("1 of 1 verified plans stale", self.verify("stale"))
+        self.write(".gitignore", "analysis/\n")  # ignored provenance is not swept
+        self.assertIn("No verified plans", self.verify("stale"))
+
     def test_gate_must_be_on(self):
         os.remove(os.path.join(self.root, ".mycelium-extra", "gate.json"))
         self.assertIn("not on", self.verify("list", fails=True))

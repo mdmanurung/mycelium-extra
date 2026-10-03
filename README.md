@@ -128,6 +128,8 @@ It ends with `Verify status: CONFORMS`, `CONFORMS_WITH_GAPS`, or `DOES_NOT_CONFO
 
 After you confirm, `verify` writes `<analysis>/provenance/`: the frozen plan, its receipts (ones that only passed a planned path to other code are kept, marked `not_a_run`), an outputs table with each file's size, full sha256, and likely run, the report, and a `PROVENANCE.md` index. Commit it with the analysis. It never writes `PLAN.md`, `TRACKER.md`, or `specification.md`, so the analysis keeps one plan file. It then names the review command, `/mycelium:review <folder> — check the code against the approved plan in <folder>/provenance/plan-<hash>.md`.
 
+`verify stale` sweeps every verified plan and lists the ones whose scripts, pinned inputs, or outputs changed since their provenance was written, with the session IDs to look up in `.living/findings/`. It reads only committed provenance, so it works without the gate on any clone; outputs are compared by size and time, not hashed.
+
 verify was first run on real receipts on 2026-10-02 (42 receipts, three plans, Rscript, sbatch, and Snakemake runs). Four bugs it showed are fixed. One limit remains: an output is tied to a run by time, and a planned script that is only a Snakemake rule's input (not its step script) is still counted as run in that rule.
 
 ### new-analysis
