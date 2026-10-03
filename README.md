@@ -2,7 +2,7 @@
 
 A standalone plugin for planning analysis work before it runs. It works alongside [Mycelium](https://github.com/arjunrajlaboratory/mycelium) but does not fork, modify, or require it.
 
-It has seven skills and one hook set:
+It has eight skills and one hook set:
 
 | Part | What it does | Writes |
 |---|---|---|
@@ -13,6 +13,7 @@ It has seven skills and one hook set:
 | `new-analysis` | Creates a new analysis folder: numbered steps, a Snakefile, Mycelium's analysis doc, one plan, one tracker | The new folder only |
 | `verify` | Checks an approved plan against what ran, then records provenance | `<analysis>/provenance/`, after you confirm |
 | `handoff` | Writes a short handoff so a fresh session can continue | `HANDOFF.md` at the project root |
+| `harden` | Ships a Mycelium learning's mitigation candidate as a real test | One test file; one `.living/learnings.md` entry, after you confirm |
 | Approval gate | Blocks analysis runs until you approve the plan, blocks them if the plan's inputs changed, and records a receipt per run | `.mycelium-extra/` only |
 
 ## Installation
@@ -73,6 +74,7 @@ Common prompts:
 | Turn on the gate | `/mycelium-extra:init` |
 | Start a new analysis folder | `/mycelium-extra:new-analysis analysis/gdt-seminmf-dream: does semi-NMF program usage differ by arm? Link data/anndatas/gdt.h5ad.` |
 | Check a run against its plan | `/mycelium-extra:verify 99ddfd42` |
+| Turn a learning into a test | `/mycelium-extra:harden` |
 | Continue in a fresh session | `/mycelium-extra:handoff`, then `/clear` and paste the resume line it prints |
 | Get next-command suggestions | `hints on` (and `hints off`) |
 | Run a quick test without a plan | Type `allow explore`; type `stop explore` when done. |
@@ -175,6 +177,10 @@ The robust-analysis protocols save figures to subfolders such as `outputs/figure
 `handoff` writes `HANDOFF.md` at the project root so you can `/clear` and continue in a fresh session without carrying the old context. It records the goal, the exact next action, current state, decisions you locked in, dead ends not to redo, and a few `path:line` pointers to read first. It overwrites the previous handoff, keeps only what still holds, and stays under about 80 lines: it points to code and commits instead of copying them. It ends with a one-line resume prompt (`Read HANDOFF.md, then ...`).
 
 In a Mycelium project it links to `.mycelium/last-session.md` and `.living/` entries rather than copying them, and never writes to Mycelium's files. It does not commit the handoff or change `.gitignore`.
+
+### harden
+
+`harden` turns one Mycelium learning into a test. It lists learnings still marked `ambient-awareness` whose `structural_mitigation_candidate` names a concrete check (at most five, newest first), and you pick one. It writes the test in the repository's own test setup, never under the gate's gated paths and never in analysis code, and shows two runs: the test must fail on a minimal reproduction of the original problem and pass on the current code. If it cannot fail, it guards nothing and the learning stays as it was. After you confirm, it sets that entry's `mitigation_type` to `structural` and notes the test path on its candidate line. Mycelium's `detect_recurrence.py` flags candidates; `harden` ships them.
 
 ### Approval gate
 

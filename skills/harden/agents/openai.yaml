@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra Harden"
+  short_description: "Ship a learning's mitigation candidate as a real test"
+  default_prompt: "Use $mycelium-extra:harden to turn one Mycelium learning's structural_mitigation_candidate into a test and mark it structural."
