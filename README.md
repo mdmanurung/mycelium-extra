@@ -74,6 +74,7 @@ Common prompts:
 | Start a new analysis folder | `/mycelium-extra:new-analysis analysis/gdt-seminmf-dream: does semi-NMF program usage differ by arm? Link data/anndatas/gdt.h5ad.` |
 | Check a run against its plan | `/mycelium-extra:verify 99ddfd42` |
 | Continue in a fresh session | `/mycelium-extra:handoff`, then `/clear` and paste the resume line it prints |
+| Get next-command suggestions | `hints on` (and `hints off`) |
 | Run a quick test without a plan | Type `allow explore`; type `stop explore` when done. |
 
 `grill` calls `decision-status` and `data-contract-check` itself when a plan depends on them, so you rarely need to invoke those directly.
@@ -216,6 +217,12 @@ Approving copies the pins into the approval. Before a covered run, the gate fing
 Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip Mycelium's Stop hook. `verify` copies a plan's receipts into the analysis folder after you confirm.
 
 **Exploratory runs.** Type `allow explore` to let runs prefixed with `MYCELIUM_EXTRA_EXPLORE=1` through for this session; type `stop explore` to end it. Without the grant the prefix is denied, so the agent cannot exempt itself. Each explore run is logged, and the Stop hook lists those runs as not reportable. After each one, the receipt hook tells the agent the run is not reportable, so a learning or finding it records from the run (for example under Mycelium's post-action protocol) is labeled `Exploratory run (not reportable)`. Output files carry no label.
+
+**Command hints.** Type `hints on` to get a one-line suggestion of the command to run next; `hints off` stops them. The setting lasts for the repository until you turn it off. Hints need the gate (`init`), since the gate's hooks carry them.
+
+- When you send a prompt that matches a task type, the agent is told which command fits and names it in one line, asking before it switches. Rules, first match wins: wrap up or new session → `handoff`; new analysis folder → `new-analysis`; which decision binds → `decision-status`; sample table → `data-contract-check`; brainstorm → `/mycelium:ideas`; ingest → `/mycelium:ingest`; report or write-up → `/mycelium:report`; review or audit → `/mycelium:review`; analysis words with no active approval → `grill`. The `/mycelium:*` rules apply only where `.living/` exists. Prompts that start with `/` or name `mycelium` get no hint.
+- When a turn ends, you alone see (the agent does not, so it costs no tokens): `verify <hash>` once a gated run under that plan has a receipt this session, and `handoff` once the context passes 120k tokens. Each shows once per session.
+- Hints match keywords, so some miss or misfire.
 
 **Limits.**
 

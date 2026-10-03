@@ -391,6 +391,46 @@ class GateTest(unittest.TestCase):
         with open(path) as handle:
             return [json.loads(line) for line in handle]
 
+    def test_hints_toggle_and_prompt_rules(self):
+        ask = lambda text: self.hook("prompt", {"prompt": text})
+        self.assertIsNone(ask("analyze the DE results"))  # off by default
+        self.assertIn("hints on", ask("hints on")["systemMessage"])
+        hint = ask("analyze the DE results")
+        self.assertIn("/mycelium-extra:grill", hint["systemMessage"])
+        self.assertIn("ask before switching", hint["hookSpecificOutput"]["additionalContext"])
+        self.assertIn(":handoff", ask("let's wrap up the analysis")["systemMessage"])  # specific rule first
+        self.assertIn(":new-analysis", ask("create a new analysis folder")["systemMessage"])
+        self.assertIsNone(ask("write the report"))  # Mycelium-only without .living/
+        os.makedirs(os.path.join(self.root, ".living"))
+        self.assertIn("/mycelium:report", ask("write the report")["systemMessage"])
+        for skipped in ("/mycelium-extra:grill analyze it", "run mycelium analyze", "fix the typo"):
+            self.assertIsNone(ask(skipped), skipped)
+        self.approve()
+        self.assertIsNone(ask("analyze the DE results"))  # a plan is already approved
+        self.assertIn("off", ask("hints off")["systemMessage"])
+        self.assertIsNone(ask("write the report"))
+
+    def test_stop_hints_verify_and_handoff_once(self):
+        digest, _ = self.approve()
+        self.post("python analysis/x.py", {"stdout": ""})
+        self.assertIsNone(self.hook("stop", {"last_assistant_message": "done"}))  # off
+        self.hook("prompt", {"prompt": "hints on"})
+        transcript = os.path.join(self.root, "t.jsonl")
+        with open(transcript, "w") as handle:
+            for tokens, side in ((150000, True), (90000, False)):
+                handle.write(json.dumps({"isSidechain": side, "message": {"usage": {
+                    "input_tokens": 2, "cache_read_input_tokens": tokens}}}) + "\n")
+        stop = lambda: self.hook("stop", {"last_assistant_message": "done", "transcript_path": transcript})
+        notice = stop()
+        self.assertIn("/mycelium-extra:verify " + digest, notice["systemMessage"])
+        self.assertNotIn("handoff", notice["systemMessage"])  # sidechain usage ignored
+        self.assertNotIn("hookSpecificOutput", notice)  # user-only
+        with open(transcript, "a") as handle:
+            handle.write(json.dumps({"message": {"usage": {"input_tokens": 1, "cache_read_input_tokens": 130000}}})
+                         + "\n")
+        self.assertIn(":handoff", stop()["systemMessage"])
+        self.assertIsNone(stop())  # each hint once per session
+
     def test_slow_approval_scan_denies_and_degrades_receipt(self):
         # A timeout killing the hook would print nothing and let the run through ungated.
         digest, _ = self.approve()

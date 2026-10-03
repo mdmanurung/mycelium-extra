@@ -10,6 +10,8 @@ permission prompts still apply. It catches mistakes; it is not security.
 The Stop hook also pins the files on a plan's `Inputs:` line; the tool hook
 blocks a launch whose pinned inputs changed; the post hook appends one run
 receipt per gated run to .mycelium-extra/receipts.jsonl.
+
+After `hints on`, the prompt and Stop hooks also suggest the command to run next.
 """
 
 import fnmatch
@@ -32,6 +34,23 @@ SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
 APPROVE = re.compile(r"^\s*approve plan(?: ([0-9a-f]{8}))?\s*[.!]?\s*$", re.IGNORECASE)
 EXPLORE_GRANT = re.compile(r"^\s*(allow|stop) explore\s*[.!]?\s*$", re.IGNORECASE)
+HINTS_TOGGLE = re.compile(r"^\s*hints (on|off)\s*[.!]?\s*$", re.IGNORECASE)
+HANDOFF_TOKENS = 120000  # context size at which the Stop hint suggests a handoff
+# (pattern, command, condition); first match wins. "living": only where .living/ exists;
+# "unplanned": only with no active approval. Specific rules go before the broad analysis one.
+PROMPT_HINTS = [(re.compile(pattern, re.IGNORECASE), command, condition) for pattern, command, condition in (
+    (r"\b(wrap up|hand ?off|new session|fresh session|continue later)\b", "/mycelium-extra:handoff", None),
+    (r"\bnew analysis\b|\bscaffold", "/mycelium-extra:new-analysis", None),
+    (r"\bwhich decisions?\b|\bconflicting decisions?\b|\bdecisions? (still )?binds?\b",
+     "/mycelium-extra:decision-status", None),
+    (r"\bsample (table|sheet)\b|\bcohort counts?\b", "/mycelium-extra:data-contract-check", None),
+    (r"\b(brainstorm|ideas|what are we missing)\b", "/mycelium:ideas", "living"),
+    (r"\bingest\b|\bregister (the |a )?data(set)?\b|\bnew data\b", "/mycelium:ingest", "living"),
+    (r"\b(write[- ]?up|report)\b", "/mycelium:report", "living"),
+    (r"\b(review|audit|sanity[- ]check)\b", "/mycelium:review", "living"),
+    (r"\b(analy[sz]e|analysis|differential|pseudobulk|clustering|regression|enrichment|re-?run)\b",
+     "/mycelium-extra:grill", "unplanned"),
+)]
 PLAN_STATUS = re.compile(
     r"^[\s>*_`]*plan status[\s*_`]*:[\s*_`]*(READY_WITH_ASSUMPTIONS|READY|DECISION_REQUIRED)[\s*_`.]*$",
     re.IGNORECASE | re.MULTILINE)
@@ -843,8 +862,99 @@ def log_explore(root, event, segment, paths):
                                                   "command": segment, "paths": paths})
 
 
+def hints_on(root):
+    return os.path.isfile(state_path(root, "hints.json"))
+
+
+def prompt_hint(prompt, root, config):
+    if not hints_on(root) or prompt.lstrip().startswith("/") or "mycelium" in prompt.lower():
+        return None
+    for pattern, command, condition in PROMPT_HINTS:
+        if not pattern.search(prompt):
+            continue
+        if condition == "living" and not os.path.isdir(os.path.join(root, ".living")):
+            continue
+        if condition == "unplanned" and active_approvals(root, config) != []:
+            continue
+        return {"systemMessage": "mycelium-extra hint: this fits {}".format(command),
+                "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": (
+                    "mycelium-extra hint: this request fits `{}`. Name it to the user in one line and ask "
+                    "before switching to it; do not invoke it unasked.".format(command))}}
+    return None
+
+
+def context_tokens(transcript):
+    """Context size from the last main-thread usage record in the transcript, or 0."""
+    try:
+        with open(transcript, "rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            handle.seek(max(0, handle.tell() - 262144))
+            lines = handle.read().decode("utf-8", "replace").splitlines()
+    except (OSError, TypeError):
+        return 0
+    for line in reversed(lines):
+        if '"usage"' not in line:
+            continue
+        try:
+            record = json.loads(line)
+        except ValueError:
+            continue
+        usage = (record.get("message") or {}).get("usage") if isinstance(record, dict) else None
+        if usage and not record.get("isSidechain"):
+            total = sum(usage.get(key) or 0 for key in (
+                "input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+            if total:  # some records carry all-zero usage
+                return total
+    return 0
+
+
+def stop_hints(root, event):
+    """Next-command hints at turn end, each shown once per session; user-only."""
+    session_id = event.get("session_id")
+    marker = state_path(root, "pending", safe_session(session_id) + ".hints.json")
+    shown = read_json(marker, {"verify": [], "handoff": False})
+    hints = []
+    log = state_path(root, "receipts.jsonl")
+    needle = json.dumps(session_id)[1:-1] if isinstance(session_id, str) else ""
+    plans = []
+    if os.path.isfile(log):
+        with open(log) as handle:
+            for line in handle:
+                if needle not in line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except ValueError:
+                    continue
+                if record.get("session_id") == session_id and not record.get("explore"):
+                    plans += [p for p in record.get("plans", []) if p not in plans]
+    for digest in plans:
+        if digest not in shown["verify"]:
+            shown["verify"].append(digest)
+            hints.append("mycelium-extra hint: next, `/mycelium-extra:verify {}`".format(digest))
+    if not shown["handoff"] and context_tokens(event.get("transcript_path")) >= HANDOFF_TOKENS:
+        shown["handoff"] = True
+        hints.append("mycelium-extra hint: context is large; next, `/mycelium-extra:handoff`, then /clear")
+    if hints:
+        write_json(marker, shown)
+    return hints
+
+
 def on_prompt(event, root, config):
     prompt = event.get("prompt") or ""
+    toggle = HINTS_TOGGLE.match(prompt)
+    if toggle:
+        path = state_path(root, "hints.json")
+        if toggle.group(1).lower() == "on":
+            write_json(path, {"on_at": time.time()})
+            message = ("mycelium-extra: command hints on for this repository. "
+                       "`hints off` turns them off.")
+        else:
+            if os.path.isfile(path):
+                os.remove(path)
+            message = "mycelium-extra: command hints off for this repository."
+        return {"systemMessage": message,
+                "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
     grant = EXPLORE_GRANT.match(prompt)
     if grant:
         path = grant_path(root, event.get("session_id"))
@@ -868,7 +978,7 @@ def on_prompt(event, root, config):
             message = ("mycelium-extra: nothing approved. To approve, send only `approve plan <hash>` "
                        "(pending in this session: {}).".format(known))
             return {"systemMessage": message}
-        return None
+        return prompt_hint(prompt, root, config)
     if match.group(1) is None:
         message = "mycelium-extra: pending plans in this session: {}. Nothing was approved.".format(known)
         return {"systemMessage": message,
@@ -915,6 +1025,8 @@ def on_stop(event, root, config):
     if fresh:
         notices.append("mycelium-extra: {} exploratory run(s) this session are not reportable: {}".format(
             len(fresh), "; ".join(fresh[:5]) + (" ..." if len(fresh) > 5 else "")))
+    if hints_on(root):
+        notices += stop_hints(root, event)
     return {"systemMessage": "\n".join(notices)} if notices else None
 
 
