@@ -44,6 +44,8 @@ class VerifyTest(unittest.TestCase):
         self.write(".mycelium-extra/gate.json", "{}")
         self.write(FIT, "print(1)\n", mtime=time.time() - 3600)  # scripts predate their plan
         self.sacct = self.fake_sacct("")
+        self.scilintr = self.fake_tool("bin/scilintr", "", 0)
+        self.rscript = self.fake_tool("bin/Rscript", "", 0)
 
     def tearDown(self):
         shutil.rmtree(self.root)
@@ -59,6 +61,11 @@ class VerifyTest(unittest.TestCase):
 
     def fake_sacct(self, line):
         path = self.write("bin/sacct", "#!/bin/sh\necho '{}'\n".format(line))
+        os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC)
+        return path
+
+    def fake_tool(self, rel, output, code):
+        path = self.write(rel, "#!/bin/sh\nprintf '%s' '{}'\nexit {}\n".format(output, code))
         os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC)
         return path
 
@@ -86,7 +93,9 @@ class VerifyTest(unittest.TestCase):
     def verify(self, *args, **kwargs):
         with open(SCRIPT) as source:
             proc = subprocess.Popen([sys.executable, "-", "--plugin-root", PLUGIN, "--repo", self.root,
-                                     "--sacct", kwargs.get("sacct", self.sacct)] + list(args),
+                                     "--sacct", kwargs.get("sacct", self.sacct),
+                                     "--scilintr", kwargs.get("scilintr", self.scilintr),
+                                     "--rscript", kwargs.get("rscript", self.rscript)] + list(args),
                                     stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                     cwd=self.root)
             out, err = proc.communicate()
@@ -372,6 +381,35 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("1 of 1 verified plans stale", self.verify("stale"))
         self.write(".gitignore", "analysis/\n")  # ignored provenance is not swept
         self.assertIn("No verified plans", self.verify("stale"))
+
+    def test_scilintr_findings_block_and_missing_linter_is_a_gap(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        self.write("analysis/a/scripts/02_plot.R", "x <- 1  # ANALYSIS_OK[magic-threshold]: fixed by design\n",
+                   mtime=time.time() - 3600)
+        self.write("analysis/a/outputs/junk.py", "pass\n")  # outputs are not linted
+        clean = self.verify("report", digest)
+        self.assertIn("scilintr: 1 Python file(s) clean", clean)
+        self.assertIn("scilintr: 1 R file(s) clean", clean)
+        self.assertIn("`analysis/a/scripts/02_plot.R:1` x <- 1", clean)
+        self.assertTrue(clean.rstrip().endswith("Verify status: CONFORMS"), clean)
+        finding = FIT + ":3:0: [broad-exception] broad except"
+        dirty = self.fake_tool("bin/scilintr-dirty", finding + "\\n", 1)
+        out = self.verify("report", digest, scilintr=dirty)
+        self.assertIn("1 scilintr finding(s) remain in Python code (1 broad-exception)", out)
+        self.assertIn("`{}:3` [broad-exception]".format(FIT), out)
+        self.assertIn("Verify status: DOES_NOT_CONFORM", out)
+        missing = self.verify("report", digest, scilintr=os.path.join(self.root, "no-scilintr"))
+        self.assertIn("scilintr (Python) not checked", missing)
+        self.assertIn("Verify status: CONFORMS_WITH_GAPS", missing)
+        broken = self.fake_tool("bin/Rscript-broken", "there is no package called scilintr", 1)
+        self.assertIn("scilintr (R) not checked: exit 1", self.verify("report", digest, rscript=broken))
+        self.verify("write", digest, "--analysis-dir", "analysis/a", scilintr=dirty)
+        with open(os.path.join(self.root, "analysis/a/provenance/lint-{}.txt".format(digest))) as handle:
+            text = handle.read()
+        self.assertIn("[broad-exception]", text)
+        self.assertIn("ANALYSIS_OK waivers (1)", text)
 
     def test_gate_must_be_on(self):
         os.remove(os.path.join(self.root, ".mycelium-extra", "gate.json"))

@@ -26,13 +26,16 @@ python3 - --plugin-root <skill-dir>/../.. report <hash> [--analysis-dir <folder>
 
 The analysis folder is guessed from the plan's scripts; pass `--analysis-dir` when the guess is wrong. `--json` gives the raw result.
 
+It also runs scilintr on the analysis folder's code (outputs, logs, and provenance skipped; the planned scripts when there is no folder): `scilintr` for Python, `Rscript -e 'scilintr::main()'` for R, as Mycelium's analyze skill requires. Notebooks are not linted. The `## Lint` section lists remaining findings and every `ANALYSIS_OK` waiver. If a linter is missing, say how to install it (`pip install scilintr`, `install.packages("scilintr")`); never treat an unchecked language as clean.
+
 The report ends with `Verify status:` and one of these values:
 - `CONFORMS`
-- `CONFORMS_WITH_GAPS`: something the records cannot show, such as a run with no receipt, an unrecorded exit status, or an output not tied to a run.
+- `CONFORMS_WITH_GAPS`: something the records cannot show, such as a run with no receipt, an unrecorded exit status, an output not tied to a run, or code scilintr could not check.
 - `DOES_NOT_CONFORM`: at least one of:
   - a failed run or Slurm job
   - a planned script edited after its run
   - a pinned input that changed since the approval
+  - a scilintr finding that is neither fixed nor waived
   - a file named exactly on the `Outputs:` line that was written before the approval (older files inside a named folder or glob are earlier runs' outputs, so they are only counted)
   - an incomplete Snakemake job
 

@@ -120,13 +120,14 @@ After an approved plan has run, `verify <hash>` compares the plan with the gate'
 - Pinned inputs that changed since the approval.
 - The files on the plan's `Outputs:` line: when each was written and which run likely wrote it. A file named exactly that was written before the approval blocks. Older files inside a named folder or glob are earlier runs' outputs, so they are counted, not checked.
 - Scripts that Mycelium's lineage saw run in the window but the gate did not, such as scratchpad scripts.
+- scilintr on the analysis folder's code (Python and R CLIs), as Mycelium's analyze skill requires, with every `ANALYSIS_OK` waiver listed.
 
 It ends with `Verify status: CONFORMS`, `CONFORMS_WITH_GAPS`, or `DOES_NOT_CONFORM`.
 
-- **Blocks:** a failed run, an edited script, a changed input, an output older than the approval, or an incomplete Snakemake job.
-- **Gaps:** things the records cannot show. An output is tied to a run by time alone, so attribution only ever produces gaps.
+- **Blocks:** a failed run, an edited script, a changed input, an output older than the approval, an incomplete Snakemake job, or a scilintr finding neither fixed nor waived.
+- **Gaps:** things the records cannot show, including code scilintr could not check (not installed, timed out, or unreadable output). An output is tied to a run by time alone, so attribution only ever produces gaps.
 
-After you confirm, `verify` writes `<analysis>/provenance/`: the frozen plan, its receipts (ones that only passed a planned path to other code are kept, marked `not_a_run`), an outputs table with each file's size, full sha256, and likely run, the report, and a `PROVENANCE.md` index. Commit it with the analysis. It never writes `PLAN.md`, `TRACKER.md`, or `specification.md`, so the analysis keeps one plan file. It then names the review command, `/mycelium:review <folder> — check the code against the approved plan in <folder>/provenance/plan-<hash>.md`.
+After you confirm, `verify` writes `<analysis>/provenance/`: the frozen plan, its receipts (ones that only passed a planned path to other code are kept, marked `not_a_run`), an outputs table with each file's size, full sha256, and likely run, the scilintr output and waivers (`lint-<hash>.txt`), the report, and a `PROVENANCE.md` index. Commit it with the analysis. It never writes `PLAN.md`, `TRACKER.md`, or `specification.md`, so the analysis keeps one plan file. It then names the review command, `/mycelium:review <folder> — check the code against the approved plan in <folder>/provenance/plan-<hash>.md`.
 
 `verify stale` sweeps every verified plan and lists the ones whose scripts, pinned inputs, or outputs changed since their provenance was written, with the session IDs to look up in `.living/findings/`. It reads only committed provenance, so it works without the gate on any clone; outputs are compared by size and time, not hashed.
 

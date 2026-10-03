@@ -205,6 +205,75 @@ class Report(object):
             else "CONFORMS"
 
 
+LINT_LINE = re.compile(r"^(.+?):(\d+):(\d+): \[([\w-]+)\] (.*)$")
+LINT_LANGUAGES = {".py": "Python", ".R": "R", ".r": "R"}
+NOTEBOOK_EXT = (".ipynb", ".qmd", ".Rmd", ".rmd")
+
+
+def code_files(root, analysis_dir, planned):
+    """The analysis folder's code (skipping outputs, provenance, logs), else the planned scripts."""
+    if not analysis_dir or analysis_dir == ".":
+        return [p for p in planned if os.path.isfile(os.path.join(root, p))]
+    files = []
+    for folder, dirs, names in os.walk(os.path.join(root, analysis_dir)):
+        dirs[:] = sorted(d for d in dirs if not d.startswith(".") and d not in SKIP_FOLDERS)
+        files += [rel_or_abs(root, os.path.join(folder, n)) for n in sorted(names)]
+    return files[:MAX_FILES]
+
+
+def lint(root, files, report, scilintr, rscript, seconds):
+    """Run scilintr on the code; remaining findings block, an unchecked language is a gap.
+    The Python CLI skips R files and exits 0 on a missing path, so each language gets
+    its own CLI and only existing files are passed."""
+    result = {"findings": [], "waivers": [], "output": [], "notebooks": []}
+    by_language = collections.defaultdict(list)
+    for rel in files:
+        ext = os.path.splitext(rel)[1]
+        if ext in LINT_LANGUAGES:
+            by_language[LINT_LANGUAGES[ext]].append(rel)
+        elif rel.endswith(NOTEBOOK_EXT):
+            result["notebooks"].append(rel)
+    for language, paths in sorted(by_language.items()):
+        command = [scilintr] if language == "Python" else [rscript, "-e", "scilintr::main()"]
+        try:
+            proc = subprocess.run(command + paths, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                  universal_newlines=True, timeout=seconds)
+        except (OSError, subprocess.SubprocessError) as error:
+            if isinstance(error, subprocess.TimeoutExpired):
+                report.add("gap", "scilintr ({}) not checked: timed out after {:.0f} s.".format(language, seconds))
+            else:
+                report.add("gap", "scilintr ({}) not checked: `{}` not found. Install it (`{}`) and re-verify."
+                           .format(language, command[0], "pip install scilintr" if language == "Python"
+                                   else 'install.packages("scilintr")'))
+            continue
+        found = [m.groups() for m in map(LINT_LINE.match, proc.stdout.splitlines()) if m]
+        result["output"].append("$ {}\n{}".format(" ".join(command[:3] + ["<{} files>".format(len(paths))]),
+                                                  proc.stdout.rstrip()))
+        if proc.returncode == 1 and found:
+            result["findings"] += found
+            rules = collections.Counter(f[3] for f in found)
+            report.add("block", "{} scilintr finding(s) remain in {} code ({}). Fix each or add an "
+                       "`ANALYSIS_OK[...]` waiver, then re-verify.".format(
+                           len(found), language, ", ".join("{} {}".format(n, r) for r, n in rules.most_common())))
+        elif proc.returncode == 0 and not found:
+            report.add("info", "scilintr: {} {} file(s) clean.".format(len(paths), language))
+        else:
+            report.add("gap", "scilintr ({}) not checked: exit {} with output it could not read: {}".format(
+                language, proc.returncode, cell((proc.stdout.strip().splitlines() or [""])[-1])[:200]))
+    for rel in files:
+        if os.path.splitext(rel)[1] in LINT_LANGUAGES or rel.endswith(NOTEBOOK_EXT):
+            try:
+                with open(os.path.join(root, rel), errors="replace") as handle:
+                    result["waivers"] += [(rel, n, line.strip()) for n, line in enumerate(handle, 1)
+                                          if "ANALYSIS_OK[" in line]
+            except OSError:
+                continue
+    if result["notebooks"]:
+        report.add("info", "{} notebook(s) not linted: {}.".format(
+            len(result["notebooks"]), gate.listing(result["notebooks"], 5)))
+    return result
+
+
 def guess_analysis_dir(files):
     if not files:
         return None
@@ -322,7 +391,8 @@ def describe_run(receipt, digest):
     return label + " (no approved plan)"
 
 
-def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120):
+def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
+          rscript="Rscript"):
     config = gate.load_config(root)
     approval = gate.read_json(gate.state_path(root, "approvals", digest + ".json"), None)
     if approval is None:
@@ -574,10 +644,12 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         report.add("info", "{} inline command(s) ran in the window (Mycelium lineage); read-only "
                            "probes are typical, and they are not checked.".format(inline))
 
+    linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds)
+
     return {"hash": digest, "approved_at": approved_at, "start": start, "session_id": approval.get("session_id"),
             "analysis_dir": analysis_dir, "git": gate.git_state(root), "runs": len(mine),
             "scripts": scripts, "folders": folders, "commands": commands, "inputs": inputs,
-            "outputs": outputs, "outputs_named": words, "findings": report.findings,
+            "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted,
             "status": report.status(), "plan": plan,
             # Kept for the record (a scaffolder call can explain a moved input), marked as not runs.
             "receipts": sorted(mine + [dict(r, not_a_run="only passed planned paths to other code")
@@ -634,6 +706,14 @@ def render(result, all_outputs=False):
             lines.append("")
             lines.append("{} more output file(s); `write` records them all.".format(
                 len(result["outputs"]) - len(shown)))
+    lines += ["", "## Lint", ""]
+    lint_rows = result["lint"]["findings"]
+    lines += ["- `{}:{}` [{}] {}".format(cell(f[0]), f[1], f[3], cell(f[4])) for f in lint_rows[:SHOWN_OUTPUTS]]
+    if len(lint_rows) > SHOWN_OUTPUTS:
+        lines.append("- {} more; `write` records them all.".format(len(lint_rows) - SHOWN_OUTPUTS))
+    waivers = result["lint"]["waivers"]
+    lines.append("{} `ANALYSIS_OK` waiver(s){}".format(len(waivers), ":" if waivers else "."))
+    lines += ["- `{}:{}` {}".format(cell(w[0]), w[1], cell(w[2])) for w in waivers[:SHOWN_OUTPUTS]]
     lines += ["", "## Findings", ""]
     order = {"block": 0, "gap": 1, "info": 2}
     for level, text in sorted(result["findings"], key=lambda f: order[f[0]]):
@@ -653,7 +733,8 @@ def write(root, result):
     digest = result["hash"]
     stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime())
     paths = {"plan": "plan-{}.md".format(digest), "receipts": "receipts-{}.jsonl".format(digest),
-             "outputs": "outputs-{}.tsv".format(digest), "report": "verify-{}.md".format(digest)}
+             "outputs": "outputs-{}.tsv".format(digest), "report": "verify-{}.md".format(digest),
+             "lint": "lint-{}.txt".format(digest)}
     with open(os.path.join(folder, paths["plan"]), "w") as handle:
         handle.write("# Approved plan {}\n\nApproved {} in Claude Code session {}. Frozen copy of the plan "
                      "the mycelium-extra gate approved; do not edit it. Revise the analysis's own plan "
@@ -670,13 +751,18 @@ def write(root, result):
                 row["path"], time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(row["written"])),
                 record.get("size", ""), record.get("sha256", ""), gate.method(record),
                 row["by"] + (" via " + row["rule"] if row["rule"] else "")]) + "\n")
+    with open(os.path.join(folder, paths["lint"]), "w") as handle:
+        lint = result["lint"]
+        handle.write("\n\n".join(lint["output"]) or "scilintr did not run.")
+        handle.write("\n\n# ANALYSIS_OK waivers ({})\n".format(len(lint["waivers"])))
+        handle.writelines("{}:{}: {}\n".format(*w) for w in lint["waivers"])
     with open(os.path.join(folder, paths["report"]), "w") as handle:
         handle.write("Written {} by mycelium-extra verify.\n\n".format(stamp))
         handle.write(render(result, all_outputs=True))
     index = os.path.join(folder, "PROVENANCE.md")
-    row = "| {} | {} | {} | {} | [plan]({}) · [receipts]({}) · [outputs]({}) · [report]({}) |".format(
+    row = "| {} | {} | {} | {} | [plan]({}) · [receipts]({}) · [outputs]({}) · [lint]({}) · [report]({}) |".format(
         digest, when(result["approved_at"]), stamp, result["status"], paths["plan"], paths["receipts"],
-        paths["outputs"], paths["report"])
+        paths["outputs"], paths["lint"], paths["report"])
     if os.path.isfile(index):
         with open(index) as handle:
             lines = [line.rstrip("\n") for line in handle if not line.startswith("| {} |".format(digest))]
@@ -798,6 +884,8 @@ def main(argv):
     parser.add_argument("--plugin-root", required=True)
     parser.add_argument("--repo", default=".")
     parser.add_argument("--sacct", default="sacct")
+    parser.add_argument("--scilintr", default="scilintr")
+    parser.add_argument("--rscript", default="Rscript")
     parser.add_argument("--hash-mb", type=float, default=2000)
     parser.add_argument("--seconds", type=float, default=120)
     parser.add_argument("action", choices=["list", "report", "write", "stale"])
@@ -821,7 +909,8 @@ def main(argv):
         sys.exit("verify: give the plan's 8-character hash (see `list`).")
     if args.action == "write" and not args.analysis_dir:
         sys.exit("verify: `write` needs --analysis-dir, confirmed by the user.")
-    result = check(root, args.hash, args.analysis_dir, args.sacct, args.hash_mb, args.seconds)
+    result = check(root, args.hash, args.analysis_dir, args.sacct, args.hash_mb, args.seconds, args.scilintr,
+                   args.rscript)
     if args.action == "write":
         written = write(root, result)
         for path in written:
