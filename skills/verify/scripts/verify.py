@@ -8,6 +8,7 @@ Mycelium's hooks do not open the post-action cycle:
     python3 - --plugin-root <root> write <hash> --analysis-dir DIR < verify.py
     python3 - --plugin-root <root> stale [--json] < verify.py
     python3 - --plugin-root <root> status [--json] < verify.py
+    python3 - --plugin-root <root> explore [--session ID | --all] [--json] < verify.py
 
 It reuses the approval gate's own parsers (`<root>/hooks/gate.py`), so a plan
 covers here exactly the scripts it let through. `report` only reads. `write`
@@ -1165,6 +1166,65 @@ def render_status(rows):
     return "\n".join(lines) + "\n"
 
 
+# ---------------------------------------------------------------- explore runs
+
+EXPLORE_DAYS = 7
+
+
+def explore_runs(root, session, hash_mb, seconds):
+    """Explore runs of gated code, newest command last, one entry per distinct command:
+    the material for a grill plan that re-runs them reportably."""
+    config = gate.load_config(root)
+    budget = {"bytes": float(hash_mb) * 1024 * 1024, "deadline": time.time() + seconds}
+    since = time.time() - EXPLORE_DAYS * 86400
+    prefix = re.compile(r"(^|\s){}=1\s+".format(gate.EXPLORE_VAR))
+    merged = collections.OrderedDict()
+    for r in read_jsonl(gate.state_path(root, "receipts.jsonl")):
+        if not r.get("explore") or not is_run(root, r, config["gated_commands"]):
+            continue
+        if (r.get("session_id") != session) if session else r.get("ts", 0) < since:
+            continue
+        command = prefix.sub(r"\1", r.get("command", "")).strip()
+        key = (r.get("cwd") or ".", command)
+        entry = merged.pop(key, {"command": command, "cwd": key[0], "runs": 0, "first": r.get("ts")})
+        env = conda_env(root, r) or {}
+        entry.update(runs=entry["runs"] + 1, last=r.get("ts"), session=r.get("session_id"),
+                     paths=ran_paths(root, r), exit_status=r.get("exit_status"), env=env.get("env"))
+        script = r.get("script") or {}
+        entry["changed"] = None
+        if script.get("in_repo"):
+            now = gate.fingerprint(os.path.join(root, script["path"]), budget, pin=script)
+            if now.get("missing"):
+                entry["changed"] = "script `{}` deleted since this run".format(script["path"])
+            elif not gate.unchanged(script, now):
+                entry["changed"] = "script `{}` edited since this run".format(script["path"])
+        merged[key] = entry  # re-inserted, so the order follows each command's last run
+    return list(merged.values())
+
+
+def render_explore(runs, scope):
+    lines = ["# Explore runs ({})".format(scope), ""]
+    if not runs:
+        lines.append("None recorded.")
+    for i, run in enumerate(runs, 1):
+        lines.append("{}. `{}`".format(i, run["command"]))
+        if run["cwd"] != ".":
+            lines.append("   - from `{}`".format(run["cwd"]))
+        if run["paths"]:
+            lines.append("   - ran: " + ", ".join("`{}`".format(p) for p in run["paths"]))
+        lines.append("   - last run {}{}, exit {}".format(
+            when(run["last"]), " ({} runs)".format(run["runs"]) if run["runs"] > 1 else "",
+            "not recorded" if run["exit_status"] is None else run["exit_status"]))
+        if run["env"]:
+            lines.append("   - conda env `{}`".format(run["env"]))
+        if run["changed"]:
+            lines.append("   - " + run["changed"])
+    lines += ["", "Explore outputs are not results: a plan that re-runs these commands without the "
+                  "`{}=1` prefix makes them reportable. Explore runs of inline code (`python -c`) are "
+                  "not recorded here.".format(gate.EXPLORE_VAR)]
+    return "\n".join(lines) + "\n"
+
+
 def plan_rows(plan):
     """The plan table's rows keyed by their first cell, each a {lowercased header: cell} dict."""
     rows, header = collections.OrderedDict(), None
@@ -1237,11 +1297,13 @@ def main(argv):
     parser.add_argument("--rscript", default="Rscript")
     parser.add_argument("--hash-mb", type=float, default=2000)
     parser.add_argument("--seconds", type=float, default=120)
-    parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff"])
+    parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore"])
     parser.add_argument("hash", nargs="?")
     parser.add_argument("new_hash", nargs="?")
     parser.add_argument("--analysis-dir")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--session", help="explore: this session's runs (default: $CLAUDE_CODE_SESSION_ID)")
+    parser.add_argument("--all", action="store_true", help="explore: every session's runs, last 7 days")
     args = parser.parse_args(argv)
     load_gate(args.plugin_root)
     root = gate.find_root(os.path.abspath(args.repo))
@@ -1257,6 +1319,13 @@ def main(argv):
         return 0
     if root is None:
         sys.exit("verify: the approval gate is not on in this repository (no gate.json found).")
+    if args.action == "explore":
+        session = None if args.all else args.session or os.environ.get("CLAUDE_CODE_SESSION_ID")
+        scope = "session {}".format(session) if session else "all sessions, last {} days{}".format(
+            EXPLORE_DAYS, "" if args.all else "; no session ID found, so every session is shown")
+        runs = explore_runs(root, session, args.hash_mb, args.seconds)
+        sys.stdout.write(json.dumps(runs, indent=1) + "\n" if args.json else render_explore(runs, scope))
+        return 0
     if args.action == "list":
         sys.stdout.write(list_plans(root))
         return 0

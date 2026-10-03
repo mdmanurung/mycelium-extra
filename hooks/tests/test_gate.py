@@ -101,6 +101,9 @@ class GateTest(unittest.TestCase):
         self.assertTrue(self.denied(self.bash("MYCELIUM_EXTRA_EXPLORE=1 true && python analysis/x.py")))
         self.hook("prompt", {"prompt": "stop explore"})
         self.assertTrue(self.denied(self.bash("MYCELIUM_EXTRA_EXPLORE=1 python analysis/x.py")))
+        notice = self.hook("stop", {"last_assistant_message": "done"})["systemMessage"]
+        self.assertIn("1 exploratory run(s) this session are not reportable", notice)
+        self.assertIn('Say "promote explore runs" to plan a reportable re-run.', notice)
 
     def test_explore_grant_is_per_session(self):
         self.hook("prompt", {"prompt": "allow explore"})

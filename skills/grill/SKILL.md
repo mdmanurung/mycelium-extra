@@ -1,6 +1,6 @@
 ---
 name: grill
-description: Read-only, pre-execution planning for a proposed research, bioinformatics, analysis, or software task. Searches the repository's accumulated knowledge first (Mycelium `.living/` memory, manifests, analysis docs, code), asks only consequential questions the user must answer, and returns a step-by-step plan in which every consequential choice is sourced, then waits for approval before anything runs. Use when the user invokes mycelium-extra grill, or asks to scope, plan, or pressure-test an analysis or task before executing it, especially in a Mycelium project. Not for reviewing finished code, diffs, or completed analyses (use Mycelium's review skill or its grill mode) and not for open-ended, unbounded interviews.
+description: Read-only, pre-execution planning for a proposed research, bioinformatics, analysis, or software task. Searches the repository's accumulated knowledge first (Mycelium `.living/` memory, manifests, analysis docs, code), asks only consequential questions the user must answer, and returns a step-by-step plan in which every consequential choice is sourced, then waits for approval before anything runs. Use when the user invokes mycelium-extra grill, or asks to scope, plan, or pressure-test an analysis or task before executing it, especially in a Mycelium project. Not for reviewing finished code, diffs, or completed analyses (use Mycelium's review skill or its grill mode) and not for open-ended, unbounded interviews. Also use it when the user asks to promote explore runs into a plan for a reportable re-run.
 ---
 
 # Mycelium Extra: Grill
@@ -60,3 +60,13 @@ Write a 200–500 word brief, plus the plan table (which does not count toward t
 Put the brief and the plan table in your final message, and end it with the status on its own line, exactly `Plan status: READY`, `Plan status: READY_WITH_ASSUMPTIONS`, or `Plan status: DECISION_REQUIRED`. Name every script, notebook, or pipeline the plan will run by its repository path, in the plan table. Where the mycelium-extra approval gate is enabled (`.mycelium-extra/gate.json`), its hook hashes that message and shows the user `approve plan <hash>`; never print or guess a hash yourself, and never add the gate's explore prefix to a command unless the user asks for an exploratory run.
 
 Then stop. In this turn, do not execute, create analysis folders, or write to `.living/`, manifests, todo, or analysis files. Execution starts only after the user approves or edits the plan, and it follows the repository's normal lifecycle, carrying the approved plan and the decisions to record. Name other skills rather than assuming they can be invoked programmatically.
+
+## Promote explore runs
+
+When the user asks to promote explore runs (make them reportable, plan a re-run of what was explored), list them read-only:
+
+```bash
+python3 - --plugin-root <skill-dir>/../.. explore [--all] < <skill-dir>/../verify/scripts/verify.py
+```
+
+It lists this session's explore runs of gated code (`--all`: every session, last 7 days), one per distinct command with the `MYCELIUM_EXTRA_EXPLORE=1` prefix removed, the paths each ran, its exit status, conda env, and whether its script changed since. Then grill as usual (sections 1 to 4): the plan table names each script, wrapper, and command to re-run, without the prefix; ask the user which runs to keep when that is not clear. Explore outputs are not results, so the plan re-runs everything and its `Outputs:` line names fresh paths. Use [references/run-plans.md](references/run-plans.md) when the user wants the code frozen. Explore runs of inline code (`python -c`) are not listed; add them by hand if they matter.

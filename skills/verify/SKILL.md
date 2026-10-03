@@ -103,6 +103,8 @@ python3 - --plugin-root <skill-dir>/../.. status [--json] < <skill-dir>/scripts/
 
 One row per plan the gate approved (local, this clone only) or verify recorded (committed `provenance/`): the analysis folder (the provenance folder, else guessed from the plan table), runs, the verify status from `PROVENANCE.md` or `not verified`, `stale` changes, the lint verify recorded (`N finding(s)`, `clean`, `gap: <language> not checked`, or `not run`; scilintr is not re-run), and the folder's entry in any `ANALYSIS_MANIFEST.md`: `listed: <first word of its status>`, `listed`, or `not listed`. A `not listed` analysis skipped Mycelium's manifest step. Show the table as printed, then suggest at most one next step, such as verifying the newest unverified plan. Write nothing.
 
+`explore [--all]` lists explore runs of gated code for grill's "promote explore runs" (see the grill skill); it only reads.
+
 
 The report lists what it cannot see:
 - A receipt's time is when the hook fired, so outputs of a run moved to the background postdate it.

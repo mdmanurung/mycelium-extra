@@ -532,6 +532,30 @@ class VerifyTest(unittest.TestCase):
         self.run_cmd("conda run -n fakeenv python " + FIT)
         self.assertNotIn("Conda env", self.verify("report", digest))
 
+    def test_explore_lists_this_sessions_runs_for_a_plan(self):
+        self.hook("prompt", {"prompt": "allow explore"})
+        first = self.run_cmd("MYCELIUM_EXTRA_EXPLORE=1 python " + FIT)
+        self.run_cmd("MYCELIUM_EXTRA_EXPLORE=1 python " + FIT)
+        self.run_cmd("MYCELIUM_EXTRA_EXPLORE=1 python -c 'import x' " + FIT)  # path handed to code: no run
+        other = dict(first, session_id="s2", command="MYCELIUM_EXTRA_EXPLORE=1 python analysis/a/other.py")
+        with open(gate.state_path(self.root, "receipts.jsonl"), "a") as handle:
+            handle.write(json.dumps(other) + "\n")
+        self.write(FIT, "print(2)\n")
+        session = os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
+        self.addCleanup(lambda: session and os.environ.__setitem__("CLAUDE_CODE_SESSION_ID", session))
+        os.environ["CLAUDE_CODE_SESSION_ID"] = "s1"
+        out = self.verify("explore")
+        self.assertIn("# Explore runs (session s1)", out)
+        self.assertIn("1. `python {}`".format(FIT), out)
+        self.assertIn("(2 runs)", out)
+        self.assertIn("script `{}` edited since this run".format(FIT), out)
+        self.assertNotIn("other.py", out)
+        self.assertNotIn("2. ", out)
+        self.assertIn("other.py", self.verify("explore", "--all"))
+        del os.environ["CLAUDE_CODE_SESSION_ID"]
+        self.assertIn("no session ID found, so every session is shown", self.verify("explore"))
+        self.assertEqual(len(json.loads(self.verify("explore", "--session", "s2", "--json"))), 1)
+
     def test_status_lists_plans_with_verify_lint_stale_and_manifest(self):
         self.assertIn("No plans", self.verify("status"))
         verified = self.approve(plan("run `{}`".format(FIT)))
