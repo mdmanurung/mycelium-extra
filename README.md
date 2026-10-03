@@ -64,6 +64,7 @@ A typical analysis task, in order:
 3. **Optional review:** before approval, invoke `/mycelium-extra:plan-review` in Claude Code for separate Codex and Biomni critiques. It recommends amendments but does not edit or approve the plan.
 4. **Approve:** after any requested revision, use the new plan's `approve plan <hash>` line.
 5. **Run and verify:** execute through your normal workflow (`/mycelium:analyze` in a Mycelium project), then use `/mycelium-extra:verify <hash>`.
+6. **Optional run plan:** for a reportable, long, or HPC run, grill again once the code is written and linted. The run plan lists the Snakefile, `run.sh`, and step scripts on its `Inputs:` line so the gate freezes them, and shows a `snakemake -n` dry run and tool versions. `verify diff <old> <new>` shows what changed before you approve it. See `skills/grill/references/run-plans.md`.
 
 Common prompts:
 
@@ -204,6 +205,8 @@ Claude Code hooks in `hooks/` enforce grill's rule that nothing runs until you a
 - Scripts under `gated_paths` (default `analysis/**`, `nbs/**`). This covers running them by interpreter, directly, via stdin (`python3 - < analysis/x.py`), `-c "$(cat …)"`, `-m`, after `cd`, or under `conda run`, `srun`, `timeout`, and similar wrappers. The plan table must name the script's path, or an enclosing folder at least two levels deep (`nbs/cytof_exvivo/`), as a path token.
 - Commands in `gated_commands` (default `sbatch`, `snakemake`, `nextflow`). The plan table must contain the command word. Payloads of `bash -c` and `sbatch --wrap` are checked as commands too.
 
+A direct snakemake dry run (`snakemake -n`, `--dry-run`, or a short-flag bundle such as `-np`) is not gated, since it runs nothing, so a plan can show its job list before approval. A dry run that also touches, unlocks, cleans up, deletes, archives, or writes a report stays gated, and so does `bash run.sh -n`, because the gate cannot see that `run.sh` forwards `-n`.
+
 Only the plan table counts. A path or command word in the brief's prose, its Evidence, a Source column, or a `repo:` citation approves nothing, so a plan that cites a script as evidence does not approve running it. A plan with no table approves nothing, and the approval notice says so.
 
 Reading gated files (`cat`, `rg`, `git`) is never gated.
@@ -217,7 +220,7 @@ Reading gated files (`cat`, `rg`, `git`) is never gated.
 - Showing the same plan again re-pins it, and the notice names any file that changed since the plan was last shown.
 - A plan with no `Inputs:` line pins nothing, and the notice says so.
 
-Approving copies the pins into the approval. Before a covered run, the gate fingerprints them again and blocks the run if one changed, naming the file with its old and new fingerprint. Re-check the input (for example, re-run the data-contract check), show the plan again, and approve it. Explore runs skip this check.
+Approving copies the pins into the approval. Before a covered run, the gate fingerprints the pins of the newest approval that covers it (so an older plan that pinned less cannot let a run through after a newer plan's pins changed) and blocks the run if one changed, naming the file with its old and new fingerprint. Re-check the input (for example, re-run the data-contract check), show the plan again, and approve it. Explore runs skip this check.
 
 **Run receipts.** After each gated Bash call, a PostToolUse hook appends one line per run to `.mycelium-extra/receipts.jsonl` (schema `mycelium-extra.receipt.v1`). A receipt holds:
 
@@ -228,6 +231,8 @@ Approving copies the pins into the approval. Before a covered run, the gate fing
 - The environment the hook itself runs in (`hook_env`), and any `conda run -n` environment in the command (`command_env`).
 - For `sbatch`, the job ID. For snakemake and nextflow, the Snakefile or pipeline, config and params fingerprints, report and trace paths, the nextflow run name, and a pointer to the engine's own record (`.snakemake/metadata`, `.nextflow/history`).
 - The exit status when Claude Code reports one, and the key names of its Bash result (`response_keys`).
+
+**Mycelium's post-action protocol.** Mycelium's own hooks detect only python, R, and jupyter runs. In a repository with `.living/`, after a receipted run Mycelium does not detect (`bash run.sh`, snakemake, sbatch, nextflow, and other runners), the receipt hook tells the agent once that the protocol did not fire, and to follow it (learnings, decisions, findings, manifest, analysis doc) when the run finishes. It is a reminder; Mycelium's Stop hook still does not see these runs.
 
 Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip Mycelium's Stop hook. `verify` copies a plan's receipts into the analysis folder after you confirm.
 
