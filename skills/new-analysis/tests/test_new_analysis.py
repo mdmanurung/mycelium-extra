@@ -153,6 +153,7 @@ class NewAnalysisTest(unittest.TestCase):
             self.assertIsInstance(cell["source"], list)
         setup = "".join(book["cells"][1]["source"])
         self.assertIn('INPUT = Path("outputs/02_train_model.parquet")', setup)
+        self.assertNotIn("assert ", setup)  # scilintr's runtime-assert would fail verify's lint
 
     def test_snakefile_chains_every_step_in_order(self):
         self.scaffold("--steps=01_load.py,04_fit.R,07_look.ipynb", "--data=data/anndatas/cells.h5ad")
