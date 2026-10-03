@@ -185,7 +185,7 @@ class GateTest(unittest.TestCase):
             "Plan status: READY_WITH_ASSUMPTIONS",
         ])
         notice = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
-        self.assertIn("  \u25b6 **approve plan ", notice)
+        self.assertIn("  \u25b6 approve plan ", notice)
         self.assertIn("  Runs allowed\n    \u2022 nbs/cyto/13_vax/code/01_frame.R\n"
                       "    \u2022 nbs/cyto/13_vax/code/02_fit.R\n    \u2022 nbs/cyto/13_vax/code/03_meta.R\n", notice)
         self.assertIn("  Outputs: none named (no `Outputs:` line)", notice)

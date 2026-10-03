@@ -712,7 +712,7 @@ def output_lines(text):
 
 def approval_card(root, text, config, digest, pins, outside, previous):
     return "\n".join(["mycelium-extra \u00b7 plan ready for approval",
-                      "  \u25b6 **approve plan {}**".format(digest), ""]
+                      "  \u25b6 approve plan {}".format(digest), ""]
                      + scope_lines(root, text, config) + pin_lines(pins, outside, previous)
                      + output_lines(text))
 
