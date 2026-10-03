@@ -80,6 +80,7 @@ TABLE_ROW = re.compile(r"^\s*\|(.*)\|\s*$")
 TABLE_RULE = re.compile(r"^\s*\|?[\s|:]*-[\s|:-]*$")
 SOURCE_CITATION = re.compile(r"`?\brepo:\s*`?[^\s`|;,]+`?")
 INPUTS_LINE = re.compile(r"^[\s>*_`-]*inputs[\s*_`]*:(.*)$", re.IGNORECASE | re.MULTILINE)
+OUTPUTS_LINE = re.compile(r"^[\s>*_`-]*outputs[\s*_`]*:(.*)$", re.IGNORECASE | re.MULTILINE)
 MAX_FOLDER_FILES = 5000
 LOCKFILES = ("renv.lock", "pixi.lock", "uv.lock", "poetry.lock", "Pipfile.lock", "conda-lock.yml",
              "environment.yml", "environment.yaml", "requirements.txt", "Manifest.toml")
@@ -677,18 +678,43 @@ def path_in_plan(path, table):
     return any("/".join(parts[:depth]) in named for depth in range(len(parts), 1, -1))
 
 
-def scope_notice(root, plan, config):
-    """Say which gated runs approving this plan would let through."""
+def bullets(items, limit=10):
+    items = list(items)
+    return ["    \u2022 " + item for item in items[:limit]] + (
+        ["    \u2026 and {} more".format(len(items) - limit)] if len(items) > limit else [])
+
+
+def scope_lines(root, plan, config):
+    """Which gated runs approving this plan would let through."""
     table = plan_table(plan)
     if not table.strip():
-        return ("mycelium-extra: this plan has no plan table, so approving it lets no gated run "
-                "through. Only paths and commands in the table count.")
+        return ["  Runs allowed: none (the plan has no plan table; only its paths and commands count)"]
     runs = sorted(p for p in plan_paths(table) if gated_rel(root, root, p, config))
     runs += [c for c in config["gated_commands"] if names_command(c, table)]
     if not runs:
-        return ("mycelium-extra: the plan table names no gated script, folder, or command, so "
-                "approving it lets no gated run through.")
-    return "mycelium-extra: approving lets these run: {}.".format(listing(runs))
+        return ["  Runs allowed: none (the plan table names no gated script, folder, or command)"]
+    return ["  Runs allowed"] + bullets(runs)
+
+
+def output_lines(text):
+    """The paths on the plan's `Outputs:` lines, which verify checks after the runs."""
+    lines = OUTPUTS_LINE.findall(text)
+    if not lines:
+        return ["  Outputs: none named (no `Outputs:` line)"]
+    words = []
+    for line in lines:
+        for word in PATHLIKE.findall(line):
+            word = word.rstrip(".,;:")
+            if ("/" in word or re.search(r"\.\w+$", word)) and word not in words:
+                words.append(word)
+    return ["  Outputs"] + bullets(words) if words else ["  Outputs: none"]
+
+
+def approval_card(root, text, config, digest, pins, outside, previous):
+    return "\n".join(["mycelium-extra \u00b7 plan ready for approval",
+                      "  \u25b6 **approve plan {}**".format(digest), ""]
+                     + scope_lines(root, text, config) + pin_lines(pins, outside, previous)
+                     + output_lines(text))
 
 
 # ---------------------------------------------------------------- pinned inputs
@@ -731,21 +757,20 @@ def pin_inputs(root, text, config):
     return pins, outside
 
 
-def pin_notice(pins, outside, previous):
+def pin_lines(pins, outside, previous):
     if pins is None:
-        return "mycelium-extra: no inputs pinned (the plan has no `Inputs:` line)."
+        return ["  Inputs pinned: none (no `Inputs:` line)"]
     if pins:
-        text = "mycelium-extra: pinned {} input(s): {}.".format(
-            len(pins), listing("{} ({})".format(rel, method(pin)) for rel, pin in pins.items()))
+        lines = ["  Inputs pinned"] + bullets("{} ({})".format(rel, method(pin)) for rel, pin in pins.items())
     else:
-        text = "mycelium-extra: no inputs pinned (the `Inputs:` line names no files)."
+        lines = ["  Inputs pinned: none (the `Inputs:` line names no files)"]
     if outside:
-        text += " Outside the repository, not pinned: {}.".format(listing(outside))
+        lines += ["  Outside the repository, not pinned"] + bullets(outside)
     old = (previous or {}).get("pins") or {}
     changed = [rel for rel, pin in pins.items() if rel in old and not unchanged(old[rel], pin)]
     if changed:
-        text += " Changed since this plan was last shown: {}.".format(listing(changed))
-    return text
+        lines += ["  Changed since this plan was last shown"] + bullets(changed)
+    return lines
 
 
 def changed_pins(root, pins, budget, cache):
@@ -1021,16 +1046,14 @@ def on_stop(event, root, config):
         pins, outside = pin_inputs(root, text, config)
         entry["pins"] = pins or {}
         write_json(path, pending[-10:])
-        notices.append("mycelium-extra: to approve this plan, type: approve plan " + digest)
-        notices.append(scope_notice(root, text, config))
-        notices.append(pin_notice(pins, outside, previous))
+        notices.append(approval_card(root, text, config, digest, pins, outside, previous))
     fresh = new_explore_runs(root, event.get("session_id"))
     if fresh:
         notices.append("mycelium-extra: {} exploratory run(s) this session are not reportable: {}".format(
             len(fresh), "; ".join(fresh[:5]) + (" ..." if len(fresh) > 5 else "")))
     if hints_on(root):
         notices += stop_hints(root, event)
-    return {"systemMessage": "\n".join(notices)} if notices else None
+    return {"systemMessage": "\n\n".join(notices)} if notices else None
 
 
 def new_explore_runs(root, session_id):

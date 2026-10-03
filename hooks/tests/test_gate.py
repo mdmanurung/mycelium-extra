@@ -185,8 +185,10 @@ class GateTest(unittest.TestCase):
             "Plan status: READY_WITH_ASSUMPTIONS",
         ])
         notice = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
-        self.assertIn("approving lets these run: nbs/cyto/13_vax/code/01_frame.R, "
-                      "nbs/cyto/13_vax/code/02_fit.R, nbs/cyto/13_vax/code/03_meta.R.", notice)
+        self.assertIn("  \u25b6 **approve plan ", notice)
+        self.assertIn("  Runs allowed\n    \u2022 nbs/cyto/13_vax/code/01_frame.R\n"
+                      "    \u2022 nbs/cyto/13_vax/code/02_fit.R\n    \u2022 nbs/cyto/13_vax/code/03_meta.R\n", notice)
+        self.assertIn("  Outputs: none named (no `Outputs:` line)", notice)
         self.hook("prompt", {"prompt": "approve plan " + notice.split("approve plan ")[1][:8]})
         for script in ("01_frame.R", "02_fit.R", "03_meta.R"):
             self.assertIsNone(self.bash("Rscript nbs/cyto/13_vax/code/" + script), script)
@@ -314,7 +316,7 @@ class GateTest(unittest.TestCase):
 
     def test_plan_without_inputs_line_pins_nothing(self):
         notice = self.hook("stop", {"last_assistant_message": PLAN})
-        self.assertIn("no inputs pinned (the plan has no `Inputs:` line)", notice["systemMessage"])
+        self.assertIn("Inputs pinned: none (no `Inputs:` line)", notice["systemMessage"])
         digest, result = self.approve()
         self.assertIn("No inputs pinned", result["systemMessage"])
         self.assertEqual(self.approval(digest)["pins"], {})
@@ -349,11 +351,13 @@ class GateTest(unittest.TestCase):
         self.write("data/samples.tsv", "x")
         plan = self.inputs_plan("data/samples.tsv, ../elsewhere/raw.tsv, /etc/hostname")
         first = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
-        self.assertIn("Outside the repository, not pinned: ../elsewhere/raw.tsv, /etc/hostname", first)
+        self.assertIn("  Inputs pinned\n    \u2022 data/samples.tsv (sha256)\n", first)
+        self.assertIn("Outside the repository, not pinned\n    \u2022 ../elsewhere/raw.tsv\n"
+                      "    \u2022 /etc/hostname", first)
         self.assertNotIn("Changed since", first)
         self.write("data/samples.tsv", "changed")
         again = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
-        self.assertIn("Changed since this plan was last shown: data/samples.tsv", again)
+        self.assertIn("Changed since this plan was last shown\n    \u2022 data/samples.tsv", again)
 
     def test_hash_budget_falls_back_to_size_and_mtime(self):
         self.config({"pin_hash_mb": 0})
