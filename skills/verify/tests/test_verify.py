@@ -460,6 +460,11 @@ class VerifyTest(unittest.TestCase):
                 handle.write(text)
             rows = {r["hash"]: r for r in json.loads(self.verify("status", "--json"))}
             self.assertEqual(rows[verified]["manifest"], expected, text)
+        self.write("analysis/a/scripts/02_plot.R", "x <- 1\n", mtime=time.time() - 3600)
+        self.verify("write", verified, "--analysis-dir", "analysis/a",  # R clean, Python linter missing
+                    scilintr=os.path.join(self.root, "no-scilintr"))
+        rows = {r["hash"]: r for r in json.loads(self.verify("status", "--json"))}
+        self.assertEqual(rows[verified]["lint"], "gap: Python not checked")
         self.write(FIT, "print(2)\n")
         os.remove(os.path.join(self.root, ".mycelium-extra", "gate.json"))  # provenance alone suffices
         out = self.verify("status")

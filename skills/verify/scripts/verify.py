@@ -949,8 +949,13 @@ def recorded_lint(folder, digest):
         return "not recorded"
     text = text.split("# ANALYSIS_OK waivers")[0]
     found = sum(1 for line in text.splitlines() if LINT_LINE.match(line))
-    if found:
-        return "{} finding(s)".format(found)
+    # A missing, timed-out or unreadable linter leaves no finding in the lint file; the report names it.
+    gaps = sorted(set(re.findall(r"scilintr \((\w+)\) not checked",
+                                 read_text(os.path.join(folder, "verify-{}.md".format(digest))))))
+    states = (["{} finding(s)".format(found)] if found else []) + (
+        ["gap: {} not checked".format(", ".join(gaps))] if gaps else [])
+    if states:
+        return "; ".join(states)
     return "clean" if text.startswith("$ ") else "not run"
 
 
