@@ -18,14 +18,17 @@ status line, so a reply quoting it is not offered for approval as a new plan.
 
 import argparse
 import base64
+import bisect
 import collections
 import datetime
 import glob
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 gate = None  # the approval gate module, loaded from --plugin-root
@@ -222,18 +225,94 @@ def code_files(root, analysis_dir, planned):
     return files[:MAX_FILES]
 
 
+def notebook_code(path):
+    """(language, code, first line of each code cell) of a Jupyter notebook, or None.
+    Magic and shell lines become comments, so line numbers still map to cells."""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            nb = json.load(handle)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(nb, dict):
+        return None
+    meta = nb.get("metadata") or {}
+    language = ((meta.get("kernelspec") or {}).get("language")
+                or (meta.get("language_info") or {}).get("name") or "python").lower()
+    language = {"python": "Python", "r": "R"}.get(language)
+    lines, starts = [], []
+    for entry in nb.get("cells") or [] if language else []:
+        if entry.get("cell_type") != "code":
+            continue
+        source = entry.get("source") or ""
+        source = (source if isinstance(source, str) else "".join(source)).splitlines()
+        magic = language == "Python" and bool(source) and source[0].lstrip().startswith("%%")
+        starts.append(len(lines) + 1)
+        lines += ["# " + line if language == "Python" and (magic or line.lstrip().startswith(("%", "!")))
+                  else line for line in source] + [""]
+    return (language, "\n".join(lines), starts) if starts else None
+
+
 def lint(root, files, report, scilintr, rscript, seconds):
     """Run scilintr on the code; remaining findings block, an unchecked language is a gap.
     The Python CLI skips R files and exits 0 on a missing path, so each language gets
-    its own CLI and only existing files are passed."""
+    its own CLI and only existing files are passed. It also exits 0, silent, on code that
+    does not parse, so notebook code is parsed first and an unparseable notebook is a gap."""
     result = {"findings": [], "waivers": [], "output": [], "notebooks": []}
     by_language = collections.defaultdict(list)
+    scratch = tempfile.mkdtemp(prefix="mycelium-extra-lint-")
+    cells = {}  # extracted notebook code path -> (notebook, first line of each code cell)
+    try:
+        for rel in files:
+            ext = os.path.splitext(rel)[1]
+            extracted = notebook_code(os.path.join(root, rel)) if ext == ".ipynb" else None
+            if ext in LINT_LANGUAGES:
+                by_language[LINT_LANGUAGES[ext]].append(rel)
+            elif extracted:
+                language, code, starts = extracted
+                if language == "Python":
+                    try:
+                        compile(code, rel, "exec")
+                    except (SyntaxError, ValueError) as error:
+                        report.add("gap", "scilintr (Python) not checked: `{}` does not parse here ({}).".format(
+                            rel, cell(str(error))[:120]))
+                        continue
+                path = os.path.join(scratch, "{}_{}".format(len(cells), os.path.basename(rel))) + (
+                    ".py" if language == "Python" else ".R")
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write(code)
+                cells[path] = (rel, starts)
+                by_language[language].append(path)
+            elif rel.endswith(NOTEBOOK_EXT):
+                result["notebooks"].append(rel)
+        lint_languages(root, by_language, cells, report, result, scilintr, rscript, seconds)
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
     for rel in files:
-        ext = os.path.splitext(rel)[1]
-        if ext in LINT_LANGUAGES:
-            by_language[LINT_LANGUAGES[ext]].append(rel)
-        elif rel.endswith(NOTEBOOK_EXT):
-            result["notebooks"].append(rel)
+        if os.path.splitext(rel)[1] in LINT_LANGUAGES or rel.endswith(NOTEBOOK_EXT):
+            try:
+                with open(os.path.join(root, rel), errors="replace") as handle:
+                    result["waivers"] += [(rel, n, line.strip()) for n, line in enumerate(handle, 1)
+                                          if "ANALYSIS_OK[" in line]
+            except OSError:
+                continue
+    if result["notebooks"]:
+        report.add("info", "{} notebook(s) not linted: {}.".format(
+            len(result["notebooks"]), gate.listing(result["notebooks"], 5)))
+    return result
+
+
+def cell_line(line, cells):
+    """A scilintr line on extracted notebook code, cited as `<notebook>[code cell N]:<line>`."""
+    match = LINT_LINE.match(line)
+    if not match or match.group(1) not in cells:
+        return line
+    rel, starts = cells[match.group(1)]
+    number = int(match.group(2))
+    index = max(bisect.bisect_right(starts, number), 1)
+    return "{}[code cell {}]:{}:{}: [{}] {}".format(rel, index, number - starts[index - 1] + 1, *match.groups()[2:])
+
+
+def lint_languages(root, by_language, cells, report, result, scilintr, rscript, seconds):
     for language, paths in sorted(by_language.items()):
         command = [scilintr] if language == "Python" else [rscript, "-e", "scilintr::main()"]
         try:
@@ -247,6 +326,9 @@ def lint(root, files, report, scilintr, rscript, seconds):
                            .format(language, command[0], "pip install scilintr" if language == "Python"
                                    else 'install.packages("scilintr")'))
             continue
+        proc.stdout = "\n".join(cell_line(line, cells) for line in proc.stdout.splitlines())
+        for path, (rel, _) in cells.items():
+            proc.stdout = proc.stdout.replace(path, rel)
         found = [m.groups() for m in map(LINT_LINE.match, proc.stdout.splitlines()) if m]
         result["output"].append("$ {}\n{}".format(" ".join(command[:3] + ["<{} files>".format(len(paths))]),
                                                   proc.stdout.rstrip()))
@@ -261,18 +343,6 @@ def lint(root, files, report, scilintr, rscript, seconds):
         else:
             report.add("gap", "scilintr ({}) not checked: exit {} with output it could not read: {}".format(
                 language, proc.returncode, cell((proc.stdout.strip().splitlines() or [""])[-1])[:200]))
-    for rel in files:
-        if os.path.splitext(rel)[1] in LINT_LANGUAGES or rel.endswith(NOTEBOOK_EXT):
-            try:
-                with open(os.path.join(root, rel), errors="replace") as handle:
-                    result["waivers"] += [(rel, n, line.strip()) for n, line in enumerate(handle, 1)
-                                          if "ANALYSIS_OK[" in line]
-            except OSError:
-                continue
-    if result["notebooks"]:
-        report.add("info", "{} notebook(s) not linted: {}.".format(
-            len(result["notebooks"]), gate.listing(result["notebooks"], 5)))
-    return result
 
 
 def guess_analysis_dir(files):

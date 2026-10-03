@@ -431,6 +431,38 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("[broad-exception]", text)
         self.assertIn("ANALYSIS_OK waivers (1)", text)
 
+    def notebook(self, rel, cells, language="python"):
+        self.write(rel, json.dumps({
+            "metadata": {"kernelspec": {"language": language}},
+            "cells": [{"cell_type": kind, "source": source.splitlines(True)} for kind, source in cells]}),
+            mtime=time.time() - 3600)
+
+    def test_notebook_code_cells_are_linted(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        flagger = self.write("bin/flagger", "#!{}\nimport os, sys\nhits = 0\nfor path in sys.argv[1:]:\n"
+                             "    if os.path.isfile(path):\n        for n, line in enumerate(open(path), 1):\n"
+                             "            if 'FLAG' in line and not line.lstrip().startswith('#'):\n                hits += 1\n"
+                             "                print('{{}}:{{}}:0: [magic-threshold] flagged'.format(path, n))\n"
+                             "sys.exit(1 if hits else 0)\n".format(sys.executable))
+        os.chmod(flagger, os.stat(flagger).st_mode | stat.S_IEXEC)
+        self.notebook("analysis/a/03_explore.ipynb", [
+            ("markdown", "# FLAG in prose is ignored"), ("code", "%matplotlib inline\nimport os"),
+            ("code", "%%bash\nls FLAG"), ("code", "x = 1\ny = x  # FLAG")])
+        self.notebook("analysis/a/04_plot.ipynb", [("code", "FLAG <- 1")], language="R")
+        self.write("analysis/a/05_notes.Rmd", "```{r}\nx <- 1\n```\n")
+        out = self.verify("report", digest, scilintr=flagger, rscript=flagger)
+        self.assertIn("`analysis/a/03_explore.ipynb[code cell 3]:2` [magic-threshold]", out)
+        self.assertIn("1 scilintr finding(s) remain in Python code", out)
+        self.assertIn("`analysis/a/04_plot.ipynb[code cell 1]:1` [magic-threshold]", out)
+        self.assertIn("1 notebook(s) not linted: analysis/a/05_notes.Rmd", out)
+        self.assertNotIn("mycelium-extra-lint-", out)
+        self.notebook("analysis/a/06_broken.ipynb", [("code", "def f(:\n    pass")])
+        out = self.verify("report", digest)
+        self.assertIn("scilintr (Python) not checked: `analysis/a/06_broken.ipynb` does not parse", out)
+        self.assertIn("Verify status: CONFORMS_WITH_GAPS", out)
+
     def test_status_lists_plans_with_verify_lint_stale_and_manifest(self):
         self.assertIn("No plans", self.verify("status"))
         verified = self.approve(plan("run `{}`".format(FIT)))

@@ -26,7 +26,7 @@ python3 - --plugin-root <skill-dir>/../.. report <hash> [--analysis-dir <folder>
 
 The analysis folder is guessed from the plan's scripts; pass `--analysis-dir` when the guess is wrong. `--json` gives the raw result.
 
-It also runs scilintr on the analysis folder's code (outputs, logs, and provenance skipped; the planned scripts when there is no folder): `scilintr` for Python, `Rscript -e 'scilintr::main()'` for R, as Mycelium's analyze skill requires. Notebooks are not linted. The `## Lint` section lists remaining findings and every `ANALYSIS_OK` waiver. If a linter is missing, say how to install it (`pip install scilintr`, `install.packages("scilintr")`); never treat an unchecked language as clean.
+It also runs scilintr on the analysis folder's code (outputs, logs, and provenance skipped; the planned scripts when there is no folder): `scilintr` for Python, `Rscript -e 'scilintr::main()'` for R, as Mycelium's analyze skill requires. A Jupyter notebook's code cells are extracted (magic and shell lines commented out) and linted with its kernel's language; findings are cited as `<notebook>.ipynb[code cell N]:<line>`, and a notebook whose code does not parse is a gap. `.qmd` and `.Rmd` files are not linted. The `## Lint` section lists remaining findings and every `ANALYSIS_OK` waiver. If a linter is missing, say how to install it (`pip install scilintr`, `install.packages("scilintr")`); never treat an unchecked language as clean.
 
 The report ends with `Verify status:` and one of these values:
 - `CONFORMS`
