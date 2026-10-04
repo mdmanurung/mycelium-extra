@@ -588,6 +588,24 @@ def conda_snapshots(root, runs, report):
     return snapshots
 
 
+def default_reasons(plan, report):
+    """D9, advisory: each plan row whose `default:` gives no usable reason is an info finding, so the
+    status does not change. The check lives in plan-review's scripts and is imported from the plugin
+    root, as gate.py is; a checker that is missing or fails is a gap, like a missing scilintr."""
+    folder = os.path.join(PLUGIN_ROOT, "skills", "plan-review", "scripts")
+    try:
+        if folder not in sys.path:
+            sys.path.insert(0, folder)
+        import default_reasons as module
+        found, defaults, flags = module.check_plan(plan)
+    except Exception as error:  # ImportError, SyntaxError, or a bug in the checker
+        report.add("gap", "Default reasons not checked: `{}` could not run ({}: {}).".format(
+            os.path.join(folder, "default_reasons.py"), type(error).__name__, cell(str(error))[:120]))
+        return
+    for flag in flags:
+        report.add("info", "Default without a usable reason (advisory): " + cell(module.describe(flag)))
+
+
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
           rscript="Rscript"):
     config = gate.load_config(root)
@@ -855,6 +873,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         report.add("info", "{} inline command(s) ran in the window (Mycelium lineage); read-only "
                            "probes are typical, and they are not checked.".format(inline))
 
+    default_reasons(plan, report)
     envs = conda_snapshots(root, mine, report)
     linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds)
 

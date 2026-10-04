@@ -121,4 +121,4 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Acceptance:** a plan row with `default:` alone or `default: standard` is flagged by row; `default: BH, since the tests are not strongly dependent and no weighting is planned` is not.
 - **Tests:** unit tests for the check; one case in `skills/plan-review/tests/test_plan_review.py`.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** done. `skills/plan-review/scripts/default_reasons.py` (run by plan-review on the draft; verify imports it from the plugin root and reports each flag as an `info` finding, status unchanged; a missing or failing checker is a verify gap). A reason needs three words besides filler, and three besides an empty phrase.
