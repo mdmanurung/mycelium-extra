@@ -451,8 +451,10 @@ def classify(tokens, root, cwd, config):
     if word in config["gated_commands"]:
         wraps = [t.split("=", 1)[1] for t in rest if t.startswith("--wrap=")]
         wraps += [rest[j + 1] for j, t in enumerate(rest) if t == "--wrap" and j + 1 < len(rest)]
-        paths += [p for p in (gated_rel(root, cwd, t, config) for t in rest
-                              if not t.startswith("-")) if p]
+        # sbatch's job folder (`-D DIR`, `--chdir DIR`) is where the job runs, not code it runs.
+        folder = [j + 1 for j, t in enumerate(rest) if word == "sbatch" and t in ("-D", "--chdir")]
+        paths += [p for p in (gated_rel(root, cwd, t, config) for j, t in enumerate(rest)
+                              if not t.startswith("-") and j not in folder) if p]
         return explore, word, paths + ["wrap:" + w for w in wraps]
     if RUNNERS.match(word):
         positional = None
@@ -491,6 +493,13 @@ def classify(tokens, root, cwd, config):
     return explore, (head if rel else None), ([rel] if rel else [])
 
 
+def job_cwd(tokens, cwd):
+    """Where an sbatch job runs: its `-D`/`--chdir` folder, relative to where sbatch ran."""
+    args = after_word(tokens, "sbatch")
+    folders = flag_values(args, ("-D", "--chdir")) + [t[2:] for t in args if t.startswith("-D") and len(t) > 2]
+    return os.path.normpath(os.path.join(cwd, os.path.expanduser(folders[-1]))) if folders else cwd
+
+
 def cd_target(cwd, tokens):
     target = tokens[1] if len(tokens) > 1 else os.path.expanduser("~")
     return os.path.normpath(os.path.join(cwd, os.path.expanduser(target)))
@@ -510,8 +519,9 @@ def analyse_command(command, root, cwd, config):
             continue
         wraps = [p[5:] for p in paths if p.startswith("wrap:")]
         paths = [p for p in paths if not p.startswith("wrap:")]
-        for payload in wraps:
-            for inner in analyse_command(payload, root, virtual_cwd, config):
+        for payload in wraps:  # an sbatch --wrap payload runs in the job's folder
+            inner_cwd = job_cwd(tokens, virtual_cwd) if label == "sbatch" else virtual_cwd
+            for inner in analyse_command(payload, root, inner_cwd, config):
                 yield (inner[0] or explore,) + inner[1:]
         if label:
             yield explore, label, paths, " ".join(tokens), tokens, virtual_cwd
@@ -1230,6 +1240,15 @@ def on_post(event, root, config):
     planned = []
     for explore, label, paths, segment, tokens, cwd in runs:
         records = covering(label, paths, approvals)
+        wrapped_paths = []  # the gated scripts an `sbatch --wrap` payload runs, from the job's folder
+        if label == "sbatch":
+            for payload in flag_values(after_word(tokens, "sbatch"), ("--wrap",)):
+                for inner in analyse_command(payload, root, job_cwd(tokens, cwd), config):
+                    wrapped_paths += [p for p in inner[2] if p not in paths + wrapped_paths]
+        if wrapped_paths:  # a plan is credited with the job only if it also names what the job runs
+            records = [r for r in records
+                       if all(path_in_plan(p, plan_table(r.get("plan", ""))) for p in wrapped_paths)]
+        paths = paths + wrapped_paths
         if records and not explore and records[-1]["hash"] not in planned:
             planned.append(records[-1]["hash"])
         receipt = {
@@ -1458,6 +1477,8 @@ def launch_details(root, cwd, label, paths, tokens, output, budget):
         if wraps:
             job_text = wraps[0]
             details["wrap_sha256"] = sha256(job_text.encode("utf-8")).hexdigest()
+        if job_cwd(tokens, cwd) != cwd:
+            details["job_cwd"] = repo_relative(root, root, job_cwd(tokens, cwd)) or job_cwd(tokens, cwd)
         else:
             takes_path = ("-o", "-e", "-i", "--output", "--error", "--input", "-D", "--chdir")
             for j, token in enumerate(args):

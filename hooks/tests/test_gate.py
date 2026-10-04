@@ -642,6 +642,29 @@ class GateTest(unittest.TestCase):
         self.assertEqual(receipt["env_lines"], ["module load R"])
         self.assertEqual(receipt["response_keys"], "str")
 
+    def test_sbatch_chdir_wrap_runs_in_the_job_folder(self):
+        # sbatch resolves a --wrap payload's paths against -D/--chdir, not where sbatch ran.
+        self.write("analysis/a/x.py", "print(1)")
+        self.write("x.py", "print(1)")
+        self.write("analysis/x.py", "print(1)")
+        self.approve(PLAN.replace("analysis/x.py", "analysis/a/x.py").replace("repo |", "repo | sbatch |"))
+        forms = ["sbatch --chdir=analysis/a --wrap='python x.py'", "sbatch --chdir analysis/a --wrap='python x.py'",
+                 "sbatch -D analysis/a --wrap='python x.py'", "sbatch -Danalysis/a --wrap 'python x.py'"]
+        for command in forms:
+            self.assertIsNone(self.bash(command), command)
+            self.post(command, "Submitted batch job 77\n")
+        for twin in ("sbatch -D analysis --wrap='python x.py'", "sbatch --wrap='python x.py' -D analysis",
+                     "sbatch --chdir=analysis/a --wrap='python ../x.py'"):
+            self.assertTrue(self.denied(self.bash(twin)), twin)
+        self.post("sbatch -D analysis --wrap='python x.py'", "Submitted batch job 78\n")
+        receipts = self.receipts()
+        self.assertEqual([r["paths"] for r in receipts], [["analysis/a/x.py"]] * 4 + [["analysis/x.py"]])
+        self.assertEqual([r["job_cwd"] for r in receipts], ["analysis/a"] * 4 + ["analysis"])
+        self.assertEqual([len(r["plans"]) for r in receipts], [1, 1, 1, 1, 0], "a plan must name what the job runs")
+        self.post("sbatch --wrap='python analysis/a/x.py'", "Submitted batch job 79\n")
+        self.assertEqual(self.receipts()[-1]["paths"], ["analysis/a/x.py"])
+        self.assertNotIn("job_cwd", self.receipts()[-1])
+
     def test_nextflow_receipt(self):
         self.write("main.nf", "workflow {}")
         self.write("params.yaml", "a: 1")
