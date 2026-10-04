@@ -572,27 +572,82 @@ def literal_values(tokens):
     return values
 
 
-def names_state(code, root, cwd):
+WRITE_CONTENT = {"write", "writelines", "write_text", "write_bytes"}
+PURE_CALLS = {"join", "getcwd", "abspath", "realpath", "normpath", "relpath", "dirname", "basename",
+              "expanduser", "str", "repr", "format"}
+
+
+def names_state(code, root, cwd, python=False):
     """Whether code names the state folder as a target, not as text it writes elsewhere.
 
     For Python, a string literal counts when it is a path (no whitespace) or a
     shell command that writes the folder; prose and multi-line strings are text
-    (a file's new content), and a comment is not code. Code that does not parse
-    as Python (R, perl) counts on any mention.
+    (a file's new content), and a comment is not code. A literal that only reaches
+    a `.write()` call's content, through path-building calls such as `os.path.join`,
+    is text too. Python that this interpreter cannot parse (3.8+ syntax on 3.6) is
+    scanned token by token for the same literals; other code (R, perl) counts on
+    any mention.
     """
     # ponytail: a state path split across pieces or hidden in a multi-line string passes;
     # data-flow tracking if that ever shows up in real use
+    def target(value):
+        return isinstance(value, str) and STATE_DIR in value and (
+            not value.split(None, 1)[1:] or "\n" not in value and writes_state(value, root, cwd))
     try:
         tree = ast.parse(code)
     except (SyntaxError, ValueError):
-        return STATE_DIR in code
+        values = string_literals(code) if python else None
+        return STATE_DIR in code if values is None else any(target(value) for value in values)
+    text = written_text(tree)
     for node in ast.walk(tree):
         kind = type(node).__name__
         value = node.value if kind == "Constant" else node.s if kind == "Str" else None
-        if isinstance(value, str) and STATE_DIR in value and (
-                not value.split(None, 1)[1:] or "\n" not in value and writes_state(value, root, cwd)):
+        if id(node) not in text and target(value):
             return True
     return False
+
+
+def written_text(tree):
+    """ids of the string literals that are only content handed to a `.write()` call."""
+    found = set()
+
+    def descend(node):
+        kind = type(node).__name__
+        if kind == "Call":
+            name = getattr(node.func, "attr", None) or getattr(node.func, "id", None)
+            if name not in PURE_CALLS:
+                return  # its result is not plain text: open(...).read(), a write, a delete
+            children = list(node.args) + [keyword.value for keyword in node.keywords]
+            children += [node.func.value] if type(node.func).__name__ == "Attribute" else []
+        else:
+            if kind in ("Constant", "Str"):
+                found.add(id(node))
+            children = ast.iter_child_nodes(node)
+        for child in children:
+            descend(child)
+
+    for node in ast.walk(tree):
+        if type(node).__name__ == "Call" and getattr(node.func, "attr", None) in WRITE_CONTENT:
+            for arg in node.args:
+                descend(arg)
+    return found
+
+
+def string_literals(code):
+    """The string literals of Python source, read by its tokens; None if it does not tokenize."""
+    import io
+    import tokenize as pytokenize  # local: this module has its own tokenize()
+    values = []
+    try:
+        for token in pytokenize.generate_tokens(io.StringIO(code).readline):
+            if pytokenize.tok_name.get(token[0]) in ("STRING", "FSTRING_MIDDLE"):
+                try:
+                    values.append(ast.literal_eval(token[1]))
+                except (SyntaxError, ValueError):
+                    values.append(token[1])  # an f-string: its raw text
+    except (pytokenize.TokenError, SyntaxError):
+        return None
+    return values
 
 
 def binds_state(tokens):
@@ -650,6 +705,9 @@ def segment_writes(tokens, bodies, command, inside, root, cwd):
     if head == "dd":
         return any(t.startswith("of=") and inside(t[3:]) for t in args)
     if head in ("sed", "perl") and any(re.match(r"^-\w*i", t) for t in args):
+        if head == "sed" and not any(t in ("-f", "--expression", "--file") or t.startswith(
+                ("--expression=", "--file=")) for t in args + code):
+            positional = positional[1:] if not code else positional  # the first word is the script
         return any(inside(t) for t in positional)
     if head == "find" and any(t in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for t in args):
         return any(inside(t) for t in positional)
@@ -658,7 +716,8 @@ def segment_writes(tokens, bodies, command, inside, root, cwd):
             return True
         if not (code or bodies or positional or stdin):  # code piped in from another segment
             return WRITE_CODE.search(command) is not None
-        return any(names_state(text, root, cwd) and WRITE_CODE.search(text) for text in code + bodies)
+        return any(names_state(text, root, cwd, head.startswith("python")) and WRITE_CODE.search(text)
+                   for text in code + bodies)
     return False
 
 

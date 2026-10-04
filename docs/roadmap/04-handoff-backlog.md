@@ -28,7 +28,7 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 - **Acceptance:** the three commands pass; their write-shaped twins still block; `gate_diff.py` shows exactly the three expected changes.
 - **Tests:** six cases in `hooks/tests/test_gate.py` (three allows, three twins).
 - **Effort:** M.
-- **Status:** todo.
+- **Status:** done. A literal that only reaches a `.write()` call's content through path-building calls (`os.path.join`, `os.getcwd`) is text; `sed -i`'s script word is not a file; Python a runner's interpreter cannot parse is scanned by its string tokens (comments ignored) before the any-mention rule, which still applies to R and perl. On Python 3.8+ the heredoc case already passed.
 
 ### E3: Close receipt gaps
 

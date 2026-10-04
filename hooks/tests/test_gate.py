@@ -321,6 +321,38 @@ class GateTest(unittest.TestCase):
         self.assertIsNone(self.hook("tool", {"tool_name": "Write",
                                              "tool_input": {"file_path": "analysis/x.py"}}))
 
+    def test_state_folder_named_only_in_text_passes(self):
+        # E2: each allowed command, then a write in the same shape that must still block.
+        for allowed, twin in [
+            ("python3 -c \"import os; open('notes.txt','w').write(os.path.join('x', '.mycelium-extra'))\"",
+             "python3 -c \"import os; open(os.path.join('x', '.mycelium-extra', 'g.json'),'w').write('x')\""),
+            ("python3 -c \"import os; open('notes.txt','w').write(os.path.join(os.getcwd(), '.mycelium-extra'))\"",
+             "python3 -c \"import os; p = os.path.join(os.getcwd(), '.mycelium-extra'); "
+             "open(p + '/gate.json','w').write('x')\""),
+            ("sed -i 's/gate state/the `.mycelium-extra` folder/' notes.md",
+             "sed -i 's/gate state/the `.mycelium-extra` folder/' .mycelium-extra/gate.json"),
+        ]:
+            self.assertIsNone(self.bash(allowed), allowed)
+            self.assertTrue(self.denied(self.bash(twin)), twin)
+        for command in ["echo hi > .mycelium-extra/x.json", "sed -i -e s/24/9/ .mycelium-extra/gate.json",
+                        "python3 -c \"open('n.txt','w').write(open('.mycelium-extra/gate.json').read()); "
+                        "import os; os.remove('.mycelium-extra/gate.json')\""]:
+            self.assertTrue(self.denied(self.bash(command)), command)
+
+    def test_python_that_does_not_parse_is_scanned_by_tokens(self):
+        # Stands in for 3.8+ syntax on Python 3.6: a source this interpreter's ast cannot parse.
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        text = "if (n := 1)\n    open('notes.txt','w').write('see the .mycelium-extra folder')  # .mycelium-extra\n"
+        write = "if (n := 1)\n    open('.mycelium-extra/gate.json','w').write('x')\n"
+        for source in (text, write):
+            self.assertRaises(SyntaxError, compile, source, "<case>", "exec")
+        self.assertFalse(gate.names_state(text, self.root, self.root, python=True))
+        self.assertTrue(gate.names_state(write, self.root, self.root, python=True))
+        self.assertTrue(gate.names_state(text, self.root, self.root), "not Python: any mention counts")
+        self.assertTrue(gate.names_state("x = \'\'\'.mycelium-extra\n", self.root, self.root, python=True),
+                        "does not tokenize: any mention counts")
+
     def test_no_gate_file_means_no_gate(self):
         os.remove(os.path.join(self.root, ".mycelium-extra", "gate.json"))
         self.assertIsNone(self.bash("python analysis/x.py"))
