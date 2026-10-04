@@ -900,7 +900,7 @@ def render(result, all_outputs=False):
     lines = [
         "# Verify plan {}".format(result["hash"]),
         "",
-        "Approved {}{} · analysis folder `{}` · {} run(s) under this plan · {}".format(
+        "Approved {}{} - analysis folder `{}` - {} run(s) under this plan - {}".format(
             when(result["approved_at"]),
             " (re-approved; first run {})".format(when(result["start"]))
             if result["start"] < result["approved_at"] - TOLERANCE else "",
@@ -1002,10 +1002,10 @@ def write(root, result):
         handle.write("Written {} by mycelium-extra verify.\n\n".format(stamp))
         handle.write(render(result, all_outputs=True))
     index = os.path.join(folder, "PROVENANCE.md")
-    row = "| {} | {} | {} | {} | [plan]({}) · [receipts]({}) · [outputs]({}) · [lint]({}) · [report]({}){} |".format(
+    row = "| {} | {} | {} | {} | [plan]({}) - [receipts]({}) - [outputs]({}) - [lint]({}) - [report]({}){} |".format(
         digest, when(result["approved_at"]), stamp, result["status"], paths["plan"], paths["receipts"],
         paths["outputs"], paths["lint"], paths["report"],
-        " · [conda env]({})".format(paths["env"]) if "env" in paths else "")
+        " - [conda env]({})".format(paths["env"]) if "env" in paths else "")
     if os.path.isfile(index):
         with open(index) as handle:
             lines = [line.rstrip("\n") for line in handle if not line.startswith("| {} |".format(digest))]
@@ -1119,7 +1119,7 @@ def stale(root, hash_mb, seconds):
 def render_stale(result):
     lines = []
     for plan in result["stale"]:
-        lines += ["## Plan {} · `{}`".format(plan["hash"], plan["analysis_dir"]), ""]
+        lines += ["## Plan {} - `{}`".format(plan["hash"], plan["analysis_dir"]), ""]
         lines += ["- " + change for change in plan["changes"]]
         lines += ["- sessions: " + (", ".join(plan["sessions"]) or "none recorded"),
                   "- findings: `rg -n '{}' .living/findings/`".format(

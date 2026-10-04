@@ -464,7 +464,7 @@ class VerifyTest(unittest.TestCase):
         os.remove(os.path.join(self.root, "analysis/a/outputs/keep.tsv"))
         os.remove(os.path.join(self.root, ".mycelium-extra", "gate.json"))  # provenance alone suffices
         out = self.verify("stale")
-        self.assertIn("## Plan {} · `analysis/a`".format(digest), out)
+        self.assertIn("## Plan {} - `analysis/a`".format(digest), out)
         self.assertIn("script `{}` edited since it ran".format(FIT), out)
         self.assertIn("input `data/samples.tsv` changed", out)
         self.assertIn("output `analysis/a/outputs/fit.tsv` rewritten", out)

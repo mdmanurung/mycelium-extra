@@ -123,7 +123,7 @@ def fill(text, values):
 
 
 def read(path):
-    with open(path) as handle:
+    with open(path, encoding="utf-8") as handle:
         return handle.read()
 
 
@@ -334,7 +334,7 @@ def scaffold(args):
         for folder in DIRS:
             os.mkdir(os.path.join(dest, folder))
         for path, text in files.items():
-            with open(os.path.join(dest, path), "x") as handle:
+            with open(os.path.join(dest, path), "x", encoding="utf-8") as handle:
                 handle.write(text)
         os.chmod(os.path.join(dest, "run.sh"), 0o755)
         for link in data_links + code_links:
