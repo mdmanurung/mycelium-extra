@@ -188,6 +188,27 @@ def scenarios():
         case("prompt approve unknown", "prompt", {"prompt": "approve plan deadbeef"}),
         case("prompt bare approve", "prompt", {"prompt": "approve plan"}),
         case("prompt long approve-ish", "prompt", {"prompt": "please approve plan deadbeef now " + "x" * 300}),
+    ] + [  # E2: the state folder named only in text passes; each write twin must still deny
+        case("tool E2 " + name, "tool", bash(command)) for name, command in [
+            ("join text", "python3 -c \"import os; open('notes.txt','w').write(os.path.join('x', '.mycelium-extra'))\""),
+            ("join twin", "python3 -c \"import os; open(os.path.join('x', '.mycelium-extra', 'g.json'),'w').write('x')\""),
+            ("getcwd text", "python3 -c \"import os; open('notes.txt','w').write(os.path.join(os.getcwd(), "
+                            "'.mycelium-extra'))\""),
+            ("getcwd twin", "python3 -c \"import os; p = os.path.join(os.getcwd(), '.mycelium-extra'); "
+                            "open(p + '/gate.json','w').write('x')\""),
+            ("sed text", "sed -i 's/gate state/the `.mycelium-extra` folder/' notes.md"),
+            ("sed twin", "sed -i 's/gate state/the `.mycelium-extra` folder/' .mycelium-extra/gate.json"),
+        ]
+    ] + [  # E3c: the exit status comes from the hook event
+        case("post event " + name, "post", dict(bash("python analysis/x.py", response), **extra), approvals=approved)
+        for name, response, extra in [
+            ("success", {"stdout": "1"}, {"hook_event_name": "PostToolUse"}),
+            ("background", {"backgroundTaskId": "b1"}, {"hook_event_name": "PostToolUse"}),
+            ("interrupted", {"interrupted": True}, {"hook_event_name": "PostToolUse"}),
+            ("exit code", None, {"hook_event_name": "PostToolUseFailure", "error": "Exit code 2\nTraceback"}),
+            ("bare failure", None, {"hook_event_name": "PostToolUseFailure", "error": "Command timed out"}),
+            ("abort", None, {"hook_event_name": "PostToolUseFailure", "error": "", "is_interrupt": True}),
+        ]
     ]
 
 

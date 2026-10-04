@@ -4,6 +4,10 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Added
+
+- `hooks/tests/gate_diff.py` has 12 more scenarios: the three E2 commands that name the state folder only in text, each with a write twin that must still be denied, and a post event for each hook event shape (success, background start, interrupt, `Exit code N`, a bare failure, an abort). Roadmap E3 is done.
+
 ## [0.9.33] - 2026-10-05
 
 ### Fixed
