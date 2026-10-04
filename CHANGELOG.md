@@ -4,8 +4,17 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.9.32] - 2026-10-04
+
 ### Fixed
 
+- Non-ASCII text no longer breaks anything on Python 3.6 with a non-UTF-8 locale (`LC_ALL=C`). Before this, the gate's Stop hook failed on any plan with an `α` or an em dash, so that plan could not be approved, and `verify write` crashed on it.
+  - The gate reads each hook event as UTF-8, which is what Claude Code sends; before, 3.6 decoded it to lone surrogates.
+  - Every text file the gate, `verify`, `init`, `data-contract-check`, and `new-analysis` read or write is `utf-8`. `verify` and `new-analysis` write with `surrogateescape`, so a non-ASCII analysis name or path is written as its original bytes; `new-analysis` no longer stops halfway through a scaffold.
+  - `git`, `sacct`, and scilintr output is decoded as `utf-8`, with bad bytes replaced.
+  - `verify`, `decision-status`, `data-contract-check`, and plan-review's `default_reasons.py` print non-ASCII to an ASCII stdout as `α` and so on, instead of crashing.
+
+  On a UTF-8 locale nothing changes: `gate_diff.py` reports 148/148 identical under both `LC_ALL=C` and `en_US.UTF-8`. The end-to-end harness now sends events as raw UTF-8 and its plan has an `α`; a new `decision-status` test runs under an ASCII locale on any Python.
 - `LICENSE` and `docs/roadmap/01-packaging.md` now spell the copyright holder "Mikhael Manurung", the name both plugin manifests already carry. `.claude-plugin/marketplace.json` names the owner `mdmanurung` and is unchanged.
 
 ## [0.9.31] - 2026-10-04
