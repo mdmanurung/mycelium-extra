@@ -216,6 +216,8 @@ class Report(object):
 LINT_LINE = re.compile(r"^(.+?):(\d+):(\d+): \[([\w-]+)\] (.*)$")
 LINT_LANGUAGES = {".py": "Python", ".R": "R", ".r": "R"}
 NOTEBOOK_EXT = (".ipynb", ".qmd", ".Rmd", ".rmd")
+FENCE = re.compile(r"^\s*(`{3,})(.*)$")
+CHUNK = re.compile(r"^\s*\{(r|python)\b", re.I)
 
 
 def code_files(root, analysis_dir, planned):
@@ -256,6 +258,32 @@ def notebook_code(path):
     return (language, "\n".join(lines), starts) if starts else None
 
 
+def chunk_code(path):
+    """{language: code} of a .qmd/.Rmd's r and python chunks, every other line blank so
+    line numbers match the document. Python magic and shell lines become comments."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            lines = handle.read().splitlines()
+    except OSError:
+        return {}
+    code, fence, language, magic = {}, None, None, False
+    for n, line in enumerate(lines):
+        match = FENCE.match(line)
+        if fence is None:
+            if match:
+                fence, chunk, magic = match.group(1), CHUNK.match(match.group(2)), None
+                language = chunk and {"r": "R", "python": "Python"}[chunk.group(1).lower()]
+            continue
+        if match and len(match.group(1)) >= len(fence) and not match.group(2).strip():
+            fence = None
+        elif language:
+            if magic is None:
+                magic = language == "Python" and line.lstrip().startswith("%%")
+            commented = language == "Python" and (magic or line.lstrip().startswith(("%", "!")))
+            code.setdefault(language, [""] * len(lines))[n] = "# " + line if commented else line
+    return {language: "\n".join(body) for language, body in code.items()}
+
+
 def lint(root, files, report, scilintr, rscript, seconds):
     """Run scilintr on the code; remaining findings block, an unchecked language is a gap.
     The Python CLI skips R files and exits 0 on a missing path, so each language gets
@@ -278,23 +306,29 @@ def lint(root, files, report, scilintr, rscript, seconds):
                 rel, "{}.{}.{}".format(*sys.version_info[:3]), cell(str(error))[:120]))
             return False
 
+    def extract(rel, language, code, starts=None):
+        if language == "Python" and not parses(rel, code):
+            return
+        path = os.path.join(scratch, "{}_{}".format(len(cells), os.path.basename(rel))) + (
+            ".py" if language == "Python" else ".R")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(code)
+        cells[path] = (rel, starts)
+        by_language[language].append(path)
+
     try:
         for rel in files:
             ext = os.path.splitext(rel)[1]
             extracted = notebook_code(os.path.join(root, rel)) if ext == ".ipynb" else None
+            chunks = chunk_code(os.path.join(root, rel)) if ext.lower() in (".qmd", ".rmd") else None
             if ext in LINT_LANGUAGES:
                 if LINT_LANGUAGES[ext] != "Python" or parses(rel):
                     by_language[LINT_LANGUAGES[ext]].append(rel)
             elif extracted:
-                language, code, starts = extracted
-                if language == "Python" and not parses(rel, code):
-                    continue
-                path = os.path.join(scratch, "{}_{}".format(len(cells), os.path.basename(rel))) + (
-                    ".py" if language == "Python" else ".R")
-                with open(path, "w", encoding="utf-8") as handle:
-                    handle.write(code)
-                cells[path] = (rel, starts)
-                by_language[language].append(path)
+                extract(rel, *extracted)
+            elif chunks:
+                for language, code in sorted(chunks.items()):
+                    extract(rel, language, code)
             elif rel.endswith(NOTEBOOK_EXT):
                 result["notebooks"].append(rel)
         lint_languages(root, by_language, cells, report, result, scilintr, rscript, seconds)
@@ -320,6 +354,8 @@ def cell_line(line, cells):
     if not match or match.group(1) not in cells:
         return line
     rel, starts = cells[match.group(1)]
+    if not starts:  # .qmd/.Rmd code keeps the document's line numbers
+        return line
     number = int(match.group(2))
     index = max(bisect.bisect_right(starts, number), 1)
     return "{}[code cell {}]:{}:{}: [{}] {}".format(rel, index, number - starts[index - 1] + 1, *match.groups()[2:])

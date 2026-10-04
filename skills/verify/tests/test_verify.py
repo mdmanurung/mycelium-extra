@@ -457,16 +457,31 @@ class VerifyTest(unittest.TestCase):
             ("markdown", "# FLAG in prose is ignored"), ("code", "%matplotlib inline\nimport os"),
             ("code", "%%bash\nls FLAG"), ("code", "x = 1\ny = x  # FLAG")])
         self.notebook("analysis/a/04_plot.ipynb", [("code", "FLAG <- 1")], language="R")
-        self.write("analysis/a/05_notes.Rmd", "```{r}\nx <- 1\n```\n")
+        rmd = ["---", "title: FLAG", "---", "FLAG in prose", "```{r setup, include=FALSE}", "x <- 1", "```",
+               "```r", "FLAG in a display block", "```", "```{bash}", "echo FLAG", "```",
+               "````markdown", "```{r}", "FLAG in a shown example", "```", "````",
+               "```{R label}", "y <- FLAG", "```", "Inline `r FLAG` is skipped."]
+        self.write("analysis/a/05_notes.Rmd", "\n".join(rmd) + "\n")
+        qmd = ["```{python}", "#| echo: false", "%matplotlib inline", "!echo FLAG", "w = FLAG", "```",
+               "```{.python}", "FLAG", "```", "```{r}", "v <- FLAG", "```"]
+        self.write("analysis/a/06_mixed.qmd", "\n".join(qmd) + "\n")
+        self.write("analysis/a/07_prose.qmd", "Prose only, FLAG.\n")
         out = self.verify("report", digest, scilintr=flagger, rscript=flagger)
         self.assertIn("`analysis/a/03_explore.ipynb[code cell 3]:2` [magic-threshold]", out)
-        self.assertIn("1 scilintr finding(s) remain in Python code", out)
+        self.assertIn("2 scilintr finding(s) remain in Python code", out)
         self.assertIn("`analysis/a/04_plot.ipynb[code cell 1]:1` [magic-threshold]", out)
-        self.assertIn("1 notebook(s) not linted: analysis/a/05_notes.Rmd", out)
+        self.assertIn("`analysis/a/05_notes.Rmd:{}` [magic-threshold]".format(rmd.index("y <- FLAG") + 1), out)
+        self.assertIn("`analysis/a/06_mixed.qmd:{}` [magic-threshold]".format(qmd.index("w = FLAG") + 1), out)
+        self.assertIn("`analysis/a/06_mixed.qmd:{}` [magic-threshold]".format(qmd.index("v <- FLAG") + 1), out)
+        self.assertIn("3 scilintr finding(s) remain in R code", out)
+        self.assertIn("1 notebook(s) not linted: analysis/a/07_prose.qmd", out)
         self.assertNotIn("mycelium-extra-lint-", out)
-        self.notebook("analysis/a/06_broken.ipynb", [("code", "def f(:\n    pass")])
+        self.notebook("analysis/a/08_broken.ipynb", [("code", "def f(:\n    pass")])
+        self.write("analysis/a/09_broken.qmd", "Text\n```{python}\ndef f(:\n```\n")
         out = self.verify("report", digest)
-        self.assertIn("scilintr (Python) not checked: `analysis/a/06_broken.ipynb` does not parse", out)
+        self.assertIn("scilintr (Python) not checked: `analysis/a/08_broken.ipynb` does not parse", out)
+        self.assertIn("scilintr (Python) not checked: `analysis/a/09_broken.qmd` does not parse", out)
+        self.assertIn("line 3", out)
         self.assertIn("Verify status: CONFORMS_WITH_GAPS", out)
 
     def conda_env(self):

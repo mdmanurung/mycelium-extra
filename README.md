@@ -130,7 +130,7 @@ After an approved plan has run, `verify <hash>` compares the plan with the gate'
 - Pinned inputs that changed since the approval.
 - The files on the plan's `Outputs:` line: when each was written and which run likely wrote it. A file named exactly that was written before the approval blocks. Older files inside a named folder or glob are earlier runs' outputs, so they are counted, not checked.
 - Scripts that Mycelium's lineage saw run in the window but the gate did not, such as scratchpad scripts.
-- scilintr on the analysis folder's code (Python and R CLIs), as Mycelium's analyze skill requires, with every `ANALYSIS_OK` waiver listed. Jupyter notebooks' code cells are linted too, with magics commented out; a finding is cited as `<notebook>.ipynb[code cell N]:<line>`.
+- scilintr on the analysis folder's code (Python and R CLIs), as Mycelium's analyze skill requires, with every `ANALYSIS_OK` waiver listed. Jupyter notebooks' code cells are linted too, with magics commented out; a finding is cited as `<notebook>.ipynb[code cell N]:<line>`. The `{r}` and `{python}` chunks of `.qmd` and `.Rmd` files are linted as well, cited by the document's own line.
 
 It ends with `Verify status: CONFORMS`, `CONFORMS_WITH_GAPS`, or `DOES_NOT_CONFORM`.
 
