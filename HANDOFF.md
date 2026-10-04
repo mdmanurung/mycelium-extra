@@ -11,7 +11,7 @@ Work the roadmap the series adds, starting with C1 steps 3–5. Done = `ablate.p
 ## State
 - `main` and `improvements` point at the same commit. `origin/main` is still 3a11123 (v0.9.28) — nothing was pushed.
 - All 12 test files pass on Python 3.6.8. Skips: 7 in `test_data_contract_check.py` (no h5py), 1 in `test_new_analysis.py` (`test_r_stub_fails_loudly`, no Rscript). `test_gate.py` is 102/102. `test_verify.py` was re-run after the name fix: 32 OK. The other suites were not re-run; the commits since are docs only and no test reads `LICENSE` or `CHANGELOG.md`.
-- `gate_diff.py --base 3a11123`: 124/148 identical, all 24 differences receipt state (`exit_source`, `exit_status: null` → `"unknown"`, `sbatch --wrap` paths). Zero non-`(state)` FAILs.
+- `gate_diff.py --base 3a11123`: 127/160 identical. 30 differences are receipt state (`exit_source`, `exit_status: null` → `"unknown"`, `sbatch --wrap` paths, the 6 hook-event cases); the other 3 are the E2 text commands, which pass now (`out`). The 3 E2 write twins still deny. Against HEAD: 160/160.
 - Uncommitted: E3b (0.9.33: `verify.py`, `test_verify.py`, docs, roadmap, manifests, `CHANGELOG.md`, this file), and `mycelium-extra-improvements/`, untracked on purpose — a staging folder, not part of the change.
 - `stash@{0}` ("session handoff (pre-series)", on main) holds the pre-series handoff. Everything in it is carried forward; it can be dropped. Do not `git stash pop` — it conflicts with the series' HANDOFF edits.
 - Installed plugin updated 0.9.28 → 0.9.31 (user scope, 2026-10-04); it needs a Claude Code restart to take effect, so a session started before that still runs 0.9.28. The `mycelium-extra` marketplace is the **folder** `/exports/para-lipg-hpc/mdmanurung/mycelium-extra`, not GitHub, so staying local never blocks an update: `claude plugin marketplace update mycelium-extra`, `claude plugin update mycelium-extra@mycelium-extra`, restart.
@@ -55,7 +55,6 @@ Work the roadmap the series adds, starting with C1 steps 3–5. Done = `ablate.p
 
 ## Open items
 - **C1 steps 3–5** (defect layers, catalog tests, `ablate.py`): the keystone. Add the known-miss case from `APPLY.md`: with output times not spaced, verify credits an output to the wrong run of the same plan and still says CONFORMS. KB-04, KB-05 and KB-06 (`docs/design/c1-fixture-project.md` §8.5) are fixed now: write them as plain asserts, not `expectedFailure`, or the suite reports FAILED on an unexpected success.
-- **E3 gate_diff scenarios:** the E2 commands and twins, and post events with `hook_event_name`, as `case(...)` entries in `gate_diff.py`'s `scenarios()`; then the E3 Status line becomes `done`.
 - **B2:** move the dated verify history to the changelog. No longer blocked.
 - Unrecorded: pip packages inside conda envs; snakemake `--use-conda` rule envs. `sbatch -o/-e/-i` values under gated paths are probably denied wrongly.
 - `init --paths` with a non-ASCII glob on Python 3.6 under `LC_ALL=C` stores it as `\udcXX` escapes in `gate.json` (argv arrives as surrogates). It does not crash, but the glob will not match on a UTF-8 locale. Rare: Mycelium names analyses in ASCII.
