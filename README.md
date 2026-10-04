@@ -249,7 +249,8 @@ Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip My
 
 **Limits.**
 
-- The gate denies the agent's Write/Edit calls into `.mycelium-extra/`. For Bash, it checks where a command writes: redirect targets, and the targets of `rm`, `cp`, `mv`, `tee`, `sed -i`, `find -delete`, and similar. A command that only mentions the folder passes, such as a learning about the gate appended to `.living/learnings.md`. An interpreter's code cannot be traced, so a runner is denied when it gets a path in the folder, or when its code mentions the folder and writes anything.
+- The gate denies the agent's Write/Edit calls into `.mycelium-extra/`. For Bash, it checks where a command writes: redirect targets, and the targets of `rm`, `cp`, `mv`, `tee`, `sed -i`, `find -delete`, and similar. A command that only mentions the folder passes, such as a learning about the gate appended to `.living/learnings.md`. An interpreter's code cannot be traced, so a runner is denied when it gets a path in the folder, or when its own code (`-c`, a heredoc, or a script written by a heredoc earlier in the command) names the folder and writes anything. In Python code, the folder counts only in a path string or a shell-command string that writes it; prose and multi-line strings are text being written elsewhere. A variable set to a literal in the same command is expanded before the check.
+- Inline code (`python -c`, `Rscript -e`) counts as a gated run when it names a gated script (`.py`, `.R`, ...), or any gated path when it changes `sys.path`, the working directory, or `.libPaths()`. A read-only probe of gated data passes.
 - It passes a command by staying silent and never auto-allows, so your own permission prompts still apply.
 - On an internal error it fails open and says so.
 - It catches mistakes; it is not security. An agent set on bypassing it through Bash can do so.

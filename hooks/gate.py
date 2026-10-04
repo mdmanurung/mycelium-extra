@@ -14,6 +14,7 @@ receipt per gated run to .mycelium-extra/receipts.jsonl.
 After `hints on`, the prompt and Stop hooks also suggest the command to run next.
 """
 
+import ast
 import fnmatch
 import functools
 import json
@@ -76,6 +77,7 @@ WRITE_CODE = re.compile(
     r"|file\.(remove|rename|create|copy|append)|unlink|dir\.create|sink|system2?)\s*\("
     r"|\bcat\s*\([^)]*\bfile\s*=")
 PATHLIKE = re.compile(r"[\w./~-]+")
+LOADS_FOLDER = re.compile(r"\bsys\.path\b|\b(os\.)?chdir\s*\(|\bsetwd\s*\(|\.libPaths\s*\(")
 TABLE_ROW = re.compile(r"^\s*\|(.*)\|\s*$")
 TABLE_RULE = re.compile(r"^\s*\|?[\s|:]*-[\s|:-]*$")
 SOURCE_CITATION = re.compile(r"`?\brepo:\s*`?[^\s`|;,]+`?")
@@ -268,12 +270,14 @@ def unchanged(pin, now):
 
 # ---------------------------------------------------------------- command parsing
 
-def tokenize(command):
+def tokenize(command, bodies=None):
     """Split a shell command into words and operator tokens.
 
     Quote-aware; `$(...)` stays inside its word; heredoc bodies are dropped,
-    since they are stdin data, not commands. Newlines become ";".
+    since they are stdin data, not commands. Newlines become ";". If given,
+    `bodies` gets one entry per `<<` token, in order: its heredoc text, or "".
     """
+    bodies = [] if bodies is None else bodies
     tokens, word, i, n = [], [], 0, len(command)
     heredocs = []
     in_word = False
@@ -316,7 +320,8 @@ def tokenize(command):
             in_word = flush()
             tokens.append(";")
             i += 1
-            for delimiter in heredocs:
+            for delimiter, slot in heredocs:
+                lines = []
                 while i < n:
                     end = command.find("\n", i)
                     end = n if end < 0 else end
@@ -324,6 +329,8 @@ def tokenize(command):
                     i = end + 1
                     if line.strip() == delimiter:
                         break
+                    lines.append(line)
+                bodies[slot] = "\n".join(lines)
             heredocs = []
         elif c in ";&|()<>":
             in_word = flush()
@@ -340,10 +347,11 @@ def tokenize(command):
             tokens.append(command[i:j])
             i = j
             if op == "<<":
+                bodies.append("")
                 rest = command[i:].lstrip(" \t-")
                 m = re.match(r"""['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?""", rest)
                 if m:
-                    heredocs.append(m.group(1))
+                    heredocs.append((m.group(1), len(bodies) - 1))
         else:
             word.append(c)
             in_word = True
@@ -396,10 +404,12 @@ def gated_rel(root, cwd, token, config):
 
 
 def paths_in_text(root, cwd, text, config):
+    """Gated scripts named in inline code; any gated path if the code imports from or moves into a folder."""
+    loads = LOADS_FOLDER.search(text) is not None
     found = []
     for word in PATHLIKE.findall(text):
         rel = gated_rel(root, cwd, word, config) if "/" in word or "." in word else None
-        if rel:
+        if rel and (loads or SCRIPT_EXT.search(rel)):
             found.append(rel)
     return found
 
@@ -518,20 +528,69 @@ def writes_state(command, root, cwd):
     if STATE_DIR not in command:
         return False
     state = os.path.realpath(state_path(root))
-    bound = binds_state(tokenize(command))
-    virtual_cwd = cwd
+    bodies = []
+    all_tokens = tokenize(command, bodies)
+    bound = binds_state(all_tokens)
+    values = literal_values(all_tokens)
+    virtual_cwd, used, written = cwd, 0, {}
     for tokens in segments(command):
+        heredocs = sum(1 for t in tokens if t in ("<<", "<<-"))
+        own, used = bodies[used:used + heredocs], used + heredocs
+        for j, token in enumerate(tokens[:-1]):
+            if own and token in (">", ">>"):  # cat > run.py <<EOF: run.py's code is that heredoc
+                written[tokens[j + 1]] = "\n".join(own)
+        own += [written[t] for t in tokens if t in written]
         if tokens[0] == "cd":
             virtual_cwd = cd_target(virtual_cwd, tokens)
             continue
 
         def inside(token):
+            if "`" not in token and "$(" not in token:
+                token = re.sub(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?",
+                               lambda m: values.get(m.group(1), m.group(0)), token)
             if "$" in token or "`" in token:  # unresolvable: may hold a path into the folder
                 return STATE_DIR in token or bound
             path = os.path.realpath(os.path.join(virtual_cwd, os.path.expanduser(token)))
             return path == state or path.startswith(state + os.sep)
 
-        if segment_writes(tokens, command, inside, root, virtual_cwd):
+        if segment_writes(tokens, own, inside, root, virtual_cwd):
+            return True
+    return False
+
+
+def literal_values(tokens):
+    """Variables the command sets, each exactly once, to a literal value."""
+    values, seen = {}, set()
+    for token in tokens:
+        if is_assignment(token):
+            name, value = token.split("=", 1)
+            if name in seen or "$" in value or "`" in value:
+                values.pop(name, None)
+            else:
+                values[name] = value
+            seen.add(name)
+    return values
+
+
+def names_state(code, root, cwd):
+    """Whether code names the state folder as a target, not as text it writes elsewhere.
+
+    For Python, a string literal counts when it is a path (no whitespace) or a
+    shell command that writes the folder; prose and multi-line strings are text
+    (a file's new content), and a comment is not code. Code that does not parse
+    as Python (R, perl) counts on any mention.
+    """
+    # ponytail: a state path split across pieces or hidden in a multi-line string passes;
+    # data-flow tracking if that ever shows up in real use
+    try:
+        tree = ast.parse(code)
+    except (SyntaxError, ValueError):
+        return STATE_DIR in code
+    for node in ast.walk(tree):
+        kind = type(node).__name__
+        value = node.value if kind == "Constant" else node.s if kind == "Str" else None
+        if isinstance(value, str) and STATE_DIR in value and (
+                not value.split(None, 1)[1:] or "\n" not in value and writes_state(value, root, cwd)):
             return True
     return False
 
@@ -550,7 +609,7 @@ def binds_state(tokens):
     return False
 
 
-def segment_writes(tokens, command, inside, root, cwd):
+def segment_writes(tokens, bodies, inside, root, cwd):
     for j, token in enumerate(tokens[:-1]):
         if token in (">", ">>") and inside(tokens[j + 1]):
             return True
@@ -573,8 +632,11 @@ def segment_writes(tokens, command, inside, root, cwd):
         skip = token in (">", ">>", "<", "<<", "<<-")
         if not skip and not token.startswith("-") and not token.startswith(">"):
             positional.append(token)
-    if head in SHELLS and code:
-        return any(writes_state(payload, root, cwd) for payload in code)
+    if head in SHELLS:
+        if any(writes_state(payload, root, cwd) for payload in code + bodies):
+            return True
+        if code:
+            return False
     if head == "eval":
         return writes_state(" ".join(args), root, cwd)
     if head == "xargs":  # its targets arrive on stdin
@@ -594,8 +656,7 @@ def segment_writes(tokens, command, inside, root, cwd):
     if RUNNERS.match(head):
         if any(inside(t) for t in positional + stdin):
             return True
-        text = "\n".join(code) if code else command  # heredoc bodies live only in the raw command
-        return STATE_DIR in text and WRITE_CODE.search(text) is not None
+        return any(names_state(text, root, cwd) and WRITE_CODE.search(text) for text in code + bodies)
     return False
 
 

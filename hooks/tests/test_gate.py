@@ -77,6 +77,8 @@ class GateTest(unittest.TestCase):
             ". analysis/env.sh",
             "snakemake -n",  # a Snakefile is Python: a dry run still runs its top-level code
             "bash analysis/x/run.sh -n",
+            "python3 -c \"exec(open('analysis/x.py').read())\"",
+            "python3 -c \"import sys; sys.path.insert(0, 'analysis/lib'); import fit\"",
         ]:
             self.assertTrue(self.denied(self.bash(command)), command)
 
@@ -88,6 +90,9 @@ class GateTest(unittest.TestCase):
             "python3 - --contract /tmp/c.json < /plugin/check.py",
             "python3 - <<'EOF'\nimport os; os.system('python analysis/x.py')\nEOF",
             "python tools/plot.py analysis/b04/outputs/numbers.json",
+            # inline probes that read gated data or folders run no gated code
+            "python3 -c \"import anndata; print(anndata.read_h5ad('analysis/x/data/a.h5ad'))\"",
+            "python3 -c \"import os; print(os.listdir('nbs/sub'))\"",
         ]:
             self.assertIsNone(self.bash(command), command)
 
@@ -272,6 +277,12 @@ class GateTest(unittest.TestCase):
             "ls .mycelium-extra/approvals | xargs rm",
             "python3 tools/x.py .mycelium-extra/approvals/a.json",
             "mkdir -p .mycelium-extra/approvals",
+            "python3 - <<'EOF'\nimport os\np = '.mycelium-extra/gate.json'\nos.remove(p)\nEOF",
+            "python3 -c \"import os; os.system('rm .mycelium-extra/gate.json')\"",
+            "bash <<'EOF'\nrm .mycelium-extra/gate.json\nEOF",
+            "python3 - <<'EOF'\nimport os\nos.remove('.mycelium-extra/gate.json')\nEOF\npython3 tools/t.py",
+            "cat > /tmp/d.py <<'EOF'\nimport os\nos.remove('.mycelium-extra/gate.json')\nEOF\npython3 /tmp/d.py",
+            "S=.; rm $S/.mycelium-extra/gate.json",
         ]:
             self.assertTrue(self.denied(self.bash(command)), command)
         for command in [
@@ -287,6 +298,14 @@ class GateTest(unittest.TestCase):
             'python3 "$MYC/skills/core/scripts/upsert_registry_row.py" .living/log/LOG_REGISTRY.md s1 '
             '"| read .mycelium-extra/receipts.jsonl |"',
             "python3 - <<'EOF'\nimport json\nprint(json.load(open('.mycelium-extra/approvals/x.json')))\nEOF",
+            # editing a file whose new text names the folder, then an unrelated run
+            "python3 - <<'EOF'\np = 'README.md'\ns = open(p).read()\n"
+            "s += 'Receipts stay in `.mycelium-extra/`, which is gitignored.'\n"
+            "s += '''    def test_x(self):\n"
+            "        os.remove(os.path.join(self.root, \".mycelium-extra\", \"gate.json\"))\n'''\n"
+            "open(p, 'w').write(s)\nEOF\npython3 tools/t.py -k status 2>&1",
+            # a scratch repository's own state folder
+            "S=/tmp/e2e; mkdir -p $S/.living $S/.mycelium-extra && echo '{}' > $S/.mycelium-extra/gate.json",
         ]:
             self.assertIsNone(self.bash(command), command)
         self.assertIsNone(self.hook("tool", {"tool_name": "Write",
