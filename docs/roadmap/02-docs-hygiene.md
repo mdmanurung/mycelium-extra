@@ -41,7 +41,7 @@ Small corrections found while restructuring the README.
 - **Acceptance:** every `path:line` pointer in HANDOFF.md resolves to the text it describes.
 - **Tests:** none.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** done. The pointer is now `docs/development.md:5`. The two other `path:line` pointers in HANDOFF.md are outside this repository (`_engine.py:125` in scilintr, `mycelium-health.sh:482` in the installed Mycelium) and were left as they are.
 
 ### B4: Say up front that plan-review sends data off the machine
 

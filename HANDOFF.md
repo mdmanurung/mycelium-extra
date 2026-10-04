@@ -41,7 +41,7 @@ Ask the user to pick from "Open items" (suggested: pip packages inside conda env
 - Running `conda list --explicit`: conda is not on PATH here.
 
 ## Read first
-- `README.md:236`: dev, test and version-bump rules (3 manifests; Python 3.6-compatible code).
+- `docs/development.md:5`: dev, test and version-bump rules (3 manifests; Python 3.6-compatible code).
 - `hooks/gate.py`: `approval_card`, `on_stop`, `on_tool`, `on_post`.
 - `skills/verify/scripts/verify.py`: `lint()`, `chunk_code()`, `notebook_code()`, `conda_snapshots()`, `status()`, `explore_runs()`, `check()`, `write()`.
 - Memory: `backlog-2026-10`, `complement-mycelium-not-override`, `keep-mycelium-extra-local`, `show-layout-options`.
