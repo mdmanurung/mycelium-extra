@@ -50,6 +50,18 @@ User: "Plan pseudobulk DE on the integrated object."
 Repo: it is unclear whether `adata.X` holds counts.
 Expected: check with an inline read-only probe in the documented environment (`conda run -n <env> python -c ...`) instead of running a repository script, and record the result as `repo` evidence. If the probe fails, mark the property unverified and make checking it the plan's first validation step.
 
+## Contrast direction reversed in the metadata
+
+User: "Run DE for treated vs control in the bulk samples."
+Repo: the sample table's `condition` column has levels `control` and `treated`, but the existing model code sets `treated` as the reference level; no decision covers the direction.
+Expected: do not fit the model as written and report the effects with flipped signs. Cite the code line that sets the reference, name `control` as the baseline and the meaning of a positive log fold change in the plan, and add a guard row that checks the factor levels before fitting (the reversed-contrast failure mode). Ask only if the user's wording is genuinely ambiguous about which arm is the baseline.
+
+## Column named only in the user's prose
+
+User: "Adjust for sequencing batch using the `seq_batch` column."
+Repo: the sample table's header has `run_id` and `lane`, but no `seq_batch`.
+Expected: do not write a plan that uses `seq_batch`. Report the header the probe found, check whether `run_id` is the intended variable (a data contract or one read-only probe), and either source the mapping from the repository or ask one question. The plan's guard confirms every column the code uses (the invented-columns failure mode).
+
 ## No Mycelium
 
 User: "Grill my plan to split this package into modules."
