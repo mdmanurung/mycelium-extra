@@ -4,6 +4,12 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.9.31] - 2026-10-04
+
+### Fixed
+
+- `verify` and `new-analysis` no longer crash on a machine whose `python3` is 3.6 and whose locale is not UTF-8. `verify` wrote a middle dot in its report header, its `PROVENANCE.md` row, and its stale listing, which raised `UnicodeEncodeError` on an ASCII stdout; the separator is now `-`, and old `PROVENANCE.md` files still parse because the row is split on `|`. `new-analysis` read its templates with the locale's encoding and raised `UnicodeDecodeError` before writing anything; its reads and writes now name `utf-8`. `tests/test_end_to_end.py` passes as a result.
+
 ## [0.9.30] - 2026-10-04
 
 ### Added
