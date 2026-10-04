@@ -6,7 +6,7 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Fixed
 
-- `LICENSE` and `docs/roadmap/01-packaging.md` now spell the copyright holder "Mikhael Manurung", the name the three plugin manifests already carry.
+- `LICENSE` and `docs/roadmap/01-packaging.md` now spell the copyright holder "Mikhael Manurung", the name both plugin manifests already carry. `.claude-plugin/marketplace.json` names the owner `mdmanurung` and is unchanged.
 
 ## [0.9.31] - 2026-10-04
 

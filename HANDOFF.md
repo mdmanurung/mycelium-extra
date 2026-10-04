@@ -1,6 +1,6 @@
 # Handoff — mycelium-extra: the series is on `main`; the four decisions are answered
 
-**Date:** 2026-10-04 · **Branch:** `main` = `improvements` @ bb136e1 (v0.9.31) · **Status:** the 24-patch series plus one name fix are landed locally and green. Nothing pushed, tagged, or sent to `gh`.
+**Date:** 2026-10-04 · **Branch:** `main` = `improvements` (v0.9.31), ahead of `origin/main` (3a11123, v0.9.28) · **Status:** the 24-patch series plus the name and handoff commits are landed locally and green. Nothing pushed, tagged, or sent to `gh`.
 
 ## Goal
 Work the roadmap the series adds, starting with C1 steps 3–5. Done = `ablate.py` exists and the catalog tests run.
@@ -9,12 +9,12 @@ Work the roadmap the series adds, starting with C1 steps 3–5. Done = `ablate.p
 `mycelium-extra-improvements/IMPLEMENTATION-MAP.md` → C1 step 3 (defect layers). It is the keystone: A2, A6, C3, D1, D4 and E4 all wait on it.
 
 ## State
-- `main` and `improvements` both point at bb136e1. `origin/main` is still 3a11123 (v0.9.28) — nothing was pushed.
-- All 12 test files pass on Python 3.6.8. Skips: 7 in `test_data_contract_check.py` (no h5py), 1 in `test_new_analysis.py` (`test_r_stub_fails_loudly`, no Rscript). `test_gate.py` is 102/102. The last commit is docs only and no test reads `LICENSE`, so the suite was not re-run after it.
+- `main` and `improvements` point at the same commit. `origin/main` is still 3a11123 (v0.9.28) — nothing was pushed.
+- All 12 test files pass on Python 3.6.8. Skips: 7 in `test_data_contract_check.py` (no h5py), 1 in `test_new_analysis.py` (`test_r_stub_fails_loudly`, no Rscript). `test_gate.py` is 102/102. `test_verify.py` was re-run after the name fix: 32 OK. The other suites were not re-run; the commits since are docs only and no test reads `LICENSE` or `CHANGELOG.md`.
 - `gate_diff.py --base 3a11123`: 124/148 identical, all 24 differences receipt state (`exit_source`, `exit_status: null` → `"unknown"`, `sbatch --wrap` paths). Zero non-`(state)` FAILs.
 - Uncommitted: `mycelium-extra-improvements/` only, untracked on purpose — a staging folder, not part of the change.
 - `stash@{0}` ("session handoff (pre-series)", on main) holds the pre-series handoff. Everything in it is carried forward; it can be dropped. Do not `git stash pop` — it conflicts with the series' HANDOFF edits.
-- Installed plugin is still 0.9.28 (user scope). To pick up 0.9.31: `claude plugin marketplace update mycelium-extra`, `claude plugin update mycelium-extra@mycelium-extra`, restart.
+- Installed plugin is still 0.9.28 (user scope). The `mycelium-extra` marketplace is the **folder** `/exports/para-lipg-hpc/mdmanurung/mycelium-extra`, not GitHub, so staying local does not block the update. To pick up 0.9.31: `claude plugin marketplace update mycelium-extra`, `claude plugin update mycelium-extra@mycelium-extra`, restart.
 - The gate is on here and blocked nothing this session.
 
 ## Locked decisions
