@@ -4,6 +4,8 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.9.30] - 2026-10-04
+
 ### Added
 
 - MIT `LICENSE`, named in both plugin manifests.
