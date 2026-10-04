@@ -26,6 +26,17 @@ import gate  # noqa: E402
 FIT = "analysis/a/scripts/01_fit.py"
 
 
+def hermetic(test):
+    """Hide the host's env variables and ~/.conda from the gate and verify for one test."""
+    saved = dict(os.environ)
+    test.addCleanup(lambda: (os.environ.clear(), os.environ.update(saved)))
+    for key in gate.HOOK_ENV + ("CLAUDE_CODE_SESSION_ID",):
+        os.environ.pop(key, None)
+    home = tempfile.mkdtemp()
+    test.addCleanup(shutil.rmtree, home)
+    os.environ["HOME"] = home
+
+
 def plan(*rows, outputs="analysis/a/outputs/", inputs=None):
     lines = ["**Objective.** Fit the model; see `analysis/a/scripts/old.py` for the previous attempt.", ""]
     if inputs:
@@ -39,6 +50,7 @@ def plan(*rows, outputs="analysis/a/outputs/", inputs=None):
 
 class VerifyTest(unittest.TestCase):
     def setUp(self):
+        hermetic(self)
         self.root = tempfile.mkdtemp()
         os.makedirs(os.path.join(self.root, ".mycelium-extra"))
         self.write(".mycelium-extra/gate.json", "{}")

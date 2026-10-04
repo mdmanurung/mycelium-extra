@@ -19,6 +19,14 @@ class GateTest(unittest.TestCase):
     entry = GATE
 
     def setUp(self):
+        # Hooks record the session's env variables in receipts; keep the host's out of them.
+        saved = dict(os.environ)
+        self.addCleanup(lambda: (os.environ.clear(), os.environ.update(saved)))
+        for key in ("CONDA_DEFAULT_ENV", "CONDA_PREFIX", "VIRTUAL_ENV", "PIXI_ENVIRONMENT_NAME"):
+            os.environ.pop(key, None)
+        home = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, home)
+        os.environ["HOME"] = home
         self.root = tempfile.mkdtemp()
         os.makedirs(os.path.join(self.root, ".mycelium-extra"))
         self.config({})
