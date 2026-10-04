@@ -17,6 +17,32 @@ It has nine skills and one hook set:
 | `harden` | Ships a Mycelium learning's mitigation candidate as a real test | One test file; one `.living/learnings.md` entry, after you confirm |
 | Approval gate | Blocks analysis runs until you approve the plan, blocks them if the plan's inputs changed, and records a receipt per run | `.mycelium-extra/` only |
 
+Here is how a task moves through it, and where Mycelium takes over:
+
+```mermaid
+flowchart TD
+    init["/mycelium-extra:init<br>once per repository"] --> grill["/mycelium-extra:grill<br>a numbered plan, every choice sourced"]
+    living[(".living/, manifests<br>Mycelium's memory")] -.->|"grill reads it, writes nothing"| grill
+    grill --> review["/mycelium-extra:plan-review<br>optional: Codex and Biomni critique"]
+    review -->|"amendments; a changed plan is a new hash"| grill
+    grill --> approve(["you type: approve plan 99ddfd42"])
+    approve --> gate{{"approval gate<br>blocks a run no approved plan covers,<br>or whose pinned inputs changed<br>records one receipt per run"}}
+    gate --> analyze["/mycelium:analyze"]
+    gate --> runner["run.sh, snakemake, sbatch"]
+    analyze --> verify["/mycelium-extra:verify 99ddfd42<br>the plan against what actually ran"]
+    runner --> verify
+    verify --> prov[("provenance/ in the analysis folder<br>frozen plan, receipts, outputs, lint")]
+    prov --> mrev["/mycelium:review<br>the code against the frozen plan"]
+    prov --> mlog["Mycelium's Stop hook asks you<br>to update .living/"]
+
+    classDef myc fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef gated fill:#fef3c7,stroke:#d97706,color:#7c2d12
+    class living,analyze,mrev,mlog myc
+    class gate gated
+```
+
+Blue is Mycelium's. `new-analysis`, `decision-status`, `data-contract-check`, `harden`, and `handoff` sit off this spine; `grill` calls the middle two itself.
+
 ## Installation
 
 ### Claude Code
