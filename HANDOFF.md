@@ -1,6 +1,6 @@
 # Handoff — mycelium-extra: the series is on `main`; the four decisions are answered
 
-**Date:** 2026-10-04 · **Branch:** `main` = `improvements` (v0.9.31), ahead of `origin/main` (3a11123, v0.9.28) · **Status:** the 24-patch series plus the name and handoff commits are landed locally and green. Nothing pushed, tagged, or sent to `gh`.
+**Date:** 2026-10-04 · **Branch:** `main` = `improvements` (v0.9.32), ahead of `origin/main` (3a11123, v0.9.28) · **Status:** the 24-patch series plus the name and handoff commits are landed locally and green. Nothing pushed, tagged, or sent to `gh`.
 
 ## Goal
 Work the roadmap the series adds, starting with C1 steps 3–5. Done = `ablate.py` exists and the catalog tests run.
@@ -55,8 +55,8 @@ Work the roadmap the series adds, starting with C1 steps 3–5. Done = `ablate.p
 
 ## Open items
 - **C1 steps 3–5** (defect layers, catalog tests, `ablate.py`): the keystone. Add the known-miss case from `APPLY.md`: with output times not spaced, verify credits an output to the wrong run of the same plan and still says CONFORMS.
-- **Finish the encoding sweep:** ~40 other `open()` calls in `gate.py`, `verify.py`, `gate_init.py`, `data_contract_check.py` still take the locale's encoding. `gate.py` changes need `gate_diff.py` before and after, so it is its own task.
 - **E3b:** a Snakemake rule's inputs still count as runs. Design in `mycelium-extra-improvements/notes/e3-v1.md` (decode `script:` targets with `pickletools`, no unpickling).
 - **B2:** move the dated verify history to the changelog. No longer blocked.
 - Unrecorded: pip packages inside conda envs; snakemake `--use-conda` rule envs. `sbatch -o/-e/-i` values under gated paths are probably denied wrongly.
+- `init --paths` with a non-ASCII glob on Python 3.6 under `LC_ALL=C` stores it as `\udcXX` escapes in `gate.json` (argv arrives as surrogates). It does not crash, but the glob will not match on a UTF-8 locale. Rare: Mycelium names analyses in ASCII.
 - Untested in real use: `hints`, `harden`, `verify stale/status/explore`, R scilintr CLI, R-kernel notebooks and `.Rmd` R chunks (no Rscript here); D6's h5ad path (no h5py here). Parked chunk-lint cases: document-level `execute: eval: false`, `child=`, `knitr::read_chunk`, `{r engine=...}`.
