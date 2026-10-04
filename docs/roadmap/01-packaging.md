@@ -54,7 +54,7 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Acceptance:** the description and topics show on the repository page.
 - **Tests:** none.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** todo (maintainer action). The description, topics, and a `gh repo edit` command are drafted; a patch cannot set them.
 
 ### A5: Check Mycelium compatibility
 
