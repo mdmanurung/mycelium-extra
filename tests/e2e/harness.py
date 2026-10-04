@@ -28,6 +28,10 @@ PLANS = os.path.join(HERE, "plans")
 HOOKS_JSON = os.path.join(REPO, "hooks", "hooks.json")
 SKILLS = os.path.join(REPO, "skills")
 ANALYSIS = "analysis/vaccine-response"
+SCRIPTS = [ANALYSIS + "/scripts/01_select_samples.py", ANALYSIS + "/scripts/02_paired_test.py",
+           ANALYSIS + "/scripts/03_summary.R"]
+OUTPUTS = [ANALYSIS + "/outputs/samples_used.tsv", ANALYSIS + "/outputs/de_results.tsv",
+           ANALYSIS + "/outputs/summary.tsv"]
 
 TOLERANCE = 5.0  # verify's clock-skew allowance (skills/verify/scripts/verify.py, TOLERANCE)
 SCRUB = ("CONDA_PREFIX", "CONDA_DEFAULT_ENV", "VIRTUAL_ENV", "PIXI_ENVIRONMENT_NAME", "CLAUDE_PLUGIN_ROOT")
@@ -202,6 +206,21 @@ class Project(object):
         out, err = proc.communicate()
         return proc.returncode, out.decode("utf-8", "replace"), err.decode("utf-8", "replace")
 
+    def edit(self, rel, change):
+        """Replace a file's text with change(text); fails if nothing changed, so a stale mutation shows."""
+        with open(self.path(rel), encoding="utf-8") as handle:
+            text = handle.read()
+        new = change(text)
+        if new == text:
+            raise HarnessError("editing {} changed nothing".format(rel))
+        with open(self.path(rel), "w", encoding="utf-8") as handle:
+            handle.write(new)
+        self.log.append("edited " + rel)
+
+    def commit(self, message):
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", message)
+
     def init(self):
         """skills/init in its documented stdin form (no gate yet, so no PreToolUse check)."""
         script = os.path.join(SKILLS, "init", "scripts", "gate_init.py")
@@ -313,6 +332,23 @@ class Project(object):
             self.log.append("{} not registered in hooks.json; no post hook ran".format(name))
         return Result(command, pre=pre, code=code, stdout=out, stderr=err, post=post,
                       receipts=self.receipts()[before:], simulated=effect is not None, event=name)
+
+    def run_step(self, script, prefix=""):
+        """One planned step as the agent runs it; 03 is an effect copying expected/summary.tsv without R."""
+        if script.endswith(".R"):
+            return self.agent_bash(prefix + "Rscript " + script, effect=None if self.r else copy_summary)
+        return self.agent_bash(prefix + "python3 " + script)
+
+    def run_plan(self, text=None, scripts=SCRIPTS):
+        """Approve `text` (default: the baseline plan), run `scripts`, space the outputs, and write
+        Mycelium's lineage. Returns (digest, results); a denied or failed step is left to the caller."""
+        digest = self.approve(text or plan_text())[0]
+        results = [self.run_step(script) for script in scripts]
+        pairs = [(out_of(s), r.receipts[0]) for s, r in zip(scripts, results)
+                 if r.receipts and out_of(s) and os.path.isfile(self.path(out_of(s)))]
+        self.space_outputs(pairs)
+        self.lineage()
+        return digest, results
 
     def skill(self, name, documented, run=None):
         """A skill command as the agent sends it: PreToolUse must stay silent for `documented`.
@@ -437,6 +473,11 @@ def script_of(command):
         if re.search(r"\.(py|R)$", word):
             return word
     return False
+
+
+def out_of(script):
+    """The output a planned step writes (the steps and outputs share their order)."""
+    return OUTPUTS[SCRIPTS.index(script)] if script in SCRIPTS else None
 
 
 def copy_summary(project):

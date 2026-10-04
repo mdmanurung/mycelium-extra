@@ -11,11 +11,11 @@ import tempfile
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "e2e"))
+import defects  # noqa: E402
 import harness  # noqa: E402
 
-A = harness.ANALYSIS
-SCRIPTS = [A + "/scripts/01_select_samples.py", A + "/scripts/02_paired_test.py", A + "/scripts/03_summary.R"]
-OUTPUTS = [A + "/outputs/samples_used.tsv", A + "/outputs/de_results.tsv", A + "/outputs/summary.tsv"]
+A, SCRIPTS, OUTPUTS = harness.ANALYSIS, harness.SCRIPTS, harness.OUTPUTS
+REFERENCES = os.path.join(harness.SKILLS, "grill", "references")
 PROBE = "python3 -c \"print(open('data/processed/vaccine-cohort/counts.tsv').readline().split()[:3])\""
 
 
@@ -65,11 +65,7 @@ class BaselineChain(unittest.TestCase):
         # 4. the three planned runs; then an inline read-only probe (Mycelium sees it, the gate does not)
         results = []
         for script in SCRIPTS:
-            if script.endswith(".R"):
-                effect = None if p.r else harness.copy_summary
-                result = p.agent_bash("Rscript " + script, effect=effect)
-            else:
-                result = p.agent_bash("python3 " + script)
+            result = p.run_step(script)
             self.check(not result.denied, p, "step 4: the gate denied `{}`: {}".format(result.command, result.reason))
             self.check(result.pre is None, p, "step 4: the gate spoke for `{}`: {}".format(result.command, result.pre))
             self.check(result.code == 0, p, "step 4: `{}` exited {}:\n{}".format(result.command, result.code,
@@ -162,6 +158,71 @@ class BaselineChain(unittest.TestCase):
         code, out, err = project.shell("command -v Rscript")
         self.assertNotEqual(code, 0, "Rscript still on PATH: " + out)
         self.run_chain(project)
+
+
+@unittest.skipUnless(harness.git_available(), "git is not installed")
+class Defects(unittest.TestCase):
+    """One case per planted defect (design section 8); the methods are added from defects.DEFECTS."""
+
+
+def defect_case(d):
+    def test(self):
+        project = harness.Project.fresh()
+        self.addCleanup(project.close)
+        outcome = d.run(project)
+        want = {k: v for k, v in d.expect.items() if k != "messages"}
+        got = {k: outcome.get(k) for k in want}
+        absent = [m for m in d.expect.get("messages", []) if m not in outcome.get("text", "")]
+        if got != want or absent:
+            self.fail("{}: expected {}, got {}; messages not found: {}\noutput:\n{}\nchain:\n  {}".format(
+                d.id, want, got, absent, outcome.get("text", ""), "\n  ".join(project.log)))
+    test.__doc__ = "{}: {}{}".format(d.id, "known miss" if d.known_miss else "caught by " + d.caught_by,
+                                     ", xfail until " + d.xfail_task if d.xfail_task else "")
+    return unittest.expectedFailure(test) if d.xfail_task else test
+
+
+for _defect in defects.DEFECTS:
+    setattr(Defects, "test_" + _defect.id.replace("-", "_"), defect_case(_defect))
+
+
+def checklist():
+    """{row name: Check cell} of llm-failure-modes.md, plus analysis-decisions.md rows mapped to None:
+    that file has no Check column, so its rows make no claim that a tool catches them."""
+    rows = {}
+    for name in ("llm-failure-modes.md", "analysis-decisions.md"):
+        with open(os.path.join(REFERENCES, name), encoding="utf-8") as handle:
+            for line in handle:
+                cells = [c.strip() for c in line.strip().strip("|").split("|")]
+                if line.startswith("| ") and cells[0] not in ("Failure mode", "Decision point", "---"):
+                    rows[cells[0]] = cells[-1] if name.startswith("llm") else None
+    return rows
+
+
+FAMILY = {"DC": {"data-contract-check", "none"}, "G": {"approval gate"}, "V": {"verify", "none"},
+          "S": {"verify"}, "M": {"decision-status"}, "KB": {"approval gate", "verify"}}
+NO_FULL_CLAIM = ("none", "partial:", "planned:", "cross-ref:")
+
+
+class Catalog(unittest.TestCase):
+    """Contract tests on defects.DEFECTS (design section 9); no project needed."""
+
+    def test_covers_name_real_rows(self):
+        rows = checklist()
+        bad = [(d.id, c) for d in defects.DEFECTS for c in d.covers if c not in rows and not c.startswith("tool:")]
+        self.assertEqual(bad, [])
+
+    def test_known_misses_cover_an_unclaimed_row(self):
+        rows = checklist()
+        bad = [d.id for d in defects.DEFECTS if d.known_miss and not any(
+            c in rows and (rows[c] is None or rows[c].startswith(NO_FULL_CLAIM)) for c in d.covers)]
+        self.assertEqual(bad, [])
+
+    def test_ids_unique_and_families_match(self):
+        ids = [d.id for d in defects.DEFECTS]
+        self.assertEqual(sorted(set(i for i in ids if ids.count(i) > 1)), [])
+        bad = [d.id for d in defects.DEFECTS if d.caught_by not in FAMILY[d.id.split("-")[0]]
+               or d.known_miss != (d.caught_by == "none")]
+        self.assertEqual(bad, [])
 
 
 class BashEvents(unittest.TestCase):

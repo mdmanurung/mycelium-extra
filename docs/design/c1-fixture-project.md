@@ -285,8 +285,8 @@ Each entry in `defects.py` has these fields:
 | ID | Mutation | Expect | Covers |
 | --- | --- | --- | --- |
 | DC-01 | contract names `seq_batch` (from the lab's prose) instead of `run_id` in the schema and batch checks | exit 2; `required columns are absent`, observed `missing: seq_batch` | Invented columns or levels |
-| DC-02 | table spells the arm `Vaccine` | exit 2; `required levels of 'arm' are absent after filtering` | Invented columns or levels |
-| DC-03 | two rows of D09 deleted (an inner join upstream lost them) | exit 2; `row count differs from the plan`, expected 24, observed 22; plus a pairing block | Silent row loss |
+| DC-02 | table spells the arm `Vaccine` | exit 2; `required levels of 'arm' are absent after filtering` | Invented columns or levels; Reversed contrast (the part the check covers: both levels exist) |
+| DC-03 | two rows of D09 deleted (an inner join upstream lost them) | exit 2; `row count differs from the plan`, expected 24, observed 22; plus a unit-of-replication block, `groups with fewer distinct donor than required` (placebo=5). Pairing passes: the donor is gone entirely, so no remaining donor lacks a visit | Silent row loss |
 | DC-04 | `D03_day28_rerun` flipped to `preferred_acquisition=TRUE` | exit 2; `a unit appears more than once in the same arm x visit cell` | Join duplication; Unit of replication |
 | DC-05 | D11's day28 row deleted and the contract's `rows` set to 23, so only pairing fails | exit 2; `units are missing a level of 'visit'`, evidence `D11 lacks day28` | Unit of replication |
 | DC-06 | `run_id` reassigned: vaccine in R1, placebo in R2 and R3 | exit 2; `'arm' is fully nested in 'run_id'` | Batch versus biology |
@@ -304,7 +304,7 @@ DC-08 to DC-11 are the reason the fixture exists. Every tool reports success, ye
 | --- | --- | --- | --- |
 | G-01 | after the baseline approval, run `scripts/04_extra_plot.py` | deny; `blocked because no active approved plan covers this run` | Silent scope growth |
 | G-02 | append a row to `sample_metadata.tsv` after approval, then run 01 | deny; `blocked because inputs pinned by plan <hash> changed` | Input and matrix state |
-| G-03 | `MYCELIUM_EXTRA_EXPLORE=1 python3 nbs/...` with no `allow explore` | deny; `the exploratory-run prefix works only after the user` | Explore results reported |
+| G-03 | `MYCELIUM_EXTRA_EXPLORE=1 python3 analysis/vaccine-response/scripts/04_extra_plot.py` with no `allow explore` | deny; `the exploratory-run prefix works only after the user` | Explore results reported |
 | G-04 | `echo '{}' > .mycelium-extra/approvals/x.json` | deny; `appears to modify .mycelium-extra/` | tool: gate state |
 | G-05 | plan text without its `Plan status:` line | Stop hook offers no `approve plan` | tool: approval |
 | G-06 | plan table without `sbatch`, then `sbatch analysis/vaccine-response/run.sh` | deny; `no active approved plan covers this run` | Silent scope growth |
@@ -376,9 +376,9 @@ These run with the suite and need no project:
 
 1. Every `covers` entry is an exact row name in `llm-failure-modes.md` or `analysis-decisions.md`, or starts with `tool:`.
 2. Every failure-mode row whose Check cell names a tool, either fully or as `partial:`, has at least one defect with `known_miss=False` and `caught_by` equal to that tool. This would have caught four rows that the first draft of the checklist credited to `data-contract-check`; section 11 lists them.
-3. Every defect with `known_miss=True` covers at least one row whose Check cell is `none`, `partial:`, `planned:`, or `cross-ref:`. A known miss of a mode the checklist says a tool fully catches is a contradiction.
+3. Every defect with `known_miss=True` covers at least one row whose Check cell is `none`, `partial:`, `planned:`, or `cross-ref:`, or an `analysis-decisions.md` row (that file has no Check column, so its rows claim no tool). A known miss of a mode the checklist says a tool fully catches is a contradiction.
 4. Every `xfail_task` and every task in 8.6 is a heading in `docs/roadmap/`.
-5. IDs are unique, and each layer prefix (`DC`, `G`, `V`, `S`, `M`, `KB`) matches its `caught_by` family.
+5. IDs are unique, each layer prefix (`DC`, `G`, `V`, `S`, `M`, `KB`) matches its `caught_by` family, and `known_miss` is set exactly when `caught_by` is `none`.
 
 ## 10. Guard ablations (`tests/e2e/ablate.py`)
 
