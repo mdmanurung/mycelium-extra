@@ -15,7 +15,7 @@ Small corrections found while restructuring the README.
 - **Acceptance:** `rg -n "In scale" README.md docs/` finds nothing.
 - **Tests:** none.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** done, inside T0. The acceptance `rg` still matches the quotation in this entry; it finds nothing else under README.md or docs/.
 
 ### B2: Move the development log out of the user docs
 
