@@ -41,7 +41,7 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Acceptance:** the changelog covers every version from 0.9.16 to the current one; each has a tag; the development rules mention the changelog.
 - **Tests:** a small check that the newest changelog heading matches `version` in all three manifests (fits into A2).
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** in-progress. CHANGELOG.md covers 0.9.16 to 0.9.29 (earlier versions summarised) and `docs/development.md` adds the changelog to the version-bump rule. Tags are not created yet: the `git tag -a` commands are ready for the maintainer to run and push.
 
 ### A4: Repository description and topics
 
