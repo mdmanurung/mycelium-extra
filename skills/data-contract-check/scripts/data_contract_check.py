@@ -15,6 +15,7 @@ blocking, 1 usage or input error.
 
 import argparse
 import csv
+import io
 import json
 import os
 import sys
@@ -538,7 +539,7 @@ def main(argv=None):
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     try:
-        with open(args.contract) as handle:
+        with open(args.contract, encoding="utf-8") as handle:
             contract = json.load(handle)
         summaries, alerts = run_contract(contract, args.root)
     except (ContractError, ValueError, OSError) as error:
@@ -555,4 +556,6 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    if sys.stdout.encoding.lower().replace("-", "") != "utf8":  # an ASCII locale on Python 3.6
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, sys.stdout.encoding, "backslashreplace")
     sys.exit(main())

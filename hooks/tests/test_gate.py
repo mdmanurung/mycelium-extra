@@ -838,7 +838,7 @@ class CompatibilityTest(unittest.TestCase):
         for script in glob.glob(os.path.join(repo, "hooks", "*.py")) + glob.glob(
                 os.path.join(repo, "skills", "*", "scripts", "*.py")):
             proc = subprocess.Popen(
-                [python36, "-c", "import sys; compile(open(sys.argv[1]).read(), sys.argv[1], 'exec')",
+                [python36, "-c", "import sys; compile(open(sys.argv[1], 'rb').read(), sys.argv[1], 'exec')",
                  script], stderr=subprocess.PIPE)
             _, err = proc.communicate()
             self.assertEqual(proc.returncode, 0, err.decode("utf-8"))

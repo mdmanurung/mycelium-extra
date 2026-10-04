@@ -6,7 +6,7 @@ Outputs: analysis/vaccine-response/outputs/samples_used.tsv analysis/vaccine-res
 | # | Step | Choice | Source | Validation |
 |---|---|---|---|---|
 | 1 | run `analysis/vaccine-response/scripts/01_select_samples.py` | keep preferred_acquisition == TRUE | repo: .living/decisions.md | 24 rows, 12 donors x 2 visits |
-| 2 | run `analysis/vaccine-response/scripts/02_paired_test.py` | median-of-ratios; exact permutation; BH 0.05 | repo: .living/decisions.md | sample IDs identical across tables |
+| 2 | run `analysis/vaccine-response/scripts/02_paired_test.py` | median-of-ratios; exact permutation; BH, α = 0.05 | repo: .living/decisions.md | sample IDs identical across tables |
 | 3 | run `analysis/vaccine-response/scripts/03_summary.R` | hits at padj < 0.05 | default: matches step 2 | summary row count 1 |
 
 Plan status: READY

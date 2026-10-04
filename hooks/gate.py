@@ -111,7 +111,7 @@ def find_root(cwd):
 
 
 def load_config(root):
-    with open(os.path.join(root, STATE_DIR, "gate.json")) as handle:
+    with open(os.path.join(root, STATE_DIR, "gate.json"), encoding="utf-8") as handle:
         config = dict(DEFAULTS)
         config.update(json.load(handle))
     return config
@@ -123,7 +123,7 @@ def state_path(root, *parts):
 
 def read_json(path, default):
     try:
-        with open(path) as handle:
+        with open(path, encoding="utf-8") as handle:
             return json.load(handle)
     except (OSError, ValueError):
         return default
@@ -132,7 +132,7 @@ def read_json(path, default):
 def write_json(path, data):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
-    with open(tmp, "w") as handle:
+    with open(tmp, "w", encoding="utf-8") as handle:
         json.dump(data, handle, indent=1)
     os.replace(tmp, path)
 
@@ -149,7 +149,7 @@ def safe_session(session_id):
 
 def append_line(path, record):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "a") as handle:
+    with open(path, "a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, sort_keys=True) + "\n")
 
 
@@ -1078,7 +1078,7 @@ def stop_hints(root, event):
     needle = json.dumps(session_id)[1:-1] if isinstance(session_id, str) else ""
     plans = []
     if os.path.isfile(log):
-        with open(log) as handle:
+        with open(log, encoding="utf-8") as handle:
             for line in handle:
                 if needle not in line:
                     continue
@@ -1198,7 +1198,7 @@ def new_explore_runs(root, session_id):
     runs = []
     # Skip other sessions' lines unparsed; the id is matched as JSON writes it.
     needle = json.dumps(session_id)[1:-1] if isinstance(session_id, str) else ""
-    with open(log) as handle:
+    with open(log, encoding="utf-8") as handle:
         for line in handle:
             if needle not in line:
                 continue
@@ -1376,7 +1376,7 @@ def git(root, *args):
     import subprocess  # here, not at the top (~20 ms); outside the try, which names it
     try:
         proc = subprocess.run(("git", "-C", root) + args, stdout=subprocess.PIPE,
-                              stderr=subprocess.DEVNULL, universal_newlines=True, timeout=GIT_TIMEOUT,
+                              stderr=subprocess.DEVNULL, encoding="utf-8", errors="replace", timeout=GIT_TIMEOUT,
                               env=dict(os.environ, GIT_OPTIONAL_LOCKS="0"))
     except (OSError, subprocess.SubprocessError):
         return None
@@ -1523,7 +1523,7 @@ def launch_details(root, cwd, label, paths, tokens, output, budget):
         full = os.path.join(root, record["path"]) if record["in_repo"] else record["path"]
         try:
             if os.path.isfile(full) and os.path.getsize(full) <= 1 << 20:
-                with open(full, errors="replace") as handle:
+                with open(full, encoding="utf-8", errors="replace") as handle:
                     job_text = handle.read()
         except OSError:
             pass
@@ -1551,7 +1551,7 @@ def main(argv, text=None):
         print("usage: gate.py stop|prompt|tool|post", file=sys.stderr)
         return 0
     try:
-        event = json.loads(text) if text is not None else json.load(sys.stdin)
+        event = json.loads(text if text is not None else sys.stdin.buffer.read().decode("utf-8", "replace"))
         root = find_root(event.get("cwd") or os.getcwd())
         if root is None:
             return 0

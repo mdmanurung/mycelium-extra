@@ -11,6 +11,7 @@ field values; `hints` are status words found in the heading.
 """
 
 import argparse
+import io
 import json
 import os
 import re
@@ -173,4 +174,6 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    if sys.stdout.encoding.lower().replace("-", "") != "utf8":  # an ASCII locale on Python 3.6
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, sys.stdout.encoding, "backslashreplace")
     sys.exit(main())

@@ -23,6 +23,7 @@ import bisect
 import collections
 import datetime
 import glob
+import io
 import json
 import os
 import re
@@ -77,7 +78,7 @@ def load_gate(plugin_root):
 def read_jsonl(path):
     records = []
     if os.path.isfile(path):
-        with open(path) as handle:
+        with open(path, encoding="utf-8") as handle:
             for line in handle:
                 try:
                     records.append(json.loads(line))
@@ -124,7 +125,7 @@ def sacct_state(sacct, job_id, since):
     try:
         proc = subprocess.Popen([sacct, "-j", str(job_id), "-n", "-P", "-X", "-S", day,
                                  "-o", "JobID,State,ExitCode,Start,End"],
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", errors="replace")
         out, _ = proc.communicate(timeout=20)
     except subprocess.TimeoutExpired:
         proc.kill()
@@ -161,7 +162,7 @@ def snakemake_records(folders, since):
                 try:
                     if os.stat(full).st_mtime < since - TOLERANCE:
                         continue
-                    with open(full) as handle:
+                    with open(full, encoding="utf-8") as handle:
                         data = json.load(handle)
                 except (OSError, ValueError):
                     continue
@@ -187,7 +188,7 @@ def lineage_actions(root, start, end):
     actions = []
     for path in sorted(glob.glob(os.path.join(root, ".living", "log", "data-lineage", "*.json"))):
         try:
-            with open(path) as handle:
+            with open(path, encoding="utf-8") as handle:
                 manifest = json.load(handle)
         except (OSError, ValueError):
             continue
@@ -311,7 +312,7 @@ def lint(root, files, report, scilintr, rscript, seconds):
             return
         path = os.path.join(scratch, "{}_{}".format(len(cells), os.path.basename(rel))) + (
             ".py" if language == "Python" else ".R")
-        with open(path, "w", encoding="utf-8") as handle:
+        with open(path, "w", encoding="utf-8", errors="surrogateescape") as handle:
             handle.write(code)
         cells[path] = (rel, starts)
         by_language[language].append(path)
@@ -337,7 +338,7 @@ def lint(root, files, report, scilintr, rscript, seconds):
     for rel in files:
         if os.path.splitext(rel)[1] in LINT_LANGUAGES or rel.endswith(NOTEBOOK_EXT):
             try:
-                with open(os.path.join(root, rel), errors="replace") as handle:
+                with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as handle:
                     result["waivers"] += [(rel, n, line.strip()) for n, line in enumerate(handle, 1)
                                           if "ANALYSIS_OK[" in line]
             except OSError:
@@ -366,7 +367,7 @@ def lint_languages(root, by_language, cells, report, result, scilintr, rscript, 
         command = [scilintr] if language == "Python" else [rscript, "-e", "scilintr::main()"]
         try:
             proc = subprocess.run(command + paths, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                  universal_newlines=True, timeout=seconds)
+                                  encoding="utf-8", errors="replace", timeout=seconds)
         except (OSError, subprocess.SubprocessError) as error:
             if isinstance(error, subprocess.TimeoutExpired):
                 report.add("gap", "scilintr ({}) not checked: timed out after {:.0f} s.".format(language, seconds))
@@ -457,7 +458,7 @@ def is_snakefile(path):
 
 def read_text(path):
     try:
-        with open(path, errors="replace") as handle:
+        with open(path, encoding="utf-8", errors="replace") as handle:
             return handle.read()
     except OSError:
         return ""
@@ -968,7 +969,7 @@ def write(root, result):
              "lint": "lint-{}.txt".format(digest)}
     if result.get("envs"):
         paths["env"] = "env-{}.txt".format(digest)
-        with open(os.path.join(folder, paths["env"]), "w") as handle:
+        with open(os.path.join(folder, paths["env"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
             handle.write("# Conda envs of plan {}'s runs, read {} from each env's conda-meta (the format of "
                          "`conda list --explicit --md5`).\n# One block per env: copy a block from `@EXPLICIT` "
                          "into its own file for `conda create -n <name> --file <file>`.\n".format(digest, stamp))
@@ -977,15 +978,15 @@ def write(root, result):
                     env["env"], env["prefix"], env["source"],
                     "# changed after the run: this is the env as it was when verify read it\n"
                     if env["changed_after_run"] else "", "\n".join(env["packages"])))
-    with open(os.path.join(folder, paths["plan"]), "w") as handle:
+    with open(os.path.join(folder, paths["plan"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
         handle.write("# Approved plan {}\n\nApproved {} in Claude Code session {}. Frozen copy of the plan "
                      "the mycelium-extra gate approved; do not edit it. Revise the analysis's own plan "
                      "instead.\n\n---\n\n{}\n".format(digest, when(result["approved_at"]),
                                                       result["session_id"], result["plan"].rstrip()))
-    with open(os.path.join(folder, paths["receipts"]), "w") as handle:
+    with open(os.path.join(folder, paths["receipts"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
         for receipt in result["receipts"]:
             handle.write(json.dumps(receipt, sort_keys=True) + "\n")
-    with open(os.path.join(folder, paths["outputs"]), "w") as handle:
+    with open(os.path.join(folder, paths["outputs"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
         handle.write("path\twritten\tsize\tsha256\tfingerprint\twritten_by\n")
         for row in result["outputs"]:
             record = row["record"]
@@ -993,12 +994,12 @@ def write(root, result):
                 row["path"], time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(row["written"])),
                 record.get("size", ""), record.get("sha256", ""), gate.method(record),
                 row["by"] + (" via " + row["rule"] if row["rule"] else "")]) + "\n")
-    with open(os.path.join(folder, paths["lint"]), "w") as handle:
+    with open(os.path.join(folder, paths["lint"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
         lint = result["lint"]
         handle.write("\n\n".join(lint["output"]) or "scilintr did not run.")
         handle.write("\n\n# ANALYSIS_OK waivers ({})\n".format(len(lint["waivers"])))
         handle.writelines("{}:{}: {}\n".format(*w) for w in lint["waivers"])
-    with open(os.path.join(folder, paths["report"]), "w") as handle:
+    with open(os.path.join(folder, paths["report"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
         handle.write("Written {} by mycelium-extra verify.\n\n".format(stamp))
         handle.write(render(result, all_outputs=True))
     index = os.path.join(folder, "PROVENANCE.md")
@@ -1007,7 +1008,7 @@ def write(root, result):
         paths["outputs"], paths["lint"], paths["report"],
         " - [conda env]({})".format(paths["env"]) if "env" in paths else "")
     if os.path.isfile(index):
-        with open(index) as handle:
+        with open(index, encoding="utf-8") as handle:
             lines = [line.rstrip("\n") for line in handle if not line.startswith("| {} |".format(digest))]
     else:
         lines = ["# Provenance", "",
@@ -1015,7 +1016,7 @@ def write(root, result):
                  "frozen text, its run receipts, and the check sit beside this file.", "",
                  "| Plan | Approved | Verified | Status | Files |", "|---|---|---|---|---|"]
     lines.append(row)
-    with open(index, "w") as handle:
+    with open(index, "w", encoding="utf-8", errors="surrogateescape") as handle:
         handle.write("\n".join(lines) + "\n")
     rel = os.path.relpath(folder, root)
     return [os.path.join(rel, name) for name in ["PROVENANCE.md"] + list(paths.values())]
@@ -1088,7 +1089,7 @@ def stale_plan(root, rel, budget):
     table = os.path.join(root, folder, "outputs-{}.tsv".format(digest))
     rows = []
     if os.path.isfile(table):
-        with open(table) as handle:
+        with open(table, encoding="utf-8") as handle:
             rows = [line.rstrip("\n").split("\t") for line in handle][1:]
     for row in rows:
         if len(row) < 3:
@@ -1436,4 +1437,6 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    if sys.stdout.encoding.lower().replace("-", "") != "utf8":  # an ASCII locale on Python 3.6
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, sys.stdout.encoding, "backslashreplace")
     sys.exit(main(sys.argv[1:]))

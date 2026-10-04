@@ -2,8 +2,10 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -52,6 +54,17 @@ class DecisionThreadsTest(unittest.TestCase):
     def test_colon_inside_bold_field(self):
         by_line = {e["line"]: e for e in run()}
         self.assertEqual(by_line[11]["tags"], ["method-selection", "method-b"])
+
+    def test_ascii_locale_prints_non_ascii(self):
+        # Python 3.6 under LC_ALL=C writes ASCII to stdout; 3.7+ does so once locale coercion is off.
+        living = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, living)
+        with open(os.path.join(living, "decisions.md"), "w", encoding="utf-8") as handle:
+            handle.write("# Decisions\n\n## 2026-10-01 Use BH, α = 0.05\n\n**Status:** active\n")
+        env = dict(os.environ, LC_ALL="C", PYTHONCOERCECLOCALE="0", PYTHONUTF8="0")
+        with open(SCRIPT, "rb") as source:
+            out = subprocess.check_output([sys.executable, "-", "--living-dir", living], stdin=source, env=env)
+        self.assertIn(b"BH, \\u03b1 = 0.05", out)
 
     def test_term_searches_body_of_untagged_entries(self):
         lines = [e["line"] for e in run("--term", "method-b")]

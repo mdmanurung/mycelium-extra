@@ -26,7 +26,7 @@ DEFAULTS = {
 def git(root, *args):
     try:
         return subprocess.run(["git", "-C", root] + list(args), stdout=subprocess.PIPE,
-                              stderr=subprocess.DEVNULL, universal_newlines=True)
+                              stderr=subprocess.DEVNULL, encoding="utf-8", errors="replace")
     except OSError:
         return None
 
@@ -55,7 +55,7 @@ def is_ignored(root):
     if result is not None and result.returncode in (0, 1):
         return result.returncode == 0
     try:
-        with open(os.path.join(root, ".gitignore")) as handle:
+        with open(os.path.join(root, ".gitignore"), encoding="utf-8") as handle:
             lines = [line.strip() for line in handle]
     except OSError:
         return False
@@ -67,10 +67,10 @@ def add_ignore(root):
     path = os.path.join(root, ".gitignore")
     text = ""
     if os.path.exists(path):
-        with open(path) as handle:
+        with open(path, encoding="utf-8") as handle:
             text = handle.read()
     prefix = "\n" if text and not text.endswith("\n") else ""
-    with open(path, "a") as handle:
+    with open(path, "a", encoding="utf-8") as handle:
         handle.write(prefix + "# mycelium-extra approval gate: short-lived execution state\n"
                      + IGNORE_LINE + "\n")
 
@@ -102,7 +102,7 @@ def main(argv):
     if existing:
         config = dict(DEFAULTS)
         try:
-            with open(os.path.join(existing, STATE_DIR, "gate.json")) as handle:
+            with open(os.path.join(existing, STATE_DIR, "gate.json"), encoding="utf-8") as handle:
                 config.update(json.load(handle))
         except (OSError, ValueError) as error:
             print("already gated: {} (gate.json unreadable: {})".format(existing, error))
@@ -128,7 +128,7 @@ def main(argv):
 
     if not args.dry_run:
         os.makedirs(os.path.join(root, STATE_DIR), exist_ok=True)
-        with open(os.path.join(root, STATE_DIR, "gate.json"), "w") as handle:
+        with open(os.path.join(root, STATE_DIR, "gate.json"), "w", encoding="utf-8") as handle:
             json.dump(config, handle, indent=2)
             handle.write("\n")
         if not ignored:

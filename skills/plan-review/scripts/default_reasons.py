@@ -17,6 +17,7 @@ verify imports check_plan() from this file.
 """
 
 import argparse
+import io
 import re
 import sys
 
@@ -150,4 +151,6 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    if sys.stdout.encoding.lower().replace("-", "") != "utf8":  # an ASCII locale on Python 3.6
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, sys.stdout.encoding, "backslashreplace")
     sys.exit(main(sys.argv[1:]))

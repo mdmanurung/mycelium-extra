@@ -26,7 +26,7 @@ def find_root(cwd):  # gate.find_root, copied so the gate need not load; a test 
 
 
 def main(argv):
-    text = sys.stdin.read()
+    text = sys.stdin.buffer.read().decode("utf-8", "replace")  # Claude Code sends UTF-8, whatever the locale
     try:
         if len(argv) == 2 and find_root(json.loads(text).get("cwd") or os.getcwd()) is None:
             return 0

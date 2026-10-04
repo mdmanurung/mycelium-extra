@@ -44,23 +44,23 @@ class HarnessError(AssertionError):
 
 
 def plan_text(name="baseline"):
-    with open(os.path.join(PLANS, name + "_plan.md")) as handle:
+    with open(os.path.join(PLANS, name + "_plan.md"), encoding="utf-8") as handle:
         return handle.read()
 
 
 def contract_text(name="baseline"):
-    with open(os.path.join(PLANS, name + "_contract.json")) as handle:
+    with open(os.path.join(PLANS, name + "_contract.json"), encoding="utf-8") as handle:
         return handle.read()
 
 
 def expected(name):
-    with open(os.path.join(EXPECTED, name)) as handle:
+    with open(os.path.join(EXPECTED, name), encoding="utf-8") as handle:
         return json.load(handle) if name.endswith(".json") else handle.read()
 
 
 def registered_events(path=HOOKS_JSON):
     """{Claude Code event: gate entry argument} for every gate hook hooks.json registers now."""
-    with open(path) as handle:
+    with open(path, encoding="utf-8") as handle:
         config = json.load(handle)
     found = {}
     for event, groups in (config.get("hooks") or {}).items():
@@ -166,7 +166,7 @@ class Project(object):
         fakes = {"sacct": "#!/bin/sh\necho {}\n".format(sh_quote(line)), "scilintr": lint, "Rscript-lint": lint}
         for name, body in fakes.items():
             path = os.path.join(self.bin, name)
-            with open(path, "w") as handle:
+            with open(path, "w", encoding="utf-8") as handle:
                 handle.write(body)
             os.chmod(path, 0o755)
 
@@ -219,7 +219,7 @@ class Project(object):
         proc = subprocess.Popen([sys.executable, os.path.join(REPO, "hooks", "gate_run.py"), entry],
                                 cwd=cwd or self.root, env=self.env(), stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = proc.communicate(json.dumps(event).encode("utf-8"))
+        out, err = proc.communicate(json.dumps(event, ensure_ascii=False).encode("utf-8"))  # raw UTF-8, as Claude Code sends it
         if proc.returncode != 0:
             raise HarnessError("gate {} exited {}: {}".format(entry, proc.returncode, err.decode("utf-8")))
         text = out.decode("utf-8").strip()
@@ -255,7 +255,7 @@ class Project(object):
         path = self.path(".mycelium-extra", name)
         if not os.path.isfile(path):
             return []
-        with open(path) as handle:
+        with open(path, encoding="utf-8") as handle:
             return [json.loads(line) for line in handle if line.strip()]
 
     def receipts(self):
@@ -266,7 +266,7 @@ class Project(object):
         path = self.path(".mycelium-extra", "approvals", digest + ".json")
         if not os.path.isfile(path):
             return None
-        with open(path) as handle:
+        with open(path, encoding="utf-8") as handle:
             return json.load(handle)
 
     # ------------------------------------------------------------ agent actions
@@ -369,7 +369,7 @@ class Project(object):
         if not os.path.isdir(folder):
             os.makedirs(folder)
         path = os.path.join(folder, self.session + ".json")
-        with open(path, "w") as handle:
+        with open(path, "w", encoding="utf-8") as handle:
             json.dump({"session_id": self.session, "actions": actions}, handle, indent=1)
         return path
 
@@ -383,7 +383,7 @@ class Project(object):
             os.makedirs(folder)
         record = {"rule": rule, "input": inputs, "shellcmd": shellcmd, "incomplete": incomplete,
                   "starttime": start, "endtime": end}
-        with open(os.path.join(folder, name), "w") as handle:
+        with open(os.path.join(folder, name), "w", encoding="utf-8") as handle:
             json.dump(record, handle)
         return record
 
@@ -416,11 +416,11 @@ class Project(object):
     def fill_ledger(self, digest, finding="vaccine-response.md"):
         """F-001's Evidence Ledger Run/Session cell, in the form the post hook suggests."""
         path = self.path(".living", "findings", finding)
-        with open(path) as handle:
+        with open(path, encoding="utf-8") as handle:
             text = handle.read()
         if "RUN-SESSION" not in text:
             raise HarnessError("{} has no RUN-SESSION placeholder".format(finding))
-        with open(path, "w") as handle:
+        with open(path, "w", encoding="utf-8") as handle:
             handle.write(text.replace("RUN-SESSION", "{}; plan {}".format(self.session, digest)))
 
 
