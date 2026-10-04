@@ -4,6 +4,10 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- `LICENSE` and `docs/roadmap/01-packaging.md` now spell the copyright holder "Mikhael Manurung", the name the three plugin manifests already carry.
+
 ## [0.9.31] - 2026-10-04
 
 ### Fixed

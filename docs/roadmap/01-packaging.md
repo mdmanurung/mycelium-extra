@@ -15,7 +15,7 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Acceptance:** `LICENSE` exists at the root; GitHub detects it; MYCELIUM_LICENSE stays in place for the template it covers.
 - **Tests:** none.
 - **Effort:** S.
-- **Status:** done, pending the maintainer's confirmation of MIT and the copyright line. `LICENSE` is the standard MIT text (Copyright (c) 2026 Mikhael Dito Manurung, the year of the first commit); both `plugin.json` files gain `"license": "MIT"` (both schemas document the field); the README gains a License section that points to MYCELIUM_LICENSE, which is unchanged. GitHub detection can only be confirmed after a push.
+- **Status:** done; the maintainer confirmed MIT and the copyright line (2026-10-04). `LICENSE` is the standard MIT text (Copyright (c) 2026 Mikhael Manurung, the year of the first commit); both `plugin.json` files gain `"license": "MIT"` (both schemas document the field); the README gains a License section that points to MYCELIUM_LICENSE, which is unchanged. GitHub detection can only be confirmed after a push.
 
 ### A2: Continuous integration
 
