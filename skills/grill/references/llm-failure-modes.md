@@ -37,7 +37,7 @@ In the last column, a named tool (`data-contract-check`, `verify`, or the approv
 | --- | --- | --- | --- |
 | Invented API or flags | A function, argument, or CLI option that does not exist in the installed version | Record each tool's resolved path and version; check unfamiliar calls against its help or docs | none |
 | Version-specific behaviour | A default or return format that changed between versions (for example a renamed argument or new default normalisation) | Pin the version in a lockfile or record it in the run plan | cross-ref: Normalization and transformation |
-| Unstated defaults | The result depends on a default parameter nobody chose (resolution, number of neighbours, filtering thresholds) | Write consequential parameters out explicitly, each with a source | none |
+| Unstated defaults | The result depends on a default parameter nobody chose (resolution, number of neighbours, filtering thresholds) | Write consequential parameters out explicitly, each with a source | partial: verify (an advisory note on a `default:` source with no reason or only an empty phrase such as `standard`, not parameters left out of the plan) |
 | Non-determinism | No seed, or parallel code whose result varies run to run | Set and record seeds; name which steps cannot be made deterministic | none |
 | Wrong layer or assay | Tests run on scaled or log values when counts were needed, or the reverse | Name the layer at each downstream call | cross-ref: Input and matrix state |
 | Memory blow-up | A sparse matrix densified, or a whole object copied, crashing or truncating a job | Estimate object size; keep sparse operations sparse; name the machine size | none |
