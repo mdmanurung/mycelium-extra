@@ -7,7 +7,7 @@ It has nine skills and one hook set:
 | Part | What it does | Writes |
 |---|---|---|
 | `grill` | Turns a proposed task into a sourced, numbered plan | Nothing |
-| `plan-review` | Challenges a grill plan with independent Codex engineering and Biomni biomedical reviews before approval | Nothing |
+| `plan-review` | Challenges a grill plan with independent Codex engineering and Biomni biomedical reviews before approval | Nothing; sends a review packet to Codex and to Biomni's cloud, after you agree |
 | `decision-status` | Settles which past decision binds a task | Appends to `.living/decisions.md`, after you confirm |
 | `data-contract-check` | Tests a plan's sample-table assumptions | Nothing |
 | `init` | Turns on the approval gate in a repository | `.mycelium-extra/gate.json`, `.gitignore` |

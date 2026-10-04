@@ -54,7 +54,7 @@ Small corrections found while restructuring the README.
 - **Acceptance:** a reader of the summary table alone knows which skill sends data elsewhere.
 - **Tests:** none.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** done. plan-review's Writes cell in the README summary table now reads "Nothing; sends a review packet to Codex and to Biomni's cloud, after you agree".
 
 ### B5: Decide whether HANDOFF.md stays committed
 
