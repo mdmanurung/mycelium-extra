@@ -7,8 +7,10 @@ not open the post-action cycle:
 
 The contract states what the plan assumes; this script decides what blocks.
 Every failed check of a coverage-list kind blocks, and the contract cannot
-downgrade it. Exit codes: 0 clean or warnings only, 2 blocking, 1 usage or
-input error.
+downgrade it. A table is CSV, TSV, or the `obs` of an `.h5ad` file; h5ad is
+read through h5py when it is importable, and is a gap (never a pass) when it
+is not. Exit codes: 0 clean or warnings only, 2 blocking, 3 a gap and nothing
+blocking, 1 usage or input error.
 """
 
 import argparse
@@ -28,14 +30,18 @@ class ContractError(Exception):
     pass
 
 
+class TableGap(Exception):
+    """The table, or a column of it, cannot be read here; the checks on it are gaps."""
+
+
 def is_missing(value):
     return value is None or value.strip().lower() in MISSING
 
 
-def alert(kind, message, blocking, expected=None, observed=None, evidence=None):
+def alert(kind, message, blocking, expected=None, observed=None, evidence=None, gap=False):
     record = {
         "schema": ALERT_SCHEMA,
-        "severity": "error" if blocking else "warning",
+        "severity": "error" if blocking else ("gap" if gap else "warning"),
         "kind": kind,
         "message": message,
         "blocking": blocking,
@@ -51,12 +57,119 @@ def alert(kind, message, blocking, expected=None, observed=None, evidence=None):
     return record
 
 
-def read_table(path):
+def read_table(path, wanted=None):
+    """Return (columns, rows, unreadable): rows are dicts of strings, unreadable maps column to reason."""
+    if path.lower().endswith(".h5ad"):
+        return read_h5ad_obs(path, wanted)
     delimiter = "," if path.lower().endswith(".csv") else "\t"
     with open(path, newline="", encoding="utf-8-sig", errors="replace") as handle:
         reader = csv.DictReader(handle, delimiter=delimiter)
         rows = list(reader)
-        return list(reader.fieldnames or []), rows
+        return list(reader.fieldnames or []), rows, {}
+
+
+# ---------------------------------------------------------------- h5ad obs
+
+def text(value):
+    """One obs value as the string a CSV export would hold; missing values become ""."""
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", "replace")
+    if isinstance(value, bool):
+        return "True" if value else "False"
+    if isinstance(value, float) and value != value:
+        return ""
+    return str(value)
+
+
+def attr(node, key, default=None):
+    value = node.attrs.get(key, default)
+    if isinstance(value, bytes):
+        return value.decode("utf-8", "replace")
+    if hasattr(value, "tolist") and not isinstance(value, str):
+        value = value.tolist()
+    if isinstance(value, list):
+        return [text(v) for v in value]
+    return value
+
+
+def obs_values(h5file, node, h5py):
+    """A 1-D obs column as a list of strings, in AnnData's on-disk encodings.
+
+    anndata >= 0.8 (dataframe 0.2.0): arrays and string arrays are datasets;
+    categoricals are groups with `codes` and `categories`; nullable integer,
+    boolean, and string arrays are groups with `values` and `mask`.
+    anndata 0.7 (dataframe 0.1.0): a categorical is a dataset of codes whose
+    `categories` attribute references `obs/__categories/<column>`.
+    Anything else raises TableGap.
+    """
+    encoding = attr(node, "encoding-type", "")
+    if isinstance(node, h5py.Group):
+        if encoding == "categorical" and "codes" in node and "categories" in node:
+            return decode_codes(node["codes"][()].tolist(), obs_values(h5file, node["categories"], h5py))
+        if encoding in ("nullable-integer", "nullable-boolean", "nullable-string-array") \
+                and "values" in node and "mask" in node:
+            values = obs_values(h5file, node["values"], h5py)
+            mask = node["mask"][()].tolist()
+            if len(mask) != len(values):
+                raise TableGap("its mask and values differ in length")
+            return ["" if hidden else v for v, hidden in zip(values, mask)]
+        raise TableGap("unrecognised encoding '{}'".format(encoding or "none"))
+    if node.dtype.names or len(node.shape) != 1:
+        raise TableGap("not a 1-D column (shape {}, encoding '{}')".format(node.shape, encoding or "none"))
+    if "categories" in node.attrs and isinstance(node.attrs["categories"], h5py.Reference):
+        categories = h5file[node.attrs["categories"]][()].tolist()
+        return decode_codes(node[()].tolist(), [text(c) for c in categories])
+    return [text(v) for v in node[()].tolist()]
+
+
+def decode_codes(codes, categories):
+    if any(c >= len(categories) for c in codes):
+        raise TableGap("a categorical code has no category")
+    return ["" if c < 0 else categories[c] for c in codes]
+
+
+def read_h5ad_obs(path, wanted=None):
+    """Read obs from an .h5ad file through h5py; never reads X or layers."""
+    try:
+        import h5py
+    except ImportError as error:
+        raise TableGap("h5py cannot be imported ({}), so the obs of an .h5ad file cannot be read; install "
+                       "h5py or export obs to a TSV".format(error))
+    try:
+        h5file = h5py.File(path, "r")
+    except (OSError, IOError) as error:
+        raise TableGap("not readable as HDF5: {}".format(error))
+    with h5file:
+        obs = h5file.get("obs")
+        if not isinstance(obs, h5py.Group) or attr(obs, "encoding-type") != "dataframe" \
+                or not isinstance(attr(obs, "_index"), str) or attr(obs, "_index") not in obs:
+            raise TableGap("obs is not in a recognised AnnData encoding (anndata 0.7 or later expected: "
+                           "a dataframe group with an _index attribute)")
+        index = attr(obs, "_index")
+        order = attr(obs, "column-order", [])
+        if not isinstance(order, list):
+            order = [text(order)] if order else []
+        columns = [index] + [c for c in order if c != index]
+        missing = [c for c in columns if c not in obs]
+        if missing:
+            raise TableGap("obs lists columns it does not hold: " + ", ".join(missing))
+        values, unreadable = {}, {}
+        for column in columns:
+            if wanted is not None and column not in wanted and column != index:
+                continue  # read only what the contract names, plus the index for the row count
+            try:
+                values[column] = obs_values(h5file, obs[column], h5py)
+            except TableGap as error:
+                if column == index:
+                    raise TableGap("its index '{}' is unreadable: {}".format(index, error))
+                unreadable[column] = str(error)
+        if len({len(v) for v in values.values()}) > 1:
+            raise TableGap("obs columns differ in length")
+    names = list(values)
+    rows = [dict(zip(names, cells)) for cells in zip(*[values[c] for c in names])]
+    return columns, rows, unreadable
 
 
 def apply_filters(rows, filters, columns):
@@ -238,7 +351,61 @@ def check_batch(check, columns, rows):
         alerts.append(alert(
             "batch_confounding", "contrast levels measured in a single batch", False,
             observed=", ".join(lone)))
+    share = check.get("max_share")
+    if share is not None:
+        totals = Counter(r[contrast] for r in rows)
+        over = [(b, l) for b, c in sorted(table.items()) for l in levels
+                if c[l] and c[l] / float(totals[l]) > share]
+        if over:
+            alerts.append(alert(
+                "batch_confounding",
+                "a batch holds more than {} of a '{}' level".format(percent(share), contrast), False,
+                expected="each batch at most {} of each {} level".format(percent(share), contrast),
+                observed="{} batch-level pairs over".format(len(over)),
+                evidence=["{} holds {} of {} {} rows ({})".format(
+                    b, table[b][l], totals[l], l, percent(table[b][l] / float(totals[l]))) for b, l in over]))
     return alerts
+
+
+def percent(share):
+    return "{:.0f}%".format(100 * share)
+
+
+def cross_table(check, rows):
+    """The batch-by-contrast row counts the check ran on, shown on every run."""
+    batch, contrast = check["batch"], check["contrast"]
+    rows = [r for r in rows if not is_missing(r[batch]) and not is_missing(r[contrast])]
+    counts = defaultdict(Counter)
+    for r in rows:
+        counts[r[batch]][r[contrast]] += 1
+    return {"batch": batch, "contrast": contrast, "levels": sorted({r[contrast] for r in rows}),
+            "counts": dict((b, dict(c)) for b, c in sorted(counts.items()))}
+
+
+def render_cross_table(table):
+    """Counts with each cell's share of its contrast level, as plain aligned text."""
+    levels = table["levels"]
+    totals = Counter()
+    for counts in table["counts"].values():
+        totals.update(counts)
+    header = ["{} \\ {}".format(table["batch"], table["contrast"])] + levels + ["total"]
+    body = []
+    for b, counts in sorted(table["counts"].items()):
+        cells = ["{} ({})".format(counts.get(l, 0), percent(counts.get(l, 0) / float(totals[l])))
+                 for l in levels]
+        body.append([b] + cells + [str(sum(counts.values()))])
+    body.append(["total"] + [str(totals[l]) for l in levels] + [str(sum(totals.values()))])
+    widths = [max(len(row[i]) for row in [header] + body) for i in range(len(header))]
+    return ["  ".join(cell.ljust(w) for cell, w in zip(row, widths)).rstrip() for row in [header] + body]
+
+
+def validate(check, index):
+    """Contract syntax the checks rely on; a bad value is a usage error, never a pass."""
+    if check.get("kind") == "batch_confounding" and "max_share" in check:
+        share = check["max_share"]
+        if isinstance(share, bool) or not isinstance(share, (int, float)) or not 0 < share <= 1:
+            raise ContractError("checks[{}] max_share must be a number above 0 and at most 1, as a "
+                                "share (0.7 for 70%): {}".format(index, json.dumps(share)))
 
 
 CHECKS = {
@@ -270,16 +437,24 @@ def run_contract(contract, base_dir):
         raise ContractError("contract schema must be " + SCHEMA)
     summaries, alerts = [], []
     cache = {}
+    plan = []
     for index, check in enumerate(need(contract, "checks")):
         kind = check.get("kind")
         if kind not in CHECKS:
             raise ContractError("unknown check kind at checks[{}]: {}".format(index, kind))
+        validate(check, index)
         table = check.get("table", contract.get("table"))
         if not table:
             raise ContractError("checks[{}] has no table".format(index))
-        label = "checks[{}] {}".format(index, check.get("label", kind))
         filters = contract.get("filters", []) + check.get("filters", [])
         path = table if os.path.isabs(table) else os.path.join(base_dir, table)
+        named = filter_columns(filters) + ([] if kind == "schema" else referenced_columns(check))
+        plan.append((index, check, kind, table, filters, path, named))
+    wanted = defaultdict(set)  # an .h5ad's obs is read only for the columns the contract names
+    for _, _, _, _, _, path, named in plan:
+        wanted[path].update(named)
+    for index, check, kind, table, filters, path, named in plan:
+        label = "checks[{}] {}".format(index, check.get("label", kind))
         found = []
         if not os.path.isfile(path):
             found.append(alert("schema", "the table the plan names does not exist", True,
@@ -287,13 +462,25 @@ def run_contract(contract, base_dir):
             columns, rows = [], []
         else:
             if path not in cache:
-                cache[path] = read_table(path)
-            columns, rows = cache[path]
-            named = filter_columns(filters) + ([] if kind == "schema" else referenced_columns(check))
-            absent = sorted({c for c in named if c not in columns})
+                try:
+                    cache[path] = read_table(path, wanted[path])
+                except TableGap as error:
+                    cache[path] = error
+            if isinstance(cache[path], TableGap):
+                found.append(alert(kind, "the table cannot be read, so this check did not run", False,
+                                   observed=str(cache[path]), gap=True))
+                columns, rows, unreadable = [], [], {}
+            else:
+                columns, rows, unreadable = cache[path]
+            absent = sorted({c for c in named if c not in columns}) if columns else []
             if absent:
                 found.append(alert("schema", "columns this check or its filters name are absent", True,
                                    observed="missing: " + ", ".join(absent)))
+            gaps = sorted({c for c in named if c in unreadable})
+            if gaps:
+                found.append(alert(kind, "columns this check or its filters name cannot be read, so "
+                                         "this check did not run", False, gap=True,
+                                   evidence=["{}: {}".format(c, unreadable[c]) for c in gaps]))
         rows_checked = 0
         if not found:
             rows = apply_filters(rows, filters, columns)
@@ -309,24 +496,33 @@ def run_contract(contract, base_dir):
             record["check"] = label
             record["table"] = table
             record["rows_checked"] = rows_checked
-        status = "block" if any(a["blocking"] for a in found) else ("warn" if found else "pass")
-        summaries.append({"check": label, "kind": kind, "table": table, "rows_checked": rows_checked,
-                          "status": status, "relaxations": [k for k in RELAXATIONS if check.get(k)]})
+        status = "block" if any(a["blocking"] for a in found) else \
+            "gap" if any(a["severity"] == "gap" for a in found) else ("warn" if found else "pass")
+        summary = {"check": label, "kind": kind, "table": table, "rows_checked": rows_checked,
+                   "status": status, "relaxations": [k for k in RELAXATIONS if check.get(k)]}
+        if kind == "batch_confounding" and rows_checked:
+            summary["cross_table"] = cross_table(check, rows)
+        summaries.append(summary)
         alerts.extend(found)
     return summaries, alerts
 
 
 def render(summaries, alerts):
     blocking = sum(a["blocking"] for a in alerts)
-    lines = ["{} checks; {} blocking alerts, {} warnings.".format(
-        len(summaries), blocking, len(alerts) - blocking)]
+    gaps = sum(a["severity"] == "gap" for a in alerts)
+    lines = ["{} checks; {} blocking alerts, {} warnings{}.".format(
+        len(summaries), blocking, len(alerts) - blocking - gaps, ", {} gaps".format(gaps) if gaps else "")]
     for summary in summaries:
         line = "{:5} {} ({} rows)".format(summary["status"].upper(), summary["check"], summary["rows_checked"])
         if summary["relaxations"]:
             line += "  relaxed: " + ", ".join(summary["relaxations"])
         lines.append(line)
+        if "cross_table" in summary:
+            lines.append("    rows by batch and contrast level (share of the level):")
+            lines.extend("      " + row for row in render_cross_table(summary["cross_table"]))
         for a in (a for a in alerts if a["check"] == summary["check"]):
-            lines.append("    {} {}".format("BLOCK" if a["blocking"] else "warn:", a["message"]))
+            label = "BLOCK" if a["blocking"] else ("GAP  " if a["severity"] == "gap" else "warn:")
+            lines.append("    {} {}".format(label, a["message"]))
             for key in ("expected", "observed"):
                 if key in a:
                     lines.append("      {}: {}".format(key, a[key]))
@@ -353,7 +549,9 @@ def main(argv=None):
         print()
     else:
         print(render(summaries, alerts))
-    return 2 if any(a["blocking"] for a in alerts) else 0
+    if any(a["blocking"] for a in alerts):
+        return 2
+    return 3 if any(a["severity"] == "gap" for a in alerts) else 0
 
 
 if __name__ == "__main__":

@@ -79,10 +79,10 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Depends on:** none.
 - **Constraints:** `h5py` is optional, never required; without it the check is a gap. `max_share` is a contract field the plan sets, with its reason, so the plan owns the number; without it the check behaves as today.
 - **Grill prompt:** `/mycelium-extra:grill Extend data-contract-check to read obs from h5ad files when h5py is available, and add an optional max_share imbalance warning to the existing batch_confounding check. Read check_batch first and keep everything it blocks and warns on today unchanged.`
-- **Acceptance:** on a fixture `.h5ad` the existing checks run unchanged; with `max_share: 0.7` and one batch holding 80% of one level, the check warns and shows the table; without `h5py` the check reports a gap.
+- **Acceptance:** on a fixture `.h5ad` the existing checks run unchanged; with `max_share: 0.7` and one batch holding 80% of one level, the check warns and shows the table; without `h5py` the check reports a gap (status `GAP`, exit 3; a gap never passes). An unreadable column or unrecognised `obs` encoding is also a gap, for the checks that name it.
 - **Tests:** unit tests with a tiny generated `.h5ad` (skipped when `h5py` is missing) and CSV equivalents for the imbalance logic; the existing tests pass unchanged.
 - **Effort:** M.
-- **Status:** todo.
+- **Status:** done.
 
 ### D7: Label how each finding was established
 
