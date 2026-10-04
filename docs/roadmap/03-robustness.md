@@ -15,7 +15,7 @@ Tasks that make the existing tools trustworthy before new ones are added. C1 com
 - **Acceptance:** the baseline chain passes on a clean checkout with `Verify status: CONFORMS`; every defect case passes; every failure mode whose Check names a tool has at least one defect the tool catches; for the three named guard ablations, the matching defect case fails with a message naming the check.
 - **Tests:** `tests/test_end_to_end.py` is the deliverable; `tests/e2e/ablate.py` runs the ablations. Record one ablation run in the PR description.
 - **Effort:** L.
-- **Status:** in-progress: build-order commit 1 landed (fixture and generator); commit 2 (harness, baseline chain) not yet.
+- **Status:** in-progress: build-order commits 1-2 landed
 
 ### C2: Optional fail-closed gate
 

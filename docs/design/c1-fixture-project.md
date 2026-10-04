@@ -207,16 +207,19 @@ The `Outputs:` line names files, not the folder, so that a step that fails silen
   3. Runs `git init`, then commits with a fixed author and committer.
   4. Runs init, `python3 - < skills/init/scripts/gate_init.py`.
   5. Commits the `.gitignore` change, so the tree is clean, as after a real `init`.
-- `hook(event, payload)` runs `hooks/gate.py <event>` with `session_id` and `cwd` added. The payload shape is copied from `test_gate.py`.
+- `hook(entry, payload)` runs `hooks/gate_run.py <entry>`, the command `hooks/hooks.json` registers, with `session_id`, `cwd` and `hook_event_name` added. The harness reads `hooks.json` at test time to map each Claude Code event to its gate entry (`PreToolUse` -> `tool`, `PostToolUse` -> `post`, and so on).
 - `approve(plan_text)` calls the Stop hook with the plan as `last_assistant_message`. It takes the hash from `approve plan <hash>` in the notice, then calls the prompt hook. It returns the hash and the notice.
 - `agent_bash(command, effect=None)` acts as the agent's Bash call:
   1. Calls PreToolUse; if denied, returns the denial without running.
   2. Otherwise runs the command in the project with the scrubbed environment.
-  3. Calls PostToolUse with `tool_response = {"stdout", "stderr", "exit_code"}`.
-  4. Returns the run result and the new receipt.
+  3. Sends the event Claude Code sends (hooks reference): on success, `PostToolUse` with `tool_response = {"stdout", "stderr", "interrupted", "isImage"}` and no exit code; on failure, `PostToolUseFailure` with a top-level `error` whose first line is `Exit code N`, plus `is_interrupt` and `duration_ms`, and no `tool_response`. The failure event reaches the gate only if `hooks.json` registers it (today it registers only `PostToolUse`; E3 adds the failure event), so a failed run leaves no receipt before E3. `response="legacy"` sends `PostToolUse` with `{stdout, stderr, exit_code}` for targeted tests.
+  4. Returns the run result and the new receipts.
+
+  With the realistic shape, verify's script rows read `ran (exit status not recorded)` and add no finding (KB-04), so the baseline still reaches `CONFORMS` on the current code.
 
   Commands the sandbox cannot run are given an `effect` instead of running: `sbatch` (stdout `Submitted batch job 4242`), `snakemake`, and `Rscript` when R is absent. The `effect` writes the files the real command would write, and the run is marked simulated in the test log.
-- `skill(name, *args)` runs a skill script in its documented stdin form, for example `python3 - --contract <file> < data_contract_check.py`. It first sends that exact command through PreToolUse and asserts the gate stays silent, so each skill's documented command must pass its own plugin's gate.
+- `skill(name, documented, run=None)` runs a skill command in its documented stdin form. It first sends that exact command through PreToolUse and asserts the gate stays silent, so each skill's documented command must pass its own plugin's gate; then it runs the command (or `run`, for verify's augmented form) with `bash -c` from the project root and sends `PostToolUse`. `data_contract(text)` builds the documented `python3 - --contract <(cat <<'EOF' ... EOF
+) < data_contract_check.py` form; the process substitution needs bash, so it runs through `bash -c`, with no temporary contract file.
 - `lineage(*runs)` writes `.living/log/data-lineage/<sid>.json` in Mycelium's manifest format, with `session_id` and `actions` entries holding `ts`, `script`, and `bash_cmd`. By default it lists every Python or R run `agent_bash` made, as Mycelium's tracker would.
 - `snakemake_record(output, rule, inputs, shellcmd, incomplete=False)` writes one `.snakemake/metadata/<base64 name>` JSON, as `test_verify.py` does.
 - `verify(*args)` runs `python3 - --plugin-root <repo> --repo <project> --sacct <fake> --scilintr <fake> --rscript <fake> ... < verify.py`.
@@ -242,23 +245,25 @@ These variables are removed: `CONDA_PREFIX`, `CONDA_DEFAULT_ENV`, `VIRTUAL_ENV`,
 
 ### 6.4 Time
 
-There is no `sleep`. Times are set with `os.utime` relative to the receipt `ts` values, as `test_verify.py` does, and verify's 5-second tolerance is respected explicitly: "before the approval" means at least 60 s before. The whole suite should run in under 60 s. The permutation test takes about 0.03 s per run.
+There is no `sleep`. The gate stamps receipts with `time.time()` and has no way to inject a time, so the harness moves output mtimes instead, with `os.utime`, relative to the receipt `ts` values. Verify ties an output to the earliest non-job receipt with `ts >= mtime - 5` (`TOLERANCE`), and the three runs finish a few hundred ms apart, so without spacing `de_results.tsv` and `summary.tsv` are credited to run 01 (the report still says `CONFORMS`, since run 01 is under the same plan). `space_outputs([(output, receipt), ...])` therefore moves each output whose mtime would also credit an earlier receipt to the midpoint of `(previous receipt ts + 5, its receipt ts + 5]`, and fails if that window is under 20 ms. Outputs can so carry an mtime up to about 5 s in the future; nothing in verify objects. "Before the approval" means at least 60 s before (fixture files are set one hour back). The baseline chain takes about 5 s per run.
 
 ## 7. Baseline chain (`test_baseline_chain`)
 
 | Step | Action | Must hold |
 | --- | --- | --- |
 | 1 | `Project.fresh()` | init prints `created .../gate.json`. A second init prints `already gated:` and changes nothing |
-| 2 | data contract, stdin form | gate silent; exit 0; 5 lines `PASS`; no alerts |
+| 2 | data contract, documented form, via `bash -c` | gate silent; exit 0; 5 lines `PASS`; no alerts |
 | 3 | `approve(baseline_plan)` | the Stop notice offers `approve plan <hash>` and lists both pinned inputs; the prompt hook records the approval |
-| 4 | `agent_bash` 01, 02, 03 | gate silent for each; three receipts naming the plan; 02's outputs match `expected/baseline.json` |
-| 5 | `lineage()` | manifest lists the three runs and one inline command |
-| 6 | `verify report <hash>` | `Verify status: CONFORMS`; all three scripts `ran`; three outputs tied to their runs; `1 inline command(s)` info; analysis folder `analysis/vaccine-response` |
-| 7 | `verify write <hash> --analysis-dir analysis/vaccine-response` | `provenance/PROVENANCE.md`, the frozen plan, receipts, and outputs files exist; then commit them |
-| 8 | `verify status` | one row: `CONFORMS`, `listed: active`, lint `clean` |
+| 4 | `agent_bash` 01, 02, 03, then a read-only `python3 -c` probe of the counts header | gate silent for each; three receipts naming the plan; the probe has no receipt; all three outputs match `expected/baseline.json`; then `space_outputs` (6.4) |
+| 5 | `lineage()` | manifest lists the three runs and the probe (`script: null`) |
+| 6 | `verify report <hash>` | `Verify status: CONFORMS`; all three scripts `ran` (today `ran (exit status not recorded)`, see 6.1); three outputs tied to their runs; `1 inline command(s)` info; analysis folder `analysis/vaccine-response` |
+| 7 | `verify write <hash> --analysis-dir analysis/vaccine-response` (the gate allows the documented form; checked) | `provenance/PROVENANCE.md`, the frozen plan, receipts, and outputs files exist; then commit them |
+| 8 | `verify status --json` | one row: `CONFORMS`, `listed: active`, lint `clean` |
 | 9 | `verify stale` | no stale plans |
 | 10 | decision-status `--term normalisation` | entries 1, 4, 5 in date order with raw status fields |
 | 11 | new-analysis `--dest=analysis/followup` | scaffold created; prints a suggested `ANALYSIS_MANIFEST.md` entry; a second run on the same dest refuses |
+
+R: with `Rscript` on PATH, 03 runs for real; `test_baseline_chain_without_r` drops every PATH entry holding `Rscript` and runs 03 as an effect that copies `expected/summary.tsv`, with a real receipt. Both run in the suite.
 
 The harness fills F-001's Evidence Ledger Run/Session cell with `<session-id>; plan <hash>`, the form the post hook suggests, before step 7. S-01 needs it.
 
@@ -347,7 +352,7 @@ Each was confirmed against `3a11123`, by a gate probe or by reading the code:
 | KB-01 | gate silent for `python3 -c "import os; open('notes.txt','w').write(os.path.join('x', '.mycelium-extra'))"` | denied (probe) | E2 |
 | KB-02 | gate silent for ``sed -i 's/gate state/the `.mycelium-extra` folder/' notes.md`` | denied (probe); the same text with `echo ... > notes.md` passes | E2 |
 | KB-03 | gate silent for a Python heredoc using `:=` that only writes `notes.txt` | passes on 3.8+, falls back to the any-mention rule on 3.6; the case runs only when `sys.version_info < (3, 8)` | E2 |
-| KB-04 | verify reports a gap when a receipt has no exit status (`tool_response` sent as a plain string) | row reads `ran (exit status not recorded)` and no finding is added (`verify.py:660`), so the status can be `CONFORMS` | E3 |
+| KB-04 | verify reports a gap when a receipt has no exit status | row reads `ran (exit status not recorded)` and no finding is added (`verify.py:660`), so the status can be `CONFORMS`. Claude Code's real `PostToolUse` for Bash has no exit code, so every baseline run hits this; the baseline accepts either `ran` form until E3 | E3 |
 | KB-05 | `sbatch --chdir=analysis/vaccine-response --wrap 'python3 scripts/01_select_samples.py'` receipts the right script path | path resolved against the hook's cwd | E3 |
 | KB-06 | a Snakemake rule input is not counted as a run of that file | counted | E3 |
 
