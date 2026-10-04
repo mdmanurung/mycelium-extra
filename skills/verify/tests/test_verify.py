@@ -414,6 +414,12 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("scilintr: 1 R file(s) clean", clean)
         self.assertIn("`analysis/a/scripts/02_plot.R:1` x <- 1", clean)
         self.assertTrue(clean.rstrip().endswith("Verify status: CONFORMS"), clean)
+        broken = self.write("analysis/a/scripts/03_broken.py", "def f(:\n    pass\n", mtime=time.time() - 3600)
+        out = self.verify("report", digest)  # scilintr passes code that does not parse, silently
+        self.assertIn("`analysis/a/scripts/03_broken.py` does not parse under Python", out)
+        self.assertIn("scilintr: 1 Python file(s) clean", out)
+        self.assertIn("Verify status: CONFORMS_WITH_GAPS", out)
+        os.remove(broken)
         finding = FIT + ":3:0: [broad-exception] broad except"
         dirty = self.fake_tool("bin/scilintr-dirty", finding + "\\n", 1)
         out = self.verify("report", digest, scilintr=dirty)

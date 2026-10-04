@@ -135,7 +135,7 @@ After an approved plan has run, `verify <hash>` compares the plan with the gate'
 It ends with `Verify status: CONFORMS`, `CONFORMS_WITH_GAPS`, or `DOES_NOT_CONFORM`.
 
 - **Blocks:** a failed run, an edited script, a changed input, an output older than the approval, an incomplete Snakemake job, or a scilintr finding neither fixed nor waived.
-- **Gaps:** things the records cannot show, including code scilintr could not check (not installed, timed out, unreadable output, or a notebook whose code does not parse, which scilintr would silently pass). An output is tied to a run by time alone, so attribution only ever produces gaps.
+- **Gaps:** things the records cannot show, including code scilintr could not check (not installed, timed out, unreadable output, or a script or notebook whose code does not parse under the Python verify runs on, which scilintr would silently pass). An output is tied to a run by time alone, so attribution only ever produces gaps.
 
 After you confirm, `verify` writes `<analysis>/provenance/`: the frozen plan, its receipts (ones that only passed a planned path to other code are kept, marked `not_a_run`), an outputs table with each file's size, full sha256, and likely run, the scilintr output and waivers (`lint-<hash>.txt`), the package list of any conda env a run used that no `conda-lock.yml` pins (`env-<hash>.txt`, read from the env's `conda-meta`; an env changed since the run is a gap), the report, and a `PROVENANCE.md` index. Commit it with the analysis. It never writes `PLAN.md`, `TRACKER.md`, or `specification.md`, so the analysis keeps one plan file. It then names the review command, `/mycelium:review <folder> — check the code against the approved plan in <folder>/provenance/plan-<hash>.md`.
 

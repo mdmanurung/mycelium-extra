@@ -260,26 +260,35 @@ def lint(root, files, report, scilintr, rscript, seconds):
     """Run scilintr on the code; remaining findings block, an unchecked language is a gap.
     The Python CLI skips R files and exits 0 on a missing path, so each language gets
     its own CLI and only existing files are passed. It also exits 0, silent, on code that
-    does not parse, so notebook code is parsed first and an unparseable notebook is a gap."""
+    does not parse, so Python code is parsed first and an unparseable file is a gap."""
     result = {"findings": [], "waivers": [], "output": [], "notebooks": []}
     by_language = collections.defaultdict(list)
     scratch = tempfile.mkdtemp(prefix="mycelium-extra-lint-")
     cells = {}  # extracted notebook code path -> (notebook, first line of each code cell)
+
+    def parses(rel, code=None):
+        try:
+            if code is None:
+                with open(os.path.join(root, rel), "rb") as handle:
+                    code = handle.read()
+            compile(code, rel, "exec")
+            return True
+        except (SyntaxError, ValueError, OSError) as error:
+            report.add("gap", "scilintr (Python) not checked: `{}` does not parse under Python {} ({}).".format(
+                rel, "{}.{}.{}".format(*sys.version_info[:3]), cell(str(error))[:120]))
+            return False
+
     try:
         for rel in files:
             ext = os.path.splitext(rel)[1]
             extracted = notebook_code(os.path.join(root, rel)) if ext == ".ipynb" else None
             if ext in LINT_LANGUAGES:
-                by_language[LINT_LANGUAGES[ext]].append(rel)
+                if LINT_LANGUAGES[ext] != "Python" or parses(rel):
+                    by_language[LINT_LANGUAGES[ext]].append(rel)
             elif extracted:
                 language, code, starts = extracted
-                if language == "Python":
-                    try:
-                        compile(code, rel, "exec")
-                    except (SyntaxError, ValueError) as error:
-                        report.add("gap", "scilintr (Python) not checked: `{}` does not parse here ({}).".format(
-                            rel, cell(str(error))[:120]))
-                        continue
+                if language == "Python" and not parses(rel, code):
+                    continue
                 path = os.path.join(scratch, "{}_{}".format(len(cells), os.path.basename(rel))) + (
                     ".py" if language == "Python" else ".R")
                 with open(path, "w", encoding="utf-8") as handle:
