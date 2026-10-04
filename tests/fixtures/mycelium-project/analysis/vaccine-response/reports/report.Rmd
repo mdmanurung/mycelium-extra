@@ -1,0 +1,12 @@
+---
+title: "vaccine-response (SIMULATED)"
+output: html_document
+---
+
+Hits from `outputs/de_results.tsv` (padj < 0.05).
+
+```{r hits}
+de <- read.delim("../outputs/de_results.tsv", stringsAsFactors = FALSE)
+hits <- de[de$padj < 0.05, ]
+knitr::kable(hits[order(hits$padj), ])
+```

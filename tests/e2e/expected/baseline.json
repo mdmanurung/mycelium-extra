@@ -1,0 +1,32 @@
+{
+  "outputs": {
+    "de_results.tsv": {
+      "hits": [
+        "IFI27",
+        "IFI44L",
+        "IFIT1",
+        "ISG15",
+        "MX1",
+        "OAS1",
+        "RSAD2",
+        "SIGLEC1"
+      ],
+      "rows": 60,
+      "sha256": "67c17edf1d9b7457c4424df7ec4eab958058b29edfdd696e9810b26077898db3"
+    },
+    "samples_used.tsv": {
+      "rows": 24,
+      "sha256": "b980761d554c4338b622d64378014068cf4017797be480f8aedee365cd18a0bd"
+    },
+    "summary.tsv": {
+      "rows": 1,
+      "sha256": "409ac0ca64d2e8c6047e4fdb922ce52f88b1d77440e614767b6210e8fdf9fabb",
+      "values": {
+        "median_log2fc_hits": "1.6806",
+        "n_hits": "8",
+        "n_tested": "60"
+      }
+    }
+  },
+  "seed": 0
+}

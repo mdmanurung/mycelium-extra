@@ -1,0 +1,59 @@
+"""vaccine-response: run the numbered steps in order.
+
+From anywhere: snakemake -s analysis/vaccine-response/Snakefile --cores 1   (or: bash analysis/vaccine-response/run.sh)
+Interpreters:  --config rscript=/path/to/Rscript python=/path/to/python
+"""
+
+workdir: workflow.basedir
+
+RSCRIPT = config.get("rscript", "Rscript")
+PYTHON = config.get("python", "python")
+THREADS = "OPENBLAS_NUM_THREADS={threads} OMP_NUM_THREADS={threads} MKL_NUM_THREADS={threads} "
+
+
+rule all:
+    input:
+        "outputs/summary.tsv",
+
+
+rule step01_select_samples:
+    input:
+        script="scripts/01_select_samples.py",
+        metadata="../../data/processed/vaccine-cohort/sample_metadata.tsv",
+    output:
+        "outputs/samples_used.tsv",
+    log:
+        "logs/01_select_samples.log",
+    benchmark:
+        "logs/01_select_samples.benchmark.tsv"
+    shell:
+        THREADS + "{PYTHON:q} -u {input.script:q} > {log:q} 2>&1"
+
+
+rule step02_paired_test:
+    input:
+        script="scripts/02_paired_test.py",
+        counts="../../data/processed/vaccine-cohort/counts.tsv",
+        samples="outputs/samples_used.tsv",
+    output:
+        "outputs/de_results.tsv",
+    log:
+        "logs/02_paired_test.log",
+    benchmark:
+        "logs/02_paired_test.benchmark.tsv"
+    shell:
+        THREADS + "{PYTHON:q} -u {input.script:q} > {log:q} 2>&1"
+
+
+rule step03_summary:
+    input:
+        script="scripts/03_summary.R",
+        de="outputs/de_results.tsv",
+    output:
+        "outputs/summary.tsv",
+    log:
+        "logs/03_summary.log",
+    benchmark:
+        "logs/03_summary.benchmark.tsv"
+    shell:
+        THREADS + "{RSCRIPT:q} {input.script:q} > {log:q} 2>&1"

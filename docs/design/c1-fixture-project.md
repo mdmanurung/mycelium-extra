@@ -33,7 +33,7 @@ tests/
 ├── fixtures/
 │   ├── README.md                         what the fixture is, how to regenerate it, the size budget
 │   ├── make_fixture_data.py              deterministic generator (section 4); --check compares with the committed files
-│   └── mycelium-project/                 the project (30 files)
+│   └── mycelium-project/                 the project (31 files)
 │       ├── MYCELIUM.md                   Mycelium protocol stub; names the convention "results come from analysis/ only"
 │       ├── CLAUDE.md                     Mycelium routing block (grill reads it)
 │       ├── AGENTS.md                     same, for Codex
@@ -65,6 +65,7 @@ tests/
 │       │       ├── scripts/04_extra_plot.py       not in the plan (scope-growth defects)
 │       │       ├── run.sh                         wrapper: runs 01, 02, 03 in order
 │       │       ├── Snakefile                      same steps, in the rule shape new-analysis generates
+│       │       ├── run_all.sbatch                 Slurm script: the same steps in one job (wrapper defects)
 │       │       ├── outputs/.gitkeep
 │       │       └── reports/report.Rmd             one R chunk (E4, E5)
 │       ├── nbs/qc_explore.ipynb          explore notebook (gated path `nbs/**`); Python kernel
@@ -78,8 +79,9 @@ tests/
 │   └── expected/
 │       ├── baseline.json                 statuses, counts, and values the baseline must produce
 │       ├── truth.json                    simulated ground truth; kept outside the project so no step can read it
-│       ├── summary.tsv                   03_summary.R output from a real R run; used when R is absent
+│       ├── summary.tsv                   03_summary.R output (generator's Python twin, checked against real R); used when R is absent
 │       └── claims.json                   D1's expected verdicts (unused until D1 ships)
+├── test_fixture_data.py                  runs make_fixture_data.py --check, a refused seed, and the size budget
 └── test_end_to_end.py                    baseline chain, one case per defect, catalog contract tests
 ```
 
@@ -131,7 +133,7 @@ decision-status run with `--term normalisation` must list entries 1, 4, and 5, o
 - residual noise with SD 0.25;
 - a library-size factor between 0.7 and 1.3.
 
-`DATA_MANIFEST.md` and the file headers say SIMULATED.
+`DATA_MANIFEST.md`, `DATA_DICTIONARY.md`, and `VACCINE_COHORT.md` say SIMULATED. The TSVs carry no comment header, because data-contract-check reads them with `csv.DictReader`, which would take a `#` line as the header.
 
 **Analysis.** `02_paired_test.py` does the following:
 
@@ -150,7 +152,7 @@ It writes `de_results.tsv` (`gene log2fc p padj`).
 
 A design with more genes fails differently: at 200 genes, BH cannot reach 0.05 for 8 hits, because the permutation floor (0.0022 × 200 / 8 = 0.054) is above it. So the gene count is part of the design, not a free parameter.
 
-**Generator.** `make_fixture_data.py --seed N` writes the two TSVs. It runs the three scripts on a temporary copy and writes the values to `expected/baseline.json` and `expected/truth.json`. It also fills the Key Findings numbers in `VACCINE_RESPONSE.md`. It selects the seed by stated criteria and refuses one that fails them:
+**Generator.** `make_fixture_data.py --seed N` (default 0) writes the two TSVs. Its simulation reproduces the probe draw for draw, so seed N gives the probe's seed N result. It runs 01 and 02 on a temporary copy, checks that 02's hits equal its own analysis, computes 03's summary with a Python twin (R's median, `sprintf("%.4f")`), and writes the values to `expected/baseline.json` (row counts and SHA-256 of each output), `expected/truth.json`, and `expected/summary.tsv`. The end-to-end test compares `expected/summary.tsv` with the real R output when R is present. It also fills the Key Findings numbers in `VACCINE_RESPONSE.md`. It selects the seed by stated criteria and refuses one that fails them:
 
 - exactly the 8 true genes at `padj < 0.05` under median-of-ratios;
 - at least 3 false positives under total-count CPM, so DC-11 has an effect.
