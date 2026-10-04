@@ -67,6 +67,13 @@ class PlanReviewContractTest(unittest.TestCase):
         self.assertIn("Source column is provenance, not permission", contract)
         self.assertIn("Do not edit the original plan", synthesis)
 
+    def test_default_reasons_check_runs_on_the_draft_and_is_advisory(self):
+        skill = read("SKILL.md")
+        self.assertIn("< <skill-dir>/scripts/default_reasons.py", skill)
+        self.assertTrue(os.path.isfile(os.path.join(SKILL, "scripts", "default_reasons.py")))
+        self.assertIn("It is advisory: it never blocks", skill)
+        self.assertIn("never report it as clean", skill)
+
 
 if __name__ == "__main__":
     unittest.main()

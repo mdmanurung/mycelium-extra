@@ -11,6 +11,16 @@ Challenge a proposed plan before approval. This skill is consultation only: do n
 
 - Find the current grill brief and its complete plan table in the conversation or a path the user names. If several candidates exist, ask which draft to review. Do not silently review an older approved plan.
 - Read only the relevant repository instructions, applicable `.living/` decisions and findings, manifests, data-contract results, and code paths. Distinguish proposed steps from observed implementation. Cite paths and headings/lines.
+- Check the reason on each default. Run, with the plan table as it stands:
+
+  ```bash
+  python3 - --plan <(cat <<'EOF'
+  <the plan>
+  EOF
+  ) < <skill-dir>/scripts/default_reasons.py
+  ```
+
+  It names each plan row whose `default:` has no reason, a reason under three words, or only an empty phrase (the list is `EMPTY_PHRASES` at the top of the script). It is advisory: it never blocks the review or approval, and it does not judge whether a reason is correct. Put its output in the packet's `unknowns:` and in the report, and propose a reason or a `user` source for each flagged row as an amendment. Exit 3 (no plan table found) or a failed run means the check did not run; say so, never report it as clean.
 - Use [review-contract.md](references/review-contract.md) to build one canonical packet for both reviewers. Include the objective, estimand, unit of inference, design, input/data summary, constraints, sourced decisions and findings, exact proposed plan, assumptions, and validation. Mark unknown fields unknown. Exclude raw data, participant identifiers, credentials, unpublished full tables, and irrelevant history. If a necessary fact cannot be shared, say so and stop that external review.
 - The packet leaves the machine (Codex to OpenAI, Biomni to Phylo, which also bills credits). Show the user the packet and which reviewers will receive it, and send only after the user agrees.
 
