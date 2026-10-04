@@ -198,6 +198,21 @@ def checklist():
     return rows
 
 
+TOOLS = ("data-contract-check", "verify", "approval gate")
+ROADMAP = os.path.join(harness.REPO, "docs", "roadmap")
+
+
+def claimed_tool(check):
+    """The tool a Check cell credits, fully or as `partial: <tool> (...)`; None if it credits none."""
+    for part in (check or "").split(";"):
+        part = part.strip()
+        if part.startswith("partial:"):
+            part = part[len("partial:"):].split("(")[0].strip()
+        if part in TOOLS:
+            return part
+    return None
+
+
 FAMILY = {"DC": {"data-contract-check", "none"}, "G": {"approval gate"}, "V": {"verify", "none"},
           "S": {"verify"}, "M": {"decision-status"}, "KB": {"approval gate", "verify"}}
 NO_FULL_CLAIM = ("none", "partial:", "planned:", "cross-ref:")
@@ -216,6 +231,20 @@ class Catalog(unittest.TestCase):
         bad = [d.id for d in defects.DEFECTS if d.known_miss and not any(
             c in rows and (rows[c] is None or rows[c].startswith(NO_FULL_CLAIM)) for c in d.covers)]
         self.assertEqual(bad, [])
+
+    def test_claimed_tools_catch_a_defect(self):
+        caught = {(c, d.caught_by) for d in defects.DEFECTS if not d.known_miss for c in d.covers}
+        missing = [(row, tool) for row, tool in ((r, claimed_tool(c)) for r, c in checklist().items())
+                   if tool and (row, tool) not in caught]
+        self.assertEqual(missing, [])
+
+    def test_tasks_are_roadmap_headings(self):
+        headings = set()
+        for name in os.listdir(ROADMAP):
+            with open(os.path.join(ROADMAP, name), encoding="utf-8") as handle:
+                headings.update(line[4:].split(":")[0] for line in handle if line.startswith("### "))
+        tasks = defects.LATER + [d.xfail_task for d in defects.DEFECTS if d.xfail_task]
+        self.assertEqual([t for t in tasks if t not in headings], [])
 
     def test_ids_unique_and_families_match(self):
         ids = [d.id for d in defects.DEFECTS]

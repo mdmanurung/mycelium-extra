@@ -315,7 +315,7 @@ DC-08 to DC-11 are the reason the fixture exists. Every tool reports success, ye
 | ID | Mutation | Expect | Covers |
 | --- | --- | --- | --- |
 | V-01 | 02 exits 1 before writing | block `failed (exit 1)`; gap `Output ... de_results.tsv does not exist` | Swallowed errors (the visible case) |
-| V-02a | `python3 .../02_paired_test.py \|\| true`, 02 fails before writing | the receipt records exit 0, so the row reads `ran`; gap `Output ... de_results.tsv does not exist`; `CONFORMS_WITH_GAPS` | Swallowed errors |
+| V-02a | `python3 .../02_paired_test.py \|\| true`, 02 fails before writing; 03 is not run | the receipt records exit 0, so the row reads `ran (exit 0 from hook event)`; gap `Output ... de_results.tsv does not exist`; `CONFORMS_WITH_GAPS` | Swallowed errors |
 | V-02b | as V-02a, but 02 writes a partial `de_results.tsv`, then raises | known miss: `CONFORMS` | Swallowed errors |
 | V-03 | edit 02 after its run | block `was edited after its run` | Stale evidence as current |
 | V-04 | leave `summary.tsv` from an earlier session (mtime before approval) and skip 03 | block `before the plan was approved`; gap `no run under this plan was recorded` | Stale evidence as current |
@@ -326,19 +326,23 @@ DC-08 to DC-11 are the reason the fixture exists. Every tool reports success, ye
 | V-09 | explore run rewrites `de_results.tsv` after the planned run | gap `was likely written by` an explore run | Explore results reported |
 | V-10 | lineage lists `/tmp/scratch/refit.py`, which the gate never saw | gap `Mycelium's lineage saw` | Retry until significant |
 | V-11 | `02b_paired_test.py` added to the plan but left uncommitted | gap `was untracked when it ran` | tool: verify |
-| V-12 | plan names `sbatch analysis/vaccine-response/run.sh`; fake sacct returns `FAILED` | block `Slurm job 4242 ended FAILED` | tool: verify |
-| V-13 | Snakefile run as the wrapper; one rule's record `incomplete: true` | block `Snakemake marks rule` | tool: verify |
+| V-12 | plan names `sbatch analysis/vaccine-response/run_all.sbatch`; fake sacct returns `FAILED` | block `Slurm job 4242 ended FAILED` | tool: verify |
+| V-13 | Snakefile run as the wrapper, with the three steps still in the plan table; one rule's record `incomplete: true` | block `Snakemake marks rule` | tool: verify |
 | V-14 | fake scilintr reports one finding in 02 | block `scilintr finding(s) remain` | tool: verify |
 | V-15 | scilintr path does not exist | gap `scilintr (Python) not checked` | tool: verify |
 | V-16 | plan without its `Outputs:` line | gap `has no \`Outputs:\` line` | Outputs and reporting |
 | V-17 | runs use `conda run -n vaccine-de python3 ...`; no such env under `HOME` | gap `Conda env \`vaccine-de\`` ... `was not found` | Version-specific behaviour |
 | V-18 | a second approved plan covers 04, and it runs | gap `ran since the approval but is not in the plan table`; info `Run under another plan` | Silent scope growth |
+| V-19 | row 3's source becomes `default: standard` | `CONFORMS`; info `Default without a usable reason (advisory)` (D9) | Unstated defaults |
+| V-20 | 02 finishes within `TOLERANCE` of 01's receipt (`de_results.tsv` mtime = 01's receipt + 1 s) | known miss: `CONFORMS`, and the output is credited to run 01, an earlier run of the same plan | Stale evidence as current |
+
+V-13 keeps the steps in the plan table because verify reads a rule's `incomplete` flag only for a planned step that ran inside a wrapper. A plan that names only the Snakefile gets a direct receipt for it, and an incomplete rule is not reported; that is not a case yet.
 
 ### 8.4 Sweeps and memory
 
 | ID | Mutation | Expect | Covers |
 | --- | --- | --- | --- |
-| S-01 | after `verify write`, edit 02 | `verify stale` lists the plan with `1` script change and a `findings:` command whose pattern matches F-001's ledger row | Stale evidence as current |
+| S-01 | after `verify write`, edit 02 | `verify stale` lists the plan with one `script ... edited since it ran` line and a `findings:` command whose pattern matches F-001's ledger row | Stale evidence as current |
 | S-02 | remove the analysis from `ANALYSIS_MANIFEST.md` | `verify status` shows `not listed` | Outputs and reporting |
 | S-03 | delete `summary.tsv` after `verify write` | `verify stale` lists the output as deleted | Stale evidence as current |
 | M-01 | decision-status `--term normalisation` | three entries, raw statuses; output never names one as current | Redoing settled work |

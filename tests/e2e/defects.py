@@ -10,6 +10,8 @@ Stdlib only, Python 3.6 grammar.
 """
 
 import json
+import os
+import re
 import time
 
 import harness
@@ -20,6 +22,10 @@ COUNTS = "data/processed/vaccine-cohort/counts.tsv"
 PAIRED = A + "/scripts/02_paired_test.py"
 CONFORMS = "Verify status: CONFORMS"
 DENY = "deny"
+
+
+# Tasks whose fixtures C1 leaves for them to add (design section 8.6).
+LATER = ["D1", "D2", "D4", "C3", "D6", "E1", "E4", "E5", "D10", "D11", "D12"]
 
 
 class Defect(object):
@@ -269,6 +275,389 @@ def g07(p):
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(record, handle)
     return gate(p.run_step(harness.SCRIPTS[0]))
+
+
+# ---------------------------------------------------------------- 8.3 verify layer
+
+GAPS = "Verify status: CONFORMS_WITH_GAPS"
+BLOCKED = "Verify status: DOES_NOT_CONFORM"
+DE = A + "/outputs/de_results.tsv"
+SUMMARY = A + "/outputs/summary.tsv"
+EXTRA = A + "/scripts/04_extra_plot.py"
+EXPLORE = "MYCELIUM_EXTRA_EXPLORE=1 "
+
+
+def plan(rows=None, outputs=None, change=None):
+    """The baseline plan with its table rows replaced by `rows`, its Outputs: line replaced by
+    `outputs` ("" drops the line), and then change(text)."""
+    lines = []
+    for line in harness.plan_text().splitlines():
+        if rows is not None and line[:4] in ("| 1 ", "| 2 ", "| 3 "):
+            if line.startswith("| 1 "):
+                lines.extend(rows)
+            continue
+        if outputs is not None and line.startswith("Outputs:"):
+            if outputs:
+                lines.append("Outputs: " + outputs)
+            continue
+        lines.append(line)
+    text = "\n".join(lines) + "\n"
+    return change(text) if change else text
+
+
+def row(n, command, choice="as the script states", source="repo: analysis/vaccine-response/VACCINE_RESPONSE.md",
+        validation="exit 0"):
+    return "| {} | run `{}` | {} | {} | {} |".format(n, command, choice, source, validation)
+
+
+def report(p, digest):
+    code, out, err = p.verify("report", digest)
+    return {"code": code, "status": harness.status_line(out), "text": out + err}
+
+
+def baseline(p, text=None, scripts=harness.SCRIPTS):
+    digest = p.run_plan(text, scripts)[0]
+    return digest, report(p, digest)
+
+
+def row_status(text, path):
+    found = [line for line in text.splitlines() if line.startswith("| `{}` |".format(path))]
+    return found[0].split("|")[2].strip() if found else None
+
+
+def stale_mtime(p, rel, epoch):
+    os.utime(p.path(rel), (epoch, epoch))
+
+
+@defect("V-01", "verify", "verify", ["Swallowed errors"],
+        {"status": BLOCKED, "messages": ["`{}` failed (exit 1)".format(PAIRED), "Output `{}` does not exist".format(DE)]})
+def v01(p):
+    p.edit(PAIRED, replace("def main():\n", "def main():\n    raise SystemExit('counts unreadable')\n"))
+    p.commit("02 fails")
+    return baseline(p)[1]
+
+
+def crash_after(rows):
+    """02 writes the header and `rows` gene rows of de_results.tsv, then dies; rows=0: before writing."""
+    def change(text):
+        if not rows:
+            return text.replace("def main():\n", "def main():\n    raise SystemExit('worker lost')\n")
+        text = text.replace("    padj = bh(pvalues, genes)\n",
+                            "    padj = bh(pvalues, genes)\n    genes = genes[:{}]\n".format(rows))
+        return text.replace("    print(\"{} libraries", "    raise SystemExit('worker lost')\n    print(\"{} libraries")
+    return change
+
+
+def swallowed(p, rows, scripts):
+    p.edit(PAIRED, crash_after(rows))
+    p.commit("02 dies")
+    digest = p.approve(harness.plan_text())[0]
+    results = []
+    for script in scripts:
+        results.append(p.agent_bash("python3 {} || true".format(PAIRED)) if script == PAIRED else p.run_step(script))
+    p.space_outputs([(harness.out_of(s), r.receipts[0]) for s, r in zip(scripts, results)
+                     if r.receipts and os.path.isfile(p.path(harness.out_of(s)))])
+    p.lineage()
+    outcome = report(p, digest)
+    outcome["row"] = row_status(outcome["text"], PAIRED)
+    return outcome
+
+
+@defect("V-02a", "verify", "verify", ["Swallowed errors"],
+        {"status": GAPS, "row": "ran (exit 0 from hook event)", "messages": ["Output `{}` does not exist".format(DE)]})
+def v02a(p):
+    return swallowed(p, 0, harness.SCRIPTS[:2])
+
+
+@defect("V-02b", "verify", "none", ["Swallowed errors"], known_miss=True,
+        expect={"status": CONFORMS, "de_rows": 10})
+def v02b(p):
+    outcome = swallowed(p, 10, harness.SCRIPTS)
+    with open(p.path(DE), encoding="utf-8") as handle:
+        outcome["de_rows"] = len(handle.readlines()) - 1
+    return outcome
+
+
+@defect("V-03", "verify", "verify", ["Stale evidence as current"],
+        {"status": BLOCKED, "messages": ["`{}` was edited after its run".format(PAIRED)]})
+def v03(p):
+    digest = p.run_plan()[0]
+    p.edit(PAIRED, lambda text: text + "# tidied\n")
+    return report(p, digest)
+
+
+@defect("V-04", "verify", "verify", ["Stale evidence as current"],
+        {"status": BLOCKED, "messages": ["Output `{}` was written".format(SUMMARY), "before the plan was approved",
+                                         "`{}`: no run under this plan was recorded".format(harness.SCRIPTS[2])]})
+def v04(p):
+    harness.copy_summary(p)
+    stale_mtime(p, SUMMARY, time.time() - 3600)
+    return baseline(p, scripts=harness.SCRIPTS[:2])[1]
+
+
+TOP = A + "/outputs/top_genes.tsv"
+
+
+@defect("V-05", "verify", "verify", ["Number transcription"],
+        {"status": GAPS, "messages": ["Output `{}`".format(TOP), "is not tied to any recorded run"]})
+def v05(p):
+    text = plan(change=lambda t: t.replace("outputs/summary.tsv\n", "outputs/summary.tsv " + TOP + "\n"))
+    digest = p.run_plan(text)[0]
+    inline = p.agent_bash("python3 -c \"open('{}', 'w').write('gene\\nIFI27\\n')\"".format(TOP))
+    if inline.denied:
+        return gate(inline)
+    stale_mtime(p, TOP, p.receipts()[-1]["ts"] + 2 * harness.TOLERANCE)
+    return report(p, digest)
+
+
+@defect("V-06", "verify", "verify", ["Input and matrix state"],
+        {"status": BLOCKED, "messages": ["Input `{}` changed since the approval".format(COUNTS)]})
+def v06(p):
+    digest = p.run_plan()[0]
+    p.edit(COUNTS, lambda text: text.replace("\t", "\t1", 1))
+    return report(p, digest)
+
+
+@defect("V-07", "verify", "verify", ["tool: verify"],
+        {"status": GAPS, "messages": ["`{}`: no run under this plan was recorded".format(harness.SCRIPTS[2])]})
+def v07(p):
+    return baseline(p, scripts=harness.SCRIPTS[:2])[1]
+
+
+def allow_explore(p):
+    p.hook(p.events.get("UserPromptSubmit", "prompt"), {"prompt": "allow explore"})
+
+
+@defect("V-08", "verify", "verify", ["Explore results reported"],
+        {"status": GAPS, "messages": ["Explore run in the analysis folder", "04_extra_plot"]})
+def v08(p):
+    digest = p.run_plan()[0]
+    allow_explore(p)
+    p.agent_bash(EXPLORE + "python3 " + EXTRA)
+    return report(p, digest)
+
+
+@defect("V-09", "verify", "verify", ["Explore results reported"],
+        {"status": GAPS, "messages": ["Output `{}` was likely written by".format(DE), "explore"]})
+def v09(p):
+    digest = p.run_plan()[0]
+    allow_explore(p)
+    result = p.agent_bash(EXPLORE + "python3 " + PAIRED)
+    p.space_outputs([(DE, result.receipts[0])])
+    return report(p, digest)
+
+
+@defect("V-10", "verify", "verify", ["Retry until significant"],
+        {"status": GAPS, "messages": ["Mycelium's lineage saw `/tmp/scratch/refit.py`"]})
+def v10(p):
+    digest = p.run_plan()[0]
+    p.lineage(p.runs + [(time.time(), "python3 /tmp/scratch/refit.py", "/tmp/scratch/refit.py")])
+    return report(p, digest)
+
+
+@defect("V-11", "verify", "verify", ["tool: verify"],
+        {"status": GAPS, "messages": ["was untracked when it ran"]})
+def v11(p):
+    copy = PAIRED.replace("02_paired", "02b_paired")
+    with open(p.path(PAIRED), encoding="utf-8") as src, open(p.path(copy), "w", encoding="utf-8") as dst:
+        dst.write(src.read())
+    text = plan(change=lambda t: t.replace("02_paired_test.py", "02b_paired_test.py"))
+    return baseline(p, text, [harness.SCRIPTS[0], copy, harness.SCRIPTS[2]])[1]
+
+
+SBATCH = "sbatch " + A + "/run_all.sbatch"
+
+
+def sbatch_effect(p):
+    for script in harness.SCRIPTS:
+        if script.endswith(".R"):
+            harness.copy_summary(p)
+        else:
+            p.shell("python3 " + script)
+    return "Submitted batch job 4242\n"
+
+
+@defect("V-12", "verify", "verify", ["tool: verify"],
+        {"status": BLOCKED, "messages": ["Slurm job 4242 ended FAILED"]})
+def v12(p):
+    digest = p.approve(plan([row(1, SBATCH)]))[0]
+    p.agent_bash(SBATCH, effect=sbatch_effect)
+    now = time.time()
+    p.write_fakes(sacct="4242|FAILED|1:0|{}|{}".format(time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(now - 60)),
+                                                        time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(now))))
+    return report(p, digest)
+
+
+SNAKEMAKE = "snakemake -s " + A + "/Snakefile --cores 1"
+RULES = [("step01_select_samples", "scripts/01_select_samples.py", "outputs/samples_used.tsv"),
+         ("step02_paired_test", "scripts/02_paired_test.py", "outputs/de_results.tsv"),
+         ("step03_summary", "scripts/03_summary.R", "outputs/summary.tsv")]
+
+
+def snakemake_effect(incomplete):
+    def effect(p):
+        for rule, script, output in RULES:
+            start = time.time()
+            if script.endswith(".R"):
+                harness.copy_summary(p)
+                shell = "Rscript {} > logs/03_summary.log 2>&1".format(script)
+            else:
+                p.shell("python3 {}/{}".format(A, script))
+                shell = "python -u {} > logs/{}.log 2>&1".format(script, rule)
+            p.snakemake_record(output, rule, [script], shell, incomplete=rule == incomplete, start=start,
+                               workdir=A)
+        return ""
+    return effect
+
+
+@defect("V-13", "verify", "verify", ["tool: verify"],
+        {"status": BLOCKED, "messages": ["Snakemake marks rule `step02_paired_test` incomplete"]})
+def v13(p):
+    # The steps stay in the plan table: verify checks a rule's record for the planned step that ran
+    # inside the wrapper, not for the Snakefile, which has its own direct receipt.
+    digest = p.approve(plan(change=lambda t: t.replace("\n\nPlan status", "\n" + row(
+        4, SNAKEMAKE, source="repo: " + A + "/Snakefile") + "\n\nPlan status")))[0]
+    p.agent_bash(SNAKEMAKE, effect=snakemake_effect("step02_paired_test"))
+    return report(p, digest)
+
+
+@defect("V-14", "verify", "verify", ["tool: verify"],
+        {"status": BLOCKED, "messages": ["1 scilintr finding(s) remain in Python code"]})
+def v14(p):
+    p.write_fakes(scilintr="{}:60:5: [silent-coercion] int() on a count column\n".format(PAIRED), scilintr_code=1)
+    return baseline(p)[1]
+
+
+@defect("V-15", "verify", "verify", ["tool: verify"],
+        {"status": GAPS, "messages": ["scilintr (Python) not checked", "not found"]})
+def v15(p):
+    os.remove(os.path.join(p.bin, "scilintr"))
+    return baseline(p)[1]
+
+
+@defect("V-16", "verify", "verify", ["Outputs and reporting"],
+        {"status": GAPS, "messages": ["The plan has no `Outputs:` line"]})
+def v16(p):
+    return baseline(p, plan(outputs=""))[1]
+
+
+@defect("V-17", "verify", "verify", ["Version-specific behaviour"],
+        {"status": GAPS, "messages": ["Conda env `vaccine-de`", "was not found"]})
+def v17(p):
+    digest = p.approve(harness.plan_text())[0]
+    results = []
+    for script in harness.SCRIPTS:
+        tool = "Rscript" if script.endswith(".R") else "python3"
+        effect = (lambda q, s=script: harness.copy_summary(q) if s.endswith(".R") else q.shell("python3 " + s)[1])
+        results.append(p.agent_bash("conda run -n vaccine-de {} {}".format(tool, script), effect=effect))
+    p.space_outputs([(harness.out_of(s), r.receipts[0]) for s, r in zip(harness.SCRIPTS, results) if r.receipts])
+    p.lineage()
+    return report(p, digest)
+
+
+VOLCANO_PLAN = """**Objective.** Volcano data for the vaccine-response results.
+
+Inputs: analysis/vaccine-response/outputs/de_results.tsv
+Outputs: analysis/vaccine-response/outputs/volcano.tsv
+
+| # | Step | Choice | Source | Validation |
+|---|---|---|---|---|
+| 1 | run `analysis/vaccine-response/scripts/04_extra_plot.py` | -log10 p against log2FC | user | one row per gene |
+
+Plan status: READY
+"""
+
+
+@defect("V-18", "verify", "verify", ["Silent scope growth"],
+        {"status": GAPS, "messages": ["`{}` ran since the approval but is not in the plan table".format(EXTRA),
+                                      "Run under another plan"]})
+def v18(p):
+    digest = p.run_plan()[0]
+    p.approve(VOLCANO_PLAN)
+    p.agent_bash("python3 " + EXTRA)
+    return report(p, digest)
+
+
+@defect("V-19", "verify", "verify", ["Unstated defaults"],
+        {"status": CONFORMS, "messages": ["Default without a usable reason (advisory)"]})
+def v19(p):
+    return baseline(p, plan(change=lambda t: t.replace("default: matches step 2", "default: standard")))[1]
+
+
+@defect("V-20", "verify", "none", ["Stale evidence as current"], known_miss=True,
+        expect={"status": CONFORMS, "credited_to": "python3 " + harness.SCRIPTS[0]})
+def v20(p):
+    # 02 finished within TOLERANCE of 01's receipt (as on a fast machine), so verify credits
+    # de_results.tsv to the earliest receipt that could have written it: run 01, under the same plan.
+    digest = p.approve(harness.plan_text())[0]
+    first, _, last = [p.run_step(script) for script in harness.SCRIPTS]
+    stale_mtime(p, DE, first.receipts[0]["ts"] + 1)
+    p.space_outputs([(SUMMARY, last.receipts[0])])
+    p.lineage()
+    outcome = report(p, digest)
+    found = [line for line in outcome["text"].splitlines() if line.startswith("| `{}` |".format(DE))]
+    outcome["credited_to"] = found[0].split("`")[3] if found else None
+    return outcome
+
+
+# ---------------------------------------------------------------- 8.4 sweeps and memory
+
+def verified(p):
+    """The baseline plan run, verified, its provenance written and committed, as in the chain."""
+    digest = p.run_plan()[0]
+    p.fill_ledger(digest)
+    code, out, err = p.verify("write", digest, "--analysis-dir", A)
+    if harness.status_line(out) != CONFORMS:
+        raise harness.HarnessError("verify write did not conform:\n" + out + err)
+    p.commit("provenance for plan " + digest)
+    return digest
+
+
+def sweep(p, *args):
+    code, out, err = p.verify(*args)
+    return {"code": code, "text": out + err}
+
+
+@defect("S-01", "sweep", "verify", ["Stale evidence as current"],
+        {"code": 0, "scripts": 1, "ledger": True,
+         "messages": ["1 of 1 verified plans stale", "script `{}` edited since it ran".format(PAIRED)]})
+def s01(p):
+    verified(p)
+    p.edit(PAIRED, lambda text: text + "# tidied\n")
+    outcome = sweep(p, "stale")
+    outcome["scripts"] = sum(line.startswith("- script ") for line in outcome["text"].splitlines())
+    found = re.search(r"findings: `rg -n '([^']+)' \.living/findings/`", outcome["text"])
+    with open(p.path(".living", "findings", "vaccine-response.md"), encoding="utf-8") as handle:
+        ledger = [line for line in handle if line.startswith("| 2026-")]  # F-001's Evidence Ledger row
+    outcome["ledger"] = bool(found and ledger and re.search(found.group(1), ledger[0]))
+    return outcome
+
+
+@defect("S-02", "sweep", "verify", ["Outputs and reporting"], {"code": 0, "manifest": "not listed"})
+def s02(p):
+    verified(p)
+    p.edit("analysis/ANALYSIS_MANIFEST.md", lambda text: text.split("### vaccine-response")[0])
+    outcome = sweep(p, "status", "--json")
+    rows = json.loads(outcome["text"]) if outcome["code"] == 0 else []
+    outcome["manifest"] = rows[0]["manifest"] if len(rows) == 1 else rows
+    return outcome
+
+
+@defect("S-03", "sweep", "verify", ["Stale evidence as current"],
+        {"code": 0, "messages": ["1 of 1 verified plans stale", "summary.tsv", "deleted"]})
+def s03(p):
+    verified(p)
+    os.remove(p.path(SUMMARY))
+    return sweep(p, "stale")
+
+
+@defect("M-01", "memory", "decision-status", ["Redoing settled work"],
+        {"code": 0, "dates": ["2026-03-02", "2026-05-10", "2026-07-15"], "names_current": False,
+         "messages": ["Raw fields only: no status is inferred", "status: confirmed", "status: held"]})
+def m01(p):
+    code, out, err = p.stdin_skill("decision-status", "decision_threads.py", "--living-dir .living --term normalisation")
+    dates = [d for d in ("2026-03-02", "2026-04-01", "2026-04-20", "2026-05-10", "2026-07-15") if d in out]
+    return {"code": code, "text": out + err, "dates": dates, "names_current": "current" in out.lower()}
 
 
 def by_id(id):

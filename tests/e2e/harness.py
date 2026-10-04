@@ -297,6 +297,7 @@ class Project(object):
         {stdout, stderr, interrupted, isImage}, no exit code. Failure: PostToolUseFailure with
         `error` = "Exit code N\\n<stderr>", sent only if hooks.json registers that event.
         response="legacy": PostToolUse with {stdout, stderr, exit_code} whatever the result.
+        response="bare": PostToolUse's tool_response with no hook_event_name, as an older host sends.
         `effect(project)` stands in for a command the sandbox cannot run; it returns stdout.
         """
         before = len(self.receipts())
@@ -318,6 +319,9 @@ class Project(object):
         if response == "legacy":
             name = "PostToolUse"
             payload = {"tool_response": {"stdout": out, "stderr": err, "exit_code": code}}
+        elif response == "bare":
+            name = "PostToolUse"
+            payload = {"tool_response": {"stdout": out, "stderr": err}}
         elif code == 0:
             name = "PostToolUse"
             payload = {"tool_response": {"stdout": out, "stderr": err, "interrupted": False, "isImage": False}}
@@ -325,7 +329,8 @@ class Project(object):
             name = "PostToolUseFailure"
             payload = {"error": "Exit code {}\n{}".format(code, (err or out).strip()), "is_interrupt": False,
                        "duration_ms": int((time.time() - started) * 1000)}
-        payload.update({"tool_name": "Bash", "tool_input": tool_input, "hook_event_name": name})
+        payload.update({"tool_name": "Bash", "tool_input": tool_input,
+                        "hook_event_name": None if response == "bare" else name})
         entry = self.events.get(name)
         post = self.hook(entry, payload) if entry else None
         if entry is None:
@@ -409,12 +414,14 @@ class Project(object):
             json.dump({"session_id": self.session, "actions": actions}, handle, indent=1)
         return path
 
-    def snakemake_record(self, output, rule, inputs, shellcmd, incomplete=False, start=None, end=None):
-        """One .snakemake/metadata/<base64 name> record, in the shape test_verify.py uses."""
+    def snakemake_record(self, output, rule, inputs, shellcmd, incomplete=False, start=None, end=None,
+                         workdir=""):
+        """One <workdir>/.snakemake/metadata/<base64 name> record, in the shape test_verify.py uses;
+        `output` is relative to `workdir`, as Snakemake names it."""
         end = end or time.time()
         start = start or end - 1
         name = base64.b64encode(output.encode("utf-8")).decode("ascii")
-        folder = self.path(".snakemake", "metadata")
+        folder = self.path(workdir, ".snakemake", "metadata")
         if not os.path.isdir(folder):
             os.makedirs(folder)
         record = {"rule": rule, "input": inputs, "shellcmd": shellcmd, "incomplete": incomplete,
