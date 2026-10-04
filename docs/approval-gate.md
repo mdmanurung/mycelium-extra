@@ -41,7 +41,7 @@ Approving copies the pins into the approval. Before a covered run, the gate fing
 
 ## Run receipts
 
-After each gated Bash call, a PostToolUse hook appends one line per run to `.mycelium-extra/receipts.jsonl` (schema `mycelium-extra.receipt.v1`). A receipt holds:
+After each gated Bash call, a receipt hook appends one line per run to `.mycelium-extra/receipts.jsonl` (schema `mycelium-extra.receipt.v1`). A receipt holds:
 
 - The approved plans that cover the run and their pins, or none. `pins_checked` is false for explore runs, which skip the pin check.
 - Git HEAD, whether tracked files have uncommitted changes, and whether each recorded file is committed, modified, untracked, or ignored.
@@ -49,7 +49,8 @@ After each gated Bash call, a PostToolUse hook appends one line per run to `.myc
 - Lockfiles (`renv.lock`, `pixi.lock`, `environment.yml`, and similar) in the repository root, the working directory, and the script's folder.
 - The environment the hook itself runs in (`hook_env`), and any `conda run -n` environment in the command (`command_env`).
 - For `sbatch`, the job ID. For snakemake and nextflow, the Snakefile or pipeline, config and params fingerprints, report and trace paths, the nextflow run name, and a pointer to the engine's own record (`.snakemake/metadata`, `.nextflow/history`).
-- The exit status when Claude Code reports one, and the key names of its Bash result (`response_keys`).
+- The exit status and where it came from (`exit_source`), and the key names of the Bash result (`response_keys`). The hook is registered for both `PostToolUse` and `PostToolUseFailure` (matcher Bash). Claude Code fires `PostToolUse` only after a command succeeds, so that receipt records 0 with `exit_source` `event`; a command started with `run_in_background` has only started, so it is `unknown` (`background`). A failed command fires `PostToolUseFailure`: the receipt records N from the error's first line `Exit code N` (`exit_source` `error`), `failed` when there is no such line (the shell did not start, or a timeout), or `interrupted`. An exit code in the tool result itself always wins (`exit_source` `response`). Only the error's first line is kept (`error_line`, at most 200 characters), never the command's output. A payload without an event name is `unknown`.
+- For `sbatch --wrap`, the payload's scripts resolved against `-D`/`--chdir` (`paths`), and that folder (`job_cwd`).
 
 Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip Mycelium's Stop hook. `verify` copies a plan's receipts into the analysis folder after you confirm.
 
@@ -79,5 +80,6 @@ Type `hints on` to get a one-line suggestion of the command to run next; `hints 
 - Size-and-mtime and folder fingerprints miss an edit that keeps both (for example `cp -p` or `rsync -t`). The notice says which fingerprint each input got.
 - A receipt records the environment a job declares, not the one it resolved. `hook_env` is Claude Code's environment, not the job's.
 - A job ID records a submission, not its outcome. Check `sacct` or the job log.
-- The shape of Claude Code's Bash result is not documented, so `exit_status` can be empty. Whether the receipt hook fires after a failed command is unverified.
-- Claude Code only; there is no Codex port yet.
+- The exit status is inferred from which hook event fired, not read from the command. `verify` reports a nonzero, `failed`, or `interrupted` run as a failure, and an `unknown` status (or an empty one in older receipts) as a gap.
+- A Snakemake rule's inputs can still be counted as runs (roadmap E3b).
+- Claude Code only; there is no Codex port yet. The Codex manifest registers no hooks, so runs under Codex have no approvals or receipts, and `verify` cannot check them.

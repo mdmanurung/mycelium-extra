@@ -8,11 +8,22 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 - MIT `LICENSE`, named in both plugin manifests.
 - `CHANGELOG.md`; a version bump now adds an entry here.
+- Gate: the receipt hook also runs on `PostToolUseFailure`, so a failed command leaves a receipt with its exit code (`Exit code N`), `failed`, or `interrupted`; receipts gain `exit_source`, `error_line`, and `background`.
+- `data-contract-check`: reads the `obs` of an `.h5ad` file through h5py (a gap without it); `batch_confounding` prints the batch-by-contrast table on every run and takes an optional `max_share` warning; exit 3 means a gap with nothing blocking.
+- `plan-review` and `verify`: an advisory check that names each plan row whose `default:` has no reason, a reason under three words, or only an empty phrase such as `standard`.
+- Tests: an end-to-end fixture project (`tests/fixtures/mycelium-project/`, simulated data and its generator) and a harness that replays the gate's hooks through a full grill-approve-run-verify chain.
 
 ### Changed
 
+- `verify`: a run's exit 0 is taken from the hook event, so an ordinary run conforms; an `unknown` exit status is a gap; a run under Codex is stated to be unreceipted.
 - The README is a landing page; skill, gate, Mycelium, and development details moved to `docs/`.
 - The README summary table says that `plan-review` sends a packet to Codex and Biomni after you agree.
+
+### Fixed
+
+- Gate: a state-folder name that only reaches written text (`os.path.join(x, '.mycelium-extra')` passed to `.write()`, a `sed -i` script word) no longer denies the command; Python the running interpreter cannot parse is scanned token by token before the any-mention rule.
+- Gate: `sbatch -D`/`--chdir` with `--wrap` resolves the payload's scripts against that folder, and the folder is no longer read as a gated path.
+- Tests: the verify and gate tests hide the host's conda and virtualenv variables and `~/.conda`.
 
 ## [0.9.29] - 2026-10-04
 

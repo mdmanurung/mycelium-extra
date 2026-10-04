@@ -48,7 +48,6 @@ Ask the user to pick from "Open items" (suggested: pip packages inside conda env
 
 ## Open items
 - pip packages inside conda envs not recorded; snakemake `--use-conda` rule envs not recorded.
-- Remaining gate false positives: a bare state-folder literal in `os.path.join(x, '.mycelium-extra')`; a backtick-quoted folder name inside a `sed -i`/`echo` argument; a Python heredoc using 3.8+ syntax fails `ast.parse` on 3.6 and falls back to the any-mention rule.
 - Untested in real use: `hints`, `harden`, `verify stale/status/explore`, R scilintr CLI, R-kernel notebooks and `.Rmd` R chunks (no Rscript here).
 - Parked chunk-lint cases: document-level `execute: eval: false`, `child=` docs, `knitr::read_chunk`, `{r engine=...}` — revisit if a real repo uses them.
-- Known receipt gaps: `sbatch --chdir` + `--wrap` resolves against hook cwd; a Snakemake rule input counts as a run; Bash `tool_response` is a string (no exit status); Codex runs unreceipted.
+- Known receipt gap: a Snakemake rule input counts as a run (roadmap E3b). Exit status now comes from the hook event (`PostToolUse` or `PostToolUseFailure`); Codex runs are unreceipted by design (no hooks in the Codex manifest).

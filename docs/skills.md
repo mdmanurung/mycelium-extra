@@ -53,7 +53,7 @@ It checks a plan's assumptions about the sample table before anything runs. The 
 - complete pairing across timepoints
 - batch versus contrast nesting
 
-A stdlib checker reports each mismatch with expected, observed, and evidence lines, in the shape of ClawBio's contract alerts. The checker, not the contract, decides what blocks: any failure of these kinds blocks. The skill never loosens a contract to make it pass without your agreement. v1 reads CSV/TSV tables; it does not yet check h5ad internals.
+A stdlib checker reports each mismatch with expected, observed, and evidence lines, in the shape of ClawBio's contract alerts. The checker, not the contract, decides what blocks: any failure of these kinds blocks. The skill never loosens a contract to make it pass without your agreement. It reads CSV/TSV tables and the `obs` of an `.h5ad` file (through h5py when it is installed; without h5py, a gap). A `batch_confounding` check prints the batch-by-contrast table on every run and can warn, with `max_share`, when one batch holds too large a share of a contrast level.
 
 ## init
 
