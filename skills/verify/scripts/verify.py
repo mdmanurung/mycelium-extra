@@ -26,6 +26,7 @@ import glob
 import io
 import json
 import os
+import pickletools
 import re
 import shlex
 import shutil
@@ -151,6 +152,35 @@ def decode_name(encoded):
     return None
 
 
+def pickle_strings(blob):
+    """The string constants in a pickle, read with pickletools: nothing in it is executed."""
+    found = []
+    try:
+        for _, arg, _ in pickletools.genops(blob):
+            if isinstance(arg, str):
+                found.append(arg)
+            elif isinstance(arg, bytes) and arg[:1] == b"\x80":  # a nested code object's pickle
+                found.extend(pickle_strings(arg))
+    except (ValueError, RecursionError):  # co_code bytes, a truncated or crafted pickle: keep what was read
+        pass
+    return found
+
+
+def code_text(code):
+    """A Snakemake record's `code` as text that names the rule's script. Snakemake 9 stores
+    the rule source (`script: "x.py"`) or nothing; before 9 it is base64 of a pickled code
+    object, whose string constants hold the `script:`/`notebook:` path as written."""
+    if not isinstance(code, str):
+        return ""
+    try:
+        blob = base64.b64decode(code.encode("ascii"), validate=True)
+    except (ValueError, UnicodeError):
+        return code
+    # ponytail: the path is relative to the Snakefile's folder, which the record does not
+    # name, so it matches only when that is the workdir (new-analysis's run.sh `cd`s there).
+    return "\n".join([code] + pickle_strings(blob)) if blob[:1] == b"\x80" else code
+
+
 def snakemake_records(folders, since):
     """Snakemake's per-output records (rule, start, end, command) written since `since`."""
     records = []
@@ -169,16 +199,15 @@ def snakemake_records(folders, since):
                 path = decode_name(os.path.relpath(full, meta).replace(os.sep, ""))
                 if path is None:
                     continue
-                inputs = data.get("input") or []
                 records.append({
                     "path": os.path.normpath(path if os.path.isabs(path) else os.path.join(workdir, path)),
                     "rule": data.get("rule"),
                     "start": float(data.get("starttime") or 0),
                     "end": float(data.get("endtime") or 0),
                     "incomplete": data.get("incomplete") in (True, "True", "true"),
-                    # The step script is an input (`{input.script}`) and appears in the expanded command.
-                    "command": "\n".join([data.get("shellcmd") or "", data.get("code") or ""]
-                                         + [str(i) for i in (inputs if isinstance(inputs, list) else [inputs])]),
+                    # Not `input`: an input is read, not run. A `{input.script}` step is in the expanded
+                    # shellcmd; a `script:`/`notebook:` path is in `code`.
+                    "command": "\n".join([data.get("shellcmd") or "", code_text(data.get("code"))]),
                     "workdir": workdir,
                 })
     return records

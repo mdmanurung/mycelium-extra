@@ -81,7 +81,7 @@ After you confirm, `verify` writes `<analysis>/provenance/`: the frozen plan, it
 
 `verify status` is an on-request overview: one row per approved or verified plan, with its analysis folder, runs, verify status, staleness, the lint verify recorded (a missing or unreadable linter shows as a gap, never `clean`), and the folder's `ANALYSIS_MANIFEST.md` entry (`listed: <first status word>`, `listed`, or `not listed`). It reads Mycelium's YAML `status:`, `**Status**:` lines, and a table's Status cell. No hook runs it.
 
-verify was first run on real receipts on 2026-10-02 (42 receipts, three plans, Rscript, sbatch, and Snakemake runs). Four bugs it showed are fixed. One limit remains: an output is tied to a run by time, and a planned script that is only a Snakemake rule's input (not its step script) is still counted as run in that rule.
+verify was first run on real receipts on 2026-10-02 (42 receipts, three plans, Rscript, sbatch, and Snakemake runs). Four bugs it showed are fixed. One limit remains: an output is tied to a run by time.
 
 ## new-analysis
 

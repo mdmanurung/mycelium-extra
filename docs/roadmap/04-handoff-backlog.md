@@ -41,7 +41,7 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 - **Acceptance:** a `--chdir` job's receipt names the right script path; a rule input no longer appears as a run; a successful Claude Code run records exit 0 from the event and conforms; a failed run leaves a receipt with its exit code (or `failed`/`interrupted`) and verify reports the failure; a run whose status cannot be known shows as `unknown` and verify reports a gap; the verify skill and gate docs state that runs under Codex are not receipted.
 - **Tests:** gate tests for the first three cases, including each hook payload shape (success, background, `Exit code N`, a bare failure message, an interrupt, no event name); verify tests for an event-inferred 0 (`CONFORMS`), a failure receipt (`DOES_NOT_CONFORM`), and the `unknown` status (gap and resulting `CONFORMS_WITH_GAPS`). No Codex test: (d) is documentation only.
 - **Effort:** M.
-- **Status:** partial: (c) unknown exit status, (a) sbatch --chdir with --wrap, and (d) Codex documentation done; (b) Snakemake rule inputs not done.
+- **Status:** partial: (a), (b), (c) and (d) done; the gate_diff scenarios for the E2 commands and the hook event names are not added yet.
 
 ### E4: Test features not yet used in real work
 

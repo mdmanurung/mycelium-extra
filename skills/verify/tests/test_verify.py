@@ -7,6 +7,7 @@ receipt format the gate actually writes.
 import base64
 import json
 import os
+import pickle
 import re
 import shutil
 import stat
@@ -290,11 +291,36 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("(under plan {})".format(other), out)
         self.assertIn("1 other script(s) in the analysis folder", out)  # old.py, cited only in prose
 
-    def snakemake_record(self, output, rule, start, inputs, shellcmd, folder="analysis/a"):
+    def snakemake_record(self, output, rule, start, inputs, shellcmd, folder="analysis/a", code=None):
         name = base64.urlsafe_b64encode(output.encode("utf-8")).decode("ascii")
         self.write(folder + "/.snakemake/metadata/" + name, json.dumps({
             "rule": rule, "starttime": start, "endtime": start + 1, "incomplete": False,
-            "input": inputs, "shellcmd": shellcmd, "code": None}))
+            "input": inputs, "shellcmd": shellcmd, "code": code}))
+
+    def test_snakemake_script_rules_and_inputs(self):
+        # A rule input is read, not run. A `script:` rule's path is in `code`: base64 of a pickled
+        # code object before Snakemake 9, the rule's source text in 9.x.
+        def pickle_code(code):  # Snakemake 8's persistence.pickle_code
+            consts = [(pickle_code(c) if type(c) == type(code) else c) for c in code.co_consts]
+            return pickle.dumps((code.co_code, code.co_varnames, consts, code.co_names), protocol=4)
+        scope = {}
+        exec("def run(input, output, basedir):\n    script('01_step.py', basedir, input, output)\n", scope)
+        old = base64.b64encode(pickle_code(scope["run"].__code__)).decode("ascii")
+        steps = ["analysis/a/01_step.py", "analysis/a/02_step.py", "analysis/a/03_helper.py"]
+        for path in steps:
+            self.write(path, "x\n", mtime=time.time() - 60)
+        digest = self.approve(plan(*["`{}`".format(p) for p in steps]))
+        start = time.time()
+        self.snakemake_record("outputs/1.tsv", "s01", start, ["data/in.tsv"], None, code=old)
+        self.snakemake_record("outputs/2.tsv", "s02", start, ["02_step.py"], None,
+                              code='    script: "02_step.py"\n')
+        self.snakemake_record("outputs/3.tsv", "s03", start, ["03_helper.py"],
+                              "python other.py > outputs/3.tsv")
+        out = self.verify("report", digest)
+        self.assertIn("| `analysis/a/01_step.py` | ran in Snakemake rule `s01` |", out)
+        self.assertIn("| `analysis/a/02_step.py` | ran in Snakemake rule `s02` |", out)
+        self.assertIn("| `analysis/a/03_helper.py` | no receipt |", out)
+        self.assertIn("`analysis/a/03_helper.py`: no run under this plan was recorded.", out)
 
     def test_steps_inside_a_snakemake_wrapper(self):
         # The rule shapes new-analysis generates: the step file is the `script=` or `notebook=` input,

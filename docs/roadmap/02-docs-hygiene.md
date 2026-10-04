@@ -23,7 +23,7 @@ Small corrections found while restructuring the README.
 - **Scope:** move the sentence to the changelog (A3), keeping the remaining known limit in the verify docs.
 - **Out of scope:** none.
 - **Depends on:** A3.
-- **Constraints:** the limit (outputs tied to runs by time; a Snakemake rule input counted as run) must stay in the user docs.
+- **Constraints:** the limit (outputs tied to runs by time) must stay in the user docs.
 - **Grill prompt:** not needed.
 - **Acceptance:** the user docs keep the limit and drop the dated history; the changelog has the history.
 - **Tests:** none.

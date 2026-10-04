@@ -81,5 +81,5 @@ Type `hints on` to get a one-line suggestion of the command to run next; `hints 
 - A receipt records the environment a job declares, not the one it resolved. `hook_env` is Claude Code's environment, not the job's.
 - A job ID records a submission, not its outcome. Check `sacct` or the job log.
 - The exit status is inferred from which hook event fired, not read from the command. `verify` reports a nonzero, `failed`, or `interrupted` run as a failure, and an `unknown` status (or an empty one in older receipts) as a gap.
-- A Snakemake rule's inputs can still be counted as runs (roadmap E3b).
+- `verify` credits a script to a Snakemake rule only when the rule runs it: the expanded `shell:` command, or the `script:`/`notebook:` path in the rule's `code` record. A rule input is not a run. The `script:` path is matched against Snakemake's working directory, so a Snakefile in another folder (`-s other/Snakefile`) is not matched, and Snakemake 9 releases that record only `shell:` commands leave a `script:` rule's script with `no receipt`.
 - Claude Code only; there is no Codex port yet. The Codex manifest registers no hooks, so runs under Codex have no approvals or receipts, and `verify` cannot check them.
