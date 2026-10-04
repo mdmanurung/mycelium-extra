@@ -648,6 +648,11 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             if isinstance(code, int) and code != 0:
                 row["status"] = "failed (exit {})".format(code)
                 report.add("block", "`{}` failed (exit {}) at {}.".format(path, code, when(last["ts"])))
+            elif code in ("failed", "interrupted"):  # PostToolUseFailure with no exit code, or an abort
+                row["status"] = "failed (no exit code)" if code == "failed" else "interrupted"
+                report.add("block", "`{}` {} at {}{}.".format(
+                    path, "failed without an exit code" if code == "failed" else "was interrupted",
+                    when(last["ts"]), ": " + last["error_line"] if last.get("error_line") else ""))
             elif last.get("job_id"):
                 state = (job or {}).get("state")
                 row["status"] = "job {} {}".format(last["job_id"], state or "state unknown (no sacct)")
@@ -656,8 +661,17 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                 elif state != "COMPLETED":
                     report.add("gap", "`{}`: Slurm job {} is {}; check `sacct -j {}`.".format(
                         path, last["job_id"], state or "of unknown state", last["job_id"]))
-            else:
-                row["status"] = "ran" if code == 0 else "ran (exit status not recorded)"
+            elif code == 0:
+                row["status"] = "ran (exit 0 from hook event)" if last.get("exit_source") == "event" else "ran"
+            elif last.get("background"):
+                row["status"] = "started in the background (exit status unknown)"
+                report.add("gap", "`{}` was started in the background at {}, so its exit status is not "
+                                  "known and the run is not counted as a success; check its output or "
+                                  "log.".format(path, when(last["ts"])))
+            else:  # "unknown", or None in receipts from older gates: never read as success
+                row["status"] = "ran (exit status unknown)"
+                report.add("gap", "`{}` ran at {}, but the tool response carried no exit status, so the "
+                                  "run is not counted as a success.".format(path, when(last["ts"])))
             recorded = last.get("script") or {}
             if recorded.get("path") == path and not recorded.get("missing"):
                 now = gate.fingerprint(os.path.join(root, path), budget, pin=recorded)

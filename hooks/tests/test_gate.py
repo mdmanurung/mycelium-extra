@@ -584,8 +584,54 @@ class GateTest(unittest.TestCase):
         self.assertEqual(receipt["sbatch_lines"], ["#SBATCH -p cpu", "#SBATCH --mem=8G"])
         self.assertEqual([f["path"] for f in receipt["lockfiles"]], ["renv.lock"])
         self.assertEqual(receipt["response_keys"], ["interrupted", "stderr", "stdout"])
-        self.assertIsNone(receipt["exit_status"])
+        self.assertEqual(receipt["exit_status"], "unknown")  # the submit's status, not the job's
         self.assertIsNone(receipt["git"])
+
+    def test_missing_exit_status_is_recorded_as_unknown(self):
+        self.approve()
+        for response in ({"stdout": "", "stderr": "", "interrupted": False}, "1\n", None,
+                         {"stdout": "", "exit_code": 3}, {"result": {"returncode": 0}}):
+            self.post("python analysis/x.py", response)
+        self.assertEqual([r["exit_status"] for r in self.receipts()], ["unknown", "unknown", "unknown", 3, 0])
+        self.assertEqual([r["exit_source"] for r in self.receipts()], [None, None, None, "response", "response"])
+
+    def test_exit_status_from_the_hook_event(self):
+        # PostToolUse fires only after success; PostToolUseFailure carries `Exit code N` or a bare message.
+        self.approve()
+        ok = {"stdout": "", "stderr": "", "interrupted": False}
+        shapes = [
+            ({"hook_event_name": "PostToolUse", "tool_response": ok}, 0, "event"),
+            ({"hook_event_name": "PostToolUse", "tool_response": dict(ok, exit_code=4)}, 4, "response"),
+            ({"hook_event_name": "PostToolUse", "tool_response": ok, "background": True}, "unknown", None),
+            ({"hook_event_name": "PostToolUse", "tool_response": dict(ok, backgroundTaskId="b1")}, "unknown", None),
+            ({"hook_event_name": "PostToolUse", "tool_response": dict(ok, interrupted=True)}, "interrupted", "event"),
+            ({"hook_event_name": "PostToolUseFailure", "error": "Exit code 2\nTraceback: secret " + "x" * 500},
+             2, "error"),
+            ({"hook_event_name": "PostToolUseFailure", "error": "Command timed out after 2m 0s\npartial"},
+             "failed", "event"),
+            ({"hook_event_name": "PostToolUseFailure", "error": "Exit code 0\n"}, "failed", "event"),
+            ({"hook_event_name": "PostToolUseFailure", "error": "Exit code 1\n", "is_interrupt": True},
+             "interrupted", "event"),
+            ({"hook_event_name": "PostToolUseFailure"}, "failed", "event"),
+            ({"tool_response": ok}, "unknown", None),
+            ({"hook_event_name": "SomethingElse", "tool_response": ok}, "unknown", None),
+        ]
+        for extra, _, _ in shapes:
+            tool_input = {"command": "python analysis/x.py"}
+            if extra.pop("background", False):
+                tool_input["run_in_background"] = True
+            self.hook("post", dict(extra, tool_name="Bash", tool_input=tool_input))
+        receipts = self.receipts()
+        self.assertEqual([(r["exit_status"], r["exit_source"]) for r in receipts],
+                         [(status, source) for _, status, source in shapes])
+        self.assertEqual([r.get("background") for r in receipts[2:5]], [True, True, None])
+        self.assertEqual(receipts[5]["error_line"], "Exit code 2")  # the first line only, never the output
+        self.assertNotIn("secret", json.dumps(receipts))
+        self.assertEqual(receipts[6]["error_line"], "Command timed out after 2m 0s")
+        self.assertNotIn("error_line", receipts[9])
+        self.hook("post", {"hook_event_name": "PostToolUseFailure", "tool_name": "Bash",
+                                  "tool_input": {"command": "python analysis/x.py"}, "error": "y" * 999})
+        self.assertEqual(len(self.receipts()[-1]["error_line"]), 200)
 
     def test_parsable_sbatch_and_wrap_give_one_receipt(self):
         self.approve(PLAN.replace("repo |", "repo | sbatch |"))
@@ -750,6 +796,14 @@ class CompatibilityTest(unittest.TestCase):
             manifest = json.load(handle)
         self.assertEqual(manifest.get("hooks"), {})
         self.assertTrue(os.path.isfile(os.path.join(repo, "hooks", "hooks.json")))
+
+    def test_failed_bash_runs_reach_the_post_hook(self):
+        # PostToolUse fires only on success, so a failed run is receipted from PostToolUseFailure.
+        with open(os.path.join(os.path.dirname(GATE), "hooks.json")) as handle:
+            hooks = json.load(handle)["hooks"]
+        self.assertEqual(hooks["PostToolUseFailure"], hooks["PostToolUse"])
+        self.assertEqual(hooks["PostToolUse"][0]["matcher"], "Bash")
+        self.assertIn('gate_run.py" post;', hooks["PostToolUse"][0]["hooks"][0]["command"])
 
     def test_scripts_compile_on_python_36(self):
         # Hooks call bare `python3`, which is 3.6 on some HPC systems. A SyntaxError there

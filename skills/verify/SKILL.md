@@ -31,8 +31,9 @@ It also runs scilintr on the analysis folder's code (outputs, logs, and provenan
 The report ends with `Verify status:` and one of these values:
 - `CONFORMS`
 - `CONFORMS_WITH_GAPS`: something the records cannot show, such as a run with no receipt, an unrecorded exit status, an output not tied to a run, or code scilintr could not check.
+  The gate takes a run's exit status from Claude Code's hook event: `PostToolUse` fires only after a command succeeds, so its receipt records exit 0 (`"exit_source": "event"`; the row reads `ran (exit 0 from hook event)`), and `PostToolUseFailure` gives the code from the `Exit code N` line, or `failed` or `interrupted` when there is none. A receipt with exit status `unknown` (a run started in the background, a payload without an event name) or null (from an older gate) is a gap, never a success, so a plan whose only evidence is such a run gets `CONFORMS_WITH_GAPS`. An `sbatch` receipt's exit status is the submit's; the job's state comes from `sacct`.
 - `DOES_NOT_CONFORM`: at least one of:
-  - a failed run or Slurm job
+  - a failed run (a nonzero exit, a failure with no exit code, or an interrupted run) or Slurm job
   - a planned script edited after its run
   - a pinned input that changed since the approval
   - a scilintr finding that is neither fixed nor waived

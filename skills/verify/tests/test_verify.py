@@ -7,6 +7,7 @@ receipt format the gate actually writes.
 import base64
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -126,6 +127,70 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("`python {}`".format(FIT), out)
         self.assertIn("analysis folder `analysis/a`", out)
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+
+    def test_unknown_exit_status_is_a_gap(self):
+        # Claude Code's Bash result may carry no exit status; the run is then not a success.
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        self.hook("post", {"tool_name": "Bash", "tool_input": {"command": "python " + FIT},
+                           "tool_response": {"stdout": "", "stderr": "", "interrupted": False}})
+        receipts = gate.state_path(self.root, "receipts.jsonl")
+        with open(receipts) as handle:
+            receipt = json.loads(handle.readlines()[-1])
+        self.assertEqual(receipt["exit_status"], "unknown")
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        out = self.verify("report", digest)
+        self.assertIn("| `{}` | ran (exit status unknown) |".format(FIT), out)
+        self.assertIn("carried no exit status, so the run is not counted as a success", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+        with open(receipts, "a") as handle:  # older gates wrote null
+            handle.write(json.dumps(dict(receipt, exit_status=None, ts=receipt["ts"] + 0.01)) + "\n")
+        out = self.verify("report", digest)
+        self.assertIn("| `{}` | ran (exit status unknown) |".format(FIT), out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+        self.run_cmd("python " + FIT)  # a later run that reports exit 0 conforms
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=time.time())
+        self.assertTrue(self.verify("report", digest).rstrip().endswith("Verify status: CONFORMS"))
+
+    def test_exit_status_from_the_hook_event(self):
+        # PostToolUse fires only after success: an event-inferred 0 conforms.
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        command = {"command": "python " + FIT}
+        ok = {"stdout": "", "stderr": "", "interrupted": False}
+        self.hook("post", {"hook_event_name": "PostToolUse", "tool_name": "Bash", "tool_input": command,
+                           "tool_response": ok})
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=time.time())
+        out = self.verify("report", digest)
+        self.assertIn("| `{}` | ran (exit 0 from hook event) |".format(FIT), out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+        # PostToolUseFailure: the same finding as a failed run with an exit code.
+        self.hook("post", {"hook_event_name": "PostToolUseFailure", "tool_name": "Bash", "tool_input": command,
+                           "error": "Exit code 2\nTraceback ..."})
+        out = self.verify("report", digest)
+        self.assertIn("| `{}` | failed (exit 2) |".format(FIT), out)
+        self.assertIn("`{}` failed (exit 2) at".format(FIT), out)
+        self.assertTrue(out.rstrip().endswith("Verify status: DOES_NOT_CONFORM"), out)
+        for extra, row, finding in (
+                ({"error": "Command timed out after 2m 0s"}, "failed (no exit code)",
+                 "failed without an exit code at {}: Command timed out after 2m 0s"),
+                ({"error": "Exit code 130", "is_interrupt": True}, "interrupted", "was interrupted at {}")):
+            self.hook("post", dict(extra, hook_event_name="PostToolUseFailure", tool_name="Bash",
+                                   tool_input=command))
+            out = self.verify("report", digest)
+            self.assertIn("| `{}` | {} |".format(FIT, row), out)
+            self.assertRegex(out, re.escape("`{}` ".format(FIT)) + finding.format(".*"))
+            self.assertTrue(out.rstrip().endswith("Verify status: DOES_NOT_CONFORM"), out)
+        # A background start or a payload with no event name is unknown: a gap, not a success.
+        self.hook("post", {"hook_event_name": "PostToolUse", "tool_name": "Bash", "tool_response": ok,
+                           "tool_input": dict(command, run_in_background=True)})
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=time.time())
+        out = self.verify("report", digest)
+        self.assertIn("| `{}` | started in the background (exit status unknown) |".format(FIT), out)
+        self.assertIn("so its exit status is not known", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+        self.hook("post", {"tool_name": "Bash", "tool_input": command, "tool_response": ok})
+        out = self.verify("report", digest)
+        self.assertIn("| `{}` | ran (exit status unknown) |".format(FIT), out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
 
     def test_output_never_repeats_the_plan_status_line(self):
         digest = self.approve(plan("run `{}`".format(FIT)))

@@ -1220,6 +1220,7 @@ def on_post(event, root, config):
     runs = [run for run in runs if run[1] == "sbatch" or run[3] not in wrapped]
     response = event.get("tool_response")
     output = response_text(response)
+    status, source, extra = exit_status(event)
     approvals = active_approvals(root, config)
     budget = hash_budget(config)
     git = git_state(root)
@@ -1246,9 +1247,11 @@ def on_post(event, root, config):
             "git": git,
             "hook_env": {key: os.environ[key] for key in HOOK_ENV if os.environ.get(key)},
             "command_env": command_env(tokens),
-            "exit_status": exit_status(response),
+            "exit_status": status,
+            "exit_source": source,
             "response_keys": sorted(response) if isinstance(response, dict) else type(response).__name__,
         }
+        receipt.update(extra)
         if unread:
             receipt["approvals_unread"] = True
         receipt.update(launch_details(root, cwd, label, paths, tokens, output, budget))
@@ -1280,7 +1283,7 @@ def on_post(event, root, config):
             "Run/Session cell as {}, so `verify stale` can link the finding to its plan.".format(
                 " or ".join("`{}; plan {}`".format(event.get("session_id"), digest) for digest in planned)))
     if context:
-        result["hookSpecificOutput"] = {"hookEventName": "PostToolUse",
+        result["hookSpecificOutput"] = {"hookEventName": event.get("hook_event_name") or "PostToolUse",
                                         "additionalContext": "\n\n".join(context)}
     return result
 
@@ -1295,14 +1298,56 @@ def response_text(value):
     return ""
 
 
-def exit_status(response):
+EXIT_LINE = re.compile(r"Exit code (-?[0-9]+)\s*$")
+FAILED_LINE_MAX = 200  # the receipt keeps the error's first line only, cut to this length
+
+
+def exit_status(event):
+    """(status, source, extra receipt fields) for a Bash hook event. A missing status is never
+    read as success.
+
+    An integer exit code in the tool response wins (source "response"). Otherwise the event
+    decides: PostToolUse runs only after a tool completes successfully, so a foreground run
+    gets 0 (source "event"), but a run started with run_in_background has only started, and an
+    interrupted result was cut off. PostToolUseFailure's `error` starts with `Exit code N` when
+    the command ran and exited (source "error"); with no such line the shell did not start or
+    Claude Code stopped it ("failed"), and is_interrupt marks an abort ("interrupted"). Only
+    the error's first line is kept, never its output. Any other payload (no hook_event_name,
+    an older Claude Code or another host) is "unknown"."""
+    response = event.get("tool_response")
+    found = exit_code_in(response)
+    if found is not None:
+        return found, "response", {}
+    name = event.get("hook_event_name")
+    if name == "PostToolUse":
+        tool_input = event.get("tool_input") or {}
+        if tool_input.get("run_in_background") is True or (
+                isinstance(response, dict) and response.get("backgroundTaskId")):
+            return "unknown", None, {"background": True}
+        if isinstance(response, dict) and response.get("interrupted") is True:
+            return "interrupted", "event", {}
+        return 0, "event", {}
+    if name == "PostToolUseFailure":
+        error = event.get("error")
+        first = error.strip().split("\n", 1)[0].strip() if isinstance(error, str) else ""
+        extra = {"error_line": first[:FAILED_LINE_MAX]} if first else {}
+        if event.get("is_interrupt") is True:
+            return "interrupted", "event", extra
+        match = EXIT_LINE.match(first)
+        if match and int(match.group(1)) != 0:  # a failure event is never read as success
+            return int(match.group(1)), "error", extra
+        return "failed", "event", extra
+    return "unknown", None, {}
+
+
+def exit_code_in(response):
     """Best effort: Claude Code's Bash result shape is not documented."""
     if isinstance(response, dict):
         for key in ("exit_code", "exitCode", "return_code", "returncode"):
             if isinstance(response.get(key), int):
                 return response[key]
         for value in response.values():
-            found = exit_status(value) if isinstance(value, dict) else None
+            found = exit_code_in(value) if isinstance(value, dict) else None
             if found is not None:
                 return found
     return None

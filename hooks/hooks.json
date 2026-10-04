@@ -35,6 +35,18 @@
         ]
       }
     ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/gate_run.py\" post; fi",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
