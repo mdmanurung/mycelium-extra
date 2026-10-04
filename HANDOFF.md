@@ -14,7 +14,7 @@ Work the roadmap the series adds, starting with C1 steps 3–5. Done = `ablate.p
 - `gate_diff.py --base 3a11123`: 124/148 identical, all 24 differences receipt state (`exit_source`, `exit_status: null` → `"unknown"`, `sbatch --wrap` paths). Zero non-`(state)` FAILs.
 - Uncommitted: `mycelium-extra-improvements/` only, untracked on purpose — a staging folder, not part of the change.
 - `stash@{0}` ("session handoff (pre-series)", on main) holds the pre-series handoff. Everything in it is carried forward; it can be dropped. Do not `git stash pop` — it conflicts with the series' HANDOFF edits.
-- Installed plugin is still 0.9.28 (user scope). The `mycelium-extra` marketplace is the **folder** `/exports/para-lipg-hpc/mdmanurung/mycelium-extra`, not GitHub, so staying local does not block the update. To pick up 0.9.31: `claude plugin marketplace update mycelium-extra`, `claude plugin update mycelium-extra@mycelium-extra`, restart.
+- Installed plugin updated 0.9.28 → 0.9.31 (user scope, 2026-10-04); it needs a Claude Code restart to take effect, so a session started before that still runs 0.9.28. The `mycelium-extra` marketplace is the **folder** `/exports/para-lipg-hpc/mdmanurung/mycelium-extra`, not GitHub, so staying local never blocks an update: `claude plugin marketplace update mycelium-extra`, `claude plugin update mycelium-extra@mycelium-extra`, restart.
 - The gate is on here and blocked nothing this session.
 
 ## Locked decisions
