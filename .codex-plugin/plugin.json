@@ -5,6 +5,7 @@
   "author": {
     "name": "Mikhael Manurung"
   },
+  "license": "MIT",
   "keywords": ["research", "analysis", "planning", "scoping"],
   "skills": "./skills/",
   "hooks": {},

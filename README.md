@@ -102,3 +102,7 @@ A typical analysis task, in order:
 - [docs/development.md](docs/development.md) — tests, the gate-diff rule, Python 3.6 compatibility, version bumps.
 
 The gate catches mistakes; it is not security. Read the full [limits](docs/approval-gate.md#limits) before relying on it.
+
+## License
+
+MIT, see [LICENSE](LICENSE). `skills/new-analysis/templates/analysis-readme.md` is copied from Mycelium and keeps Mycelium's MIT notice in [MYCELIUM_LICENSE](skills/new-analysis/templates/MYCELIUM_LICENSE).
