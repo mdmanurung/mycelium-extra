@@ -1,53 +1,62 @@
-# Handoff — mycelium-extra feature work
+# Handoff — mycelium-extra: the series is on `main`; the four decisions are answered
 
-**Date:** 2026-10-04 · **Branch:** main @ 6f2eddb · **Status:** v0.9.28 committed and installed (.qmd/.Rmd chunk lint); next item not chosen.
+**Date:** 2026-10-04 · **Branch:** `main` = `improvements` @ bb136e1 (v0.9.31) · **Status:** the 24-patch series plus one name fix are landed locally and green. Nothing pushed, tagged, or sent to `gh`.
 
 ## Goal
-Grow mycelium-extra so that it complements Mycelium without overriding it. Each feature is grilled (`/mycelium-extra:grill`), approved, built with tests, then committed as `feat`/`fix` + `chore: bump version`.
+Work the roadmap the series adds, starting with C1 steps 3–5. Done = `ablate.py` exists and the catalog tests run.
 
 ## Next action
-Ask the user to pick from "Open items" (suggested: pip packages inside conda envs, ~20 min), then run `/mycelium-extra:grill <item>`.
+`mycelium-extra-improvements/IMPLEMENTATION-MAP.md` → C1 step 3 (defect layers). It is the keystone: A2, A6, C3, D1, D4 and E4 all wait on it.
 
 ## State
-- Uncommitted: only this file (never committed; that's the user's call).
-- Tests: all pass on Python 3.6.8 and 3.12. Run `python3 hooks/tests/test_gate.py` and each `skills/*/tests/test_*.py` by name (the gate approves named paths, not globs); run `python3 hooks/tests/gate_diff.py` before and after touching gate.py (differences must be notice text only).
-- Installed plugin: 0.9.28 (user scope); restart needed to load it. After a bump: `claude plugin marketplace update mycelium-extra`, then `claude plugin update mycelium-extra@mycelium-extra`, then restart.
-- The gate is on in this repo: test runs need an approved plan naming the test files (approvals last 24 h).
-- scilintr 0.1.2 probe venv lives in this session's scratchpad (volatile): `python3.12 -m venv X && X/bin/pip install scilintr`. It lints `.py` only (`_engine.py:125`).
-
-## Shipped this round
-- 0.9.16–24: ledger plan hash, `verify status`, notebook lint, conda snapshot, approval card, `verify explore` (see `git log`).
-- 0.9.25–26 gate false positives (e39b83d, aa12019); 0.9.27 `.py` parse gap (e511d00).
-- 0.9.28 `.qmd`/`.Rmd` r/python chunk lint (ea0d247): `chunk_code()` blanks non-chunk lines so findings cite the document line.
+- `main` and `improvements` both point at bb136e1. `origin/main` is still 3a11123 (v0.9.28) — nothing was pushed.
+- All 12 test files pass on Python 3.6.8. Skips: 7 in `test_data_contract_check.py` (no h5py), 1 in `test_new_analysis.py` (`test_r_stub_fails_loudly`, no Rscript). `test_gate.py` is 102/102. The last commit is docs only and no test reads `LICENSE`, so the suite was not re-run after it.
+- `gate_diff.py --base 3a11123`: 124/148 identical, all 24 differences receipt state (`exit_source`, `exit_status: null` → `"unknown"`, `sbatch --wrap` paths). Zero non-`(state)` FAILs.
+- Uncommitted: `mycelium-extra-improvements/` only, untracked on purpose — a staging folder, not part of the change.
+- `stash@{0}` ("session handoff (pre-series)", on main) holds the pre-series handoff. Everything in it is carried forward; it can be dropped. Do not `git stash pop` — it conflicts with the series' HANDOFF edits.
+- Installed plugin is still 0.9.28 (user scope). To pick up 0.9.31: `claude plugin marketplace update mycelium-extra`, `claude plugin update mycelium-extra@mycelium-extra`, restart.
+- The gate is on here and blocked nothing this session.
 
 ## Locked decisions
-- Handoff goes to root `HANDOFF.md`, not `.mycelium/last-session.md` (Mycelium's Stop hook republishes that) (user, 2026-10-03).
-- Hints are off by default, per repository (user, 2026-10-03).
+- **A missing exit status is a gap, for both `"unknown"` and old `null` receipts** — no code change; the `else` at `verify.py:689-692` keeps covering both, and `test_verify.py:131` stays as written. The 3a11123 gate read the exit code from the tool response alone, with no background or interrupt flag, so a `null` cannot tell "finished OK" from "only started" or "cut off" (default, 2026-10-04).
+- **Tags: deferred, not created.** `notes/docs.md` now carries all 16 commands. Its v0.9.29 sha was wrong — `1db67c1` never existed outside a deleted scratch clone; the real bump is `4f5ab08`, whose subject is just "chore: bump version". v0.9.30 = `49f9154`, v0.9.31 = `573fbdb`. `main` fast-forwarded, so all three shas are stable and the tags are safe whenever wanted (user, 2026-10-04).
+- **Stay local.** No push, no `git push --tags`, no `gh repo edit` (the description/topics line in `APPLY.md` decision 3 is unrun). The `keep-mycelium-extra-local` memory now says what it meant: no upstream Mycelium issues or PRs; push their own repo only on request (user, 2026-10-04).
+- **Name: "Mikhael Manurung"** everywhere — the manifests' spelling won, so `LICENSE` and `docs/roadmap/01-packaging.md` changed and no version bump was needed (user, 2026-10-04).
+- Handoff goes to root `HANDOFF.md`, not `.mycelium/last-session.md` (user, 2026-10-03).
+- Hints off by default, per repository (user, 2026-10-03).
 - Remaining scilintr findings block verify; a missing, timed-out, unreadable or unparseable check is a gap, never clean (user, 2026-10-03).
 - `harden` ships test files only (user, 2026-10-03).
 - Dropped: gating Biomni/ToolUniverse MCP calls; verify reading ClawBio checksums (user, 2026-10-03).
 - Don't prune approvals; approval-scan timeout denies; keep `GIT_OPTIONAL_LOCKS=0` and `not_a_run` receipts (user, 2026-10-01/02).
-- Manifest column = `listed: <first status word>` / `listed` / `not listed`, matched by folder path or heading (user, 2026-10-03).
-- Hook notices (`systemMessage`) are plain text: no markdown; card layout "B" (user, 2026-10-03).
+- Manifest column = `listed: <first status word>` / `listed` / `not listed`, by folder path or heading (user, 2026-10-03).
+- Hook notices (`systemMessage`) are plain text, no markdown; card layout "B" (user, 2026-10-03).
 - `.qmd`/`.Rmd` findings cite the document's own line, not `[chunk N]` (user, 2026-10-04).
 - `eval=FALSE` chunks are linted; display blocks, other engines, inline `` `r x` `` are not (default, 2026-10-04).
 - Explore outputs are never promoted to results; promotion = re-run under a new plan (default, 2026-10-03).
-- Conda env read from `conda-meta`, not by running conda; only `conda-lock.yml` suppresses it; session `CONDA_PREFIX` only when a run declares no env (default, 2026-10-03).
+- Conda env read from `conda-meta`, never by running conda; only `conda-lock.yml` suppresses it (default, 2026-10-03).
+- verify's separator is ASCII ` - `, not `·`: the `PROVENANCE.md` row is split on `|`, so old files still parse and `|` would break the table (default, 2026-10-04).
 
 ## Dead ends — do not redo
-- Perf: `.pyc` launcher, `python3 -S`, `$PWD` probe, gate daemon, rewriting `tokenize()` (measured, 2026-10-01). Box loadavg ~30: use paired A/B medians only.
+- Perf: `.pyc` launcher, `python3 -S`, `$PWD` probe, gate daemon, rewriting `tokenize()` (measured, 2026-10-01). Box loadavg ~30: paired A/B medians only.
 - A mycelium-extra SessionStart message: competes with Mycelium's "SESSION RESUME" (`mycelium-health.sh:482`).
 - Treating scilintr exit 0 as clean: it exits 0, silent, on a missing path, `.R`, `.ipynb`, `.qmd`, and code that does not parse.
 - Running `conda list --explicit`: conda is not on PATH here.
+- Testing the locale bug on Python ≥ 3.7: PEP 538 coerces the C locale to UTF-8 and hides it. Use a real 3.6 interpreter.
+- `git format-patch -N <commit>`: exports the N commits **ending at** that commit. Use `A..B` with `--start-number`.
+- `gate_diff.py --base 1db67c1` (cited in `APPLY.md`): that commit lived only in a deleted scratch clone. Use `--base 3a11123`.
+- `git switch main` with `HANDOFF.md` dirty: refused, because series commits touch it. `git fetch . improvements:main` fast-forwards `main` without switching and refuses anything that is not a fast-forward.
 
 ## Read first
-- `docs/development.md:5`: dev, test and version-bump rules (3 manifests; Python 3.6-compatible code).
-- `hooks/gate.py`: `approval_card`, `on_stop`, `on_tool`, `on_post`.
-- `skills/verify/scripts/verify.py`: `lint()`, `chunk_code()`, `notebook_code()`, `conda_snapshots()`, `status()`, `explore_runs()`, `check()`, `write()`.
+- `mycelium-extra-improvements/IMPLEMENTATION-MAP.md` — the 33 remaining tasks and the build order.
+- `mycelium-extra-improvements/APPLY.md` — "Not done yet" and the maintainer decisions, at the end.
+- `docs/development.md:5` — dev, test and version-bump rules (3 manifests; Python 3.6-compatible code).
+- `hooks/gate.py`: `approval_card`, `on_stop`, `on_tool`, `on_post`. `skills/verify/scripts/verify.py`: `lint()`, `chunk_code()`, `status()`, `check()`, `write()`.
 - Memory: `backlog-2026-10`, `complement-mycelium-not-override`, `keep-mycelium-extra-local`, `show-layout-options`.
 
 ## Open items
-- pip packages inside conda envs not recorded; snakemake `--use-conda` rule envs not recorded.
-- Untested in real use: `hints`, `harden`, `verify stale/status/explore`, R scilintr CLI, R-kernel notebooks and `.Rmd` R chunks (no Rscript here).
-- Parked chunk-lint cases: document-level `execute: eval: false`, `child=` docs, `knitr::read_chunk`, `{r engine=...}` — revisit if a real repo uses them.
-- Known receipt gap: a Snakemake rule input counts as a run (roadmap E3b). Exit status now comes from the hook event (`PostToolUse` or `PostToolUseFailure`); Codex runs are unreceipted by design (no hooks in the Codex manifest).
+- **C1 steps 3–5** (defect layers, catalog tests, `ablate.py`): the keystone. Add the known-miss case from `APPLY.md`: with output times not spaced, verify credits an output to the wrong run of the same plan and still says CONFORMS.
+- **Finish the encoding sweep:** ~40 other `open()` calls in `gate.py`, `verify.py`, `gate_init.py`, `data_contract_check.py` still take the locale's encoding. `gate.py` changes need `gate_diff.py` before and after, so it is its own task.
+- **E3b:** a Snakemake rule's inputs still count as runs. Design in `mycelium-extra-improvements/notes/e3-v1.md` (decode `script:` targets with `pickletools`, no unpickling).
+- **B2:** move the dated verify history to the changelog. No longer blocked.
+- Unrecorded: pip packages inside conda envs; snakemake `--use-conda` rule envs. `sbatch -o/-e/-i` values under gated paths are probably denied wrongly.
+- Untested in real use: `hints`, `harden`, `verify stale/status/explore`, R scilintr CLI, R-kernel notebooks and `.Rmd` R chunks (no Rscript here); D6's h5ad path (no h5py here). Parked chunk-lint cases: document-level `execute: eval: false`, `child=`, `knitr::read_chunk`, `{r engine=...}`.
