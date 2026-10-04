@@ -4,6 +4,12 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.9.33] - 2026-10-05
+
+### Fixed
+
+- `verify` no longer counts a Snakemake rule's inputs as runs (roadmap E3b). A planned script that a rule only reads now shows `no receipt`, a gap. A rule is credited with the scripts in its expanded `shell:` command and with its `script:`/`notebook:` path, read from the record's `code`: the rule source in later 9.x releases (checked on records written by 9.27), or the string constants of the pickled code object before 9, read with `pickletools` and never unpickled. Early 9.x releases record only `shell:` commands, so a `script:` rule's script there shows `no receipt`.
+
 ## [0.9.32] - 2026-10-04
 
 ### Fixed
