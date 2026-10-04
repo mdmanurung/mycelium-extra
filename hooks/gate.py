@@ -553,7 +553,7 @@ def writes_state(command, root, cwd):
             path = os.path.realpath(os.path.join(virtual_cwd, os.path.expanduser(token)))
             return path == state or path.startswith(state + os.sep)
 
-        if segment_writes(tokens, own, inside, root, virtual_cwd):
+        if segment_writes(tokens, own, command, inside, root, virtual_cwd):
             return True
     return False
 
@@ -609,7 +609,7 @@ def binds_state(tokens):
     return False
 
 
-def segment_writes(tokens, bodies, inside, root, cwd):
+def segment_writes(tokens, bodies, command, inside, root, cwd):
     for j, token in enumerate(tokens[:-1]):
         if token in (">", ">>") and inside(tokens[j + 1]):
             return True
@@ -656,6 +656,8 @@ def segment_writes(tokens, bodies, inside, root, cwd):
     if RUNNERS.match(head):
         if any(inside(t) for t in positional + stdin):
             return True
+        if not (code or bodies or positional or stdin):  # code piped in from another segment
+            return WRITE_CODE.search(command) is not None
         return any(names_state(text, root, cwd) and WRITE_CODE.search(text) for text in code + bodies)
     return False
 

@@ -283,6 +283,8 @@ class GateTest(unittest.TestCase):
             "python3 - <<'EOF'\nimport os\nos.remove('.mycelium-extra/gate.json')\nEOF\npython3 tools/t.py",
             "cat > /tmp/d.py <<'EOF'\nimport os\nos.remove('.mycelium-extra/gate.json')\nEOF\npython3 /tmp/d.py",
             "S=.; rm $S/.mycelium-extra/gate.json",
+            "echo \"import os; os.remove('.mycelium-extra/gate.json')\" | python3",
+            "cat <<'EOF' | python3 -\nimport os\nos.remove('.mycelium-extra/gate.json')\nEOF",
         ]:
             self.assertTrue(self.denied(self.bash(command)), command)
         for command in [
