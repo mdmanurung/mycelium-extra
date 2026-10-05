@@ -62,6 +62,8 @@ LIMITS = [
     "numbers in the text are listed, not checked, and a verified claim matches its cell, not the truth.",
     "With `snakemake --use-conda`, rules run in their own envs under `.snakemake/conda/`; the conda env "
     "recorded is the one Snakemake ran in, not the rules' envs.",
+    "Pip packages are read from the conda env's site-packages: one uninstalled after the run is not seen, "
+    "and `pip install --user` packages under `~/.local` are not read.",
 ]
 
 
@@ -586,39 +588,112 @@ def conda_env(root, receipt):
     return {"env": name, "prefix": matches[0] if len(matches) == 1 else None, "source": source}
 
 
+def pep503(name):
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def pip_packages(prefix, records):
+    """The Python packages in a conda env's site-packages that conda did not install: not in any
+    conda-meta record's files, or reinstalled since (INSTALLER is no longer conda). Returns
+    (requirement lines, unreadable folder names, number also in conda-meta, newest folder mtime)."""
+    owned = set()
+    for m in records:
+        for f in m.get("files") or []:
+            head, sep, tail = f.partition("site-packages/")
+            if sep:
+                owned.add(tail.split("/")[0])
+    conda = {pep503(m["name"]): m.get("version", "") for m in records if m.get("name")}
+    lines, unreadable, both, newest = [], [], 0, 0
+    for path in sorted(glob.glob(os.path.join(prefix, "lib", "python*", "site-packages", "*-info"))):
+        base = os.path.basename(path)
+        if not base.endswith((".dist-info", ".egg-info")):
+            continue
+        folder = os.path.isdir(path)  # an .egg-info can be a plain PKG-INFO file
+        installer = read_text(os.path.join(path, "INSTALLER")).strip() if folder else ""
+        if base in owned and installer in ("", "conda"):
+            continue
+        headers = {}
+        meta = os.path.join(path, "METADATA" if base.endswith(".dist-info") else "PKG-INFO") if folder else path
+        for line in read_text(meta).splitlines():
+            if not line.strip():
+                break
+            key, sep, value = line.partition(":")
+            if sep and key in ("Name", "Version"):
+                headers.setdefault(key, value.strip())
+        if not headers.get("Name") or not headers.get("Version"):
+            unreadable.append(base)
+            continue
+        notes = []
+        if pep503(headers["Name"]) in conda:
+            both += 1
+            notes.append("also in conda-meta as {}".format(conda[pep503(headers["Name"])]))
+        if installer not in ("", "pip"):
+            notes.append("installer: " + installer)
+        url = gate.read_json(os.path.join(path, "direct_url.json"), {}) if folder else {}
+        if url.get("url"):
+            notes.append("{}: {}".format("editable" if (url.get("dir_info") or {}).get("editable") else "from",
+                                         url["url"]))
+        lines.append("{}=={}{}".format(headers["Name"], headers["Version"],
+                                       "  # " + "; ".join(notes) if notes else ""))
+        try:
+            newest = max(newest, os.stat(path).st_mtime)
+        except OSError:
+            pass
+    return lines, unreadable, both, newest
+
+
 def conda_snapshots(root, runs, report):
     """`conda list --explicit` of each conda env the plan's runs used and no conda-lock.yml pins,
-    read from the env's conda-meta records (conda itself need not be on PATH)."""
+    read from the env's conda-meta records (conda itself need not be on PATH), and the pip packages
+    in each env, locked or not, read from its site-packages."""
     envs = collections.OrderedDict()
     for r in runs:
-        if any(os.path.basename(l.get("path", "")) == "conda-lock.yml" for l in r.get("lockfiles") or []):
-            continue
         env = conda_env(root, r)
         if env:
+            locked = any(os.path.basename(l.get("path", "")) == "conda-lock.yml" for l in r.get("lockfiles") or [])
             env = envs.setdefault(env["prefix"] or env["env"], env)
             env["last_run"] = max(env.get("last_run", 0), r.get("ts", 0))
+            env["locked"] = env.get("locked", True) and locked
     snapshots = []
     for env in envs.values():
+        locked = env.pop("locked")
         meta = os.path.join(env["prefix"] or "", "conda-meta")
         records = [gate.read_json(p, {}) for p in sorted(glob.glob(os.path.join(meta, "*.json")))]
-        urls = sorted("{}#{}".format(m["url"], m["md5"]) if m.get("md5") else m["url"]
-                      for m in records if m.get("url"))
-        if not env["prefix"] or not urls:
-            report.add("gap", "Conda env `{}` ({}) was not found, so its packages were not recorded.".format(
-                env["env"], env["source"]))
+        urls = [] if locked else sorted("{}#{}".format(m["url"], m["md5"]) if m.get("md5") else m["url"]
+                                        for m in records if m.get("url"))
+        if not env["prefix"] or not records or not (urls or locked):
+            report.add("gap", "Conda env `{}` ({}) was not found, so its {}packages were not recorded.".format(
+                env["env"], env["source"], "pip " if locked else ""))
             continue
+        pip, unreadable, both, pip_changed = pip_packages(env["prefix"], records)
+        if unreadable:
+            report.add("gap", "Conda env `{}`: {} pip package folder(s) have no readable name and version, so "
+                              "they were not recorded: {}.".format(env["env"], len(unreadable),
+                                                                   ", ".join("`{}`".format(u) for u in unreadable)))
+        pip_stale = pip_changed > env["last_run"] + TOLERANCE
+        if pip_stale:
+            report.add("gap", "Pip packages in conda env `{}` changed {}, after its last run here ({}); the "
+                              "recorded pip list is the env as it is now.".format(
+                                  env["env"], when(pip_changed), when(env["last_run"])))
+        if not urls and not pip:
+            continue  # locked, and nothing pip-installed
         try:
-            changed = os.stat(os.path.join(meta, "history")).st_mtime
+            changed = 0 if locked else os.stat(os.path.join(meta, "history")).st_mtime
         except OSError:
             changed = 0
         stale = changed > env["last_run"] + TOLERANCE
+        pip_note = "{} pip package{}{}".format(len(pip), "" if len(pip) == 1 else "s",
+                                               " ({} also in conda-meta)".format(both) if both else "")
         if stale:
             report.add("gap", "Conda env `{}` changed {}, after its last run here ({}); the recorded package "
                               "list is the env as it is now.".format(env["env"], when(changed), when(env["last_run"])))
+        elif locked:
+            report.add("info", "Conda env `{}` ({}): conda packages pinned by `conda-lock.yml`; {} recorded.".format(
+                env["env"], env["source"], pip_note))
         else:
-            report.add("info", "Conda env `{}` ({}): {} packages recorded.".format(env["env"], env["source"],
-                                                                                 len(urls)))
-        snapshots.append(dict(env, packages=urls, changed_after_run=stale))
+            report.add("info", "Conda env `{}` ({}): {} packages recorded{}.".format(
+                env["env"], env["source"], len(urls), "; " + pip_note if pip else ""))
+        snapshots.append(dict(env, packages=urls, changed_after_run=stale, pip=pip, pip_changed_after_run=pip_stale))
     return snapshots
 
 
@@ -1236,17 +1311,28 @@ def write(root, result):
     paths = {"plan": "plan-{}.md".format(digest), "receipts": "receipts-{}.jsonl".format(digest),
              "outputs": "outputs-{}.tsv".format(digest), "report": "verify-{}.md".format(digest),
              "lint": "lint-{}.txt".format(digest)}
-    if result.get("envs"):
+    if any(env["packages"] for env in result.get("envs") or []):
         paths["env"] = "env-{}.txt".format(digest)
         with open(os.path.join(folder, paths["env"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
             handle.write("# Conda envs of plan {}'s runs, read {} from each env's conda-meta (the format of "
                          "`conda list --explicit --md5`).\n# One block per env: copy a block from `@EXPLICIT` "
                          "into its own file for `conda create -n <name> --file <file>`.\n".format(digest, stamp))
-            for env in result["envs"]:
+            for env in (e for e in result["envs"] if e["packages"]):
                 handle.write("\n# env: {}\n# prefix: {}\n# from: {}\n{}@EXPLICIT\n{}\n".format(
                     env["env"], env["prefix"], env["source"],
                     "# changed after the run: this is the env as it was when verify read it\n"
                     if env["changed_after_run"] else "", "\n".join(env["packages"])))
+    if any(env.get("pip") for env in result.get("envs") or []):
+        paths["pip"] = "pip-{}.txt".format(digest)
+        with open(os.path.join(folder, paths["pip"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
+            handle.write("# Pip packages of plan {}'s runs, read {} from each conda env's site-packages: the "
+                         "Python packages conda did not install.\n# Usable as: pip install -r {}\n".format(
+                             digest, stamp, paths["pip"]))
+            for env in (e for e in result["envs"] if e.get("pip")):
+                handle.write("\n# env: {}\n# prefix: {}\n# from: {}\n{}{}\n".format(
+                    env["env"], env["prefix"], env["source"],
+                    "# changed after the run: this is the env as it was when verify read it\n"
+                    if env["pip_changed_after_run"] else "", "\n".join(env["pip"])))
     with open(os.path.join(folder, paths["plan"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
         handle.write("# Approved plan {}\n\nApproved {} in Claude Code session {}. Frozen copy of the plan "
                      "the mycelium-extra gate approved; do not edit it. Revise the analysis's own plan "
@@ -1275,7 +1361,8 @@ def write(root, result):
     row = "| {} | {} | {} | {} | [plan]({}) - [receipts]({}) - [outputs]({}) - [lint]({}) - [report]({}){} |".format(
         digest, when(result["approved_at"]), stamp, result["status"], paths["plan"], paths["receipts"],
         paths["outputs"], paths["lint"], paths["report"],
-        " - [conda env]({})".format(paths["env"]) if "env" in paths else "")
+        (" - [conda env]({})".format(paths["env"]) if "env" in paths else "") +
+        (" - [pip]({})".format(paths["pip"]) if "pip" in paths else ""))
     if os.path.isfile(index):
         with open(index, encoding="utf-8") as handle:
             lines = [line.rstrip("\n") for line in handle if not line.startswith("| {} |".format(digest))]

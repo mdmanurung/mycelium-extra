@@ -5,6 +5,7 @@ receipt format the gate actually writes.
 """
 
 import base64
+import glob
 import json
 import os
 import pickle
@@ -694,6 +695,89 @@ class VerifyTest(unittest.TestCase):
         digest = self.approve(plan("run `{}`".format(FIT)))
         self.run_cmd("conda run -n fakeenv python " + FIT)
         self.assertNotIn("Conda env", self.verify("report", digest))
+
+    def pip_env(self):
+        """fakeenv plus site-packages: two conda-owned folders (one reinstalled by pip at the same
+        version), a pip-only package, a pip upgrade over a conda one, an editable uv install, and a
+        plain-file egg-info. Every folder is older than the run."""
+        prefix = self.conda_env()
+        site = "envs/fakeenv/lib/python3.12/site-packages/"
+        for name, version in [("anndata", "0.10.9"), ("scipy", "1.11.0"), ("numpy", "1.26.0")]:
+            files = ["lib/python3.12/site-packages/{}-{}.dist-info/METADATA".format(name, version)]
+            self.write("envs/fakeenv/conda-meta/{}-{}-0.json".format(name, version), json.dumps(
+                {"name": name, "version": version, "url": "https://x/{}.conda".format(name), "files": files}))
+        meta = "Metadata-Version: 2.1\nName: {}\nVersion: {}\n\nName: not-a-header\n"
+        for folder, name, version, installer in [
+                ("anndata-0.10.9", "anndata", "0.10.9", "conda"), ("scipy-1.11.0", "scipy", "1.11.0", "pip"),
+                ("loguru-0.7.2", "loguru", "0.7.2", "pip"), ("numpy-1.26.4", "numpy", "1.26.4", "pip"),
+                ("my_tool-0.1", "my_tool", "0.1", "uv")]:
+            self.write(site + folder + ".dist-info/METADATA", meta.format(name, version))
+            self.write(site + folder + ".dist-info/INSTALLER", installer)
+        self.write(site + "my_tool-0.1.dist-info/direct_url.json",
+                   json.dumps({"url": "file:///home/me/my-tool", "dir_info": {"editable": True}}))
+        self.write(site + "old-2.egg-info", meta.format("old", "2"))
+        for path in glob.glob(os.path.join(prefix, "lib/python3.12/site-packages/*")):
+            os.utime(path, (time.time() - 7200, time.time() - 7200))
+        return prefix
+
+    def test_pip_packages_are_recorded_beside_conda_ones(self):
+        self.pip_env()
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("conda run -n fakeenv python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        out = self.verify("report", digest)
+        self.assertIn("Conda env `fakeenv` (`conda run`): 5 packages recorded; 5 pip packages "
+                      "(2 also in conda-meta).", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        with open(os.path.join(self.root, "analysis/a/provenance/pip-{}.txt".format(digest))) as handle:
+            text = handle.read()
+        self.assertIn("# env: fakeenv\n", text)
+        self.assertIn("\nloguru==0.7.2\nmy_tool==0.1  # installer: uv; editable: file:///home/me/my-tool\n"
+                      "numpy==1.26.4  # also in conda-meta as 1.26.0\nold==2\n"
+                      "scipy==1.11.0  # also in conda-meta as 1.11.0\n", text)
+        self.assertNotIn("anndata", text)
+        with open(os.path.join(self.root, "analysis/a/provenance/PROVENANCE.md")) as handle:
+            self.assertIn("[conda env](env-{0}.txt) - [pip](pip-{0}.txt) |".format(digest), handle.read())
+
+    def test_conda_lock_still_records_pip_packages(self):
+        self.pip_env()
+        self.write("conda-lock.yml", "version: 1\n")
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("conda run -n fakeenv python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        self.assertIn("Conda env `fakeenv` (`conda run`): conda packages pinned by `conda-lock.yml`; 5 pip "
+                      "packages (2 also in conda-meta) recorded.", self.verify("report", digest))
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        provenance = os.path.join(self.root, "analysis/a/provenance")
+        self.assertTrue(os.path.isfile(os.path.join(provenance, "pip-{}.txt".format(digest))))
+        self.assertFalse(os.path.exists(os.path.join(provenance, "env-{}.txt".format(digest))))
+        self.run_cmd("conda run -n nosuch python " + FIT)
+        self.assertIn("Conda env `nosuch` (`conda run`) was not found, so its pip packages were not recorded",
+                      self.verify("report", digest))
+
+    def test_pip_install_after_the_run_and_unreadable_metadata_are_gaps(self):
+        prefix = self.pip_env()
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("conda run -n fakeenv python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        late = os.path.join(prefix, "lib/python3.12/site-packages/loguru-0.7.2.dist-info")
+        os.utime(late, (receipt["ts"] + 100, receipt["ts"] + 100))
+        self.write("envs/fakeenv/lib/python3.12/site-packages/broken-1.dist-info/INSTALLER", "pip")
+        os.utime(os.path.dirname(late) + "/broken-1.dist-info", (receipt["ts"] - 100, receipt["ts"] - 100))
+        out = self.verify("report", digest)
+        self.assertIn("Pip packages in conda env `fakeenv` changed", out)
+        self.assertIn("1 pip package folder(s) have no readable name and version, so they were not recorded: "
+                      "`broken-1.dist-info`", out)
+        self.assertIn("Verify status: CONFORMS_WITH_GAPS", out)
+
+    def test_env_without_site_packages_has_no_pip_line(self):
+        self.conda_env()
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        self.run_cmd("conda run -n fakeenv python " + FIT)
+        out = self.verify("report", digest)
+        self.assertIn("Conda env `fakeenv` (`conda run`): 2 packages recorded.", out)
+        self.assertNotIn("pip package", out)
 
     def test_explore_lists_this_sessions_runs_for_a_plan(self):
         self.hook("prompt", {"prompt": "allow explore"})
