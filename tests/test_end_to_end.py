@@ -321,18 +321,17 @@ for a in "$@"; do
 done
 exit $found
 """
-# Rscript-lint as scilintr 0.1.1's `Rscript -e 'scilintr::main()' <args>` behaves (E4 probe,
-# docs/design/e4-real-use.md section 6): only the first argument is read, as a project root; a
-# file root lints nothing; findings print as `path:N [RULE/severity] message`; exit is always 0.
+# Rscript-lint as verify's call `Rscript -e <R_LINT> <folder> <files>` behaves with scilintr 0.1.1
+# (E6): `lint_project()` reads only the folder and the `*.R` files under it (not `.r`); the expression
+# prints each finding in LINT_LINE's format and exits 1 on findings. Its `main()` linted nothing
+# given files and always exited 0 (docs/design/e4-real-use.md section 6).
 SCILINTR_0_1_1 = """#!/bin/sh
 shift 2
-root="$1"
-if [ -d "$root" ]; then
-  n=$(grep -rln 'sample_id %in% c(' "$root" | while read f; do echo "$f:1 [R016/warning] R016: hardcoded sample IDs"; done)
-  [ -n "$n" ] && { echo "$n"; echo "scilintr: $(echo "$n" | wc -l | tr -d ' ') finding(s)" >&2; exit 0; }
-fi
-echo "scilintr: no findings" >&2
-exit 0
+found=0
+for f in $(find "$1" -name '*.R'); do
+  for n in $(grep -n 'sample_id %in% c(' "$f" | cut -d: -f1); do echo "$f:$n:1: [R016] R016: hardcoded sample IDs"; found=1; done
+done
+exit $found
 """
 
 
@@ -408,34 +407,48 @@ class RealUse(unittest.TestCase):
         self.assertEqual(code, 0, err)
         return out
 
-    def test_r_code_reaches_r_lint(self):
+    def assert_r016_cited(self, p, out, rmd_line):
         """.Rmd chunks keep the document's line numbers; notebook findings cite the code cell."""
-        p = self.project()
-        rmd_line = self.plant_r016(p)
-        out = self.lint_report(p, FLAG_R016)
         self.assertEqual(harness.status_line(out), "Verify status: DOES_NOT_CONFORM", out)
-        self.assertIn("3 scilintr finding(s) remain in R code (3 R016)", out)
+        self.assertNotIn("R file(s) clean", out)
         self.assertIn("- `{}/reports/report.Rmd:{}` [R016]".format(A, rmd_line), out)
         self.assertIn("- `{}/notebooks/r_explore.ipynb[code cell 1]:3` [R016]".format(A), out)
         self.assertIn("- `{}:18` [R016]".format(SCRIPTS[2]), out)
 
-    @unittest.expectedFailure  # until E6: scilintr 0.1.1's R CLI lints nothing it is given as files
+    def test_r_code_reaches_r_lint(self):
+        p = self.project()
+        rmd_line = self.plant_r016(p)
+        out = self.lint_report(p, FLAG_R016)
+        self.assertIn("3 scilintr finding(s) remain in R code (3 R016)", out)
+        self.assert_r016_cited(p, out, rmd_line)
+
     def test_r_findings_block_with_scilintr_0_1_1(self):
         p = self.project()
-        self.plant_r016(p)
+        rmd_line = self.plant_r016(p)
         out = self.lint_report(p, SCILINTR_0_1_1)
-        self.assertNotIn("R file(s) clean", out)
-        self.assertEqual(harness.status_line(out), "Verify status: DOES_NOT_CONFORM", out)
+        self.assertIn("3 scilintr finding(s) remain in R code (3 R016)", out)
+        self.assert_r016_cited(p, out, rmd_line)
 
     @unittest.skipUnless(harness.real_rscript(), "real tools off (MX_E2E_REAL_TOOLS=1, MX_E2E_RSCRIPT)")
-    @unittest.expectedFailure  # until E6
     def test_r_findings_block_with_real_scilintr(self):
+        """The deciding test for E6. Real scilintr also flags 03_summary.R:8 (R002, `padj < 0.05`)."""
         p = self.project()
         p.write_fakes(rscript=harness.real_rscript())
-        self.plant_r016(p)
+        rmd_line = self.plant_r016(p)
         out = self.lint_report(p)
-        self.assertNotIn("R file(s) clean", out)
-        self.assertEqual(harness.status_line(out), "Verify status: DOES_NOT_CONFORM", out)
+        self.assertRegex(out, r"scilintr finding\(s\) remain in R code \([^)]*\b3 R016\b")
+        self.assert_r016_cited(p, out, rmd_line)
+
+    @unittest.skipUnless(harness.real_rscript(), "real tools off (MX_E2E_REAL_TOOLS=1, MX_E2E_RSCRIPT)")
+    def test_clean_r_with_real_scilintr(self):
+        p = self.project()
+        p.write_fakes(rscript=harness.real_rscript())
+        waive = lambda text: text.replace("padj < 0.05, ]", "padj < 0.05, ]  # ANALYSIS_OK[threshold]: planned", 1)
+        p.edit(SCRIPTS[2], waive)  # the two R002 that real scilintr flags in the fixture
+        p.edit(A + "/reports/report.Rmd", waive)
+        p.commit("waive R002")
+        out = self.lint_report(p)
+        self.assertRegex(out, r"scilintr: \d+ R file\(s\) clean", out)
 
 
 if __name__ == "__main__":
