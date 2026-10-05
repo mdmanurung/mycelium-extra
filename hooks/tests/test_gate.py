@@ -723,7 +723,9 @@ class GateTest(unittest.TestCase):
         self.assertNotIn("Run/Session", context(self.post("python analysis/x.py", {"stdout": ""})),
                          "no .living/: not a Mycelium repository")
         os.makedirs(os.path.join(self.root, ".living"))
-        self.assertIn("`s1; plan {}`".format(digest), context(self.post("python analysis/x.py", {"stdout": ""})))
+        planned = context(self.post("python analysis/x.py", {"stdout": ""}))
+        self.assertIn("`s1; plan {}`".format(digest), planned)
+        self.assertIn("Result cell with `[agent-derived: <output path>]`", planned)
         explore = context(self.post("MYCELIUM_EXTRA_EXPLORE=1 python analysis/x.py", {"stdout": ""}))
         self.assertNotIn("Run/Session", explore)
 
