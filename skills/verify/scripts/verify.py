@@ -254,6 +254,13 @@ LINT_LANGUAGES = {".py": "Python", ".R": "R", ".r": "R"}
 NOTEBOOK_EXT = (".ipynb", ".qmd", ".Rmd", ".rmd")
 FENCE = re.compile(r"^\s*(`{3,})(.*)$")
 CHUNK = re.compile(r"^\s*\{(r|python)\b", re.I)
+# scilintr 0.1.1's `main()` lints only its first argument, as a folder, prints no column and
+# always exits 0, so R code goes through `lint_project()` on a copy, in LINT_LINE's format.
+# Each file is parsed first: lintr's parse-error finding is dropped by a nearby ANALYSIS_OK.
+R_LINT = ('a <- commandArgs(TRUE); for (p in a[-1]) tryCatch(parse(p), error = function(e) cat("unparseable: ", p, '
+          '": ", gsub("\\\\s+", " ", conditionMessage(e)), "\\n", sep = "")); f <- scilintr::lint_project(a[1]); '
+          'for (x in f) cat(sprintf("%s:%d:1: [%s] %s\\n", x$file, x$line, x$rule, gsub("\\\\s+", " ", x$message))); '
+          'quit(status = if (length(f)) 1 else 0)')
 
 
 def code_files(root, analysis_dir, planned):
@@ -324,10 +331,12 @@ def lint(root, files, report, scilintr, rscript, seconds):
     """Run scilintr on the code; remaining findings block, an unchecked language is a gap.
     The Python CLI skips R files and exits 0 on a missing path, so each language gets
     its own CLI and only existing files are passed. It also exits 0, silent, on code that
-    does not parse, so Python code is parsed first and an unparseable file is a gap."""
+    does not parse, so Python code is parsed first and an unparseable file is a gap. R code
+    is copied to one folder, which `lint_project()` lints with its cross-file rules; a script
+    keeps its repository path there, so a `source()` between copied scripts still resolves."""
     result = {"findings": [], "waivers": [], "output": [], "notebooks": []}
     by_language = collections.defaultdict(list)
-    scratch = tempfile.mkdtemp(prefix="mycelium-extra-lint-")
+    scratch = os.path.realpath(tempfile.mkdtemp(prefix="mycelium-extra-lint-"))  # R prints real paths
     cells = {}  # extracted notebook code path -> (notebook, first line of each code cell)
 
     def parses(rel, code=None):
@@ -342,11 +351,15 @@ def lint(root, files, report, scilintr, rscript, seconds):
                 rel, "{}.{}.{}".format(*sys.version_info[:3]), cell(str(error))[:120]))
             return False
 
-    def extract(rel, language, code, starts=None):
+    def extract(rel, language, code, starts=None, keep_path=False):
         if language == "Python" and not parses(rel, code):
             return
-        path = os.path.join(scratch, "{}_{}".format(len(cells), os.path.basename(rel))) + (
-            ".py" if language == "Python" else ".R")
+        if keep_path:
+            path = os.path.join(scratch, "src", os.path.splitext(rel)[0] + ".R")
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+        else:
+            path = os.path.join(scratch, "{}_{}".format(len(cells), os.path.basename(rel))) + (
+                ".py" if language == "Python" else ".R")
         with open(path, "w", encoding="utf-8", errors="surrogateescape") as handle:
             handle.write(code)
         cells[path] = (rel, starts)
@@ -357,9 +370,15 @@ def lint(root, files, report, scilintr, rscript, seconds):
             ext = os.path.splitext(rel)[1]
             extracted = notebook_code(os.path.join(root, rel)) if ext == ".ipynb" else None
             chunks = chunk_code(os.path.join(root, rel)) if ext.lower() in (".qmd", ".rmd") else None
-            if ext in LINT_LANGUAGES:
-                if LINT_LANGUAGES[ext] != "Python" or parses(rel):
-                    by_language[LINT_LANGUAGES[ext]].append(rel)
+            if ext in LINT_LANGUAGES and LINT_LANGUAGES[ext] == "R":
+                try:
+                    with open(os.path.join(root, rel), encoding="utf-8", errors="surrogateescape") as handle:
+                        extract(rel, "R", handle.read(), keep_path=not (os.path.isabs(rel) or rel.startswith("..")))
+                except OSError as error:
+                    report.add("gap", "scilintr (R) not checked: `{}` unreadable ({}).".format(rel, error.strerror))
+            elif ext in LINT_LANGUAGES:
+                if parses(rel):
+                    by_language["Python"].append(rel)
             elif extracted:
                 extract(rel, *extracted)
             elif chunks:
@@ -367,7 +386,7 @@ def lint(root, files, report, scilintr, rscript, seconds):
                     extract(rel, language, code)
             elif rel.endswith(NOTEBOOK_EXT):
                 result["notebooks"].append(rel)
-        lint_languages(root, by_language, cells, report, result, scilintr, rscript, seconds)
+        lint_languages(root, by_language, cells, report, result, scilintr, [rscript, "-e", R_LINT, scratch], seconds)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     for rel in files:
@@ -397,9 +416,9 @@ def cell_line(line, cells):
     return "{}[code cell {}]:{}:{}: [{}] {}".format(rel, index, number - starts[index - 1] + 1, *match.groups()[2:])
 
 
-def lint_languages(root, by_language, cells, report, result, scilintr, rscript, seconds):
+def lint_languages(root, by_language, cells, report, result, scilintr, r_lint, seconds):
     for language, paths in sorted(by_language.items()):
-        command = [scilintr] if language == "Python" else [rscript, "-e", "scilintr::main()"]
+        command = [scilintr] if language == "Python" else r_lint
         try:
             proc = subprocess.run(command + paths, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                   encoding="utf-8", errors="replace", timeout=seconds)
@@ -414,8 +433,14 @@ def lint_languages(root, by_language, cells, report, result, scilintr, rscript, 
         proc.stdout = "\n".join(cell_line(line, cells) for line in proc.stdout.splitlines())
         for path, (rel, _) in cells.items():
             proc.stdout = proc.stdout.replace(path, rel)
+        broken = [line[len("unparseable: "):].partition(": ") for line in proc.stdout.splitlines()
+                  if line.startswith("unparseable: ")]
+        for rel, _, error in broken:
+            report.add("gap", "scilintr (R) not checked: `{}` does not parse ({}).".format(
+                rel, cell(re.sub(r"^.*?:\d+:\d+: ", "", error))[:120]))
         found = [m.groups() for m in map(LINT_LINE.match, proc.stdout.splitlines()) if m]
-        result["output"].append("$ {}\n{}".format(" ".join(command[:3] + ["<{} files>".format(len(paths))]),
+        shown = command[:1] if language == "Python" else [command[0], "-e", "'scilintr::lint_project()'"]
+        result["output"].append("$ {}\n{}".format(" ".join(shown + ["<{} files>".format(len(paths))]),
                                                   proc.stdout.rstrip()))
         if proc.returncode == 1 and found:
             result["findings"] += found
@@ -424,7 +449,8 @@ def lint_languages(root, by_language, cells, report, result, scilintr, rscript, 
                        "`ANALYSIS_OK[...]` waiver, then re-verify.".format(
                            len(found), language, ", ".join("{} {}".format(n, r) for r, n in rules.most_common())))
         elif proc.returncode == 0 and not found:
-            report.add("info", "scilintr: {} {} file(s) clean.".format(len(paths), language))
+            if len(paths) > len(broken):
+                report.add("info", "scilintr: {} {} file(s) clean.".format(len(paths) - len(broken), language))
         else:
             report.add("gap", "scilintr ({}) not checked: exit {} with output it could not read: {}".format(
                 language, proc.returncode, cell((proc.stdout.strip().splitlines() or [""])[-1])[:200]))

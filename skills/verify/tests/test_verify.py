@@ -627,6 +627,40 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("line 3", out)
         self.assertIn("Verify status: CONFORMS_WITH_GAPS", out)
 
+    def test_r_code_is_linted_as_one_folder(self):
+        """E6: R code goes to `lint_project()` as one copied folder (scilintr 0.1.1's `main()` lints only
+        its first argument), `.r` files included, and findings cite the original file. Code that does
+        not parse is a gap even when a nearby `ANALYSIS_OK` would drop lintr's parse-error finding."""
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        self.write("analysis/a/scripts/02_plot.r", "x <- 1\ny <- FLAG\n", mtime=time.time() - 3600)
+        rscript = self.write("bin/Rscript-project", "#!{}\nimport os, sys\n"
+                             "flag, expr, folder = sys.argv[1:4]\n"
+                             "assert flag == '-e' and 'scilintr::lint_project(' in expr and os.path.isdir(folder)\n"
+                             "hits = 0\nfor path in sorted(os.path.join(d, n) for d, _, ns in os.walk(folder) for n in ns):\n"
+                             "    assert path.endswith('.R'), path\n"
+                             "    if 'BROKEN' in open(path).read():\n"
+                             "        print('unparseable: {{0}}: {{0}}:3:0: unexpected end of input'.format(path))\n"
+                             "    for n, line in enumerate(open(path), 1):\n"
+                             "        if 'FLAG' in line:\n            hits += 1\n"
+                             "            print('{{}}:{{}}:1: [R030] flagged'.format(path, n))\n"
+                             "sys.exit(1 if hits else 0)\n".format(sys.executable))
+        os.chmod(rscript, os.stat(rscript).st_mode | stat.S_IEXEC)
+        out = self.verify("report", digest, rscript=rscript)
+        self.assertIn("1 scilintr finding(s) remain in R code (1 R030)", out)
+        self.assertIn("`analysis/a/scripts/02_plot.r:2` [R030]", out)
+        self.assertNotIn("mycelium-extra-lint-", out)
+        self.write("analysis/a/scripts/02_plot.r", "x <- 1\n", mtime=time.time() - 3600)
+        self.assertIn("scilintr: 1 R file(s) clean", self.verify("report", digest, rscript=rscript))
+        self.write("analysis/a/scripts/03_broken.R", "# ANALYSIS_OK[x]: y\nBROKEN <- function(\n",
+                   mtime=time.time() - 3600)
+        out = self.verify("report", digest, rscript=rscript)
+        self.assertIn("scilintr (R) not checked: `analysis/a/scripts/03_broken.R` does not parse "
+                      "(unexpected end of input)", out)
+        self.assertIn("scilintr: 1 R file(s) clean", out)
+        self.assertNotIn("mycelium-extra-lint-", out)
+
     def conda_env(self):
         """A fake conda env named fakeenv, listed in a fake ~/.conda/environments.txt."""
         prefix = os.path.join(self.root, "envs", "fakeenv")
