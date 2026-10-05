@@ -1,0 +1,23 @@
+{
+  "doc": "analysis/vaccine-response/VACCINE_RESPONSE.md",
+  "verified": [
+    "8 | outputs/summary.tsv n_hits",
+    "60 | outputs/summary.tsv n_tested",
+    "1.6806 | outputs/summary.tsv median_log2fc_hits",
+    "1.4455 | outputs/de_results.tsv log2fc MX1",
+    "2.2219 | outputs/de_results.tsv log2fc OAS1",
+    "0.002165 | outputs/de_results.tsv p IFI27",
+    "0.016234 | outputs/de_results.tsv padj SIGLEC1",
+    "24 | outputs/samples_used.tsv rows"
+  ],
+  "not_claims": [
+    "28",
+    "0",
+    "0.05",
+    "2",
+    "924",
+    "12",
+    "6",
+    "6"
+  ]
+}

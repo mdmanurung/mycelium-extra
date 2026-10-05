@@ -21,12 +21,14 @@ A = harness.ANALYSIS
 METADATA = "data/processed/vaccine-cohort/sample_metadata.tsv"
 COUNTS = "data/processed/vaccine-cohort/counts.tsv"
 PAIRED = A + "/scripts/02_paired_test.py"
+DOC = A + "/VACCINE_RESPONSE.md"
+CLAIMS = re.compile(r"\n*<!-- claims.*?-->", re.S)
 CONFORMS = "Verify status: CONFORMS"
 DENY = "deny"
 
 
 # Tasks whose fixtures C1 leaves for them to add (design section 8.6).
-LATER = ["D1", "D2", "D4", "C3", "D6", "E1", "E4", "E5", "D10", "D11", "D12"]
+LATER = ["D2", "D4", "C3", "D6", "E1", "E4", "E5", "D10", "D11", "D12"]
 
 
 class Defect(object):
@@ -101,8 +103,12 @@ def results(p):
             "hit_sign": "".join(sorted(signs))}
 
 
-def whole_chain(p):
-    """Commit the mutation, check the contract, run the plan, and verify: the known-miss path."""
+def whole_chain(p, claims=False):
+    """Commit the mutation, check the contract, run the plan, and verify: the known-miss path.
+    Key Findings were written from the baseline's outputs, so their claims block is dropped
+    unless `claims`: an agent would write findings from the mutated outputs, and they would agree."""
+    if not claims:
+        p.edit(DOC, lambda text: CLAIMS.sub("", text))
     p.commit("mutation")
     code, out, err = p.data_contract(contract())
     digest = p.run_plan()[0]
@@ -439,7 +445,9 @@ def v08(p):
 
 
 @defect("V-09", "verify", "verify", ["Explore results reported"],
-        {"status": GAPS, "messages": ["Output `{}` was likely written by".format(DE), "explore"]})
+        {"status": BLOCKED, "messages": ["Output `{}` was likely written by".format(DE), "explore",
+                                         "claims 0.016234 from `{}` padj row SIGLEC1, which an explore run "
+                                         "wrote".format(DE)]})
 def v09(p):
     digest = p.run_plan()[0]
     allow_explore(p)
@@ -599,6 +607,33 @@ def v20(p):
     found = [line for line in outcome["text"].splitlines() if line.startswith("| `{}` |".format(DE))]
     outcome["credited_to"] = found[0].split("`")[3] if found else None
     return outcome
+
+
+@defect("V-21", "verify", "verify", ["Number transcription"],
+        {"status": BLOCKED, "messages": ["claims 9, but `{}` n_hits holds 8.".format(SUMMARY)]})
+def v21(p):
+    p.edit(DOC, replace("- 8 of 60 genes", "- 9 of 60 genes"))
+    p.edit(DOC, replace("\n8 | outputs/summary.tsv n_hits", "\n9 | outputs/summary.tsv n_hits"))
+    return baseline(p)[1]
+
+
+@defect("V-22", "verify", "verify", ["tool: verify"],
+        {"status": GAPS, "messages": ["claim 3 is unverified: cites `{}/outputs/missing.tsv`, but it does "
+                                      "not exist".format(A)]})
+def v22(p):
+    p.edit(DOC, replace("\n-->", "\n3 | outputs/missing.tsv n\n-->"))
+    return baseline(p)[1]
+
+
+@defect("V-23", "verify", "verify", ["Log base and sign confusion"],
+        {"status": BLOCKED, "hit_sign": "-",
+         "messages": ["claims 1.4455, but `{}` log2fc row MX1 holds -1.4455.".format(DE)]})
+def v23(p):
+    # DC-08's flipped contrast, with Key Findings still stating the baseline's direction. The
+    # de_results.tsv cell is checked, since summary.tsv is the canned copy when R is absent.
+    p.edit(PAIRED, replace("observed = sum(diff[:n_v]) / n_v - sum(diff[n_v:]) / n_p",
+                           "observed = sum(diff[n_v:]) / n_p - sum(diff[:n_v]) / n_v"))
+    return whole_chain(p, claims=True)
 
 
 # ---------------------------------------------------------------- 8.4 sweeps and memory

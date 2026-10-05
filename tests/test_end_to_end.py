@@ -94,6 +94,10 @@ class BaselineChain(unittest.TestCase):
         code, report, err = p.verify("report", digest)
         self.check(code == 0, p, "step 6: verify report exited {}: {}".format(code, err))
         self.check(harness.status_line(report) == "Verify status: CONFORMS", p, "step 6: report:\n" + report)
+        claims = harness.expected("claims.json")
+        self.check("- `{}`: {} verified (0 via transform), 0 mismatch, 0 unverified, 0 explore-only; {} other "
+                   "number(s) not claimed".format(claims["doc"], len(claims["verified"]), len(claims["not_claims"]))
+                   in report, p, "step 6: claims: " + report)
         for script in SCRIPTS:
             # Claude Code's PostToolUse carries no exit code, so the row reads
             # `ran (exit status not recorded)` until E3; either form of `ran` is accepted here.

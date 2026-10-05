@@ -25,7 +25,7 @@ class FixtureDataTest(unittest.TestCase):
     def test_committed_files_match_generator(self):
         code, out = run("--check")
         self.assertEqual(code, 0, out)
-        self.assertIn("fixture check: 6 file(s) match seed 0", out)
+        self.assertIn("fixture check: 7 file(s) match seed 0", out)
 
     def test_failing_seed_is_refused(self):
         code, out = run("--check", "--seed", "2")

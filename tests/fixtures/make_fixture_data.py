@@ -225,6 +225,24 @@ def sha256(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def claims_block(de, summary_row):
+    """D1's checked record: one line per number a cell or a row count holds, naming that cell."""
+    hits = [r for r in de if r[3] < 0.05]
+    low, high = min(hits, key=lambda r: r[1]), max(hits, key=lambda r: r[1])
+    floor = min(de, key=lambda r: (r[2], r[0]))
+    top = max(hits, key=lambda r: (r[3], r[0]))
+    return [
+        "{} | outputs/summary.tsv n_hits".format(len(hits)),
+        "{} | outputs/summary.tsv n_tested".format(len(de)),
+        "{} | outputs/summary.tsv median_log2fc_hits".format(summary_row["median_log2fc_hits"]),
+        "{:.4f} | outputs/de_results.tsv log2fc {}".format(low[1], low[0]),
+        "{:.4f} | outputs/de_results.tsv log2fc {}".format(high[1], high[0]),
+        "{:.6f} | outputs/de_results.tsv p {}".format(floor[2], floor[0]),
+        "{:.6f} | outputs/de_results.tsv padj {}".format(top[3], top[0]),
+        "24 | outputs/samples_used.tsv rows",
+    ]
+
+
 def key_findings(de, summary_row):
     hits = [r for r in de if r[3] < 0.05]
     return "\n".join([
@@ -237,6 +255,10 @@ def key_findings(de, summary_row):
         "- Smallest p: {:.6f} (the permutation floor, 2 of 924 labellings); largest padj among the hits: "
         "{:.6f}.".format(min(r[2] for r in de), max(r[3] for r in hits)),
         "- 24 libraries from 12 donors (6 vaccine, 6 placebo) after removing {}.".format(RERUN),
+        "",
+        "<!-- claims",
+    ] + claims_block(de, summary_row) + [
+        "-->",
         END,
     ])
 
@@ -290,6 +312,9 @@ def build(seed):
         os.path.join(EXPECTED, "truth.json"): json.dumps(truth, indent=2, sort_keys=True) + "\n",
         os.path.join(EXPECTED, "baseline.json"): json.dumps(baseline, indent=2, sort_keys=True) + "\n",
         os.path.join(EXPECTED, "summary.tsv"): summary,
+        os.path.join(EXPECTED, "claims.json"): json.dumps(
+            {"doc": DOC, "verified": claims_block(de, summary_row),
+             "not_claims": ["28", "0", "0.05", "2", "924", "12", "6", "6"]}, indent=2) + "\n",
     }
 
 

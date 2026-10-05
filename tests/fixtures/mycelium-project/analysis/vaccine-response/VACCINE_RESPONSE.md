@@ -23,4 +23,15 @@ and placebo arms? Reference: placebo; a positive log2FC means higher in vaccine.
 - Median log2FC of the hits: 1.6806; range 1.4455 to 2.2219.
 - Smallest p: 0.002165 (the permutation floor, 2 of 924 labellings); largest padj among the hits: 0.016234.
 - 24 libraries from 12 donors (6 vaccine, 6 placebo) after removing D03_day28_rerun.
+
+<!-- claims
+8 | outputs/summary.tsv n_hits
+60 | outputs/summary.tsv n_tested
+1.6806 | outputs/summary.tsv median_log2fc_hits
+1.4455 | outputs/de_results.tsv log2fc MX1
+2.2219 | outputs/de_results.tsv log2fc OAS1
+0.002165 | outputs/de_results.tsv p IFI27
+0.016234 | outputs/de_results.tsv padj SIGLEC1
+24 | outputs/samples_used.tsv rows
+-->
 <!-- key-findings:end -->
