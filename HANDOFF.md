@@ -6,13 +6,16 @@
 Work the roadmap the series adds. C1 is done, A2 is written; next from `IMPLEMENTATION-MAP.md` "Do now": E1 (pip/rule envs) or B2.
 
 ## Next action
-Ask the user (a) whether to push a branch of their own repo and open a PR so A2's acceptance can run (green on both legs, plus one deliberately failing gate_diff run as evidence), and (b) which of E1, B2 comes next.
+Ask the user (a) whether to run A2's acceptance on GitHub, and (b) which of E1, B2 comes next. The PR base must not be `origin/main` as it stands (3a11123): `gate_diff --base 3a11123` is 127/160 by design and would turn `gate-diff` red. Sequence, only on an explicit yes:
+1. Push local `main` (`2e9e177`) to `origin/main` — publishes v0.9.29–0.9.33; no workflow on it yet, so nothing runs.
+2. Push `improvements`, open a PR into `main`: expect both test legs green and `gate-diff` 160/160.
+3. Failing-run evidence: throwaway branch off `improvements` with `"rm"` dropped from `WRITE_ALL`, draft PR, record the red run URL, close it, delete the branch. Never push the flip onto `improvements`.
 
 ## State
 - A2 at `24819a7`: `.github/workflows/ci.yml` (containers `python:3.6-bullseye` under `LC_ALL=C` and `python:3.14-bookworm`; `gate-diff` job on PRs with `fetch-depth: 0` and `safe.directory`), `tests/test_versions.py`, `tests/check_links.py` (moved from staging; exit 2 with no file, skips `@@...@@`). Checked in a fresh clone on 3.6 and 3.12: 13 test files OK, ablate 3/3, links 45/0, `gate_diff --base main` 160/160, and dropping `rm` from `WRITE_ALL` gives exit 1 with 3 FAIL. 3.14 itself not run here (no interpreter); no removed AST/stdlib APIs found by grep. Roadmap A2 status: in-progress.
 - C1 steps 3-5 landed on `improvements`: `ac83c96` (DC-01..11, G-01..07, catalog 1/3/5), `716a149` (V-01..20, S-01..03, M-01, catalog 2/4), `2c19fb1` (KB-01..06 as plain asserts, `ablate.py`). `tests/test_end_to_end.py`: 60 OK on 3.6 and 3.12; `ablate.py`: 3 of 3 bite. Design doc updated where code differed (DC-03, G-03, V-12, V-13, new V-19/V-20, 8.5, 10). `main` not yet fast-forwarded to these.
-- `main` is at `2e9e177` (E3 done, v0.9.33); `improvements` is 4 commits ahead (C1 steps 3-5 + this handoff). Fast-forward with `git fetch . improvements:main` when the user says so. `origin/main` is still 3a11123 (v0.9.28) — nothing was pushed.
-- All 12 unit test files plus `tests/test_end_to_end.py` and `tests/test_fixture_data.py` pass on Python 3.6.8 (re-run 2026-10-05 after C1). Skips: 7 in `test_data_contract_check.py` (no h5py), 1 in `test_new_analysis.py` (`test_r_stub_fails_loudly`, no Rscript). `test_gate.py` 102/102, `test_verify.py` 33 OK.
+- `main` is at `2e9e177` (E3 done, v0.9.33); `improvements` is 6 commits ahead (C1 steps 3-5, A2, two handoffs). Fast-forward with `git fetch . improvements:main` when the user says so. `origin/main` is still 3a11123 (v0.9.28) — nothing was pushed.
+- All 13 test files (`hooks/tests/test_*.py`, `skills/*/tests/test_*.py`, `tests/test_*.py`, the CI glob) pass on Python 3.6.8 and 3.12 (re-run 2026-10-05 after A2). Skips: 7 in `test_data_contract_check.py` (no h5py), 1 in `test_new_analysis.py` (`test_r_stub_fails_loudly`, no Rscript). `test_gate.py` 102/102, `test_verify.py` 33 OK.
 - `gate_diff.py --base 3a11123`: 127/160 identical. 30 differences are receipt state (`exit_source`, `exit_status: null` → `"unknown"`, `sbatch --wrap` paths, the 6 hook-event cases); the other 3 are the E2 text commands, which pass now (`out`). The 3 E2 write twins still deny. Against HEAD: 160/160.
 - Uncommitted: only `mycelium-extra-improvements/`, untracked on purpose — a staging folder, not part of the change.
 - `stash@{0}` ("session handoff (pre-series)", on main) holds the pre-series handoff. Everything in it is carried forward; it can be dropped. Do not `git stash pop` — it conflicts with the series' HANDOFF edits.
