@@ -627,6 +627,43 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("line 3", out)
         self.assertIn("Verify status: CONFORMS_WITH_GAPS", out)
 
+    def test_chunk_lint_parked_cases(self):
+        """E5: a document-level `eval: false` is linted like chunk-level `eval=FALSE`; `engine=` picks the
+        language and other engines are skipped; `child=` and `read_chunk()` files are linted under their own
+        paths, even outside the analysis folder, and a path that is not a quoted string or is missing is a gap."""
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        flagger = self.write("bin/flagger", "#!{}\nimport os, sys\nhits = 0\nfor path in sys.argv[1:]:\n"
+                             "    if os.path.isfile(path):\n        for n, line in enumerate(open(path), 1):\n"
+                             "            if 'FLAG' in line and not line.lstrip().startswith('#'):\n                hits += 1\n"
+                             "                print('{{}}:{{}}:0: [magic-threshold] flagged'.format(path, n))\n"
+                             "sys.exit(1 if hits else 0)\n".format(sys.executable))
+        os.chmod(flagger, os.stat(flagger).st_mode | stat.S_IEXEC)
+        off = ["---", "execute:", "  eval: false", "---", "```{r}", "z <- FLAG", "```"]
+        self.write("analysis/a/10_off.qmd", "\n".join(off) + "\n")
+        engines = ["```{r engine=\"bash\"}", "echo FLAG", "```", "```{r, engine='python'}", "u = FLAG", "```"]
+        self.write("analysis/a/11_engines.Rmd", "\n".join(engines) + "\n")
+        self.write("shared/_methods.Rmd", "Methods\n```{r}\nm <- FLAG\n```\n")
+        self.write("shared/helpers.R", "## ---- load\nh <- FLAG\n")
+        parent = ["```{r, child='../../shared/_methods.Rmd'}", "```", "```{r}", "knitr::read_chunk('../../shared/helpers.R')",
+                  "```", "```{r load}", "```", "```{r child=params$doc}", "```", "```{r}",
+                  "knitr::read_chunk(\"missing.R\")", "```"]
+        self.write("analysis/a/12_parent.Rmd", "\n".join(parent) + "\n")
+        out = self.verify("report", digest, scilintr=flagger, rscript=flagger)
+        self.assertIn("`analysis/a/10_off.qmd:{}` [magic-threshold]".format(off.index("z <- FLAG") + 1), out)
+        self.assertIn("`analysis/a/11_engines.Rmd:{}` [magic-threshold]".format(engines.index("u = FLAG") + 1), out)
+        self.assertIn("1 scilintr finding(s) remain in Python code", out)
+        self.assertNotIn("11_engines.Rmd:2", out)
+        self.assertNotIn("11_engines.Rmd` does not parse", out)
+        self.assertIn("`shared/_methods.Rmd:3` [magic-threshold]", out)
+        self.assertIn("`shared/helpers.R:2` [magic-threshold]", out)
+        self.assertIn("scilintr not checked: `analysis/a/12_parent.Rmd:{}` pulls in code through a path that is "
+                      "not a quoted string.".format(parent.index("```{r child=params$doc}") + 1), out)
+        self.assertIn("scilintr not checked: `analysis/a/12_parent.Rmd:{}` pulls in `missing.R`, which was not "
+                      "found next to the document.".format(parent.index("knitr::read_chunk(\"missing.R\")") + 1), out)
+        self.assertNotIn("12_parent.Rmd.", out.split("not linted:")[-1] if "not linted:" in out else "")
+
     def test_r_code_is_linted_as_one_folder(self):
         """E6: R code goes to `lint_project()` as one copied folder (scilintr 0.1.1's `main()` lints only
         its first argument), `.r` files included, and findings cite the original file. Code that does
