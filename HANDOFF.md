@@ -1,14 +1,15 @@
-# Handoff — mycelium-extra: C1 is done; A2, A6, C3, D1, D4 and E4 are unblocked
+# Handoff — mycelium-extra: A2 CI written and checked locally; first GitHub run waits on a push
 
-**Date:** 2026-10-05 · **Branch:** `improvements` (v0.9.33 + C1 steps 3-5, test-only, no bump), `main` at v0.9.32, ahead of `origin/main` (3a11123, v0.9.28) · **Status:** the 24-patch series plus the name and handoff commits are landed locally and green. Nothing pushed, tagged, or sent to `gh`.
+**Date:** 2026-10-05 · **Branch:** `improvements` (v0.9.33 + C1 steps 3-5 + A2 CI, no bump), `main` at v0.9.32, ahead of `origin/main` (3a11123, v0.9.28) · **Status:** the 24-patch series plus the name and handoff commits are landed locally and green. Nothing pushed, tagged, or sent to `gh`.
 
 ## Goal
-Work the roadmap the series adds. C1 is done; pick the next task from `IMPLEMENTATION-MAP.md` "Do now": A2 (CI), E1 (pip/rule envs) or B2.
+Work the roadmap the series adds. C1 is done, A2 is written; next from `IMPLEMENTATION-MAP.md` "Do now": E1 (pip/rule envs) or B2.
 
 ## Next action
-Ask the user which of A2, E1, B2 comes next. A2 now has a real suite to run: `tests/test_end_to_end.py` (~40 s) plus `tests/e2e/ablate.py` (weekly).
+Ask the user (a) whether to push a branch of their own repo and open a PR so A2's acceptance can run (green on both legs, plus one deliberately failing gate_diff run as evidence), and (b) which of E1, B2 comes next.
 
 ## State
+- A2 at `24819a7`: `.github/workflows/ci.yml` (containers `python:3.6-bullseye` under `LC_ALL=C` and `python:3.14-bookworm`; `gate-diff` job on PRs with `fetch-depth: 0` and `safe.directory`), `tests/test_versions.py`, `tests/check_links.py` (moved from staging; exit 2 with no file, skips `@@...@@`). Checked in a fresh clone on 3.6 and 3.12: 13 test files OK, ablate 3/3, links 45/0, `gate_diff --base main` 160/160, and dropping `rm` from `WRITE_ALL` gives exit 1 with 3 FAIL. 3.14 itself not run here (no interpreter); no removed AST/stdlib APIs found by grep. Roadmap A2 status: in-progress.
 - C1 steps 3-5 landed on `improvements`: `ac83c96` (DC-01..11, G-01..07, catalog 1/3/5), `716a149` (V-01..20, S-01..03, M-01, catalog 2/4), `2c19fb1` (KB-01..06 as plain asserts, `ablate.py`). `tests/test_end_to_end.py`: 60 OK on 3.6 and 3.12; `ablate.py`: 3 of 3 bite. Design doc updated where code differed (DC-03, G-03, V-12, V-13, new V-19/V-20, 8.5, 10). `main` not yet fast-forwarded to these.
 - `main` is at `2e9e177` (E3 done, v0.9.33); `improvements` is 4 commits ahead (C1 steps 3-5 + this handoff). Fast-forward with `git fetch . improvements:main` when the user says so. `origin/main` is still 3a11123 (v0.9.28) — nothing was pushed.
 - All 12 unit test files plus `tests/test_end_to_end.py` and `tests/test_fixture_data.py` pass on Python 3.6.8 (re-run 2026-10-05 after C1). Skips: 7 in `test_data_contract_check.py` (no h5py), 1 in `test_new_analysis.py` (`test_r_stub_fails_loudly`, no Rscript). `test_gate.py` 102/102, `test_verify.py` 33 OK.
