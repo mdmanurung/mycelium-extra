@@ -1,21 +1,20 @@
-# Handoff — mycelium-extra: A2 CI written and checked locally; first GitHub run waits on a push
+# Handoff — mycelium-extra: D1 claims checker shipped (v0.9.34); A2's GitHub run still waits on a push
 
-**Date:** 2026-10-05 · **Branch:** `improvements` (v0.9.33 + C1 steps 3-5 + A2 CI, no bump), `main` at v0.9.32, ahead of `origin/main` (3a11123, v0.9.28) · **Status:** the 24-patch series plus the name and handoff commits are landed locally and green. Nothing pushed, tagged, or sent to `gh`.
+**Date:** 2026-10-05 · **Branch:** `improvements` (v0.9.34: C1 steps 3-5, A2 CI, D1), `main` at v0.9.33, ahead of `origin/main` (3a11123, v0.9.28) · **Status:** all local and green. Nothing pushed, tagged, or sent to `gh`.
 
 ## Goal
-Work the roadmap the series adds. C1 is done, A2 is written; next from `IMPLEMENTATION-MAP.md` "Do now": E1 (pip/rule envs) or B2.
+Work the roadmap. C1 and D1 are done, A2 is written. Next from `IMPLEMENTATION-MAP.md`: the rest of the D-series science core the user chose ("the science experiments" = roadmap 05), i.e. D7/D8 (S, no deps) or D4 (M); or E1/B2.
 
 ## Next action
-Ask the user (a) whether to run A2's acceptance on GitHub, and (b) which of E1, B2 comes next. The PR base must not be `origin/main` as it stands (3a11123): `gate_diff --base 3a11123` is 127/160 by design and would turn `gate-diff` red. Sequence, only on an explicit yes:
-1. Push local `main` (`2e9e177`) to `origin/main` — publishes v0.9.29–0.9.33; no workflow on it yet, so nothing runs.
-2. Push `improvements`, open a PR into `main`: expect both test legs green and `gate-diff` 160/160.
-3. Failing-run evidence: throwaway branch off `improvements` with `"rm"` dropped from `WRITE_ALL`, draft PR, record the red run URL, close it, delete the branch. Never push the flip onto `improvements`.
+Ask the user which comes next: D7 + D8 (recommended, both S), D4 multiplicity view, or D2 citations (needs network opt-in). Run each through `/mycelium-extra:grill` with the prompt in `docs/roadmap/05-mindfulness-core.md`. The user said "not now, stay local" to A2's push on 2026-10-05; the push sequence is unchanged, only on an explicit yes:
+1. Push local `main` to `origin/main`. 2. Push `improvements`, PR into `main`: expect both legs green and `gate-diff` 160/160. 3. Throwaway branch with `"rm"` dropped from `WRITE_ALL`, draft PR, record the red run, close, delete. Never base a PR on 3a11123 (`gate_diff --base 3a11123` is 127/160 by design).
 
 ## State
+- D1 (plan 923d51b6, approved 2026-10-05): `fe03a17` design docs, `0e866fa` verify claims stage (`check_claims()` and `claim_cell()` in `verify.py`, `--claims` flag, `## Claims` section), `1736bc2` fixture block + `expected/claims.json` + V-21..V-23 + V-09 now blocks, `3f5efb7`/`abea965` checklist cells, `f81707d` docs, `ffb4037` bump to 0.9.34, `7370449` design docs synced. `test_verify.py` 37 OK, `test_end_to_end.py` 63 OK, all 13 files OK on 3.6 and 3.12, ablate 3/3, gate_diff 160/160, links 46/0.
 - A2 at `24819a7`: `.github/workflows/ci.yml` (containers `python:3.6-bullseye` under `LC_ALL=C` and `python:3.14-bookworm`; `gate-diff` job on PRs with `fetch-depth: 0` and `safe.directory`), `tests/test_versions.py`, `tests/check_links.py` (moved from staging; exit 2 with no file, skips `@@...@@`). Checked in a fresh clone on 3.6 and 3.12: 13 test files OK, ablate 3/3, links 45/0, `gate_diff --base main` 160/160, and dropping `rm` from `WRITE_ALL` gives exit 1 with 3 FAIL. 3.14 itself not run here (no interpreter); no removed AST/stdlib APIs found by grep. Roadmap A2 status: in-progress.
 - C1 steps 3-5 landed on `improvements`: `ac83c96` (DC-01..11, G-01..07, catalog 1/3/5), `716a149` (V-01..20, S-01..03, M-01, catalog 2/4), `2c19fb1` (KB-01..06 as plain asserts, `ablate.py`). `tests/test_end_to_end.py`: 60 OK on 3.6 and 3.12; `ablate.py`: 3 of 3 bite. Design doc updated where code differed (DC-03, G-03, V-12, V-13, new V-19/V-20, 8.5, 10). `main` not yet fast-forwarded to these.
-- `main` is at `2e9e177` (E3 done, v0.9.33); `improvements` is 6 commits ahead (C1 steps 3-5, A2, two handoffs). Fast-forward with `git fetch . improvements:main` when the user says so. `origin/main` is still 3a11123 (v0.9.28) — nothing was pushed.
-- All 13 test files (`hooks/tests/test_*.py`, `skills/*/tests/test_*.py`, `tests/test_*.py`, the CI glob) pass on Python 3.6.8 and 3.12 (re-run 2026-10-05 after A2). Skips: 7 in `test_data_contract_check.py` (no h5py), 1 in `test_new_analysis.py` (`test_r_stub_fails_loudly`, no Rscript). `test_gate.py` 102/102, `test_verify.py` 33 OK.
+- `main` is at `2e9e177` (v0.9.33); `improvements` is 16 commits ahead (C1 steps 3-5, A2, D1, handoffs). Fast-forward with `git fetch . improvements:main` when the user says so. `origin/main` is still 3a11123 (v0.9.28).
+- All 13 test files (`hooks/tests/test_*.py`, `skills/*/tests/test_*.py`, `tests/test_*.py`, the CI glob) pass on Python 3.6.8 and 3.12 (re-run 2026-10-05 after D1). Skips: 7 in `test_data_contract_check.py` (no h5py), 1 in `test_new_analysis.py` (`test_r_stub_fails_loudly`, no Rscript). `test_gate.py` 102/102, `test_verify.py` 37 OK, `test_end_to_end.py` 63 OK.
 - `gate_diff.py --base 3a11123`: 127/160 identical. 30 differences are receipt state (`exit_source`, `exit_status: null` → `"unknown"`, `sbatch --wrap` paths, the 6 hook-event cases); the other 3 are the E2 text commands, which pass now (`out`). The 3 E2 write twins still deny. Against HEAD: 160/160.
 - Uncommitted: only `mycelium-extra-improvements/`, untracked on purpose — a staging folder, not part of the change.
 - `stash@{0}` ("session handoff (pre-series)", on main) holds the pre-series handoff. Everything in it is carried forward; it can be dropped. Do not `git stash pop` — it conflicts with the series' HANDOFF edits.
@@ -23,6 +22,11 @@ Ask the user (a) whether to run A2's acceptance on GitHub, and (b) which of E1, 
 - The gate is on here and blocked nothing this session.
 
 ## Locked decisions
+- **D1 is a verify stage, not a skill**: `Report` levels and output ownership already live in `verify.py` (user via grill, 2026-10-05).
+- **Claims are an authored block whose lines name their cell** (`[<|>|<=|>=]value[%] | file column [row]`), not prose extraction with context scoring; a multi-row table needs a row label (the common-value guard) (user, 2026-10-05).
+- **Auto-checked docs:** the analysis doc `<NAME>.md` plus `.md` files on `Outputs:`; others via `--claims` (user, 2026-10-05).
+- Numbers near the block that it does not cover are `info`, not gaps; otherwise "day 28" breaks every baseline (default approved with the plan, 2026-10-05).
+- Known-miss chains (`whole_chain`) drop the claims block; V-23 checks DC-08's flip against the baseline's own values, not the catalog's "+2.0" (default, 2026-10-05).
 - **A missing exit status is a gap, for both `"unknown"` and old `null` receipts** — no code change; the `else` at `verify.py:689-692` keeps covering both, and `test_verify.py:131` stays as written. The 3a11123 gate read the exit code from the tool response alone, with no background or interrupt flag, so a `null` cannot tell "finished OK" from "only started" or "cut off" (default, 2026-10-04).
 - **Tags: deferred, not created.** `notes/docs.md` now carries all 16 commands. Its v0.9.29 sha was wrong — `1db67c1` never existed outside a deleted scratch clone; the real bump is `4f5ab08`, whose subject is just "chore: bump version". v0.9.30 = `49f9154`, v0.9.31 = `573fbdb`. `main` fast-forwarded, so all three shas are stable and the tags are safe whenever wanted (user, 2026-10-04).
 - **Stay local.** No push, no `git push --tags`, no `gh repo edit` (the description/topics line in `APPLY.md` decision 3 is unrun). The `keep-mycelium-extra-local` memory now says what it meant: no upstream Mycelium issues or PRs; push their own repo only on request (user, 2026-10-04).
@@ -59,6 +63,7 @@ Ask the user (a) whether to run A2's acceptance on GitHub, and (b) which of E1, 
 - Memory: `backlog-2026-10`, `complement-mycelium-not-override`, `keep-mycelium-extra-local`, `show-layout-options`.
 
 ## Open items
+- **D1 parked** (return when needed): prose context scoring, log2/-log10 transforms, Markdown pipe-table diff, text/log artifacts, `claims_report.json`, a no-plan mode, a 4th ablation. Explore-only covers only files on `Outputs:`; a file only an explore run wrote off that line is a gap, not a block.
 - **Verify gap found by C1 (not a case yet):** a plan that names only the Snakefile gets a direct receipt for it, so an `incomplete: true` rule is never reported (`verify.py:686` `if direct:` wins over `elif inside:`). V-13 works around it by keeping the steps in the plan table.
 - Known misses recorded as tests (flip on purpose when fixed): DC-08 sign flip, DC-09 positional join, DC-10 Excel gene names, DC-11 CPM, V-02b partial output under `|| true`, V-20 output credited to an earlier run of the same plan.
 - **B2:** move the dated verify history to the changelog. No longer blocked.
