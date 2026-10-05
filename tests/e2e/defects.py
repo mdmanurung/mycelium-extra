@@ -28,7 +28,7 @@ DENY = "deny"
 
 
 # Tasks whose fixtures C1 leaves for them to add (design section 8.6).
-LATER = ["D2", "C3", "D6", "E1", "E4", "E5", "D10", "D11", "D12"]
+LATER = ["D2", "C3", "D6", "E1b", "E4", "E5", "D10", "D11", "D12"]
 
 
 class Defect(object):
@@ -553,6 +553,11 @@ def v16(p):
 @defect("V-17", "verify", "verify", ["Version-specific behaviour"],
         {"status": GAPS, "messages": ["Conda env `vaccine-de`", "was not found"]})
 def v17(p):
+    return report(p, conda_runs(p))
+
+
+def conda_runs(p):
+    """The baseline plan, each script run with `conda run -n vaccine-de`."""
     digest = p.approve(harness.plan_text())[0]
     results = []
     for script in harness.SCRIPTS:
@@ -561,7 +566,7 @@ def v17(p):
         results.append(p.agent_bash("conda run -n vaccine-de {} {}".format(tool, script), effect=effect))
     p.space_outputs([(harness.out_of(s), r.receipts[0]) for s, r in zip(harness.SCRIPTS, results) if r.receipts])
     p.lineage()
-    return report(p, digest)
+    return digest
 
 
 VOLCANO_PLAN = """**Objective.** Volcano data for the vaccine-response results.
@@ -655,6 +660,24 @@ def v24(p):
     digest = p.run_plan()[0]
     code, out, err = p.verify("multiplicity", digest)
     return {"code": code, "text": out + err}
+
+
+@defect("V-25", "verify", "verify", ["Version-specific behaviour"],
+        {"status": CONFORMS, "messages": ["Conda env `vaccine-de` (`conda run`): 1 packages recorded; 1 pip package."]})
+def v25(p):
+    # E1: a package pip installed into the env, which its conda-meta does not list.
+    prefix = os.path.join(p.home, "envs", "vaccine-de")
+    site = os.path.join(prefix, "lib", "python3.12", "site-packages", "statsmodels-0.14.1.dist-info")
+    for path, text in [(os.path.join(prefix, "conda-meta", "python-3.12.1-0.json"),
+                        json.dumps({"name": "python", "version": "3.12.1", "url": "https://x/python-3.12.1.conda"})),
+                       (os.path.join(site, "METADATA"), "Metadata-Version: 2.1\nName: statsmodels\nVersion: 0.14.1\n"),
+                       (os.path.join(site, "INSTALLER"), "pip\n"),
+                       (os.path.join(p.home, ".conda", "environments.txt"), prefix + "\n")]:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text)
+    os.utime(site, (time.time() - 3600, time.time() - 3600))
+    return report(p, conda_runs(p))
 
 
 # ---------------------------------------------------------------- 8.4 sweeps and memory

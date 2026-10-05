@@ -339,6 +339,7 @@ DC-08 to DC-11 are the reason the fixture exists. Every tool reports success, ye
 | V-22 | D1: a claims line citing `outputs/missing.tsv` | gap `cites ... missing.tsv, but it does not exist` | tool: verify |
 | V-23 | D1: DC-08's flipped contrast with Key Findings unchanged | block `claims 1.4455, but ... log2fc row MX1 holds -1.4455` | Log base and sign confusion |
 | V-24 | D4: plan with α = 0.1, explore runs of 01, 02, 02, plan with α = 0.01, then the baseline plan runs | `verify multiplicity`: `2 earlier plan revision(s), 3 explore run(s) before the approval`, `2 of 2 plan change(s) edited a Choice cell`, each Choice change listed | Retry until significant |
+| V-25 | E1: `vaccine-de` exists under `HOME` with one conda record and a pip-only `statsmodels` dist-info, and the runs use `conda run -n vaccine-de` | `CONFORMS`; info `1 packages recorded; 1 pip package.` | Version-specific behaviour |
 
 V-13 keeps the steps in the plan table because verify reads a rule's `incomplete` flag only for a planned step that ran inside a wrapper. A plan that names only the Snakefile gets a direct receipt for it, and an incomplete rule is not reported; that is not a case yet.
 
@@ -373,7 +374,8 @@ Each was confirmed against `3a11123`, by a gate probe or by reading the code. E2
 | D4 | none beyond the harness | shipped in 0.9.36: V-24 (3 explore runs and 2 plan revisions changing α before the approved run; counts and the timeline) |
 | C3 | none committed | packet built from the baseline plan, plus a participant-style identifier and a token assembled at run time by string concatenation, so no secret-shaped string is ever committed (push protection would block it) |
 | D6 | none committed | `.h5ad` generated at test time from `sample_metadata.tsv` when `h5py` is present |
-| E1 | none committed | a synthetic env under `HOME` with `conda-meta/*.json` and one `site-packages/*.dist-info`; a `.snakemake/conda/<hash>.yaml` |
+| E1 | none committed | shipped in 0.9.37: V-25 (a synthetic env under `HOME` with `conda-meta/*.json` and one pip-only `site-packages/*.dist-info`) |
+| E1b | none committed | a `.snakemake/conda/<hash>.yaml` |
 | E4 | `learnings.md` candidate; `nbs/qc_explore.ipynb`; `reports/report.Rmd` | hints on/off, harden on DC-10, verify `explore`, R chunk lint |
 | E5 | `report.Rmd` | four variants: document-level `eval: false`, `child=`, `knitr::read_chunk`, `{r engine=...}` |
 | D10 to D12 | none | approval latency recorded per approval; checkpoint question generated from the plan table; seeded audit revealed in the same report |

@@ -4,7 +4,7 @@
 
 Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how often they are likely to bite in real use. When a task ships, remove its item from `HANDOFF.md` in the same commit.
 
-### E1: Record pip packages in conda envs and Snakemake rule envs
+### E1: Record pip packages in conda envs
 
 - **Why:** the environment record reads the active conda env from `conda-meta`. Packages installed with `pip` inside that env do not appear there, and Snakemake runs with `--use-conda` build per-rule envs that are never recorded. In bioinformatics both are common, so a verified run can rest on package versions the provenance does not show.
 - **Scope:** read pip-installed distributions from the env's `site-packages/*.dist-info` (and `*.egg-info`) metadata; for Snakemake, read each rule's `conda:` YAML path from the Snakefile or `.snakemake/conda/` and record the env file's hash and, if built, its `conda-meta` contents. Report an env that cannot be read as a gap.
@@ -15,6 +15,18 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 - **Acceptance:** on an env with one pip-only package, the record lists it with source `pip`; on a Snakemake fixture with a rule env, the env file hash appears; an unreadable env is a gap, not silence.
 - **Tests:** unit tests with a synthetic env folder (conda-meta JSON plus dist-info) and a synthetic `.snakemake/conda/` tree.
 - **Effort:** M. HANDOFF.md estimates the pip half at about 20 minutes; the Snakemake rule envs are the larger half and can ship as a second commit.
+- **Status:** done in 0.9.37 for pip (plan 42fd5ffd): verify writes `pip-<hash>.txt` in requirements format, one block per env, with each package conda did not install (not in any conda-meta record's files, or reinstalled since, so its `INSTALLER` is no longer `conda`), noting a name also in conda-meta, a non-pip installer, and an editable or URL install. A `conda-lock.yml` no longer hides pip packages. A pip folder newer than the env's last run, or one without a readable name and version, is a gap; a `pip uninstall` after the run is not seen. Fixture case V-25. The Snakemake rule envs moved to E1b.
+
+### E1b: Record Snakemake per-rule conda envs
+
+- **Why:** Snakemake runs with `--use-conda` build per-rule envs under `.snakemake/conda/` that verify never records; it records only the env Snakemake itself ran in (a `LIMITS` line says so).
+- **Scope:** read each rule's `conda:` YAML path from the Snakefile or `.snakemake/conda/`, and record the env file's hash and, if built, its `conda-meta` contents and pip packages (E1's reader). Report an env that cannot be read as a gap.
+- **Out of scope:** running conda or Snakemake; container images.
+- **Depends on:** E1.
+- **Constraints:** file reads only, stdlib only.
+- **Acceptance:** on a Snakemake fixture with a rule env, the env file hash appears; an unreadable rule env is a gap.
+- **Tests:** a synthetic `.snakemake/conda/<hash>.yaml` and built env folder.
+- **Effort:** M. Return when a `--use-conda` pipeline runs under verify.
 - **Status:** todo.
 
 ### E2: Gate false positives on state-folder mentions
