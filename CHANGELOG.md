@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.42] - 2026-10-05
+
+### Fixed
+
+- `verify`'s `.qmd`/`.Rmd` chunk lint handles four cases it missed (roadmap E5). An `engine=` chunk option now picks the language: `{r engine="bash"}` is skipped like `{bash}` instead of linted as R, and `engine="python"` is linted as Python. A file pulled in with `child=` (or Quarto's `#| child:`) or `knitr::read_chunk()` is found relative to the document and linted under its own path, also outside the analysis folder; a path that is not a quoted string, or that is not found, is a gap. A document set to `eval: false` is linted, as `eval=FALSE` chunks already were.
+
 ## [0.9.41] - 2026-10-05
 
 ### Changed
