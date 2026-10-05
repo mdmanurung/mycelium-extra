@@ -1658,7 +1658,9 @@ def explore_runs(root, session, hash_mb, seconds):
                      paths=ran_paths(root, r), exit_status=r.get("exit_status"), env=env.get("env"))
         script = r.get("script") or {}
         entry["changed"] = None
-        if script.get("in_repo"):
+        if script.get("in_repo") and script.get("missing"):
+            entry["changed"] = "script `{}` not found when this ran".format(script["path"])
+        elif script.get("in_repo"):
             now = gate.fingerprint(os.path.join(root, script["path"]), budget, pin=script)
             if now.get("missing"):
                 entry["changed"] = "script `{}` deleted since this run".format(script["path"])
