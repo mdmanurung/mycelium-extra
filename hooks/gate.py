@@ -15,6 +15,7 @@ After `hints on`, the prompt and Stop hooks also suggest the command to run next
 """
 
 import ast
+import collections
 import fnmatch
 import functools
 import json
@@ -1181,9 +1182,13 @@ def on_stop(event, root, config):
         notices.append(approval_card(root, text, config, digest, pins, outside, previous))
     fresh = new_explore_runs(root, event.get("session_id"))
     if fresh:
+        counts = collections.OrderedDict()
+        for command in fresh:
+            counts[command] = counts.get(command, 0) + 1
+        listed = [c + (" ({} runs)".format(n) if n > 1 else "") for c, n in counts.items()]
         notices.append("mycelium-extra: {} exploratory run(s) this session are not reportable: {}. "
                        "Say \"promote explore runs\" to plan a reportable re-run.".format(
-                           len(fresh), "; ".join(fresh[:5]) + (" ..." if len(fresh) > 5 else "")))
+                           len(fresh), "; ".join(listed[:5]) + (" ..." if len(listed) > 5 else "")))
     if hints_on(root):
         notices += stop_hints(root, event)
     return {"systemMessage": "\n\n".join(notices)} if notices else None
