@@ -28,7 +28,7 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Acceptance:** a PR shows green checks for both Python versions; deliberately breaking one gate decision makes `gate_diff.py` fail the PR.
 - **Tests:** the workflow is the test. Record one intentionally failing run as evidence.
 - **Effort:** M.
-- **Status:** todo.
+- **Status:** in-progress (awaiting the first GitHub run). `.github/workflows/ci.yml` runs every test file, `tests/e2e/ablate.py` (5 s, so on every run rather than weekly), `tests/test_versions.py` (A3's manifest check) and `tests/check_links.py` in the containers `python:3.6-bullseye` (under `LC_ALL=C`) and `python:3.14-bookworm`; non-slim images, because `-slim` has no git and the git tests would skip. A `gate-diff` job runs on pull requests only. `check_links.py` moved in from the staging folder: with no file it now exits 2, and it skips `@@...@@` template placeholders. Checked locally in a fresh clone on 3.6 (also under `LC_ALL=C`) and 3.12: all 13 test files pass, 3 of 3 ablations bite, 45 links resolve; `gate_diff.py --base main` is 160/160, and dropping `rm` from the gate's write commands makes it exit 1 with 3 cases. Not yet run on GitHub: the repository is kept local until the maintainer pushes.
 
 ### A3: Changelog and tagged releases
 

@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: tests (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Hosted runners no longer ship 3.6, so both legs run in the official python
+        # images. Not -slim: those have no git, and the git tests would skip, not fail.
+        # The images set LANG=C.UTF-8; the 3.6 leg runs under C, as bare HPC shells do,
+        # because PEP 538 hides locale bugs from 3.7 on.
+        include:
+          - {image: "python:3.6-bullseye", locale: C}
+          - {image: "python:3.14-bookworm", locale: C.UTF-8}
+    container: ${{ matrix.image }}
+    env:
+      LC_ALL: ${{ matrix.locale }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trust the checkout (the container runs as root)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Unit and end-to-end tests
+        shell: bash
+        run: |
+          fail=0
+          for t in hooks/tests/test_*.py skills/*/tests/test_*.py tests/test_*.py; do
+            echo "::group::$t"
+            python3 "$t" || { echo "::error::$t failed"; fail=1; }
+            echo "::endgroup::"
+          done
+          exit $fail
+      - name: Ablations
+        run: python3 tests/e2e/ablate.py
+      - name: Links
+        run: python3 tests/check_links.py $(git ls-files '*.md')
+
+  gate-diff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    container: python:3.14-bookworm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Gate decisions against the PR base
+        run: python3 hooks/tests/gate_diff.py --base ${{ github.event.pull_request.base.sha }}
