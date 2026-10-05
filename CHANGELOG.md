@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.40] - 2026-10-05
+
+### Fixed
+
+- `verify explore` says "script `<path>` not found when this ran" for an explore run of a script that did not exist, instead of "deleted since this run" (roadmap E7). The Stop hook's explore notice now names each command once, with a run count, as `verify explore` does; the leading count is still the number of runs.
+
 ## [0.9.39] - 2026-10-05
 
 ### Fixed
