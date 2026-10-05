@@ -105,7 +105,7 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 - **Acceptance:** the two cases in section 3 print the corrected text.
 - **Tests:** extend `RealUse.test_verify_explore`.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** done (plan 85a97fd3): `explore_runs` prints "script `<path>` not found when this ran" when the receipt recorded the script missing, and the Stop notice merges repeated commands as "`<command>` (N runs)", keeping the total run count in front. Case: `RealUse.test_verify_explore` in `tests/test_end_to_end.py` (fails on the old code).
 
 ### E8: harden candidates placed in analysis code
 
