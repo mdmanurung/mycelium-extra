@@ -2,7 +2,7 @@
 
 [Back to README](../README.md)
 
-**Tests:** `python3 skills/<skill>/tests/test_*.py` and `python3 hooks/tests/test_gate.py`.
+**Tests:** `python3 skills/<skill>/tests/test_*.py` and `python3 hooks/tests/test_gate.py`. The end-to-end suite on the fixture project is `python3 tests/test_end_to_end.py` (about 40 s) with `python3 tests/test_fixture_data.py`; `python3 tests/e2e/ablate.py` checks that the defect cases still depend on the guards they name ([design](design/c1-fixture-project.md)).
 
 Before changing `hooks/gate.py`, also run `python3 hooks/tests/gate_diff.py`: it sends the same events to the committed gate and the working tree and must report every case identical, except the decisions you meant to change.
 

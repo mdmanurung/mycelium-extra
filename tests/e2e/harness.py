@@ -27,6 +27,9 @@ EXPECTED = os.path.join(HERE, "expected")
 PLANS = os.path.join(HERE, "plans")
 HOOKS_JSON = os.path.join(REPO, "hooks", "hooks.json")
 SKILLS = os.path.join(REPO, "skills")
+# The gate entry point and verify source the harness runs; ablate.py points them at patched copies.
+GATE_RUN = os.path.join(REPO, "hooks", "gate_run.py")
+VERIFY = os.path.join(SKILLS, "verify", "scripts", "verify.py")
 ANALYSIS = "analysis/vaccine-response"
 SCRIPTS = [ANALYSIS + "/scripts/01_select_samples.py", ANALYSIS + "/scripts/02_paired_test.py",
            ANALYSIS + "/scripts/03_summary.R"]
@@ -235,7 +238,7 @@ class Project(object):
         """Run the gate as hooks.json does, for gate entry `entry` (tool, prompt, post, stop, ...)."""
         event = dict(payload, session_id=self.session, cwd=cwd or self.root)
         event.setdefault("hook_event_name", EVENTS.get(entry, entry))
-        proc = subprocess.Popen([sys.executable, os.path.join(REPO, "hooks", "gate_run.py"), entry],
+        proc = subprocess.Popen([sys.executable, GATE_RUN, entry],
                                 cwd=cwd or self.root, env=self.env(), stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = proc.communicate(json.dumps(event, ensure_ascii=False).encode("utf-8"))  # raw UTF-8, as Claude Code sends it
@@ -386,7 +389,7 @@ class Project(object):
 
     def verify_command(self, *args):
         """(documented form, run form) of a verify call; the run form adds --repo and the fakes."""
-        script = sh_quote(os.path.join(SKILLS, "verify", "scripts", "verify.py"))
+        script = sh_quote(VERIFY)
         plugin = sh_quote(os.path.join(SKILLS, "verify") + "/../..")
         words = " ".join(sh_quote(a) for a in args)
         documented = "python3 - --plugin-root {} {} < {}".format(plugin, words, script)

@@ -347,9 +347,9 @@ V-13 keeps the steps in the plan table because verify reads a rule's `incomplete
 | S-03 | delete `summary.tsv` after `verify write` | `verify stale` lists the output as deleted | Stale evidence as current |
 | M-01 | decision-status `--term normalisation` | three entries, raw statuses; output never names one as current | Redoing settled work |
 
-### 8.5 Known bugs (`expectedFailure`, named by task)
+### 8.5 Known bugs, now fixed
 
-Each was confirmed against `3a11123`, by a gate probe or by reading the code:
+Each was confirmed against `3a11123`, by a gate probe or by reading the code. E2 and E3 fixed all six before C1 step 5, so they are plain asserts, not `expectedFailure`: an unexpected success would report the suite as FAILED. KB-03 passes on Python 3.6 as well (E2 scans unparseable Python by its string tokens), so it runs on every version. KB-04 sends a post event with no `hook_event_name`, the only shape that still yields an unknown exit status; KB-05 reads the receipt's `paths`; KB-06 is a report rule that lists `03_summary.R` as an input but runs only R Markdown.
 
 | ID | Correct behaviour asserted | Today | Task |
 | --- | --- | --- | --- |
@@ -386,7 +386,7 @@ These run with the suite and need no project:
 
 ## 10. Guard ablations (`tests/e2e/ablate.py`)
 
-`ablate.py` feeds verify or the gate a patched copy of its source. Each patch removes one `report.add` or `deny` line. It then runs the defect case that depends on that line and expects the case to fail. Verify is already run as source on stdin, so the patch never touches the repository. The three required ablations are:
+`ablate.py` feeds verify or the gate a patched copy of its source. Each patch disables one `report.add` call or the `deny` branch. It first runs the defect case against the real source (it must pass), then against the patched copy (it must fail). Verify is already run as source on stdin, and the gate is copied with its `hooks/` folder, so the patch never touches the repository; the harness's `VERIFY` and `GATE_RUN` name the copies. A guard text that is not found exactly once stops the run, so a wording change cannot turn an ablation into a no-op. The three required ablations are:
 
 | Ablation | Line removed | Case that must fail |
 | --- | --- | --- |

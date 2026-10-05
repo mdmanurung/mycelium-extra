@@ -9,6 +9,7 @@ evidence that its results are wrong.
 Stdlib only, Python 3.6 grammar.
 """
 
+import base64
 import json
 import os
 import re
@@ -658,6 +659,82 @@ def m01(p):
     code, out, err = p.stdin_skill("decision-status", "decision_threads.py", "--living-dir .living --term normalisation")
     dates = [d for d in ("2026-03-02", "2026-04-01", "2026-04-20", "2026-05-10", "2026-07-15") if d in out]
     return {"code": code, "text": out + err, "dates": dates, "names_current": "current" in out.lower()}
+
+
+# ---------------------------------------------------------------- 8.5 known bugs, now fixed
+# Each was a bug at 3a11123. E2 and E3 fixed them, so they are plain asserts: an expectedFailure
+# that passed would report the suite as FAILED.
+
+@defect("KB-01", "gate", "approval gate", ["tool: gate state"], {"decision": "silent"})
+def kb01(p):
+    return gate(p.agent_bash("python3 -c \"import os; open('notes.txt','w').write(os.path.join('x', '.mycelium-extra'))\""))
+
+
+@defect("KB-02", "gate", "approval gate", ["tool: gate state"], {"decision": "silent"})
+def kb02(p):
+    with open(p.path("notes.md"), "w", encoding="utf-8") as handle:
+        handle.write("The gate state lives in one place.\n")
+    return gate(p.agent_bash("sed -i 's/gate state/the `.mycelium-extra` folder/' notes.md"))
+
+
+@defect("KB-03", "gate", "approval gate", ["tool: gate state"], {"decision": "silent"})
+def kb03(p):
+    # Python 3.6 cannot parse `:=`, so the gate falls back to its any-mention rule; 3.8+ parses it.
+    command = ("python3 - <<'EOF'\nif (name := 'notes.txt'):\n"
+               "    open(name, 'w').write('see .mycelium-extra')\nEOF")
+    pre = p.pre_bash(command)
+    return {"decision": DENY if p.denied(pre) else "silent" if pre is None else "notice", "text": json.dumps(pre)}
+
+
+@defect("KB-04", "verify", "verify", ["tool: verify"],
+        {"status": GAPS, "row": "ran (exit status unknown)",
+         "messages": ["but the tool response carried no exit status, so the run is not counted as a success"]})
+def kb04(p):
+    digest = p.approve(harness.plan_text())[0]
+    results = [p.agent_bash("python3 " + s, response="bare" if s == PAIRED else "claude") if s != harness.SCRIPTS[2]
+               else p.run_step(s) for s in harness.SCRIPTS]
+    p.space_outputs([(harness.out_of(s), r.receipts[0]) for s, r in zip(harness.SCRIPTS, results)])
+    p.lineage()
+    outcome = report(p, digest)
+    outcome["row"] = row_status(outcome["text"], PAIRED)
+    return outcome
+
+
+WRAP = "sbatch --chdir={} --wrap 'python3 scripts/01_select_samples.py'".format(A)
+
+
+@defect("KB-05", "verify", "verify", ["tool: verify"],
+        {"decision": "silent", "script": harness.SCRIPTS[0], "row": "job 4242 COMPLETED"})
+def kb05(p):
+    digest = p.approve(plan([row(1, WRAP, choice="runs `{}`".format(harness.SCRIPTS[0]))],
+                            outputs=harness.OUTPUTS[0]))[0]
+    result = p.agent_bash(WRAP, effect=lambda q: q.shell("python3 " + harness.SCRIPTS[0])[1] + "Submitted batch job 4242\n")
+    outcome = gate(result)
+    outcome["script"] = ((result.receipts or [{}])[0].get("paths") or [None])[0]
+    outcome["row"] = row_status(report(p, digest)["text"], harness.SCRIPTS[0])
+    return outcome
+
+
+@defect("KB-06", "verify", "verify", ["tool: verify"],
+        {"row": "no receipt", "messages": ["`{}`: no run under this plan was recorded".format(harness.SCRIPTS[2])]})
+def kb06(p):
+    # A report rule lists 03_summary.R as an input (for dependency tracking) but runs only R Markdown.
+    def effect(q):
+        snakemake_effect(None)(q)
+        os.remove(q.path(A, ".snakemake", "metadata", base64_name(RULES[2][2])))
+        q.snakemake_record("reports/report.html", "report", ["scripts/03_summary.R", "reports/report.Rmd"],
+                           "Rscript -e \"rmarkdown::render('reports/report.Rmd')\"", workdir=A)
+        return ""
+    digest = p.approve(plan(change=lambda t: t.replace("\n\nPlan status", "\n" + row(
+        4, SNAKEMAKE, source="repo: " + A + "/Snakefile") + "\n\nPlan status")))[0]
+    p.agent_bash(SNAKEMAKE, effect=effect)
+    outcome = report(p, digest)
+    outcome["row"] = row_status(outcome["text"], harness.SCRIPTS[2])
+    return outcome
+
+
+def base64_name(output):
+    return base64.b64encode(output.encode("utf-8")).decode("ascii")
 
 
 def by_id(id):

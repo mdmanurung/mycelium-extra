@@ -15,7 +15,7 @@ Tasks that make the existing tools trustworthy before new ones are added. C1 com
 - **Acceptance:** the baseline chain passes on a clean checkout with `Verify status: CONFORMS`; every defect case passes; every failure mode whose Check names a tool has at least one defect the tool catches; for the three named guard ablations, the matching defect case fails with a message naming the check.
 - **Tests:** `tests/test_end_to_end.py` is the deliverable; `tests/e2e/ablate.py` runs the ablations. Record one ablation run in the PR description.
 - **Effort:** L.
-- **Status:** in-progress: build-order commits 1-2 landed
+- **Status:** done: build-order commits 1-5 landed. 60 end-to-end tests (the baseline chain with and without R, 49 defects, 5 catalog tests, 4 event-shape tests) pass on Python 3.6 and 3.12 in about 40 s; `ablate.py` reports 3 of 3 ablations bite.
 
 ### C2: Optional fail-closed gate
 

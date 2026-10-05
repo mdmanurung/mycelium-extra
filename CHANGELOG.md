@@ -6,6 +6,7 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Added
 
+- The C1 defect catalog (`tests/e2e/defects.py`): 49 planted defects across the data, gate, verify, sweep and memory layers, each run alone on a fresh copy of the fixture project, with catalog tests that tie every defect to a checklist row and fail if a tool the checklist credits catches none. Six are known misses, where every tool reports success and the results are wrong. `tests/e2e/ablate.py` disables three guards in patched copies and checks that their cases fail. Roadmap C1 is done.
 - `hooks/tests/gate_diff.py` has 12 more scenarios: the three E2 commands that name the state folder only in text, each with a write twin that must still be denied, and a post event for each hook event shape (success, background start, interrupt, `Exit code N`, a bare failure, an abort). Roadmap E3 is done.
 
 ## [0.9.33] - 2026-10-05
