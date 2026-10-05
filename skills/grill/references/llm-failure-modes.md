@@ -47,7 +47,7 @@ In the last column, a named tool (`data-contract-check`, `verify`, or the approv
 
 | Failure mode | How it shows up | Guard the plan must name | Check |
 | --- | --- | --- | --- |
-| Retry until significant | Parameters, subsets, or methods changed across runs until a result appears; explore runs shopped for the best one | Pre-specify the primary analysis; count every contrast tried, including explore runs | cross-ref: Multiplicity; planned: D4 |
+| Retry until significant | Parameters, subsets, or methods changed across runs until a result appears; explore runs shopped for the best one | Pre-specify the primary analysis; count every contrast tried, including explore runs | cross-ref: Multiplicity; partial: verify (`multiplicity` lists the plan revisions and runs tried, but judges nothing) |
 | Test chosen after results | The test or model changes after the first look at the data | The test is fixed in the approved plan; a change needs a new plan | cross-ref: Model or test |
 | p versus padj confusion | Raw p-values reported or thresholded as if adjusted, or the reverse | Name which column each threshold uses | cross-ref: Multiplicity |
 | Log base and sign confusion | log2 versus ln versus log10 mixed; fold-change direction flipped between table and text | Name the log base and the sign convention once; reports use it throughout | partial: verify (a sign or value in a document's claims block that differs from the output cell it names, not prose outside the block or the log base itself) |

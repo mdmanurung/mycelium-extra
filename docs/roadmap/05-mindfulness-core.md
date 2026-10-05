@@ -56,7 +56,7 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Acceptance:** on a fixture with three explore runs and two plan revisions before the approved run, the view shows those counts and lists the runs.
 - **Tests:** unit tests on synthetic receipts; an end-to-end case.
 - **Effort:** M.
-- **Status:** todo.
+- **Status:** done (0.9.36). `verify multiplicity <hash>` shows a counts line and one timeline: earlier approved plans that share a script or output, with their changed Choice cells, then explore runs, runs under earlier plans, and this plan's runs, up to its last run. Plans are content hashes with no link to the plan they replace, so overlap of scripts or outputs is the link. Parked: a multiplicity section in `PROVENANCE.md` (when D3 needs it), a git diff of the code versions, and counting per contrast.
 
 ### D5: LLM failure-mode checklist in grill
 

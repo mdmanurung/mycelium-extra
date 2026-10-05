@@ -144,3 +144,13 @@ python3 - --plugin-root <skill-dir>/../.. diff <old-hash> <new-hash> < <skill-di
 ```
 
 It reads each plan from the approvals, or, for one shown but not yet approved, from the gate's pending plans, and compares their tables row by row (keyed by the step number) and their `Inputs:` lines. A changed Choice cell is flagged as a possible scientific change; whether it is one is the user's call, so name it and let them decide. Write nothing; the revision itself belongs in the analysis folder's `TRACKER.md`.
+
+## Multiplicity
+
+When the user asks what was tried before a result (which tests, models, or thresholds, how many runs, how many plan revisions), show the record for one approved plan, read-only:
+
+```bash
+python3 - --plugin-root <skill-dir>/../.. multiplicity <hash> [--json] < <skill-dir>/scripts/verify.py
+```
+
+A counts line, then one timeline, oldest first: each earlier approved plan that names one of this plan's scripts or `Outputs:` paths (a revision), with its changed Choice cells; each run of those scripts or in the analysis folder, as an explore run, a run under an earlier plan, or a run under this plan, with its command and exit status; and this plan, marked `approved (selected)`. It stops at this plan's last run. A run whose script differs from the version this plan last ran is marked `other code version`. Counts come from receipts and approvals only; a run whose approvals were not read is counted as a gap. Receipts do not record which files a run wrote, and a value changed inside a script shows only as another code version. Show the table as printed and judge nothing: which run is the real one, and whether the tries need a correction, is the user's call. Write nothing.
