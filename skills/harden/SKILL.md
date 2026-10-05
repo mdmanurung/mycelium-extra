@@ -12,13 +12,14 @@ Turn a learning the project keeps having to remember into a test that remembers 
 - Requires `.living/learnings.md`. Without it, say so and stop.
 - `rg -n 'structural_mitigation_candidate' .living/learnings.md`, then read each matching entry (it starts at the `### [YYYY-MM-DD]` heading above the match).
 - Keep entries whose `mitigation_type` is not `structural` and whose candidate names a concrete check: a function, file, column, or assertion. Skip the template placeholder and vague candidates ("be careful with X").
+- A candidate that places its check in analysis code ("In `analysis/.../x.py`, assert ...") still qualifies when the check reads a file a test can read too: show it with "(check moves to a test)". If it checks a value only the running script holds, skip it and say why: it belongs to a grill plan and a re-run.
 - Show at most five, newest first: date, title, the candidate in one line. The user picks one. If none qualifies, say so and stop.
 
 ## 2. Place the test
 
 - Follow the repository's test setup: `pytest.ini`, `[tool.pytest]` in `pyproject.toml`, `tests/testthat/`, or existing `test_*.py` files and how they are run (check `README`, `AGENTS.md`, `CLAUDE.md`).
 - With no setup, create `tests/test_<slug>.py` (stdlib `assert`, runnable with `python3`) or `tests/testthat/test-<slug>.R`.
-- Never place the test under the approval gate's gated paths (`gated_paths` in `.mycelium-extra/gate.json`; default `analysis/**`, `nbs/**`), and never edit analysis code. A check inside analysis code changes what ran, so it belongs to a grill plan and a re-run, not to this skill.
+- Never place the test under the approval gate's gated paths (`gated_paths` in `.mycelium-extra/gate.json`; default `analysis/**`, `nbs/**`), and never edit analysis code. A check inside analysis code changes what ran, so it belongs to a grill plan and a re-run, not to this skill. For a candidate placed in analysis code, write the same assertion in the test, reading the file the analysis reads or writes, and leave the script as it is.
 - Name the test after the learning and cite it in a one-line comment: `# Guards learning "<title>" (.living/learnings.md, <date>).`
 
 ## 3. Prove it guards something
