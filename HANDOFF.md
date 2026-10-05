@@ -1,18 +1,19 @@
-# Handoff — mycelium-extra: the series is on `main`; the four decisions are answered
+# Handoff — mycelium-extra: C1 is done; A2, A6, C3, D1, D4 and E4 are unblocked
 
-**Date:** 2026-10-04 · **Branch:** `improvements` (v0.9.33, uncommitted), `main` at v0.9.32, ahead of `origin/main` (3a11123, v0.9.28) · **Status:** the 24-patch series plus the name and handoff commits are landed locally and green. Nothing pushed, tagged, or sent to `gh`.
+**Date:** 2026-10-05 · **Branch:** `improvements` (v0.9.33 + C1 steps 3-5, test-only, no bump), `main` at v0.9.32, ahead of `origin/main` (3a11123, v0.9.28) · **Status:** the 24-patch series plus the name and handoff commits are landed locally and green. Nothing pushed, tagged, or sent to `gh`.
 
 ## Goal
-Work the roadmap the series adds, starting with C1 steps 3–5. Done = `ablate.py` exists and the catalog tests run.
+Work the roadmap the series adds. C1 is done; pick the next task from `IMPLEMENTATION-MAP.md` "Do now": A2 (CI), E1 (pip/rule envs) or B2.
 
 ## Next action
-`mycelium-extra-improvements/IMPLEMENTATION-MAP.md` → C1 step 3 (defect layers). It is the keystone: A2, A6, C3, D1, D4 and E4 all wait on it.
+Ask the user which of A2, E1, B2 comes next. A2 now has a real suite to run: `tests/test_end_to_end.py` (~40 s) plus `tests/e2e/ablate.py` (weekly).
 
 ## State
-- `main` and `improvements` point at the same commit. `origin/main` is still 3a11123 (v0.9.28) — nothing was pushed.
-- All 12 test files pass on Python 3.6.8. Skips: 7 in `test_data_contract_check.py` (no h5py), 1 in `test_new_analysis.py` (`test_r_stub_fails_loudly`, no Rscript). `test_gate.py` is 102/102. `test_verify.py` was re-run after the name fix: 32 OK. The other suites were not re-run; the commits since are docs only and no test reads `LICENSE` or `CHANGELOG.md`.
+- C1 steps 3-5 landed on `improvements`: `ac83c96` (DC-01..11, G-01..07, catalog 1/3/5), `716a149` (V-01..20, S-01..03, M-01, catalog 2/4), `2c19fb1` (KB-01..06 as plain asserts, `ablate.py`). `tests/test_end_to_end.py`: 60 OK on 3.6 and 3.12; `ablate.py`: 3 of 3 bite. Design doc updated where code differed (DC-03, G-03, V-12, V-13, new V-19/V-20, 8.5, 10). `main` not yet fast-forwarded to these.
+- `main` is at `2e9e177` (E3 done, v0.9.33); `improvements` is 4 commits ahead (C1 steps 3-5 + this handoff). Fast-forward with `git fetch . improvements:main` when the user says so. `origin/main` is still 3a11123 (v0.9.28) — nothing was pushed.
+- All 12 unit test files plus `tests/test_end_to_end.py` and `tests/test_fixture_data.py` pass on Python 3.6.8 (re-run 2026-10-05 after C1). Skips: 7 in `test_data_contract_check.py` (no h5py), 1 in `test_new_analysis.py` (`test_r_stub_fails_loudly`, no Rscript). `test_gate.py` 102/102, `test_verify.py` 33 OK.
 - `gate_diff.py --base 3a11123`: 127/160 identical. 30 differences are receipt state (`exit_source`, `exit_status: null` → `"unknown"`, `sbatch --wrap` paths, the 6 hook-event cases); the other 3 are the E2 text commands, which pass now (`out`). The 3 E2 write twins still deny. Against HEAD: 160/160.
-- Uncommitted: E3b (0.9.33: `verify.py`, `test_verify.py`, docs, roadmap, manifests, `CHANGELOG.md`, this file), and `mycelium-extra-improvements/`, untracked on purpose — a staging folder, not part of the change.
+- Uncommitted: only `mycelium-extra-improvements/`, untracked on purpose — a staging folder, not part of the change.
 - `stash@{0}` ("session handoff (pre-series)", on main) holds the pre-series handoff. Everything in it is carried forward; it can be dropped. Do not `git stash pop` — it conflicts with the series' HANDOFF edits.
 - Installed plugin updated 0.9.28 → 0.9.31 (user scope, 2026-10-04); it needs a Claude Code restart to take effect, so a session started before that still runs 0.9.28. The `mycelium-extra` marketplace is the **folder** `/exports/para-lipg-hpc/mdmanurung/mycelium-extra`, not GitHub, so staying local never blocks an update: `claude plugin marketplace update mycelium-extra`, `claude plugin update mycelium-extra@mycelium-extra`, restart.
 - The gate is on here and blocked nothing this session.
@@ -54,7 +55,8 @@ Work the roadmap the series adds, starting with C1 steps 3–5. Done = `ablate.p
 - Memory: `backlog-2026-10`, `complement-mycelium-not-override`, `keep-mycelium-extra-local`, `show-layout-options`.
 
 ## Open items
-- **C1 steps 3–5** (defect layers, catalog tests, `ablate.py`): the keystone. Add the known-miss case from `APPLY.md`: with output times not spaced, verify credits an output to the wrong run of the same plan and still says CONFORMS. KB-04, KB-05 and KB-06 (`docs/design/c1-fixture-project.md` §8.5) are fixed now: write them as plain asserts, not `expectedFailure`, or the suite reports FAILED on an unexpected success.
+- **Verify gap found by C1 (not a case yet):** a plan that names only the Snakefile gets a direct receipt for it, so an `incomplete: true` rule is never reported (`verify.py:686` `if direct:` wins over `elif inside:`). V-13 works around it by keeping the steps in the plan table.
+- Known misses recorded as tests (flip on purpose when fixed): DC-08 sign flip, DC-09 positional join, DC-10 Excel gene names, DC-11 CPM, V-02b partial output under `|| true`, V-20 output credited to an earlier run of the same plan.
 - **B2:** move the dated verify history to the changelog. No longer blocked.
 - Unrecorded: pip packages inside conda envs; snakemake `--use-conda` rule envs. `sbatch -o/-e/-i` values under gated paths are probably denied wrongly.
 - `init --paths` with a non-ASCII glob on Python 3.6 under `LC_ALL=C` stores it as `\udcXX` escapes in `gate.json` (argv arrives as surrogates). It does not crash, but the glob will not match on a UTF-8 locale. Rare: Mycelium names analyses in ASCII.
