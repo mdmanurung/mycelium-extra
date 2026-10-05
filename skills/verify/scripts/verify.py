@@ -254,6 +254,10 @@ LINT_LANGUAGES = {".py": "Python", ".R": "R", ".r": "R"}
 NOTEBOOK_EXT = (".ipynb", ".qmd", ".Rmd", ".rmd")
 FENCE = re.compile(r"^\s*(`{3,})(.*)$")
 CHUNK = re.compile(r"^\s*\{(r|python)\b", re.I)
+ENGINE = re.compile(r"\bengine\s*=\s*[\"']?(\w+)", re.I)
+CHILD = re.compile(r"\bchild\s*=\s*(?:([\"'])(?P<path>[^\"']+)\1)?")
+QUARTO_CHILD = re.compile(r"^\s*#\|\s*child:\s*[\"']?(?P<path>[^\"'\s\[]+)?")
+READ_CHUNK = re.compile(r"^[^#]*\bread_chunk\s*\(\s*(?:path\s*=\s*)?(?:([\"'])(?P<path>[^\"']+)\1)?")
 # scilintr 0.1.1's `main()` lints only its first argument, as a folder, prints no column and
 # always exits 0, so R code goes through `lint_project()` on a copy, in LINT_LINE's format.
 # Each file is parsed first: lintr's parse-error finding is dropped by a nearby ANALYSIS_OK.
@@ -302,29 +306,39 @@ def notebook_code(path):
 
 
 def chunk_code(path):
-    """{language: code} of a .qmd/.Rmd's r and python chunks, every other line blank so
-    line numbers match the document. Python magic and shell lines become comments."""
+    """({language: code}, refs) of a .qmd/.Rmd's r and python chunks, every other line blank
+    so line numbers match the document. Python magic and shell lines become comments. An
+    `engine=` option picks the language; other engines are skipped like `{bash}`. refs are
+    the (line, quoted path or None) of each `child=` and `read_chunk()`, whose code lives
+    in another file."""
     try:
         with open(path, encoding="utf-8", errors="replace") as handle:
             lines = handle.read().splitlines()
     except OSError:
-        return {}
-    code, fence, language, magic = {}, None, None, False
+        return {}, []
+    code, refs, fence, language, magic = {}, [], None, None, False
     for n, line in enumerate(lines):
         match = FENCE.match(line)
         if fence is None:
             if match:
                 fence, chunk, magic = match.group(1), CHUNK.match(match.group(2)), None
-                language = chunk and {"r": "R", "python": "Python"}[chunk.group(1).lower()]
+                engine = chunk and (ENGINE.search(match.group(2)) or chunk).group(1).lower()
+                language = chunk and {"r": "R", "python": "Python"}.get(engine)
+                child = chunk and CHILD.search(match.group(2))
+                if child:
+                    refs.append((n + 1, child.group("path")))
             continue
         if match and len(match.group(1)) >= len(fence) and not match.group(2).strip():
             fence = None
         elif language:
+            ref = language == "R" and (QUARTO_CHILD.match(line) or READ_CHUNK.match(line))
+            if ref:
+                refs.append((n + 1, ref.group("path")))
             if magic is None:
                 magic = language == "Python" and line.lstrip().startswith("%%")
             commented = language == "Python" and (magic or line.lstrip().startswith(("%", "!")))
             code.setdefault(language, [""] * len(lines))[n] = "# " + line if commented else line
-    return {language: "\n".join(body) for language, body in code.items()}
+    return {language: "\n".join(body) for language, body in code.items()}, refs
 
 
 def lint(root, files, report, scilintr, rscript, seconds):
@@ -365,11 +379,23 @@ def lint(root, files, report, scilintr, rscript, seconds):
         cells[path] = (rel, starts)
         by_language[language].append(path)
 
+    files, seen = list(files), set(files)
     try:
-        for rel in files:
+        for rel in files:  # grows as `child=` and `read_chunk()` paths are followed
             ext = os.path.splitext(rel)[1]
             extracted = notebook_code(os.path.join(root, rel)) if ext == ".ipynb" else None
-            chunks = chunk_code(os.path.join(root, rel)) if ext.lower() in (".qmd", ".rmd") else None
+            chunks, refs = chunk_code(os.path.join(root, rel)) if ext.lower() in (".qmd", ".rmd") else (None, [])
+            for n, target in refs:
+                path = target and rel_or_abs(root, os.path.join(os.path.dirname(os.path.join(root, rel)), target))
+                if not target:
+                    report.add("gap", "scilintr not checked: `{}:{}` pulls in code through a path that is not "
+                                      "a quoted string.".format(rel, n))
+                elif not os.path.isfile(os.path.join(root, path)):
+                    report.add("gap", "scilintr not checked: `{}:{}` pulls in `{}`, which was not found next to "
+                                      "the document.".format(rel, n, target))
+                elif path not in seen:
+                    files.append(path)
+                    seen.add(path)
             if ext in LINT_LANGUAGES and LINT_LANGUAGES[ext] == "R":
                 try:
                     with open(os.path.join(root, rel), encoding="utf-8", errors="surrogateescape") as handle:
@@ -384,7 +410,7 @@ def lint(root, files, report, scilintr, rscript, seconds):
             elif chunks:
                 for language, code in sorted(chunks.items()):
                     extract(rel, language, code)
-            elif rel.endswith(NOTEBOOK_EXT):
+            elif rel.endswith(NOTEBOOK_EXT) and not refs:
                 result["notebooks"].append(rel)
         lint_languages(root, by_language, cells, report, result, scilintr, [rscript, "-e", R_LINT, scratch], seconds)
     finally:
