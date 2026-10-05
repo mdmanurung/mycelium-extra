@@ -59,8 +59,8 @@ In the last column, a named tool (`data-contract-check`, `verify`, or the approv
 
 | Failure mode | How it shows up | Guard the plan must name | Check |
 | --- | --- | --- | --- |
-| Number transcription | A value in the report text differs from the artifact it came from | Report values are read from output files, not retyped; a check compares them | partial: verify (values in a document's `<!-- claims -->` block, each against the output cell it names; numbers outside the block are listed, not checked) |
+| Number transcription | A value in the report text differs from the artifact it came from | Report values are read from output files, not retyped; a check compares them | partial: verify (values in a document's `<!-- claims -->` block, each against the output cell it names, not numbers outside the block) |
 | Invented citations | A DOI, PMID, or reference that does not exist or does not support the claim | Every citation resolves, and the cited source is read before it is used | planned: D2 |
 | Figure and text disagree | The text describes a trend, n, or direction the figure does not show | Figures and text come from the same output file; n is in the figure | cross-ref: Outputs and reporting |
-| Explore results reported | A value from an explore run appears in a reportable document | Reportable numbers come only from runs under an approved plan | partial: verify (explore runs, the outputs they wrote, and claims-block values read from those outputs; not report text outside the block) |
+| Explore results reported | A value from an explore run appears in a reportable document | Reportable numbers come only from runs under an approved plan | partial: verify (explore runs, the outputs they wrote, and claims-block values read from those outputs, not report text outside the block) |
 | Missing n or units | A figure or table without its sample size, units, or the unit of replication | Each figure and table states n, units, and what one point is | cross-ref: Outputs and reporting |
