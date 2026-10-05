@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.39] - 2026-10-05
+
+### Fixed
+
+- `verify` no longer reports R code clean that scilintr never linted (roadmap E6). scilintr 0.1.1's `main()` reads only its first argument, as a project root, prints findings without a column, and always exits 0, so every R script, R notebook and `.Rmd` chunk verify passed it came back "clean". verify now copies the R code to one folder and runs `scilintr::lint_project()` on it through its own `Rscript -e` expression, which prints each finding in the format verify reads and exits 1 on findings. Cross-file R rules now run (scripts keep their repository paths in the copy, so `source()` between them resolves), and `.r` files are linted. Each R file is parsed first, and one that does not parse, or that verify cannot read, is a gap: lintr reports a parse error as a finding, but a nearby `ANALYSIS_OK` waiver drops it.
+
 ## [0.9.38] - 2026-10-05
 
 ### Changed
