@@ -28,7 +28,7 @@ Small corrections found while restructuring the README.
 - **Acceptance:** the user docs keep the limit and drop the dated history; the changelog has the history.
 - **Tests:** none.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** done. The dated history is under 0.7.0 to 0.9.15 in `CHANGELOG.md`; `docs/skills.md` keeps the limit.
 
 ### B3: Fix the HANDOFF pointer after the README split
 

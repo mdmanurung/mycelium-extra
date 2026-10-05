@@ -168,3 +168,5 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 ## 0.7.0 to 0.9.15 - 2026-09-30 to 2026-10-03
 
 Summary: the skills, the approval gate, run receipts, pinned inputs, and `verify` were built up over these versions. There is no 0.9.13. See `git log` for details.
+
+`verify` was first run on real receipts on 2026-10-02 (42 receipts, three plans, Rscript, sbatch, and Snakemake runs). The four bugs it showed were fixed the same day: a path only passed to other code counted as a run, Snakemake records beside planned scripts were missed, deleted scripts and code in output folders were misread, and the gate recorded a `command -v sbatch` lookup as a run.
