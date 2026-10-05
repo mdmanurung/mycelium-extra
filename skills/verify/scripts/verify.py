@@ -640,6 +640,59 @@ def default_reasons(plan, report):
         report.add("info", "Default without a usable reason (advisory): " + cell(module.describe(flag)))
 
 
+# ---------------------------------------------------------------- fact tags (D7)
+
+FACT_TAG = re.compile(r"\[(human-stated|agent-derived|agent-asserted)(?::\s*([^\]]*))?\][\s.;,]*$")
+BULLET = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+(.*)$")
+HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
+
+
+def section_bullets(text, label):
+    """[(line number, item text)] for the list under the first line that labels a section `label`
+    (`## Evidence`, `**Evidence**`, `Evidence:`, `- **Evidence**:`), up to the first other line.
+    ponytail: a prose paragraph between the label and its list ends the section early."""
+    lines = HTML_COMMENT.sub(lambda m: re.sub(r"[^\n]", " ", m.group()), text).split("\n")
+    head = re.compile(r"^\s*(?:#{1,6}\s+|[-*]\s+)?(?:\*\*)?" + re.escape(label) +
+                      r"(?:\*\*)?(?:\s*$|\s*[:.])", re.I)
+    start = next((i for i, line in enumerate(lines) if head.match(line)), None)
+    items = []
+    for i, line in enumerate(lines[start + 1:] if start is not None else [], start=(start or 0) + 2):
+        match = BULLET.match(line)
+        if match:
+            items.append([i, match.group(1).strip()])
+        elif items and line[:1] in (" ", "\t") and line.strip():
+            items[-1][1] += " " + line.strip()
+        elif line.strip():
+            break
+    return [tuple(item) for item in items]
+
+
+def fact_tags(where, items, report):
+    """D7, advisory: count each fact's provenance tag and flag an untagged fact, an `agent-derived`
+    one without its artifact, and an `agent-asserted` one without a source. Info only."""
+    if not items:
+        return
+    counts, flags = collections.Counter(), []
+    for line, item in items:
+        match = FACT_TAG.search(item)
+        tag, source = (match.group(1), (match.group(2) or "").strip()) if match else (None, "")
+        counts[tag or "untagged"] += 1
+        if not tag:
+            flags.append("L{} untagged `{}`".format(line, cell(item)[:40].replace("`", "")))
+        elif tag == "agent-derived" and not source:
+            flags.append("L{} agent-derived without its artifact".format(line))
+        elif tag == "agent-asserted" and source.lower() in ("", "none"):
+            flags.append("L{} agent-asserted without a source".format(line))
+    if counts["untagged"] == len(items):
+        report.add("info", "Fact tags: {} fact(s) in {}, none tagged (written before D7, or untagged).".format(
+            len(items), where))
+        return
+    shown = ", ".join("{} {}".format(counts[t], t) for t in ("agent-derived", "human-stated", "agent-asserted",
+                                                            "untagged") if counts[t])
+    report.add("info", "Fact tags in {}: {}{}.".format(where, shown, "; flagged: " + "; ".join(flags)
+                                                       if flags else ""))
+
+
 # ---------------------------------------------------------------- claims (D1)
 
 CLAIMS_BLOCK = re.compile(r"<!--\s*claims\b(.*?)-->", re.S)
@@ -1069,6 +1122,11 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                            "probes are typical, and they are not checked.".format(inline))
 
     default_reasons(plan, report)
+    fact_tags("the plan's Evidence", section_bullets(plan, "Evidence"), report)
+    if analysis_dir:
+        doc = os.path.join(analysis_dir, os.path.basename(analysis_dir).upper().replace("-", "_") + ".md")
+        fact_tags("`{}` Key Findings".format(doc), section_bullets(read_text(os.path.join(root, doc)),
+                                                                   "Key Findings"), report)
     envs = conda_snapshots(root, mine, report)
     linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds)
     claimed = check_claims(root, analysis_dir, outputs, claims, report, budget["bytes"])

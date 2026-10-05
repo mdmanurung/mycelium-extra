@@ -756,6 +756,44 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("`analysis/a/A.md:8` claims >0.05", out)
         self.assertIn("Verify status: DOES_NOT_CONFORM", out)
 
+    def test_fact_tags_counted_and_flagged_in_plan_and_key_findings(self):
+        evidence = "\n".join([
+            "", "**Evidence**", "- 48 donors [agent-derived: `data/meta.tsv:1`]",
+            "- the contrast is day 28 [human-stated]", "- BH suits independent tests [agent-asserted: none]",
+            "- an untagged fact", "  that wraps", "- a derived fact [agent-derived]", "",
+            "Facts: 2 agent-derived, 1 human-stated, 1 agent-asserted (1 unsourced).", ""])
+        digest = self.approve(plan("run `{}`".format(FIT)).replace("\nOutputs:", evidence + "\nOutputs:"))
+        self.run_cmd("python " + FIT)
+        self.write("analysis/a/A.md", "# a\n\n## Key Findings\n\n<!-- one bullet per result -->\n"
+                                      "- IL7R rises [agent-derived: `outputs/de.tsv`].\n- CD3E falls\n\n## Next\n")
+        out = self.verify("report", digest)
+        self.assertIn("Fact tags in the plan's Evidence: 2 agent-derived, 1 human-stated, 1 agent-asserted, "
+                      "1 untagged; flagged: L6 agent-asserted without a source; L7 untagged `an untagged fact "
+                      "that wraps`; L9 agent-derived without its artifact.", out)
+        self.assertIn("Fact tags in `analysis/a/A.md` Key Findings: 1 agent-derived, 1 untagged; "
+                      "flagged: L7 untagged `CD3E falls`.", out)
+        self.assertEqual(re.findall(r"\*\*(?:gap|block)\*\*: (?:Fact|Default)", out), [])  # advisory
+
+    def test_untagged_or_absent_facts(self):
+        digest = self.approve(plan("run `{}`".format(FIT)).replace(
+            "\nOutputs:", "\nEvidence:\n- one\n- two\n\nOutputs:"))
+        self.run_cmd("python " + FIT)
+        out = self.verify("report", digest)
+        self.assertIn("Fact tags: 2 fact(s) in the plan's Evidence, none tagged (written before D7, "
+                      "or untagged).", out)
+        self.assertNotIn("Key Findings", out)  # no analysis doc, no line
+        digest = self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/outputs/x"))
+        self.assertNotIn("Fact tags", self.verify("report", digest))
+
+    def test_section_bullets_layouts(self):
+        sys.path.insert(0, os.path.dirname(SCRIPT))
+        import verify
+        for label in ("## Evidence", "**Evidence**", "Evidence:", "- **Evidence**:", "**Evidence.**"):
+            self.assertEqual(verify.section_bullets("x\n{}\n\n- a [human-stated]\n* b\n1. c\nnext\n- d"
+                                                    .format(label), "Evidence"),
+                             [(4, "a [human-stated]"), (5, "b"), (6, "c")], label)
+        self.assertEqual(verify.section_bullets("Evidence suggests x\n- a\n", "Evidence"), [])
+
     def test_unlocated_claims_are_gaps(self):
         # 0.05 is in the padj column, but no row is named: a common value never verifies by itself.
         digest, _ = self.claims_run("\n".join([
