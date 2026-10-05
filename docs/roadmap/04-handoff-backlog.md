@@ -118,4 +118,4 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 - **Acceptance:** `SKILL.md` gives one rule for the case; `docs/skills.md` matches.
 - **Tests:** none (model behaviour); a `scenarios.md` walk-through if harden has one.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** done (plan 7c27d019): `skills/harden/SKILL.md` sections 1 and 2 say that a candidate placed in analysis code qualifies when its check reads a file: it is shown with "(check moves to a test)" and its assertion goes into a test that reads the same file, the script untouched. A check on a value only the running script holds is skipped with the reason. `docs/skills.md` matches. harden has no `scenarios.md`, so no walk-through was added.
