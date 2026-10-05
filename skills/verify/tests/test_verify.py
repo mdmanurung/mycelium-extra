@@ -720,6 +720,73 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("| 1 change(s) |", out)
         self.assertNotIn(pending, out)
 
+    def claims_run(self, block, prose=""):
+        """One planned run writing two outputs, and the analysis doc carrying `block`."""
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/de.tsv", "gene\tlog2fc\tpadj\tshare\nIL7R\t1.23456\t0.0412\t0.344\n"
+                   "CD3E\t-0.5\t0.05\t0.1\nCD3E\t2\t0.9\t0.2\n", mtime=receipt["ts"] - 1)
+        self.write("analysis/a/outputs/numbers.json", '{"qc": {"n": 48, "kept": [40, 8]}}',
+                   mtime=receipt["ts"] - 1)
+        self.write("analysis/a/A.md", "# a\n\n## Key Findings\n\n{}\n<!-- claims\n{}\n-->\n\n## Next\n\n"
+                                      "Run 5 more.\n".format(prose, block))
+        return digest, receipt
+
+    def test_claims_verified_by_rounding_transform_inequality_rows_and_json(self):
+        digest, _ = self.claims_run("\n".join([
+            "- 1.235 | outputs/de.tsv log2fc IL7R", "- 1.234 | outputs/de.tsv log2fc IL7R",
+            "- 34% | outputs/de.tsv share IL7R", "- < 0.05 | outputs/de.tsv padj IL7R",
+            "- 3 | outputs/de.tsv rows", "- 48 | outputs/numbers.json qc.n | donors",
+            "- 8 | analysis/a/outputs/numbers.json qc.kept.1"]),
+            prose="IL7R rose 1.235 log2 units in 48 donors (padj 0.0412, n = 3).")
+        out = self.verify("report", digest)
+        self.assertIn("`analysis/a/A.md`: 7 verified (1 via transform), 0 mismatch, 0 unverified", out)
+        # "log2" and the "5" of "Run 5 more", in the next section, are not listed.
+        self.assertIn("1 number(s) in `analysis/a/A.md` near its claims block are not claims, so not checked: "
+                      "L5 `0.0412`.", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+        self.assertEqual(json.loads(self.verify("report", digest, "--json"))["claims"][0]["counts"],
+                         {"verified": 6, "verified-transform": 1})
+
+    def test_claims_mismatch_blocks(self):
+        digest, _ = self.claims_run("- 1.3 | outputs/de.tsv log2fc IL7R\n- > 0.05 | outputs/de.tsv padj IL7R")
+        out = self.verify("report", digest)
+        self.assertIn("**block**: `analysis/a/A.md:7` claims 1.3, but `analysis/a/outputs/de.tsv` log2fc row "
+                      "IL7R holds 1.23456.", out)
+        self.assertIn("`analysis/a/A.md:8` claims >0.05", out)
+        self.assertIn("Verify status: DOES_NOT_CONFORM", out)
+
+    def test_unlocated_claims_are_gaps(self):
+        # 0.05 is in the padj column, but no row is named: a common value never verifies by itself.
+        digest, _ = self.claims_run("\n".join([
+            "- 0.05 | outputs/de.tsv padj", "- 2 | outputs/de.tsv log2fc CD3E", "- 1 | outputs/missing.tsv x",
+            "- 1 | outputs/de.tsv pval IL7R", "- 1 | outputs/de.tsv log2fc GAPDH", "- 1 | outputs/de.tsv gene IL7R",
+            "- about 2 | outputs/de.tsv log2fc IL7R"]))
+        self.write("analysis/a/notes.md", "1.2\n")
+        out = self.verify("report", digest, "--claims", "analysis/a/notes.md", "--claims", "nope.md")
+        for text in ["claim 0.05 is unverified: 3 rows match; name one by its first-column label",
+                     "claim 2 is unverified: 2 rows are labelled `CD3E`",
+                     "cites `analysis/a/outputs/missing.tsv`, but it does not exist", "no column `pval`",
+                     "no row `GAPDH`", "row IL7R holds `IL7R`, not a number", "claims line does not parse",
+                     "Claims not checked in `analysis/a/notes.md`: it has no `<!-- claims -->` block",
+                     "Claims not checked in `nope.md`: it does not exist"]:
+            self.assertIn(text, out)
+        self.assertNotIn("**block**", out)
+        self.assertIn("Verify status: CONFORMS_WITH_GAPS", out)
+
+    def test_claim_from_an_explore_output_blocks(self):
+        digest, receipt = self.claims_run("- 1.235 | outputs/de.tsv log2fc IL7R")
+        self.hook("prompt", {"prompt": "allow explore"})
+        explore = self.run_cmd("MYCELIUM_EXTRA_EXPLORE=1 python " + FIT)
+        mtime = explore["ts"] + 4.99  # past the planned run's 5 s tolerance, within the explore run's
+        self.assertGreater(mtime, receipt["ts"] + 5)
+        os.utime(os.path.join(self.root, "analysis/a/outputs/de.tsv"), (mtime, mtime))
+        out = self.verify("report", digest)
+        self.assertIn("claims 1.235 from `analysis/a/outputs/de.tsv` log2fc row IL7R, which an explore run "
+                      "wrote", out)
+        self.assertIn("1 explore-only", out)
+        self.assertIn("Verify status: DOES_NOT_CONFORM", out)
+
     def test_gate_must_be_on(self):
         os.remove(os.path.join(self.root, ".mycelium-extra", "gate.json"))
         self.assertIn("not on", self.verify("list", fails=True))

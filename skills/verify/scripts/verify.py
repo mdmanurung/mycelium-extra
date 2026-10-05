@@ -4,8 +4,8 @@ Stdlib-only; runs on Python 3.6+. Run it from stdin, inside the repository, so
 Mycelium's hooks do not open the post-action cycle:
 
     python3 - --plugin-root <root> list < verify.py
-    python3 - --plugin-root <root> report <hash> [--analysis-dir DIR] [--json] < verify.py
-    python3 - --plugin-root <root> write <hash> --analysis-dir DIR < verify.py
+    python3 - --plugin-root <root> report <hash> [--analysis-dir DIR] [--claims DOC] [--json] < verify.py
+    python3 - --plugin-root <root> write <hash> --analysis-dir DIR [--claims DOC] < verify.py
     python3 - --plugin-root <root> stale [--json] < verify.py
     python3 - --plugin-root <root> status [--json] < verify.py
     python3 - --plugin-root <root> explore [--session ID | --all] [--json] < verify.py
@@ -21,7 +21,9 @@ import argparse
 import base64
 import bisect
 import collections
+import csv
 import datetime
+import decimal
 import glob
 import io
 import json
@@ -56,6 +58,8 @@ LIMITS = [
     "Code run through MCP notebook tools (`nb_*_execute`) bypasses both the gate and the lineage.",
     "A run of a planned script proves it ran, not that it implements the plan's choices; "
     "that is what the review step checks.",
+    "Claims are checked only where a document's `<!-- claims -->` block names the output cell; other "
+    "numbers in the text are listed, not checked, and a verified claim matches its cell, not the truth.",
     "With `snakemake --use-conda`, rules run in their own envs under `.snakemake/conda/`; the conda env "
     "recorded is the one Snakemake ran in, not the rules' envs.",
 ]
@@ -636,8 +640,168 @@ def default_reasons(plan, report):
         report.add("info", "Default without a usable reason (advisory): " + cell(module.describe(flag)))
 
 
+# ---------------------------------------------------------------- claims (D1)
+
+CLAIMS_BLOCK = re.compile(r"<!--\s*claims\b(.*?)-->", re.S)
+NUMBER = r"[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?"
+CLAIM_LINE = re.compile(r"^\s*(?:[-*]\s+)?(<=|>=|<|>|=)?\s*(" + NUMBER + r")(%?)\s*\|\s*([^|]+?)\s*(?:\|.*)?$")
+PROSE_NUMBER = re.compile(r"(?<![\w.])" + NUMBER + r"(?!\w)")
+SECTION_HEADING = re.compile(r"^#{1,6}\s", re.M)
+SKIPPED_PROSE = re.compile(r"<!--.*?-->|`[^`\n]*`|\]\([^)]*\)", re.S)
+
+
+def number(text):
+    try:
+        return decimal.Decimal(text.replace(",", ""))
+    except (decimal.InvalidOperation, AttributeError):
+        return None
+
+
+def agrees(claim, qualifier, cell_value):
+    """The claim is the cell rounded (half-up or half-even) or truncated to the claim's last digit;
+    an inequality is compared raw."""
+    if qualifier in ("<", ">", "<=", ">="):
+        return {"<": cell_value < claim, ">": cell_value > claim, "<=": cell_value <= claim,
+                ">=": cell_value >= claim}[qualifier]
+    step = decimal.Decimal(1).scaleb(claim.as_tuple().exponent)
+    try:
+        return any(cell_value.quantize(step, rounding=r) == claim
+                   for r in (decimal.ROUND_HALF_UP, decimal.ROUND_HALF_EVEN, decimal.ROUND_DOWN))
+    except decimal.InvalidOperation:
+        return False
+
+
+def claim_cell(path, column, row, max_bytes):
+    """(the cell's text, None) or (None, why it cannot be read). A table needs a row label
+    (first-column value) unless it has one data row: the guard against a common value such
+    as 0.05 matching some row of a large column."""
+    try:
+        if os.path.getsize(path) > max_bytes:
+            return None, "the file is over the size budget (--hash-mb), so it was not read"
+        with open(path, encoding="utf-8", errors="replace", newline="") as handle:
+            if path.endswith(".json"):
+                value = json.load(handle)
+                for key in column.split("."):
+                    value = value[int(key)] if isinstance(value, list) else value[key]
+                return (None, "`{}` is not a number".format(column)) if isinstance(value, (dict, list)) \
+                    else (str(value), None)
+            text = handle.read()
+    except (OSError, ValueError, KeyError, IndexError, TypeError) as error:
+        return None, "`{}` could not be read ({})".format(column, type(error).__name__)
+    first = text.split("\n", 1)[0]
+    rows = [r for r in csv.reader(io.StringIO(text), delimiter="\t" if "\t" in first else ",") if r]
+    if not rows:
+        return None, "the file is empty"
+    if column == "rows":
+        return str(len(rows) - 1), None
+    if column not in rows[0]:
+        return None, "no column `{}`".format(column)
+    index = rows[0].index(column)
+    hits = [r for r in rows[1:] if r[0] == row] if row else rows[1:]
+    if row and not hits:
+        return None, "no row `{}`".format(row)
+    if len(hits) > 1:
+        return None, "{} rows {}; name one by its first-column label".format(
+            len(hits), "are labelled `{}`".format(row) if row else "match")
+    return (hits[0][index] if index < len(hits[0]) else ""), None
+
+
+def check_claims(root, analysis_dir, outputs, extra, report, max_bytes):
+    """Check each `<!-- claims -->` line of the analysis doc, the Markdown outputs, and the --claims
+    documents against the output cell it names. Numbers in the block's own section that the block
+    does not cover are listed as info: the block, not the prose, is the checked record."""
+    by_path = {row["path"]: row for row in outputs}
+    docs = [p for p in by_path if p.endswith(".md")]
+    if analysis_dir:
+        name = os.path.basename(analysis_dir).upper().replace("-", "_") + ".md"
+        docs.insert(0, os.path.join(analysis_dir, name))
+    docs += [rel_or_abs(root, os.path.abspath(p)) for p in extra]
+    checked = []
+    for doc in sorted(set(docs), key=docs.index):
+        asked = doc in [rel_or_abs(root, os.path.abspath(p)) for p in extra]
+        text = read_text(os.path.join(root, doc)) if os.path.isfile(os.path.join(root, doc)) else None
+        blocks = list(CLAIMS_BLOCK.finditer(text or ""))
+        if not blocks:
+            if asked:
+                report.add("gap", "Claims not checked in `{}`: {}.".format(
+                    doc, "it does not exist" if text is None else "it has no `<!-- claims -->` block"))
+            continue
+        claims, values = [], []
+        for block in blocks:
+            line_no = text.count("\n", 0, block.start(1)) + 1
+            for offset, line in enumerate(block.group(1).split("\n")):
+                if not line.strip():
+                    continue
+                where = "`{}:{}`".format(doc, line_no + offset)
+                match = CLAIM_LINE.match(line)
+                words = match.group(4).split(None, 2) if match else []
+                if len(words) < 2:
+                    report.add("gap", "{}: claims line does not parse (want `value | file column [row]`): "
+                                      "`{}`.".format(where, cell(line.strip())[:80]))
+                    continue
+                qualifier, raw, percent = match.group(1), match.group(2), match.group(3)
+                claim = number(raw)
+                values.append(claim)
+                path = os.path.normpath(os.path.join(analysis_dir or "", words[0]))
+                if path not in by_path and os.path.normpath(words[0]) in by_path:
+                    path = os.path.normpath(words[0])
+                entry = {"doc": doc, "line": line_no + offset, "claim": (qualifier or "") + raw + percent,
+                         "file": path, "column": words[1], "row": words[2] if len(words) > 2 else None,
+                         "observed": None}
+                claims.append(entry)
+                coordinate = "`{}` {}{}".format(path, words[1], " row " + entry["row"] if entry["row"] else "")
+                if path not in by_path:
+                    why = "it does not exist" if not os.path.exists(os.path.join(root, path)) \
+                        else "it is not an output this plan's runs wrote"
+                    entry.update(verdict="unverified", reason="cites `{}`, but {}".format(path, why))
+                else:
+                    found, why = claim_cell(os.path.join(root, path), words[1], entry["row"], max_bytes)
+                    observed = number(found) if found is not None else None
+                    entry["observed"] = found
+                    if found is not None and observed is None:
+                        why = "{} holds `{}`, not a number".format(coordinate, cell(found)[:40])
+                    if observed is None:
+                        entry.update(verdict="unverified", reason=why)
+                    elif agrees(claim, qualifier, observed):
+                        entry["verdict"] = "verified"
+                    elif percent and agrees(claim, qualifier, observed * 100):
+                        entry["verdict"] = "verified-transform"
+                    else:
+                        entry["verdict"] = "mismatch"
+                    if entry["verdict"].startswith("verified") and by_path[path].get("explore"):
+                        entry["verdict"] = "explore-only"
+                if entry["verdict"] == "mismatch":
+                    report.add("block", "{} claims {}, but {} holds {}.".format(
+                        where, entry["claim"], coordinate, found))
+                elif entry["verdict"] == "explore-only":
+                    report.add("block", "{} claims {} from {}, which an explore run wrote; explore outputs "
+                                        "are not reportable.".format(where, entry["claim"], coordinate))
+                elif entry["verdict"] == "unverified":
+                    report.add("gap", "{} claim {} is unverified: {}.".format(where, entry["claim"],
+                                                                             entry["reason"]))
+        # Prose numbers in each block's section (heading to heading) that no claim covers.
+        loose = []
+        for block in blocks:
+            starts = [m.start() for m in SECTION_HEADING.finditer(text)]
+            begin = max([s for s in starts if s < block.start()] or [0])
+            end = min([s for s in starts if s > block.end()] or [len(text)])
+            section = SKIPPED_PROSE.sub(lambda m: re.sub(r"[^\n]", " ", m.group()), text[begin:end])
+            for m in PROSE_NUMBER.finditer(section):
+                value = number(m.group())
+                if value is not None and value not in values and (begin + m.start(), m.group()) not in loose:
+                    loose.append((begin + m.start(), m.group()))
+        if loose:
+            shown = ["L{} `{}`".format(text.count("\n", 0, at) + 1, raw) for at, raw in loose]
+            report.add("info", "{} number(s) in `{}` near its claims block are not claims, so not checked: "
+                               "{}{}.".format(len(loose), doc, ", ".join(shown[:12]),
+                                              " and {} more".format(len(shown) - 12) if len(shown) > 12 else ""))
+        counts = collections.Counter(c["verdict"] for c in claims)
+        checked.append({"doc": doc, "claims": claims, "counts": dict(counts), "not_claims": len(loose)})
+    return checked
+
+
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
-          rscript="Rscript"):
+          rscript="Rscript", claims=()):
     config = gate.load_config(root)
     approval = gate.read_json(gate.state_path(root, "approvals", digest + ".json"), None)
     if approval is None:
@@ -869,7 +1033,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                     via = None
                 fingerprint = gate.fingerprint(full, budget)
                 outputs.append({"path": rel, "written": mtime, "by": describe_run(owner, digest), "rule": via,
-                                "fingerprint": gate.describe(fingerprint), "record": fingerprint})
+                                "fingerprint": gate.describe(fingerprint), "record": fingerprint,
+                                "explore": bool(owner and owner.get("explore"))})
                 if mtime < start - TOLERANCE:
                     report.add("block", "Output `{}` was written {}, before the plan was approved.".format(
                         rel, when(mtime)))
@@ -906,11 +1071,13 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     default_reasons(plan, report)
     envs = conda_snapshots(root, mine, report)
     linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds)
+    claimed = check_claims(root, analysis_dir, outputs, claims, report, budget["bytes"])
 
     return {"hash": digest, "approved_at": approved_at, "start": start, "session_id": approval.get("session_id"),
             "analysis_dir": analysis_dir, "git": gate.git_state(root), "runs": len(mine),
             "scripts": scripts, "folders": folders, "commands": commands, "inputs": inputs,
             "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted, "envs": envs,
+            "claims": claimed,
             "status": report.status(), "plan": plan,
             # Kept for the record (a scaffolder call can explain a moved input), marked as not runs.
             "receipts": sorted(mine + [dict(r, not_a_run="only passed planned paths to other code")
@@ -975,6 +1142,16 @@ def render(result, all_outputs=False):
     waivers = result["lint"]["waivers"]
     lines.append("{} `ANALYSIS_OK` waiver(s){}".format(len(waivers), ":" if waivers else "."))
     lines += ["- `{}:{}` {}".format(cell(w[0]), w[1], cell(w[2])) for w in waivers[:SHOWN_OUTPUTS]]
+    lines += ["", "## Claims", ""]
+    for doc in result.get("claims", []):
+        counts = doc["counts"]
+        lines.append("- `{}`: {} verified ({} via transform), {} mismatch, {} unverified, {} explore-only; "
+                     "{} other number(s) not claimed".format(
+                         cell(doc["doc"]), counts.get("verified", 0) + counts.get("verified-transform", 0),
+                         counts.get("verified-transform", 0), counts.get("mismatch", 0),
+                         counts.get("unverified", 0), counts.get("explore-only", 0), doc["not_claims"]))
+    if not result.get("claims"):
+        lines.append("No document with a `<!-- claims -->` block.")
     lines += ["", "## Findings", ""]
     order = {"block": 0, "gap": 1, "info": 2}
     for level, text in sorted(result["findings"], key=lambda f: order[f[0]]):
@@ -1410,6 +1587,8 @@ def main(argv):
     parser.add_argument("new_hash", nargs="?")
     parser.add_argument("--analysis-dir")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--claims", action="append", default=[],
+                        help="report/write: also check this document's claims block (repeatable)")
     parser.add_argument("--session", help="explore: this session's runs (default: $CLAUDE_CODE_SESSION_ID)")
     parser.add_argument("--all", action="store_true", help="explore: every session's runs, last 7 days")
     args = parser.parse_args(argv)
@@ -1447,7 +1626,7 @@ def main(argv):
     if args.action == "write" and not args.analysis_dir:
         sys.exit("verify: `write` needs --analysis-dir, confirmed by the user.")
     result = check(root, args.hash, args.analysis_dir, args.sacct, args.hash_mb, args.seconds, args.scilintr,
-                   args.rscript)
+                   args.rscript, args.claims)
     if args.action == "write":
         written = write(root, result)
         for path in written:
