@@ -475,6 +475,40 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("No plan-table row", self.verify("diff", old, old))
         self.assertIn("needs the old and the new", self.verify("diff", old, fails=True))
 
+    def test_multiplicity_lists_revisions_and_runs_before_the_selected_plan(self):
+        def choice(text, value):
+            return plan("run `{}`".format(FIT)).replace("| x |", "| {} |".format(value)) + "\n" + text
+        other = self.approve(plan("run `analysis/b/scripts/01_other.py`", outputs="analysis/b/outputs/"))
+        first = self.approve(choice("", "BH 0.1"))
+        self.hook("prompt", {"prompt": "allow explore"})
+        self.run_cmd("MYCELIUM_EXTRA_EXPLORE=1 python " + FIT)
+        self.run_cmd("MYCELIUM_EXTRA_EXPLORE=1 python {} --fdr 0.2".format(FIT))
+        self.write(FIT, "print(2)\n")
+        self.run_cmd("MYCELIUM_EXTRA_EXPLORE=1 python " + FIT, exit_code=1)
+        second = self.approve(choice("Second try.", "BH 0.05"))
+        self.run_cmd("python " + FIT)
+        self.write(FIT, "print(3)\n")
+        digest = self.approve(choice("", "paired t; BH 0.05"))
+        self.hook("post", {"tool_name": "Bash", "tool_input": {"command": "python " + FIT},
+                           "tool_response": {"stdout": ""}})
+        out = self.verify("multiplicity", digest)
+        self.assertIn("2 earlier plan revision(s), 3 explore run(s) before the approval, 1 run(s) under "
+                      "earlier plans, 1 run(s) under this plan. 2 of 2 plan change(s) edited a Choice cell.", out)
+        self.assertIn("| plan {} | first plan |".format(first), out)
+        self.assertIn("| plan {} | step 1 choice: `BH 0.1` -> `BH 0.05` |".format(second), out)
+        self.assertIn("| plan {} | approved (selected); step 1 choice: `BH 0.05` -> `paired t; BH 0.05` |"
+                      .format(digest), out)
+        self.assertIn("| explore run | `MYCELIUM_EXTRA_EXPLORE=1 python {} --fdr 0.2` (other code version) | 0 |"
+                      .format(FIT), out)
+        self.assertIn("| run (plan {}) | `python {}` (other code version) | 0 |".format(second, FIT), out)
+        self.assertIn("| run | `python {}` | not recorded |".format(FIT), out)
+        self.assertNotIn(other, out)
+        order = [out.index(x) for x in (first, "--fdr 0.2", "| 1 |", second, "| run | ")]
+        self.assertEqual(order, sorted(order))
+        data = json.loads(self.verify("multiplicity", digest, "--json"))
+        self.assertEqual((data["revisions"], data["counts"]["explore before"]), (2, 3))
+        self.assertIn("no approved plan", self.verify("multiplicity", "0" * 8, fails=True))
+
     def test_stale_lists_what_changed_since_provenance(self):
         self.assertIn("No verified plans", self.verify("stale"))
         self.write("data/samples.tsv", "a\n")

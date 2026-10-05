@@ -853,6 +853,15 @@ def check_claims(root, analysis_dir, outputs, extra, report, max_bytes):
     return checked
 
 
+def plan_runs(receipts, digest, approved_at):
+    """(the plan's runs, oldest first; when its window opens). Re-approving the same plan text
+    rewrites approved_at, so the runs are every non-explore receipt naming it, and the window
+    opens at the earliest of them."""
+    mine = sorted((r for r in receipts if digest in r.get("plans", []) and not r.get("explore")),
+                  key=lambda r: r["ts"])
+    return mine, min([approved_at] + [r["ts"] for r in mine])
+
+
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
           rscript="Rscript", claims=()):
     config = gate.load_config(root)
@@ -875,11 +884,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         elif not LOOKUP.match(r.get("command", "")):
             handed.append(r)
     handed = [r for r in handed if digest in r.get("plans", []) and not r.get("explore")]
-    # Re-approving the same plan text rewrites approved_at, so the plan's runs are every
-    # non-explore receipt naming it, and its window opens at the earliest of them.
-    mine = sorted((r for r in receipts if digest in r.get("plans", []) and not r.get("explore")),
-                  key=lambda r: r["ts"])
-    start = min([approved_at] + [r["ts"] for r in mine])
+    mine, start = plan_runs(receipts, digest, approved_at)
     since = sorted((r for r in receipts if r.get("ts", 0) >= start - TOLERANCE), key=lambda r: r["ts"])
     jobs = {}
     for r in mine:
@@ -1601,6 +1606,22 @@ def shown_plan(root, digest):
     return None
 
 
+def plan_changes(old_text, new_text):
+    """(step, column, was, now) for each plan-table cell that differs; column is "removed" or
+    "added" for a whole row, with its cells joined by " / "."""
+    before, after = plan_rows(old_text), plan_rows(new_text)
+    changes = []
+    for key in list(before) + [k for k in after if k not in before]:
+        if key not in after:
+            changes.append((key, "removed", " / ".join(before[key].values()), ""))
+        elif key not in before:
+            changes.append((key, "added", "", " / ".join(after[key].values())))
+        else:
+            changes += [(key, column, before[key].get(column, ""), now)
+                        for column, now in after[key].items() if before[key].get(column, "") != now]
+    return changes
+
+
 def diff_plans(root, old, new):
     """What changed between two approved plans: table rows by step, and the `Inputs:` line."""
     plans = []
@@ -1610,24 +1631,137 @@ def diff_plans(root, old, new):
         if text is None:
             sys.exit("verify: no approved or shown plan {} (see `list`).".format(digest))
         plans.append(text)
-    before, after = plan_rows(plans[0]), plan_rows(plans[1])
     lines = ["# Plan diff {} -> {}".format(old, new), ""]
-    for key in list(before) + [k for k in after if k not in before]:
-        if key not in after:
-            lines.append("- Step {}: removed (was: {}).".format(key, " / ".join(before[key].values())))
-        elif key not in before:
-            lines.append("- Step {}: added: {}.".format(key, " / ".join(after[key].values())))
+    for key, column, was, now in plan_changes(plans[0], plans[1]):
+        if column == "removed":
+            lines.append("- Step {}: removed (was: {}).".format(key, was))
+        elif column == "added":
+            lines.append("- Step {}: added: {}.".format(key, now))
         else:
-            for column in after[key]:
-                was, now = before[key].get(column, ""), after[key][column]
-                if was != now:
-                    flag = " **Possible scientific change.**" if column == "choice" else ""
-                    lines.append("- Step {}, {}: `{}` -> `{}`.{}".format(key, column, was, now, flag))
+            flag = " **Possible scientific change.**" if column == "choice" else ""
+            lines.append("- Step {}, {}: `{}` -> `{}`.{}".format(key, column, was, now, flag))
     was, now = [gate.plan_inputs(text) or [] for text in plans]
     lines += ["- Inputs: + {}".format(word) for word in now if word not in was]
     lines += ["- Inputs: - {}".format(word) for word in was if word not in now]
     if len(lines) == 2:
         lines.append("No plan-table row or `Inputs:` entry changed.")
+    return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------- multiplicity
+
+def multiplicity(root, digest):
+    """Everything tried before plan `digest` was settled: earlier approved plans that name one of
+    its scripts or outputs, and every run of those scripts or in its analysis folder, up to the
+    plan's last run. Counts and records only, from receipts and approvals; no sacct."""
+    config = gate.load_config(root)
+    folder = gate.state_path(root, "approvals")
+    approvals = {}
+    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        record = gate.read_json(os.path.join(folder, name), None)
+        if record:
+            approvals[record.get("hash", name[:8])] = record
+    if digest not in approvals:
+        sys.exit("verify: no approved plan {}. Run `list` to see approved plans.".format(digest))
+
+    def scripts(record):
+        table = gate.plan_table(record.get("plan", ""))
+        return {p for p in gate.plan_paths(table) if gate.gated_rel(root, root, p, config)}
+
+    def outputs(record):
+        return {w.rstrip("/") for w in plan_outputs(record.get("plan", "")) or []}
+
+    selected = approvals[digest]
+    receipts = [r for r in read_jsonl(gate.state_path(root, "receipts.jsonl"))
+                if is_run(root, r, config["gated_commands"])]
+    mine, start = plan_runs(receipts, digest, selected.get("approved_at", 0))
+    named, made = scripts(selected), outputs(selected)
+    revisions = sorted((r for h, r in approvals.items() if h != digest and r.get("approved_at", 0) < start
+                        and (scripts(r) & named or outputs(r) & made)), key=lambda r: r.get("approved_at", 0))
+    analysis_dir = guess_analysis_dir(sorted(named))
+    end = mine[-1]["ts"] if mine else start
+    runs = [r for r in receipts if r.get("ts", 0) <= end and any(
+        p in named or (analysis_dir and under(p, analysis_dir)) for p in ran_paths(root, r))]
+    code = {}  # the code version of each script as this plan last ran it
+    for r in mine:
+        script = r.get("script") or {}
+        if script.get("sha256"):
+            code[script.get("path")] = script["sha256"]
+
+    rows, counts = [], collections.Counter()
+    previous = None
+    for record in revisions + [selected]:
+        changes = plan_changes(previous, record.get("plan", "")) if previous is not None else None
+        choice = [c for c in changes or [] if c[1] == "choice"]
+        detail = ["step {} choice: `{}` -> `{}`".format(k, was, now) for k, _, was, now in choice]
+        if changes and len(changes) > len(choice):
+            detail.append("{} other cell(s) changed".format(len(changes) - len(choice)))
+        if changes is None:
+            detail = ["first plan"]
+        elif not changes:
+            detail = ["no plan-table change"]
+        if record is selected:
+            detail.insert(0, "approved (selected)")
+        counts["choice changed"] += bool(choice)
+        rows.append({"ts": record.get("approved_at", 0), "what": "plan " + record.get("hash", "?"),
+                     "detail": "; ".join(detail), "exit": ""})
+        previous = record.get("plan", "")
+    for r in runs:
+        plans = r.get("plans") or []
+        if r.get("explore"):
+            what = "explore run"
+            counts["explore before" if r["ts"] < start else "explore after"] += 1
+        elif digest in plans:
+            what = "run"
+            counts["mine"] += 1
+        elif r.get("approvals_unread"):
+            what = "run (plans not read)"
+            counts["unread"] += 1
+        elif plans:
+            what = "run (plan {})".format(plans[-1])
+            counts["other plans"] += 1
+        else:
+            what = "run (no plan)"
+            counts["no plan"] += 1
+        script = r.get("script") or {}
+        marker = ""
+        if script.get("path") in code:
+            if not script.get("sha256"):
+                marker = " (code version unknown)"
+            elif script["sha256"] != code[script["path"]]:
+                marker = " (other code version)"
+        status = r.get("exit_status")
+        shown = ("job " + str(r["job_id"]) if r.get("job_id") else str(status)
+                 if isinstance(status, int) or status in ("failed", "interrupted") else "not recorded")
+        rows.append({"ts": r["ts"], "what": what, "detail": "`{}`{}".format(r.get("command", ""), marker),
+                     "exit": shown})
+    rows.sort(key=lambda row: row["ts"])
+    return {"plan": digest, "analysis_dir": analysis_dir, "revisions": len(revisions),
+            "counts": dict(counts), "rows": rows}
+
+
+def render_multiplicity(result):
+    c = result["counts"]
+    line = ("{} earlier plan revision(s), {} explore run(s) before the approval, {} run(s) under earlier "
+            "plans, {} run(s) under this plan.".format(result["revisions"], c.get("explore before", 0),
+                                                       c.get("other plans", 0), c.get("mine", 0)))
+    extra = [(c.get("explore after"), "explore run(s) after the approval"),
+             (c.get("no plan"), "run(s) with no approved plan"),
+             (c.get("unread"), "run(s) whose approvals were not read (time limit), so their plan is a gap")]
+    line += "".join(" {} {}.".format(n, text) for n, text in extra if n)
+    if result["revisions"]:
+        line += " {} of {} plan change(s) edited a Choice cell.".format(c.get("choice changed", 0),
+                                                                       result["revisions"])
+    lines = ["# Multiplicity: plan {}".format(result["plan"]), "", line, "",
+             "| When | What | Detail | Exit |", "|---|---|---|---|"]
+    lines += ["| {} | {} | {} | {} |".format(when(r["ts"]), r["what"], cell(r["detail"]), r["exit"])
+              for r in result["rows"]]
+    lines += ["", "Earlier plans count as revisions when they name one of this plan's scripts or outputs. "
+                  "Runs are matched by the scripts they ran{}; receipts do not record which files a run "
+                  "wrote. A value changed inside a script shows only as another code version. Explore runs "
+                  "of inline code (`python -c`) are not recorded.".format(
+                      " (this plan's, or any in `{}/`)".format(result["analysis_dir"])
+                      if result["analysis_dir"] else "")]
     return "\n".join(lines) + "\n"
 
 
@@ -1640,7 +1774,7 @@ def main(argv):
     parser.add_argument("--rscript", default="Rscript")
     parser.add_argument("--hash-mb", type=float, default=2000)
     parser.add_argument("--seconds", type=float, default=120)
-    parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore"])
+    parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore", "multiplicity"])
     parser.add_argument("hash", nargs="?")
     parser.add_argument("new_hash", nargs="?")
     parser.add_argument("--analysis-dir")
@@ -1680,6 +1814,10 @@ def main(argv):
         if not args.new_hash or not re.match(r"^[0-9a-f]{8}$", args.new_hash):
             sys.exit("verify: `diff` needs the old and the new plan's 8-character hashes (see `list`).")
         sys.stdout.write(diff_plans(root, args.hash, args.new_hash))
+        return 0
+    if args.action == "multiplicity":
+        result = multiplicity(root, args.hash)
+        sys.stdout.write(json.dumps(result, indent=1) + "\n" if args.json else render_multiplicity(result))
         return 0
     if args.action == "write" and not args.analysis_dir:
         sys.exit("verify: `write` needs --analysis-dir, confirmed by the user.")
