@@ -88,6 +88,15 @@ def rscript_dirs():
             if d and os.path.isfile(os.path.join(d, "Rscript"))]
 
 
+def real_rscript():
+    """The real Rscript for lint cases, or None: only under MX_E2E_REAL_TOOLS=1 (design section 1).
+    MX_E2E_RSCRIPT names it when it is not on PATH."""
+    if os.environ.get("MX_E2E_REAL_TOOLS") != "1":
+        return None
+    path = os.environ.get("MX_E2E_RSCRIPT") or shutil.which("Rscript")
+    return path if path and os.path.isfile(path) else None
+
+
 def iso(epoch):
     return datetime.datetime.utcfromtimestamp(epoch).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
@@ -162,8 +171,10 @@ class Project(object):
     def close(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def write_fakes(self, sacct=None, scilintr="", scilintr_code=0):
-        """sacct prints one `id|state|exit|start|end` line; scilintr and Rscript-lint print `scilintr`."""
+    def write_fakes(self, sacct=None, scilintr="", scilintr_code=0, rscript=None):
+        """sacct prints one `id|state|exit|start|end` line; scilintr and Rscript-lint print `scilintr`.
+        rscript: a real Rscript that Rscript-lint runs instead, under the real HOME so that
+        ~/.Renviron's R_LIBS_USER still finds scilintr."""
         now = time.time()
         line = sacct or "4242|COMPLETED|0:0|{}|{}".format(
             time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(now - 600)),
@@ -171,6 +182,9 @@ class Project(object):
         lint = "#!/bin/sh\nprintf '%s' {}\nexit {}\n".format(sh_quote(scilintr) if scilintr else "''",
                                                                scilintr_code)
         fakes = {"sacct": "#!/bin/sh\necho {}\n".format(sh_quote(line)), "scilintr": lint, "Rscript-lint": lint}
+        if rscript:
+            fakes["Rscript-lint"] = "#!/bin/sh\nHOME={} exec {} \"$@\"\n".format(
+                sh_quote(os.path.expanduser("~")), sh_quote(rscript))
         for name, body in fakes.items():
             path = os.path.join(self.bin, name)
             with open(path, "w", encoding="utf-8") as handle:

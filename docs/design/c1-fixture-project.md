@@ -33,7 +33,7 @@ tests/
 ├── fixtures/
 │   ├── README.md                         what the fixture is, how to regenerate it, the size budget
 │   ├── make_fixture_data.py              deterministic generator (section 4); --check compares with the committed files
-│   └── mycelium-project/                 the project (31 files)
+│   └── mycelium-project/                 the project (32 files)
 │       ├── MYCELIUM.md                   Mycelium protocol stub; names the convention "results come from analysis/ only"
 │       ├── CLAUDE.md                     Mycelium routing block (grill reads it)
 │       ├── AGENTS.md                     same, for Codex
@@ -69,6 +69,7 @@ tests/
 │       │       ├── outputs/.gitkeep
 │       │       └── reports/report.Rmd             one R chunk (E4, E5)
 │       ├── nbs/qc_explore.ipynb          explore notebook (gated path `nbs/**`); Python kernel
+│       ├── nbs/r_explore.ipynb           R-kernel notebook, one R cell (E4)
 │       └── todo/TODO_REGISTRY.md
 ├── e2e/
 │   ├── harness.py                        Project class (section 6)
@@ -376,7 +377,7 @@ Each was confirmed against `3a11123`, by a gate probe or by reading the code. E2
 | D6 | none committed | `.h5ad` generated at test time from `sample_metadata.tsv` when `h5py` is present |
 | E1 | none committed | shipped in 0.9.37: V-25 (a synthetic env under `HOME` with `conda-meta/*.json` and one pip-only `site-packages/*.dist-info`) |
 | E1b | none committed | a `.snakemake/conda/<hash>.yaml` |
-| E4 | `learnings.md` candidate; `nbs/qc_explore.ipynb`; `reports/report.Rmd` | hints on/off, harden on DC-10, verify `explore`, R chunk lint |
+| E4 | `learnings.md` candidate; `nbs/qc_explore.ipynb`; `nbs/r_explore.ipynb`; `reports/report.Rmd` | hints on/off, harden on DC-10, verify `explore`, R chunk lint |
 | E5 | `report.Rmd` | four variants: document-level `eval: false`, `child=`, `knitr::read_chunk`, `{r engine=...}` |
 | D10 to D12 | none | approval latency recorded per approval; checkpoint question generated from the plan table; seeded audit revealed in the same report |
 
