@@ -479,6 +479,9 @@ class VerifyTest(unittest.TestCase):
         def choice(text, value):
             return plan("run `{}`".format(FIT)).replace("| x |", "| {} |".format(value)) + "\n" + text
         other = self.approve(plan("run `analysis/b/scripts/01_other.py`", outputs="analysis/b/outputs/"))
+        gone = self.approve(choice("Moved away.", "BH 0.2"))
+        self.run_cmd("python " + FIT)
+        os.remove(gate.state_path(self.root, "approvals", gone + ".json"))
         first = self.approve(choice("", "BH 0.1"))
         self.hook("prompt", {"prompt": "allow explore"})
         self.run_cmd("MYCELIUM_EXTRA_EXPLORE=1 python " + FIT)
@@ -493,7 +496,8 @@ class VerifyTest(unittest.TestCase):
                            "tool_response": {"stdout": ""}})
         out = self.verify("multiplicity", digest)
         self.assertIn("2 earlier plan revision(s), 3 explore run(s) before the approval, 1 run(s) under "
-                      "earlier plans, 1 run(s) under this plan. 2 of 2 plan change(s) edited a Choice cell.", out)
+                      "earlier plans, 1 run(s) under this plan. 1 run(s) under a plan whose approval is not on file "
+                      "(gap). 2 of 2 plan change(s) edited a Choice cell.", out)
         self.assertIn("| plan {} | first plan |".format(first), out)
         self.assertIn("| plan {} | step 1 choice: `BH 0.1` -> `BH 0.05` |".format(second), out)
         self.assertIn("| plan {} | approved (selected); step 1 choice: `BH 0.05` -> `paired t; BH 0.05` |"
@@ -503,6 +507,7 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("| run (plan {}) | `python {}` (other code version) | 0 |".format(second, FIT), out)
         self.assertIn("| run | `python {}` | not recorded |".format(FIT), out)
         self.assertNotIn(other, out)
+        self.assertIn("| run (plan {}, approval not on file) |".format(gone), out)
         order = [out.index(x) for x in (first, "--fdr 0.2", "| 1 |", second, "| run | ")]
         self.assertEqual(order, sorted(order))
         data = json.loads(self.verify("multiplicity", digest, "--json"))

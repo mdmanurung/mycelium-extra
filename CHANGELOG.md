@@ -6,7 +6,7 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Added
 
-- `verify multiplicity <hash>` shows what was tried before a plan was settled (roadmap D4). A counts line, then one timeline, oldest first: each earlier approved plan that names one of the plan's scripts or outputs, with its changed Choice cells (so the tests, models and thresholds tried are named), each explore run and each run under an earlier plan or this one, with its command, exit status, and `other code version` when its script differs from the one this plan last ran. Counts come only from receipts and approvals, and the view judges nothing. Fixture case V-24: three explore runs and two α revisions before the approved plan.
+- `verify multiplicity <hash>` shows what was tried before a plan was settled (roadmap D4). A counts line, then one timeline, oldest first: each earlier approved plan that names one of the plan's scripts or outputs, with its changed Choice cells (so the tests, models and thresholds tried are named), each explore run and each run under an earlier plan or this one, with its command, exit status, and `other code version` when its script differs from the one this plan last ran. Counts come only from receipts and approvals; a run whose plan has no approval on file is counted as a gap, and the view judges nothing. Fixture case V-24: three explore runs and two α revisions before the approved plan.
 
 ## [0.9.35] - 2026-10-05
 

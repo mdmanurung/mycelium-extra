@@ -1703,7 +1703,8 @@ def multiplicity(root, digest):
         if record is selected:
             detail.insert(0, "approved (selected)")
         counts["choice changed"] += bool(choice)
-        rows.append({"ts": record.get("approved_at", 0), "what": "plan " + record.get("hash", "?"),
+        rows.append({"ts": start if record is selected else record.get("approved_at", 0),
+                     "what": "plan " + record.get("hash", "?"),
                      "detail": "; ".join(detail), "exit": ""})
         previous = record.get("plan", "")
     for r in runs:
@@ -1717,6 +1718,9 @@ def multiplicity(root, digest):
         elif r.get("approvals_unread"):
             what = "run (plans not read)"
             counts["unread"] += 1
+        elif plans and plans[-1] not in approvals:  # moved out of approvals/, as the gate's timeout advice says
+            what = "run (plan {}, approval not on file)".format(plans[-1])
+            counts["unfiled"] += 1
         elif plans:
             what = "run (plan {})".format(plans[-1])
             counts["other plans"] += 1
@@ -1747,7 +1751,8 @@ def render_multiplicity(result):
                                                        c.get("other plans", 0), c.get("mine", 0)))
     extra = [(c.get("explore after"), "explore run(s) after the approval"),
              (c.get("no plan"), "run(s) with no approved plan"),
-             (c.get("unread"), "run(s) whose approvals were not read (time limit), so their plan is a gap")]
+             (c.get("unread"), "run(s) whose approvals were not read (time limit), so their plan is a gap"),
+             (c.get("unfiled"), "run(s) under a plan whose approval is not on file (gap)")]
     line += "".join(" {} {}.".format(n, text) for n, text in extra if n)
     if result["revisions"]:
         line += " {} of {} plan change(s) edited a Choice cell.".format(c.get("choice changed", 0),
