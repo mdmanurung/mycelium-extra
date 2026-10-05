@@ -6,7 +6,11 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Added
 
-- `verify` records pip packages in a run's conda env (roadmap E1). It reads the env's `site-packages` for the Python packages conda did not install (not in any `conda-meta` record's files, or reinstalled since, so `INSTALLER` is no longer `conda`) and writes `provenance/pip-<hash>.txt`, one requirements block per env, noting a name also in `conda-meta`, a non-pip installer, and an editable or URL install. A `conda-lock.yml` still replaces the conda package list but no longer hides pip packages. A pip folder newer than the env's last run, or one without a readable name and version, is a gap. Fixture case V-25. The Snakemake per-rule envs are a new roadmap task, E1b.
+- `verify` records pip packages in a run's conda env (roadmap E1). It reads the env's `site-packages` for the Python packages conda did not install (not in any `conda-meta` record's files, or reinstalled since, so `INSTALLER` is no longer `conda`) and writes `provenance/pip-<hash>.txt`, one requirements block per env, noting a name also in `conda-meta` and a non-pip installer; a git install is written as `name @ git+<url>@<commit>`, and an editable or local-path install is commented out with its path, since `pip install -r` would look it up on an index. A `conda-lock.yml` still replaces the conda package list but no longer hides pip packages. A pip folder newer than the env's last run, or one without a readable name and version, is a gap. Fixture case V-25. The Snakemake per-rule envs are a new roadmap task, E1b.
+
+### Changed
+
+- With a `conda-lock.yml`, a run's conda env that verify cannot find is now a gap (its pip packages were not recorded); it was silent before.
 
 ## [0.9.36] - 2026-10-05
 

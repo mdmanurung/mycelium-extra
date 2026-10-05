@@ -715,6 +715,8 @@ class VerifyTest(unittest.TestCase):
             self.write(site + folder + ".dist-info/INSTALLER", installer)
         self.write(site + "my_tool-0.1.dist-info/direct_url.json",
                    json.dumps({"url": "file:///home/me/my-tool", "dir_info": {"editable": True}}))
+        self.write(site + "loguru-0.7.2.dist-info/direct_url.json", json.dumps(
+            {"url": "https://github.com/Delgan/loguru", "vcs_info": {"vcs": "git", "commit_id": "abc123"}}))
         self.write(site + "old-2.egg-info", meta.format("old", "2"))
         for path in glob.glob(os.path.join(prefix, "lib/python3.12/site-packages/*")):
             os.utime(path, (time.time() - 7200, time.time() - 7200))
@@ -733,7 +735,7 @@ class VerifyTest(unittest.TestCase):
         with open(os.path.join(self.root, "analysis/a/provenance/pip-{}.txt".format(digest))) as handle:
             text = handle.read()
         self.assertIn("# env: fakeenv\n", text)
-        self.assertIn("\nloguru==0.7.2\nmy_tool==0.1  # installer: uv; editable: file:///home/me/my-tool\n"
+        self.assertIn("\nloguru @ git+https://github.com/Delgan/loguru@abc123\n# my_tool==0.1  # installer: uv; editable: file:///home/me/my-tool\n"
                       "numpy==1.26.4  # also in conda-meta as 1.26.0\nold==2\n"
                       "scipy==1.11.0  # also in conda-meta as 1.11.0\n", text)
         self.assertNotIn("anndata", text)

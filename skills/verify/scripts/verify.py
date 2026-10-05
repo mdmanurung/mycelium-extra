@@ -630,11 +630,15 @@ def pip_packages(prefix, records):
         if installer not in ("", "pip"):
             notes.append("installer: " + installer)
         url = gate.read_json(os.path.join(path, "direct_url.json"), {}) if folder else {}
-        if url.get("url"):
+        vcs = url.get("vcs_info") or {}
+        line = "{}=={}".format(headers["Name"], headers["Version"])
+        if url.get("url") and vcs.get("vcs") and vcs.get("commit_id"):
+            line = "{} @ {}+{}@{}".format(headers["Name"], vcs["vcs"], url["url"], vcs["commit_id"])
+        elif url.get("url"):  # a local path or archive: not on an index, so `pip install -r` must skip it
             notes.append("{}: {}".format("editable" if (url.get("dir_info") or {}).get("editable") else "from",
                                          url["url"]))
-        lines.append("{}=={}{}".format(headers["Name"], headers["Version"],
-                                       "  # " + "; ".join(notes) if notes else ""))
+            line = "# " + line
+        lines.append(line + ("  # " + "; ".join(notes) if notes else ""))
         try:
             newest = max(newest, os.stat(path).st_mtime)
         except OSError:
@@ -1326,7 +1330,8 @@ def write(root, result):
         paths["pip"] = "pip-{}.txt".format(digest)
         with open(os.path.join(folder, paths["pip"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
             handle.write("# Pip packages of plan {}'s runs, read {} from each conda env's site-packages: the "
-                         "Python packages conda did not install.\n# Usable as: pip install -r {}\n".format(
+                         "Python packages conda did not install.\n# Usable as: pip install -r {}. A commented-out package came "
+                         "from a local path or archive: install it from there.\n".format(
                              digest, stamp, paths["pip"]))
             for env in (e for e in result["envs"] if e.get("pip")):
                 handle.write("\n# env: {}\n# prefix: {}\n# from: {}\n{}{}\n".format(
