@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.38] - 2026-10-05
+
+### Changed
+
+- `verify`'s skill description is about half as long (897 characters), so the skill listing no longer cuts it off, and it names the `multiplicity` and `explore` subcommands and the pip record.
+
 ## [0.9.37] - 2026-10-05
 
 ### Added
