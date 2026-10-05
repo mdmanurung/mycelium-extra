@@ -86,7 +86,7 @@ The approval gate, `init`, and `verify` are Claude Code only.
 A typical analysis task, in order:
 
 1. **Once per repository:** `/mycelium-extra:init` turns on the approval gate.
-2. **Plan:** `/mycelium-extra:grill <your task>`. Answer its questions (at most five).
+2. **Plan:** `/mycelium-extra:grill <your task>`. State your question when it asks, then answer its questions (at most five).
 3. **Optional review:** before approval, invoke `/mycelium-extra:plan-review` in Claude Code for separate Codex and Biomni critiques. It recommends amendments but does not edit or approve the plan.
 4. **Approve:** after any requested revision, use the new plan's `approve plan <hash>` line.
 5. **Run and verify:** execute through your normal workflow (`/mycelium:analyze` in a Mycelium project), then use `/mycelium-extra:verify <hash>`.

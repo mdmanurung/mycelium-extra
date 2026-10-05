@@ -27,7 +27,7 @@ Common prompts:
 
 It then tests the goal, evidence, assumptions, alternatives, failure modes, and validation. For bioinformatics or statistical work it also walks a list of analysis decisions (unit of replication, matrix state, references, QC, batch, multiplicity, and more), so none stays implicit.
 
-It asks only questions that you own and that could change the plan: one per message, at most five. It ends with `READY`, `READY_WITH_ASSUMPTIONS`, or one `DECISION_REQUIRED` item, plus a numbered plan. Each consequential choice in the plan cites its source: repository evidence, your answer, or a labeled default. Each fact in the brief's Evidence ends in a tag saying how it was established: `[human-stated]`, `[agent-derived: <path>]`, or `[agent-asserted: <source>]` (`none` when there is no source). An `Inputs:` line names the files the plan rests on, which the approval gate pins. Nothing runs until you approve or edit the plan.
+It asks only questions that you own and that could change the plan: one per message, at most five after the opening question. It ends with `READY`, `READY_WITH_ASSUMPTIONS`, or one `DECISION_REQUIRED` item, plus a numbered plan. Each consequential choice in the plan cites its source: repository evidence, your answer, or a labeled default. Each fact in the brief's Evidence ends in a tag saying how it was established: `[human-stated]`, `[agent-derived: <path>]`, or `[agent-asserted: <source>]` (`none` when there is no source). An `Inputs:` line names the files the plan rests on, which the approval gate pins. Nothing runs until you approve or edit the plan.
 
 ## plan-review
 
