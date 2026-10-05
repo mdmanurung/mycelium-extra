@@ -375,13 +375,21 @@ class RealUse(unittest.TestCase):
         for _ in range(2):
             run = p.run_step(SCRIPTS[0], prefix="MYCELIUM_EXTRA_EXPLORE=1 ")
             self.assertEqual([r.get("explore") for r in run.receipts], [True])
-        self.assertIn("2 exploratory run(s) this session are not reportable", self.stop(p))
+        missing = A + "/scripts/missing.py"
+        self.assertEqual([r.get("explore") for r in p.run_step(missing, prefix="MYCELIUM_EXTRA_EXPLORE=1 ").receipts],
+                         [True])
+        notice = self.stop(p)
+        self.assertIn("3 exploratory run(s) this session are not reportable", notice)
+        self.assertEqual(notice.count(SCRIPTS[0]), 1, notice)  # once per command, not once per run
+        self.assertIn("{} (2 runs); ".format(SCRIPTS[0]), notice)
         p.edit(SCRIPTS[0], lambda text: text + "\n# edited\n")
         code, out, err = p.verify("explore", "--session", p.session)
         self.assertEqual(code, 0, err)
         self.assertIn("1. `python3 {}`\n   - ran: `{}`".format(SCRIPTS[0], SCRIPTS[0]), out)
         self.assertIn("(2 runs), exit 0", out)
         self.assertIn("script `{}` edited since this run".format(SCRIPTS[0]), out)
+        self.assertIn("script `{}` not found when this ran".format(missing), out)
+        self.assertNotIn("deleted since this run", out)
         self.assertNotIn("MYCELIUM_EXTRA_EXPLORE=1 python3", out)
 
     def plant_r016(self, p):
