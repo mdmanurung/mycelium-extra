@@ -2,22 +2,42 @@
 
 A standalone plugin for planning analysis work before it runs. It works alongside [Mycelium](https://github.com/arjunrajlaboratory/mycelium) but does not fork, modify, or require it.
 
-It has nine skills and one hook set:
+**Contents:** [Why, on top of Mycelium](#why-on-top-of-mycelium) · [Skills](#skills) · [How a task moves](#how-a-task-moves) · [Installation](#installation) · [Quick start](#quick-start) · [Documentation](#documentation) · [License and credits](#license-and-credits)
+
+## Why, on top of Mycelium
+
+Mycelium gives a project a memory. `.living/` records decisions, learnings, and findings; its hooks log what ran; its `analyze` and `review` skills carry the analysis conventions. Mycelium Extra builds on that memory. It adds the steps before and after a run that Mycelium 0.7.2 does not cover:
+
+| Stage | Mycelium 0.7.2 | Mycelium Extra adds |
+|---|---|---|
+| Before a run | No hook can stop a run: Mycelium registers SessionStart, PostToolUse, and Stop hooks only. Its `review` grill mode questions an analysis that already exists. | `grill` drafts a sourced plan before anything runs; the approval gate blocks a run no approved plan covers. |
+| Inputs | No record of which files a plan rests on. | Pinned inputs: a run is blocked if the sample table or config changed since approval. |
+| During a run | Data lineage for python, R, and jupyter runs: each script's data inputs and outputs, with SHA snapshots. | A receipt per run, tied to the approved plan, with exit status, git state, and environment; it also covers `run.sh`, snakemake, sbatch, and nextflow. |
+| After a run | `analyze` requires scilintr; `review` checks the code. | `verify` checks the plan against what ran, lints the code, checks reported numbers, and writes `provenance/`. |
+| Memory upkeep | Learnings carry a test candidate; decisions accumulate. | `harden` turns a candidate into a test; `decision-status` settles which past decision binds. |
+
+Every Mycelium file and idea this plugin reuses is listed in [Mycelium: credits and boundaries](docs/mycelium-integration.md).
+
+## Skills
+
+Nine skills and one hook set. Each name links to its full description.
 
 | Part | What it does | Writes |
 |---|---|---|
-| `grill` | Turns a proposed task into a sourced, numbered plan | Nothing |
-| `plan-review` | Challenges a grill plan with independent Codex engineering and Biomni biomedical reviews before approval | Nothing; sends a review packet to Codex and to Biomni's cloud, after you agree |
-| `decision-status` | Settles which past decision binds a task | Appends to `.living/decisions.md`, after you confirm |
-| `data-contract-check` | Tests a plan's sample-table assumptions | Nothing |
-| `init` | Turns on the approval gate in a repository | `.mycelium-extra/gate.json`, `.gitignore` |
-| `new-analysis` | Creates a new analysis folder: numbered steps, a Snakefile, Mycelium's analysis doc, one plan, one tracker | The new folder only |
-| `verify` | Checks an approved plan against what ran, then records provenance | `<analysis>/provenance/`, after you confirm |
-| `handoff` | Writes a short handoff so a fresh session can continue | `HANDOFF.md` at the project root |
-| `harden` | Ships a Mycelium learning's mitigation candidate as a real test | One test file; one `.living/learnings.md` entry, after you confirm |
-| Approval gate | Blocks analysis runs until you approve the plan, blocks them if the plan's inputs changed, and records a receipt per run | `.mycelium-extra/` only |
+| [`grill`](docs/skills.md#grill) | Turns a proposed task into a sourced, numbered plan | Nothing |
+| [`plan-review`](docs/skills.md#plan-review) | Challenges a grill plan with independent Codex engineering and Biomni biomedical reviews before approval | Nothing; sends a review packet to Codex and to Biomni's cloud, after you agree |
+| [`decision-status`](docs/skills.md#decision-status) | Settles which past decision binds a task | Appends to `.living/decisions.md`, after you confirm |
+| [`data-contract-check`](docs/skills.md#data-contract-check) | Tests a plan's sample-table assumptions | Nothing |
+| [`init`](docs/skills.md#init) | Turns on the approval gate in a repository | `.mycelium-extra/gate.json`, `.gitignore` |
+| [`new-analysis`](docs/skills.md#new-analysis) | Creates a new analysis folder: numbered steps, a Snakefile, Mycelium's analysis doc, one plan, one tracker | The new folder only |
+| [`verify`](docs/skills.md#verify) | Checks an approved plan against what ran, then records provenance | `<analysis>/provenance/`, after you confirm |
+| [`handoff`](docs/skills.md#handoff) | Writes a short handoff so a fresh session can continue | `HANDOFF.md` at the project root |
+| [`harden`](docs/skills.md#harden) | Ships a Mycelium learning's mitigation candidate as a real test | One test file; one `.living/learnings.md` entry, after you confirm |
+| [Approval gate](docs/approval-gate.md) | Blocks analysis runs until you approve the plan, blocks them if the plan's inputs changed, and records a receipt per run | `.mycelium-extra/` only |
 
-Here is how a task moves through it, and where Mycelium takes over:
+## How a task moves
+
+The path of one task, and where Mycelium takes over:
 
 ```mermaid
 flowchart TD
@@ -65,7 +85,7 @@ Blue is Mycelium's. `new-analysis`, `decision-status`, `data-contract-check`, `h
 
 3. Start a new Claude Code session. Skills and hooks load when a session starts.
 
-**Update** after pulling or editing the plugin (Claude Code runs a cached copy, keyed by the `version` in `.claude-plugin/plugin.json`):
+**Update** after pulling or editing the plugin. Claude Code runs a cached copy, keyed by the `version` in `.claude-plugin/plugin.json`:
 
 ```bash
 claude plugin marketplace update mycelium-extra
@@ -90,19 +110,30 @@ A typical analysis task, in order:
 3. **Optional review:** before approval, invoke `/mycelium-extra:plan-review` in Claude Code for separate Codex and Biomni critiques. It recommends amendments but does not edit or approve the plan.
 4. **Approve:** after any requested revision, use the new plan's `approve plan <hash>` line.
 5. **Run and verify:** execute through your normal workflow (`/mycelium:analyze` in a Mycelium project), then use `/mycelium-extra:verify <hash>`.
-6. **Optional run plan:** for a reportable, long, or HPC run, grill again once the code is written and linted. The run plan lists the Snakefile, `run.sh`, and step scripts on its `Inputs:` line so the gate freezes them, and shows a dry run (`bash run.sh -n`, under the first plan's approval) and tool versions. `verify diff <old> <new>` shows what changed before you approve it. See `skills/grill/references/run-plans.md`.
+6. **Optional run plan:** for a reportable, long, or HPC run, grill again once the code is written and linted. The run plan lists the Snakefile, `run.sh`, and step scripts on its `Inputs:` line, so the gate freezes them. It shows a dry run (`bash run.sh -n`, under the first plan's approval) and tool versions. `verify diff <old> <new>` shows what changed before you approve it. See `skills/grill/references/run-plans.md`.
 
-`grill` calls `decision-status` and `data-contract-check` itself when a plan depends on them, so you rarely need to invoke those directly. For a table of common prompts, see [docs/skills.md](docs/skills.md).
+`grill` calls `decision-status` and `data-contract-check` itself when a plan depends on them, so you rarely need to invoke those directly. For a table of common prompts, see [Common prompts](docs/skills.md#common-prompts).
 
 ## Documentation
 
-- [docs/skills.md](docs/skills.md) — each skill in detail, plus common prompts.
-- [docs/approval-gate.md](docs/approval-gate.md) — approvals, gating rules, pinned inputs, run receipts, exploratory runs, command hints, and the full limits.
-- [docs/mycelium-integration.md](docs/mycelium-integration.md) — how the plugin complements Mycelium without overriding it.
-- [docs/development.md](docs/development.md) — tests, the gate-diff rule, Python 3.6 compatibility, version bumps.
+**Use**
 
-The gate catches mistakes; it is not security. Read the full [limits](docs/approval-gate.md#limits) before relying on it.
+- [Skills](docs/skills.md): each skill in detail, plus common prompts.
+- [Approval gate](docs/approval-gate.md): approvals, gating rules, pinned inputs, run receipts, exploratory runs, and command hints.
 
-## License
+**Reference**
 
-MIT, see [LICENSE](LICENSE). `skills/new-analysis/templates/analysis-readme.md` is copied from Mycelium and keeps Mycelium's MIT notice in [MYCELIUM_LICENSE](skills/new-analysis/templates/MYCELIUM_LICENSE).
+- [Gate settings](docs/approval-gate.md#settings): the `gate.json` keys and their defaults.
+- [Limits](docs/approval-gate.md#limits): what the gate does not catch. It catches mistakes; it is not security. Read this before relying on it.
+- [Mycelium: credits and boundaries](docs/mycelium-integration.md): what this plugin reuses from Mycelium, and what it never touches.
+- [CHANGELOG](CHANGELOG.md): what changed in each version.
+
+**Contribute**
+
+- [Development](docs/development.md): tests, the gate-diff rule, Python 3.6 compatibility, version bumps.
+- [Roadmap](docs/roadmap/README.md): open and finished tasks, each ready to paste into `grill`.
+- Design notes: [fixture project](docs/design/c1-fixture-project.md), [claims checker](docs/design/claim_artifact_checker_design.md), [real-use tests](docs/design/e4-real-use.md).
+
+## License and credits
+
+MIT, see [LICENSE](LICENSE). `skills/new-analysis/templates/analysis-readme.md` is copied from Mycelium and keeps Mycelium's MIT notice in [MYCELIUM_LICENSE](skills/new-analysis/templates/MYCELIUM_LICENSE). The ideas and file formats taken from Mycelium are credited in [Mycelium: credits and boundaries](docs/mycelium-integration.md).

@@ -2,6 +2,8 @@
 
 [Back to README](../README.md)
 
+**On this page:** [Approving a plan](#approving-a-plan) · [What is gated](#what-is-gated) · [Pinned inputs](#pinned-inputs) · [Run receipts](#run-receipts) · [Mycelium's post-action protocol](#myceliums-post-action-protocol) · [Exploratory runs](#exploratory-runs) · [Command hints](#command-hints) · [Settings](#settings) · [Limits](#limits)
+
 Claude Code hooks in `hooks/` enforce grill's rule that nothing runs until you approve. The gate is off unless you turn it on per repository with `/mycelium-extra:init`, or by hand:
 
 1. Create `.mycelium-extra/gate.json`. `{}` uses the defaults.
@@ -37,7 +39,7 @@ A grill brief has an `Inputs:` line naming, by repository path, the files the pl
 - Showing the same plan again re-pins it, and the notice names any file that changed since the plan was last shown.
 - A plan with no `Inputs:` line pins nothing, and the notice says so.
 
-Approving copies the pins into the approval. Before a covered run, the gate fingerprints the pins of the newest approval that covers it (so an older plan that pinned less cannot let a run through after a newer plan's pins changed) and blocks the run if one changed, naming the file with its old and new fingerprint. Re-check the input (for example, re-run the data-contract check), show the plan again, and approve it. Explore runs skip this check.
+Approving copies the pins into the approval. Before a covered run, the gate fingerprints the pins of the newest approval that covers it. An older plan that pinned less therefore cannot let a run through after a newer plan's pins changed. The gate blocks the run if one changed, naming the file with its old and new fingerprint. Re-check the input (for example, re-run the data-contract check), show the plan again, and approve it. Explore runs skip this check.
 
 ## Run receipts
 
@@ -56,7 +58,7 @@ Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip My
 
 ## Mycelium's post-action protocol
 
-Mycelium's own hooks detect only python, R, and jupyter runs. In a repository with `.living/`, after a receipted run Mycelium does not detect (`bash run.sh`, snakemake, sbatch, nextflow, and other runners), the receipt hook tells the agent once that the protocol did not fire, and to follow it (learnings, decisions, findings, manifest, analysis doc) when the run finishes. It is a reminder; Mycelium's Stop hook still does not see these runs.
+Mycelium's own hooks detect only python, R, and jupyter runs. In a repository with `.living/`, a receipted run can be one Mycelium does not detect: `bash run.sh`, snakemake, sbatch, nextflow, and other runners. After such a run, the receipt hook tells the agent once that the protocol did not fire. It asks the agent to follow it (learnings, decisions, findings, manifest, analysis doc) when the run finishes. It is a reminder; Mycelium's Stop hook still does not see these runs.
 
 ## Exploratory runs
 
@@ -67,8 +69,22 @@ Type `allow explore` to let runs prefixed with `MYCELIUM_EXTRA_EXPLORE=1` throug
 Type `hints on` to get a one-line suggestion of the command to run next; `hints off` stops them. The setting lasts for the repository until you turn it off. Hints need the gate (`init`), since the gate's hooks carry them.
 
 - When you send a prompt that matches a task type, the agent is told which command fits and names it in one line, asking before it switches. Rules, first match wins: wrap up or new session → `handoff`; new analysis folder → `new-analysis`; which decision binds → `decision-status`; sample table → `data-contract-check`; brainstorm → `/mycelium:ideas`; ingest → `/mycelium:ingest`; report or write-up → `/mycelium:report`; review or audit → `/mycelium:review`; analysis words with no active approval → `grill`. The `/mycelium:*` rules apply only where `.living/` exists. Prompts that start with `/` or name `mycelium` get no hint.
-- When a turn ends, you alone see (the agent does not, so it costs no tokens): `verify <hash>` once a gated run under that plan has a receipt this session, and `handoff` once the context passes 120k tokens. Each shows once per session.
+- When a turn ends, you alone see these (the agent does not, so they cost no tokens): `verify <hash>` once a gated run under that plan has a receipt this session, and `handoff` once the context passes 120k tokens. Each shows once per session.
 - Hints match keywords, so some miss or misfire.
+
+## Settings
+
+`.mycelium-extra/gate.json` takes these keys. A missing key uses its default, and `{}` uses them all. `init` sets only `gated_paths`, `gated_commands`, and `approval_hours`; edit the file by hand for the rest.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `gated_paths` | `["analysis/**", "nbs/**"]` | Scripts under these globs need an approved plan naming them. |
+| `gated_commands` | `["sbatch", "snakemake", "nextflow"]` | Commands that need an approved plan containing the command word. |
+| `approval_hours` | `24` | How long an approval covers runs. Approvals are never deleted. |
+| `pin_hash_mb` | `200` | Bytes of pinned inputs (in MB) hashed per hook before falling back to size and mtime. |
+| `pin_seconds` | `5` | Seconds the pin check may take per hook. |
+
+Two switches are not keys. `hints on` and `hints off` create and remove `.mycelium-extra/hints.json`. `allow explore` and `stop explore` apply to one session.
 
 ## Limits
 
