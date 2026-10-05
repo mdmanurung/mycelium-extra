@@ -80,7 +80,7 @@ tests/
 │       ├── baseline.json                 statuses, counts, and values the baseline must produce
 │       ├── truth.json                    simulated ground truth; kept outside the project so no step can read it
 │       ├── summary.tsv                   03_summary.R output (generator's Python twin, checked against real R); used when R is absent
-│       └── claims.json                   D1's expected verdicts (unused until D1 ships)
+│       └── claims.json                   D1's claims block lines and the numbers it leaves as info
 ├── test_fixture_data.py                  runs make_fixture_data.py --check, a refused seed, and the size budget
 └── test_end_to_end.py                    baseline chain, one case per defect, catalog contract tests
 ```
@@ -323,7 +323,7 @@ DC-08 to DC-11 are the reason the fixture exists. Every tool reports success, ye
 | V-06 | change `counts.tsv` after the runs | block `Input ... changed since the approval` | Input and matrix state |
 | V-07 | skip 03 entirely | gap `no run under this plan was recorded` | tool: verify |
 | V-08 | `allow explore`, then an explore run of 04 | gap `Explore run in the analysis folder` | Explore results reported |
-| V-09 | explore run rewrites `de_results.tsv` after the planned run | gap `was likely written by` an explore run | Explore results reported |
+| V-09 | explore run rewrites `de_results.tsv` after the planned run | gap `was likely written by` an explore run; since D1, block: Key Findings claims read from that file are explore-only | Explore results reported |
 | V-10 | lineage lists `/tmp/scratch/refit.py`, which the gate never saw | gap `Mycelium's lineage saw` | Retry until significant |
 | V-11 | `02b_paired_test.py` added to the plan but left uncommitted | gap `was untracked when it ran` | tool: verify |
 | V-12 | plan names `sbatch analysis/vaccine-response/run_all.sbatch`; fake sacct returns `FAILED` | block `Slurm job 4242 ended FAILED` | tool: verify |
@@ -335,6 +335,9 @@ DC-08 to DC-11 are the reason the fixture exists. Every tool reports success, ye
 | V-18 | a second approved plan covers 04, and it runs | gap `ran since the approval but is not in the plan table`; info `Run under another plan` | Silent scope growth |
 | V-19 | row 3's source becomes `default: standard` | `CONFORMS`; info `Default without a usable reason (advisory)` (D9) | Unstated defaults |
 | V-20 | 02 finishes within `TOLERANCE` of 01's receipt (`de_results.tsv` mtime = 01's receipt + 1 s) | known miss: `CONFORMS`, and the output is credited to run 01, an earlier run of the same plan | Stale evidence as current |
+| V-21 | D1: the hit count retyped as 9 in Key Findings and its claims block | block `claims 9, but ... n_hits holds 8` | Number transcription |
+| V-22 | D1: a claims line citing `outputs/missing.tsv` | gap `cites ... missing.tsv, but it does not exist` | tool: verify |
+| V-23 | D1: DC-08's flipped contrast with Key Findings unchanged | block `claims 1.4455, but ... log2fc row MX1 holds -1.4455` | Log base and sign confusion |
 
 V-13 keeps the steps in the plan table because verify reads a rule's `incomplete` flag only for a planned step that ran inside a wrapper. A plan that names only the Snakefile gets a direct receipt for it, and an incomplete rule is not reported; that is not a case yet.
 
@@ -364,7 +367,7 @@ Each was confirmed against `3a11123`, by a gate probe or by reading the code. E2
 
 | Task | Fixture content added now | Case when the task ships |
 | --- | --- | --- |
-| D1 | Key Findings in `VACCINE_RESPONSE.md`, all correct in the baseline; `expected/claims.json` | mutations: hit count written as 9 (`MISMATCH`); a claim citing `outputs/missing.tsv` (`UNVERIFIED`); a value taken from V-09's explore output (`verified-explore-only`); the DC-08 sign flip against a "+2.0 median log2FC" claim (`MISMATCH`) |
+| D1 | Key Findings in `VACCINE_RESPONSE.md` with a claims block; `expected/claims.json` | shipped in 0.9.34: V-21 (hit count 9, block), V-22 (missing file, gap), V-23 (DC-08's sign flip against the baseline's own values, block; the planned "+2.0" claim already differed from 1.6806, so it would not test the flip), and V-09 (explore-only, block). The known-miss chains (`whole_chain`) drop the block, since an agent would write findings from the mutated outputs |
 | D2 | three references in `VACCINE_RESPONSE.md`: BH 1995 (DOI 10.1111/j.2517-6161.1995.tb02031.x), one DOI that does not resolve, one real DOI with the wrong title | recorded responses under `tests/e2e/recorded/`; no live network |
 | D4 | none beyond the harness | 3 explore runs and 2 plan revisions (threshold changed) before the approved run; expected counts |
 | C3 | none committed | packet built from the baseline plan, plus a participant-style identifier and a token assembled at run time by string concatenation, so no secret-shaped string is ever committed (push protection would block it) |

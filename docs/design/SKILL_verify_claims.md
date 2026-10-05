@@ -3,6 +3,8 @@ name: verify-claims
 description: Read-only check that the quantitative claims in a report match the artifacts a plan's runs wrote. Extracts typed numeric claims (p-values, fold changes, counts, percentages, intervals) from Markdown, locates values in the plan's output tables, JSON, and logs, and verdicts each claim VERIFIED, MISMATCH, UNVERIFIED, or EXPLORE-ONLY. Use after a reportable run has produced a report, before findings are recorded from it or it is shared, and after any edit that touches a number in a checked report. Not for recomputing statistics, checking figures, checking prose without numbers, or checking explore outputs (they are not reportable; a clean check would lend them status they do not have). Never use it to rescue a failing report by editing text, artifacts, thresholds, or the claims block.
 ---
 
+> **Not built as a skill.** D1 shipped in 0.9.34 as a stage of `verify`, with an authored block whose lines name their cell; there is no `verify-claims` skill or `claims.py`. See `skills/verify/SKILL.md` and the note at the top of `claim_artifact_checker_design.md`. This draft is kept as the planning record.
+
 # Verify claims
 
 Check that a report's numbers match its artifacts. Catch transcription errors before
