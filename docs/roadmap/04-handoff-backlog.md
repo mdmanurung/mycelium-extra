@@ -92,7 +92,7 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 - **Acceptance:** under `MX_E2E_REAL_TOOLS=1`, `RealUse.test_r_findings_block_with_real_scilintr` passes with its `expectedFailure` removed (the deciding test); `test_r_findings_block_with_scilintr_0_1_1` passes too once its fake mirrors the call the fix makes; a clean R file still gives "clean".
 - **Tests:** the two `RealUse` cases in `tests/test_end_to_end.py`, with `SCILINTR_0_1_1` updated to model the new call (it now models only `-e 'scilintr::main()' <args>`); a unit test in `test_verify.py` for the output format.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** done (plan d06a2a7d): verify lints R through `scilintr::lint_project()` on a copy of the R code (cross-file rules included; scripts keep their repository paths so `source()` between them resolves; `.r` files copied as `.R`), with its own `Rscript -e` expression that prints `LINT_LINE`'s format and exits 1 on findings. Each R file is parsed first, and one that does not parse is a gap: a nearby `ANALYSIS_OK` drops lintr's own parse-error finding. Cases: `RealUse` R cases in `tests/test_end_to_end.py`, `test_r_code_is_linted_as_one_folder` in `test_verify.py`.
 
 ### E7: Explore listing wording
 

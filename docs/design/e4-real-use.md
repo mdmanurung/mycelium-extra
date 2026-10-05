@@ -55,6 +55,7 @@ Real tools on this machine: R 4.5.3 with scilintr 0.1.1 in the `cellbouncer` con
   - On a folder: both findings, printed as `path:1 [R030/warning] ...`, still exit 0.
   verify passes files, so it gets "no findings" with exit 0 and reports "3 R file(s) clean". Under `MX_E2E_REAL_TOOLS=1`, an R016 line planted in `03_summary.R`, a `report.Rmd` chunk, and an R notebook gave "Verify status: CONFORMS". The folder format would not parse either (`LINT_LINE` needs a column). Task E6. Held by `RealUse.test_r_findings_block_with_scilintr_0_1_1` (a fake with 0.1.1's behaviour, runs everywhere) and `test_r_findings_block_with_real_scilintr` (real tools only), both `expectedFailure`. Separately, with real R on PATH the baseline chain runs `03_summary.R` for real and its output matches `expected/baseline.json`.
 - **Verdict:** serves the goal by design, but it does not work with scilintr 0.1.1. It breaks the principle "a gap is never clean" for all R code.
+- **Fixed** in 0.9.39 (E6): verify copies the R code to one folder and runs `scilintr::lint_project()` on it through its own `Rscript -e` expression, which parses each file first (unparseable R is a gap), prints `LINT_LINE`'s format and exits 1 on findings. Both cases above now pass, and `test_clean_r_with_real_scilintr` gives "clean" once the fixture's two R002 lines are waived.
 
 ## 7. R-kernel notebook
 
