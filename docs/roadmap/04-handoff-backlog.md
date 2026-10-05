@@ -89,8 +89,8 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 - **Depends on:** none.
 - **Constraints:** remaining findings block; a missing, unparseable, or unreadable check is a gap, never clean.
 - **Grill prompt:** `/mycelium-extra:grill Fix E6: verify's R lint reports clean code it never linted (see docs/design/e4-real-use.md section 6). Show verify's lint_languages() and scilintr 0.1.1's main(), and decide where the fix goes.`
-- **Acceptance:** `RealUse.test_r_findings_block_with_scilintr_0_1_1` and, under `MX_E2E_REAL_TOOLS=1`, `test_r_findings_block_with_real_scilintr` pass with their `expectedFailure` removed; a clean R file still gives "clean".
-- **Tests:** the two `RealUse` cases in `tests/test_end_to_end.py`; a unit test in `test_verify.py` for the output format.
+- **Acceptance:** under `MX_E2E_REAL_TOOLS=1`, `RealUse.test_r_findings_block_with_real_scilintr` passes with its `expectedFailure` removed (the deciding test); `test_r_findings_block_with_scilintr_0_1_1` passes too once its fake mirrors the call the fix makes; a clean R file still gives "clean".
+- **Tests:** the two `RealUse` cases in `tests/test_end_to_end.py`, with `SCILINTR_0_1_1` updated to model the new call (it now models only `-e 'scilintr::main()' <args>`); a unit test in `test_verify.py` for the output format.
 - **Effort:** S.
 - **Status:** todo.
 
