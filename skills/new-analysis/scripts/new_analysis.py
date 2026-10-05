@@ -28,8 +28,8 @@ UNTRACKED_OK = {"outputs/", "logs/"}  # often ignored on purpose (large or regen
 OUTPUT_EXT = {"R": ".rds", "py": ".parquet"}
 MYCELIUM_TEMPLATE = os.path.join("skills", "core", "templates", "analysis-readme.md")
 MYCELIUM_NAME = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
-FINDINGS_HINT = ("<!-- One bullet per result: the claim, the outputs/ file behind it, and its "
-                 ".living/findings ID once crystallized. -->")
+FINDINGS_HINT = ("<!-- One bullet per result: the claim, its .living/findings ID once crystallized, "
+                 "and a closing tag naming the outputs/ file behind it: [agent-derived: `outputs/<file>`]. -->")
 
 
 class Refusal(Exception):

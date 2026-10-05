@@ -1296,10 +1296,12 @@ def on_post(event, root, config):
             "finding from it (for example under Mycelium's post-action protocol), label it "
             "`Exploratory run (not reportable)`, and do not cite its outputs as results.")
     if planned and os.path.isdir(os.path.join(root, ".living")):
-        # Mycelium parses only the ledger's date cell, so the Run/Session cell can carry the plan.
+        # Mycelium parses only the ledger's date cell, so the Run/Session and Result cells can carry
+        # the plan and the provenance tag (D7).
         context.append(
             "mycelium-extra: if you record a finding from this run, write its Evidence Ledger "
-            "Run/Session cell as {}, so `verify stale` can link the finding to its plan.".format(
+            "Run/Session cell as {}, so `verify stale` can link the finding to its plan, and end its "
+            "Result cell with `[agent-derived: <output path>]`.".format(
                 " or ".join("`{}; plan {}`".format(event.get("session_id"), digest) for digest in planned)))
     if context:
         result["hookSpecificOutput"] = {"hookEventName": event.get("hook_event_name") or "PostToolUse",

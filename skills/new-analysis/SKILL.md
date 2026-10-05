@@ -66,7 +66,7 @@ Use Edit; the files already exist.
 
 - **`<NAME>.md`** is Mycelium's entry point.
   - It holds the purpose, status, datasets, steps, open questions, and outputs.
-  - **Key Findings** is where results go: each bullet gives the claim, the `outputs/` file behind it, and its `.living/findings` ID once crystallized.
+  - **Key Findings** is where results go: each bullet gives the claim and its `.living/findings` ID once crystallized, and ends with ``[agent-derived: `outputs/<file>`]`` naming the file behind it; `verify` counts these tags.
   - `/mycelium:analyze` reads this file, and its post-action hook updates it.
 - **`PLAN.md`** is the one plan. Revise it in place and log each change in `TRACKER.md`. Never start a second plan file.
 - **`TRACKER.md`** holds each item's status and a dated log. Project-wide todos stay in `todo/`.
