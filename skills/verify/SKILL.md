@@ -1,6 +1,6 @@
 ---
 name: verify
-description: After an approved mycelium-extra grill plan has run, check what actually ran against the plan, then, once the user confirms, write the frozen plan, its run receipts, and the check into the analysis folder's `provenance/`. Reports per planned script whether it ran, failed, has no receipt, was edited or deleted since it ran, or was only passed to other code (a lint or parse call); flags explore runs, runs and scripts outside the plan table, changed pinned inputs, outputs written before the approval or not tied to a run of the plan (from the plan's `Outputs:` line, the gate's receipts, Slurm, and Snakemake's records), and scratchpad computation Mycelium's lineage saw but the gate did not. Then names the `/mycelium:review` command that checks the code against the frozen plan. Use when the user invokes mycelium-extra verify, asks whether an analysis ran according to plan, or wants provenance recorded after an approved run. Its `stale` sweep lists every verified plan whose scripts, pinned inputs, or outputs changed since its provenance was written; use it when the user asks what is stale, out of date, or needs re-running. Its `status` table lists every approved or verified plan with its analysis folder, runs, verify status, staleness, recorded lint, and Mycelium manifest status; use it when the user asks for status, an overview, or what has been planned, run, or verified. Claude Code only, since it reads the approval gate's receipts; runs under Codex are not receipted. Not for planning (use grill) and not for judging code quality (use Mycelium's review).
+description: After an approved mycelium-extra grill plan has run, check what actually ran against the plan, then, once the user confirms, write the frozen plan, its run receipts, and the check into the analysis folder's `provenance/`. Reports per planned script whether it ran, failed, has no receipt, was edited or deleted since it ran, or was only passed to other code (a lint or parse call); flags explore runs, runs and scripts outside the plan table, changed pinned inputs, outputs written before the approval or not tied to a run of the plan (from the plan's `Outputs:` line, the gate's receipts, Slurm, and Snakemake's records), scratchpad computation Mycelium's lineage saw but the gate did not, and numbers in a document's `<!-- claims -->` block that disagree with the output cell they name. Then names the `/mycelium:review` command that checks the code against the frozen plan. Use when the user invokes mycelium-extra verify, asks whether an analysis ran according to plan, or wants provenance recorded after an approved run. Its `stale` sweep lists every verified plan whose scripts, pinned inputs, or outputs changed since its provenance was written; use it when the user asks what is stale, out of date, or needs re-running. Its `status` table lists every approved or verified plan with its analysis folder, runs, verify status, staleness, recorded lint, and Mycelium manifest status; use it when the user asks for status, an overview, or what has been planned, run, or verified. Claude Code only, since it reads the approval gate's receipts; runs under Codex are not receipted. Not for planning (use grill) and not for judging code quality (use Mycelium's review).
 ---
 
 # Mycelium Extra: Verify
@@ -30,6 +30,8 @@ It also runs scilintr on the analysis folder's code (outputs, logs, and provenan
 
 It also checks the reason on each `default:` in the frozen plan's Source column, with plan-review's `scripts/default_reasons.py` (loaded from the plugin root). A row with no reason, a reason under three words, or only an empty phrase such as `standard` is an advisory `info` finding that names the row; it does not change the status. If that script is missing or fails, the check is a gap.
 
+It also checks claims: each `<!-- claims -->` block in the analysis doc (`<NAME>.md`, Mycelium's analysis doc), in a Markdown file on the `Outputs:` line, or in a document passed with `--claims <path>` (repeatable). Each block line names a value and the output cell it came from, `value | file column [row]`, with the file relative to the analysis folder or the repository. `row` is the first-column label; a table with more than one row needs it, so a common value such as `0.05` never verifies against some row of a column. `rows` as the column is the table's data-row count, and a JSON output takes a dotted path (`qc.n`, `qc.kept.1`). A value may start with `<`, `>`, `<=` or `>=`, and end with `%` (also tried against a fraction, reported as via transform). A value agrees when the cell, rounded half-up, half-even, or truncated to the value's last digit, equals it. The `## Claims` section counts each document's verdicts. A claim the cell contradicts, or one read from an output an explore run wrote, blocks; a claim whose file, column or row cannot be found, a file over `--hash-mb`, or a block line that does not parse is a gap. Numbers in the block's section (heading to heading) that no claim covers are listed as `info`: the block, not the prose, is the checked record.
+
 The report ends with `Verify status:` and one of these values:
 - `CONFORMS`
 - `CONFORMS_WITH_GAPS`: something the records cannot show, such as a run with no receipt, an unrecorded exit status, an output not tied to a run, or code scilintr could not check.
@@ -41,6 +43,7 @@ The report ends with `Verify status:` and one of these values:
   - a scilintr finding that is neither fixed nor waived
   - a file named exactly on the `Outputs:` line that was written before the approval (older files inside a named folder or glob are earlier runs' outputs, so they are only counted)
   - an incomplete Snakemake job
+  - a claims-block value that the output cell it names contradicts, or that an explore run's output holds
 
 A plan re-approved under the same hash keeps its earlier runs; the report says so.
 
@@ -54,6 +57,19 @@ A plan re-approved under the same hash keeps its earlier runs; the report says s
   - drop an output written before the approval
 - Do not fix anything in this skill.
 - A gap is not a failure. Say what it hides. For example, an output not tied to a run is often a run Claude Code moved to the background.
+- For a claim mismatch, show the line, the claimed and the observed value, and the cell. Do not edit the document, the output, or the claims block: the user decides which is wrong, and a wrong output means a re-run under a new plan (grill). A verified claim means the text matches its cell, not that the analysis is right.
+
+When you write findings or a report in a gated repository, declare the numbers a reader would quote in a claims block, each naming its cell, so verify checks them:
+
+```markdown
+<!-- claims
+8 | outputs/summary.tsv n_hits
+0.016234 | outputs/de_results.tsv padj SIGLEC1
+24 | outputs/samples_used.tsv rows
+-->
+```
+
+Never add, edit, or drop a claims line to make a failing check pass.
 
 ## 4. Write provenance, after the user confirms
 
@@ -67,7 +83,7 @@ It writes `<folder>/provenance/`:
 - `plan-<hash>.md`: the frozen plan as approved.
 - `receipts-<hash>.jsonl`: the receipts of this plan's runs.
 - `outputs-<hash>.tsv`: each output's path, write time, size, full sha256 (or size and mtime past the hash budget), and likely run.
-- `verify-<hash>.md`: this report.
+- `verify-<hash>.md`: this report, with its claims counts.
 - `lint-<hash>.txt`: the scilintr output and every `ANALYSIS_OK` waiver.
 - `env-<hash>.txt`, only when a run used a conda env (`conda run -n|-p`, `conda activate` in its job script, an interpreter under `<env>/bin/`, or the session's `CONDA_PREFIX`) and no `conda-lock.yml` was found: the env's packages in `conda list --explicit --md5` form, read from its `conda-meta` so conda need not be on PATH. An env changed after its last run (`conda-meta/history` is newer) or not found is a gap.
 - `PROVENANCE.md`: one row per verified plan.

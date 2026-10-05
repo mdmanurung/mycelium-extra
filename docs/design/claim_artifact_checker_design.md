@@ -2,6 +2,8 @@
 
 **Status:** draft for grilling · **Target:** `skills/verify` · **Schema:** `mycelium-extra.claims.v1`
 
+> **v1 as built (0.9.34, plan 923d51b6).** The claims stage lives in `verify.py` and runs under `verify report` and `write`; there is no `verify claims` action or separate skill. Only the authored block (section 3.5) is checked, and each line names its cell: `[<|>|<=|>=]value[%] | file column [row] [| note]`, with `rows` as a row count and a dotted path for JSON. Verdicts are verified, verified via transform (`%` only), mismatch and explore-only (both `block`), and unverified (`gap`). The common-value guard became a rule: a table with more than one row needs a row label. Numbers in the block's section that no claim covers are `info`. The rest of this document, prose extraction (3.2 to 3.4), context scoring (5.3), log transforms, text artifacts, budgets in `gate.json`, and `claims_report.json`, is parked.
+
 ## 1. Purpose
 
 `verify <hash>` today answers: *did the approved plan's runs write the plan's outputs?*

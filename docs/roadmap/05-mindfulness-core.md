@@ -17,7 +17,7 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Acceptance:** on the fixture, every planted mismatch is `MISMATCH`, every correct claim is `VERIFIED` or `verified-transform`, a claim citing a missing file is `UNVERIFIED`, and the status line matches.
 - **Tests:** unit tests per verdict; a false-match test for the common-value guard; an end-to-end case in `tests/test_end_to_end.py`.
 - **Effort:** L.
-- **Status:** todo.
+- **Status:** done in 0.9.34, as a verify stage, not a skill. Its grill chose an authored claims block whose lines name their cell (`value | file column [row]`) over prose extraction with context scoring, which could not catch the fixture's planted mutation without tuning; numbers outside the block are listed as info. Parked: prose scoring, log2 and -log10 transforms, Markdown table diffs, text and log artifacts, a `claims_report.json`, and a mode with no plan. See the note at the top of [the design](../design/claim_artifact_checker_design.md).
 
 ### D2: Citation resolution
 
