@@ -50,7 +50,7 @@ In the last column, a named tool (`data-contract-check`, `verify`, or the approv
 | Retry until significant | Parameters, subsets, or methods changed across runs until a result appears; explore runs shopped for the best one | Pre-specify the primary analysis; count every contrast tried, including explore runs | cross-ref: Multiplicity; planned: D4 |
 | Test chosen after results | The test or model changes after the first look at the data | The test is fixed in the approved plan; a change needs a new plan | cross-ref: Model or test |
 | p versus padj confusion | Raw p-values reported or thresholded as if adjusted, or the reverse | Name which column each threshold uses | cross-ref: Multiplicity |
-| Log base and sign confusion | log2 versus ln versus log10 mixed; fold-change direction flipped between table and text | Name the log base and the sign convention once; reports use it throughout | planned: D1 |
+| Log base and sign confusion | log2 versus ln versus log10 mixed; fold-change direction flipped between table and text | Name the log base and the sign convention once; reports use it throughout | partial: verify (a sign or value in a document's claims block that differs from the output cell it names, not prose outside the block or the log base itself) |
 | Absence of evidence as evidence of absence | A non-significant result reported as "no effect" | Report effect size and interval; underpowered nulls are called inconclusive | none |
 | Missing effect sizes | Only p-values reported, with no magnitude or uncertainty | Every reported test carries an effect size and its interval | none |
 | Causal wording for associations | "Drives", "causes", "protects" for observational contrasts | Claim type matches the estimand; causal wording only with a causal design | cross-ref: Estimand and claim type |
@@ -59,8 +59,8 @@ In the last column, a named tool (`data-contract-check`, `verify`, or the approv
 
 | Failure mode | How it shows up | Guard the plan must name | Check |
 | --- | --- | --- | --- |
-| Number transcription | A value in the report text differs from the artifact it came from | Report values are read from output files, not retyped; a check compares them | planned: D1 |
+| Number transcription | A value in the report text differs from the artifact it came from | Report values are read from output files, not retyped; a check compares them | partial: verify (values in a document's `<!-- claims -->` block, each against the output cell it names; numbers outside the block are listed, not checked) |
 | Invented citations | A DOI, PMID, or reference that does not exist or does not support the claim | Every citation resolves, and the cited source is read before it is used | planned: D2 |
 | Figure and text disagree | The text describes a trend, n, or direction the figure does not show | Figures and text come from the same output file; n is in the figure | cross-ref: Outputs and reporting |
-| Explore results reported | A value from an explore run appears in a reportable document | Reportable numbers come only from runs under an approved plan | partial: verify (explore runs and the outputs they wrote, not report text); planned: D1 |
+| Explore results reported | A value from an explore run appears in a reportable document | Reportable numbers come only from runs under an approved plan | partial: verify (explore runs, the outputs they wrote, and claims-block values read from those outputs; not report text outside the block) |
 | Missing n or units | A figure or table without its sample size, units, or the unit of replication | Each figure and table states n, units, and what one point is | cross-ref: Outputs and reporting |
