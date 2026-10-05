@@ -165,6 +165,19 @@ class BaselineChain(unittest.TestCase):
         self.assertNotEqual(code, 0, "Rscript still on PATH: " + out)
         self.run_chain(project)
 
+    def test_stale_and_status_after_an_edit(self):
+        """E4: editing a verified plan's script makes `stale` and `status` name it."""
+        p = self.project(r=False)
+        digest = self.run_chain(p)
+        p.edit(SCRIPTS[1], lambda text: text + "\n# tweak\n")
+        code, out, err = p.verify("stale")
+        self.assertEqual(code, 0, err)
+        self.assertIn("## Plan {} - `{}`".format(digest, A), out)
+        self.assertIn("- script `{}` edited since it ran at".format(SCRIPTS[1]), out)
+        self.assertTrue(out.strip().endswith("1 of 1 verified plans stale."), out)
+        code, out, err = p.verify("status", "--json")
+        self.assertEqual([r["stale"] for r in json.loads(out)], ["1 change(s)"], out + err)
+
 
 @unittest.skipUnless(harness.git_available(), "git is not installed")
 class Defects(unittest.TestCase):
@@ -295,6 +308,134 @@ class BashEvents(unittest.TestCase):
         events = harness.registered_events()
         self.assertEqual([events.get(e) for e in ("PreToolUse", "PostToolUse", "Stop", "UserPromptSubmit")],
                          ["tool", "post", "stop", "prompt"])
+
+
+# A line scilintr's R016 flags (hardcoded sample IDs), planted in each R place verify lints.
+R016 = 'keep <- meta[meta$sample_id %in% c("S01", "S02", "S03"), ]'
+# Rscript-lint that flags each R016 line it is given, in the format verify parses, and exits 1.
+FLAG_R016 = """#!/bin/sh
+found=0
+for a in "$@"; do
+  [ -f "$a" ] || continue
+  for n in $(grep -n 'sample_id %in% c(' "$a" | cut -d: -f1); do echo "$a:$n:1: [R016] hardcoded sample IDs"; found=1; done
+done
+exit $found
+"""
+# Rscript-lint as scilintr 0.1.1's `Rscript -e 'scilintr::main()' <args>` behaves (E4 probe,
+# docs/design/e4-real-use.md section 6): only the first argument is read, as a project root; a
+# file root lints nothing; findings print as `path:N [RULE/severity] message`; exit is always 0.
+SCILINTR_0_1_1 = """#!/bin/sh
+shift 2
+root="$1"
+if [ -d "$root" ]; then
+  n=$(grep -rln 'sample_id %in% c(' "$root" | while read f; do echo "$f:1 [R016/warning] R016: hardcoded sample IDs"; done)
+  [ -n "$n" ] && { echo "$n"; echo "scilintr: $(echo "$n" | wc -l | tr -d ' ') finding(s)" >&2; exit 0; }
+fi
+echo "scilintr: no findings" >&2
+exit 0
+"""
+
+
+@unittest.skipUnless(harness.git_available(), "git is not installed")
+class RealUse(unittest.TestCase):
+    """E4: features with no record of real use, on the fixture (docs/design/e4-real-use.md)."""
+    maxDiff = None
+
+    def project(self):
+        project = harness.Project.fresh(r=False)
+        self.addCleanup(project.close)
+        return project
+
+    def prompt(self, p, text):
+        return ((p.hook("prompt", {"prompt": text}) or {}).get("systemMessage") or "")
+
+    def stop(self, p):
+        return ((p.hook("stop", {"last_assistant_message": "done", "stop_hook_active": False}) or {})
+                .get("systemMessage") or "")
+
+    def test_hints(self):
+        p = self.project()
+        ask = "re-run the differential analysis"
+        self.assertEqual(self.prompt(p, ask), "", "hints must be off by default")
+        self.assertIn("command hints on for this repository", self.prompt(p, "hints on"))
+        self.assertEqual(self.prompt(p, ask), "mycelium-extra hint: this fits /mycelium-extra:grill")
+        self.assertEqual(self.prompt(p, "review the code"), "mycelium-extra hint: this fits /mycelium:review")
+        self.assertEqual(self.prompt(p, "run mycelium analyze on this"), "")
+        self.assertEqual(self.prompt(p, "/mycelium:analyze differential"), "")
+        digest = p.approve(harness.plan_text())[0]
+        self.assertEqual(self.prompt(p, ask), "", "no grill hint while a plan is approved")
+        p.run_step(SCRIPTS[0])
+        self.assertEqual(self.stop(p), "mycelium-extra hint: next, `/mycelium-extra:verify {}`".format(digest))
+        self.assertEqual(self.stop(p), "", "the verify hint is shown once per session")
+        self.assertIn("command hints off", self.prompt(p, "hints off"))
+        self.assertEqual(self.prompt(p, ask), "")
+
+    def test_verify_explore(self):
+        p = self.project()
+        self.assertIn("exploratory runs allowed", self.prompt(p, "allow explore"))
+        for _ in range(2):
+            run = p.run_step(SCRIPTS[0], prefix="MYCELIUM_EXTRA_EXPLORE=1 ")
+            self.assertEqual([r.get("explore") for r in run.receipts], [True])
+        self.assertIn("2 exploratory run(s) this session are not reportable", self.stop(p))
+        p.edit(SCRIPTS[0], lambda text: text + "\n# edited\n")
+        code, out, err = p.verify("explore", "--session", p.session)
+        self.assertEqual(code, 0, err)
+        self.assertIn("1. `python3 {}`\n   - ran: `{}`".format(SCRIPTS[0], SCRIPTS[0]), out)
+        self.assertIn("(2 runs), exit 0", out)
+        self.assertIn("script `{}` edited since this run".format(SCRIPTS[0]), out)
+        self.assertNotIn("MYCELIUM_EXTRA_EXPLORE=1 python3", out)
+
+    def plant_r016(self, p):
+        """R016 in 03_summary.R, in a report.Rmd chunk, and in an R notebook inside the analysis folder."""
+        os.makedirs(p.path(A, "notebooks"))
+        with open(p.path("nbs", "r_explore.ipynb"), encoding="utf-8") as handle:
+            nb = json.load(handle)
+        nb["cells"][1]["source"].append("\n" + R016)
+        with open(p.path(A, "notebooks", "r_explore.ipynb"), "w", encoding="utf-8") as handle:
+            json.dump(nb, handle)
+        p.edit(SCRIPTS[2], lambda text: text + "\n" + R016 + "\n")
+        p.edit(A + "/reports/report.Rmd", lambda text: text.replace("```{r", "```{r}\n" + R016 + "\n```\n\n```{r", 1))
+        p.commit("plant R016")
+        with open(p.path(A, "reports", "report.Rmd"), encoding="utf-8") as handle:
+            return [n for n, line in enumerate(handle, 1) if line.strip() == R016][0]
+
+    def lint_report(self, p, fake=None):
+        if fake:
+            with open(os.path.join(p.bin, "Rscript-lint"), "w", encoding="utf-8") as handle:
+                handle.write(fake)
+        digest = p.run_plan()[0]
+        code, out, err = p.verify("report", digest)
+        self.assertEqual(code, 0, err)
+        return out
+
+    def test_r_code_reaches_r_lint(self):
+        """.Rmd chunks keep the document's line numbers; notebook findings cite the code cell."""
+        p = self.project()
+        rmd_line = self.plant_r016(p)
+        out = self.lint_report(p, FLAG_R016)
+        self.assertEqual(harness.status_line(out), "Verify status: DOES_NOT_CONFORM", out)
+        self.assertIn("3 scilintr finding(s) remain in R code (3 R016)", out)
+        self.assertIn("- `{}/reports/report.Rmd:{}` [R016]".format(A, rmd_line), out)
+        self.assertIn("- `{}/notebooks/r_explore.ipynb[code cell 1]:3` [R016]".format(A), out)
+        self.assertIn("- `{}:18` [R016]".format(SCRIPTS[2]), out)
+
+    @unittest.expectedFailure  # until E6: scilintr 0.1.1's R CLI lints nothing it is given as files
+    def test_r_findings_block_with_scilintr_0_1_1(self):
+        p = self.project()
+        self.plant_r016(p)
+        out = self.lint_report(p, SCILINTR_0_1_1)
+        self.assertNotIn("R file(s) clean", out)
+        self.assertEqual(harness.status_line(out), "Verify status: DOES_NOT_CONFORM", out)
+
+    @unittest.skipUnless(harness.real_rscript(), "real tools off (MX_E2E_REAL_TOOLS=1, MX_E2E_RSCRIPT)")
+    @unittest.expectedFailure  # until E6
+    def test_r_findings_block_with_real_scilintr(self):
+        p = self.project()
+        p.write_fakes(rscript=harness.real_rscript())
+        self.plant_r016(p)
+        out = self.lint_report(p)
+        self.assertNotIn("R file(s) clean", out)
+        self.assertEqual(harness.status_line(out), "Verify status: DOES_NOT_CONFORM", out)
 
 
 if __name__ == "__main__":

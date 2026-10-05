@@ -80,3 +80,29 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 - **Tests:** four fixture documents and matching unit tests next to the existing chunk-extraction tests.
 - **Effort:** S.
 - **Status:** todo.
+
+### E6: R lint reports clean code it never linted
+
+- **Why:** found by E4 ([e4-real-use.md](../design/e4-real-use.md) section 6). verify runs `Rscript -e 'scilintr::main()' <file> <file> ...`. scilintr 0.1.1's `main()` reads only its first argument, as a project root; given a file it lints nothing, prints `scilintr: no findings`, and exits 0. Given a folder it finds problems but prints them as `path:N [RULE/severity] message` (no column), which `LINT_LINE` does not parse, and still exits 0. Either way verify reports "N R file(s) clean": with an R016 line planted in an R script, an `.Rmd` chunk, and an R notebook, verify said CONFORMS. That breaks "a gap is never clean" for every R file, notebook, and chunk.
+- **Scope:** make verify lint each R file it extracts and parse what scilintr prints, or make an R run whose output verify cannot tie to the files it passed a gap. Decide in grill whether the fix lives in verify's call (for example `scilintr::lint_file()` per file) or in scilintr's CLI.
+- **Out of scope:** the Python scilintr path; new lint rules.
+- **Depends on:** none.
+- **Constraints:** remaining findings block; a missing, unparseable, or unreadable check is a gap, never clean.
+- **Grill prompt:** `/mycelium-extra:grill Fix E6: verify's R lint reports clean code it never linted (see docs/design/e4-real-use.md section 6). Show verify's lint_languages() and scilintr 0.1.1's main(), and decide where the fix goes.`
+- **Acceptance:** `RealUse.test_r_findings_block_with_scilintr_0_1_1` and, under `MX_E2E_REAL_TOOLS=1`, `test_r_findings_block_with_real_scilintr` pass with their `expectedFailure` removed; a clean R file still gives "clean".
+- **Tests:** the two `RealUse` cases in `tests/test_end_to_end.py`; a unit test in `test_verify.py` for the output format.
+- **Effort:** S.
+- **Status:** todo.
+
+### E7: Explore listing wording
+
+- **Why:** found by E4 (section 3). `verify explore` says "script `<path>` deleted since this run" for a script that never existed (the run failed with "No such file"), and the Stop hook's explore notice lists a command once per run rather than once per command, as `verify explore` does.
+- **Scope:** say "not found" when the script had no fingerprint at run time; merge repeated commands in the Stop notice, with a run count.
+- **Out of scope:** what counts as an explore run.
+- **Depends on:** none.
+- **Constraints:** plain-text hook notices.
+- **Grill prompt:** `/mycelium-extra:grill Fix E7's two explore wording issues (docs/design/e4-real-use.md section 3).`
+- **Acceptance:** the two cases in section 3 print the corrected text.
+- **Tests:** extend `RealUse.test_verify_explore`.
+- **Effort:** S.
+- **Status:** todo.
