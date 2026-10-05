@@ -25,7 +25,7 @@ These come from decisions already locked in this repository. A task that would b
 | 0 | Land parked work | T0 |
 | 1 | Make the repository shareable | A1, A3, A4, B1, B2, B3, B4 |
 | 2 | Make it testable end to end | C1, A2, A5 |
-| 3 | Close reproducibility gaps | E1, E1b, E2, E3, E4, E5, E6, E7, C2, C3 |
+| 3 | Close reproducibility gaps | E1, E1b, E2, E3, E4, E5, E6, E7, E8, C2, C3 |
 | 4 | Keep LLM output out of the record | D1, D2, D3, D5, D6 |
 | 5 | Shape how researchers use the agent | D4, D7, D8, D9, A6 |
 | 6 | Keep oversight honest | D10, D11, D12 |
@@ -66,7 +66,7 @@ Every task uses these fields, under a `### <ID>: <title>` heading:
 - [01-packaging.md](01-packaging.md): A1 to A6, license, CI, releases, discoverability.
 - [02-docs-hygiene.md](02-docs-hygiene.md): B1 to B5, documentation fixes.
 - [03-robustness.md](03-robustness.md): C1 to C3, fixture project, fail-closed mode, packet redaction. C1's design: [../design/c1-fixture-project.md](../design/c1-fixture-project.md).
-- [04-handoff-backlog.md](04-handoff-backlog.md): E1 to E7 and E1b, open items from the session handoff.
+- [04-handoff-backlog.md](04-handoff-backlog.md): E1 to E8 and E1b, open items from the session handoff.
 - [05-mindfulness-core.md](05-mindfulness-core.md): D1 to D9, keeping LLM output honest.
 - [06-anti-gaming.md](06-anti-gaming.md): D10 to D12, checking that oversight stays real.
 

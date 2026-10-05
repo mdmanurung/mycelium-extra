@@ -58,7 +58,7 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 ### E4: Test features not yet used in real work
 
 - **Why:** several shipped features have unit tests but no record of use on a real project: hints, harden, verify `stale`/`status`/`explore`, the R scilintr CLI path, R-kernel notebooks, and R chunks in `.Rmd`. Bugs in them will surface at the worst moment, in someone's real analysis.
-- **Scope:** one scripted pass of each feature on the C1 fixture (extended with an R notebook and an `.Rmd`), recording expected versus observed output; a bug issue for each mismatch; a "tested in use" note per feature in `HANDOFF.md`.
+- **Scope:** one scripted pass of each feature on the C1 fixture (extended with an R notebook and an `.Rmd`), recording expected versus observed output and whether the feature serves the package goal; a roadmap task for each mismatch (the repository stays local); a "tested in use" note per feature in `HANDOFF.md`.
 - **Out of scope:** fixing the bugs found (each becomes its own task); new features.
 - **Depends on:** C1.
 - **Constraints:** hints stay off by default; harden still ships test files only; remaining scilintr findings still block verify; a missing or unparseable check is still a gap.
@@ -66,7 +66,7 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 - **Acceptance:** every listed feature has an expected-versus-observed record; every mismatch has an issue.
 - **Tests:** the scripted pass is added to `tests/test_end_to_end.py` where the output is deterministic.
 - **Effort:** M.
-- **Status:** todo.
+- **Status:** done (plan c15bb851): [e4-real-use.md](../design/e4-real-use.md) holds expected, observed, and a goal verdict for each of nine features, run on the fixture with real R 4.5 and scilintr and with h5py where installed. hints, harden, verify `explore`/`multiplicity`/`stale`/`status`, and h5ad work as documented. R lint reports R code with findings as clean (E6), and two wording issues (E7) and one harden ambiguity (E8) became tasks. Cases: `RealUse` and `BaselineChain.test_stale_and_status_after_an_edit` in `tests/test_end_to_end.py`; `MX_E2E_REAL_TOOLS=1` with `MX_E2E_RSCRIPT` runs the real-R case.
 
 ### E5: Parked chunk-lint cases
 
@@ -104,5 +104,18 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 - **Grill prompt:** `/mycelium-extra:grill Fix E7's two explore wording issues (docs/design/e4-real-use.md section 3).`
 - **Acceptance:** the two cases in section 3 print the corrected text.
 - **Tests:** extend `RealUse.test_verify_explore`.
+- **Effort:** S.
+- **Status:** todo.
+
+### E8: harden candidates placed in analysis code
+
+- **Why:** found by E4 ([e4-real-use.md](../design/e4-real-use.md) section 2). The fixture's DC-10 candidate reads "In `analysis/.../02_paired_test.py`, assert ...". harden's `SKILL.md` forbids editing analysis code, but it does not say whether such a candidate is skipped or its assertion moved into a test. E4 moved it and the guard caught DC-10; a run that skips it ships nothing.
+- **Scope:** one rule in `skills/harden/SKILL.md` section 1 or 2: move the assertion into a test outside the gated paths that reads the same file, and say so when showing the candidate.
+- **Out of scope:** running shipped tests from verify or the gate.
+- **Depends on:** none.
+- **Constraints:** harden ships test files only; never edits analysis code.
+- **Grill prompt:** `/mycelium-extra:grill Fix E8: say in harden's SKILL.md what to do with a candidate that places its check in analysis code.`
+- **Acceptance:** `SKILL.md` gives one rule for the case; `docs/skills.md` matches.
+- **Tests:** none (model behaviour); a `scenarios.md` walk-through if harden has one.
 - **Effort:** S.
 - **Status:** todo.

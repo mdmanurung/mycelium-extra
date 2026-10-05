@@ -14,7 +14,7 @@ Each skill has unit tests on synthetic, minimal inputs. C1 adds one realistic pr
 
 - grill, plan-review, or any LLM behaviour. The harness uses a fixed plan text that stands in for grill's output. Grill's behaviour stays covered by `scenarios.md` walk-throughs.
 - Mycelium's own hooks. The harness writes the files Mycelium would write (a data-lineage manifest), in the documented format, and never runs Mycelium code.
-- Real Slurm, Snakemake, conda, scilintr, or R. These are faked by default. R is used only when `Rscript` is on `PATH`, and the real linters only when `MX_E2E_REAL_TOOLS=1`.
+- Real Slurm, Snakemake, conda, scilintr, or R. These are faked by default. R is used only when `Rscript` is on `PATH`, and the real R linter only when `MX_E2E_REAL_TOOLS=1` (with `MX_E2E_RSCRIPT` naming an `Rscript` off `PATH`; E4).
 - Codex. Codex runs produce no receipts (E3).
 
 ## 2. Design rules
