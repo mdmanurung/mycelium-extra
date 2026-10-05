@@ -56,6 +56,21 @@ class GrillReferenceContractTest(unittest.TestCase):
         self.assertIn("names a guard", skill)
         self.assertIn("never claims a `planned:` check already runs", skill)
 
+    def test_skill_asks_for_the_question_before_retrieving(self):
+        skill = read(os.path.join(SKILL, "SKILL.md"))
+        self.assertLess(skill.index("## 0. Ask for the question first"),
+                        skill.index("## 1. Retrieve before asking"))
+        self.assertIn("> Question (user's words):", skill)
+        self.assertIn("> Hoped-for claim:", skill)
+        self.assertIn("> Question: not stated (the user declined).", skill)
+
+    def test_brief_evidence_carries_provenance_tags(self):
+        skill = read(os.path.join(SKILL, "SKILL.md"))
+        evidence = skill[skill.index("- **Evidence**"):skill.index("- **Inputs**")]
+        for tag in ("[human-stated]", "[agent-derived: ", "[agent-asserted: ",
+                    "[agent-asserted: none]", "Facts: "):
+            self.assertIn(tag, evidence)
+
     def test_every_failure_mode_has_four_cells_and_a_guard(self):
         rows = failure_modes()
         self.assertGreaterEqual(len(rows), 25)

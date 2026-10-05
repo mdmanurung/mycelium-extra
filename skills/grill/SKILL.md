@@ -5,7 +5,11 @@ description: Read-only, pre-execution planning for a proposed research, bioinfor
 
 # Mycelium Extra: Grill
 
-Turn a proposed task into a sourced, step-by-step plan before anything runs. Retrieve first, decide what the evidence supports, ask the user only what remains, then stop and wait for approval. Make no edits during this skill.
+Turn a proposed task into a sourced, step-by-step plan before anything runs. Ask for the user's question first, retrieve, decide what the evidence supports, ask the user only what remains, then stop and wait for approval. Make no edits during this skill.
+
+## 0. Ask for the question first
+
+Before reading any file or data, and before proposing anything, ask the user in one free-text message for the question in their own words and the claim they hope to make (for a software task, the goal and the result they hope for). Offer no drafted options or examples: a drafted answer anchors the user to it. If the invocation already states either part in the user's own words, quote it and ask only for the missing part; if it states both, skip the question. This question does not count toward the cap in section 3. If the user declines, go on.
 
 ## 1. Retrieve before asking
 
@@ -35,7 +39,7 @@ Resolve each consequential decision by the first rule that applies:
 3. Plausible answers would change the scientific question, data, method, interpretation, deliverable, or next action, and the user owns the choice: ask (`user`).
 4. Otherwise drop it, or park it with a return condition if a later stage needs it.
 
-Ask one question per message, the most consequential first, stating the evidence you found and a recommended default. Ask zero questions if nothing qualifies. Cap: **five questions per grill**. The cap is a circuit breaker, not a target. At the cap, turn remaining user-owned points into labeled defaults in the plan; the approval step is where the user overrides them. Do not restart a question tree or evade the cap by subdividing a question. If the user says "good enough," stop and write the plan.
+Ask one question per message, the most consequential first, stating the evidence you found and a recommended default. Beyond the opening question, ask zero questions if nothing qualifies. Cap: **five questions per grill**. The cap is a circuit breaker, not a target. At the cap, turn remaining user-owned points into labeled defaults in the plan; the approval step is where the user overrides them. Do not restart a question tree or evade the cap by subdividing a question. If the user says "good enough," stop and write the plan.
 
 ## 4. Converge, brief, and wait
 
@@ -45,10 +49,17 @@ After each answer, check: **would plausible answers to any remaining user-owned 
 - `READY_WITH_ASSUMPTIONS`: the plan is stable, and some decisions rest on labeled, reversible defaults the user can override at approval without re-planning.
 - `DECISION_REQUIRED`: one user-owned choice leads to materially different plans (estimand, data, or deliverable), and no default is defensible without the user's intent. Give the options, a recommendation, and the consequence of each. Do not pretend the question cap resolves a blocker.
 
-Write a 200–500 word brief, plus the plan table (which does not count toward the limit). Scale down for simple tasks.
+Write a 200–500 word brief, plus the plan table (which does not count toward the limit). Scale down for simple tasks. Open it with the user's answer from section 0, quoted verbatim:
+
+```
+> Question (user's words): "<answer>"
+> Hoped-for claim: "<answer>"
+```
+
+If the user declined, write `> Question: not stated (the user declined).` instead.
 
 - **Objective**: the question and, for scientific work, the estimand or contrast.
-- **Evidence**: file paths with sections or lines. For decisions and learnings, cite the heading title and line, not a bare positional `L-N` or `D-N`; finding IDs (`F-NNN`) are stable and can be cited with their topic file.
+- **Evidence**: one bullet per fact, ending in a tag saying how it was established: `[human-stated]` (the user said it), `[agent-derived: <artifact path>]` (read from a file, output, or probe), or `[agent-asserted: <source>]` (from your own knowledge; `[agent-asserted: none]` when you have no source). End the list with one count line, for example `Facts: 4 agent-derived, 1 human-stated, 1 agent-asserted (1 unsourced).` Cite file paths with sections or lines. For decisions and learnings, cite the heading title and line, not a bare positional `L-N` or `D-N`; finding IDs (`F-NNN`) are stable and can be cited with their topic file.
 - **Inputs**: one line, `Inputs: <path>, <path>`, naming by repository path the files the plan's validity rests on: the sample table, config or params files, a lockfile, or a folder of raw files. Not scripts or outputs, except in a run plan, which also lists the code it freezes for a reportable run once that code is written: follow [references/run-plans.md](references/run-plans.md) when the user wants every command known and frozen at approval. Where the approval gate is enabled, it pins these files when it shows the approval hash and blocks a launch if one changes first. Write `Inputs: none` when nothing qualifies.
 - **Outputs**: one line, `Outputs: <path>, <path>`, naming by repository path the files or folders the plan's runs will write: result tables, figures, `numbers.json`, or this run's own output folder (such as `results/run_20261001_dream/`, not a glob over every run's folder). mycelium-extra's verify checks that each was written after the approval by a run of this plan. Write `Outputs: none` when the plan writes nothing.
 - **Plan**: a numbered table, the only table in the brief (keep Evidence as bullets). Each row gives the step, its consequential choice, the source (`repo: <path>`, `user`, or `default: <reason>`), and the validation check. In the step column, name by repository path every script, notebook, or pipeline the plan will run, including a wrapper the run goes through (such as the analysis's `run.sh`) and any figure or report script, and name `sbatch`, `snakemake`, or `nextflow` when the plan launches them. The approval gate reads only this table, minus its Source column: a path in prose, Evidence, or a `repo:` citation approves nothing.
@@ -69,4 +80,4 @@ When the user asks to promote explore runs (make them reportable, plan a re-run 
 python3 - --plugin-root <skill-dir>/../.. explore [--all] < <skill-dir>/../verify/scripts/verify.py
 ```
 
-It lists this session's explore runs of gated code (`--all`: every session, last 7 days), one per distinct command with the `MYCELIUM_EXTRA_EXPLORE=1` prefix removed, the paths each ran, its exit status, conda env, and whether its script changed since. Then grill as usual (sections 1 to 4): the plan table names each script, wrapper, and command to re-run, without the prefix; ask the user which runs to keep when that is not clear. Explore outputs are not results, so the plan re-runs everything and its `Outputs:` line names fresh paths. Use [references/run-plans.md](references/run-plans.md) when the user wants the code frozen. Explore runs of inline code (`python -c`) are not listed; add them by hand if they matter.
+It lists this session's explore runs of gated code (`--all`: every session, last 7 days), one per distinct command with the `MYCELIUM_EXTRA_EXPLORE=1` prefix removed, the paths each ran, its exit status, conda env, and whether its script changed since. Then grill as usual (sections 0 to 4): the plan table names each script, wrapper, and command to re-run, without the prefix; ask the user which runs to keep when that is not clear. Explore outputs are not results, so the plan re-runs everything and its `Outputs:` line names fresh paths. Use [references/run-plans.md](references/run-plans.md) when the user wants the code frozen. Explore runs of inline code (`python -c`) are not listed; add them by hand if they matter.

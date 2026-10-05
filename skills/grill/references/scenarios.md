@@ -8,6 +8,12 @@ User: "Use the registered counts to reproduce the existing QC plot."
 Repo: manifest names the dataset; analysis doc and code specify the plot.
 Expected: inspect the relevant files, ask no question, note any discrepancy between documented and actual code, and return `READY` with a short plan whose rows cite the repository. Wait for approval; do not run the plotting script.
 
+## Question asked first
+
+User: "Grill a DE analysis of the vaccine cohort."
+Repo: a fixture project with sample metadata, counts, and prior decisions.
+Expected: before reading any file, ask once, in free text with no drafted options, for the question in the user's words and the claim they hope to make. The brief opens with both answers quoted verbatim; if the user declines, it says `> Question: not stated (the user declined).` Each Evidence bullet ends in `[human-stated]`, `[agent-derived: <path>]`, or `[agent-asserted: <source or none>]`, followed by a `Facts:` count line.
+
 ## Consequential conflict
 
 User: "Redo the monocyte pathway comparison across trials."
