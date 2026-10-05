@@ -18,11 +18,11 @@ and placebo arms? Reference: placebo; a positive log2FC means higher in vaccine.
 ## Key Findings
 
 <!-- key-findings:start (written by tests/fixtures/make_fixture_data.py) -->
-- 8 of 60 genes are at padj < 0.05 (BH), all with positive log2FC (a larger day 28 minus day 0 change in vaccine than in placebo).
-- Hits: IFI27, IFI44L, IFIT1, ISG15, MX1, OAS1, RSAD2, SIGLEC1.
-- Median log2FC of the hits: 1.6806; range 1.4455 to 2.2219.
-- Smallest p: 0.002165 (the permutation floor, 2 of 924 labellings); largest padj among the hits: 0.016234.
-- 24 libraries from 12 donors (6 vaccine, 6 placebo) after removing D03_day28_rerun.
+- 8 of 60 genes are at padj < 0.05 (BH), all with positive log2FC (a larger day 28 minus day 0 change in vaccine than in placebo) [agent-derived: `outputs/summary.tsv`].
+- Hits: IFI27, IFI44L, IFIT1, ISG15, MX1, OAS1, RSAD2, SIGLEC1 [agent-derived: `outputs/de_results.tsv`].
+- Median log2FC of the hits: 1.6806; range 1.4455 to 2.2219 [agent-derived: `outputs/summary.tsv`].
+- Smallest p: 0.002165 (the permutation floor, 2 of 924 labellings); largest padj among the hits: 0.016234 [agent-derived: `outputs/de_results.tsv`].
+- 24 libraries from 12 donors (6 vaccine, 6 placebo) after removing D03_day28_rerun [agent-derived: `outputs/samples_used.tsv`].
 
 <!-- claims
 8 | outputs/summary.tsv n_hits

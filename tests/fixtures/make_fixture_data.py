@@ -248,13 +248,13 @@ def key_findings(de, summary_row):
     return "\n".join([
         START,
         "- {} of {} genes are at padj < 0.05 (BH), all with positive log2FC (a larger day 28 minus day 0 "
-        "change in vaccine than in placebo).".format(len(hits), len(de)),
-        "- Hits: {}.".format(", ".join(sorted(r[0] for r in hits))),
-        "- Median log2FC of the hits: {}; range {:.4f} to {:.4f}.".format(
+        "change in vaccine than in placebo) [agent-derived: `outputs/summary.tsv`].".format(len(hits), len(de)),
+        "- Hits: {} [agent-derived: `outputs/de_results.tsv`].".format(", ".join(sorted(r[0] for r in hits))),
+        "- Median log2FC of the hits: {}; range {:.4f} to {:.4f} [agent-derived: `outputs/summary.tsv`].".format(
             summary_row["median_log2fc_hits"], min(r[1] for r in hits), max(r[1] for r in hits)),
         "- Smallest p: {:.6f} (the permutation floor, 2 of 924 labellings); largest padj among the hits: "
-        "{:.6f}.".format(min(r[2] for r in de), max(r[3] for r in hits)),
-        "- 24 libraries from 12 donors (6 vaccine, 6 placebo) after removing {}.".format(RERUN),
+        "{:.6f} [agent-derived: `outputs/de_results.tsv`].".format(min(r[2] for r in de), max(r[3] for r in hits)),
+        "- 24 libraries from 12 donors (6 vaccine, 6 placebo) after removing {} [agent-derived: `outputs/samples_used.tsv`].".format(RERUN),
         "",
         "<!-- claims",
     ] + claims_block(de, summary_row) + [
