@@ -79,7 +79,7 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 - **Acceptance:** one fixture document per case produces the planned result (skipped with a notice, followed, or reported as a gap).
 - **Tests:** four fixture documents and matching unit tests next to the existing chunk-extraction tests.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** done (plan 2cad14bc): `chunk_code()` reads `engine=` (R and Python linted, other engines skipped like `{bash}`) and returns each `child=`, `#| child:` and `read_chunk()` path; `lint()` lints those files under their own paths, and a path that is not a quoted string or not found is a gap. Document-level `eval: false` is linted, like chunk-level `eval=FALSE`, rather than skipped as Scope said. No real repository used any case. Case: `test_chunk_lint_parked_cases` in `test_verify.py`.
 
 ### E6: R lint reports clean code it never linted
 
