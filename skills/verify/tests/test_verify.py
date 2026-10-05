@@ -650,6 +650,8 @@ class VerifyTest(unittest.TestCase):
                   "```", "```{r load}", "```", "```{r child=params$doc}", "```", "```{r}",
                   "knitr::read_chunk(\"missing.R\")", "```"]
         self.write("analysis/a/12_parent.Rmd", "\n".join(parent) + "\n")
+        self.write("analysis/a/13_only_child.Rmd", "```{r child='../../shared/_methods.Rmd'}\n```\n")
+        self.write("analysis/a/14_prose.Rmd", "Prose only.\n")
         out = self.verify("report", digest, scilintr=flagger, rscript=flagger)
         self.assertIn("`analysis/a/10_off.qmd:{}` [magic-threshold]".format(off.index("z <- FLAG") + 1), out)
         self.assertIn("`analysis/a/11_engines.Rmd:{}` [magic-threshold]".format(engines.index("u = FLAG") + 1), out)
@@ -662,7 +664,7 @@ class VerifyTest(unittest.TestCase):
                       "not a quoted string.".format(parent.index("```{r child=params$doc}") + 1), out)
         self.assertIn("scilintr not checked: `analysis/a/12_parent.Rmd:{}` pulls in `missing.R`, which was not "
                       "found next to the document.".format(parent.index("knitr::read_chunk(\"missing.R\")") + 1), out)
-        self.assertNotIn("12_parent.Rmd.", out.split("not linted:")[-1] if "not linted:" in out else "")
+        self.assertIn("1 notebook(s) not linted: analysis/a/14_prose.Rmd.", out)  # a child-only document is linted
 
     def test_r_code_is_linted_as_one_folder(self):
         """E6: R code goes to `lint_project()` as one copied folder (scilintr 0.1.1's `main()` lints only
