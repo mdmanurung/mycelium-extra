@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.41] - 2026-10-05
+
+### Changed
+
+- `harden` says what to do with a candidate that places its check in analysis code (roadmap E8): it still qualifies when the check reads a file, is shown with "(check moves to a test)", and its assertion goes into a test that reads the same file, leaving the script untouched. A check on a value only the running script holds is skipped with the reason, since it belongs to a grill plan and a re-run.
+
 ## [0.9.40] - 2026-10-05
 
 ### Fixed
