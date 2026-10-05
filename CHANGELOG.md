@@ -2,6 +2,13 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.35] - 2026-10-05
+
+### Added
+
+- `grill` asks for your question first (roadmap D8). Before reading anything, it asks in one free-text message, with no drafted options, for the question in your own words and the claim you hope to make (for a software task, the goal and the result you hope for). It skips what the request already states, the question does not count toward the five-question cap, and the brief opens with the answer quoted, or with `> Question: not stated (the user declined).`
+- Provenance tags on facts (roadmap D7). Each Evidence bullet in grill's brief ends in `[human-stated]`, `[agent-derived: <path>]`, or `[agent-asserted: <source>]` (`none` without a source), followed by a `Facts:` count line. `verify` counts the tags in the frozen plan's Evidence and in the analysis doc's Key Findings and flags an untagged fact, an `agent-derived` one without its path, and an `agent-asserted` one without a source, all as info. After a planned run, the gate's notice asks for the tag at the end of a Mycelium finding's ledger Result cell, which Mycelium does not parse; the new-analysis Key Findings hint asks for it too. The fixture's Key Findings are tagged.
+
 ## [0.9.34] - 2026-10-05
 
 ### Added
