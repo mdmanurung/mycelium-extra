@@ -95,7 +95,7 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Acceptance:** a grill brief on the fixture tags every fact; an untagged or unsourced `agent-asserted` fact is flagged.
 - **Tests:** contract test in `skills/grill/tests/` that the brief template carries the tag.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** done (0.9.35). Grill's brief ends each Evidence fact with `[human-stated]`, `[agent-derived: <path>]`, or `[agent-asserted: <source>]` plus a `Facts:` count line; `verify` counts the tags in the frozen plan's Evidence and the analysis doc's Key Findings as info and flags untagged and unsourced facts. Mycelium findings get the tag at the end of the ledger's Result cell, through the gate's post-run notice.
 
 ### D8: The user states the research question first
 
@@ -108,7 +108,7 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Acceptance:** a grill session on the fixture opens with the question; the brief quotes it verbatim.
 - **Tests:** contract test on SKILL.md section order.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** done (0.9.35). Grill's section 0 asks in one free-text message, before reading anything, skips what the request already states, and does not count toward the five-question cap.
 
 ### D9: Enforce the reason on each default
 
