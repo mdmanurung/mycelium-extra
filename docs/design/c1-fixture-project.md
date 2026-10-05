@@ -338,6 +338,7 @@ DC-08 to DC-11 are the reason the fixture exists. Every tool reports success, ye
 | V-21 | D1: the hit count retyped as 9 in Key Findings and its claims block | block `claims 9, but ... n_hits holds 8` | Number transcription |
 | V-22 | D1: a claims line citing `outputs/missing.tsv` | gap `cites ... missing.tsv, but it does not exist` | tool: verify |
 | V-23 | D1: DC-08's flipped contrast with Key Findings unchanged | block `claims 1.4455, but ... log2fc row MX1 holds -1.4455` | Log base and sign confusion |
+| V-24 | D4: plan with α = 0.1, explore runs of 01, 02, 02, plan with α = 0.01, then the baseline plan runs | `verify multiplicity`: `2 earlier plan revision(s), 3 explore run(s) before the approval`, `2 of 2 plan change(s) edited a Choice cell`, each Choice change listed | Retry until significant |
 
 V-13 keeps the steps in the plan table because verify reads a rule's `incomplete` flag only for a planned step that ran inside a wrapper. A plan that names only the Snakefile gets a direct receipt for it, and an incomplete rule is not reported; that is not a case yet.
 
@@ -369,7 +370,7 @@ Each was confirmed against `3a11123`, by a gate probe or by reading the code. E2
 | --- | --- | --- |
 | D1 | Key Findings in `VACCINE_RESPONSE.md` with a claims block; `expected/claims.json` | shipped in 0.9.34: V-21 (hit count 9, block), V-22 (missing file, gap), V-23 (DC-08's sign flip against the baseline's own values, block; the planned "+2.0" claim already differed from 1.6806, so it would not test the flip), and V-09 (explore-only, block). The known-miss chains (`whole_chain`) drop the block, since an agent would write findings from the mutated outputs |
 | D2 | three references in `VACCINE_RESPONSE.md`: BH 1995 (DOI 10.1111/j.2517-6161.1995.tb02031.x), one DOI that does not resolve, one real DOI with the wrong title | recorded responses under `tests/e2e/recorded/`; no live network |
-| D4 | none beyond the harness | 3 explore runs and 2 plan revisions (threshold changed) before the approved run; expected counts |
+| D4 | none beyond the harness | shipped in 0.9.36: V-24 (3 explore runs and 2 plan revisions changing α before the approved run; counts and the timeline) |
 | C3 | none committed | packet built from the baseline plan, plus a participant-style identifier and a token assembled at run time by string concatenation, so no secret-shaped string is ever committed (push protection would block it) |
 | D6 | none committed | `.h5ad` generated at test time from `sample_metadata.tsv` when `h5py` is present |
 | E1 | none committed | a synthetic env under `HOME` with `conda-meta/*.json` and one `site-packages/*.dist-info`; a `.snakemake/conda/<hash>.yaml` |

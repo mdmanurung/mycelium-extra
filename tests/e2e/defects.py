@@ -28,7 +28,7 @@ DENY = "deny"
 
 
 # Tasks whose fixtures C1 leaves for them to add (design section 8.6).
-LATER = ["D2", "D4", "C3", "D6", "E1", "E4", "E5", "D10", "D11", "D12"]
+LATER = ["D2", "C3", "D6", "E1", "E4", "E5", "D10", "D11", "D12"]
 
 
 class Defect(object):
@@ -634,6 +634,27 @@ def v23(p):
     p.edit(PAIRED, replace("observed = sum(diff[:n_v]) / n_v - sum(diff[n_v:]) / n_p",
                            "observed = sum(diff[n_v:]) / n_p - sum(diff[:n_v]) / n_v"))
     return whole_chain(p, claims=True)
+
+
+@defect("V-24", "verify", "verify", ["Retry until significant"],
+        {"code": 0, "messages": [
+            "2 earlier plan revision(s), 3 explore run(s) before the approval, 0 run(s) under earlier plans, "
+            "3 run(s) under this plan. 2 of 2 plan change(s) edited a Choice cell.",
+            "| first plan |", "= 0.1` -> `median-of-ratios; exact permutation; BH, ",  # verify escapes the alpha
+            "approved (selected); step 2 choice: `median-of-ratios", "= 0.01` -> `median-of-ratios",
+            "| explore run | `{}python3 {}` |".format(EXPLORE, PAIRED)]})
+def v24(p):
+    # D4: the thresholds tried before the approved plan, and the explore runs between them.
+    def alpha(value):
+        return harness.plan_text().replace("BH, \u03b1 = 0.05", "BH, \u03b1 = " + value)
+    p.approve(alpha("0.1"))
+    allow_explore(p)
+    for script in (harness.SCRIPTS[0], PAIRED, PAIRED):
+        p.agent_bash(EXPLORE + "python3 " + script)
+    p.approve(alpha("0.01"))
+    digest = p.run_plan()[0]
+    code, out, err = p.verify("multiplicity", digest)
+    return {"code": code, "text": out + err}
 
 
 # ---------------------------------------------------------------- 8.4 sweeps and memory
