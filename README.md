@@ -96,10 +96,20 @@ claude plugin update mycelium-extra@mycelium-extra
 
 ### Codex
 
-- **Plugin:** this folder includes `.codex-plugin/plugin.json` and `skills/*/SKILL.md`, ready to add to a Codex plugin marketplace. After installing, invoke `$mycelium-extra:<skill>`. The Codex manifest disables the Claude-only approval-gate hooks, so Codex does not load them from `hooks/hooks.json`. In Codex, `plan-review` provides the engineering critique only; Claude Code leads the two-reviewer synthesis.
-- **Standalone skill:** copy one `skills/<skill>/` folder to your personal Codex skills location and invoke it as `$grill`. Namespacing then depends on how you installed it.
+```bash
+codex plugin marketplace add mdmanurung/mycelium-extra
+codex plugin add mycelium-extra@mycelium-extra
+```
 
-The approval gate, `init`, and `verify` are Claude Code only.
+Use Codex CLI 0.160.0 or later. Open `/hooks`, enable/trust the plugin hooks,
+and start a new session. Invoke `$mycelium-extra:<skill>`.
+The approval gate, `init`, and `verify` work in both hosts. Codex 0.160.0
+receipts lack exit metadata, so verification reports a gap for their run status.
+Independent two-reviewer synthesis remains Claude-led; Codex supplies the
+engineering critique. Standalone skill copies do not install approval hooks.
+
+See [Installation and host compatibility](docs/installation.md) for updates,
+requirements, and troubleshooting.
 
 ## Quick start
 
@@ -115,6 +125,9 @@ A typical analysis task, in order:
 `grill` calls `decision-status` and `data-contract-check` itself when a plan depends on them, so you rarely need to invoke those directly. For a table of common prompts, see [Common prompts](docs/skills.md#common-prompts).
 
 ## Documentation
+
+Read the [documentation website](https://mdmanurung.github.io/mycelium-extra/).
+The Sphinx website builds from these same files. See [Development](docs/development.md#documentation-website) to preview it or publish through GitHub Pages.
 
 **Use**
 

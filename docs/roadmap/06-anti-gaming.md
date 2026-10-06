@@ -12,7 +12,7 @@ Every oversight step can turn into a reflex: approve without reading, answer the
 - No SessionStart surface (it competes with Mycelium's SESSION RESUME). The dashboard lives in `verify status`.
 - Metrics describe a person's own habits over time. They are not a score, and they never block work.
 
-### D10: Comprehension checkpoint and approval latency
+## D10: Comprehension checkpoint and approval latency
 
 - **Why:** the gate records that a plan was approved, not that it was read. A plan approved four seconds after it appeared, every time, is a sign the approval has become a reflex.
 - **Scope:** the gate records, per approval, the time between the plan being shown and the approval, and the plan's length. For plans above a size threshold, approval asks one short question whose answer is in the plan (for example, "which contrast is the reference level?"), generated from the plan table, not by an LLM; a wrong answer shows the relevant row and asks again, it does not deny. Latency and checkpoint results feed the D12 dashboard.
@@ -25,7 +25,7 @@ Every oversight step can turn into a reflex: approve without reading, answer the
 - **Effort:** M.
 - **Status:** todo.
 
-### D11: Approval expiry by reuse count
+## D11: Approval expiry by reuse count
 
 - **Why:** one approval can cover many runs of the same scripts. After enough re-runs, often with edits, the approved plan no longer describes what is running, but the gate still passes it.
 - **Scope:** a `max_runs_per_approval` setting in `gate.json` (unset by default). Once a plan's approved scripts have run that many times, the next run asks for re-approval, showing what changed since the first approved run (edited scripts, changed pinned inputs).
@@ -38,7 +38,7 @@ Every oversight step can turn into a reflex: approve without reading, answer the
 - **Effort:** S.
 - **Status:** todo.
 
-### D12: Seeded-error audits and a personal dashboard
+## D12: Seeded-error audits and a personal dashboard
 
 - **Why:** the only ground truth for "does the user still catch errors?" is an error whose presence is known. Latency and checkpoint scores (D10) are proxies; a seeded error is a direct measure.
 - **Scope:** at a rate the user sets (default off; suggested one in twenty verify runs), verify or the claims checker plants one known, harmless discrepancy in its report (for example, a claim marked `VERIFIED` that is not), and records whether the user flagged it before accepting. The report says afterwards that it was a seeded audit and what the real result is. `verify status` gains a short personal section: seeded errors caught versus missed, median approval latency, checkpoint accuracy, explore-to-plan ratio, each over the last 30 days and the 30 before.

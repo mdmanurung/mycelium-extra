@@ -1,0 +1,50 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then python3 \"${PLUGIN_ROOT}/hooks/gate_run.py\" --host codex prompt; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then python3 \"${PLUGIN_ROOT}/hooks/gate_run.py\" --host codex tool; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then python3 \"${PLUGIN_ROOT}/hooks/gate_run.py\" --host codex post; fi",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then python3 \"${PLUGIN_ROOT}/hooks/gate_run.py\" --host codex stop; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -6,6 +6,12 @@
 
 `grill` calls `decision-status` and `data-contract-check` itself when a plan depends on them, so you rarely need to invoke those directly.
 
+The prompts below use Claude Code syntax. In Codex, replace
+`/mycelium-extra:` with `$mycelium-extra:`. Approval and exploration messages
+(`approve plan <hash>`, `allow explore`, `stop explore`) are the same in both
+hosts. See [Host compatibility](installation.md#host-compatibility) for review
+roles and receipt limits.
+
 ## Common prompts
 
 | Goal | Prompt |

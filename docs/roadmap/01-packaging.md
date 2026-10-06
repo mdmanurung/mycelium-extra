@@ -4,7 +4,7 @@
 
 Small tasks that decide whether anyone else can use the plugin.
 
-### A1: Add a license
+## A1: Add a license
 
 - **Why:** there is no LICENSE file, so by default nobody else may reuse, modify, or redistribute the code. The bundled `skills/new-analysis/templates/MYCELIUM_LICENSE` covers only the copied Mycelium template.
 - **Scope:** a top-level `LICENSE` file; a `license` field in `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` if their schemas support one; one line in the README.
@@ -17,7 +17,7 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Effort:** S.
 - **Status:** done, pending the maintainer's confirmation of MIT. The copyright holder's name is settled: "Mikhael Manurung", the spelling the plugin manifests carry (user, 2026-10-04). `LICENSE` is the standard MIT text (Copyright (c) 2026 Mikhael Manurung, the year of the first commit); both `plugin.json` files gain `"license": "MIT"` (both schemas document the field); the README gains a License section that points to MYCELIUM_LICENSE, which is unchanged. GitHub detection can only be confirmed after a push.
 
-### A2: Continuous integration
+## A2: Continuous integration
 
 - **Why:** the tests run only by hand. The gate's Bash parsing is the code most likely to break without anyone noticing, and the Python 3.6 requirement is only checked when a 3.6 interpreter happens to be installed.
 - **Scope:** a GitHub Actions workflow running `hooks/tests/test_gate.py`, each `skills/*/tests/test_*.py`, and the fixture-project tests from C1, on Python 3.6 and the newest supported Python. A separate job runs `hooks/tests/gate_diff.py` against the PR's base commit.
@@ -30,7 +30,7 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Effort:** M.
 - **Status:** in-progress (awaiting the first GitHub run). `.github/workflows/ci.yml` runs every test file, `tests/e2e/ablate.py` (5 s, so on every run rather than weekly), `tests/test_versions.py` (A3's manifest check) and `tests/check_links.py` in the containers `python:3.6-bullseye` (under `LC_ALL=C`) and `python:3.14-bookworm`; non-slim images, because `-slim` has no git and the git tests would skip. A `gate-diff` job runs on pull requests only. `check_links.py` moved in from the staging folder: with no file it now exits 2, and it skips `@@...@@` template placeholders. Checked locally in a fresh clone on 3.6 (also under `LC_ALL=C`) and 3.12: all 13 test files pass, 3 of 3 ablations bite, 45 links resolve; `gate_diff.py --base main` is 160/160, and dropping `rm` from the gate's write commands makes it exit 1 with 3 cases. Not yet run on GitHub: the repository is kept local until the maintainer pushes.
 
-### A3: Changelog and tagged releases
+## A3: Changelog and tagged releases
 
 - **Why:** the plugin is at 0.9.x, with version bumps as separate commits but no tags or release notes. Users cannot tell what an update changes before running `claude plugin update`.
 - **Scope:** `CHANGELOG.md` in Keep a Changelog form, rebuilt from `git log` for 0.9.16 onward (earlier versions summarised); git tags `v0.9.x` for the versions the changelog lists; a line in `docs/development.md` (or the README's Development section) making a changelog entry part of the version-bump commit.
@@ -43,7 +43,7 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Effort:** S.
 - **Status:** in-progress. CHANGELOG.md covers 0.9.16 to 0.9.29 (earlier versions summarised) and `docs/development.md` adds the changelog to the version-bump rule. Tags are not created yet: the `git tag -a` commands are ready for the maintainer to run and push.
 
-### A4: Repository description and topics
+## A4: Repository description and topics
 
 - **Why:** the GitHub page has no description or topics, so people looking for agent guardrails or provenance tooling will not find it.
 - **Scope:** a one-line description and topics such as `claude-code`, `codex`, `llm-agents`, `reproducibility`, `provenance`, `bioinformatics`, `research-software`.
@@ -56,7 +56,7 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Effort:** S.
 - **Status:** todo (maintainer action). The description, topics, and a `gh repo edit` command are drafted; a patch cannot set them.
 
-### A5: Check Mycelium compatibility
+## A5: Check Mycelium compatibility
 
 - **Why:** several behaviours depend on how Mycelium 0.6.0 and 0.7.2 hooks parse things (stdin scripts not counted as post-action runs, `Status` read as body text in `decisions.md`). A future Mycelium release could break them without warning.
 - **Scope:** a "Tested with Mycelium" line in the docs listing known-good versions; `init` reads the installed Mycelium version (through `.mycelium/plugin-root` or the plugin manifest) and prints a plain-text notice when it is outside the tested range. No blocking.
@@ -69,7 +69,7 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Effort:** S.
 - **Status:** todo.
 
-### A6: A worked example
+## A6: A worked example
 
 - **Why:** the quick start lists the steps but never shows what a grill brief, an approval notice, or a verify report looks like. Seeing them is what convinces a researcher the friction is worth it.
 - **Scope:** `docs/example.md`, one end-to-end session on the C1 fixture project: the grill prompt, the brief and plan table, the approval notice, the gated run, and the verify report, using real (not hand-written) output.

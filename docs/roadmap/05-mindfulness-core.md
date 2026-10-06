@@ -6,7 +6,7 @@ Tasks that keep the researcher, not the agent, responsible for what an analysis 
 
 Two documents from the planning session feed D1: `claim_artifact_checker_design.md` (design) and `SKILL_verify_claims.md` (draft skill text). Commit them under `docs/design/` when D1 starts, so the grill prompt can cite them.
 
-### D1: Claim-versus-artifact checker
+## D1: Claim-versus-artifact checker
 
 - **Why:** an agent can write "312 genes were differentially expressed (FDR < 0.05)" when the results table has 287 rows passing that threshold, or cite a figure that a later run overwrote. Verify checks that the planned code ran; nothing checks that the numbers in the prose match the outputs. This is the most common way LLM-written analysis text goes wrong without anyone noticing.
 - **Scope:** as in the design document: EXTRACT numeric claims from a findings file or report (from an authored claims block where present, else conservative patterns), LOCATE the artifact each claim cites, MATCH the value with a stated tolerance and transform (count, proportion, rounding). Verdicts `VERIFIED`, `verified-transform`, `MISMATCH`, `UNVERIFIED`, `EXCLUDED`, `verified-explore-only`, under schema `mycelium-extra.claims.v1`. A common-value guard so that a claim of "3" is not matched to any 3 in a large table. The report ends with `Claims: PASS`, `Claims: PASS_WITH_GAPS (N)`, or `Claims: FAIL (...)`.
@@ -19,7 +19,7 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Effort:** L.
 - **Status:** done in 0.9.34, as a verify stage, not a skill. Its grill chose an authored claims block whose lines name their cell (`value | file column [row]`) over prose extraction with context scoring, which could not catch the fixture's planted mutation without tuning; numbers outside the block are listed as info. Parked: prose scoring, log2 and -log10 transforms, Markdown table diffs, text and log artifacts, a `claims_report.json`, and a mode with no plan. See the note at the top of [the design](../design/claim_artifact_checker_design.md).
 
-### D2: Citation resolution
+## D2: Citation resolution
 
 - **Why:** LLMs produce plausible references that do not exist, or real references attached to claims they do not support. A methods section that cites a non-existent paper for a normalization choice is a reportable error.
 - **Scope:** for each DOI, PMID, or arXiv ID in a findings file or report, check that it resolves (Crossref, NCBI E-utilities, arXiv) and that the returned title and first author match the citation text; report `resolved`, `mismatch`, `unresolved`, or `not checked (offline)`. Optionally, when the user asks, show the abstract next to the sentence that cites it so the user can judge support.
@@ -32,7 +32,7 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Effort:** M.
 - **Status:** todo.
 
-### D3: Disclosure skill
+## D3: Disclosure skill
 
 - **Why:** journals and funders increasingly ask how AI tools were used. The receipts already record which steps an agent planned, ran, and which the user approved, but writing that up is left to memory, which tends to understate the agent's role.
 - **Scope:** a `disclose` skill that reads the receipts, approvals, verify status, and (when D1 exists) claims status for one analysis folder and drafts a short methods paragraph: which tools and versions, what the agent did, what the user reviewed and approved, which checks ran and what they found. The user edits it; the skill never writes it into a manuscript.
@@ -45,7 +45,7 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Effort:** M.
 - **Status:** todo.
 
-### D4: Multiplicity view in verify
+## D4: Multiplicity view in verify
 
 - **Why:** an agent can run many tests, models, or thresholds and report the one that worked. Receipts record every run, so the number of analyses attempted per reported result is knowable, but nobody shows it. This is the guard named for the "silent forking paths" failure mode.
 - **Scope:** `verify multiplicity` lists, per plan, how many runs touched the same outputs or the same contrast, how many plan revisions changed a threshold or model, and how many explore runs preceded the approved run. Read-only; no judgement, just counts and the run list.
@@ -58,7 +58,7 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Effort:** M.
 - **Status:** done (0.9.36). `verify multiplicity <hash>` shows a counts line and one timeline: earlier approved plans that share a script or output, with their changed Choice cells, then explore runs, runs under earlier plans, and this plan's runs, up to its last run. Plans are content hashes with no link to the plan they replace, so overlap of scripts or outputs is the link. Parked: a multiplicity section in `PROVENANCE.md` (when D3 needs it), a git diff of the code versions, and counting per contrast.
 
-### D5: LLM failure-mode checklist in grill
+## D5: LLM failure-mode checklist in grill
 
 - **Why:** grill's analysis-decisions list covers what a careful analyst would decide. It does not cover the ways an LLM agent specifically goes wrong (inventing a column, swapping a contrast, wrapping a failure in `|| true`, claiming a check ran).
 - **Scope:** `skills/grill/references/llm-failure-modes.md` with a guard-per-mode rule linked from grill's SKILL.md, two scenarios in `scenarios.md`, and a contract test.
@@ -71,7 +71,7 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Effort:** S.
 - **Status:** done.
 
-### D6: h5ad support and graded batch imbalance in data-contract-check
+## D6: h5ad support and graded batch imbalance in data-contract-check
 
 - **Why:** data-contract-check v1 reads CSV/TSV only, so single-cell projects, where the sample table usually lives in an `.h5ad` file's `obs`, get no check. Its `batch_confounding` check already blocks a contrast fully nested in batch or a level that shares no batch with another, and warns when a batch holds one level or a level sits in one batch. What it does not report is graded imbalance, such as one batch holding 80% of one condition, and it prints the batch-by-condition table only as evidence for a failure.
 - **Scope:** read `obs` (and `uns` keys if needed) from `.h5ad` through `h5py` when it is installed, else report a gap; extend `batch_confounding` with an optional `max_share` field that warns when any batch holds more than that share of one contrast level, and print the cross-table on every run of the check.
@@ -84,7 +84,7 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Effort:** M.
 - **Status:** done.
 
-### D7: Label how each finding was established
+## D7: Label how each finding was established
 
 - **Why:** in a long session, it becomes hard to tell which facts the user stated, which the agent derived from data, and which the agent asserted from its own knowledge. Findings written by an agent read the same either way.
 - **Scope:** a required tag on each grill brief fact and each finding draft: `human-stated`, `agent-derived` (with the artifact), or `agent-asserted` (with a source, or `none`). Grill's brief and verify's report show the counts; `agent-asserted` without a source is flagged.
@@ -97,7 +97,7 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Effort:** S.
 - **Status:** done (0.9.35). Grill's brief ends each Evidence fact with `[human-stated]`, `[agent-derived: <path>]`, or `[agent-asserted: <source>]` plus a `Facts:` count line; `verify` counts the tags in the frozen plan's Evidence and the analysis doc's Key Findings as info and flags untagged and unsourced facts. Mycelium findings get the tag at the end of the ledger's Result cell, through the gate's post-run notice.
 
-### D8: The user states the research question first
+## D8: The user states the research question first
 
 - **Why:** when the agent drafts the question, the user tends to accept a version that fits the data at hand rather than the one they meant. Asking first anchors the plan to the user's intent.
 - **Scope:** grill asks the user for the question and the claim they hope to make, in their own words, before it reads the data or proposes anything, and quotes it at the top of the brief. If the user declines, the brief says so.
@@ -110,7 +110,7 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
 - **Effort:** S.
 - **Status:** done (0.9.35). Grill's section 0 asks in one free-text message, before reading anything, skips what the request already states, and does not count toward the five-question cap.
 
-### D9: Enforce the reason on each default
+## D9: Enforce the reason on each default
 
 - **Why:** grill already asks for `default: <reason>` in the plan's Source column and a one-line entry per default under Assumptions and risk. Nothing checks it. A default written as `default:`, `default: standard`, or `default: common practice` gives a reviewer nothing to push back on and hides when the default is wrong for this data.
 - **Scope:** a stdlib check, run by plan-review on the plan it reviews and by verify on the frozen plan, that flags a `default:` with no reason, a reason under a few words, or a reason from a short list of empty phrases (`standard`, `common practice`, `best practice`, `typical`). Each flag names the plan row. Advisory: it reports, it does not block approval.

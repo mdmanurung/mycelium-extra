@@ -4,7 +4,7 @@
 
 **On this page:** [Approving a plan](#approving-a-plan) · [What is gated](#what-is-gated) · [Pinned inputs](#pinned-inputs) · [Run receipts](#run-receipts) · [Mycelium's post-action protocol](#myceliums-post-action-protocol) · [Exploratory runs](#exploratory-runs) · [Command hints](#command-hints) · [Settings](#settings) · [Limits](#limits)
 
-Claude Code hooks in `hooks/` enforce grill's rule that nothing runs until you approve. The gate is off unless you turn it on per repository with `/mycelium-extra:init`, or by hand:
+Claude Code and Codex hooks in `hooks/` enforce grill's rule that nothing runs until you approve. The gate is off unless you turn it on per repository with `/mycelium-extra:init` (Claude Code) or `$mycelium-extra:init` (Codex), or by hand:
 
 1. Create `.mycelium-extra/gate.json`. `{}` uses the defaults.
 2. Add `.mycelium-extra/` to `.gitignore`. It holds short-lived execution state, not project knowledge.
@@ -17,7 +17,7 @@ When a reply ends with `Plan status: READY` or `READY_WITH_ASSUMPTIONS`, the Sto
 
 ## What is gated
 
-Before each Bash call, the gate denies a gated run unless an approval from the last `approval_hours` (default 24) names it. Approvals are never deleted, so `verify` can check old plans. If reading them takes longer than 5 s, the gate blocks the run and says why instead of letting it through unchecked. Two kinds of run are gated:
+Before each shell call (both hosts expose it to hooks as `Bash`), the gate denies a gated run unless an approval from the last `approval_hours` (default 24) names it. Approvals are never deleted, so `verify` can check old plans. If reading them takes longer than 5 s, the gate blocks the run and says why instead of letting it through unchecked. Two kinds of run are gated:
 
 - Scripts under `gated_paths` (default `analysis/**`, `nbs/**`). This covers running them by interpreter, directly, via stdin (`python3 - < analysis/x.py`), `-c "$(cat …)"`, `-m`, after `cd`, or under `conda run`, `srun`, `timeout`, and similar wrappers. The plan table must name the script's path, or an enclosing folder at least two levels deep (`nbs/cytof_exvivo/`), as a path token.
 - Commands in `gated_commands` (default `sbatch`, `snakemake`, `nextflow`). The plan table must contain the command word. Payloads of `bash -c` and `sbatch --wrap` are checked as commands too.
@@ -98,4 +98,4 @@ Two switches are not keys. `hints on` and `hints off` create and remove `.myceli
 - A job ID records a submission, not its outcome. Check `sacct` or the job log.
 - The exit status is inferred from which hook event fired, not read from the command. `verify` reports a nonzero, `failed`, or `interrupted` run as a failure, and an `unknown` status (or an empty one in older receipts) as a gap.
 - `verify` credits a script to a Snakemake rule only when the rule runs it: the expanded `shell:` command, or the `script:`/`notebook:` path in the rule's `code` record. A rule input is not a run. The `script:` path is matched against Snakemake's working directory, so a Snakefile in another folder (`-s other/Snakefile`) is not matched, and Snakemake 9 releases that record only `shell:` commands leave a `script:` rule's script with `no receipt`.
-- Claude Code only; there is no Codex port yet. The Codex manifest registers no hooks, so runs under Codex have no approvals or receipts, and `verify` cannot check them.
+- Codex needs enabled/trusted hooks and CLI 0.160.0 or later. Its 0.160.0 post hook omits exit metadata, so run status is `unknown` and verification reports a gap. A hook that never dispatches leaves no receipt. See [Host compatibility](installation.md#host-compatibility).

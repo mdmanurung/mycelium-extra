@@ -13,3 +13,63 @@ Before changing `hooks/gate.py`, also run `python3 hooks/tests/gate_diff.py`: it
 Hooks call bare `python3`, which is 3.6 on some HPC systems, so keep every script 3.6-compatible; the gate tests compile them all under `python3.6` when it is installed.
 
 Bump `version` in `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, and `.claude-plugin/marketplace.json` together, so `claude plugin update` picks up the change. The same commit adds a [CHANGELOG.md](../CHANGELOG.md) entry for the new version.
+
+## Cross-host checks
+
+`python3 hooks/tests/test_codex_gate.py` checks the Codex entrypoint's approval
+flow, receipts, missing exit status, and state protection for patches and moves.
+`hooks/hooks.json` is Claude's configuration; the Codex manifest points to
+`hooks/codex.json`. Keep host decoding at the launcher boundary and reuse the
+shared gate. Codex shell tools expose `Bash` and `tool_input.command` to hooks.
+Do not assume a Codex post event means exit 0.
+
+Validate Claude's marketplace and plugin separately:
+
+```bash
+claude plugin validate .
+claude plugin validate .claude-plugin/plugin.json
+```
+
+For Codex, install the checkout in a disposable `CODEX_HOME`, check the cached
+files against the source, and test discovery. Real host tests need trusted,
+enabled hooks; invoking the Python launcher alone does not prove dispatch.
+
+### Validated on 2026-10-06
+
+Version 0.9.43 was checked with Claude Code 2.1.291 and Codex CLI 0.160.0.
+Both live hosts denied an unapproved fixture run, registered a plan through
+Stop, accepted its hash through UserPromptSubmit in the same session, allowed
+the approved run, and wrote a receipt. Claude's receipt recorded exit 0;
+Codex's recorded `unknown`, matching its missing hook exit metadata. A failed
+Codex run also left an `unknown` receipt rather than a success claim.
+
+Codex discovered nine skills and four hooks without hook configuration errors;
+62 installed hook and skill files matched the source. All 14 test files passed
+on Python 3.6.8; the Python 3.12.14 suite and corrected heading checks passed
+as well. Optional-tool cases retained their skips. Gate comparison was 160/160
+identical and all three ablations caught their missing guards. The Sphinx build
+had no warnings; Markdown links and generated HTML paths had no broken targets.
+These checks validate the local candidate, not a published installation or a
+GitHub Pages deployment.
+
+## Documentation website
+
+Use Python 3.12 for the website tooling; the plugin still supports Python 3.6.
+
+```bash
+python3.12 -m venv /tmp/mycelium-extra-docs
+/tmp/mycelium-extra-docs/bin/python -m pip install -r docs/requirements.txt
+/tmp/mycelium-extra-docs/bin/python -m sphinx -b html -W --keep-going -c docs . docs/_build/html
+/tmp/mycelium-extra-docs/bin/python -m http.server 8000 --directory docs/_build/html
+```
+
+Open `http://localhost:8000/`. The build treats warnings as errors and checks
+internal document links. The configuration uses the repository as its source
+so README, changelog, reference pages, and Markdown guides stay in one place.
+Generated HTML is ignored by Git.
+
+The Documentation workflow builds every pull request and publishes pushes to
+`main`. In GitHub repository **Settings → Pages**, choose **GitHub Actions**
+as the source before the first deployment. The published URL will be
+`https://mdmanurung.github.io/mycelium-extra/`. A local build does not publish it.
+See [Sphinx's deployment guide](https://www.sphinx-doc.org/en/master/tutorial/deploying.html).

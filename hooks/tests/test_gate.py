@@ -815,11 +815,15 @@ class LauncherOnlyTest(unittest.TestCase):
 
 
 class CompatibilityTest(unittest.TestCase):
-    def test_codex_does_not_load_claude_only_gate_hooks(self):
+    def test_codex_loads_its_own_gate_hooks(self):
         repo = os.path.join(os.path.dirname(GATE), "..")
         with open(os.path.join(repo, ".codex-plugin", "plugin.json")) as handle:
             manifest = json.load(handle)
-        self.assertEqual(manifest.get("hooks"), {})
+        self.assertEqual(manifest.get("hooks"), "./hooks/codex.json")
+        with open(os.path.join(repo, "hooks", "codex.json")) as handle:
+            hooks = json.load(handle)["hooks"]
+        self.assertNotIn("PostToolUseFailure", hooks)
+        self.assertIn("apply_patch", hooks["PreToolUse"][0]["matcher"])
         self.assertTrue(os.path.isfile(os.path.join(repo, "hooks", "hooks.json")))
 
     def test_failed_bash_runs_reach_the_post_hook(self):

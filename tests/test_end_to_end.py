@@ -261,7 +261,8 @@ class Catalog(unittest.TestCase):
         headings = set()
         for name in os.listdir(ROADMAP):
             with open(os.path.join(ROADMAP, name), encoding="utf-8") as handle:
-                headings.update(line[4:].split(":")[0] for line in handle if line.startswith("### "))
+                headings.update(line.lstrip("# ").split(":")[0] for line in handle
+                                if line.startswith(("## ", "### ")))
         tasks = defects.LATER + [d.xfail_task for d in defects.DEFECTS if d.xfail_task]
         self.assertEqual([t for t in tasks if t not in headings], [])
 

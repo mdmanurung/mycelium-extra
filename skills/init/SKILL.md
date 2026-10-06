@@ -5,11 +5,11 @@ description: Turn on the mycelium-extra plan-approval gate in a repository. Crea
 
 # Mycelium Extra: Init
 
-Turn on the approval gate in the current repository. The gate itself is the Claude Code hooks in this plugin's `hooks/`; this skill only writes the file that switches them on.
+Turn on the approval gate in the current repository. The gate uses this plugin's host-specific hooks in `hooks/`; this skill only writes the file that switches them on.
 
 ## 1. Check where you are
 
-- The gate runs only in Claude Code. In Codex, say so and stop.
+- Install the complete plugin, including hooks. In Codex, use CLI 0.160.0 or later, open `/hooks`, enable/trust the plugin hooks, and restart before relying on the gate. Standalone skills do not install hooks.
 - Run a dry run from stdin, from the repository root, so Mycelium's hooks stay closed:
 
   ```bash
@@ -36,6 +36,6 @@ Pass only the options that differ from the defaults; with none, `gate.json` is `
 ## 4. Report
 
 - The files it created or changed (`.mycelium-extra/gate.json`, `.gitignore`) and the effective config.
-- The gate is live on the next tool call in any Claude Code session that loaded this plugin at start; a session started before the plugin was installed needs a restart.
+- The gate is live on the next tool call in any Claude Code or Codex session that loaded and enabled this plugin's hooks at start; a session started before the plugin was installed needs a restart.
 - How to use it: a grill plan that ends with `Plan status: READY` shows `approve plan <hash>`; typing that line allows the runs it names for `approval_hours`. `allow explore` lets `MYCELIUM_EXTRA_EXPLORE=1` runs through for the session.
 - Offer to commit `.gitignore`; `.mycelium-extra/` itself stays untracked.

@@ -2,6 +2,18 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.43] - 2026-10-06
+
+### Added
+
+- Codex approval hooks: plan registration, approval, pinned-input checks,
+  exploratory grants, state protection for `apply_patch`, and run receipts.
+  Receipts identify the Codex host. Missing exit metadata stays `unknown`;
+  Codex 0.160.0 sends output without exit codes, so verification reports a gap.
+- Sphinx documentation built from the existing Markdown, with search,
+  Mermaid diagrams, installation and host compatibility instructions, and
+  a GitHub Pages workflow that checks pull requests before deployment from main.
+
 ## [0.9.42] - 2026-10-05
 
 ### Fixed

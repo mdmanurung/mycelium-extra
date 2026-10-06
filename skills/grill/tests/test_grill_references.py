@@ -110,7 +110,7 @@ class GrillReferenceContractTest(unittest.TestCase):
         roadmap = "\n".join(read(os.path.join(ROADMAP, name))
                             for name in os.listdir(ROADMAP)
                             if name.endswith(".md"))
-        tasks = set(re.findall(r"^### ([A-Z]\d+)\b", roadmap, re.M))
+        tasks = set(re.findall(r"^#{2,3} ([A-Z]\d+)\b", roadmap, re.M))
         planned = 0
         for cells in failure_modes():
             for task in re.findall(r"planned: ([A-Z]\d+)", cells[3]):

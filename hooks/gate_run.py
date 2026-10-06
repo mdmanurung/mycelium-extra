@@ -26,10 +26,18 @@ def find_root(cwd):  # gate.find_root, copied so the gate need not load; a test 
 
 
 def main(argv):
+    host = None
+    if len(argv) == 4 and argv[1:3] == ["--host", "codex"]:
+        host = "codex"
+        argv = [argv[0], argv[3]]
     text = sys.stdin.buffer.read().decode("utf-8", "replace")  # Claude Code sends UTF-8, whatever the locale
     try:
-        if len(argv) == 2 and find_root(json.loads(text).get("cwd") or os.getcwd()) is None:
+        event = json.loads(text)
+        if len(argv) == 2 and find_root(event.get("cwd") or os.getcwd()) is None:
             return 0
+        if host:
+            event["host"] = host
+            text = json.dumps(event)
     except Exception:
         pass  # an unreadable event: gate.py fails open and says so
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

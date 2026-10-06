@@ -1,6 +1,6 @@
 ---
 name: verify
-description: After an approved mycelium-extra grill plan has run, check what ran against the plan and, once the user confirms, write the frozen plan, its run receipts, and the check into the analysis folder's `provenance/`. Flags failed, missing, edited, or unplanned runs, explore runs, changed pinned inputs, outputs not tied to a run of the plan, and `<!-- claims -->` numbers that disagree with their output cell; records the runs' conda and pip packages. Use when the user invokes mycelium-extra verify, asks whether an analysis ran according to plan, or wants provenance recorded. Subcommands: `stale` (what is out of date or needs re-running), `status` (an overview of what was planned, run, or verified), `multiplicity` (what was tried before the plan was settled), `explore` (this session's explore runs). Claude Code only. Not for planning (use grill) or judging code quality (use Mycelium's review).
+description: After an approved mycelium-extra grill plan has run, check what ran against the plan and, once the user confirms, write the frozen plan, its run receipts, and the check into the analysis folder's `provenance/`. Flags failed, missing, edited, or unplanned runs, explore runs, changed pinned inputs, outputs not tied to a run of the plan, and `<!-- claims -->` numbers that disagree with their output cell; records the runs' conda and pip packages. Use when the user invokes mycelium-extra verify, asks whether an analysis ran according to plan, or wants provenance recorded. Subcommands: `stale` (what is out of date or needs re-running), `status` (an overview of what was planned, run, or verified), `multiplicity` (what was tried before the plan was settled), `explore` (this session's explore runs). Not for planning (use grill) or judging code quality (use Mycelium's review).
 ---
 
 # Mycelium Extra: Verify
@@ -126,7 +126,7 @@ One row per plan the gate approved (local, this clone only) or verify recorded (
 `explore [--all]` lists explore runs of gated code for grill's "promote explore runs" (see the grill skill); it only reads.
 
 
-Runs under Codex are not receipted: the Codex manifest loads no hooks (`"hooks": {}`), so Codex writes no approvals and no receipts, and nothing records which host a run came from. A plan run in Codex shows `no receipt` for every script.
+Codex uses its own hook configuration (`hooks/codex.json`) and records approvals and receipts with `host: codex`. It requires enabled/trusted hooks and a new session after installation. Codex 0.160.0 sends command output without exit metadata in `PostToolUse`, so these receipts have `exit_status: unknown` and verification reports `CONFORMS_WITH_GAPS`. Never infer success from a Codex post event or from text printed by the command. A run without a dispatched post hook remains `no receipt`. Older unreceipted Codex runs cannot be recovered by upgrading.
 
 The report lists what it cannot see:
 - A receipt's time is when the hook fired, so outputs of a run moved to the background postdate it.

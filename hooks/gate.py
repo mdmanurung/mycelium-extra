@@ -1,4 +1,4 @@
-"""mycelium-extra plan-approval gate for Claude Code hooks.
+"""mycelium-extra plan-approval gate for Claude Code and Codex hooks.
 
 Usage (from hooks/hooks.json): gate.py stop | prompt | tool | post
 Reads the hook JSON on stdin. Stdlib-only; runs on Python 3.6+.
@@ -927,6 +927,15 @@ def on_tool(event, root, config):
     tool = event.get("tool_name", "")
     tool_input = event.get("tool_input") or {}
     state = os.path.realpath(state_path(root))
+    if tool == "apply_patch":
+        targets = re.findall(r"^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$",
+                             tool_input.get("command", ""), re.M)
+        for target in targets:
+            target = os.path.realpath(os.path.join(event.get("cwd") or root, target.strip()))
+            if target == state or target.startswith(state + os.sep):
+                return deny("mycelium-extra: {} is gate state. Only the user's approval "
+                            "and the gate's hooks write there.".format(os.path.relpath(target, root)))
+        return None
     if tool in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
         target = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
         target = os.path.realpath(os.path.join(event.get("cwd") or root, target))
@@ -1276,6 +1285,8 @@ def on_post(event, root, config):
             "response_keys": sorted(response) if isinstance(response, dict) else type(response).__name__,
         }
         receipt.update(extra)
+        if event.get("host"):
+            receipt["host"] = event["host"]
         if unread:
             receipt["approvals_unread"] = True
         receipt.update(launch_details(root, cwd, label, paths, tokens, output, budget))
@@ -1344,6 +1355,9 @@ def exit_status(event):
     found = exit_code_in(response)
     if found is not None:
         return found, "response", {}
+    if event.get("host") == "codex":
+        # Codex posts completed shell results, including failures. No code is a gap.
+        return "unknown", None, {}
     name = event.get("hook_event_name")
     if name == "PostToolUse":
         tool_input = event.get("tool_input") or {}
@@ -1370,7 +1384,7 @@ def exit_code_in(response):
     """Best effort: Claude Code's Bash result shape is not documented."""
     if isinstance(response, dict):
         for key in ("exit_code", "exitCode", "return_code", "returncode"):
-            if isinstance(response.get(key), int):
+            if isinstance(response.get(key), int) and not isinstance(response.get(key), bool):
                 return response[key]
         for value in response.values():
             found = exit_code_in(value) if isinstance(value, dict) else None

@@ -4,7 +4,7 @@
 
 Tasks that make the existing tools trustworthy before new ones are added. C1 comes first: most later tasks need it as their test bed.
 
-### C1: Fixture Mycelium project for end-to-end tests
+## C1: Fixture Mycelium project for end-to-end tests
 
 - **Why:** each skill's tests check its own script in isolation. Nothing tests the chain a user actually goes through (init, approval, gated run, verify, provenance) on a realistic project, so a change in one skill can break the hand-off to the next while every unit test still passes. Nothing checks either that the failure-mode checklist's Check column is true. Several roadmap tasks (A2, A6, C3, D1, D4, E4, D10 to D12) need such a project to test against.
 - **Scope:** as in [docs/design/c1-fixture-project.md](../design/c1-fixture-project.md): a committed project in Mycelium's layout with a simulated paired vaccine-response dataset of known ground truth (`tests/fixtures/mycelium-project/`); a harness that copies it to a temporary directory, builds the timeline (commit, approve, run, post-hook) through the real hooks, and runs each skill's documented command form (`tests/e2e/harness.py`); a catalog of planted defects, each applied alone to a clean copy (`tests/e2e/defects.py`); and `tests/test_end_to_end.py`, with the clean baseline chain, one case per defect, and catalog contract tests that tie each defect to a row of `llm-failure-modes.md` or `analysis-decisions.md`.
@@ -17,7 +17,7 @@ Tasks that make the existing tools trustworthy before new ones are added. C1 com
 - **Effort:** L.
 - **Status:** done: build-order commits 1-5 landed. 60 end-to-end tests (the baseline chain with and without R, 49 defects, 5 catalog tests, 4 event-shape tests) pass on Python 3.6 and 3.12 in about 40 s; `ablate.py` reports 3 of 3 ablations bite.
 
-### C2: Optional fail-closed gate
+## C2: Optional fail-closed gate
 
 - **Why:** on an internal error the gate fails open and says so. That is the right default for a solo user, who would otherwise be locked out by a gate bug. In a lab where the gate is part of an agreed protocol, a silent pass after a crash weakens the record, and the plain-text notice is easy to miss in a long session.
 - **Scope:** an `on_error` key in `.mycelium-extra/gate.json` with values `"allow"` (current behaviour, the default) and `"deny"`. With `"deny"`, an internal error denies the tool call with a reason naming the error and how to switch back. `init` documents the key but does not set it. The receipt for an errored call records the error either way.
@@ -30,7 +30,7 @@ Tasks that make the existing tools trustworthy before new ones are added. C1 com
 - **Effort:** S.
 - **Status:** todo.
 
-### C3: Audit plan-review's redaction handling
+## C3: Audit plan-review's redaction handling
 
 - **Why:** plan-review sends a review packet to Codex and to Biomni. Its contract already has a `redactions:` field, a "minimize external disclosure" rule, an exclusion list (raw data, participant identifiers, credentials, unpublished full tables), and a rule to mark a review incomplete when redaction removes an essential fact. What is untested is whether the packet an agent actually assembles obeys those rules, and whether `redactions:` is filled in rather than left as `[]`.
 - **Scope:** an audit of the existing rules against two or three realistic packets built from the C1 fixture (including one with participant IDs and a credential in the plan text); a short list of gaps found; fixes limited to the contract wording, the synthesis report, and a stdlib pre-send check that flags likely identifiers or secrets in the packet and refuses to send while `redactions:` is empty and a flag is raised.

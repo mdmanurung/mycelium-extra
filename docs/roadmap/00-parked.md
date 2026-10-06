@@ -4,7 +4,7 @@
 
 Work already drafted outside the repository, waiting to land.
 
-### T0: Split the README into a landing page plus docs/
+## T0: Split the README into a landing page plus docs/
 
 - **Why:** the README is about 31 KB. A new user meets the receipt schema and the gate's Bash parsing rules before learning what the plugin is for.
 - **Scope:** README.md keeps the intro, the summary table, the workflow diagram, Installation, and Quick start, plus a Documentation section. Four new files: `docs/skills.md` (all skill references and the common-prompts table), `docs/approval-gate.md` (approving, gating, pinned inputs, receipts, explore runs, hints, and the full Limits), `docs/mycelium-integration.md`, `docs/development.md`. Prose is condensed; no behaviour, default, path, or limit is dropped.
