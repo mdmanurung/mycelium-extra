@@ -1,72 +1,58 @@
-# Handoff — mycelium-extra: D1 claims checker shipped (v0.9.34); A2's GitHub run still waits on a push
+# Handoff — mycelium-extra: CHECKPOINT at 0.9.52, development paused
 
-**Date:** 2026-10-05 · **Branch:** `improvements` (v0.9.34: C1 steps 3-5, A2 CI, D1), `main` at v0.9.33, ahead of `origin/main` (3a11123, v0.9.28) · **Status:** all local and green. Nothing pushed, tagged, or sent to `gh`.
+**Date:** 2026-10-06 · **Branch:** `main` @ 6baa9aa (v0.9.52, 28 commits since 74ddf53, pushed) · **Status:** user paused development (2026-10-06) to use the package; pushed to `origin/main`. B1 (0.9.46), B4 (0.9.47), approval card (0.9.48), card baseline (0.9.49), B5 grouped output attribution (0.9.50), card diff at the bottom (0.9.51), `.gitignore` warning (0.9.52) done. Work on `main`. No tags.
 
 ## Goal
-Work the roadmap. C1 and D1 are done, A2 is written. Next from `IMPLEMENTATION-MAP.md`: the rest of the D-series science core the user chose ("the science experiments" = roadmap 05), i.e. D7/D8 (S, no deps) or D4 (M); or E1/B2.
+Keep Extra to its aim, "Plan an analysis. Approve what runs. Check the execution record", and keep the human in the loop. Done for a task = grill plan approved, built, all test files green on 3.6 and 3.12, ablations 3/3, `gate_diff` identical when `gate.py` changes, version bumped (docs-only: no bump), atomic commits (feat/fix, test, docs, chore), no push.
 
 ## Next action
-Ask the user which comes next: D7 + D8 (recommended, both S), D4 multiplicity view, or D2 citations (needs network opt-in). Run each through `/mycelium-extra:grill` with the prompt in `docs/roadmap/05-mindfulness-core.md`. The user said "not now, stay local" to A2's push on 2026-10-05; the push sequence is unchanged, only on an explicit yes:
-1. Push local `main` to `origin/main`. 2. Push `improvements`, PR into `main`: expect both legs green and `gate-diff` 160/160. 3. Throwaway branch with `"rm"` dropped from `WRITE_ALL`, draft PR, record the red run, close, delete. Never base a PR on 3a11123 (`gate_diff --base 3a11123` is 127/160 by design).
+None while the user uses the package. First: `claude plugin update` (the plugin cache serves 0.9.38), then use it on real analyses. Resume from what use turns up; candidates are in Open items. Any new work starts with a grill plan ending `Plan status: READY_WITH_ASSUMPTIONS`.
 
 ## State
-- D1 (plan 923d51b6, approved 2026-10-05): `fe03a17` design docs, `0e866fa` verify claims stage (`check_claims()` and `claim_cell()` in `verify.py`, `--claims` flag, `## Claims` section), `1736bc2` fixture block + `expected/claims.json` + V-21..V-23 + V-09 now blocks, `3f5efb7`/`abea965` checklist cells, `f81707d` docs, `ffb4037` bump to 0.9.34, `7370449` design docs synced. `test_verify.py` 37 OK, `test_end_to_end.py` 63 OK, all 13 files OK on 3.6 and 3.12, ablate 3/3, gate_diff 160/160, links 46/0.
-- A2 at `24819a7`: `.github/workflows/ci.yml` (containers `python:3.6-bullseye` under `LC_ALL=C` and `python:3.14-bookworm`; `gate-diff` job on PRs with `fetch-depth: 0` and `safe.directory`), `tests/test_versions.py`, `tests/check_links.py` (moved from staging; exit 2 with no file, skips `@@...@@`). Checked in a fresh clone on 3.6 and 3.12: 13 test files OK, ablate 3/3, links 45/0, `gate_diff --base main` 160/160, and dropping `rm` from `WRITE_ALL` gives exit 1 with 3 FAIL. 3.14 itself not run here (no interpreter); no removed AST/stdlib APIs found by grep. Roadmap A2 status: in-progress.
-- C1 steps 3-5 landed on `improvements`: `ac83c96` (DC-01..11, G-01..07, catalog 1/3/5), `716a149` (V-01..20, S-01..03, M-01, catalog 2/4), `2c19fb1` (KB-01..06 as plain asserts, `ablate.py`). `tests/test_end_to_end.py`: 60 OK on 3.6 and 3.12; `ablate.py`: 3 of 3 bite. Design doc updated where code differed (DC-03, G-03, V-12, V-13, new V-19/V-20, 8.5, 10). `main` not yet fast-forwarded to these.
-- `main` is at `2e9e177` (v0.9.33); `improvements` is 16 commits ahead (C1 steps 3-5, A2, D1, handoffs). Fast-forward with `git fetch . improvements:main` when the user says so. `origin/main` is still 3a11123 (v0.9.28).
-- All 13 test files (`hooks/tests/test_*.py`, `skills/*/tests/test_*.py`, `tests/test_*.py`, the CI glob) pass on Python 3.6.8 and 3.12 (re-run 2026-10-05 after D1). Skips: 7 in `test_data_contract_check.py` (no h5py), 1 in `test_new_analysis.py` (`test_r_stub_fails_loudly`, no Rscript). `test_gate.py` 102/102, `test_verify.py` 37 OK, `test_end_to_end.py` 63 OK.
-- `gate_diff.py --base 3a11123`: 127/160 identical. 30 differences are receipt state (`exit_source`, `exit_status: null` → `"unknown"`, `sbatch --wrap` paths, the 6 hook-event cases); the other 3 are the E2 text commands, which pass now (`out`). The 3 E2 write twins still deny. Against HEAD: 160/160.
-- Uncommitted: only `mycelium-extra-improvements/`, untracked on purpose — a staging folder, not part of the change.
-- `stash@{0}` ("session handoff (pre-series)", on main) holds the pre-series handoff. Everything in it is carried forward; it can be dropped. Do not `git stash pop` — it conflicts with the series' HANDOFF edits.
-- Installed plugin updated 0.9.28 → 0.9.31 (user scope, 2026-10-04); it needs a Claude Code restart to take effect, so a session started before that still runs 0.9.28. The `mycelium-extra` marketplace is the **folder** `/exports/para-lipg-hpc/mdmanurung/mycelium-extra`, not GitHub, so staying local never blocks an update: `claude plugin marketplace update mycelium-extra`, `claude plugin update mycelium-extra@mycelium-extra`, restart.
-- The gate is on here and blocked nothing this session.
+- Uncommitted: `HANDOFF.md`; untracked `mycelium-extra-improvements/` (old staging, superseded) and `mycelium-extra-review-bundle/` (plans + `M8-T03_triage.md`; commit is the user's call).
+- Tests: all green at 6baa9aa on 3.6 and 3.12 (gate 156, verify 56, e2e 74, ablations 3/3, `gate_diff` 163/163, links 102, versions OK).
+- Plugin cache serves Extra 0.9.38 until `claude plugin update`, so live sessions show the old card and old verify output.
+- Real R: `MX_E2E_REAL_TOOLS=1 MX_E2E_RSCRIPT=/exports/para-lipg-hpc/mdmanurung/conda/envs/cellbouncer/bin/Rscript`; `scilintr` and `Rscript` are not on PATH by default, so `verify` reports a lint gap on every plan.
+- `stash@{0}` (old handoff): safe to drop, never `pop`.
+- Scratch tools (session scratchpad, may be gone): `cards.py` (old vs new card on the 56 real plans), `coexist.py` and `mycgate.py` (Mycelium + Extra hooks side by side). Method for card changes: render all 56 approved plans of `scale` and `bmv_pilot_cytof_integration` with `git archive HEAD` code vs working tree; copy `.gitignore` into the temp root (git ignores a symlinked one).
+
+## Shipped this session (one line each)
+- 0.9.50 B5 (`52be169..7c2482f`): `describe_run` (`skills/verify/scripts/verify.py:589`) names the script when a long interpreter path hides it; outputs not tied to the plan's runs give one gap per (producing run, folder). 9,883 per-file lines became 466 grouped + 57 singles on real repos.
+- 0.9.51 (`c2d303c..cf467fb`): the changed-script summary stays on top of the card; the diff (30 lines max) sits above `▶ approve plan`. `Question` line moved from ~41 to ~10. `script_state` returns (pinned, summary, diff).
+- 0.9.52 (`29de37d..6baa9aa`): the card warns when `.living/` exists in a git repo and `.mycelium-extra/` is not ignored (`state_unignored`, `UNIGNORED` in `hooks/gate.py`). Never blocks.
+- Mycelium co-existence audit (no commit, no conflict found): Mycelium 0.7.2 and Extra hooks run in parallel without interference; state folders are apart (`.mycelium/`, `.living/` vs `.mycelium-extra/`); the gate allowed all 21 `.living/`, `.mycelium/` and Mycelium-script commands it was fed and denied only an unplanned analysis run. Not exercised: Mycelium's post-action directive and its stop block never fired in the harness.
 
 ## Locked decisions
-- **D1 is a verify stage, not a skill**: `Report` levels and output ownership already live in `verify.py` (user via grill, 2026-10-05).
-- **Claims are an authored block whose lines name their cell** (`[<|>|<=|>=]value[%] | file column [row]`), not prose extraction with context scoring; a multi-row table needs a row label (the common-value guard) (user, 2026-10-05).
-- **Auto-checked docs:** the analysis doc `<NAME>.md` plus `.md` files on `Outputs:`; others via `--claims` (user, 2026-10-05).
-- Numbers near the block that it does not cover are `info`, not gaps; otherwise "day 28" breaks every baseline (default approved with the plan, 2026-10-05).
-- Known-miss chains (`whole_chain`) drop the claims block; V-23 checks DC-08's flip against the baseline's own values, not the catalog's "+2.0" (default, 2026-10-05).
-- **A missing exit status is a gap, for both `"unknown"` and old `null` receipts** — no code change; the `else` at `verify.py:689-692` keeps covering both, and `test_verify.py:131` stays as written. The 3a11123 gate read the exit code from the tool response alone, with no background or interrupt flag, so a `null` cannot tell "finished OK" from "only started" or "cut off" (default, 2026-10-04).
-- **Tags: deferred, not created.** `notes/docs.md` now carries all 16 commands. Its v0.9.29 sha was wrong — `1db67c1` never existed outside a deleted scratch clone; the real bump is `4f5ab08`, whose subject is just "chore: bump version". v0.9.30 = `49f9154`, v0.9.31 = `573fbdb`. `main` fast-forwarded, so all three shas are stable and the tags are safe whenever wanted (user, 2026-10-04).
-- **Stay local.** No push, no `git push --tags`, no `gh repo edit` (the description/topics line in `APPLY.md` decision 3 is unrun). The `keep-mycelium-extra-local` memory now says what it meant: no upstream Mycelium issues or PRs; push their own repo only on request (user, 2026-10-04).
-- **Name: "Mikhael Manurung"** everywhere — the manifests' spelling won, so `LICENSE` and `docs/roadmap/01-packaging.md` changed and no version bump was needed (user, 2026-10-04).
-- Handoff goes to root `HANDOFF.md`, not `.mycelium/last-session.md` (user, 2026-10-03).
-- Hints off by default, per repository (user, 2026-10-03).
-- Remaining scilintr findings block verify; a missing, timed-out, unreadable or unparseable check is a gap, never clean (user, 2026-10-03).
-- `harden` ships test files only (user, 2026-10-03).
-- Dropped: gating Biomni/ToolUniverse MCP calls; verify reading ClawBio checksums (user, 2026-10-03).
-- Don't prune approvals; approval-scan timeout denies; keep `GIT_OPTIONAL_LOCKS=0` and `not_a_run` receipts (user, 2026-10-01/02).
-- Manifest column = `listed: <first status word>` / `listed` / `not listed`, by folder path or heading (user, 2026-10-03).
-- Hook notices (`systemMessage`) are plain text, no markdown; card layout "B" (user, 2026-10-03).
-- `.qmd`/`.Rmd` findings cite the document's own line, not `[chunk N]` (user, 2026-10-04).
-- `eval=FALSE` chunks are linted; display blocks, other engines, inline `` `r x` `` are not (default, 2026-10-04).
-- Explore outputs are never promoted to results; promotion = re-run under a new plan (default, 2026-10-03).
-- Conda env read from `conda-meta`, never by running conda; only `conda-lock.yml` suppresses it (default, 2026-10-03).
-- verify's separator is ASCII ` - `, not `·`: the `PROVENANCE.md` row is split on `|`, so old files still parse and `|` would break the table (default, 2026-10-04).
+- **Human in the loop (user, 2026-10-06):** script pins block by default; an edited script is never softened. D10–D12 stay opt-in/parked.
+- **Approval card (user, 2026-10-06):** layout A+B; Evidence lines with fail/flag; steps marked done show "agent says: done"; baseline from approval history, any age; grants always printed in full, never collapsed; quoted plan text sanitised; plans without Step plus Choice or Validation columns keep the old card; diff block at the bottom, summary on top (0.9.51).
+- **B1 (user):** plan paths are root-relative; absolute-in-root accepted and normalised.
+- **B5 (user):** goal "so that i know which file produce with output"; status unchanged; `block` findings stay per file.
+- **Complement Mycelium (user):** warn, never block, on Mycelium interplay; the warning lives on the card only, not in `verify`.
+- **Scope (user):** benchmark shrunk to Extra's own claims; Track R optional; consume Mycelium's records first; audience = user + own lab repos; stay 0.x; no PLAN/RUN/CHECK routing skills. Filter `G13` in `mycelium-extra-review-bundle/02_ARCHITECTURE_AND_PRINCIPLES.md`.
+- grill asks the question first in free text and the user may skip it; each fix = own patch version; push, tags, `gh repo edit` only when asked; never base a PR on 3a11123.
+- Missing exit status is a gap, never success; a missing or unparseable check is a gap; remaining scilintr findings block.
 
 ## Dead ends — do not redo
-- Perf: `.pyc` launcher, `python3 -S`, `$PWD` probe, gate daemon, rewriting `tokenize()` (measured, 2026-10-01). Box loadavg ~30: paired A/B medians only.
-- A mycelium-extra SessionStart message: competes with Mycelium's "SESSION RESUME" (`mycelium-health.sh:482`).
-- Treating scilintr exit 0 as clean: it exits 0, silent, on a missing path, `.R`, `.ipynb`, `.qmd`, and code that does not parse.
-- Running `conda list --explicit`: conda is not on PATH here.
-- Testing the locale bug on Python ≥ 3.7: PEP 538 coerces the C locale to UTF-8 and hides it. Use a real 3.6 interpreter.
-- `git format-patch -N <commit>`: exports the N commits **ending at** that commit. Use `A..B` with `--start-number`.
-- `gate_diff.py --base 1db67c1` (cited in `APPLY.md`): that commit lived only in a deleted scratch clone. Use `--base 3a11123`.
-- `git switch main` with `HANDOFF.md` dirty: refused, because series commits touch it. `git fetch . improvements:main` fast-forwards `main` without switching and refuses anything that is not a fast-forward.
+- Perf: `.pyc` launcher, `python3 -S`, `$PWD` probe, gate daemon, rewriting `tokenize()`. A SessionStart message (competes with Mycelium's).
+- `gate.fingerprint(path, budget, pin=...)` skips the hash when the size changed: never use it where the sha is needed.
+- Calling edited-script blocks "superseded, so false positive": none was covered by an approval (B4).
+- Commands that write and mention the Extra state folder are blocked by the gate even in scratch: write files with the Write tool, run scratch scripts by path (the folder name built from parts inside the script).
+- `find` over `/exports/para-lipg-hpc/mdmanurung` (times out; use `rg --max-depth`); testing the locale bug on Python ≥ 3.7.
+- Rotating single check on the card, short card plus a file (review panel rejected both).
+- Two foreign runs in `test_verify.py`: owner is the earliest receipt within `TOLERANCE` (5 s), so back-date receipts with `stamp_last_receipt`.
+- Default `python3` here is 3.6.8; Mycelium's helpers need 3.11+ (`from datetime import UTC`). Use `python3.12` for them; Extra must stay 3.6-compatible.
 
 ## Read first
-- `mycelium-extra-improvements/IMPLEMENTATION-MAP.md` — the 33 remaining tasks and the build order.
-- `mycelium-extra-improvements/APPLY.md` — "Not done yet" and the maintainer decisions, at the end.
-- `docs/development.md:5` — dev, test and version-bump rules (3 manifests; Python 3.6-compatible code).
-- `hooks/gate.py`: `approval_card`, `on_stop`, `on_tool`, `on_post`. `skills/verify/scripts/verify.py`: `lint()`, `chunk_code()`, `status()`, `check()`, `write()`.
-- Memory: `backlog-2026-10`, `complement-mycelium-not-override`, `keep-mycelium-extra-local`, `show-layout-options`.
+- `mycelium-extra-review-bundle/M8-T03_triage.md` — triage; B2, B3, D1 open (B1, B4, B5 done).
+- `hooks/gate.py` `procedure_card`, `approval_card`, `script_state`, `state_unignored`; `skills/verify/scripts/verify.py:589` (`describe_run`), `~1262-1300` (grouped attribution gaps).
+- `docs/development.md:5` — test, CI, version-bump rules (Python 3.6). `tests/e2e/defects.py` and `docs/design/c1-fixture-project.md` §8: update both when a defect case changes.
 
 ## Open items
-- **D1 parked** (return when needed): prose context scoring, log2/-log10 transforms, Markdown pipe-table diff, text/log artifacts, `claims_report.json`, a no-plan mode, a 4th ablation. Explore-only covers only files on `Outputs:`; a file only an explore run wrote off that line is a gap, not a block.
-- **Verify gap found by C1 (not a case yet):** a plan that names only the Snakefile gets a direct receipt for it, so an `incomplete: true` rule is never reported (`verify.py:686` `if direct:` wins over `elif inside:`). V-13 works around it by keeping the steps in the plan table.
-- Known misses recorded as tests (flip on purpose when fixed): DC-08 sign flip, DC-09 positional join, DC-10 Excel gene names, DC-11 CPM, V-02b partial output under `|| true`, V-20 output credited to an earlier run of the same plan.
-- **B2:** move the dated verify history to the changelog. No longer blocked.
-- Unrecorded: pip packages inside conda envs; snakemake `--use-conda` rule envs. `sbatch -o/-e/-i` values under gated paths are probably denied wrongly.
-- `init --paths` with a non-ASCII glob on Python 3.6 under `LC_ALL=C` stores it as `\udcXX` escapes in `gate.json` (argv arrives as surrogates). It does not crash, but the glob will not match on a UTF-8 locale. Rare: Mycelium names analyses in ASCII.
-- Untested in real use: `hints`, `harden`, `verify stale/status/explore`, R scilintr CLI, R-kernel notebooks and `.Rmd` R chunks (no Rscript here); D6's h5ad path (no h5py here). Parked chunk-lint cases: document-level `execute: eval: false`, `child=`, `knitr::read_chunk`, `{r engine=...}`.
+- **B5 leftovers (parked):** "ran but not in the plan table" (249 gaps) and "run under another plan" info lines (768 across 56 plans) are still one line each.
+- Gate authorises from every table cell except Source, so a path in a Validation cell approves a run: needs its own grill.
+- **M7-T01** plan-review redaction audit (first grill question asked twice, unanswered); **M7-T05** record what was sent: user decision.
+- **M1-T18 spike:** hook payload fields keying `PreToolUse` to `PostToolUse`; Mycelium lineage vs receipts.
+- Known misses: DC-08..DC-11, V-02b, V-20. 35 of 61 `sbatch` receipts have no exit status.
+- `review-bundle/03_EXECUTION_BACKLOG.md` is stale (Snakefile claim, execution queue).
+- Parallel lanes (planned, not started): A B2/B3 (`verify.py`), B M7-T01/T02 (`skills/plan-review/`), C M3-T11/T12 (`skills/data-contract-check/`), D read-only spike M1-T18. One worktree per lane, no version bump on a branch, pre-assign defect IDs.
+- Forest plot arm order (outside Extra) appears done in bmv `05_plot_response.R` (PfGA2_GA1, PfGA2_GA2, CVTU3, MAVAC, TUCM2, EG, TZ); confirm with the user.
