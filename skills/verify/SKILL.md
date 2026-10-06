@@ -38,7 +38,7 @@ The report ends with `Verify status:` and one of these values:
   The gate takes a run's exit status from Claude Code's hook event: `PostToolUse` fires only after a command succeeds, so its receipt records exit 0 (`"exit_source": "event"`; the row reads `ran (exit 0 from hook event)`), and `PostToolUseFailure` gives the code from the `Exit code N` line, or `failed` or `interrupted` when there is none. A receipt with exit status `unknown` (a run started in the background, a payload without an event name) or null (from an older gate) is a gap, never a success, so a plan whose only evidence is such a run gets `CONFORMS_WITH_GAPS`. An `sbatch` receipt's exit status is the submit's; the job's state comes from `sacct`.
 - `DOES_NOT_CONFORM`: at least one of:
   - a failed run (a nonzero exit, a failure with no exit code, or an interrupted run) or Slurm job
-  - a planned script edited after its run
+  - a planned script edited after its run. The finding adds whether an approval covers the current version: a plan pinned it, it ran under a plan approved after the file was last modified (by file time), it ran only under a plan approved before that, or it has not run under any plan. The status stays `DOES_NOT_CONFORM` in every case; name the plan to check instead when one covers it
   - a pinned input that changed since the approval
   - a scilintr finding that is neither fixed nor waived
   - a file named exactly on the `Outputs:` line that was written before the approval (older files inside a named folder or glob are earlier runs' outputs, so they are only counted)
