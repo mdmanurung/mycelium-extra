@@ -17,7 +17,15 @@ The gate works through Claude Code and Codex hooks. Turn it on for a repository 
 
 ## Approving a plan
 
-When a reply ends with `Plan status: READY` or `READY_WITH_ASSUMPTIONS`, the Stop hook hashes the plan and shows `approve plan <hash>`. The notice also lists which gated scripts, folders, and commands the plan would let run. Type exactly that (a trailing `.` is fine) to record the approval in `.mycelium-extra/approvals/`. A bare `approve plan` lists pending hashes and approves nothing.
+When a reply ends with `Plan status: READY` or `READY_WITH_ASSUMPTIONS`, the Stop hook hashes the plan and shows `approve plan <hash>`. The notice is a card you can check the science on. For a plan whose table has a Step column and a Choice or Validation column, it shows:
+
+- the question (verbatim, or "none in the plan"), the goal from the plan's Objective, the `default:` steps to confirm, and the Facts count line;
+- each step with its choice and who decided it (`[you]`, `[repo: ...]`, `[default: ...]`) and its check, quoted from the table; a step the agent marks `(done)` reads "agent says: done", since the hook does not verify it; beyond 6 steps each step takes two lines, and beyond 15 the rest are left to the plan above;
+- the Evidence bullets that name a failure or a flag;
+- `CAN RUN (in full)`: every gated script, folder (everything gated below it) and command (any invocation) the plan table lets through, never collapsed, with a shared path prefix written once as `P`;
+- what it reads (pinned inputs) and writes, and any script the plan mentions only in prose, which approves nothing.
+
+Text quoted from the plan has control characters, markup and the phrase "approve plan" removed. The card shows what the gate allows; it does not check the choices or the checks. Any other plan keeps the older card: runs allowed, inputs, scripts, outputs. Type exactly that (a trailing `.` is fine) to record the approval in `.mycelium-extra/approvals/`. A bare `approve plan` lists pending hashes and approves nothing.
 
 Approve in the same session that presented the plan. If you move to a new session, present the plan there first; a pending hash from another session does not grant approval.
 
