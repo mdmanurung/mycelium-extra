@@ -60,6 +60,7 @@ class GrillReferenceContractTest(unittest.TestCase):
         skill = read(os.path.join(SKILL, "SKILL.md"))
         self.assertLess(skill.index("## 0. Ask for the question first"),
                         skill.index("## 1. Retrieve before asking"))
+        self.assertIn("reminder of what the task is", skill)
         self.assertIn("> Question (user's words):", skill)
         self.assertIn("> Hoped-for claim:", skill)
         self.assertIn("> Question: not stated (the user declined).", skill)
