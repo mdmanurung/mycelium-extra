@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.46] - 2026-10-06
+
+### Fixed
+
+- A plan table may name a script by its absolute path or its root-relative path; the gate and `verify` now treat an absolute path inside the project as the same script as its relative form. Before, `verify status` and `verify report` crashed with `Can't mix absolute and relative paths` when one plan used both forms, and a plan naming a script only by absolute path did not approve running it by relative path. A path outside the project still approves nothing. `grill` now asks for plan paths relative to the project root. Found by running `verify` on `bmv_pilot_cytof_integration` (M8-T03, defect `V-26`).
+
 ## [0.9.45] - 2026-10-06
 
 ### Changed
