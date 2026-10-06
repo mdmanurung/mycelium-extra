@@ -19,6 +19,7 @@ The gate works through Claude Code and Codex hooks. Turn it on for a repository 
 
 When a reply ends with `Plan status: READY` or `READY_WITH_ASSUMPTIONS`, the Stop hook hashes the plan and shows `approve plan <hash>`. The notice is a card you can check the science on. For a plan whose table has a Step column and a Choice or Validation column, it shows:
 
+- what is new since the newest earlier approval that covers or writes the same paths, of any age: scripts as `SAME`, `CHANGED` or `NEW` by fingerprint (from the plan's pins, else the receipts of its runs; `NEW` means that plan recorded nothing for the script), inputs the same way, and whether the objective and each step row are unchanged; with no such plan the card says "no baseline" and why, never an empty "nothing changed";
 - the question (verbatim, or "none in the plan"), the goal from the plan's Objective, the `default:` steps to confirm, and the Facts count line;
 - each step with its choice and who decided it (`[you]`, `[repo: ...]`, `[default: ...]`) and its check, quoted from the table; a step the agent marks `(done)` reads "agent says: done", since the hook does not verify it; beyond 6 steps each step takes two lines, and beyond 15 the rest are left to the plan above;
 - the Evidence bullets that name a failure or a flag;
