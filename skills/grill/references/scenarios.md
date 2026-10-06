@@ -12,7 +12,7 @@ Expected: inspect the relevant files, ask no question, note any discrepancy betw
 
 User: "Grill a DE analysis of the vaccine cohort."
 Repo: a fixture project with sample metadata, counts, and prior decisions.
-Expected: before reading any file, ask once, in free text with no drafted options, for the question in the user's words and the claim they hope to make. The brief opens with both answers quoted verbatim; if the user declines, it says `> Question: not stated (the user declined).` Each Evidence bullet ends in `[human-stated]`, `[agent-derived: <path>]`, or `[agent-asserted: <source or none>]`, followed by a `Facts:` count line.
+Expected: before reading any file, ask once, in free text with no drafted options, opening with a short reminder of the task as already stated, for the question in the user's words and the claim they hope to make. The brief opens with both answers quoted verbatim; if the user declines, it says `> Question: not stated (the user declined).` Each Evidence bullet ends in `[human-stated]`, `[agent-derived: <path>]`, or `[agent-asserted: <source or none>]`, followed by a `Facts:` count line.
 
 ## Consequential conflict
 

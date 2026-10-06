@@ -9,7 +9,7 @@ Turn a proposed task into a sourced, step-by-step plan before anything runs. Ask
 
 ## 0. Ask for the question first
 
-Before reading any file or data, and before proposing anything, ask the user in one free-text message for the question in their own words and the claim they hope to make (for a software task, the goal and the result they hope for). Offer no drafted options or examples: a drafted answer anchors the user to it. If the invocation already states either part in the user's own words, quote it and ask only for the missing part; if it states both, skip the question. This question does not count toward the cap in section 3. If the user declines, go on.
+Before reading any file or data, and before proposing anything, ask the user in one free-text message, opening with a one- or two-sentence reminder of what the task is (restate only what the invocation, the handoff, or the user has already said, with no goal, claim, or result drafted for them), for the question in their own words and the claim they hope to make (for a software task, the goal and the result they hope for). Offer no drafted options or examples: a drafted answer anchors the user to it. If the invocation already states either part in the user's own words, quote it and ask only for the missing part; if it states both, skip the question. This question does not count toward the cap in section 3. If the user declines, go on.
 
 ## 1. Retrieve before asking
 
