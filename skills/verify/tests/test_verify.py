@@ -130,6 +130,62 @@ class VerifyTest(unittest.TestCase):
         self.assertNotIn("`{}/".format(self.root), out)
         self.assertIn(digest, self.verify("status"))
 
+    def edited_after_run(self, pins=True):
+        """Plan 1 runs FIT; the script is then edited. Returns plan 1's hash."""
+        if not pins:
+            self.write(".mycelium-extra/gate.json", json.dumps({"pin_scripts": False}))
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        self.run_cmd("python " + FIT)
+        return digest
+
+    def age(self, digest):
+        """Plan `digest` falls out of the gate's 24 h window, so a later run is not credited to it."""
+        path = os.path.join(self.root, ".mycelium-extra", "approvals", digest + ".json")
+        with open(path) as handle:
+            record = json.load(handle)
+        record["approved_at"] -= 3 * 86400
+        with open(path, "w") as handle:
+            json.dump(record, handle)
+
+    def second_plan(self):
+        return self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/outputs2/"))
+
+    def test_edited_script_never_run_since_has_no_approval(self):
+        digest = self.edited_after_run()
+        self.write(FIT, "print(1)\nprint(2)\n", mtime=time.time() + 100)  # a different size, as most edits are
+        out = self.verify("report", digest)
+        self.assertIn("`{}` was edited after its run".format(FIT), out)
+        self.assertIn("has not run under any plan, so no approval covers it", out)
+        self.assertIn("Verify status: DOES_NOT_CONFORM", out)
+
+    def test_edited_script_pinned_by_a_later_plan_is_covered(self):
+        digest = self.edited_after_run()
+        self.write(FIT, "print(2)\n", mtime=time.time() - 60)
+        later = self.second_plan()
+        out = self.verify("report", digest)
+        self.assertIn("Plan {} pinned this version".format(later), out)
+        self.assertIn("Verify status: DOES_NOT_CONFORM", out)
+
+    def test_edited_script_run_after_a_later_approval_is_covered_by_file_time(self):
+        digest = self.edited_after_run(pins=False)
+        self.age(digest)
+        self.write(FIT, "print(2)\n", mtime=time.time() - 60)
+        later = self.second_plan()
+        self.run_cmd("python " + FIT)
+        out = self.verify("report", digest)
+        self.assertIn("ran under plan {}".format(later), out)
+        self.assertIn("after the file was last modified, so an approval covers it by file time", out)
+
+    def test_edited_script_run_under_an_older_approval_is_not_covered(self):
+        digest = self.edited_after_run(pins=False)
+        self.age(digest)
+        later = self.second_plan()
+        self.write(FIT, "print(2)\n", mtime=time.time() + 100)  # edited after plan 2 approved
+        self.run_cmd("python " + FIT)
+        out = self.verify("report", digest)
+        self.assertIn("ran under plan {}, but that plan was approved before the file was last modified".format(later), out)
+        self.assertIn("no approval covers it", out)
+
     def test_conforming_run(self):
         digest = self.approve(plan("run `{}`".format(FIT)))
         receipt = self.run_cmd("python " + FIT)

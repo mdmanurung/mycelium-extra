@@ -695,6 +695,18 @@ def v26(p):
             "crashed": "Traceback" in text, "text": text}
 
 
+@defect("V-27", "verify", "verify", ["Stale evidence as current"],
+        {"status": "Verify status: DOES_NOT_CONFORM",
+         "messages": ["`{}` was edited after its run".format(PAIRED),
+                      "has not run under any plan, so no approval covers it"]})
+def v27(p):
+    # M8-T03 B4: a script edited after its run, with no plan approving the new version.
+    digest = p.run_plan()[0]
+    p.edit(PAIRED, lambda text: text + "\n# edited after the run\n")
+    code, out, err = p.verify("report", digest)
+    return {"status": harness.status_line(out), "text": out + err}
+
+
 # ---------------------------------------------------------------- 8.4 sweeps and memory
 
 def verified(p):
