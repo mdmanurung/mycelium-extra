@@ -304,6 +304,73 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("Output `analysis/a/outputs/late.tsv` (written", out)
         self.assertIn("not tied to any recorded run", out)
 
+    def stamp_last_receipt(self, ts):
+        path = gate.state_path(self.root, "receipts.jsonl")
+        with open(path) as handle:
+            lines = [json.loads(line) for line in handle]
+        lines[-1]["ts"] = ts
+        with open(path, "w") as handle:
+            handle.write("".join(json.dumps(line) + "\n" for line in lines))
+
+    def other_plan_runs(self, *scripts):
+        """Approve a plan for FIT, then run `scripts` under another plan, 100 s apart; return their ts."""
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        for script in scripts:
+            self.write(script, "print(3)\n", mtime=time.time() - 3600)
+        self.approve(plan(*["run `{}`".format(s) for s in scripts]))
+        stamps = []
+        for i, script in enumerate(scripts):
+            self.run_cmd("python " + script)
+            stamps.append(time.time() + 100 * (i + 1))
+            self.stamp_last_receipt(stamps[-1])
+        return digest, stamps
+
+    def test_outputs_of_one_foreign_run_are_one_gap_naming_the_script(self):
+        extra = "analysis/a/scripts/02_extra.py"
+        digest, (ts,) = self.other_plan_runs(extra)
+        for name in ("a.tsv", "b.tsv", "c.tsv", "d.tsv"):
+            self.write("analysis/a/outputs/" + name, "x\n", mtime=ts - 1)
+        out = self.verify("report", digest)
+        self.assertEqual(out.count("was likely written by"), 0)
+        self.assertEqual(out.count("likely written by"), 1)
+        self.assertIn("4 files in `analysis/a/outputs/` were likely written by", out)
+        self.assertIn("`python " + extra, out)
+        self.assertIn("`a.tsv`, `b.tsv`, `c.tsv` and 1 more", out)
+        self.assertIn("| `analysis/a/outputs/d.tsv` |", out)  # the Outputs table still lists every file
+
+    def test_two_foreign_runs_give_two_gaps_and_a_single_output_keeps_its_text(self):
+        first, second = "analysis/a/scripts/02_extra.py", "analysis/a/scripts/03_more.py"
+        digest, (ts1, ts2) = self.other_plan_runs(first, second)
+        self.write("analysis/a/outputs/a.tsv", "x\n", mtime=ts1 - 1)
+        self.write("analysis/a/outputs/b.tsv", "x\n", mtime=ts1 - 1)
+        self.write("analysis/a/outputs/c.tsv", "x\n", mtime=ts2 - 1)
+        out = self.verify("report", digest)
+        self.assertEqual(out.count("likely written by"), 2)
+        self.assertIn("2 files in `analysis/a/outputs/` were likely written by", out)
+        self.assertIn("`python " + first, out)
+        self.assertIn("Output `analysis/a/outputs/c.tsv` was likely written by `python " + second, out)
+
+    def test_a_long_interpreter_path_still_shows_the_script(self):
+        extra = "analysis/a/scripts/02_extra.py"
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        self.write(extra, "print(3)\n", mtime=time.time() - 3600)
+        self.approve(plan("run `{}`".format(extra)))
+        python = self.write("envs/" + "very_long_environment_name/" * 4 + "bin/python", "")
+        os.chmod(python, os.stat(python).st_mode | stat.S_IEXEC)
+        self.run_cmd(python + " " + extra)
+        self.write("analysis/a/outputs/a.tsv", "x\n", mtime=time.time() + 100)
+        self.stamp_last_receipt(time.time() + 101)
+        out = self.verify("report", digest)
+        self.assertIn("(script `{}`)".format(extra), out)
+
+    def test_untied_outputs_group_by_folder(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        for name in ("a.tsv", "b.tsv"):
+            self.write("analysis/a/outputs/" + name, "x\n", mtime=time.time() + 600)
+        out = self.verify("report", digest)
+        self.assertIn("2 files in `analysis/a/outputs/` (written", out)
+        self.assertIn("not tied to any recorded run", out)
+
     def test_earlier_runs_files_in_an_output_folder_are_not_blocking(self):
         self.write("analysis/a/results/run_0930/old.tsv", "x\n", mtime=time.time() - 3600)
         digest = self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/results/run_*/"))
