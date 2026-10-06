@@ -2,7 +2,7 @@
 
 [Choose a usage tier](usage.md)
 
-**On this page:** [Approving a plan](#approving-a-plan) · [What is gated](#what-is-gated) · [Pinned inputs](#pinned-inputs) · [Run receipts](#run-receipts) · [Mycelium's post-action protocol](#myceliums-post-action-protocol) · [Exploratory runs](#exploratory-runs) · [Command hints](#command-hints) · [Settings](#settings) · [Limits](#limits)
+**On this page:** [Approving a plan](#approving-a-plan) · [What is gated](#what-is-gated) · [Pinned inputs](#pinned-inputs) · [Pinned scripts](#pinned-scripts) · [Run receipts](#run-receipts) · [Mycelium's post-action protocol](#myceliums-post-action-protocol) · [Exploratory runs](#exploratory-runs) · [Command hints](#command-hints) · [Settings](#settings) · [Limits](#limits)
 
 A plan is useful only if the run still follows it. The approval gate checks covered analysis commands before execution, so an agent cannot start a new run just because a previous conversation discussed it. You decide what is approved, and the gate keeps a record of the runs that follow.
 
@@ -48,6 +48,20 @@ A grill brief has an `Inputs:` line naming, by repository path, the files the pl
 - A plan with no `Inputs:` line pins nothing, and the notice says so.
 
 Approving copies the pins into the approval. Before a covered run, the gate fingerprints the pins of the newest approval that covers it. An older plan that pinned less therefore cannot let a run through after a newer plan's pins changed. The gate blocks the run if one changed, naming the file with its old and new fingerprint. Re-check the input (for example, re-run the data-contract check), show the plan again, and approve it. Explore runs skip this check.
+
+## Pinned scripts
+
+An approval also refers to the code you approved. A script that changes after approval cannot run until you re-approve it, so an agent cannot edit an approved script and re-run it unseen.
+
+- When a plan is shown, the gate fingerprints each existing script (`.py`, `.R`, `.sh`, `.ipynb`, `Snakefile`, and similar) that the plan table names, up to 500. The card lists them under "Scripts pinned".
+- Any other script the plan covers, such as one under a folder it names or one that did not exist then (analyze writes code after plan approval), is pinned at its first covered run. The first version is not blocked; edits after it are, and showing the plan again lists them on the card.
+- Before a covered run, the gate compares the script it runs with the pin of the newest covering approval. A difference blocks the run, naming the script, both hashes, and the lines added and removed.
+- Present the plan again to review it. The card then shows "Scripts changed since last approved" with up to 30 lines of the diff, and `approve plan <hash>` pins the new version. Approving the same plan again re-baselines its first-run pins.
+- The gate keeps a copy of each pinned script up to 256 KB in `.mycelium-extra/scripts/` to show the diff. A larger script is pinned and its change shows hashes only.
+- Any byte change counts, including whitespace and comments. For a notebook only the code cells count, since running it rewrites its outputs. Explore runs skip the check, like input pins.
+- Turn it off with `"pin_scripts": false` in `gate.json`.
+
+Only the script a command runs is checked. A file it sources or imports, and the scripts a Snakefile rule runs, are not; list them on the plan's `Inputs:` line to pin them (a run plan from grill freezes the code that way).
 
 ## Run receipts
 
@@ -95,6 +109,7 @@ Type `hints on` to get a one-line suggestion of the command to run next; `hints 
 | `approval_hours` | `24` | How long an approval covers runs. Approvals are never deleted. |
 | `pin_hash_mb` | `200` | Bytes of pinned inputs (in MB) hashed per hook before falling back to size and mtime. |
 | `pin_seconds` | `5` | Seconds the pin check may take per hook. |
+| `pin_scripts` | `true` | Block a run whose script changed since it was approved or first run. `false` turns it off. |
 
 Two switches are not keys. `hints on` and `hints off` create and remove `.mycelium-extra/hints.json`. `allow explore` and `stop explore` apply to one session.
 

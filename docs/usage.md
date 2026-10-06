@@ -144,7 +144,9 @@ flowchart TD
 ```
 
 The first approval covers implementation and test runs; the second freezes
-finished code for the reportable run. Dry runs still need approval. Use one
+finished code for the reportable run. Once a script has run under an approval,
+an edit to it needs that plan approved again (see [Pinned scripts](approval-gate.md#pinned-scripts)),
+so use `allow explore` for a debugging loop. Dry runs still need approval. Use one
 `PLAN.md`, revised in place, and record revisions in `TRACKER.md`.
 
 Verification reports missing evidence separately from failures; saving provenance
