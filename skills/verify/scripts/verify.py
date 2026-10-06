@@ -993,6 +993,37 @@ def plan_runs(receipts, digest, approved_at):
     return mine, min([approved_at] + [r["ts"] for r in mine])
 
 
+def edit_evidence(root, path, budget, receipts):
+    """One sentence on whether an approval covers the script's current version: a plan that pinned
+    it, a run of it under a plan approved after the file was last modified (by file time), a run
+    under a plan approved before that, or no plan at all. "" when the file cannot be hashed."""
+    sha = gate.fingerprint(os.path.join(root, path), budget).get("sha256")  # not given the pin: it skips the hash when the size changed
+    if not sha:
+        return ""
+    for folder in ("script-pins", "approvals"):
+        names = sorted(os.listdir(gate.state_path(root, folder))) if os.path.isdir(gate.state_path(root, folder)) else []
+        for name in names:
+            record = gate.read_json(gate.state_path(root, folder, name), {})
+            pin = (record if folder == "script-pins" else record.get("scripts") or {}).get(path) or {}
+            if pin.get("sha256") == sha:
+                return "Plan {} pinned this version, so an approval covers it; check that plan instead.".format(name[:8])
+    ran = [(r, (r.get("script") or {})) for r in receipts
+           if r.get("plans") and not r.get("explore") and (r.get("script") or {}).get("path") == path
+           and (r.get("script") or {}).get("sha256") == sha]
+    older = None
+    for r, recorded in reversed(ran):
+        for plan_hash in r["plans"]:
+            approved = gate.read_json(gate.state_path(root, "approvals", plan_hash + ".json"), {}).get("approved_at", 0)
+            if approved >= recorded.get("mtime", 0):
+                return ("This version ran under plan {} (approved {}), after the file was last modified, "
+                        "so an approval covers it by file time; check that plan instead.".format(plan_hash, when(approved)))
+            older = older or plan_hash
+    if older:
+        return ("This version ran under plan {}, but that plan was approved before the file was last "
+                "modified, so no approval covers it.".format(older))
+    return "This version has not run under any plan, so no approval covers it."
+
+
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
           rscript="Rscript", claims=()):
     config = gate.load_config(root)
@@ -1082,8 +1113,10 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                                         "checked against the code.".format(path, when(last["ts"])))
                 elif not gate.unchanged(recorded, now):
                     row["notes"].append("edited since it ran")
+                    covered = edit_evidence(root, path, budget, receipts)
                     report.add("block", "`{}` was edited after its run at {}, so its outputs may not "
-                                        "match the code.".format(path, when(last["ts"])))
+                                        "match the code.{}".format(path, when(last["ts"]),
+                                                                   " " + covered if covered else ""))
                 if recorded.get("git") in ("modified", "untracked"):
                     row["notes"].append("{} when it ran".format(recorded["git"]))
                     report.add("gap", "`{}` was {} when it ran, so no commit holds the code that ran."
