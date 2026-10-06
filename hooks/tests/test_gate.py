@@ -291,6 +291,29 @@ class GateTest(unittest.TestCase):
                      "  plan     objective SAME \u00b7 steps: 1 same, 1 new or changed"):
             self.assertIn(text, later)
 
+    def test_card_diff_sits_below_the_grants_and_above_the_approve_line(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.approve(self.card_plan_for())
+        self.write_file("analysis/a/02_fit.py", "print(2)\n")
+        card = self.card(self.card_plan_for())
+        summary = card.index("Scripts changed since last approved\n    \u2022 analysis/a/02_fit.py: sha256")
+        diff = card.index("Diff of changed scripts\n      @@ -1 +1 @@\n      -print(1)\n      +print(2)")
+        self.assertLess(summary, card.index("Question"))
+        self.assertGreater(diff, card.index("CAN RUN (in full)"))
+        self.assertGreater(diff, card.index("Writes "))
+        self.assertTrue(card.splitlines()[-1].startswith("\u25b6 approve plan "))
+        self.assertEqual(card.count("-print(1)"), 1)
+
+    def test_card_diff_is_capped_below_the_grants(self):
+        self.write_file("analysis/a/02_fit.py", "".join("a{}\n".format(i) for i in range(40)))
+        self.approve(self.card_plan_for())
+        self.write_file("analysis/a/02_fit.py", "".join("b{}\n".format(i) for i in range(40)))
+        card = self.card(self.card_plan_for())
+        after = card.split("CAN RUN (in full)")[1]
+        self.assertIn("\u2026 and 51 more diff lines", after)
+        self.assertNotIn("diff lines", card.split("CAN RUN (in full)")[0])
+        self.assertTrue(card.splitlines()[-1].startswith("\u25b6 approve plan "))
+
     def test_card_baseline_reaches_past_the_approval_window(self):
         self.write_file("analysis/a/02_fit.py", "print(1)\n")
         first = self.approve(self.card_plan_for())[0]
