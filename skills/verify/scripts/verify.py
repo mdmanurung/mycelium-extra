@@ -589,7 +589,11 @@ def wrapper_receipt(receipts, record):
 def describe_run(receipt, digest):
     if receipt is None:
         return "no recorded run"
-    label = "`{}` at {}".format(receipt.get("command", "")[:80], when(receipt.get("ts")))
+    command = receipt.get("command", "")
+    label = "`{}` at {}".format(command[:80], when(receipt.get("ts")))
+    script = (receipt.get("script") or {}).get("path")
+    if script and script not in command[:80]:  # a long interpreter path cuts the script off
+        label += " (script `{}`)".format(script)
     if receipt.get("explore"):
         return label + " (explore, not reportable)"
     if digest in receipt.get("plans", []):
@@ -1215,6 +1219,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             report.add("gap", "Input `{}` could not be re-checked (time limit).".format(rel))
 
     outputs = []
+    attributed = {}  # (producing run, folder) -> (run, [(output, written)]): one finding per group
     words = plan_outputs(plan)
     if words is None:
         report.add("gap", "The plan has no `Outputs:` line, so its results cannot be tied to its runs.")
@@ -1260,16 +1265,33 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                 if mtime < start - TOLERANCE:
                     report.add("block", "Output `{}` was written {}, before the plan was approved.".format(
                         rel, when(mtime)))
-                elif owner is None:
-                    report.add("gap", "Output `{}` (written {}) is not tied to any recorded run: a run "
-                                      "moved to the background, or computation the gate did not see."
-                               .format(rel, when(mtime)))
-                elif owner.get("explore") or digest not in owner.get("plans", []):
-                    report.add("gap", "Output `{}` was likely written by {}.".format(
-                        rel, describe_run(owner, digest)))
+                elif owner is None or owner.get("explore") or digest not in owner.get("plans", []):
+                    key = (None if owner is None else (owner.get("ts"), owner.get("command")),
+                           os.path.dirname(rel))
+                    attributed.setdefault(key, (owner, []))[1].append((rel, mtime))
             if older:
                 report.add("info", "{} file(s) under `{}` predate this plan, so they are earlier runs' "
                                    "outputs and were not checked.".format(older, word))
+    for (_, folder), (owner, files) in attributed.items():
+        if len(files) == 1:
+            rel, mtime = files[0]
+            if owner is None:
+                report.add("gap", "Output `{}` (written {}) is not tied to any recorded run: a run "
+                                  "moved to the background, or computation the gate did not see."
+                           .format(rel, when(mtime)))
+            else:
+                report.add("gap", "Output `{}` was likely written by {}.".format(rel, describe_run(owner, digest)))
+            continue
+        where = "{} files in `{}`".format(len(files), folder + "/" if folder else ".")
+        if owner is None:
+            report.add("gap", "{} (written {}) are not tied to any recorded run: a run moved to the "
+                              "background, or computation the gate did not see."
+                       .format(where, when(max(m for _, m in files))))
+        else:
+            names = ["`{}`".format(os.path.basename(rel)) for rel, _ in files[:3]]
+            more = " and {} more".format(len(files) - 3) if len(files) > 3 else ""
+            report.add("gap", "{} were likely written by {}: {}{}.".format(
+                where, describe_run(owner, digest), ", ".join(names), more))
 
     seen = {p for r in since for p in ran_paths(root, r)}
     plugins = [os.path.realpath(p) for p in (PLUGIN_ROOT, os.path.expanduser("~/.claude/plugins"),
