@@ -91,8 +91,9 @@ python3.12 -m venv /tmp/mycelium-extra-docs
 ```
 
 Open `http://localhost:8000/`. The build treats warnings as errors and checks
-internal document links. The configuration uses the repository as its source
-so README, changelog, reference pages, and Markdown guides stay in one place.
+internal document links. The configuration uses an explicit list of user guides
+and the run-plan reference. Developer instructions, roadmap, changelog, design notes, and the
+repository README are excluded from the website and its search index.
 Generated HTML is ignored by Git.
 
 The Documentation workflow builds every pull request and publishes pushes to

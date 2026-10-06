@@ -1,207 +1,119 @@
-# Skills
+# Skill reference
 
-[Back to README](../README.md)
+Start with [Usage tiers](usage.md) to choose a workflow. This page is a lookup
+for individual tools; you do not need to learn them all.
 
-**On this page:** [Common prompts](#common-prompts) · [grill](#grill) · [plan-review](#plan-review) · [decision-status](#decision-status) · [data-contract-check](#data-contract-check) · [init](#init) · [verify](#verify) · [new-analysis](#new-analysis) · [handoff](#handoff) · [harden](#harden)
-
-You do not need to learn every command before using Mycelium Extra. Start with the analysis you want to do. `grill` reads the project and helps you turn that goal into a plan; `verify` checks the record after the run. The remaining skills handle the questions that arise along the way.
-
-For example, you might ask:
-
-> "Plan a paired vaccine-response analysis across trials. Check the cohort definitions and previous batch-correction decisions first."
-
-When the plan depends on an old decision or a sample-table assumption, `grill` calls `decision-status` and `data-contract-check` itself.
-
-The prompts below use Claude Code syntax. In Codex, replace
-`/mycelium-extra:` with `$mycelium-extra:`. Approval and exploration messages
-(`approve plan <hash>`, `allow explore`, `stop explore`) are the same in both
-hosts. See [Host compatibility](installation.md#host-compatibility) for review
-roles and receipt limits.
+Commands below use Claude Code syntax. In Codex, replace `/mycelium-extra:`
+with `$mycelium-extra:`. See [Host compatibility](installation.md#host-compatibility).
 
 ## Common prompts
 
-| Goal | Prompt |
+| Need | Command |
 |---|---|
-| Plan a task from repo evidence | `/mycelium-extra:grill Redo monocyte pathway analysis across trials; inspect the repo before asking me anything.` |
-| Challenge a draft before approval | `/mycelium-extra:plan-review Review the current grill plan with Codex and Biomni.` |
-| Settle conflicting past decisions | `/mycelium-extra:decision-status Which batch-correction decision binds the integration rerun?` |
-| Check the sample table before running | `/mycelium-extra:data-contract-check Check the approved plan's cohort, pairing, and batch assumptions against the sample table.` |
-| Turn on the gate | `/mycelium-extra:init` |
-| Start a new analysis folder | `/mycelium-extra:new-analysis analysis/gdt-seminmf-dream: does semi-NMF program usage differ by arm? Link data/anndatas/gdt.h5ad.` |
-| Check a run against its plan | `/mycelium-extra:verify 99ddfd42` |
-| Turn a learning into a test | `/mycelium-extra:harden` |
-| Continue in a fresh session | `/mycelium-extra:handoff`, then start a fresh session and paste the resume line it prints |
-| Get next-command suggestions | `hints on` (and `hints off`) |
-| Run a quick test without a plan | Type `allow explore`; type `stop explore` when done. |
-| Make explore runs reportable | Say "promote explore runs"; approve the re-run plan grill drafts. |
+| Make a plan | `/mycelium-extra:grill <your question>` |
+| Enable execution checks | `/mycelium-extra:init` |
+| Check a completed run | `/mycelium-extra:verify <hash>` |
+| Create an analysis folder | `/mycelium-extra:new-analysis analysis/<name>: <question>` |
+| Resume in a fresh session | `/mycelium-extra:handoff` |
 
 ## grill
 
-An analysis plan should make its scientific choices visible before they become code. Use `grill` when you have a question to answer, a workflow to change, or a draft that needs to be checked against the project.
+Reads project evidence and turns your question into a sourced, numbered plan.
+It asks only consequential questions you own, at most five after the opening
+question. It calls `decision-status` and `data-contract-check` when needed.
+It writes nothing and runs no analysis.
 
-`grill` first asks you, in one free-text message, for the question in your own words and the claim you hope to make. For a software task, it asks for the goal and the result you hope for. It skips what your request already states, and the brief opens with your answer quoted.
-
-Then it reads the repository before it asks anything else. In a Mycelium project (any repository with `.living/`), it reads `MYCELIUM.md` or the Mycelium block in `CLAUDE.md`/`AGENTS.md`, `.living/INDEX.md`, relevant memory entries, manifests, analysis docs, and code. Elsewhere it reads the project's own docs and code.
-
-It then tests the goal, evidence, assumptions, alternatives, failure modes, and validation. For bioinformatics or statistical work it also walks a list of analysis decisions (unit of replication, matrix state, references, QC, batch, multiplicity, and more), so none stays implicit.
-
-It asks only questions that you own and that could change the plan: one per message, at most five after the opening question. It ends with `READY`, `READY_WITH_ASSUMPTIONS`, or one `DECISION_REQUIRED` item, plus a numbered plan.
-
-- Each consequential choice in the plan cites its source: repository evidence, your answer, or a labeled default.
-- Each fact in the brief's Evidence ends in a tag saying how it was established: `[human-stated]`, `[agent-derived: <path>]`, or `[agent-asserted: <source>]` (`none` when there is no source).
-- An `Inputs:` line names the files the plan rests on, which the approval gate pins.
-
-Nothing runs until you approve or edit the plan.
-
-## plan-review
-
-Some plans benefit from a second perspective before you commit to them. A workflow may be technically sound while its biological interpretation is weak, or scientifically useful while its execution path is fragile. `plan-review` keeps those reviews separate so you can see which concern comes from which reviewer.
-
-Run this after grill and before approving a changed plan. Claude Code assembles one minimal, sourced packet. It asks Codex for an engineering critique and a connected Phylo Biomni MCP for a biomedical critique.
-
-- It shows you the packet and sends it only after you agree, since it leaves the machine.
-- Biomni has no lookup-only tool, so its review is one consult-only Biomni task. It uploads no files, runs in Biomni's cloud at the cost of your Biomni credits, and is treated as advice, never as a project result.
-- If a reviewer is missing, fails, or is unsafe to invoke, it is reported unavailable.
-- Claude keeps agreement, disagreement, and its reasons for accepting or rejecting recommendations visible.
-
-The skill edits no files, records no run receipts, and does not add an approval. A revised plan requires normal approval. Invoking the skill in Codex returns the Codex critique only, since Codex cannot be its own independent second reviewer or Claude adjudicator.
-
-## decision-status
-
-Project decisions change as the evidence changes. A batch-correction method might have been accepted in one analysis, put on hold in another, and replaced for a third. Use `decision-status` when those entries leave it unclear which decision applies to the task in front of you.
-
-- A small read-only parser lists the entries the task touches, oldest first. It shows their raw `Status`, `Supersedes`, `Scope`, and `Revisit when` lines and any status words in headings. It never infers which entry is current.
-- An explicit supersession wins. Next comes the entry whose scope matches the task. Anything else is contested and goes to you, at most three questions per session.
-- Once you confirm an answer, it appends a `Resolution:` entry so the question does not come back. It never edits existing entries.
-
-The new entry uses the ordinary decision fields plus `Status`, `Supersedes`, `Scope`, `Revisit when`, and `Resolved-by`. Mycelium 0.7.2's scripts do not parse `Status` in `decisions.md`, so they read these fields as plain body text.
-
-## data-contract-check
-
-A paired analysis needs actual pairs. A trial contrast needs the expected trial labels. These are easy assumptions to carry into a model and expensive ones to discover afterward. `data-contract-check` compares the plan's assumptions with the sample table before execution.
-
-The assumptions go into a small JSON contract:
-
-- required columns
-- cohort levels and row counts
-- one row per unit per cell
-- complete pairing across timepoints
-- batch versus contrast nesting
-
-A stdlib checker reports each mismatch with expected, observed, and evidence lines, in the shape of ClawBio's contract alerts. The checker, not the contract, decides what blocks: any failure of these kinds blocks. The skill never loosens a contract to make it pass without your agreement.
-
-It reads CSV/TSV tables and the `obs` of an `.h5ad` file (through h5py when it is installed; without h5py, a gap). A `batch_confounding` check prints the batch-by-contrast table on every run. With `max_share`, it can warn when one batch holds too large a share of a contrast level.
+The brief ends with `READY`, `READY_WITH_ASSUMPTIONS`, or `DECISION_REQUIRED`.
+Its `Inputs:` line identifies files the gate will pin. With the gate enabled,
+use the displayed `approve plan <hash>` message to authorize covered runs.
+See [Approving a plan](approval-gate.md#approving-a-plan).
 
 ## init
 
-Install the plugin once, then choose which projects should use the gate. `init` turns it on for the current repository by writing `.mycelium-extra/gate.json` and adding `.mycelium-extra/` to `.gitignore`. It leaves an existing gate unchanged.
-
-See [Approval gate](approval-gate.md) for a first approval and [Settings](approval-gate.md#settings) for the paths, commands, and approval window.
+Turns on the approval gate for the current repository. Writes
+`.mycelium-extra/gate.json` and adds `.mycelium-extra/` to `.gitignore`;
+leaves an existing gate unchanged. Default paths are `analysis/**` and `nbs/**`.
+See [Gate settings](approval-gate.md#settings) to change coverage.
 
 ## verify
 
-A finished job is only the beginning of checking an analysis. Did every planned step run? Did an input change? Does the number in the write-up match the saved table? After execution, `verify <hash>` compares the approved plan with the records that can answer those questions.
-
-It uses the gate's own table parser, so the scripts covered by verification are the same ones covered by approval. It reads the record without re-running the analysis. In Codex 0.160.0, missing hook exit metadata remains a gap even when the command appeared to finish successfully.
-
-**In this section:** [What the report shows](#what-the-report-shows) · [Status](#status) · [What it writes](#what-it-writes) · [Stale plans](#stale-plans) · [Overview of all plans](#overview-of-all-plans)
+Checks an approved plan against receipts, pinned inputs, outputs, lint, and
+explicit claims. It never re-runs the analysis. Requires the approval gate
+for a current plan's report; `verify stale` can read saved provenance without it.
 
 ### What the report shows
 
-- **Each planned script:** ran, failed, no receipt, edited or deleted since it ran, or only passed to other code. A lint or parse call (`Rscript -e 'lintr::lint()' x.R`) or another tool's script read from stdin gets the path but does not run it, so it is not counted as a run. Steps run inside a `run.sh` or Snakemake wrapper are matched through Snakemake's per-output records, and Slurm jobs through `sacct`.
-- **Other runs:** explore runs, runs under another plan, and scripts in the analysis folder that ran but are not in the plan table.
-- **Pinned inputs** that changed since the approval.
-- **Outputs:** the files on the plan's `Outputs:` line, when each was written, and which run likely wrote it. A file named exactly that was written before the approval blocks. Older files inside a named folder or glob are earlier runs' outputs, so they are counted, not checked.
-- **Unreceipted runs:** scripts that Mycelium's lineage saw run in the window but the gate did not, such as scratchpad scripts.
-- **Lint:** scilintr on the analysis folder's code, as Mycelium's analyze skill requires, with every `ANALYSIS_OK` waiver listed.
-  - Python goes through the scilintr CLI. R goes through `scilintr::lint_project()` on a copy of the R code, since scilintr 0.1.1's `main()` lints only its first argument and always exits 0.
-  - Jupyter notebooks' code cells are linted too, with magics commented out. A finding is cited as `<notebook>.ipynb[code cell N]:<line>`.
-  - The `{r}` and `{python}` chunks of `.qmd` and `.Rmd` files are linted as well, cited by the document's own line.
-- **Claims:** each `<!-- claims -->` block in the analysis doc, a Markdown output, or a `--claims` document names a value and the output cell it came from (`8 | outputs/summary.tsv n_hits`, `0.0162 | outputs/de_results.tsv padj SIGLEC1`). A value is checked against its cell after rounding. A table with more than one row needs a row label, so a common value cannot match some row by chance. Other numbers near the block are listed, not checked.
-- **Fact tags, as info:** per tag, how many facts in the frozen plan's Evidence and in the analysis doc's Key Findings carry `[human-stated]`, `[agent-derived: <path>]`, or `[agent-asserted: <source>]`. It flags an untagged fact, an `agent-derived` one without its path, and an `agent-asserted` one without a source. A list with no tag at all (a plan from before 0.9.35) gets one line. The status does not change.
+Planned scripts and their run evidence, changed inputs, output attribution,
+lint findings, and whether declared claims match saved output cells.
+See [Report details](verification.md#what-the-report-shows).
 
 ### Status
 
-It ends with `Verify status: CONFORMS`, `CONFORMS_WITH_GAPS`, or `DOES_NOT_CONFORM`.
-
-- **Blocks:** a failed run, an edited script, a changed input, an output older than the approval, an incomplete Snakemake job, a scilintr finding neither fixed nor waived, a claim its cell contradicts, or a claim read from an explore run's output.
-- **Gaps:** things the records cannot show. These include code scilintr could not check: scilintr not installed, timed out, or with unreadable output, or a script or notebook whose code does not parse, under the Python verify runs on or under R (which scilintr would silently pass). An output is tied to a run by time alone, so attribution only ever produces gaps.
+`CONFORMS` means the checked record agrees; `CONFORMS_WITH_GAPS` means evidence
+is missing; `DOES_NOT_CONFORM` means a blocking mismatch or failure was found.
+A missing check never counts as clean. See [Status details](verification.md#status).
 
 ### What it writes
 
-After you confirm, `verify` writes `<analysis>/provenance/`:
-
-- the frozen plan;
-- its receipts (ones that only passed a planned path to other code are kept, marked `not_a_run`);
-- an outputs table with each file's size, full sha256, and likely run;
-- the scilintr output and waivers (`lint-<hash>.txt`);
-- the package list of any conda env a run used that no `conda-lock.yml` pins (`env-<hash>.txt`, read from the env's `conda-meta`; an env changed since the run is a gap);
-- the pip packages in such an env that conda did not install, locked or not (`pip-<hash>.txt`, in requirements format);
-- the report, and a `PROVENANCE.md` index.
-
-Commit it with the analysis. It never writes `PLAN.md`, `TRACKER.md`, or `specification.md`, so the analysis keeps one plan file. It then names the review command, `/mycelium:review <folder> — check the code against the approved plan in <folder>/provenance/plan-<hash>.md`.
+After confirmation, saves the frozen plan, receipts, output inventory, lint,
+environment records where available, and report under `<analysis>/provenance/`.
+See [Provenance files](verification.md#what-it-writes).
 
 ### Stale plans
 
-`verify stale` sweeps every verified plan. It lists the ones whose scripts, pinned inputs, or outputs changed since their provenance was written. For each, it gives a ready `rg` command that finds the findings resting on it in `.living/findings/`, by session ID or plan hash.
-
-After a planned run in a Mycelium repository, the gate suggests writing the finding's Evidence Ledger Run/Session cell as `<session-id>; plan <hash>`, and ending its Result cell with `[agent-derived: <output path>]`. Mycelium reads only the ledger's date cell.
-
-`verify stale` reads only committed provenance, so it works without the gate on any clone. Outputs are compared by size and time, not hashed.
+`verify stale` lists saved plans whose scripts, inputs, or outputs changed.
+See [Staleness checks](verification.md#stale-plans).
 
 ### Overview of all plans
 
-`verify status` is an on-request overview, with one row per approved or verified plan. Each row shows:
-
-- its analysis folder, runs, verify status, and staleness;
-- the lint verify recorded (a missing or unreadable linter shows as a gap, never `clean`);
-- the folder's `ANALYSIS_MANIFEST.md` entry: `listed: <first status word>`, `listed`, or `not listed`. It reads Mycelium's YAML `status:`, `**Status**:` lines, and a table's Status cell.
-
-No hook runs it.
-
-One limit: an output is tied to a run by time, since receipts do not record which files a run wrote.
+`verify status` shows planned, run, and verified work, with staleness and lint
+coverage. See [Overview details](verification.md#overview-of-all-plans).
 
 ## new-analysis
 
-An analysis is easier to resume when its inputs, steps, plan, and outputs have a predictable home. `new-analysis` creates that folder using Mycelium's layout, with numbered steps and a workflow that makes their order explicit.
+Creates a new folder with numbered step stubs, a Snakefile, `run.sh`, an analysis
+doc, one `PLAN.md`, one `TRACKER.md`, and data/output/log/report locations.
+Refuses non-empty folders and missing link targets; stubs stop until implemented.
 
-```
-analysis/<name>/
-├── 01_prepare_data.R  02_train_model.py  03_explore_model.ipynb
-├── Snakefile      # runs the steps in number order
-├── run.sh         # Mycelium's entry point; calls snakemake
-├── <NAME>.md      # Mycelium's analysis doc, plus a Steps table
-├── PLAN.md        # the one plan for this analysis
-├── TRACKER.md     # status of each plan item, and a dated log
-├── data/  code/   # symlinks to data and shared code
-├── outputs/       # flat; file names start with the step number
-├── logs/          # Snakemake and SLURM logs, executed notebooks
-└── reports/       # Mycelium's report skill
-```
+Uses `<NAME>.md` in Mycelium projects and `README.md` elsewhere. Writes only the
+new folder; Mycelium's `analyze` handles manifest and memory updates.
+See [Full project workflow](usage.md#tier-4-full-project-workflow).
 
-- **Steps.** The numbered steps sit at the folder root, so their order is visible at a glance. Each one is a stub that states its input and output, sets a seed, and stops with an error until you write it.
-- **`<NAME>.md`.** It comes from Mycelium's `analysis-readme.md` template, found through `.mycelium/plugin-root`, or from a bundled copy. `/mycelium:analyze` reads it, Mycelium's post-action hook updates it, and `validate_structure.py` checks that it exists. Results go in its Key Findings section, citing `outputs/` files and `.living/findings` IDs. Outside a Mycelium repository the doc is `README.md`.
-- **`PLAN.md`.** It uses the grill brief's headings, so an approved brief goes straight in. Revise it in place; never start a second plan file.
-- **Snakefile.** It runs from the analysis folder, so every path is relative to it. The interpreters default to `Rscript`, `python`, and `jupyter` on PATH; override them with `--config`.
-- **Safety.** It refuses a non-empty folder, bad step names, and missing link targets. It never overwrites. It warns when git would ignore a file it creates, for example in a repository that ignores `analysis/*/results/`.
-- **Mycelium's files.** It writes nothing to `.living/` or the manifests. It prints a suggested `ANALYSIS_MANIFEST.md` entry. `/mycelium:analyze <name>` then continues the folder as an existing analysis and records it.
+## plan-review
 
-The robust-analysis protocols save figures to subfolders such as `outputs/figures/diagnostic/`. A flat `outputs/` holds only after you record it as a repo-local convention, which Mycelium applies before domain and core conventions.
+Challenges a grill draft before approval. In Claude Code, Claude assembles a
+minimal packet for separate Codex engineering and Biomni biomedical critiques.
+It shows the packet and asks before sending it outside the machine; Biomni
+uses cloud credits. Missing reviewers are reported unavailable.
+
+Writes nothing and approves nothing. Material revisions need a new approval.
+In Codex, this skill supplies the engineering critique only.
+See [Host compatibility](installation.md#host-compatibility) for reviewer requirements.
+
+## decision-status
+
+Resolves which past Mycelium decision applies. Explicit supersession wins,
+then matching scope; contested choices go to you. After confirmation, appends
+a resolution to `.living/decisions.md` without editing old entries.
+Usually called by `grill` when a plan depends on prior decisions.
+
+## data-contract-check
+
+Compares a plan's assumptions with CSV/TSV sample tables or H5AD `obs`.
+Checks columns, cohort levels/counts, unique units, complete pairs, and batch
+versus contrast nesting. Writes nothing. H5AD needs h5py; a missing dependency
+is a gap. Never loosens the contract to make a failed check pass without agreement.
+Usually called by `grill` when sample assumptions matter.
 
 ## handoff
 
-Long sessions accumulate context that the next session will not have. `handoff` writes `HANDOFF.md` at the project root so you can start fresh without reconstructing the work. It records the goal, the exact next action, current state, decisions you locked in, dead ends not to redo, and a few `path:line` pointers to read first.
-
-It overwrites the previous handoff, keeps only what still holds, and stays under about 80 lines: it points to code and commits instead of copying them. It ends with a one-line resume prompt (`Read HANDOFF.md, then ...`).
-
-In a Mycelium project it links to `.mycelium/last-session.md` and `.living/` entries rather than copying them, and never writes to Mycelium's files. It does not commit the handoff or change `.gitignore`.
+Writes a short root `HANDOFF.md` with the goal, current state, locked decisions,
+dead ends, code pointers, and one exact next action. Replaces the previous
+handoff and ends with a resume prompt. Does not commit or change `.living/`.
 
 ## harden
 
-A recorded gotcha helps the next person who reads it. A runnable check can catch the same mistake when nobody remembers to look. `harden` turns one Mycelium learning into that check. It lists learnings still marked `ambient-awareness` whose `structural_mitigation_candidate` names a concrete test (at most five, newest first), and you pick one.
-
-It writes the test in the repository's own test setup, never under the gate's gated paths and never in analysis code. A candidate that places its check in an analysis script gets the same assertion in a test that reads the same file. One that needs the running script's state is skipped.
-
-It shows two runs: the test must fail on a minimal reproduction of the original problem and pass on the current code. If it cannot fail, it guards nothing and the learning stays as it was. After you confirm, it sets that entry's `mitigation_type` to `structural` and notes the test path on its candidate line.
-
-Mycelium's `detect_recurrence.py` flags candidates; `harden` ships them.
+Turns one Mycelium learning's concrete mitigation candidate into a test in the
+repository's existing test setup. Demonstrates failure on a minimal reproduction
+and a pass on current code. After confirmation, marks the learning's mitigation
+as structural and records the test path. Leaves analysis code unchanged.
