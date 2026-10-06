@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.44] - 2026-10-06
+
+### Changed
+
+- `grill` opens its first question with a one- or two-sentence reminder of what the task is, restating only what the invocation, the handoff, or you already said. It still drafts no goal, claim, or result for you to react to.
+
 ## [0.9.43] - 2026-10-06
 
 ### Added
