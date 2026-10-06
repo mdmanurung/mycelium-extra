@@ -1053,6 +1053,109 @@ def names(items, short):
     return lead + ", ".join(shown) + more
 
 
+def all_approvals(root):
+    """Every approval on record, newest first, or None when reading them ran out of time."""
+    folder = state_path(root, "approvals")
+    deadline = time.time() + SCAN_SECONDS
+    found = []
+    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        if time.time() >= deadline:
+            return None
+        record = read_json(os.path.join(folder, name), None)
+        if record and record.get("plan"):
+            found.append(record)
+    return sorted(found, key=lambda record: record.get("approved_at", 0), reverse=True)
+
+
+def read_receipts(root):
+    receipts = []
+    try:
+        with open(state_path(root, "receipts.jsonl"), encoding="utf-8") as handle:
+            for line in handle:
+                try:
+                    receipts.append(json.loads(line))
+                except ValueError:
+                    continue
+    except OSError:
+        pass
+    return receipts
+
+
+def baseline_plan(root, config, digest, text, paths, outputs):
+    """(the newest earlier approval whose plan covers a path this one covers or writes, why not).
+    Any age: this is the frozen plan history, not the last 24 hours."""
+    approvals = all_approvals(root)
+    if approvals is None:
+        return None, "time limit"
+    table = plan_table(text)
+    mine = set(paths) | set(outputs or [])
+    for record in approvals:  # an approval of this very text counts: the plan is being shown again
+        theirs_table = plan_table(record["plan"])
+        theirs = set(plan_grants(root, record["plan"], config)[0]) | set(output_words(record["plan"]) or [])
+        if any(path_in_plan(root, p, theirs_table) for p in mine) or any(path_in_plan(root, q, table) for q in theirs):
+            return record, ""
+    return None, "no earlier approval names these paths"
+
+
+def baseline_lines(root, config, digest, text, paths, outputs, pins, scripts, rows, short):
+    """What is new since the baseline plan, measured by the hook: scripts and inputs by fingerprint,
+    the plan by its objective and table rows. Says "no baseline" rather than imply nothing changed."""
+    record, why = baseline_plan(root, config, digest, text, paths, outputs)
+    if record is None:
+        return ["Since earlier plans: no baseline ({})".format(why)]
+    receipts = []
+
+    def recorded(rel):
+        pin = (record.get("scripts") or {}).get(rel) or read_json(
+            state_path(root, "script-pins", record["hash"] + ".json"), {}).get(rel)
+        if pin:
+            return pin
+        if not receipts:
+            receipts.extend(read_receipts(root))
+        for r in reversed(receipts):
+            seen = r.get("script") or {}
+            if (seen.get("path") == rel and record["hash"] in (r.get("plans") or []) and not r.get("explore")
+                    and not seen.get("missing")):
+                return seen
+        return None
+
+    states = collections.OrderedDict((name, []) for name in ("CHANGED", "NEW", "SAME"))
+    for rel, now in sorted(scripts.items()):
+        before = recorded(rel)
+        states["NEW" if before is None else "SAME" if unchanged(before, now) else "CHANGED"].append(rel)
+    lines = ["Since {} (approved {})".format(record["hash"], time.strftime("%Y-%m-%d %H:%M",
+                                                                           time.localtime(record.get("approved_at", 0))))]
+    lines.append("  scripts  " + (" \u00b7 ".join("{}: {}".format(name, ", ".join(short(r) for r in rels))
+                                                  for name, rels in states.items() if rels) or "none pinned"))
+    old_pins = record.get("pins") or {}
+    pinned = collections.OrderedDict((name, []) for name in ("CHANGED", "NEW"))
+    same = 0
+    for rel, now in sorted((pins or {}).items()):
+        if rel not in old_pins:
+            pinned["NEW"].append(rel)
+        elif unchanged(old_pins[rel], now):
+            same += 1
+        else:
+            pinned["CHANGED"].append(rel)
+    parts = ["{}: {}".format(name, names_plain(rels, short)) for name, rels in pinned.items() if rels]
+    lines.append("  inputs   " + (", ".join(["{} SAME".format(same)] * bool(same) + parts) if same or parts
+                                  else "none pinned"))
+    before_rows = plan_rows(record["plan"])
+    if before_rows is None:
+        lines.append("  plan     the earlier plan has no step table")
+    else:
+        keys = set((clean(r["step"]), clean(r["choice"]), clean(r["check"])) for r in before_rows)
+        kept = sum(1 for r in rows if (clean(r["step"]), clean(r["choice"]), clean(r["check"])) in keys)
+        lines.append("  plan     objective {} \u00b7 steps: {} same, {} new or changed".format(
+            "SAME" if card_goal(record["plan"]) == card_goal(text) else "CHANGED", kept, len(rows) - kept))
+    return lines
+
+
+def names_plain(items, short):
+    shown = [short(item) for item in items[:3]]
+    return ", ".join(shown) + (", \u2026 and {} more".format(len(items) - 3) if len(items) > 3 else "")
+
+
 def procedure_card(root, text, config, digest, pins, outside, previous, scripts):
     """The card for a plan whose table has Step and Choice or Validation columns, else None."""
     rows = plan_rows(text)
@@ -1077,6 +1180,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
     changes = pin_changes(pins, previous) + script_changes
     defaults = [row["num"] for row in rows if row["source"].lower().startswith("default")]
     lines = ["mycelium-extra \u00b7 plan {} ready for approval".format(digest)]
+    lines += baseline_lines(root, config, digest, text, paths, outputs, pins, scripts, rows, short)
     lines += changes
     lines += ["Question   " + card_question(text), "Goal       " + card_goal(text),
               "Defaults to confirm: " + ("step " + ", ".join(defaults) if defaults else "none")]
