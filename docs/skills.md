@@ -4,7 +4,13 @@
 
 **On this page:** [Common prompts](#common-prompts) · [grill](#grill) · [plan-review](#plan-review) · [decision-status](#decision-status) · [data-contract-check](#data-contract-check) · [init](#init) · [verify](#verify) · [new-analysis](#new-analysis) · [handoff](#handoff) · [harden](#harden)
 
-`grill` calls `decision-status` and `data-contract-check` itself when a plan depends on them, so you rarely need to invoke those directly.
+You do not need to learn every command before using Mycelium Extra. Start with the analysis you want to do. `grill` reads the project and helps you turn that goal into a plan; `verify` checks the record after the run. The remaining skills handle the questions that arise along the way.
+
+For example, you might ask:
+
+> "Plan a paired vaccine-response analysis across trials. Check the cohort definitions and previous batch-correction decisions first."
+
+When the plan depends on an old decision or a sample-table assumption, `grill` calls `decision-status` and `data-contract-check` itself.
 
 The prompts below use Claude Code syntax. In Codex, replace
 `/mycelium-extra:` with `$mycelium-extra:`. Approval and exploration messages
@@ -24,12 +30,14 @@ roles and receipt limits.
 | Start a new analysis folder | `/mycelium-extra:new-analysis analysis/gdt-seminmf-dream: does semi-NMF program usage differ by arm? Link data/anndatas/gdt.h5ad.` |
 | Check a run against its plan | `/mycelium-extra:verify 99ddfd42` |
 | Turn a learning into a test | `/mycelium-extra:harden` |
-| Continue in a fresh session | `/mycelium-extra:handoff`, then `/clear` and paste the resume line it prints |
+| Continue in a fresh session | `/mycelium-extra:handoff`, then start a fresh session and paste the resume line it prints |
 | Get next-command suggestions | `hints on` (and `hints off`) |
 | Run a quick test without a plan | Type `allow explore`; type `stop explore` when done. |
 | Make explore runs reportable | Say "promote explore runs"; approve the re-run plan grill drafts. |
 
 ## grill
+
+An analysis plan should make its scientific choices visible before they become code. Use `grill` when you have a question to answer, a workflow to change, or a draft that needs to be checked against the project.
 
 `grill` first asks you, in one free-text message, for the question in your own words and the claim you hope to make. For a software task, it asks for the goal and the result you hope for. It skips what your request already states, and the brief opens with your answer quoted.
 
@@ -47,6 +55,8 @@ Nothing runs until you approve or edit the plan.
 
 ## plan-review
 
+Some plans benefit from a second perspective before you commit to them. A workflow may be technically sound while its biological interpretation is weak, or scientifically useful while its execution path is fragile. `plan-review` keeps those reviews separate so you can see which concern comes from which reviewer.
+
 Run this after grill and before approving a changed plan. Claude Code assembles one minimal, sourced packet. It asks Codex for an engineering critique and a connected Phylo Biomni MCP for a biomedical critique.
 
 - It shows you the packet and sends it only after you agree, since it leaves the machine.
@@ -58,7 +68,7 @@ The skill edits no files, records no run receipts, and does not add an approval.
 
 ## decision-status
 
-Use it when `.living/decisions.md` holds several entries on the same choice, for example a method that was confirmed, then held, then shelved.
+Project decisions change as the evidence changes. A batch-correction method might have been accepted in one analysis, put on hold in another, and replaced for a third. Use `decision-status` when those entries leave it unclear which decision applies to the task in front of you.
 
 - A small read-only parser lists the entries the task touches, oldest first. It shows their raw `Status`, `Supersedes`, `Scope`, and `Revisit when` lines and any status words in headings. It never infers which entry is current.
 - An explicit supersession wins. Next comes the entry whose scope matches the task. Anything else is contested and goes to you, at most three questions per session.
@@ -68,7 +78,9 @@ The new entry uses the ordinary decision fields plus `Status`, `Supersedes`, `Sc
 
 ## data-contract-check
 
-It checks a plan's assumptions about the sample table before anything runs. The assumptions go into a small JSON contract:
+A paired analysis needs actual pairs. A trial contrast needs the expected trial labels. These are easy assumptions to carry into a model and expensive ones to discover afterward. `data-contract-check` compares the plan's assumptions with the sample table before execution.
+
+The assumptions go into a small JSON contract:
 
 - required columns
 - cohort levels and row counts
@@ -82,11 +94,15 @@ It reads CSV/TSV tables and the `obs` of an `.h5ad` file (through h5py when it i
 
 ## init
 
-`init` turns on the approval gate in a repository. It writes `.mycelium-extra/gate.json` and adds `.mycelium-extra/` to `.gitignore`. See [Approval gate](approval-gate.md) for what it checks, how to turn the gate on by hand, and what the gate then enforces, and [Settings](approval-gate.md#settings) for the keys `gate.json` takes.
+Install the plugin once, then choose which projects should use the gate. `init` turns it on for the current repository by writing `.mycelium-extra/gate.json` and adding `.mycelium-extra/` to `.gitignore`. It leaves an existing gate unchanged.
+
+See [Approval gate](approval-gate.md) for a first approval and [Settings](approval-gate.md#settings) for the paths, commands, and approval window.
 
 ## verify
 
-After an approved plan has run, `verify <hash>` compares the plan with the gate's receipts. It reuses the gate's own table parser, so a plan covers exactly the scripts it let through.
+A finished job is only the beginning of checking an analysis. Did every planned step run? Did an input change? Does the number in the write-up match the saved table? After execution, `verify <hash>` compares the approved plan with the records that can answer those questions.
+
+It uses the gate's own table parser, so the scripts covered by verification are the same ones covered by approval. It reads the record without re-running the analysis. In Codex 0.160.0, missing hook exit metadata remains a gap even when the command appeared to finish successfully.
 
 **In this section:** [What the report shows](#what-the-report-shows) · [Status](#status) · [What it writes](#what-it-writes) · [Stale plans](#stale-plans) · [Overview of all plans](#overview-of-all-plans)
 
@@ -147,7 +163,7 @@ One limit: an output is tied to a run by time, since receipts do not record whic
 
 ## new-analysis
 
-It creates the folder a new analysis lives in. It uses Mycelium's own pieces and adds only what Mycelium lacks.
+An analysis is easier to resume when its inputs, steps, plan, and outputs have a predictable home. `new-analysis` creates that folder using Mycelium's layout, with numbered steps and a workflow that makes their order explicit.
 
 ```
 analysis/<name>/
@@ -174,7 +190,7 @@ The robust-analysis protocols save figures to subfolders such as `outputs/figure
 
 ## handoff
 
-`handoff` writes `HANDOFF.md` at the project root so you can `/clear` and continue in a fresh session without carrying the old context. It records the goal, the exact next action, current state, decisions you locked in, dead ends not to redo, and a few `path:line` pointers to read first.
+Long sessions accumulate context that the next session will not have. `handoff` writes `HANDOFF.md` at the project root so you can start fresh without reconstructing the work. It records the goal, the exact next action, current state, decisions you locked in, dead ends not to redo, and a few `path:line` pointers to read first.
 
 It overwrites the previous handoff, keeps only what still holds, and stays under about 80 lines: it points to code and commits instead of copying them. It ends with a one-line resume prompt (`Read HANDOFF.md, then ...`).
 
@@ -182,7 +198,7 @@ In a Mycelium project it links to `.mycelium/last-session.md` and `.living/` ent
 
 ## harden
 
-`harden` turns one Mycelium learning into a test. It lists learnings still marked `ambient-awareness` whose `structural_mitigation_candidate` names a concrete check (at most five, newest first), and you pick one.
+A recorded gotcha helps the next person who reads it. A runnable check can catch the same mistake when nobody remembers to look. `harden` turns one Mycelium learning into that check. It lists learnings still marked `ambient-awareness` whose `structural_mitigation_candidate` names a concrete test (at most five, newest first), and you pick one.
 
 It writes the test in the repository's own test setup, never under the gate's gated paths and never in analysis code. A candidate that places its check in an analysis script gets the same assertion in a test that reads the same file. One that needs the running script's state is skipped.
 

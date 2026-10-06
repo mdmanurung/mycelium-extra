@@ -2,7 +2,18 @@
 
 [Back to README](../README.md)
 
-Mycelium Extra exists because of [Mycelium](https://github.com/arjunrajlaboratory/mycelium) (MIT, Copyright (c) 2024 Mycelium Contributors). It reads Mycelium's memory, follows its file formats, and hands work back to its skills. This page lists what it takes from Mycelium, what it adds, and the rules that keep the two from clashing. Paths below are inside the Mycelium 0.7.2 plugin.
+An analysis benefits from the decisions and experience already stored in its
+project. [Mycelium](https://github.com/arjunrajlaboratory/mycelium) provides that
+memory; Mycelium Extra uses it to plan the next task and check its execution.
+The two plugins share project context while keeping their responsibilities
+clear: Mycelium maintains the living repository, and Mycelium Extra connects a
+proposed plan to the runs and outputs that follow.
+
+Mycelium Extra builds on Mycelium's MIT-licensed templates and conventions
+(Copyright (c) 2024 Mycelium Contributors). This page records that reuse and
+the boundaries between the plugins. The file paths and comparison below use
+Mycelium 0.7.2 as their documented baseline, rather than describing every
+behavior of newer releases.
 
 **On this page:** [What Mycelium covers and what this plugin adds](#what-mycelium-covers-and-what-this-plugin-adds) · [What is taken from Mycelium](#what-is-taken-from-mycelium) · [Other credits](#other-credits) · [Boundaries](#boundaries)
 

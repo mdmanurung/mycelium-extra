@@ -1,12 +1,20 @@
 # Mycelium Extra
 
-A standalone plugin for planning analysis work before it runs. It works alongside [Mycelium](https://github.com/arjunrajlaboratory/mycelium) but does not fork, modify, or require it.
+**Plan an analysis from project evidence. Approve what will run. Check what actually happened.**
+
+An analysis often starts with assumptions that nobody wrote down. Which samples belong in the comparison? What counts as an independent replicate? Is this the same input table you checked last week? By the time those questions surface, the pipeline may have finished and its outputs may already be in a report.
+
+Mycelium Extra brings those choices into the plan before execution. It reads your project, asks about the decisions that need your judgment, and produces a plan with a source for each consequential choice. Once you approve it, the gate checks covered runs against that plan. Afterward, verification connects the plan to run receipts, outputs, and reported numbers.
+
+Install it in Claude Code or Codex and use it alongside [Mycelium](https://github.com/arjunrajlaboratory/mycelium), or in an ordinary repository. Mycelium Extra is a separate plugin; Mycelium remains responsible for the project's memory and analysis conventions.
 
 **Contents:** [Why, on top of Mycelium](#why-on-top-of-mycelium) · [Skills](#skills) · [How a task moves](#how-a-task-moves) · [Installation](#installation) · [Quick start](#quick-start) · [Documentation](#documentation) · [License and credits](#license-and-credits)
 
 ## Why, on top of Mycelium
 
-Mycelium gives a project a memory. `.living/` records decisions, learnings, and findings; its hooks log what ran; its `analyze` and `review` skills carry the analysis conventions. Mycelium Extra builds on that memory. It adds the steps before and after a run that Mycelium 0.7.2 does not cover:
+Mycelium gives a project a durable record of its decisions, learnings, and findings. Mycelium Extra uses that record to shape the next analysis: what you intend to do, why those choices fit the project, and what evidence you will need when the run finishes.
+
+The comparison below uses Mycelium 0.7.2 as its documented baseline. It explains where these workflows came from; newer Mycelium versions may cover more of the lifecycle.
 
 | Stage | Mycelium 0.7.2 | Mycelium Extra adds |
 |---|---|---|
@@ -20,7 +28,7 @@ Every Mycelium file and idea this plugin reuses is listed in [Mycelium: credits 
 
 ## Skills
 
-Nine skills and one hook set. Each name links to its full description.
+Most tasks start with `grill` and finish with `verify`. The other skills help when you need to check inputs, settle an old decision, create an analysis folder, or leave a useful handoff. Each name below links to a guide.
 
 | Part | What it does | Writes |
 |---|---|---|
@@ -37,7 +45,9 @@ Nine skills and one hook set. Each name links to its full description.
 
 ## How a task moves
 
-The path of one task, and where Mycelium takes over:
+Suppose you want to compare a paired treatment response across trials. `grill` reads the sample table, previous decisions, and analysis code. It helps you settle the pairing rules and comparison before a job runs. You approve the resulting plan, execute through your usual workflow, and ask `verify` whether the record supports what you intended.
+
+This is how that task moves between Mycelium Extra and Mycelium:
 
 ```mermaid
 flowchart TD
@@ -113,7 +123,11 @@ requirements, and troubleshooting.
 
 ## Quick start
 
-A typical analysis task, in order:
+Open your project in Claude Code or Codex and start with the question you want to answer:
+
+> "Plan a paired treatment-response analysis across these trials. Read the existing decisions and sample table before asking me what to change."
+
+Invoke `/mycelium-extra:grill` in Claude Code or `$mycelium-extra:grill` in Codex when you want to select the skill explicitly. With the plugin installed, a typical task follows these steps:
 
 1. **Once per repository:** `/mycelium-extra:init` turns on the approval gate.
 2. **Plan:** `/mycelium-extra:grill <your task>`. State your question when it asks, then answer its questions (at most five).

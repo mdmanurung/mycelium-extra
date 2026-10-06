@@ -2,7 +2,24 @@
 
 [Back to README](../README.md)
 
-**Tests:** `python3 skills/<skill>/tests/test_*.py` and `python3 hooks/tests/test_gate.py`. The end-to-end suite on the fixture project is `python3 tests/test_end_to_end.py` (about 40 s) with `python3 tests/test_fixture_data.py`; `python3 tests/e2e/ablate.py` checks that the defect cases still depend on the guards they name ([design](design/c1-fixture-project.md)).
+Mycelium Extra sits between a plan and its execution. A small change to command
+recognition or a hook payload can change which runs are allowed, so development
+starts with the behavior you intend to change and the checks that demonstrate
+it. The shared gate should keep the same meaning in Claude Code and Codex.
+
+## Testing a change
+
+Run the affected skill's tests and the gate tests first:
+
+```bash
+python3 skills/<skill>/tests/test_<name>.py
+python3 hooks/tests/test_gate.py
+```
+
+Then run `python3 tests/test_end_to_end.py` on the fixture project (about two
+minutes) and `python3 tests/test_fixture_data.py`. The ablations in
+`python3 tests/e2e/ablate.py` remove individual guards to check that the defect
+cases actually depend on them. See the [fixture design](design/c1-fixture-project.md).
 
 `python3 tests/test_versions.py` checks that the three manifests and the newest `CHANGELOG.md` heading name the same version, and `python3 tests/check_links.py $(git ls-files '*.md')` that every relative link and anchor resolves.
 
@@ -10,11 +27,17 @@ CI (`.github/workflows/ci.yml`) runs all of the above on every push to `main` an
 
 Before changing `hooks/gate.py`, also run `python3 hooks/tests/gate_diff.py`: it sends the same events to the committed gate and the working tree and must report every case identical, except the decisions you meant to change.
 
+## Python compatibility and versions
+
 Hooks call bare `python3`, which is 3.6 on some HPC systems, so keep every script 3.6-compatible; the gate tests compile them all under `python3.6` when it is installed.
 
 Bump `version` in `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, and `.claude-plugin/marketplace.json` together, so `claude plugin update` picks up the change. The same commit adds a [CHANGELOG.md](../CHANGELOG.md) entry for the new version.
 
 ## Cross-host checks
+
+Passing a Python test does not show that a host loaded the plugin or dispatched
+its hooks. Check both layers: the shared behavior in the test suite, and the
+installed plugin in a real host session.
 
 `python3 hooks/tests/test_codex_gate.py` checks the Codex entrypoint's approval
 flow, receipts, missing exit status, and state protection for patches and moves.
@@ -53,6 +76,10 @@ These checks validate the local candidate, not a published installation or a
 GitHub Pages deployment.
 
 ## Documentation website
+
+The website and repository use the same Markdown pages. You can improve a
+guide without maintaining a second copy, and Sphinx checks the links when it
+builds the site.
 
 Use Python 3.12 for the website tooling; the plugin still supports Python 3.6.
 

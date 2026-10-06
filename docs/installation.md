@@ -1,15 +1,27 @@
 # Installation and host compatibility
 
-Mycelium Extra is installed separately from Mycelium. Planning works in a normal
-Git repository; the memory skills use `.living/` when it is present.
+Install Mycelium Extra once, then choose which projects should use its approval
+gate. The same planning skills are available in Claude Code and Codex. If your
+project already uses Mycelium, the plugin reads its decisions and conventions;
+in an ordinary repository, it starts with your existing documentation and code.
+
+You can begin with a question such as:
+
+> "Plan the next analysis using this project's sample table and previous decisions."
+
+Follow the installation steps for your host, then initialize the gate in the
+project where you want to control execution.
 
 ## Claude Code
+
+Add the marketplace and install the plugin:
 
 ```bash
 claude plugin marketplace add mdmanurung/mycelium-extra
 claude plugin install mycelium-extra@mycelium-extra
 ```
 
+This makes the plugin's skills available as `/mycelium-extra:<skill>` commands.
 Restart Claude Code, then invoke `/mycelium-extra:grill <task>`.
 For a project-local install, run the install command in that project with
 `--scope local`. For a local checkout, pass its absolute path to
@@ -39,10 +51,13 @@ codex plugin marketplace add mdmanurung/mycelium-extra
 codex plugin add mycelium-extra@mycelium-extra
 ```
 
+This installs the shared skills under the `mycelium-extra` namespace.
 For local development, replace the marketplace source with
-`/absolute/path/to/mycelium-extra`. Open `/hooks`, enable/trust the plugin hooks,
-restart Codex, and invoke
+`/absolute/path/to/mycelium-extra`. Open `/hooks` in the Codex CLI, trust all
+four Mycelium Extra hooks, fully exit Codex, and start a new task. Then invoke
 `$mycelium-extra:grill <task>`. The same skill folders are used by both hosts.
+
+`/hooks` is a CLI command. The desktop app does not provide this trust step.
 
 Refresh the marketplace and reinstall the plugin, then start a new session:
 
@@ -50,6 +65,29 @@ Refresh the marketplace and reinstall the plugin, then start a new session:
 codex plugin marketplace upgrade mycelium-extra
 codex plugin add mycelium-extra@mycelium-extra
 ```
+
+Revisit `/hooks` after an upgrade: the installed plugin path and its trust
+record can change. Trust the current hooks and restart before relying on them.
+
+## Your first analysis
+
+Open the project where you want to work. With the plugin installed and its
+hooks enabled, the first task follows four steps:
+
+1. **Turn on the gate.** Use `/mycelium-extra:init` in Claude Code or
+   `$mycelium-extra:init` in Codex. The default paths are `analysis/**` and
+   `nbs/**`; if those folders are absent, the skill asks which paths to cover.
+2. **Plan the work.** Invoke `grill` with your question. Read its assumptions,
+   numbered steps, and the files listed under `Inputs:`.
+3. **Approve the plan.** In the same session, send only the displayed
+   `approve plan <hash>` line. A revised plan needs its current hash approved.
+4. **Run and check.** Execute through your usual workflow, then invoke
+   `/mycelium-extra:verify <hash>` or `$mycelium-extra:verify <hash>`. The report
+   distinguishes problems in the run from evidence it could not collect.
+
+In a Mycelium project, use its `analyze` skill for execution and its `review`
+skill for code review. Mycelium Extra supplies the planning and verification
+steps around that work.
 
 ## Requirements
 
