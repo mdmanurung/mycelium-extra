@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.49] - 2026-10-06
+
+### Changed
+
+- The approval card opens with what is new since the newest earlier approval that covers or writes the same paths, of any age (not only the last 24 hours): each pinned script and input as `SAME`, `CHANGED` or `NEW`, taken from the earlier plan's pins or, for plans approved before script pins existed, from the receipts of its runs, plus whether the objective and each step row are unchanged. With no earlier plan it says "no baseline" and why instead of implying nothing changed. Re-showing a plan that was already approved compares it with that approval. Checked on 55 approved plans (each rendered with only the approvals before it): 40 found a baseline, 15 said "no baseline", none failed; median 39 lines, maximum 75 when several scripts changed.
+
 ## [0.9.48] - 2026-10-06
 
 ### Changed
