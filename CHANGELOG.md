@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.48] - 2026-10-06
+
+### Changed
+
+- The approval card describes the plan instead of listing its files. For a plan whose table has a Step column and a Choice or Validation column it shows the question, the goal, the `default:` steps to confirm, each step with its choice, who decided it and its check, the Evidence lines that name a failure or a flag, and `CAN RUN (in full)`: every gated script, folder and command the table lets through, never collapsed or capped. Inputs and outputs become counts under a shared folder, a repeated path prefix is written once, steps the agent marks `(done)` read "agent says: done", and scripts the plan names only in prose are listed as not authorised. Text quoted from the plan has control characters, markup and the phrase "approve plan" removed. A plan without those columns keeps the old card. `grill` now asks for plain-language Choice and Validation cells. Checked on 55 approved plans from `scale` and `bmv_pilot_cytof_integration`: the card's grants equal the gate's own for every plan, with a median of 36 lines (maximum 49).
+
 ## [0.9.47] - 2026-10-06
 
 ### Changed
