@@ -784,13 +784,13 @@ def active_approvals(root, config):
     return approvals
 
 
-def covering(label, paths, approvals):
+def covering(root, label, paths, approvals):
     """The approvals whose plan table covers a run, oldest first."""
     found = []
     for record in approvals:
         table = plan_table(record.get("plan", ""))
         if paths:
-            if all(path_in_plan(path, table) for path in paths):
+            if all(path_in_plan(root, path, table) for path in paths):
                 found.append(record)
         elif names_command(label, table):
             found.append(record)
@@ -838,8 +838,14 @@ def plan_paths(table):
     return frozenset(tokens)  # cached, so callers must not mutate it
 
 
-def path_in_plan(path, table):
-    named = plan_paths(table)
+def plan_paths_in(root, table):
+    """plan_paths with each path inside the project root made root-relative, the one form the
+    gate and verify compare; a path outside the root stays as written."""
+    return frozenset((repo_relative(root, root, p) or p) if os.path.isabs(p) else p for p in plan_paths(table))
+
+
+def path_in_plan(root, path, table):
+    named = plan_paths_in(root, table)
     parts = path.split("/")
     return any("/".join(parts[:depth]) in named for depth in range(len(parts), 1, -1))
 
@@ -855,7 +861,7 @@ def scope_lines(root, plan, config):
     table = plan_table(plan)
     if not table.strip():
         return ["  Runs allowed: none (the plan has no plan table; only its paths and commands count)"]
-    runs = sorted(p for p in plan_paths(table) if gated_rel(root, root, p, config))
+    runs = sorted(p for p in plan_paths_in(root, table) if gated_rel(root, root, p, config))
     runs += [c for c in config["gated_commands"] if names_command(c, table)]
     if not runs:
         return ["  Runs allowed: none (the plan table names no gated script, folder, or command)"]
@@ -970,7 +976,7 @@ def covered_scripts(root, text, config):
     """Existing script files the plan table names. A script under a folder it names, or
     one that does not exist yet, is pinned at its first run instead."""
     found = []
-    for named in sorted(plan_paths(plan_table(text))):
+    for named in sorted(plan_paths_in(root, plan_table(text))):
         rel = gated_rel(root, root, named, config)
         if rel and SCRIPT_EXT.search(rel) and os.path.isfile(os.path.join(root, rel)):
             found.append(rel)
@@ -1131,7 +1137,7 @@ def on_tool(event, root, config):
             approvals = active_approvals(root, config)
             if approvals is None:
                 return deny(SCAN_TIMEOUT)
-        records = covering(label, paths, approvals)
+        records = covering(root, label, paths, approvals)
         if not records:
             blocked.append((label, paths))
             continue
@@ -1454,7 +1460,7 @@ def on_post(event, root, config):
     approvals = approvals or []
     planned = []
     for explore, label, paths, segment, tokens, cwd in runs:
-        records = covering(label, paths, approvals)
+        records = covering(root, label, paths, approvals)
         wrapped_paths = []  # the gated scripts an `sbatch --wrap` payload runs, from the job's folder
         if label == "sbatch":
             for payload in flag_values(after_word(tokens, "sbatch"), ("--wrap",)):
@@ -1462,7 +1468,7 @@ def on_post(event, root, config):
                     wrapped_paths += [p for p in inner[2] if p not in paths + wrapped_paths]
         if wrapped_paths:  # a plan is credited with the job only if it also names what the job runs
             records = [r for r in records
-                       if all(path_in_plan(p, plan_table(r.get("plan", ""))) for p in wrapped_paths)]
+                       if all(path_in_plan(root, p, plan_table(r.get("plan", ""))) for p in wrapped_paths)]
         paths = paths + wrapped_paths
         if records and not explore and records[-1]["hash"] not in planned:
             planned.append(records[-1]["hash"])
