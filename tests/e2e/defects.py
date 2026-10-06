@@ -680,6 +680,21 @@ def v25(p):
     return report(p, conda_runs(p))
 
 
+@defect("V-26", "verify", "verify", ["tool: verify"],
+        {"code": 0, "status_code": 0, "status": CONFORMS, "crashed": False,
+         "messages": ["| `{}` | ran".format(harness.SCRIPTS[0])]})
+def v26(p):
+    # M8-T03 B1: step 1 names its script by absolute path, steps 2 and 3 by root-relative path.
+    text = harness.plan_text().replace("`{}`".format(harness.SCRIPTS[0]),
+                                       "`{}`".format(p.path(harness.SCRIPTS[0])))
+    digest = p.run_plan(text)[0]
+    code, out, err = p.verify("report", digest)
+    status_code, status_out, status_err = p.verify("status")
+    text = out + err + status_out + status_err
+    return {"code": code, "status_code": status_code, "status": harness.status_line(out),
+            "crashed": "Traceback" in text, "text": text}
+
+
 # ---------------------------------------------------------------- 8.4 sweeps and memory
 
 def verified(p):

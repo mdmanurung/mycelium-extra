@@ -140,6 +140,15 @@ class GateTest(unittest.TestCase):
         self.assertIsNone(self.bash("python analysis/x.py"))
         self.assertTrue(self.denied(self.bash("python analysis/other.py")))
 
+    def test_absolute_plan_path_inside_the_root_means_the_relative_path(self):
+        self.approve(PLAN.replace("`analysis/x.py`", "`{}/analysis/x.py`".format(self.root)))
+        self.assertIsNone(self.bash("python analysis/x.py"))
+        self.assertTrue(self.denied(self.bash("python analysis/other.py")))
+
+    def test_absolute_plan_path_outside_the_root_approves_nothing(self):
+        self.approve(PLAN.replace("`analysis/x.py`", "`/elsewhere/analysis/x.py`"))
+        self.assertTrue(self.denied(self.bash("python analysis/x.py")))
+
     def test_wrap_payload_must_also_be_planned(self):
         self.approve(PLAN.replace("repo |", "repo | sbatch |"))
         self.assertTrue(self.denied(self.bash("sbatch --wrap='python analysis/other.py'")))

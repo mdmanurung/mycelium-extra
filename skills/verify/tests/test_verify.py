@@ -120,6 +120,16 @@ class VerifyTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, err.decode("utf-8"))
         return out.decode("utf-8")
 
+    def test_plan_naming_scripts_by_absolute_and_relative_path(self):
+        second = "analysis/a/scripts/02_plot.py"
+        self.write(second, "print(2)\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("run `{}/{}`".format(self.root, FIT), "run `{}`".format(second)))
+        self.run_cmd("python " + FIT)
+        out = self.verify("report", digest)
+        self.assertIn("| `{}` | ran".format(FIT), out)  # reported root-relative, once
+        self.assertNotIn("`{}/".format(self.root), out)
+        self.assertIn(digest, self.verify("status"))
+
     def test_conforming_run(self):
         digest = self.approve(plan("run `{}`".format(FIT)))
         receipt = self.run_cmd("python " + FIT)
