@@ -897,14 +897,28 @@ def output_lines(text):
     return ["  Outputs"] + bullets(words) if words else ["  Outputs: none"]
 
 
+UNIGNORED = ("Warning: `{0}/` is not in .gitignore, so Mycelium's stop check counts the gate's receipts "
+             "as session changes. Fix: add `{0}/` to .gitignore (mycelium-extra init does this).").format(STATE_DIR)
+
+
+def state_unignored(root):
+    """True when Mycelium (`.living/`) shares this git repository and the state folder is not ignored."""
+    if not os.path.isdir(os.path.join(root, ".living")) or not git(root, "rev-parse", "--is-inside-work-tree"):
+        return False
+    return git(root, "check-ignore", "-q", STATE_DIR + "/gate.json") is None
+
+
 def approval_card(root, text, config, digest, pins, outside, previous, scripts=None):
     card = procedure_card(root, text, config, digest, pins, outside, previous, scripts or {})
-    if card:
-        return card
-    return "\n".join(["mycelium-extra \u00b7 plan ready for approval",
-                      "  \u25b6 approve plan {}".format(digest), ""]
-                     + scope_lines(root, text, config) + pin_lines(pins, outside, previous)
-                     + script_lines(root, scripts, config) + output_lines(text))
+    if not card:
+        card = "\n".join(["mycelium-extra \u00b7 plan ready for approval",
+                          "  \u25b6 approve plan {}".format(digest), ""]
+                         + scope_lines(root, text, config) + pin_lines(pins, outside, previous)
+                         + script_lines(root, scripts, config) + output_lines(text))
+    if state_unignored(root):
+        head, _, rest = card.partition("\n")
+        card = "\n".join([head, UNIGNORED, rest])
+    return card
 
 
 # ---------------------------------------------------------------- the procedure card
