@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.47] - 2026-10-06
+
+### Changed
+
+- When `verify` finds a script edited after its run, the finding now says whether an approval covers the script's current version: a plan pinned it, it ran under a plan approved after the file was last modified (by file time), it ran only under a plan approved before that, or it has not run under any plan. The status stays `DOES_NOT_CONFORM` in every case. On `scale` and `bmv_pilot_cytof_integration` none of the blocks was covered, so an edit made between a plan's approval and its run now reads as an unapproved change instead of looking superseded (M8-T03, defect `V-27`). A Snakemake-run script's finding is unchanged, since no fingerprint of it is recorded.
+
 ## [0.9.46] - 2026-10-06
 
 ### Fixed
