@@ -244,6 +244,75 @@ class GateTest(unittest.TestCase):
         self.assertNotIn("Step 16", card)
         self.assertIn("\u2026 and 2 more steps in the plan above", card)
 
+    def card_plan_for(self, scripts=("analysis/a/02_fit.py",), objective="Compare A with B.", inputs="data/in.tsv"):
+        rows = "\n".join("| {} | Run `{}` | exact test | user | 12 donors |".format(i + 1, path)
+                         for i, path in enumerate(scripts))
+        return "\n".join(["**Objective.** " + objective, "", "Inputs: " + inputs, "",
+                          "| # | Step | Choice | Source | Validation |", "|---|---|---|---|---|", rows, "",
+                          "Plan status: READY"])
+
+    def write_file(self, rel, text):
+        path = os.path.join(self.root, rel)
+        if not os.path.isdir(os.path.dirname(path)):
+            os.makedirs(os.path.dirname(path))
+        with open(path, "w") as handle:
+            handle.write(text)
+
+    def approval_path(self, digest):
+        return os.path.join(self.root, ".mycelium-extra", "approvals", digest + ".json")
+
+    def edit_approval(self, digest, change):
+        with open(self.approval_path(digest)) as handle:
+            record = json.load(handle)
+        change(record)
+        with open(self.approval_path(digest), "w") as handle:
+            json.dump(record, handle)
+
+    def test_card_baseline_is_none_for_the_first_plan(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.assertIn("Since earlier plans: no baseline (no earlier approval names these paths)",
+                      self.card(self.card_plan_for()))
+
+    def test_card_baseline_same_changed_and_new(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.write_file("data/in.tsv", "x\n")
+        first = self.approve(self.card_plan_for())[0]
+        same = self.card(self.card_plan_for())
+        self.assertIn("Since {} (approved ".format(first), same)
+        for text in ("  scripts  SAME: analysis/a/02_fit.py", "  inputs   1 SAME",
+                     "  plan     objective SAME \u00b7 steps: 1 same, 0 new or changed"):
+            self.assertIn(text, same)
+        self.write_file("analysis/a/02_fit.py", "print(2)\n")
+        self.write_file("analysis/a/new.py", "print(3)\n")
+        self.write_file("data/in.tsv", "y\n")
+        later = self.card(self.card_plan_for(("analysis/a/02_fit.py", "analysis/a/new.py")))
+        for text in ("  scripts  CHANGED: analysis/a/02_fit.py \u00b7 NEW: analysis/a/new.py",
+                     "  inputs   CHANGED: data/in.tsv",
+                     "  plan     objective SAME \u00b7 steps: 1 same, 1 new or changed"):
+            self.assertIn(text, later)
+
+    def test_card_baseline_reaches_past_the_approval_window(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        first = self.approve(self.card_plan_for())[0]
+        self.edit_approval(first, lambda record: record.update(approved_at=record["approved_at"] - 3 * 86400))
+        self.assertIn("Since {} (approved ".format(first), self.card(self.card_plan_for()))
+
+    def test_card_baseline_falls_back_to_the_receipts(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        first = self.approve(self.card_plan_for())[0]
+        self.edit_approval(first, lambda record: record.pop("scripts"))  # an approval from before script pins
+        self.hook("post", {"tool_name": "Bash", "tool_input": {"command": "python analysis/a/02_fit.py"},
+                           "tool_response": {"stdout": "", "exit_code": 0}})
+        self.assertIn("  scripts  SAME: analysis/a/02_fit.py", self.card(self.card_plan_for()))
+        self.write_file("analysis/a/02_fit.py", "print(2)\n")
+        self.assertIn("  scripts  CHANGED: analysis/a/02_fit.py", self.card(self.card_plan_for()))
+
+    def test_card_baseline_says_when_the_earlier_plan_never_recorded_a_script(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        first = self.approve(self.card_plan_for())[0]
+        self.edit_approval(first, lambda record: record.pop("scripts"))
+        self.assertIn("  scripts  NEW: analysis/a/02_fit.py", self.card(self.card_plan_for()))
+
     def test_wrap_payload_must_also_be_planned(self):
         self.approve(PLAN.replace("repo |", "repo | sbatch |"))
         self.assertTrue(self.denied(self.bash("sbatch --wrap='python analysis/other.py'")))
