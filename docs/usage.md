@@ -95,13 +95,64 @@ In Codex, it provides only the engineering critique. Review never approves a run
 `decision-status` and `harden` use Mycelium's learning/decision records;
 ordinary repositories can still plan, gate, verify, scaffold, and hand off.
 
-For an existing Mycelium project, a full analysis can follow this sequence:
+## Full analysis workflow
 
-```text
-new-analysis → grill → optional plan-review → approve → mycelium:analyze
-→ grill run plan → approve → run → verify → mycelium:review → mycelium:report
+This shows a reportable analysis using Extra with Mycelium. **Solid arrows
+show the main path; dotted arrows show optional steps or revisions.** In an
+ordinary repository, use your own implementation, review, and reporting tools
+in place of the `mycelium:*` commands.
+
+```mermaid
+flowchart TD
+    accTitle: Full data analysis workflow with Mycelium Extra
+    accDescr: Set up inputs, plan and approve, implement and freeze code, run, verify, review, report, and record project memory.
+    subgraph prepare["1. Set up and plan"]
+        question["Analysis question + available data"]
+        setup["Install Extra; enable hooks; init once per repository"]
+        inputs["mycelium:ingest or your usual data setup<br/>Register inputs and inspect the sample table"]
+        folder["Use an existing analysis folder<br/>or create one with new-analysis"]
+        plan["grill: read project evidence and draft a plan<br/>decision-status + data-contract-check when needed"]
+        approval["You approve the displayed plan hash"]
+        question --> setup --> inputs --> folder --> plan --> approval
+    end
+
+    subgraph execute["2. Implement and run"]
+        code["mycelium:analyze or your own tools<br/>Implement preparation, models, and plots; lint and test"]
+        freeze["grill: revise PLAN.md into a run plan<br/>Pin code + data; show dry run and tool versions"]
+        runapproval["You approve the run plan's displayed hash"]
+        run["Run preparation, models, diagnostics, and figures<br/>Use your normal runner; gate checks inputs and records receipts"]
+        code --> freeze --> runapproval --> run
+    end
+
+    subgraph finish["3. Check and report"]
+        verify["verify: compare plan, receipts, outputs, lint, and claims<br/>Read CONFORMS, CONFORMS_WITH_GAPS, or DOES_NOT_CONFORM"]
+        provenance["Confirm saving the check<br/>Commit analysis + provenance with its recorded status"]
+        review["mycelium:review<br/>Review code and statistics against the frozen plan"]
+        report["mycelium:report<br/>Write findings and figures with output-backed claims"]
+        memory["Mycelium's normal memory updates<br/>Record findings, decisions, learnings, and verification status"]
+        verify -->|"after reading failures and gaps"| provenance --> review --> report --> memory
+    end
+
+    approval --> code
+    runapproval -.->|"frozen code or data changes: revise and reapprove"| freeze
+    run --> verify
+    verify -.->|"work needs correction: revise the plan and repeat affected steps"| plan
+    plan -.->|"optional, before approval"| independent["plan-review: independent critique<br/>Claude leads Codex + Biomni; review grants no approval"]
+    independent -.->|"recommendations to consider"| plan
+    code -.->|"pause at any stage"| handoff["handoff: capture current state and the next action"]
+    memory -.->|"a learning has a concrete test candidate"| harden["harden: demonstrate a failing reproduction<br/>and a passing regression test"]
 ```
 
-Mycelium handles its normal memory updates; `handoff` and `harden` are used as
-needed. See [Skill reference](skills.md) for each tool's writes and
-[Mycelium integration](mycelium-integration.md) for ownership and boundaries.
+The first approval covers implementation and test runs; the second freezes
+finished code for the reportable run. Dry runs still need approval. Use one
+`PLAN.md`, revised in place, and record revisions in `TRACKER.md`.
+
+Verification reports missing evidence separately from failures; saving provenance
+does not turn a gap or failure into a pass. It checks the execution record, while
+code review assesses methods and interpretation. If the final report introduces
+new or changed claims, run `verify` again with that document included before
+sharing it. See [Verification reference](verification.md#what-the-report-shows).
+
+`handoff` can be used at any pause. `harden` is for a specific recurring mistake,
+not a mandatory finishing step. See [Skill reference](skills.md) for each tool's
+writes and [Mycelium integration](mycelium-integration.md) for ownership.

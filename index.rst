@@ -32,6 +32,8 @@ Choose your tier
 
 **Only need a plan?** Install the plugin and invoke ``grill``.
 **Ready to run?** Follow Tier 2 in the usage guide.
+See the `full analysis workflow diagram <docs/usage.html#full-analysis-workflow>`_
+for the path from question to report.
 Claude Code uses ``/mycelium-extra:<skill>``; Codex uses ``$mycelium-extra:<skill>``.
 
 .. toctree::
