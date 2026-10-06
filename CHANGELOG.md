@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.52] - 2026-10-06
+
+### Added
+
+- The approval card warns when Mycelium shares the repository (`.living/` exists, inside a git repository) but `.mycelium-extra/` is not git-ignored: Mycelium's stop check counts `git status`, so the gate's receipts would look like session changes. The line sits under the card's first line, on both the new and the old card, and says to add `.mycelium-extra/` to `.gitignore`. It never blocks. Nothing else changes: the 56 approved plans of `scale` and `bmv_pilot_cytof_integration` render byte-identically, since both repositories already ignore the folder. Found while checking that Extra and Mycelium's hooks do not interfere (both plugins' hooks run in parallel on one repository, and the gate allowed every `.living/` and `.mycelium/` write Mycelium's protocol asks for).
+
 ## [0.9.51] - 2026-10-06
 
 ### Changed

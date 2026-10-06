@@ -37,6 +37,11 @@ analysis folder; verification writes only its `provenance/` after confirmation.
 learning after demonstrating its test. Extra does not replace Mycelium's memory
 or code review. Independent plan review advises; only your approval authorizes runs.
 
+The gate keeps its state in `.mycelium-extra/`, apart from Mycelium's `.mycelium/`
+and `.living/`, and `init` ignores it in `.gitignore`. Mycelium's stop check counts
+`git status`, so if that folder is not ignored in a repository with `.living/`, the
+approval card opens with a warning: add `.mycelium-extra/` to `.gitignore`.
+
 ## Credits
 
 Extra reuses Mycelium's MIT-licensed analysis template and follows its folder,
