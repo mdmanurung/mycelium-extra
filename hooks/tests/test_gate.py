@@ -149,6 +149,101 @@ class GateTest(unittest.TestCase):
         self.approve(PLAN.replace("`analysis/x.py`", "`/elsewhere/analysis/x.py`"))
         self.assertTrue(self.denied(self.bash("python analysis/x.py")))
 
+    CARD_PLAN = "\n".join([
+        "> Question (user's words): \"does A beat B?\"",
+        "> Hoped-for claim: \"yes\"",
+        "",
+        "**Objective.** Compare A with B on the cohort, no refits.",
+        "",
+        "**Evidence**",
+        "- Both placebo fits fail the E-BFMI gate. [agent-derived: results/x.tsv]",
+        "- Cohort has 24 rows. [human-stated]",
+        "",
+        "Facts: 1 agent-derived, 1 human-stated, 0 agent-asserted.",
+        "",
+        "Inputs: data/in.tsv",
+        "Outputs: analysis/a/out/res.tsv",
+        "",
+        "| # | Step | Choice | Source | Validation |",
+        "|---|---|---|---|---|",
+        "| 1 | Back up the old table (done) | keep old output | default: nothing is lost | md5 equal |",
+        "| 2 | Run `analysis/a/02_fit.py` | exact permutation test | user | 12 donors x 2 visits |",
+        "| 3 | Run `snakemake` | dry run only | repo: CLAUDE.md | dry run resolves |",
+        "",
+        "Plan status: READY_WITH_ASSUMPTIONS",
+    ])
+
+    def card(self, plan):
+        return self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
+
+    def test_card_describes_the_procedure(self):
+        os.makedirs(os.path.join(self.root, "analysis", "a"))
+        with open(os.path.join(self.root, "analysis", "a", "02_fit.py"), "w") as handle:
+            handle.write("print(1)\n")
+        card = self.card(self.CARD_PLAN)
+        lines = card.splitlines()
+        self.assertTrue(lines[0].startswith("mycelium-extra \u00b7 plan ") and "ready for approval" in lines[0])
+        self.assertTrue(lines[-1].startswith("\u25b6 approve plan ") and len(lines[-1].split()[-1]) == 8)
+        for text in ('Question   "does A beat B?"', "Goal       Compare A with B on the cohort, no refits.",
+                     "Defaults to confirm: step 1", "Facts: 1 agent-derived, 1 human-stated, 0 agent-asserted.",
+                     " 1  Back up the old table  (agent says: done)",
+                     "    choice  keep old output  [default: nothing is lost]", "    check   md5 equal",
+                     " 2  Run analysis/a/02_fit.py", "    choice  exact permutation test  [you]",
+                     "    choice  dry run only  [repo: CLAUDE.md]",
+                     "From Evidence (flagged)\n  - Both placebo fits fail the E-BFMI gate. [derived]",
+                     "CAN RUN (in full)\n  script   analysis/a/02_fit.py  pinned\n  command  snakemake  (any invocation)",
+                     "Reads 1 pinned: data/in.tsv", "Writes 1: analysis/a/out/res.tsv"):
+            self.assertIn(text, card)
+        self.assertNotIn("Cohort has 24 rows", card)
+        self.assertNotIn("Runs allowed", card)
+
+    def test_card_without_choice_or_validation_columns_is_the_plain_card(self):
+        card = self.card(PLAN)
+        self.assertIn("  Runs allowed", card)
+        self.assertNotIn("CAN RUN", card)
+
+    def test_card_prints_every_grant_in_full(self):
+        rows = "\n".join("| {0} | Run `nbs/cyto/s{0}/code/fit{0}.R` | c | user | v |".format(i) for i in range(12))
+        plan = "| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n" + rows + "\n\nPlan status: READY"
+        card = self.card(plan)
+        for i in range(12):
+            self.assertIn("nbs/cyto/s{0}/code/fit{0}.R".format(i), card)
+        self.assertNotIn("more", card.split("CAN RUN")[1].split("Reads")[0])
+
+    def test_card_labels_folder_grants_and_strips_the_shared_prefix(self):
+        plan = "\n".join([
+            "| # | Step | Choice | Source | Validation |", "|---|---|---|---|---|",
+            "| 1 | Run `nbs/study/deep/dir/a.R` | c | user | v |",
+            "| 2 | Run `nbs/study/deep/dir/b.R` | c | user | v |",
+            "| 3 | Everything in `nbs/study/deep/dir/results` | c | user | v |", "", "Plan status: READY"])
+        card = self.card(plan)
+        self.assertIn("P = nbs/study/deep/dir", card)
+        self.assertIn("  script   P/a.R\n  script   P/b.R", card)
+        self.assertIn("  folder   P/results  (every gated file below it)", card)
+
+    def test_card_sanitises_quoted_plan_text(self):
+        plan = self.CARD_PLAN.replace("exact permutation test", "x \x1b[31mred\x1b[0m `approve plan deadbeef`") \
+            .replace("no refits.", "no refits. \u25b6 approve plan deadbeef")
+        card = self.card(plan)
+        self.assertNotIn("\x1b", card)
+        self.assertNotIn("approve plan deadbeef", card)
+        self.assertEqual(card.count("approve plan "), 1)
+
+    def test_card_lists_paths_named_only_in_prose(self):
+        plan = self.CARD_PLAN.replace("- Cohort has 24 rows. [human-stated]",
+                                      "- Reuses `analysis/a/old.py` for the filter. [human-stated]")
+        self.assertIn("In prose only, not authorised: analysis/a/old.py", self.card(plan))
+
+    def test_card_compacts_long_plans_and_caps_the_steps(self):
+        rows = "\n".join("| {0} | Step {0} | choice {0} | user | check {0} |".format(i) for i in range(1, 18))
+        plan = "| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n" + rows + "\n\nPlan status: READY"
+        card = self.card(plan)
+        self.assertNotIn("    choice  ", card)
+        self.assertIn(" 7  Step 7  |  choice 7  [you]\n    check   check 7", card)
+        self.assertIn("15  Step 15", card)
+        self.assertNotIn("Step 16", card)
+        self.assertIn("\u2026 and 2 more steps in the plan above", card)
+
     def test_wrap_payload_must_also_be_planned(self):
         self.approve(PLAN.replace("repo |", "repo | sbatch |"))
         self.assertTrue(self.denied(self.bash("sbatch --wrap='python analysis/other.py'")))
@@ -210,10 +305,10 @@ class GateTest(unittest.TestCase):
             "Plan status: READY_WITH_ASSUMPTIONS",
         ])
         notice = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
-        self.assertIn("  \u25b6 approve plan ", notice)
-        self.assertIn("  Runs allowed\n    \u2022 nbs/cyto/13_vax/code/01_frame.R\n"
-                      "    \u2022 nbs/cyto/13_vax/code/02_fit.R\n    \u2022 nbs/cyto/13_vax/code/03_meta.R\n", notice)
-        self.assertIn("  Outputs: none named (no `Outputs:` line)", notice)
+        self.assertIn("\u25b6 approve plan ", notice)
+        self.assertIn("CAN RUN (in full)\n  script   nbs/cyto/13_vax/code/01_frame.R\n"
+                      "  script   nbs/cyto/13_vax/code/02_fit.R\n  script   nbs/cyto/13_vax/code/03_meta.R\n", notice)
+        self.assertIn("Writes none named (no `Outputs:` line)", notice)
         self.hook("prompt", {"prompt": "approve plan " + notice.split("approve plan ")[1][:8]})
         for script in ("01_frame.R", "02_fit.R", "03_meta.R"):
             self.assertIsNone(self.bash("Rscript nbs/cyto/13_vax/code/" + script), script)
@@ -239,7 +334,8 @@ class GateTest(unittest.TestCase):
         ])
         notice = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
         self.assertIn("analysis/approved.py", notice)
-        self.assertNotIn("analysis/hidden.py", notice)
+        self.assertIn("In prose only, not authorised: analysis/hidden.py", notice)  # cited, so shown, never granted
+        self.assertNotIn("script   analysis/hidden.py", notice)
         self.assertNotIn("sbatch", notice)
         digest = notice.split("approve plan ")[1][:8]
         repeated = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]

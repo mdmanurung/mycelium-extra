@@ -55,8 +55,8 @@ class BaselineChain(unittest.TestCase):
         # 3. approval
         digest, notice, reply = p.approve(harness.plan_text())
         pins = ["data/processed/vaccine-cohort/sample_metadata.tsv", "data/processed/vaccine-cohort/counts.tsv"]
-        listed = notice.split("Inputs pinned")[-1].split("Outputs")[0]
-        self.check(all(pin in listed for pin in pins), p, "step 3: notice does not list both pinned inputs:\n" + notice)
+        self.check("Reads 2 pinned under data/processed/vaccine-cohort/: counts.tsv, sample_metadata.tsv" in notice, p,
+                   "step 3: notice does not list both pinned inputs:\n" + notice)
         record = p.approval(digest)
         self.check(record is not None and "approved" in ((reply or {}).get("systemMessage") or ""), p,
                    "step 3: approval of {} not recorded: {}".format(digest, reply))
