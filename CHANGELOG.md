@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.45] - 2026-10-06
+
+### Changed
+
+- The approval gate pins each approved script's content and blocks a gated run whose script changed since approval, so an agent cannot edit an approved script and re-run it without you. Scripts the plan table names are pinned when the plan is shown; any other covered script, such as one written later, is pinned at its first run. A notebook is pinned by its code cells, so running it does not count as a change. The approval card shows what changed as a diff of up to 30 lines. On by default; set `"pin_scripts": false` in `gate.json` to turn it off. Only the script a command runs is checked, not files it sources or imports.
+
 ## [0.9.44] - 2026-10-06
 
 ### Changed
