@@ -1176,7 +1176,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
     def quote(cell, limit=CARD_CELL):
         return clean(prefix and cell.replace(prefix + "/", "P/") or cell, limit)
 
-    pinned_lines, script_changes = script_state(root, scripts, config)
+    pinned_lines, script_changes, script_diff_lines = script_state(root, scripts, config)
     changes = pin_changes(pins, previous) + script_changes
     defaults = [row["num"] for row in rows if row["source"].lower().startswith("default")]
     lines = ["mycelium-extra \u00b7 plan {} ready for approval".format(digest)]
@@ -1227,6 +1227,8 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
         lines.append("P = " + prefix)
     if outside_prose:
         lines.append("In prose only, not authorised" + names(outside_prose, short))
+    if script_diff_lines:
+        lines += ["Diff of changed scripts"] + script_diff_lines
     lines.append("\u25b6 approve plan {}".format(digest))
     return "\n".join(lines)
 
@@ -1395,12 +1397,12 @@ def approved_script(root, approvals, rel):
 
 def script_lines(root, scripts, config):
     """The approval card's script section: what is pinned and what changed since a plan approved it."""
-    pinned, changed = script_state(root, scripts, config)
-    return pinned + changed
+    pinned, changed, diff = script_state(root, scripts, config)
+    return pinned + changed + diff
 
 
 def script_state(root, scripts, config):
-    """(pinned lines, changed lines) of the scripts section."""
+    """(pinned lines, changed summary, diff lines) of the scripts section."""
     approvals = active_approvals(root, config)
     now_all = dict(scripts or {})
     for record in approvals or []:  # scripts pinned at a first run, still on disk
@@ -1408,7 +1410,7 @@ def script_state(root, scripts, config):
             if rel not in now_all and os.path.isfile(os.path.join(root, rel)):
                 now_all[rel] = fingerprint(os.path.join(root, rel), hash_budget(config))
     if not now_all:
-        return [], []
+        return [], [], []
     lines = (["  Scripts pinned"] + bullets("{} ({})".format(rel, method(pin))
                                            for rel, pin in scripts.items())) if scripts else []
     changed, diff_text = [], []
@@ -1419,13 +1421,11 @@ def script_state(root, scripts, config):
             counts = " (+{} -{} lines)".format(*diff_counts(diff)) if diff is not None else ""
             changed.append("{}: {} -> {}{}".format(rel, describe(old), describe(now), counts))
             diff_text += ["      " + line for line in (diff or []) if not line.startswith(("---", "+++"))]
-    after = []
-    if changed:
-        after += ["  Scripts changed since last approved"] + bullets(changed)
-        after += diff_text[:DIFF_LINES]
-        if len(diff_text) > DIFF_LINES:
-            after.append("      \u2026 and {} more diff lines".format(len(diff_text) - DIFF_LINES))
-    return lines, after
+    after = ["  Scripts changed since last approved"] + bullets(changed) if changed else []
+    diff = diff_text[:DIFF_LINES]
+    if len(diff_text) > DIFF_LINES:
+        diff.append("      \u2026 and {} more diff lines".format(len(diff_text) - DIFF_LINES))
+    return lines, after, diff
 
 
 def note_first_runs(root, firsts, budget):
