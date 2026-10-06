@@ -856,37 +856,275 @@ def bullets(items, limit=10):
         ["    \u2026 and {} more".format(len(items) - limit)] if len(items) > limit else [])
 
 
+def plan_grants(root, plan, config):
+    """(gated paths, gated commands) the plan table lets through: a path covers itself and
+    everything gated below it, a command covers every invocation."""
+    table = plan_table(plan)
+    paths = sorted(set(gated_rel(root, root, p, config) for p in plan_paths_in(root, table)) - set([None]))
+    return paths, [c for c in config["gated_commands"] if names_command(c, table)]
+
+
 def scope_lines(root, plan, config):
     """Which gated runs approving this plan would let through."""
-    table = plan_table(plan)
-    if not table.strip():
+    if not plan_table(plan).strip():
         return ["  Runs allowed: none (the plan has no plan table; only its paths and commands count)"]
-    runs = sorted(p for p in plan_paths_in(root, table) if gated_rel(root, root, p, config))
-    runs += [c for c in config["gated_commands"] if names_command(c, table)]
+    paths, commands = plan_grants(root, plan, config)
+    runs = paths + commands
     if not runs:
         return ["  Runs allowed: none (the plan table names no gated script, folder, or command)"]
     return ["  Runs allowed"] + bullets(runs)
 
 
-def output_lines(text):
-    """The paths on the plan's `Outputs:` lines, which verify checks after the runs."""
+def output_words(text):
+    """The paths on the plan's `Outputs:` lines, or None when it has none."""
     lines = OUTPUTS_LINE.findall(text)
     if not lines:
-        return ["  Outputs: none named (no `Outputs:` line)"]
+        return None
     words = []
     for line in lines:
         for word in PATHLIKE.findall(line):
             word = word.rstrip(".,;:")
             if ("/" in word or re.search(r"\.\w+$", word)) and word not in words:
                 words.append(word)
+    return words
+
+
+def output_lines(text):
+    """The paths on the plan's `Outputs:` lines, which verify checks after the runs."""
+    words = output_words(text)
+    if words is None:
+        return ["  Outputs: none named (no `Outputs:` line)"]
     return ["  Outputs"] + bullets(words) if words else ["  Outputs: none"]
 
 
 def approval_card(root, text, config, digest, pins, outside, previous, scripts=None):
+    card = procedure_card(root, text, config, digest, pins, outside, previous, scripts or {})
+    if card:
+        return card
     return "\n".join(["mycelium-extra \u00b7 plan ready for approval",
                       "  \u25b6 approve plan {}".format(digest), ""]
                      + scope_lines(root, text, config) + pin_lines(pins, outside, previous)
                      + script_lines(root, scripts, config) + output_lines(text))
+
+
+# ---------------------------------------------------------------- the procedure card
+# What the user reads to check a plan: its question, goal, steps with their choices and checks,
+# and everything the gate would let run. Display only: the gate still approves from plan_table,
+# and nothing quoted here is read back as a path or a command.
+
+CARD_COMPACT = 6   # up to this many steps take three lines each; more take two
+CARD_STEPS = 15    # steps shown at all; the plan above lists the rest
+CARD_CELL = 200   # a choice or a check is quoted up to this many characters
+CARD_PREFIX = 12   # a shared path prefix is stripped when it is at least this long
+CONTROL = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|[\x00-\x1f\x7f]")
+APPROVE_WORDS = re.compile(r"approve\s+plan", re.IGNORECASE)
+DONE_MARK = re.compile(r"\s*\(done\)", re.IGNORECASE)
+FLAG_WORDS = re.compile(r"\b(fail\w*|flag\w*|warn\w*|error\w*|diverg\w*|mismatch\w*|unverified)\b",
+                        re.IGNORECASE)
+QUESTION_LINE = re.compile(r"^>\s*Question[^:]*:\s*(.*)$", re.MULTILINE)
+OBJECTIVE_LINE = re.compile(r"^[\s>*_`-]*objective[\s*_`]*[.:]?[\s*_`]*(.*)$", re.IGNORECASE)
+EVIDENCE_HEAD = re.compile(r"^[\s>*_`-]*evidence\b", re.IGNORECASE)
+FACTS_LINE = re.compile(r"^Facts:.*$", re.MULTILINE)
+EVIDENCE_TAG = re.compile(r"\s*\[(agent-derived|agent-asserted|human-stated)[^\]]*\]\s*$")
+TAG_WORD = {"agent-derived": "derived", "agent-asserted": "asserted", "human-stated": "stated"}
+
+
+def clean(text, limit=CARD_CELL):
+    """Plan text made safe to quote: no control or ANSI characters, no markup, no `approve plan`
+    phrase (only the card's last line may offer one), one line, shortened."""
+    text = " ".join(CONTROL.sub(" ", text).replace("`", "").replace("**", "").split())
+    text = APPROVE_WORDS.sub("approve-plan", text)
+    return text if len(text) <= limit else text[:limit - 1].rstrip() + "\u2026"
+
+
+def table_cells(line):
+    return [cell.replace("\0", "|").strip() for cell in TABLE_ROW.match(line).group(1).replace("\\|", "\0").split("|")]
+
+
+def plan_rows(text):
+    """The first plan table with a Step column and a Choice or Validation column, as a list of
+    {num, step, choice, source, check}; None when there is no such table."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        following = lines[i + 1] if i + 1 < len(lines) else ""
+        if not TABLE_ROW.match(line) or TABLE_RULE.match(line) or not (
+                TABLE_ROW.match(following) and TABLE_RULE.match(following)):
+            continue
+        column = {}
+        for j, cell in enumerate(c.lower() for c in table_cells(line)):
+            for key, words in (("step", ("step",)), ("choice", ("choice",)), ("source", ("source",)),
+                               ("check", ("validation", "check"))):
+                if key not in column and any(word in cell for word in words):
+                    column[key] = j
+            if cell in ("#", "no", "no.") and "num" not in column:
+                column["num"] = j
+        if "step" not in column or not ("choice" in column or "check" in column):
+            continue
+        rows = []
+        for row in lines[i + 2:]:
+            if not TABLE_ROW.match(row):
+                break
+            if TABLE_RULE.match(row):
+                continue
+            cells = table_cells(row)
+            cell = lambda key: cells[column[key]] if key in column and column[key] < len(cells) else ""
+            rows.append({"num": cell("num") or str(len(rows) + 1), "step": cell("step"),
+                         "choice": cell("choice"), "source": cell("source"), "check": cell("check")})
+        return rows
+    return None
+
+
+def source_tag(cell):
+    cell = " ".join(CONTROL.sub(" ", cell).replace("`", "").split())
+    low = cell.lower()
+    if low.startswith("user"):
+        return "you"
+    if low.startswith(("default", "repo")):
+        return clean(cell.split(";")[0], 48)
+    return clean(cell, 24)
+
+
+def card_question(text):
+    found = QUESTION_LINE.search(text)
+    return clean(found.group(1), 200) if found and found.group(1).strip() else "none in the plan"
+
+
+def card_goal(text):
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        found = OBJECTIVE_LINE.match(line)
+        if found:
+            rest = found.group(1).strip() or next((l.strip() for l in lines[i + 1:] if l.strip()), "")
+            return clean(rest, 240)
+    return "none in the plan"
+
+
+def evidence_flags(text):
+    """The Evidence bullets that name a failure or a flag, tagged by how the fact was established."""
+    found, inside = [], False
+    for line in text.splitlines():
+        if EVIDENCE_HEAD.match(line):
+            inside = True
+            continue
+        if not inside:
+            continue
+        bullet = re.match(r"^\s*[-*]\s+(.*)$", line)
+        if not bullet:
+            if line.strip() and not line.startswith(" "):
+                break
+            continue
+        body = bullet.group(1)
+        if FLAG_WORDS.search(body):
+            tag = EVIDENCE_TAG.search(body)
+            found.append(clean(EVIDENCE_TAG.sub("", body), 150) + (" [{}]".format(TAG_WORD[tag.group(1)]) if tag else ""))
+    return found
+
+
+def shared_prefix(paths):
+    paths = sorted(set(p for p in paths if p and not os.path.isabs(p)))
+    if len(paths) < 2:
+        return ""
+    prefix = os.path.commonpath(paths)
+    return prefix if len(prefix) >= CARD_PREFIX else ""
+
+
+def prose_only(root, text, config, listed):
+    """Scripts the plan mentions outside its table (and outside Inputs and Outputs), which approve nothing."""
+    table, found = plan_table(text), []
+    for word in PATHLIKE.findall(text):
+        word = word.rstrip(".,;:").rstrip("/")
+        if word.startswith("./"):
+            word = word[2:]
+        if "/" not in word or not SCRIPT_EXT.search(word) or word in listed:
+            continue
+        rel = gated_rel(root, root, word, config)
+        if rel and rel not in found and not path_in_plan(root, rel, table):
+            found.append(rel)
+    return found
+
+
+def names(items, short):
+    """The first three paths; with more than one, the folder they share is named once."""
+    items = sorted(items)
+    base = os.path.commonpath(items) if len(items) > 1 and not any(os.path.isabs(i) for i in items) else ""
+    shown = [i[len(base) + 1:] if base and i.startswith(base + "/") else short(i) for i in items[:3]]
+    more = ", \u2026 and {} more".format(len(items) - 3) if len(items) > 3 else ""
+    lead = " under {}/: ".format(short(base)) if base and all(i.startswith(base + "/") for i in items) else ": "
+    return lead + ", ".join(shown) + more
+
+
+def procedure_card(root, text, config, digest, pins, outside, previous, scripts):
+    """The card for a plan whose table has Step and Choice or Validation columns, else None."""
+    rows = plan_rows(text)
+    if not rows:
+        return None
+    paths, commands = plan_grants(root, text, config)
+    outputs = output_words(text)
+    reads = sorted(pins) if pins else []
+    words = set(plan_inputs(text) or []) | set(outputs or [])
+    outside_prose = prose_only(root, text, config, words)
+    prefix = shared_prefix(paths + (outputs or []) + reads + outside_prose)
+
+    def short(path):
+        if prefix and path == prefix:
+            return "P"
+        return "P/" + path[len(prefix) + 1:] if prefix and path.startswith(prefix + "/") else path
+
+    def quote(cell, limit=CARD_CELL):
+        return clean(prefix and cell.replace(prefix + "/", "P/") or cell, limit)
+
+    pinned_lines, script_changes = script_state(root, scripts, config)
+    changes = pin_changes(pins, previous) + script_changes
+    defaults = [row["num"] for row in rows if row["source"].lower().startswith("default")]
+    lines = ["mycelium-extra \u00b7 plan {} ready for approval".format(digest)]
+    lines += changes
+    lines += ["Question   " + card_question(text), "Goal       " + card_goal(text),
+              "Defaults to confirm: " + ("step " + ", ".join(defaults) if defaults else "none")]
+    facts = FACTS_LINE.search(text)
+    if facts:
+        lines.append(clean(facts.group(0), 160))
+    lines += ["", "Procedure (choice [who decided], then the check)"]
+    for row in rows[:CARD_STEPS]:
+        cells = " ".join((row["step"], row["choice"], row["check"]))
+        done = "  (agent says: done)" if DONE_MARK.search(cells) else ""
+        step, choice, check = (quote(DONE_MARK.sub("", row[key]), 110 if key == "step" else CARD_CELL)
+                               for key in ("step", "choice", "check"))
+        source = "  [{}]".format(source_tag(row["source"])) if row["source"].strip() else ""
+        if len(rows) > CARD_COMPACT:
+            lines.append("{:>2}  {}{}  |  {}{}".format(row["num"], step, done, choice, source))
+        else:
+            lines += ["{:>2}  {}{}".format(row["num"], step, done), "    choice  " + choice + source]
+        if check:
+            lines.append("    check   " + check)
+    if len(rows) > CARD_STEPS:
+        lines.append("\u2026 and {} more steps in the plan above".format(len(rows) - CARD_STEPS))
+    flags = evidence_flags(text)
+    if flags:
+        lines += ["", "From Evidence (flagged)"] + ["  - " + flag for flag in flags[:3]]
+        if len(flags) > 3:
+            lines.append("  (+{} more flagged in Evidence)".format(len(flags) - 3))
+    lines += ["", "CAN RUN (in full)"]
+    for path in paths:
+        if os.path.isfile(os.path.join(root, path)) or SCRIPT_EXT.search(path):
+            kind, note = ("script" if SCRIPT_EXT.search(path) else "file"), ("  pinned" if path in scripts else "")
+        else:
+            kind, note = "folder", "  (every gated file below it)"
+        lines.append("  {:<9}{}{}".format(kind, short(path), note))
+    lines += ["  {:<9}{}  (any invocation)".format("command", command) for command in commands]
+    if not paths and not commands:
+        lines.append("  nothing: the plan table names no gated script, folder, or command")
+    lines.append("Reads " + ("{} pinned{}".format(len(reads), names(reads, short)) if reads else
+                             ("none (no `Inputs:` line)" if pins is None else "none (the `Inputs:` line names no files)")))
+    lines.append("Writes " + ("{}{}".format(len(outputs), names(outputs, short)) if outputs else
+                              "none named (no `Outputs:` line)"))
+    if outside:
+        lines.append("Outside the repository, not pinned" + names(outside, str))
+    if prefix:
+        lines.append("P = " + prefix)
+    if outside_prose:
+        lines.append("In prose only, not authorised" + names(outside_prose, short))
+    lines.append("\u25b6 approve plan {}".format(digest))
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------- pinned inputs
@@ -938,11 +1176,13 @@ def pin_lines(pins, outside, previous):
         lines = ["  Inputs pinned: none (the `Inputs:` line names no files)"]
     if outside:
         lines += ["  Outside the repository, not pinned"] + bullets(outside)
+    return lines + pin_changes(pins, previous)
+
+
+def pin_changes(pins, previous):
     old = (previous or {}).get("pins") or {}
-    changed = [rel for rel, pin in pins.items() if rel in old and not unchanged(old[rel], pin)]
-    if changed:
-        lines += ["  Changed since this plan was last shown"] + bullets(changed)
-    return lines
+    changed = [rel for rel, pin in (pins or {}).items() if rel in old and not unchanged(old[rel], pin)]
+    return ["  Changed since this plan was last shown"] + bullets(changed) if changed else []
 
 
 def changed_pins(root, pins, budget, cache):
@@ -1051,6 +1291,12 @@ def approved_script(root, approvals, rel):
 
 def script_lines(root, scripts, config):
     """The approval card's script section: what is pinned and what changed since a plan approved it."""
+    pinned, changed = script_state(root, scripts, config)
+    return pinned + changed
+
+
+def script_state(root, scripts, config):
+    """(pinned lines, changed lines) of the scripts section."""
     approvals = active_approvals(root, config)
     now_all = dict(scripts or {})
     for record in approvals or []:  # scripts pinned at a first run, still on disk
@@ -1058,7 +1304,7 @@ def script_lines(root, scripts, config):
             if rel not in now_all and os.path.isfile(os.path.join(root, rel)):
                 now_all[rel] = fingerprint(os.path.join(root, rel), hash_budget(config))
     if not now_all:
-        return []
+        return [], []
     lines = (["  Scripts pinned"] + bullets("{} ({})".format(rel, method(pin))
                                            for rel, pin in scripts.items())) if scripts else []
     changed, diff_text = [], []
@@ -1069,12 +1315,13 @@ def script_lines(root, scripts, config):
             counts = " (+{} -{} lines)".format(*diff_counts(diff)) if diff is not None else ""
             changed.append("{}: {} -> {}{}".format(rel, describe(old), describe(now), counts))
             diff_text += ["      " + line for line in (diff or []) if not line.startswith(("---", "+++"))]
+    after = []
     if changed:
-        lines += ["  Scripts changed since last approved"] + bullets(changed)
-        lines += diff_text[:DIFF_LINES]
+        after += ["  Scripts changed since last approved"] + bullets(changed)
+        after += diff_text[:DIFF_LINES]
         if len(diff_text) > DIFF_LINES:
-            lines.append("      \u2026 and {} more diff lines".format(len(diff_text) - DIFF_LINES))
-    return lines
+            after.append("      \u2026 and {} more diff lines".format(len(diff_text) - DIFF_LINES))
+    return lines, after
 
 
 def note_first_runs(root, firsts, budget):
