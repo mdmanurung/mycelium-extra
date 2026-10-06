@@ -314,6 +314,24 @@ class GateTest(unittest.TestCase):
         self.assertNotIn("diff lines", card.split("CAN RUN (in full)")[0])
         self.assertTrue(card.splitlines()[-1].startswith("\u25b6 approve plan "))
 
+    def test_card_warns_when_mycelium_would_see_the_state_folder(self):
+        warning = "Warning: `.mycelium-extra/` is not in .gitignore"
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        subprocess.check_call(["git", "init", "-q", self.root])
+        self.assertNotIn(warning, self.card(self.card_plan_for()), "no .living/: Mycelium is not here")
+        os.makedirs(os.path.join(self.root, ".living"))
+        for plan in (self.card_plan_for(), PLAN):  # the new card and the plain one
+            card = self.card(plan)
+            self.assertEqual(card.splitlines()[1].split(",")[0], warning)
+            self.assertIn("\u25b6 approve plan ", card)
+        self.write_file(".gitignore", ".mycelium-extra/\n")
+        self.assertNotIn(warning, self.card(self.card_plan_for()))
+        self.assertNotIn(warning, self.card(PLAN))
+
+    def test_card_does_not_warn_outside_a_git_repository(self):
+        os.makedirs(os.path.join(self.root, ".living"))
+        self.assertNotIn("Warning:", self.card(self.card_plan_for()))
+
     def test_card_baseline_reaches_past_the_approval_window(self):
         self.write_file("analysis/a/02_fit.py", "print(1)\n")
         first = self.approve(self.card_plan_for())[0]
