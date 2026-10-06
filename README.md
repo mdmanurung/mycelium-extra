@@ -25,7 +25,8 @@ Each tier adds to the previous one; use only what your task needs.
 | 3. Verify reportable work | Add a pinned run plan and `verify` | Checks against the approved plan; provenance after confirmation |
 | 4. Full project workflow | Add scaffolding, independent review, handoff, hardening, Mycelium | Structure, continuity, and checks for recurring mistakes |
 
-See [Usage tiers](docs/usage.md) for commands and examples. `grill` calls
+See [Usage tiers](docs/usage.md) for commands and examples, or the
+[full analysis workflow diagram](docs/usage.md#full-analysis-workflow). `grill` calls
 `decision-status` and `data-contract-check` when needed.
 
 ## Quick start
