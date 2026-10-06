@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.51] - 2026-10-06
+
+### Changed
+
+- On the approval card, the diff of changed scripts moves from the top to the bottom. The "Scripts changed since last approved" summary stays near the top; up to 30 diff lines (then "… and N more diff lines") now follow the Reads and Writes lines under "Diff of changed scripts", just above `approve plan`, so the question, goal, steps and grants come first. Nothing authorised changes, and the card for a plan without Step and Choice or Validation columns is byte-identical. Checked on 56 approved plans from `scale` and `bmv_pilot_cytof_integration`: the same lines on every card (plus the one heading), `approve plan` last, the `Question` line at line 10 (median) instead of 41, and a maximum of 81 lines instead of 80.
+
 ## [0.9.50] - 2026-10-06
 
 ### Changed
