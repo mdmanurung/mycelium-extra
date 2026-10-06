@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.50] - 2026-10-06
+
+### Changed
+
+- `verify` names the script behind outputs it cannot tie to the approved plan's own runs, and reports them once per producing run and folder. Before, each file got its own "likely written by" line, and the line named only the first 80 characters of the command, so a long interpreter path hid the script. Now a run whose command is cut before its script reads "(script `path`)", and 2 or more such files in one folder give one gap: "N files in `folder` were likely written by <run>: `a`, `b`, `c` and N more" (outputs tied to no run group by folder the same way). One file keeps the old text. Status, `block` findings and the Outputs table are unchanged. Checked on 56 plans from `scale` and `bmv_pilot_cytof_integration`, old code against new on the same repos: outputs, status and every other finding identical (apart from the added script note); 9,883 per-file lines became 466 grouped lines covering 9,826 files plus 57 single files.
+
 ## [0.9.49] - 2026-10-06
 
 ### Changed

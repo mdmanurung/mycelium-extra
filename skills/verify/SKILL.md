@@ -56,7 +56,7 @@ A plan re-approved under the same hash keeps its earlier runs; the report says s
   - re-check a changed input and approve a new plan
   - drop an output written before the approval
 - Do not fix anything in this skill.
-- A gap is not a failure. Say what it hides. For example, an output not tied to a run is often a run Claude Code moved to the background.
+- A gap is not a failure. Say what it hides. For example, an output not tied to a run is often a run Claude Code moved to the background. An output written by a run of another plan is reported once per producing run and folder, naming the run's script; the Outputs table (and `write`'s `outputs-<hash>.tsv`) lists every file.
 - For a claim mismatch, show the line, the claimed and the observed value, and the cell. Do not edit the document, the output, or the claims block: the user decides which is wrong, and a wrong output means a re-run under a new plan (grill). A verified claim means the text matches its cell, not that the analysis is right.
 
 When you write findings or a report in a gated repository, declare the numbers a reader would quote in a claims block, each naming its cell, so verify checks them:
