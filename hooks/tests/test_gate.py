@@ -489,6 +489,120 @@ class GateTest(unittest.TestCase):
             json.dump({"hash": "0ld0ld00", "approved_at": time.time(), "plan": PLAN}, handle)
         self.assertIsNone(self.bash("python analysis/x.py"))
 
+    # ------------------------------------------------------------ pinned scripts
+
+    def test_edited_script_blocks_until_reapproved(self):
+        self.write("analysis/x.py", "print(1)\n")
+        digest, result = self.approve()
+        self.assertEqual(sorted(self.approval(digest)["scripts"]), ["analysis/x.py"])
+        self.assertIn("Pinned scripts: analysis/x.py", result["systemMessage"])
+        self.assertIsNone(self.bash("python analysis/x.py"))
+        self.write("analysis/x.py", "print(1)\nprint(2)\n")
+        denial = self.bash("python analysis/x.py")
+        self.assertTrue(self.denied(denial))
+        reason = denial["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertIn("analysis/x.py: sha256", reason)
+        self.assertIn("(+1 -0 lines)", reason)
+        self.write("analysis/x.py", "print(1)\n")
+        self.assertIsNone(self.bash("python analysis/x.py"), "same content passes")
+        self.write("analysis/x.py", "print(3)\n")
+        card = self.hook("stop", {"last_assistant_message": PLAN})["systemMessage"]
+        self.assertIn("Scripts changed since last approved\n    \u2022 analysis/x.py: sha256", card)
+        self.assertIn("      -print(1)\n      +print(3)", card)
+        self.approve()
+        self.assertIsNone(self.bash("python analysis/x.py"))
+
+    def test_script_first_run_is_pinned(self):
+        digest, _ = self.approve()  # the script does not exist yet: plan A, analyze writes it later
+        self.assertEqual(self.approval(digest)["scripts"], {})
+        self.write("analysis/x.py", "print(1)\n")
+        self.assertIsNone(self.bash("python analysis/x.py"))
+        self.assertIsNone(self.bash("python analysis/x.py"))
+        self.write("analysis/x.py", "print(2)\n")
+        denial = self.bash("python analysis/x.py")
+        self.assertTrue(self.denied(denial))
+        self.assertIn("(+1 -1 lines)", denial["hookSpecificOutput"]["permissionDecisionReason"])
+        self.approve()  # approving the same plan again re-baselines
+        self.assertIsNone(self.bash("python analysis/x.py"))
+
+    def test_denied_run_does_not_pin_a_script(self):
+        self.approve(PLAN.replace("analysis/x.py", "analysis/y.py"))
+        self.write("analysis/x.py", "print(1)\n")
+        self.assertTrue(self.denied(self.bash("python analysis/x.py")))  # no plan covers x.py
+        self.assertFalse(os.path.exists(os.path.join(self.root, ".mycelium-extra", "script-pins")))
+
+    def test_folder_named_scripts_are_pinned_at_first_run(self):
+        self.write("nbs/study/a.R", "1\n")
+        self.write("nbs/study/.snakemake/tmp.py", "junk\n")
+        folder_plan = "## Plan\n| 1 | run `nbs/study/` scripts | repo | check |\n\nPlan status: READY"
+        digest, _ = self.approve(folder_plan)
+        self.assertEqual(self.approval(digest)["scripts"], {}, "a folder is not walked at show time")
+        self.assertIsNone(self.bash("Rscript nbs/study/a.R"))
+        self.write("nbs/study/a.R", "2\n")
+        self.assertTrue(self.denied(self.bash("Rscript nbs/study/a.R")))
+        card = self.hook("stop", {"last_assistant_message": folder_plan})["systemMessage"]
+        self.assertIn("Scripts changed since last approved\n    \u2022 nbs/study/a.R: sha256", card)
+        self.assertIn("      -1\n      +2", card)
+        self.assertNotIn(".snakemake", card)
+
+    def test_data_files_named_in_the_plan_are_not_pinned_as_scripts(self):
+        self.write("analysis/x.py", "print(1)\n")
+        self.write("analysis/out/de.tsv", "gene\tp\n")
+        plan = PLAN.replace("check |", "check `analysis/out/de.tsv` |")
+        digest, _ = self.approve(plan)
+        self.assertEqual(sorted(self.approval(digest)["scripts"]), ["analysis/x.py"])
+
+    def test_executing_a_notebook_does_not_change_its_pin(self):
+        def notebook(code, output):
+            return json.dumps({"cells": [
+                {"cell_type": "markdown", "source": ["# notes " + output]},
+                {"cell_type": "code", "source": ["x = ", code], "outputs": [{"text": output}],
+                 "execution_count": len(output)}]})
+        plan = "## Plan\n| 1 | run `nbs/n.ipynb` | repo | check |\n\nPlan status: READY"
+        run = "jupyter nbconvert --to notebook --execute --inplace nbs/n.ipynb"
+        self.write("nbs/n.ipynb", notebook("1", "a"))
+        digest, _ = self.approve(plan)
+        self.assertIn("sha256", self.approval(digest)["scripts"]["nbs/n.ipynb"])
+        self.assertIsNone(self.bash(run))
+        self.write("nbs/n.ipynb", notebook("1", "bbbb"))  # outputs and counts rewritten by the run
+        self.assertIsNone(self.bash(run))
+        self.write("nbs/n.ipynb", notebook("2", "bbbb"))  # a code cell edited
+        denial = self.bash(run)
+        self.assertTrue(self.denied(denial))
+        self.assertIn("(+1 -1 lines)", denial["hookSpecificOutput"]["permissionDecisionReason"])
+
+    def test_explore_deleted_and_opt_out_skip_script_pins(self):
+        self.write("analysis/x.py", "print(1)\n")
+        self.approve()
+        self.write("analysis/x.py", "print(2)\n")
+        self.hook("prompt", {"prompt": "allow explore"})
+        self.assertIsNone(self.bash("MYCELIUM_EXTRA_EXPLORE=1 python analysis/x.py"))
+        os.remove(os.path.join(self.root, "analysis", "x.py"))
+        self.assertIsNone(self.bash("python analysis/x.py"), "a missing script is the run's own error")
+        self.write("analysis/x.py", "print(3)\n")
+        self.config({"pin_scripts": False})
+        self.assertIsNone(self.bash("python analysis/x.py"))
+        self.assertEqual(self.approval(self.approve()[0])["scripts"], {})
+
+    def test_malformed_pin_scripts_value_pins_and_says_so(self):
+        self.config({"pin_scripts": "no"})
+        self.write("analysis/x.py", "print(1)\n")
+        digest, _ = self.approve()
+        self.assertEqual(sorted(self.approval(digest)["scripts"]), ["analysis/x.py"])
+        result = self.bash("python analysis/x.py")
+        self.assertIn('"pin_scripts" in gate.json must be true or false', result["systemMessage"])
+        self.assertIsNone(self.bash("ls analysis"), "an ungated command gets no notice")
+
+    def test_large_script_is_pinned_without_a_snapshot(self):
+        self.write("analysis/x.py", "#" * (300 * 1024) + "\n")
+        digest, _ = self.approve()
+        self.assertIn("sha256", self.approval(digest)["scripts"]["analysis/x.py"])
+        self.write("analysis/x.py", "#" * (300 * 1024) + "\nprint(1)\n")
+        denial = self.bash("python analysis/x.py")
+        reason = denial["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertTrue(self.denied(denial))
+        self.assertNotIn("lines)", reason)
+
     # ------------------------------------------------------------ run receipts
 
     def post(self, command, response, cwd=None):

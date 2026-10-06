@@ -13,6 +13,7 @@ folder. Timestamps and the temp root are normalized. Run it under each interpret
 """
 
 import argparse
+import hashlib
 import json
 import os
 import random
@@ -61,10 +62,14 @@ def build(root, c):
     write(root, ".mycelium-extra/gate.json", "{}")
     for rel, text in sorted(c["files"].items()):
         write(root, rel, text)
-    for i, (age, plan) in enumerate(c["approvals"]):
+    for i, (age, plan, *scripts) in enumerate(c["approvals"]):
         digest = "%08x" % (i + 1)
-        write(root, ".mycelium-extra/approvals/%s.json" % digest,
-              json.dumps({"hash": digest, "approved_at": time.time() - age, "plan": plan}))
+        record = {"hash": digest, "approved_at": time.time() - age, "plan": plan}
+        if scripts:  # scripts pinned at approval: {path: the text they had then}
+            record["scripts"] = {rel: {"size": len(text.encode()), "mtime": 0,
+                                       "sha256": hashlib.sha256(text.encode()).hexdigest()}
+                                 for rel, text in scripts[0].items()}
+        write(root, ".mycelium-extra/approvals/%s.json" % digest, json.dumps(record))
     if c["explore"]:
         write(root, ".mycelium-extra/explore.log", "".join(
             json.dumps({"ts": 1.0, "session_id": sid, "command": cmd, "paths": []}, sort_keys=True) + "\n"
@@ -136,6 +141,13 @@ def scenarios():
     return [
         case("tool gated runs, no plan", "tool", bash("python analysis/x.py; sbatch job.sh; snakemake -j 1")),
         case("tool covered run", "tool", bash("python analysis/x.py"), approvals=approved),
+        case("tool script as approved", "tool", bash("python analysis/x.py"),
+             approvals=[(0, PLAN, {"analysis/x.py": BASE_FILES["analysis/x.py"]})]),
+        case("tool script edited since approval", "tool", bash("python analysis/x.py"),
+             approvals=[(0, PLAN, {"analysis/x.py": "print(0)\n"})]),
+        case("tool script edited, newest plan pins it", "tool", bash("python analysis/x.py"),
+             approvals=[(60, PLAN, {"analysis/x.py": "print(0)\n"}),
+                        (0, PLAN, {"analysis/x.py": BASE_FILES["analysis/x.py"]})]),
         case("tool ungated read", "tool", bash("cat analysis/x.py | rg print")),
         case("tool explore without grant", "tool", bash("MYCELIUM_EXTRA_EXPLORE=1 python analysis/x.py")),
         case("tool 40 approvals one command", "tool",

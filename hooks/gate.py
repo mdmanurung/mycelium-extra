@@ -31,6 +31,7 @@ DEFAULTS = {
     "approval_hours": 24,
     "pin_hash_mb": 200,
     "pin_seconds": 5,
+    "pin_scripts": True,
 }
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
@@ -85,6 +86,9 @@ SOURCE_CITATION = re.compile(r"`?\brepo:\s*`?[^\s`|;,]+`?")
 INPUTS_LINE = re.compile(r"^[\s>*_`-]*inputs[\s*_`]*:(.*)$", re.IGNORECASE | re.MULTILINE)
 OUTPUTS_LINE = re.compile(r"^[\s>*_`-]*outputs[\s*_`]*:(.*)$", re.IGNORECASE | re.MULTILINE)
 MAX_FOLDER_FILES = 5000
+MAX_SNAPSHOT = 256 * 1024  # bytes; a larger script is pinned, but a change shows hashes only
+MAX_SCRIPT_PINS = 500
+DIFF_LINES = 30  # lines of diff on one approval card
 LOCKFILES = ("renv.lock", "pixi.lock", "uv.lock", "poetry.lock", "Pipfile.lock", "conda-lock.yml",
              "environment.yml", "environment.yaml", "requirements.txt", "Manifest.toml")
 ENV_LINE = re.compile(
@@ -194,6 +198,10 @@ def fingerprint(path, budget, pin=None):
         return {"missing": True}
     if os.path.isdir(path):
         return folder_fingerprint(path, budget)
+    if path.endswith(".ipynb") and info.st_size <= budget["bytes"]:
+        text = notebook_code(path)  # executing a notebook rewrites its outputs, not its code
+        if text is not None:
+            return {"size": len(text), "mtime": int(info.st_mtime), "sha256": sha256(text).hexdigest()}
     record = {"size": info.st_size, "mtime": int(info.st_mtime)}
     wanted = pin is None or ("sha256" in pin and pin.get("size") == info.st_size)
     if wanted and info.st_size <= budget["bytes"] and time.time() < budget["deadline"]:
@@ -202,6 +210,31 @@ def fingerprint(path, budget, pin=None):
             record["sha256"] = digest
             budget["bytes"] -= info.st_size
     return record
+
+
+def notebook_code(path):
+    """A notebook's code-cell sources as bytes, or None if it cannot be read as one."""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            cells = json.load(handle)["cells"]
+        sources = ["".join(c["source"]) if isinstance(c["source"], list) else c["source"]
+                   for c in cells if c.get("cell_type") == "code"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return "\n# ---- cell ----\n".join(sources).encode("utf-8")
+
+
+def script_text(path):
+    """What a script is pinned by: its bytes, or a notebook's code cells. None if unreadable."""
+    if path.endswith(".ipynb"):
+        text = notebook_code(path)
+        if text is not None:
+            return text
+    try:
+        with open(path, "rb") as handle:
+            return handle.read(MAX_SNAPSHOT + 1)
+    except OSError:
+        return None
 
 
 def folder_fingerprint(path, budget):
@@ -843,11 +876,11 @@ def output_lines(text):
     return ["  Outputs"] + bullets(words) if words else ["  Outputs: none"]
 
 
-def approval_card(root, text, config, digest, pins, outside, previous):
+def approval_card(root, text, config, digest, pins, outside, previous, scripts=None):
     return "\n".join(["mycelium-extra \u00b7 plan ready for approval",
                       "  \u25b6 approve plan {}".format(digest), ""]
                      + scope_lines(root, text, config) + pin_lines(pins, outside, previous)
-                     + output_lines(text))
+                     + script_lines(root, scripts, config) + output_lines(text))
 
 
 # ---------------------------------------------------------------- pinned inputs
@@ -921,6 +954,135 @@ def changed_pins(root, pins, budget, cache):
     return changes, unchecked
 
 
+# ---------------------------------------------------------------- pinned scripts
+
+def script_pinning(config):
+    """(on, notice). Scripts are pinned unless gate.json sets `pin_scripts` to false;
+    any other non-boolean value is ignored, with a notice."""
+    value = config.get("pin_scripts", True)
+    if isinstance(value, bool):
+        return value, None
+    return True, ('mycelium-extra gate: "pin_scripts" in gate.json must be true or false; '
+                  "pinning scripts.")
+
+
+def covered_scripts(root, text, config):
+    """Existing script files the plan table names. A script under a folder it names, or
+    one that does not exist yet, is pinned at its first run instead."""
+    found = []
+    for named in sorted(plan_paths(plan_table(text))):
+        rel = gated_rel(root, root, named, config)
+        if rel and SCRIPT_EXT.search(rel) and os.path.isfile(os.path.join(root, rel)):
+            found.append(rel)
+    return sorted(set(found))[:MAX_SCRIPT_PINS]
+
+
+def keep_snapshot(root, rel, pin):
+    """Copy a pinned script under its sha256, so a later change can be shown as a diff."""
+    digest = pin.get("sha256")
+    target = state_path(root, "scripts", digest or "-")
+    if not digest or pin.get("size", 0) > MAX_SNAPSHOT or os.path.exists(target):
+        return
+    data = script_text(os.path.join(root, rel))
+    if data is not None and len(data) <= MAX_SNAPSHOT and sha256(data).hexdigest() == digest:
+        # (the file may have changed since it was hashed)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target + ".tmp", "wb") as handle:
+            handle.write(data)
+        os.replace(target + ".tmp", target)
+
+
+def pin_scripts(root, text, config):
+    """Fingerprint (and snapshot) each existing script the plan covers."""
+    budget = hash_budget(config)
+    pins = {}
+    for rel in covered_scripts(root, text, config):
+        pins[rel] = fingerprint(os.path.join(root, rel), budget)
+        keep_snapshot(root, rel, pins[rel])
+    return pins
+
+
+def script_diff(root, rel, pin):
+    """The diff from a pinned script to the file now, as a list of lines; None when
+    the pinned version was not kept (over the size limit, or only size and mtime were pinned)."""
+    try:
+        with open(state_path(root, "scripts", pin.get("sha256") or "-"), "rb") as handle:
+            old = handle.read()
+    except OSError:
+        return None
+    new = script_text(os.path.join(root, rel))
+    if new is None or len(new) > MAX_SNAPSHOT:
+        return None
+    import difflib  # here, not at the top: most hook calls never diff
+    return list(difflib.unified_diff(old.decode("utf-8", "replace").splitlines(),
+                                     new.decode("utf-8", "replace").splitlines(),
+                                     "pinned", "now", lineterm="", n=0))
+
+
+def diff_counts(diff):
+    return (sum(1 for line in diff if line.startswith("+") and not line.startswith("+++")),
+            sum(1 for line in diff if line.startswith("-") and not line.startswith("---")))
+
+
+def script_change(root, rel, pin, budget, cache):
+    """Return (change, skipped): how a pinned script differs now, as text with its diff size."""
+    changes, skipped = changed_pins(root, {rel: pin}, budget, cache)
+    if not changes:
+        return None, bool(skipped)
+    diff = script_diff(root, rel, pin)
+    return changes[0] + (" (+{} -{} lines)".format(*diff_counts(diff)) if diff is not None else ""), False
+
+
+def approved_script(root, approvals, rel):
+    """The pin of a script in the newest active approval that has one."""
+    for record in sorted(approvals or [], key=lambda r: r.get("approved_at", 0), reverse=True):
+        pin = (record.get("scripts") or {}).get(rel) or read_json(
+            state_path(root, "script-pins", record.get("hash", "-") + ".json"), {}).get(rel)
+        if pin:
+            return pin
+    return None
+
+
+def script_lines(root, scripts, config):
+    """The approval card's script section: what is pinned and what changed since a plan approved it."""
+    approvals = active_approvals(root, config)
+    now_all = dict(scripts or {})
+    for record in approvals or []:  # scripts pinned at a first run, still on disk
+        for rel in read_json(state_path(root, "script-pins", record.get("hash", "-") + ".json"), {}):
+            if rel not in now_all and os.path.isfile(os.path.join(root, rel)):
+                now_all[rel] = fingerprint(os.path.join(root, rel), hash_budget(config))
+    if not now_all:
+        return []
+    lines = (["  Scripts pinned"] + bullets("{} ({})".format(rel, method(pin))
+                                           for rel, pin in scripts.items())) if scripts else []
+    changed, diff_text = [], []
+    for rel, now in now_all.items():
+        old = approved_script(root, approvals, rel)
+        if old and not unchanged(old, now):
+            diff = script_diff(root, rel, old)
+            counts = " (+{} -{} lines)".format(*diff_counts(diff)) if diff is not None else ""
+            changed.append("{}: {} -> {}{}".format(rel, describe(old), describe(now), counts))
+            diff_text += ["      " + line for line in (diff or []) if not line.startswith(("---", "+++"))]
+    if changed:
+        lines += ["  Scripts changed since last approved"] + bullets(changed)
+        lines += diff_text[:DIFF_LINES]
+        if len(diff_text) > DIFF_LINES:
+            lines.append("      \u2026 and {} more diff lines".format(len(diff_text) - DIFF_LINES))
+    return lines
+
+
+def note_first_runs(root, firsts, budget):
+    """Pin scripts that did not exist when their plan was shown, at the run that first uses them."""
+    ledgers = {}
+    for digest, rel in firsts:
+        ledger = ledgers.setdefault(digest, read_json(state_path(root, "script-pins", digest + ".json"), {}))
+        if rel not in ledger:
+            ledger[rel] = fingerprint(os.path.join(root, rel), budget)
+            keep_snapshot(root, rel, ledger[rel])
+    for digest, ledger in ledgers.items():
+        write_json(state_path(root, "script-pins", digest + ".json"), ledger)
+
+
 # ---------------------------------------------------------------- events
 
 def on_tool(event, root, config):
@@ -952,6 +1114,8 @@ def on_tool(event, root, config):
                     "Reading it is fine; changing it is the user's call.".format(STATE_DIR))
     approvals = None
     blocked, stale, unchecked = [], [], []
+    stale_scripts, firsts = [], []
+    scripts_on, notice = script_pinning(config)
     budget, cache = hash_budget(config), {}
     granted = explore_granted(root, event.get("session_id"))
     for explore, label, paths, segment, _, _ in analyse_command(command, root, event.get("cwd") or root,
@@ -979,21 +1143,49 @@ def on_tool(event, root, config):
             stale.append((newest["hash"], changes))
         else:
             unchecked += [rel for rel in skipped if rel not in unchecked]
-    if stale and not blocked:
+        changed_scripts = []
+        for rel in paths if scripts_on else []:
+            if not os.path.isfile(os.path.join(root, rel)):
+                continue
+            pin = (newest.get("scripts") or {}).get(rel) or read_json(
+                state_path(root, "script-pins", newest["hash"] + ".json"), {}).get(rel)
+            if not pin:
+                firsts.append((newest["hash"], rel))
+                continue
+            change, skipped_script = script_change(root, rel, pin, budget, cache)
+            if change:
+                changed_scripts.append(change)
+            elif skipped_script and rel not in unchecked:
+                unchecked.append(rel)
+        if changed_scripts:
+            stale_scripts.append((newest["hash"], changed_scripts))
+    if (stale or stale_scripts) and not blocked:
         lines = []
         for digest, changes in stale:
             lines.append("mycelium-extra gate: blocked because inputs pinned by plan {} changed after "
                          "the plan was written:".format(digest))
             lines.extend("  - " + change for change in changes)
-        lines.append("Re-check these inputs (for example, re-run the plan's data-contract check) and "
-                     "present the plan again; the user approves the new pins with `approve plan <hash>`. "
-                     "Do not work around this block.")
+        if stale:
+            lines.append("Re-check these inputs (for example, re-run the plan's data-contract check) and "
+                         "present the plan again; the user approves the new pins with `approve plan <hash>`. "
+                         "Do not work around this block.")
+        for digest, changes in stale_scripts:
+            lines.append("mycelium-extra gate: blocked because scripts pinned under plan {} changed "
+                         "since it was approved or first run:".format(digest))
+            lines.extend("  - " + change for change in changes)
+        if stale_scripts:
+            lines.append("The user reviews the change and re-approves: present the plan again, and they "
+                         "approve it with `approve plan <hash>`. Do not work around this block.")
         return deny("\n".join(lines))
-    if not blocked and unchecked:  # fail open, but say so
-        return {"systemMessage": "mycelium-extra gate: pinned inputs not re-checked before this run "
-                                 "(time limit, `pin_seconds`): {}.".format(listing(unchecked))}
     if not blocked:
-        return None
+        note_first_runs(root, firsts, budget)
+        messages = []
+        if unchecked:  # fail open, but say so
+            messages.append("mycelium-extra gate: pinned inputs not re-checked before this run "
+                            "(time limit, `pin_seconds`): {}.".format(listing(unchecked)))
+        if notice and approvals is not None:  # a gated run was checked
+            messages.append(notice)
+        return {"systemMessage": "\n".join(messages)} if messages else None
     hashes = ", ".join(r["hash"] for r in approvals) or "none"
     lines = ["mycelium-extra gate: blocked because no active approved plan covers this run."]
     for label, paths in blocked:
@@ -1160,13 +1352,18 @@ def on_prompt(event, root, config):
                    "Nothing was approved.".format(wanted, known))
     else:
         pins = plan.get("pins") or {}
+        scripts = plan.get("scripts") or {}
         record = {"hash": wanted, "approved_at": time.time(), "session_id": event.get("session_id"),
-                  "plan": plan["text"], "pins": pins}
+                  "plan": plan["text"], "pins": pins, "scripts": scripts}
         write_json(state_path(root, "approvals", wanted + ".json"), record)
+        ledger = state_path(root, "script-pins", wanted + ".json")  # approving again re-baselines
+        if os.path.isfile(ledger):
+            os.remove(ledger)
         message = ("mycelium-extra: plan {} approved. Gated runs whose paths appear in that plan "
-                   "may run for {} h. {}".format(
+                   "may run for {} h. {}{}".format(
                        wanted, config["approval_hours"],
-                       "Pinned inputs: {}.".format(listing(pins)) if pins else "No inputs pinned."))
+                       "Pinned inputs: {}.".format(listing(pins)) if pins else "No inputs pinned.",
+                       " Pinned scripts: {}.".format(listing(scripts)) if scripts else ""))
     return {"systemMessage": message,
             "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
 
@@ -1187,8 +1384,12 @@ def on_stop(event, root, config):
         write_json(path, pending[-10:])  # a timeout while pinning still leaves the plan approvable
         pins, outside = pin_inputs(root, text, config)
         entry["pins"] = pins or {}
+        scripts_on, notice = script_pinning(config)
+        entry["scripts"] = pin_scripts(root, text, config) if scripts_on else {}
         write_json(path, pending[-10:])
-        notices.append(approval_card(root, text, config, digest, pins, outside, previous))
+        notices.append(approval_card(root, text, config, digest, pins, outside, previous, entry["scripts"]))
+        if notice:
+            notices.append(notice)
     fresh = new_explore_runs(root, event.get("session_id"))
     if fresh:
         counts = collections.OrderedDict()
