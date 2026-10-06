@@ -9,8 +9,8 @@ You can begin with a question such as:
 
 > "Plan the next analysis using this project's sample table and previous decisions."
 
-Follow the installation steps for your host, then initialize the gate in the
-project where you want to control execution.
+Install for your host, then [choose a usage tier](usage.md). Planning with
+`grill` needs no gate setup; turn on the gate when you want covered execution checks.
 
 ## Claude Code
 
@@ -71,23 +71,11 @@ record can change. Trust the current hooks and restart before relying on them.
 
 ## Your first analysis
 
-Open the project where you want to work. With the plugin installed and its
-hooks enabled, the first task follows four steps:
+Follow [Tier 2: Run with approval](usage.md#tier-2-run-with-approval): initialize
+the gate, plan, approve the displayed hash, and run. For reportable work, add
+[Tier 3: Verify reportable work](usage.md#tier-3-verify-reportable-work).
 
-1. **Turn on the gate.** Use `/mycelium-extra:init` in Claude Code or
-   `$mycelium-extra:init` in Codex. The default paths are `analysis/**` and
-   `nbs/**`; if those folders are absent, the skill asks which paths to cover.
-2. **Plan the work.** Invoke `grill` with your question. Read its assumptions,
-   numbered steps, and the files listed under `Inputs:`.
-3. **Approve the plan.** In the same session, send only the displayed
-   `approve plan <hash>` line. A revised plan needs its current hash approved.
-4. **Run and check.** Execute through your usual workflow, then invoke
-   `/mycelium-extra:verify <hash>` or `$mycelium-extra:verify <hash>`. The report
-   distinguishes problems in the run from evidence it could not collect.
-
-In a Mycelium project, use its `analyze` skill for execution and its `review`
-skill for code review. Mycelium Extra supplies the planning and verification
-steps around that work.
+Only planning? Start with [Tier 1](usage.md#tier-1-plan); no `init` needed.
 
 ## Requirements
 

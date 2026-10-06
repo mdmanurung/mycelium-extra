@@ -1,64 +1,56 @@
 Mycelium Extra
 ==============
 
-**Give each analysis a plan you can check against its execution.**
-
-Research projects carry decisions that are easy to lose between a question,
-a script, and a finished report. You may know why a cohort was filtered one
-way, but the next session may not. A sample table may change after you checked
-it. A result may be quoted without a clear link to the run that produced it.
-
-Mycelium Extra makes those connections explicit. It reads the project before
-planning, helps you settle consequential choices, and checks covered runs
-against the plan you approved. Verification then shows what the execution
-record supports and where evidence is missing.
+**Plan an analysis. Approve what runs. Check the execution record.**
 
 Use it in Claude Code or Codex, alongside
-`Mycelium <https://github.com/arjunrajlaboratory/mycelium>`_ or in an ordinary
-repository. Mycelium supplies the project's memory and analysis conventions;
-Mycelium Extra supplies the planning and verification steps around a run.
+`Mycelium <https://github.com/arjunrajlaboratory/mycelium>`_ or in an ordinary repository.
+Start small and add tools when you need them.
 
-Start with the installation instructions and host compatibility table.
-Claude Code uses ``/mycelium-extra:grill``; Codex uses
-``$mycelium-extra:grill``.
+Choose your tier
+----------------
 
-* **Start with the question.** Planning uses your repository's evidence and
-  asks about choices that need your judgment.
-* **Approve the work.** The gate checks covered commands and pinned inputs
-  before execution.
-* **Read the record.** Verification connects the frozen plan, receipts,
-  outputs, and checked claims without re-running the analysis.
+.. list-table::
+   :header-rows: 1
+   :widths: 25 30 45
+
+   * - Tier
+     - Tools
+     - What you get
+   * - 1. Plan
+     - ``grill``
+     - A sourced plan before writing or running code.
+   * - 2. Run with approval
+     - Add ``init`` and plan approval
+     - Covered execution checks, input pins, and receipts.
+   * - 3. Verify reportable work
+     - Add a pinned run plan and ``verify``
+     - Check the execution record and save provenance after confirmation.
+   * - 4. Full project workflow
+     - Add structure, review, handoff, hardening, and Mycelium
+     - Coordinate the analysis lifecycle and prevent recurring mistakes.
+
+**Only need a plan?** Install the plugin and invoke ``grill``.
+**Ready to run?** Follow Tier 2 in the usage guide.
+Claude Code uses ``/mycelium-extra:<skill>``; Codex uses ``$mycelium-extra:<skill>``.
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Use the plugin
+   :maxdepth: 1
+   :caption: Start here
 
-   README
    docs/installation
+   docs/usage
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Look up details
+
    docs/skills
    docs/approval-gate
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Reference and development
-
+   docs/verification
    docs/mycelium-integration
-   docs/development
-   CHANGELOG
-   docs/roadmap/README
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Design and validation
-
-   docs/design/c1-fixture-project
-   docs/design/claim_artifact_checker_design
-   docs/design/SKILL_verify_claims
-   docs/design/e4-real-use
 
 .. toctree::
    :hidden:
-   :glob:
 
-   docs/roadmap/0*
-   skills/*/references/*
+   skills/grill/references/run-plans
