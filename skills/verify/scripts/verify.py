@@ -125,25 +125,40 @@ def under(path, folder):
 # ---------------------------------------------------------------- outside records
 
 def sacct_state(sacct, job_id, since):
-    """The job's final state from sacct, or None when sacct cannot be run."""
+    """The job's final state from sacct, or None when sacct cannot be run. `submit` is the job's
+    sbatch line as Slurm expanded it (`$dir` resolved), read from `workdir`; a Slurm older than
+    20.11 has no SubmitLine field, so the call is retried without it."""
     day = time.strftime("%Y-%m-%d", time.localtime(since))
-    try:
-        proc = subprocess.Popen([sacct, "-j", str(job_id), "-n", "-P", "-X", "-S", day,
-                                 "-o", "JobID,State,ExitCode,Start,End"],
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", errors="replace")
-        out, _ = proc.communicate(timeout=20)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        return None
-    except (OSError, ValueError):
-        return None
+    for fields in ("JobID,State,ExitCode,Start,End,WorkDir,SubmitLine", "JobID,State,ExitCode,Start,End"):
+        try:
+            proc = subprocess.Popen([sacct, "-j", str(job_id), "-n", "-P", "-X", "-S", day, "-o", fields],
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8",
+                                    errors="replace")
+            out, _ = proc.communicate(timeout=20)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            return None
+        except (OSError, ValueError):
+            return None
+        if proc.returncode == 0:
+            break
+    found = None
     for line in out.splitlines():
-        parts = line.split("|")
-        if len(parts) >= 5 and parts[0].split(".")[0] == str(job_id):
+        parts = line.split("|", 6)  # SubmitLine is last, so a `|` inside it stays whole
+        if len(parts) >= 5 and re.split(r"[._]", parts[0])[0] == str(job_id):  # `N_2`: an array task
+            state = parts[1].split()[0] if parts[1] else "UNKNOWN"
             end = parts[4] if re.match(r"^\d{4}-", parts[4]) else None
-            return {"state": parts[1].split()[0] if parts[1] else "UNKNOWN", "exit": parts[2],
-                    "end": time.mktime(time.strptime(end, "%Y-%m-%dT%H:%M:%S")) if end else None}
-    return {"state": "NOT_FOUND", "exit": None, "end": None}
+            end = time.mktime(time.strptime(end, "%Y-%m-%dT%H:%M:%S")) if end else None
+            if found is None:
+                found = {"state": state, "exit": parts[2], "end": end,
+                         "workdir": parts[5] if len(parts) > 6 else None,
+                         "submit": re.sub(r"[;&|<>()]", " ", parts[6]) if len(parts) > 6 else None}
+            else:  # an array: the worst task's state, and the last task's end
+                rank = lambda s: 2 if s in FAILED_JOB else 0 if s == "COMPLETED" else 1
+                if rank(state) > rank(found["state"]):
+                    found.update(state=state, exit=parts[2])
+                found["end"] = None if end is None or found["end"] is None else max(end, found["end"])
+    return found or {"state": "NOT_FOUND", "exit": None, "end": None}
 
 
 def decode_name(encoded):
@@ -1065,6 +1080,14 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     for r in mine:
         if r.get("job_id"):
             jobs[r["job_id"]] = sacct_state(sacct, r["job_id"], r["ts"])
+    # A job ID on receipts of different commands came from one shared tool output, so its state
+    # belongs to one of them only (an older gate gave every sbatch in one call the first ID).
+    shared = {j for j in jobs if len({r["command"] for r in mine if r.get("job_id") == j}) > 1}
+
+    def submitted(r, path):
+        """Whether the receipt's Slurm job ran `path`, by the sbatch line Slurm recorded."""
+        job = jobs.get(r.get("job_id")) or {}
+        return bool(job.get("submit")) and mentions(job["submit"], root, path, job.get("workdir") or root)
 
     meta = {os.path.join(root, ".snakemake", "metadata")}
     for folder in ([analysis_dir] if analysis_dir else []) + folders + [os.path.dirname(p) for p in planned]:
@@ -1076,10 +1099,10 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     smk = snakemake_records(sorted(m for m in meta if os.path.isdir(m)), start)
 
     report = Report()
-    scripts = []
+    scripts, shown = [], set()  # shown: the Slurm jobs a planned script's row reports
     for path in planned:
         row = {"path": path, "status": "no receipt", "last_run": None, "notes": []}
-        direct = [r for r in mine if path in ran_paths(root, r)]
+        direct = [r for r in mine if path in ran_paths(root, r) or submitted(r, path)]
         inside = [m for m in smk if mentions(m["command"], root, path, m["workdir"])]
         if not inside and is_snakefile(path):
             rules = set(SNAKE_RULE.findall(read_text(os.path.join(root, path))))
@@ -1087,6 +1110,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             inside = [m for m in smk if m["rule"] in rules and os.path.normpath(m["workdir"]) == folder]
         if direct:
             last = direct[-1]
+            shown.add(last.get("job_id"))
             row["last_run"] = last["ts"]
             job = jobs.get(last.get("job_id")) if last.get("job_id") else None
             code = last.get("exit_status")
@@ -1098,9 +1122,18 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                 report.add("block", "`{}` {} at {}{}.".format(
                     path, "failed without an exit code" if code == "failed" else "was interrupted",
                     when(last["ts"]), ": " + last["error_line"] if last.get("error_line") else ""))
+            elif last.get("job_id") in shared:
+                row["status"] = "job {} (state not attributable)".format(last["job_id"])
+                report.add("gap", "`{}`: Slurm job {} is recorded for {} different sbatch commands, so "
+                                  "its state is not attributable; check `sacct -j {}`.".format(
+                                      path, last["job_id"], len({r["command"] for r in mine
+                                                                 if r.get("job_id") == last["job_id"]}),
+                                      last["job_id"]))
             elif last.get("job_id"):
                 state = (job or {}).get("state")
                 row["status"] = "job {} {}".format(last["job_id"], state or "state unknown (no sacct)")
+                if path not in ran_paths(root, last):
+                    row["notes"].append("matched by its sacct submit line")
                 if state in FAILED_JOB:
                     report.add("block", "`{}`: Slurm job {} ended {}.".format(path, last["job_id"], state))
                 elif state != "COMPLETED":
@@ -1172,6 +1205,15 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                                   "inside it.".format(path))
         scripts.append(row)
 
+    for job_id in sorted(set(jobs) - shown):  # jobs whose sbatch line names no planned script
+        state = (jobs[job_id] or {}).get("state")
+        if state == "COMPLETED" and job_id not in shared:
+            continue
+        run = next(r for r in mine if r.get("job_id") == job_id)
+        report.add("gap", "Slurm job {} ({}) {}, and it names no planned script; check `sacct -j {}`."
+                   .format(job_id, describe_run(run, digest), "is recorded for several sbatch commands, so its state is "
+                           "not attributable" if job_id in shared else "is " + (state or "of unknown state"),
+                           job_id))
     if handed:
         report.add("info", "{} receipt(s) under this plan only passed planned paths to other code "
                            "(`-e`/`-c` code or a program read from stdin) and are not counted as runs."
