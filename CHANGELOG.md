@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.54] - 2026-10-08
+
+### Changed
+
+- `grill` writes a brief of at most 150 words (was 200–500), plus the plan table and the quoted question, which do not count. One short line per section; Evidence keeps only the facts the plan's choices rest on, and the user asks for more if needed.
+
 ## [0.9.53] - 2026-10-08
 
 ### Changed
