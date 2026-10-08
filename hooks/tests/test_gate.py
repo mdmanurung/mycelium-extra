@@ -212,6 +212,9 @@ class GateTest(unittest.TestCase):
                       "fit_hsc_k40_fit.rds, \u2026 and 3 more", card)
         self.assertIn("Shorthand, not read: \u2026_meta.csv; name the full path", card)
         self.assertIn("Writes 6 ", card)  # 4 from the lists, pairs.csv, scope_*.csv; no `fit_` or `.rds` pieces
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        self.assertEqual(gate.read_outputs("Outputs: results/{sample}.tsv")[0], ["results/*.tsv"])  # Snakemake
         plain = self.card(PLAN + "\nOutputs: `...pairs.csv`\n")
         self.assertIn("  Shorthand, not read: ...pairs.csv; name the full path", plain)
 
