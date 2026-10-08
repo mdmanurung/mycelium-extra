@@ -723,6 +723,21 @@ def v28(p):
     code, out, err = p.verify("report", digest)
     return {"status": harness.status_line(out), "script_row": "| `{}` |".format(log) in out, "text": out + err}
 
+
+@defect("V-29", "verify", "verify", ["Outputs and reporting"],
+        {"status": "Verify status: CONFORMS_WITH_GAPS", "missing": 0,
+         "messages": ["_summary.tsv` is shorthand that names no path"]})  # verify escapes the \u2026
+def v29(p):
+    # M8-T03 B2: the baseline outputs written as a `{a,b}` list, plus one `…` shorthand word.
+    text = harness.plan_text()
+    line = next(row for row in text.splitlines() if row.startswith("Outputs:"))
+    text = text.replace(line, "Outputs: {}/outputs/{{samples_used,de_results,summary}}.tsv "
+                              "`\u2026_summary.tsv`".format(A))
+    digest = p.run_plan(text)[0]
+    code, out, err = p.verify("report", digest)
+    return {"status": harness.status_line(out), "missing": out.count("does not exist"), "text": out + err}
+
+
 # ---------------------------------------------------------------- 8.4 sweeps and memory
 
 def verified(p):

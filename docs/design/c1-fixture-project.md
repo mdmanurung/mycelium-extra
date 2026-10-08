@@ -344,6 +344,7 @@ DC-08 to DC-11 are the reason the fixture exists. Every tool reports success, ye
 | V-26 | M8-T03 B1: step 1 of the baseline plan names its script by absolute path, steps 2 and 3 by root-relative path | `CONFORMS`; `report` and `status` do not crash; the script is listed root-relative | `tool: verify` |
 | V-27 | M8-T03 B4: the baseline plan runs, then `02_paired_test.py` is edited | `DOES_NOT_CONFORM`; "edited after its run" plus "has not run under any plan, so no approval covers it" | Stale evidence as current |
 | V-28 | M8-T03 B3: a fourth row reads an existing `logs/02_paired_test.log`, rewritten after the runs | `CONFORMS`; the log is not listed as a planned script | `tool: verify` |
+| V-29 | M8-T03 B2: the baseline `Outputs:` line written as `outputs/{samples_used,de_results,summary}.tsv` plus a `…_summary.tsv` word | `CONFORMS_WITH_GAPS`; one gap `is shorthand that names no path`, no `does not exist` | Outputs and reporting |
 
 V-13 keeps the steps in the plan table because verify reads a rule's `incomplete` flag only for a planned step that ran inside a wrapper. A plan that names only the Snakefile gets a direct receipt for it, and an incomplete rule is not reported; that is not a case yet.
 
