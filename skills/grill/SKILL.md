@@ -49,7 +49,7 @@ After each answer, check: **would plausible answers to any remaining user-owned 
 - `READY_WITH_ASSUMPTIONS`: the plan is stable, and some decisions rest on labeled, reversible defaults the user can override at approval without re-planning.
 - `DECISION_REQUIRED`: one user-owned choice leads to materially different plans (estimand, data, or deliverable), and no default is defensible without the user's intent. Give the options, a recommendation, and the consequence of each. Do not pretend the question cap resolves a blocker.
 
-Write a 200–500 word brief, plus the plan table (which does not count toward the limit). Scale down for simple tasks. Open it with the user's answer from section 0, quoted verbatim:
+Write a brief of at most 150 words, plus the plan table and the quoted question (neither counts toward the limit). Use one short line per section, and keep only the Evidence bullets the plan's choices rest on; the user asks for more if they need it. Scale down further for simple tasks. Open it with the user's answer from section 0, quoted verbatim:
 
 ```
 > Question (user's words): "<answer>"
