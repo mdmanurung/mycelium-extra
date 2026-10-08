@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.61] - 2026-10-08
+
+### Fixed
+
+- A Slurm job's state reached the `verify` report only when its `sbatch` receipt named a planned script. 59 of 86 real `sbatch` receipts name none (`$dir`/`$R` paths, `--wrap` from before 0.9.x, or only the `.out`/`.err` files B3 stopped counting), so failed jobs were invisible. `verify` now also reads the job's `WorkDir` and `SubmitLine` from `sacct` (retrying without them on a Slurm older than 20.11): a job whose recorded `sbatch` line names a planned script counts as that script's run. A job that names no planned script and did not complete is a gap, and so is a job ID recorded for different `sbatch` commands (an older gate gave several `sbatch` calls in one command the first ID). Array jobs (`N_1`, `N_2`) were never found by `sacct`; their tasks are now combined, and the worst state wins. Checked on 99 approved plans from `scale` and `bmv_pilot_cytof_integration`: no status changes; 11 planned-script rows now show their job (9 COMPLETED, 2 FAILED), and 23 unmatched jobs that did not complete are new gaps. Defect V-30.
+
 ## [0.9.60] - 2026-10-08
 
 ### Fixed
