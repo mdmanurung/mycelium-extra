@@ -204,6 +204,17 @@ class GateTest(unittest.TestCase):
         self.assertNotIn("Cohort has 24 rows", card)
         self.assertNotIn("Runs allowed", card)
 
+    def test_card_reads_output_lists_and_flags_shorthand(self):
+        outputs = ("Outputs: analysis/a/out/fit_{hsc,gdt}_k40_{fit,summary}.rds, `analysis/a/out/pairs.csv`, "
+                   "`\u2026_meta.csv`, analysis/a/out/scope_<subset>.csv")
+        card = self.card(self.CARD_PLAN.replace("Outputs: analysis/a/out/res.tsv", outputs))
+        self.assertIn("Writes 6 under analysis/a/out/: fit_gdt_k40_fit.rds, fit_gdt_k40_summary.rds, "
+                      "fit_hsc_k40_fit.rds, \u2026 and 3 more", card)
+        self.assertIn("Shorthand, not read: \u2026_meta.csv; name the full path", card)
+        self.assertIn("Writes 6 ", card)  # 4 from the lists, pairs.csv, scope_*.csv; no `fit_` or `.rds` pieces
+        plain = self.card(PLAN + "\nOutputs: `...pairs.csv`\n")
+        self.assertIn("  Shorthand, not read: ...pairs.csv; name the full path", plain)
+
     def test_card_without_choice_or_validation_columns_is_the_plain_card(self):
         card = self.card(PLAN)
         self.assertIn("  Runs allowed", card)

@@ -397,6 +397,20 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("re-approved; first run", out)
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
 
+    def test_output_lists_are_read_and_shorthand_is_one_gap(self):
+        # B2: `{a,b}` lists and `<name>` placeholders are read; a `…` word names no path.
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=(
+            "analysis/a/outputs/fit_{a,b}_{x,y}.rds, analysis/a/outputs/scope_<subset>.csv, `\u2026_meta.csv`")))
+        receipt = self.run_cmd("python " + FIT)
+        for name in ("fit_a_x", "fit_a_y", "fit_b_x", "fit_b_y"):
+            self.write("analysis/a/outputs/{}.rds".format(name), "x\n", mtime=receipt["ts"] + 1)
+        self.write("analysis/a/outputs/scope_bcells.csv", "x\n", mtime=receipt["ts"] + 1)
+        out = self.verify("report", digest)
+        self.assertIn("Output `\u2026_meta.csv` is shorthand that names no path", out)
+        self.assertEqual(out.count("does not exist"), 0, out)
+        self.assertIn("| `analysis/a/outputs/fit_b_y.rds` |", out)
+        self.assertIn("| `analysis/a/outputs/scope_bcells.csv` |", out)
+
     def test_plan_without_outputs_line_is_a_gap(self):
         digest = self.approve(plan("run `{}`".format(FIT), outputs=None))
         self.run_cmd("python " + FIT)
