@@ -6,12 +6,12 @@
 Keep Extra to its aim, "Plan an analysis. Approve what runs. Check the execution record", and keep the human in the loop. Done for a task = grill plan approved, built, all test files green on 3.6 and 3.12, ablations 3/3, `gate_diff` identical when `gate.py` changes, version bumped (docs-only: no bump), atomic commits (feat/fix, test, docs, chore), no push.
 
 ## Next action
-None while the user uses the package. First: `claude plugin update` (the plugin cache serves 0.9.38), then in a gated repo show a long plan and type `card <hash> checks` to confirm Claude Code shows the blocked prompt's reason, then use it on real analyses. Resume from what use turns up; candidates are in Open items. Any new work starts with a grill plan ending `Plan status: READY_WITH_ASSUMPTIONS`.
+None while the user uses the package. In a gated repo, show a long plan and type `card <hash> checks` to confirm Claude Code shows the blocked prompt's reason, then use it on real analyses. Resume from what use turns up; candidates are in Open items. Any new work starts with a grill plan ending `Plan status: READY_WITH_ASSUMPTIONS`.
 
 ## State
 - Uncommitted: `HANDOFF.md`; untracked `mycelium-extra-improvements/` (old staging, superseded) and `mycelium-extra-review-bundle/` (plans + `M8-T03_triage.md`; commit is the user's call).
 - Tests: all green at de65d19 on 3.6 and 3.12 (gate 160, verify 56, e2e 74, ablations 3/3, `gate_diff` 163/163, links 102, versions OK).
-- Plugin cache serves Extra 0.9.38 until `claude plugin update`, so live sessions show the old card and old verify output.
+- Plugin updated to 0.9.56 (user and project scope, 2026-10-08); rerun `claude plugin update mycelium-extra@mycelium-extra` after each version bump.
 - Real R: `MX_E2E_REAL_TOOLS=1 MX_E2E_RSCRIPT=/exports/para-lipg-hpc/mdmanurung/conda/envs/cellbouncer/bin/Rscript`; `scilintr` and `Rscript` are not on PATH by default, so `verify` reports a lint gap on every plan.
 - `stash@{0}` (old handoff): safe to drop, never `pop`.
 - Scratch tools (session scratchpad, may be gone): `cards.py` (old vs new card on the 56 real plans), `coexist.py` and `mycgate.py` (Mycelium + Extra hooks side by side). Method for card changes: render all 56 approved plans of `scale` and `bmv_pilot_cytof_integration` with `git archive HEAD` code vs working tree; copy `.gitignore` into the temp root (git ignores a symlinked one).
