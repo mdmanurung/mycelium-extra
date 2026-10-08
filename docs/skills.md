@@ -109,7 +109,10 @@ Usually called by `grill` when sample assumptions matter.
 
 Writes a short root `HANDOFF.md` with the goal, current state, locked decisions,
 dead ends, code pointers, and one exact next action. Replaces the previous
-handoff and ends with a resume prompt. Does not commit or change `.living/`.
+handoff and ends with a resume prompt. A grill plan still waiting for approval is
+carried word for word: `HANDOFF.md` points to the gate's stored copy (or holds the
+whole brief when there is none), and the new session prints it unchanged for a
+fresh approval card. Does not commit or change `.living/`.
 
 ## harden
 

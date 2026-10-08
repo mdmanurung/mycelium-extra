@@ -28,7 +28,7 @@ When a reply ends with `Plan status: READY` or `READY_WITH_ASSUMPTIONS`, the Sto
 
 Text quoted from the plan has control characters, markup and the phrase "approve plan" removed. The card shows what the gate allows; it does not check the choices or the checks. Any other plan keeps the older card: runs allowed, inputs, scripts, outputs. Type exactly that (a trailing `.` is fine) to record the approval in `.mycelium-extra/approvals/`. A bare `approve plan` lists pending hashes and approves nothing.
 
-Approve in the same session that presented the plan. If you move to a new session, present the plan there first; a pending hash from another session does not grant approval.
+Approve in the same session that presented the plan. If you move to a new session, present the plan there first; a pending hash from another session does not grant approval. When the context fills up while a plan waits, `/mycelium-extra:handoff` points `HANDOFF.md` at the plan's stored text, and the new session prints it unchanged. Approve the hash on the new card: it matches the old one when the text is unchanged.
 
 ## What is gated
 
