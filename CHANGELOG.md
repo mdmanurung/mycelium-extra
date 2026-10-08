@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.53] - 2026-10-08
+
+### Changed
+
+- `handoff` keeps a grill plan that is waiting for approval word for word. Before, it summarised the plan into `HANDOFF.md`'s 80 lines, so after `/clear` the table, choices, checks and labeled defaults were lost, and the old hash approved nothing in the new session. Now the skill finds the plan the gate stored at Stop (by content, so a parallel session cannot swap it), writes a `## Pending plan` pointer with the hash and a command that prints it, and the resume prompt has the new session print it unchanged. The gate then shows a fresh card on current pins in that session; the same text gives the same hash, and a different hash tells the user the reprint changed the plan. Without the gate, the whole brief goes into `HANDOFF.md` and does not count toward the line limit. Approval stays per session; the gate is unchanged. A gate test runs the skill's own two commands: the gate allows both, and the reprinted plan is approvable only in the session that showed it.
+
 ## [0.9.52] - 2026-10-06
 
 ### Added
