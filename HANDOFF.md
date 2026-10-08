@@ -1,22 +1,25 @@
-# Handoff — mycelium-extra: CHECKPOINT at 0.9.52, development paused
+# Handoff — mycelium-extra: CHECKPOINT at 0.9.56
 
-**Date:** 2026-10-06 · **Branch:** `main` @ 6baa9aa (v0.9.52, 28 commits since 74ddf53, pushed) · **Status:** user paused development (2026-10-06) to use the package; pushed to `origin/main`. B1 (0.9.46), B4 (0.9.47), approval card (0.9.48), card baseline (0.9.49), B5 grouped output attribution (0.9.50), card diff at the bottom (0.9.51), `.gitignore` warning (0.9.52) done. Work on `main`. No tags.
+**Date:** 2026-10-08 · **Branch:** `main` @ de65d19 (v0.9.56; 0.9.53–0.9.56 not pushed) · **Status:** user uses the package; fixes come from real use. B1 (0.9.46), B4 (0.9.47), approval card (0.9.48), card baseline (0.9.49), B5 grouped output attribution (0.9.50), card diff at the bottom (0.9.51), `.gitignore` warning (0.9.52) done. Work on `main`. No tags.
 
 ## Goal
 Keep Extra to its aim, "Plan an analysis. Approve what runs. Check the execution record", and keep the human in the loop. Done for a task = grill plan approved, built, all test files green on 3.6 and 3.12, ablations 3/3, `gate_diff` identical when `gate.py` changes, version bumped (docs-only: no bump), atomic commits (feat/fix, test, docs, chore), no push.
 
 ## Next action
-None while the user uses the package. First: `claude plugin update` (the plugin cache serves 0.9.38), then use it on real analyses. Resume from what use turns up; candidates are in Open items. Any new work starts with a grill plan ending `Plan status: READY_WITH_ASSUMPTIONS`.
+None while the user uses the package. First: `claude plugin update` (the plugin cache serves 0.9.38), then in a gated repo show a long plan and type `card <hash> checks` to confirm Claude Code shows the blocked prompt's reason, then use it on real analyses. Resume from what use turns up; candidates are in Open items. Any new work starts with a grill plan ending `Plan status: READY_WITH_ASSUMPTIONS`.
 
 ## State
 - Uncommitted: `HANDOFF.md`; untracked `mycelium-extra-improvements/` (old staging, superseded) and `mycelium-extra-review-bundle/` (plans + `M8-T03_triage.md`; commit is the user's call).
-- Tests: all green at 6baa9aa on 3.6 and 3.12 (gate 156, verify 56, e2e 74, ablations 3/3, `gate_diff` 163/163, links 102, versions OK).
+- Tests: all green at de65d19 on 3.6 and 3.12 (gate 160, verify 56, e2e 74, ablations 3/3, `gate_diff` 163/163, links 102, versions OK).
 - Plugin cache serves Extra 0.9.38 until `claude plugin update`, so live sessions show the old card and old verify output.
 - Real R: `MX_E2E_REAL_TOOLS=1 MX_E2E_RSCRIPT=/exports/para-lipg-hpc/mdmanurung/conda/envs/cellbouncer/bin/Rscript`; `scilintr` and `Rscript` are not on PATH by default, so `verify` reports a lint gap on every plan.
 - `stash@{0}` (old handoff): safe to drop, never `pop`.
 - Scratch tools (session scratchpad, may be gone): `cards.py` (old vs new card on the 56 real plans), `coexist.py` and `mycgate.py` (Mycelium + Extra hooks side by side). Method for card changes: render all 56 approved plans of `scale` and `bmv_pilot_cytof_integration` with `git archive HEAD` code vs working tree; copy `.gitignore` into the temp root (git ignores a symlinked one).
 
 ## Shipped this session (one line each)
+- 0.9.53 (`cea3471..64c7d6d`): handoff carries a pending grill plan word for word (points to `.mycelium-extra/pending/<session>.json`, found by content); new session reprints it, same text = same hash.
+- 0.9.54 + 0.9.56: grill brief ≤150 words; table, quoted question, Inputs/Outputs/Facts/status lines, guards and flagged Evidence exempt.
+- 0.9.55 (`fc63eff..baab2c9`): card >35 lines becomes a digest; `card <hash> checks|diff|full` (UserPromptSubmit `decision: block`) shows the rest. 86 real plans: median 40→31, max 83→43.
 - 0.9.50 B5 (`52be169..7c2482f`): `describe_run` (`skills/verify/scripts/verify.py:589`) names the script when a long interpreter path hides it; outputs not tied to the plan's runs give one gap per (producing run, folder). 9,883 per-file lines became 466 grouped + 57 singles on real repos.
 - 0.9.51 (`c2d303c..cf467fb`): the changed-script summary stays on top of the card; the diff (30 lines max) sits above `▶ approve plan`. `Question` line moved from ~41 to ~10. `script_state` returns (pinned, summary, diff).
 - 0.9.52 (`29de37d..6baa9aa`): the card warns when `.living/` exists in a git repo and `.mycelium-extra/` is not ignored (`state_unignored`, `UNIGNORED` in `hooks/gate.py`). Never blocks.
@@ -24,7 +27,8 @@ None while the user uses the package. First: `claude plugin update` (the plugin 
 
 ## Locked decisions
 - **Human in the loop (user, 2026-10-06):** script pins block by default; an edited script is never softened. D10–D12 stay opt-in/parked.
-- **Approval card (user, 2026-10-06):** layout A+B; Evidence lines with fail/flag; steps marked done show "agent says: done"; baseline from approval history, any age; grants always printed in full, never collapsed; quoted plan text sanitised; plans without Step plus Choice or Validation columns keep the old card; diff block at the bottom, summary on top (0.9.51).
+- **Approval card (user, 2026-10-06):** layout A+B; Evidence lines with fail/flag; steps marked done show "agent says: done"; baseline from approval history, any age; grants always printed in full, never collapsed; quoted plan text sanitised; plans without Step plus Choice or Validation columns keep the old card; diff block at the bottom, summary on top (0.9.51). **Digest (user, 2026-10-08, layout A):** cards past `CARD_LINES` (35) show the digest; the diff only behind `card <hash> diff`; grants still in full.
+- **Brief length (user, 2026-10-08):** grill brief at most 150 words, plan table excluded.
 - **B1 (user):** plan paths are root-relative; absolute-in-root accepted and normalised.
 - **B5 (user):** goal "so that i know which file produce with output"; status unchanged; `block` findings stay per file.
 - **Complement Mycelium (user):** warn, never block, on Mycelium interplay; the warning lives on the card only, not in `verify`.
@@ -38,7 +42,7 @@ None while the user uses the package. First: `claude plugin update` (the plugin 
 - Calling edited-script blocks "superseded, so false positive": none was covered by an approval (B4).
 - Commands that write and mention the Extra state folder are blocked by the gate even in scratch: write files with the Write tool, run scratch scripts by path (the folder name built from parts inside the script).
 - `find` over `/exports/para-lipg-hpc/mdmanurung` (times out; use `rg --max-depth`); testing the locale bug on Python ≥ 3.7.
-- Rotating single check on the card, short card plus a file (review panel rejected both).
+- Rotating single check on the card, short card plus a file (review panel rejected both). Superseded for long cards by the user's digest choice (2026-10-08): on-demand `card <hash>` prompt, no file.
 - Two foreign runs in `test_verify.py`: owner is the earliest receipt within `TOLERANCE` (5 s), so back-date receipts with `stamp_last_receipt`.
 - Default `python3` here is 3.6.8; Mycelium's helpers need 3.11+ (`from datetime import UTC`). Use `python3.12` for them; Extra must stay 3.6-compatible.
 
