@@ -1,6 +1,6 @@
-# Handoff — mycelium-extra: CHECKPOINT at 0.9.56
+# Handoff — mycelium-extra: CHECKPOINT at 0.9.57
 
-**Date:** 2026-10-08 · **Branch:** `main` @ de65d19 (v0.9.56; 0.9.53–0.9.56 not pushed) · **Status:** user uses the package; fixes come from real use. B1 (0.9.46), B4 (0.9.47), approval card (0.9.48), card baseline (0.9.49), B5 grouped output attribution (0.9.50), card diff at the bottom (0.9.51), `.gitignore` warning (0.9.52) done. Work on `main`. No tags.
+**Date:** 2026-10-08 · **Branch:** `main` @ 6342836 (v0.9.57; 0.9.53–0.9.57 not pushed) · **Status:** user uses the package; fixes come from real use. B1 (0.9.46), B4 (0.9.47), approval card (0.9.48), card baseline (0.9.49), B5 grouped output attribution (0.9.50), card diff at the bottom (0.9.51), `.gitignore` warning (0.9.52) done. Work on `main`. No tags.
 
 ## Goal
 Keep Extra to its aim, "Plan an analysis. Approve what runs. Check the execution record", and keep the human in the loop. Done for a task = grill plan approved, built, all test files green on 3.6 and 3.12, ablations 3/3, `gate_diff` identical when `gate.py` changes, version bumped (docs-only: no bump), atomic commits (feat/fix, test, docs, chore), no push.
@@ -11,7 +11,7 @@ None while the user uses the package. In a gated repo, show a long plan and type
 ## State
 - Uncommitted: `HANDOFF.md`; untracked `mycelium-extra-improvements/` (old staging, superseded) and `mycelium-extra-review-bundle/` (plans + `M8-T03_triage.md`; commit is the user's call).
 - Tests: all green at de65d19 on 3.6 and 3.12 (gate 160, verify 56, e2e 74, ablations 3/3, `gate_diff` 163/163, links 102, versions OK).
-- Plugin updated to 0.9.56 (user and project scope, 2026-10-08); rerun `claude plugin update mycelium-extra@mycelium-extra` after each version bump.
+- Plugin updated to 0.9.57 (user and project scope, 2026-10-08); rerun `claude plugin update mycelium-extra@mycelium-extra` after each version bump.
 - Real R: `MX_E2E_REAL_TOOLS=1 MX_E2E_RSCRIPT=/exports/para-lipg-hpc/mdmanurung/conda/envs/cellbouncer/bin/Rscript`; `scilintr` and `Rscript` are not on PATH by default, so `verify` reports a lint gap on every plan.
 - `stash@{0}` (old handoff): safe to drop, never `pop`.
 - Scratch tools (session scratchpad, may be gone): `cards.py` (old vs new card on the 56 real plans), `coexist.py` and `mycgate.py` (Mycelium + Extra hooks side by side). Method for card changes: render all 56 approved plans of `scale` and `bmv_pilot_cytof_integration` with `git archive HEAD` code vs working tree; copy `.gitignore` into the temp root (git ignores a symlinked one).
@@ -19,6 +19,7 @@ None while the user uses the package. In a gated repo, show a long plan and type
 ## Shipped this session (one line each)
 - 0.9.53 (`cea3471..64c7d6d`): handoff carries a pending grill plan word for word (points to `.mycelium-extra/pending/<session>.json`, found by content); new session reprints it, same text = same hash.
 - 0.9.54 + 0.9.56: grill brief ≤150 words; table, quoted question, Inputs/Outputs/Facts/status lines, guards and flagged Evidence exempt.
+- 0.9.57 (`6aec93b..6342836`, plan 8988ae5d): only the Step column grants; headerless tables as before; verify reads every cell (`every_cell=True`). 5 of 95 real plans lose a Choice-cell grant; their verify reports are identical.
 - 0.9.55 (`fc63eff..baab2c9`): card >35 lines becomes a digest; `card <hash> checks|diff|full` (UserPromptSubmit `decision: block`) shows the rest. 86 real plans: median 40→31, max 83→43.
 - 0.9.50 B5 (`52be169..7c2482f`): `describe_run` (`skills/verify/scripts/verify.py:589`) names the script when a long interpreter path hides it; outputs not tied to the plan's runs give one gap per (producing run, folder). 9,883 per-file lines became 466 grouped + 57 singles on real repos.
 - 0.9.51 (`c2d303c..cf467fb`): the changed-script summary stays on top of the card; the diff (30 lines max) sits above `▶ approve plan`. `Question` line moved from ~41 to ~10. `script_state` returns (pinned, summary, diff).
@@ -53,7 +54,6 @@ None while the user uses the package. In a gated repo, show a long plan and type
 
 ## Open items
 - **B5 leftovers (parked):** "ran but not in the plan table" (249 gaps) and "run under another plan" info lines (768 across 56 plans) are still one line each.
-- Gate authorises from every table cell except Source, so a path in a Validation cell approves a run: needs its own grill.
 - **M7-T01** plan-review redaction audit (first grill question asked twice, unanswered); **M7-T05** record what was sent: user decision.
 - **M1-T18 spike:** hook payload fields keying `PreToolUse` to `PostToolUse`; Mycelium lineage vs receipts.
 - Known misses: DC-08..DC-11, V-02b, V-20. 35 of 61 `sbatch` receipts have no exit status.
