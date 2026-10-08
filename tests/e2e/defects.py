@@ -497,6 +497,19 @@ def v12(p):
     return report(p, digest)
 
 
+@defect("V-30", "verify", "verify", ["tool: verify"],
+        {"status": BLOCKED, "messages": ["Slurm job 4242 ended FAILED"]})
+def v30(p):
+    # Backlog #4: `$S` hides the job script from the gate, so only sacct's SubmitLine names it.
+    digest = p.approve(plan([row(1, SBATCH)]))[0]
+    p.agent_bash("S=" + A + "/run_all.sbatch; sbatch $S", effect=sbatch_effect)
+    now = time.time()
+    p.write_fakes(sacct="4242|FAILED|1:0|{}|{}|{}|{}".format(
+        time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(now - 60)),
+        time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(now)), p.root, SBATCH))
+    return report(p, digest)
+
+
 SNAKEMAKE = "snakemake -s " + A + "/Snakefile --cores 1"
 RULES = [("step01_select_samples", "scripts/01_select_samples.py", "outputs/samples_used.tsv"),
          ("step02_paired_test", "scripts/02_paired_test.py", "outputs/de_results.tsv"),
