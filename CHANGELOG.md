@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.57] - 2026-10-08
+
+### Changed
+
+- Only a plan table's Step column grants a run. A path or command word in a Choice or Validation cell no longer approves it, so a script named as a check or a choice cannot slip through approval. A table with no Step column in its header (or no header) grants from every cell but Source, as before. The card's "In prose only, not authorised" line is now "Outside the Step column, not authorised" and also lists scripts named only in Choice or Validation cells. `verify` keeps reading every cell but Source (`plan_table(..., every_cell=True)`), so its reports on older plans do not change. Checked on 95 approved plans from `scale` and `bmv_pilot_cytof_integration`: all have a Step header; 5 (approved 2026-10-01 to 10-03, past the approval window) would lose a grant, each from a Choice cell; `verify report` on those 5 is byte-identical before and after. Grill now says to name every run in its Step cell.
+
 ## [0.9.56] - 2026-10-08
 
 ### Fixed
