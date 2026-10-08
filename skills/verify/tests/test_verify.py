@@ -573,6 +573,24 @@ class VerifyTest(unittest.TestCase):
         missing = self.verify("report", digest, sacct=os.path.join(self.root, "no-sacct"))
         self.assertIn("state unknown (no sacct)", missing)
 
+    def test_sbatch_job_is_matched_by_its_sacct_submit_line(self):
+        # `$F` hides the script from the gate; Slurm records the expanded line.
+        digest = self.approve(plan("`sbatch --wrap \"python {}\"`".format(FIT)))
+        self.run_cmd('sbatch -J a --wrap "python $F"', stdout="Submitted batch job 4243")
+        line = "4243|{}|0:0|2026-09-30T10:00:00|2026-09-30T10:05:00|" + self.root + "|sbatch --wrap=python {}"
+        out = self.verify("report", digest, sacct=self.fake_sacct(line.format("COMPLETED", FIT)))
+        self.assertIn("job 4243 COMPLETED | ", out)
+        self.assertIn("matched by its sacct submit line", out)
+        out = self.verify("report", digest, sacct=self.fake_sacct(line.format("FAILED", "other.py")))
+        self.assertIn("Slurm job 4243 (`sbatch -J a", out)
+        self.assertIn("is FAILED, and it names no planned script", out)
+        array = self.write("bin/sacct-array", "#!/bin/sh\nprintf '4243_1|COMPLETED|0:0|||\\n4243_2|TIMEOUT|0:0|||\\n'\n")
+        os.chmod(array, os.stat(array).st_mode | stat.S_IEXEC)
+        self.assertIn("is TIMEOUT, and it names no planned script", self.verify("report", digest, sacct=array))
+        self.run_cmd('sbatch -J b --wrap "python $F"', stdout="Submitted batch job 4243")  # one shared output
+        out = self.verify("report", digest, sacct=self.fake_sacct(line.format("COMPLETED", FIT)))
+        self.assertIn("job 4243 (state not attributable)", out)
+
     def test_lineage_shows_computation_the_gate_did_not_see(self):
         digest = self.approve(plan("run `{}`".format(FIT)))
         self.run_cmd("python " + FIT)
