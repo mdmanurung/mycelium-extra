@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.55] - 2026-10-08
+
+### Changed
+
+- The approval card adapts to its length. Past 35 lines it shows a digest: each step on one line (step, first sentence of the choice, who decided), the check only where a default decided, Reads and Writes as counts, and no diff. Baseline, changed-script warning, flagged Evidence and the full grant list stay. `card <hash> checks`, `card <hash> diff` and `card <hash> full` show the rest; the hook blocks that prompt and answers it, so the agent never sees it. Step cells no longer show an interpreter's absolute path (`/…/envs/R4_51/bin/Rscript` reads `Rscript`), and paths inside the project read root-relative. Checked on 86 approved plans from `scale` and `bmv_pilot_cytof_integration`: 54 became digests, the median card fell from 40 to 31 lines and the longest from 83 to 43 (its 12 grants stay in full), the grant list is identical to the full card's on every digest, and no card under the limit changed length. Nothing authorised changes.
+
 ## [0.9.54] - 2026-10-08
 
 ### Changed
