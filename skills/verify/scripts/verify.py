@@ -543,6 +543,18 @@ def is_snakefile(path):
     return os.path.basename(path).startswith("Snakefile") or path.endswith(".smk")
 
 
+def is_script(root, path):
+    """A planned path is a script by its extension, a Snakefile name, or a `#!` line; another
+    existing file the plan names (a log to read, a README) is not, though a run may mention it."""
+    if gate.SCRIPT_EXT.search(path) or is_snakefile(path):
+        return True
+    try:
+        with open(os.path.join(root, path), "rb") as handle:
+            return handle.read(2) == b"#!"
+    except OSError:
+        return False
+
+
 def read_text(path):
     try:
         with open(path, encoding="utf-8", errors="replace") as handle:
@@ -1037,8 +1049,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     plan, approved_at = approval.get("plan", ""), approval.get("approved_at", 0)
     table = gate.plan_table(plan, every_cell=True)
     named = sorted(p for p in gate.plan_paths_in(root, table) if gate.gated_rel(root, root, p, config))
-    planned = [p for p in named if os.path.isfile(os.path.join(root, p)) or gate.SCRIPT_EXT.search(p)]
-    folders = [p for p in named if p not in planned]
+    planned = [p for p in named if is_script(root, p)]
+    folders = [p for p in named if p not in planned and not os.path.isfile(os.path.join(root, p))]
     commands = [c for c in config["gated_commands"] if gate.names_command(c, table)]
     analysis_dir = rel_or_abs(root, analysis_dir) if analysis_dir else guess_analysis_dir(planned)
     budget = {"bytes": float(hash_mb) * 1024 * 1024, "deadline": time.time() + seconds}
