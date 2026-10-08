@@ -12,7 +12,7 @@ It uses the gate's own table parser, so the scripts covered by verification are 
 
 ## What the report shows
 
-- **Each planned script:** ran, failed, no receipt, edited or deleted since it ran, or only passed to other code. A lint or parse call (`Rscript -e 'lintr::lint()' x.R`) or another tool's script read from stdin gets the path but does not run it, so it is not counted as a run. Steps run inside a `run.sh` or Snakemake wrapper are matched through Snakemake's per-output records, and Slurm jobs through `sacct`.
+- **Each planned script** (a path in the plan table with a script extension, a `Snakefile` name, or a `#!` line; another file it names, such as a log to read or a README, is not one): ran, failed, no receipt, edited or deleted since it ran, or only passed to other code. A lint or parse call (`Rscript -e 'lintr::lint()' x.R`) or another tool's script read from stdin gets the path but does not run it, so it is not counted as a run. Steps run inside a `run.sh` or Snakemake wrapper are matched through Snakemake's per-output records, and Slurm jobs through `sacct`.
 - **Other runs:** explore runs, runs under another plan, and scripts in the analysis folder that ran but are not in the plan table.
 - **Pinned inputs** that changed since the approval.
 - **Outputs:** the files on the plan's `Outputs:` line, when each was written, and which run likely wrote it. A file named exactly that was written before the approval blocks. Older files inside a named folder or glob are earlier runs' outputs, so they are counted, not checked.
