@@ -886,12 +886,13 @@ def scope_lines(root, plan, config):
 
 
 def expand_braces(word):
-    """`a_{x,y}.csv` -> `a_x.csv`, `a_y.csv`, every group in turn."""
+    """`a_{x,y}.csv` -> `a_x.csv`, `a_y.csv`, every group in turn; `{sample}` (no comma) -> `*`."""
     match = re.search(r"\{([^{}]*)\}", word)
     if not match:
         return [word]
     head, tail = word[:match.start()], word[match.end():]
-    return [w for part in match.group(1).split(",") for w in expand_braces(head + part + tail)][:MAX_OUTPUT_WORDS]
+    parts = match.group(1).split(",") if "," in match.group(1) else ["*"]
+    return [w for part in parts for w in expand_braces(head + part + tail)][:MAX_OUTPUT_WORDS]
 
 
 def read_outputs(text):
