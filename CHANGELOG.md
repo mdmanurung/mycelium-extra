@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.60] - 2026-10-08
+
+### Fixed
+
+- A brace group with no comma on an `Outputs:` line (Snakemake's `results/{sample}.tsv`) was read as the literal path `results/sample.tsv`, which looked real on the approval card and would be a false "does not exist" gap in `verify`. It is now read as `*`, like `<sample>`. None of the 97 approved plans in `scale` and `bmv_pilot_cytof_integration` has the form. A Snakemake regex wildcard (`{sample,[A-Z]+}`) has a comma and is still split. `gate_diff` 163/163 identical.
+
 ## [0.9.59] - 2026-10-08
 
 ### Fixed
