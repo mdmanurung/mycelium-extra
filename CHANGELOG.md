@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.59] - 2026-10-08
+
+### Fixed
+
+- `Outputs:` shorthand was read literally: `flashier_{hsc,gdt}_{fit,summary}.rds` became the fragments `flashier_` and `.rds`, and `…_meta.csv` became `_meta.csv`, each a false "does not exist" gap in `verify` and a fragment on the approval card's Writes line. The gate and `verify` now share one reader (`gate.read_outputs`): `{a,b}` lists are expanded (at most 200 paths a word), a `<name>` placeholder is read as `*`, globs stay whole on the card, and a word starting with `…` or `...` is set aside. The card adds "Shorthand, not read: …; name the full path", and `verify` gives one gap per such word. Grill now asks for full paths or `{a,b}` lists. Checked on 97 approved plans from `scale` and `bmv_pilot_cytof_integration`: 6 `verify` reports change, no status changes; the fragment gaps are gone, and in 3 plans the real files are now found and attributed. Folderless names in prose (`_dream_priors.csv` in 93f5d9f2) are still gaps. The card's Writes line changes on 14 plans, 8 of them only because globs are no longer split. `gate_diff` 163/163 identical. (B2)
+
 ## [0.9.58] - 2026-10-08
 
 ### Fixed
