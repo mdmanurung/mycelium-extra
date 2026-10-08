@@ -707,6 +707,22 @@ def v27(p):
     return {"status": harness.status_line(out), "text": out + err}
 
 
+
+@defect("V-28", "verify", "verify", ["tool: verify"],
+        {"status": CONFORMS, "script_row": False})
+def v28(p):
+    # M8-T03 B3: a step names a log to read; the log is not a planned script, so rewriting it is not an edit.
+    log = A + "/logs/02_paired_test.log"
+    os.makedirs(p.path(A + "/logs"), exist_ok=True)
+    with open(p.path(log), "w", encoding="utf-8") as handle:
+        handle.write("previous run\n")
+    digest = p.run_plan(harness.plan_text().replace(
+        "\n\nPlan status:", "\n| 4 | read `{}` | none | default: the log step 2 writes | no errors |\n\nPlan status:".format(log)))[0]
+    with open(p.path(log), "a", encoding="utf-8") as handle:
+        handle.write("rewritten after the runs\n")
+    code, out, err = p.verify("report", digest)
+    return {"status": harness.status_line(out), "script_row": "| `{}` |".format(log) in out, "text": out + err}
+
 # ---------------------------------------------------------------- 8.4 sweeps and memory
 
 def verified(p):

@@ -343,6 +343,7 @@ DC-08 to DC-11 are the reason the fixture exists. Every tool reports success, ye
 | V-25 | E1: `vaccine-de` exists under `HOME` with one conda record and a pip-only `statsmodels` dist-info, and the runs use `conda run -n vaccine-de` | `CONFORMS`; info `1 packages recorded; 1 pip package.` | Version-specific behaviour |
 | V-26 | M8-T03 B1: step 1 of the baseline plan names its script by absolute path, steps 2 and 3 by root-relative path | `CONFORMS`; `report` and `status` do not crash; the script is listed root-relative | `tool: verify` |
 | V-27 | M8-T03 B4: the baseline plan runs, then `02_paired_test.py` is edited | `DOES_NOT_CONFORM`; "edited after its run" plus "has not run under any plan, so no approval covers it" | Stale evidence as current |
+| V-28 | M8-T03 B3: a fourth row reads an existing `logs/02_paired_test.log`, rewritten after the runs | `CONFORMS`; the log is not listed as a planned script | `tool: verify` |
 
 V-13 keeps the steps in the plan table because verify reads a rule's `incomplete` flag only for a planned step that ran inside a wrapper. A plan that names only the Snakefile gets a direct receipt for it, and an incomplete rule is not reported; that is not a case yet.
 
