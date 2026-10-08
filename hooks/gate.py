@@ -909,16 +909,21 @@ def state_unignored(root):
 
 
 def approval_card(root, text, config, digest, pins, outside, previous, scripts=None):
-    card = procedure_card(root, text, config, digest, pins, outside, previous, scripts or {})
+    """(the card to show, the parts `card <hash> checks|diff|full` shows on request)."""
+    card, details = procedure_card(root, text, config, digest, pins, outside, previous, scripts or {})
     if not card:
         card = "\n".join(["mycelium-extra \u00b7 plan ready for approval",
                           "  \u25b6 approve plan {}".format(digest), ""]
                          + scope_lines(root, text, config) + pin_lines(pins, outside, previous)
                          + script_lines(root, scripts, config) + output_lines(text))
     if state_unignored(root):
-        head, _, rest = card.partition("\n")
-        card = "\n".join([head, UNIGNORED, rest])
-    return card
+        def warn(text):
+            head, _, rest = text.partition("\n")
+            return "\n".join([head, UNIGNORED, rest])
+        card = warn(card)
+        if details:
+            details["full"] = warn(details["full"])
+    return card, details
 
 
 # ---------------------------------------------------------------- the procedure card
@@ -930,6 +935,9 @@ CARD_COMPACT = 6   # up to this many steps take three lines each; more take two
 CARD_STEPS = 15    # steps shown at all; the plan above lists the rest
 CARD_CELL = 200   # a choice or a check is quoted up to this many characters
 CARD_PREFIX = 12   # a shared path prefix is stripped when it is at least this long
+CARD_LINES = 35    # a longer card is shown as a digest; `card <hash> checks|diff|full` shows the rest
+CARD_ASK = re.compile(r"^\s*card ([0-9a-f]{8})(?:\s+(checks|diff|full))?\s*[.!]?\s*$", re.IGNORECASE)
+ABS_PATH = re.compile(r"(?<![\w./~-])/[^\s`|'\"]+")
 CONTROL = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|[\x00-\x1f\x7f]")
 APPROVE_WORDS = re.compile(r"approve\s+plan", re.IGNORECASE)
 DONE_MARK = re.compile(r"\s*\(done\)", re.IGNORECASE)
@@ -986,6 +994,18 @@ def plan_rows(text):
                          "choice": cell("choice"), "source": cell("source"), "check": cell("check")})
         return rows
     return None
+
+
+def short_runs(root, cell):
+    """Absolute paths in a step cell: inside the project, root-relative; outside, the program's name."""
+    def fix(match):
+        path = match.group(0)
+        return path[len(root) + 1:] if path.startswith(root + "/") else os.path.basename(path) or path
+    return ABS_PATH.sub(fix, cell)
+
+
+def first_sentence(text):
+    return re.split(r"(?<=[.;])\s", text, 1)[0]
 
 
 def source_tag(cell):
@@ -1174,7 +1194,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
     """The card for a plan whose table has Step and Choice or Validation columns, else None."""
     rows = plan_rows(text)
     if not rows:
-        return None
+        return None, None
     paths, commands = plan_grants(root, text, config)
     outputs = output_words(text)
     reads = sorted(pins) if pins else []
@@ -1201,12 +1221,14 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
     facts = FACTS_LINE.search(text)
     if facts:
         lines.append(clean(facts.group(0), 160))
+    procedure_at = len(lines)
     lines += ["", "Procedure (choice [who decided], then the check)"]
+    brief = ["", "Steps (step | choice [who]; the check where a default decided)"]
     for row in rows[:CARD_STEPS]:
         cells = " ".join((row["step"], row["choice"], row["check"]))
         done = "  (agent says: done)" if DONE_MARK.search(cells) else ""
-        step, choice, check = (quote(DONE_MARK.sub("", row[key]), 110 if key == "step" else CARD_CELL)
-                               for key in ("step", "choice", "check"))
+        step = quote(short_runs(root, DONE_MARK.sub("", row["step"])), 110)
+        choice, check = (quote(DONE_MARK.sub("", row[key])) for key in ("choice", "check"))
         source = "  [{}]".format(source_tag(row["source"])) if row["source"].strip() else ""
         if len(rows) > CARD_COMPACT:
             lines.append("{:>2}  {}{}  |  {}{}".format(row["num"], step, done, choice, source))
@@ -1214,8 +1236,15 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
             lines += ["{:>2}  {}{}".format(row["num"], step, done), "    choice  " + choice + source]
         if check:
             lines.append("    check   " + check)
+        brief.append("{:>2}  {}{}  |  {}{}".format(row["num"], quote(re.sub(r"/?(?:[^\s/]+/)+(?=[\w.-])", "", DONE_MARK.sub(
+            "", row["step"])), 70), done, quote(first_sentence(clean(DONE_MARK.sub("", row["choice"]), 1000)), 120),
+            source))
+        if check and row["source"].lower().startswith("default"):
+            brief.append("    check   " + quote(DONE_MARK.sub("", row["check"]), 120))
     if len(rows) > CARD_STEPS:
         lines.append("\u2026 and {} more steps in the plan above".format(len(rows) - CARD_STEPS))
+        brief.append(lines[-1])
+    steps_end = len(lines)
     flags = evidence_flags(text)
     if flags:
         lines += ["", "From Evidence (flagged)"] + ["  - " + flag for flag in flags[:3]]
@@ -1231,6 +1260,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
     lines += ["  {:<9}{}  (any invocation)".format("command", command) for command in commands]
     if not paths and not commands:
         lines.append("  nothing: the plan table names no gated script, folder, or command")
+    reads_at = len(lines)
     lines.append("Reads " + ("{} pinned{}".format(len(reads), names(reads, short)) if reads else
                              ("none (no `Inputs:` line)" if pins is None else "none (the `Inputs:` line names no files)")))
     lines.append("Writes " + ("{}{}".format(len(outputs), names(outputs, short)) if outputs else
@@ -1241,10 +1271,24 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
         lines.append("P = " + prefix)
     if outside_prose:
         lines.append("In prose only, not authorised" + names(outside_prose, short))
+    diff_at = len(lines)
     if script_diff_lines:
         lines += ["Diff of changed scripts"] + script_diff_lines
     lines.append("\u25b6 approve plan {}".format(digest))
-    return "\n".join(lines)
+    full = "\n".join(lines)
+    if len(lines) <= CARD_LINES:
+        return full, None
+    # The digest: the science of each step on one line, checks only where a default decided, Reads and
+    # Writes counted, no diff. Baseline, changed scripts, flagged Evidence and grants stay in full.
+    counts = "Reads {} pinned \u00b7 Writes {}".format(len(reads), len(outputs or []))
+    more = "More: type `card {0} checks`{1} or `card {0} full`".format(
+        digest, ", `card {} diff` ({} lines)".format(digest, len(script_diff_lines)) if script_diff_lines else "")
+    shown = (lines[:procedure_at] + brief + lines[steps_end:reads_at] + [counts] + lines[reads_at + 2:diff_at]
+             + [more, "\u25b6 approve plan {}".format(digest)])
+    checks = ["Checks of plan {}".format(digest)] + ["{:>2}  {}".format(row["num"], quote(DONE_MARK.sub(
+        "", row["check"]))) for row in rows if row["check"].strip()]
+    return "\n".join(shown), {"full": full, "checks": "\n".join(checks), "diff": "\n".join(
+        ["Diff of changed scripts"] + script_diff_lines) if script_diff_lines else "No script diff on this card."}
 
 
 # ---------------------------------------------------------------- pinned inputs
@@ -1705,6 +1749,16 @@ def on_prompt(event, root, config):
     match = APPROVE.match(prompt)
     session = safe_session(event.get("session_id"))
     pending = read_json(state_path(root, "pending", session + ".json"), [])
+    ask = CARD_ASK.match(prompt)
+    if ask:  # answered here, so the agent never sees it
+        plan = next((p for p in pending if p["hash"] == ask.group(1).lower()), None)
+        part = (ask.group(2) or "full").lower()
+        if plan is None:
+            shown = "mycelium-extra: no pending plan {} in this session.".format(ask.group(1))
+        else:
+            shown = (plan.get("card") or {}).get(part) or "mycelium-extra: plan {} showed its full card.".format(
+                plan["hash"])
+        return {"decision": "block", "reason": shown}
     known = ", ".join(p["hash"] for p in pending) or "none"
     if not match:
         if re.search(r"\bapprove plan\b", prompt, re.IGNORECASE) and len(prompt) < 200:
@@ -1757,8 +1811,11 @@ def on_stop(event, root, config):
         entry["pins"] = pins or {}
         scripts_on, notice = script_pinning(config)
         entry["scripts"] = pin_scripts(root, text, config) if scripts_on else {}
+        card, details = approval_card(root, text, config, digest, pins, outside, previous, entry["scripts"])
+        if details:
+            entry["card"] = details
         write_json(path, pending[-10:])
-        notices.append(approval_card(root, text, config, digest, pins, outside, previous, entry["scripts"]))
+        notices.append(card)
         if notice:
             notices.append(notice)
     fresh = new_explore_runs(root, event.get("session_id"))
