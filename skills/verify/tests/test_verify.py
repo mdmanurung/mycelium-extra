@@ -499,6 +499,24 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("`{}` was deleted after its Snakemake run".format(step), out)
         self.assertIn("Verify status: DOES_NOT_CONFORM", out)
 
+    def test_a_named_log_is_not_a_script(self):
+        # B3: a Step cell names a log to read; the rule writing it mentions it, then rewrites it.
+        # A shebang `.sbatch` and a `Snakefile.x` have no script extension but are still scripts.
+        log, job, snakefile = "analysis/a/logs/fit.log", "analysis/a/02_job.sbatch", "analysis/a/Snakefile.fit"
+        texts = {log: "x\n", job: "#!/bin/bash\nRscript 01_step.R\n",
+                 snakefile: "rule fit:\n    shell: 'bash 02_job.sbatch'\n"}
+        for path, text in texts.items():
+            self.write(path, text, mtime=time.time() - 60)
+        digest = self.approve(plan("`{}`".format(snakefile), "`{}`".format(job), "read `{}`".format(log)))
+        start = time.time()
+        self.snakemake_record("outputs/fit.tsv", "fit", start, [], "bash 02_job.sbatch > logs/fit.log 2>&1")
+        for path, text in texts.items():
+            self.write(path, text + "# edited\n", mtime=start + 60)
+        out = self.verify("report", digest)
+        self.assertNotIn("`{}`".format(log), out)
+        self.assertIn("`{}` was edited after its Snakemake run".format(job), out)
+        self.assertIn("`{}` was edited after its Snakemake run".format(snakefile), out)
+
     def test_paths_only_passed_to_other_code_are_not_runs(self):
         digest = self.approve(plan("run `{}`".format(FIT), "sbatch job.sh"))
         self.run_cmd("python3 -c 'import ast' " + FIT)  # a parse check
