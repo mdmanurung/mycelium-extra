@@ -239,7 +239,7 @@ class GateTest(unittest.TestCase):
     def test_card_lists_paths_named_only_in_prose(self):
         plan = self.CARD_PLAN.replace("- Cohort has 24 rows. [human-stated]",
                                       "- Reuses `analysis/a/old.py` for the filter. [human-stated]")
-        self.assertIn("In prose only, not authorised: analysis/a/old.py", self.card(plan))
+        self.assertIn("Outside the Step column, not authorised: analysis/a/old.py", self.card(plan))
 
     def test_card_compacts_long_plans_and_caps_the_steps(self):
         rows = "\n".join("| {0} | Step {0} | choice {0} | user | check {0} |".format(i) for i in range(1, 18))
@@ -440,6 +440,22 @@ class GateTest(unittest.TestCase):
         self.assertIn("approved", approved["systemMessage"])
         self.assertIsNone(self.bash("python analysis/x.py"))
 
+    def test_only_step_cells_grant(self):
+        plan = ("| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n"
+                "| 1 | run `analysis/a.py` | then `analysis/b.py` via sbatch | user | `analysis/c.py` agrees |\n\n"
+                "Plan status: READY")
+        card = self.card(plan)
+        self.approve(plan)
+        self.assertIsNone(self.bash("python analysis/a.py"))
+        for command in ("python analysis/b.py", "python analysis/c.py", "sbatch job.sh"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+        grants = card.split("CAN RUN (in full)")[1]
+        self.assertIn("analysis/a.py", grants)
+        self.assertIn("Outside the Step column, not authorised under analysis/: b.py, c.py", card)
+        self.assertNotIn("command", grants.split("Outside the Step column")[0])
+        self.approve(plan.replace("| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n", ""))
+        self.assertIsNone(self.bash("python analysis/c.py"))  # no header: every cell but Source, as before
+
     def test_status_must_be_its_own_line(self):
         echoed = "blocked; present a plan ending with a `Plan status: READY` line"
         self.assertIsNone(self.hook("stop", {"last_assistant_message": echoed}))
@@ -500,7 +516,7 @@ class GateTest(unittest.TestCase):
         ])
         notice = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
         self.assertIn("analysis/approved.py", notice)
-        self.assertIn("In prose only, not authorised: analysis/hidden.py", notice)  # cited, so shown, never granted
+        self.assertIn("Outside the Step column, not authorised: analysis/hidden.py", notice)  # cited, so shown, never granted
         self.assertNotIn("script   analysis/hidden.py", notice)
         self.assertNotIn("sbatch", notice)
         digest = notice.split("approve plan ")[1][:8]
