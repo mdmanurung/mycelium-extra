@@ -798,17 +798,19 @@ def covering(root, label, paths, approvals):
 
 
 @functools.lru_cache(maxsize=None)
-def plan_table(plan):
-    """The text of the plan's table cells, minus Source cells and `repo:` citations.
+def plan_table(plan, every_cell=False):
+    """The text of the cells that grant runs: under a header with a Step column, the Step cells
+    only; otherwise every cell but Source. `repo:` citations are dropped.
 
-    Only the table approves runs: a path or command word in prose, Evidence,
-    or a source citation approves nothing. "" when the plan has no table.
+    Only the table approves runs: a path or command word in prose, Evidence, a Choice or
+    Validation cell, or a source citation approves nothing. `every_cell` keeps every cell but
+    Source, as before 0.9.57, for verify's record of what a plan named. "" with no table.
     """
     lines = plan.splitlines()
-    cells, dropped = [], set()
+    cells, keep = [], None  # keep: a test for the column index of a cell that counts
     for i, line in enumerate(lines):
         if not TABLE_ROW.match(line):
-            dropped = set()
+            keep = None
             continue
         if TABLE_RULE.match(line):
             continue
@@ -816,9 +818,13 @@ def plan_table(plan):
                  for cell in TABLE_ROW.match(line).group(1).replace("\\|", "\0").split("|")]
         following = lines[i + 1] if i + 1 < len(lines) else ""
         if TABLE_ROW.match(following) and TABLE_RULE.match(following):  # a header row
-            dropped = {j for j, cell in enumerate(parts) if "source" in cell.lower()}
+            heads = [cell.lower() for cell in parts]
+            step = set([j for j, cell in enumerate(heads) if "step" in cell][:1])  # as plan_rows reads it
+            source = set(j for j, cell in enumerate(heads) if "source" in cell)
+            keep = (lambda j, step=step: j in step) if step and not every_cell else (
+                lambda j, source=source: j not in source)
             continue
-        cells += [cell for j, cell in enumerate(parts) if j not in dropped]
+        cells += [cell for j, cell in enumerate(parts) if keep is None or keep(j)]
     return SOURCE_CITATION.sub(" ", "\n".join(cells))
 
 
@@ -1063,7 +1069,7 @@ def shared_prefix(paths):
 
 
 def prose_only(root, text, config, listed):
-    """Scripts the plan mentions outside its table (and outside Inputs and Outputs), which approve nothing."""
+    """Scripts the plan mentions outside its Step cells (and outside Inputs and Outputs), which approve nothing."""
     table, found = plan_table(text), []
     for word in PATHLIKE.findall(text):
         word = word.rstrip(".,;:").rstrip("/")
@@ -1270,7 +1276,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
     if prefix:
         lines.append("P = " + prefix)
     if outside_prose:
-        lines.append("In prose only, not authorised" + names(outside_prose, short))
+        lines.append("Outside the Step column, not authorised" + names(outside_prose, short))
     diff_at = len(lines)
     if script_diff_lines:
         lines += ["Diff of changed scripts"] + script_diff_lines

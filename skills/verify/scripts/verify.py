@@ -1035,7 +1035,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     if approval is None:
         sys.exit("verify: no approved plan {}. Run `list` to see approved plans.".format(digest))
     plan, approved_at = approval.get("plan", ""), approval.get("approved_at", 0)
-    table = gate.plan_table(plan)
+    table = gate.plan_table(plan, every_cell=True)
     named = sorted(p for p in gate.plan_paths_in(root, table) if gate.gated_rel(root, root, p, config))
     planned = [p for p in named if os.path.isfile(os.path.join(root, p)) or gate.SCRIPT_EXT.search(p)]
     folders = [p for p in named if p not in planned]
@@ -1504,7 +1504,7 @@ def approved_plans(root):
         if not record:
             continue
         digest = record.get("hash", name[:8])
-        table = gate.plan_table(record.get("plan", ""))
+        table = gate.plan_table(record.get("plan", ""), every_cell=True)
         scripts = [p for p in gate.plan_paths_in(root, table) if gate.gated_rel(root, root, p, config)]
         rows.append((record.get("approved_at", 0), digest, scripts, runs[digest]))
     return rows
@@ -1866,7 +1866,7 @@ def multiplicity(root, digest):
         sys.exit("verify: no approved plan {}. Run `list` to see approved plans.".format(digest))
 
     def scripts(record):
-        table = gate.plan_table(record.get("plan", ""))
+        table = gate.plan_table(record.get("plan", ""), every_cell=True)
         return {p for p in gate.plan_paths_in(root, table) if gate.gated_rel(root, root, p, config)}
 
     def outputs(record):
