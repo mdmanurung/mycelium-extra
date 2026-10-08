@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.58] - 2026-10-08
+
+### Fixed
+
+- `verify` counted every existing file the plan table names as a planned script. A log a step only reads (`logs/fit.log`) was then matched in the Snakemake rule that writes it and blocked as "edited after its Snakemake run"; a README or a Slurm `.out`/`.err` gave a "no run under this plan" gap. A planned script is now a path with a script extension, a `Snakefile` name, or a `#!` first line, so `.sbatch` jobs and `Snakefile.*` stay scripts; another named file is neither a script nor a folder. Checked on 95 approved plans from `scale` and `bmv_pilot_cytof_integration`: 8 reports change, by removals only (13 script rows, 11 gaps, 1 block, in scale 781c90d4); no status changes; the 10 plans naming `.sbatch` or `Snakefile.*` files are byte-identical. (B3)
+
 ## [0.9.57] - 2026-10-08
 
 ### Changed
