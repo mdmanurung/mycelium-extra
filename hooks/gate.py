@@ -85,6 +85,10 @@ TABLE_RULE = re.compile(r"^\s*\|?[\s|:]*-[\s|:-]*$")
 SOURCE_CITATION = re.compile(r"`?\brepo:\s*`?[^\s`|;,]+`?")
 INPUTS_LINE = re.compile(r"^[\s>*_`-]*inputs[\s*_`]*:(.*)$", re.IGNORECASE | re.MULTILINE)
 OUTPUTS_LINE = re.compile(r"^[\s>*_`-]*outputs[\s*_`]*:(.*)$", re.IGNORECASE | re.MULTILINE)
+OUTPUT_WORD = re.compile(r"[\w./~*?\[\]-]+")
+OUTPUT_SHORTHAND = re.compile(r"(?<![^\s`(,])(?:\u2026|\.\.\.)[^\s`,;()]*")  # `…_x.csv`: a prefix left out
+OUTPUT_BRACES = re.compile(r"[^\s`,;()]*\{[^\s`;()]*")
+MAX_OUTPUT_WORDS = 200
 MAX_FOLDER_FILES = 5000
 MAX_SNAPSHOT = 256 * 1024  # bytes; a larger script is pinned, but a change shows hashes only
 MAX_SCRIPT_PINS = 500
@@ -881,18 +885,47 @@ def scope_lines(root, plan, config):
     return ["  Runs allowed"] + bullets(runs)
 
 
-def output_words(text):
-    """The paths on the plan's `Outputs:` lines, or None when it has none."""
+def expand_braces(word):
+    """`a_{x,y}.csv` -> `a_x.csv`, `a_y.csv`, every group in turn."""
+    match = re.search(r"\{([^{}]*)\}", word)
+    if not match:
+        return [word]
+    head, tail = word[:match.start()], word[match.end():]
+    return [w for part in match.group(1).split(",") for w in expand_braces(head + part + tail)][:MAX_OUTPUT_WORDS]
+
+
+def read_outputs(text):
+    """(words, shorthand) on the plan's `Outputs:` lines, or (None, []) without one. A `{a,b}` list
+    is expanded and a `<name>` placeholder read as `*`; a word starting with `…` or `...` names no
+    path, so it is set aside as shorthand for the card and verify to flag."""
     lines = OUTPUTS_LINE.findall(text)
     if not lines:
+        return None, []
+    words, shorthand = [], []
+    for line in lines:
+        shorthand += [w for w in OUTPUT_SHORTHAND.findall(line) if w not in shorthand]
+        line = re.sub(r"<[\w-]+>", "*", OUTPUT_SHORTHAND.sub(" ", line))
+        line = OUTPUT_BRACES.sub(lambda m: " ".join(expand_braces(m.group(0))), line)
+        words += OUTPUT_WORD.findall(line)
+    return words, shorthand
+
+
+def output_words(text):
+    """The paths on the plan's `Outputs:` lines, or None when it has none."""
+    found = read_outputs(text)[0]
+    if found is None:
         return None
     words = []
-    for line in lines:
-        for word in PATHLIKE.findall(line):
-            word = word.rstrip(".,;:")
-            if ("/" in word or re.search(r"\.\w+$", word)) and word not in words:
-                words.append(word)
+    for word in found:
+        word = word.rstrip(".,;:")
+        if ("/" in word or re.search(r"\.\w+$", word)) and word not in words:
+            words.append(word)
     return words
+
+
+def shorthand_line(text):
+    shorthand = read_outputs(text)[1]
+    return ["Shorthand, not read: {}; name the full path".format(", ".join(shorthand))] if shorthand else []
 
 
 def output_lines(text):
@@ -900,7 +933,8 @@ def output_lines(text):
     words = output_words(text)
     if words is None:
         return ["  Outputs: none named (no `Outputs:` line)"]
-    return ["  Outputs"] + bullets(words) if words else ["  Outputs: none"]
+    return (["  Outputs"] + bullets(words) if words else ["  Outputs: none"]) + [
+        "  " + line for line in shorthand_line(text)]
 
 
 UNIGNORED = ("Warning: `{0}/` is not in .gitignore, so Mycelium's stop check counts the gate's receipts "
@@ -1271,6 +1305,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
                              ("none (no `Inputs:` line)" if pins is None else "none (the `Inputs:` line names no files)")))
     lines.append("Writes " + ("{}{}".format(len(outputs), names(outputs, short)) if outputs else
                               "none named (no `Outputs:` line)"))
+    lines += shorthand_line(text)
     if outside:
         lines.append("Outside the repository, not pinned" + names(outside, str))
     if prefix:

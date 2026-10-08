@@ -40,8 +40,6 @@ import time
 gate = None  # the approval gate module, loaded from --plugin-root
 PLUGIN_ROOT = None
 
-OUTPUTS_LINE = re.compile(r"^[\s>*_`-]*outputs[\s*_`]*:(.*)$", re.IGNORECASE | re.MULTILINE)
-OUTPUT_WORD = re.compile(r"[\w./~*?\[\]-]+")
 STEP_FOLDERS = {"code", "scripts", "src", "R", "py", "python", "workflow", "notebooks", "steps", "bin"}
 SKIP_FOLDERS = {"provenance", "logs", "outputs", "results", "_archive", "archive", "__pycache__"}
 FAILED_JOB = {"FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_MEMORY", "NODE_FAIL", "PREEMPTED", "BOOT_FAIL",
@@ -495,17 +493,16 @@ def guess_analysis_dir(files):
 
 def plan_outputs(plan):
     """Words on the plan's `Outputs:` lines; None without the line, [] for `none`."""
-    lines = OUTPUTS_LINE.findall(plan)
-    if not lines:
+    found = gate.read_outputs(plan)[0]
+    if found is None:
         return None
     words = []
-    for line in lines:
-        for word in OUTPUT_WORD.findall(line):
-            word = word.rstrip(".,;:")
-            if word.startswith("./"):
-                word = word[2:]
-            if word and word.lower() != "none" and word not in words and ("/" in word or "." in word):
-                words.append(word)
+    for word in found:
+        word = word.rstrip(".,;:")
+        if word.startswith("./"):
+            word = word[2:]
+        if word and word.lower() != "none" and word not in words and ("/" in word or "." in word):
+            words.append(word)
     return words
 
 
@@ -1236,6 +1233,9 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     if words is None:
         report.add("gap", "The plan has no `Outputs:` line, so its results cannot be tied to its runs.")
     else:
+        for word in gate.read_outputs(plan)[1]:
+            report.add("gap", "Output `{}` is shorthand that names no path; name the full path on the "
+                              "`Outputs:` line.".format(word))
         listed = set()
         for word, (files, exact) in expand_outputs(root, words).items():
             local = os.path.join(analysis_dir, word) if analysis_dir else None
