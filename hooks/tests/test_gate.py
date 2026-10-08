@@ -176,6 +176,13 @@ class GateTest(unittest.TestCase):
     def card(self, plan):
         return self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
 
+    def asked(self, card, part=""):
+        """What `card <hash> <part>` shows the user; the agent never gets the prompt."""
+        digest = card.split("approve plan ")[-1][:8]
+        answer = self.hook("prompt", {"prompt": ("card {} {}".format(digest, part)).strip()})
+        self.assertEqual(answer["decision"], "block")
+        return answer["reason"]
+
     def test_card_describes_the_procedure(self):
         os.makedirs(os.path.join(self.root, "analysis", "a"))
         with open(os.path.join(self.root, "analysis", "a", "02_fit.py"), "w") as handle:
@@ -237,12 +244,37 @@ class GateTest(unittest.TestCase):
     def test_card_compacts_long_plans_and_caps_the_steps(self):
         rows = "\n".join("| {0} | Step {0} | choice {0} | user | check {0} |".format(i) for i in range(1, 18))
         plan = "| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n" + rows + "\n\nPlan status: READY"
-        card = self.card(plan)
+        card = self.asked(self.card(plan), "full")
         self.assertNotIn("    choice  ", card)
         self.assertIn(" 7  Step 7  |  choice 7  [you]\n    check   check 7", card)
         self.assertIn("15  Step 15", card)
         self.assertNotIn("Step 16", card)
         self.assertIn("\u2026 and 2 more steps in the plan above", card)
+
+    def test_long_card_is_a_digest_with_the_rest_on_request(self):
+        self.write_file("analysis/a/02_fit.py", "".join("a{}\n".format(i) for i in range(40)))
+        self.approve(self.card_plan_for())
+        self.write_file("analysis/a/02_fit.py", "".join("b{}\n".format(i) for i in range(40)))
+        plan = self.card_plan_for().replace("| 1 | Run `analysis/a/02_fit.py` | exact test | user | 12 donors |", "\n".join([
+            "| 1 | Run `/opt/envs/R/bin/Rscript {}/analysis/a/02_fit.py` | Exact test. Two-sided. | user | 12 donors |"
+            .format(self.root), "| 2 | View fig | Print size | default: print rules | labels >= 6 pt |"]))
+        card = self.card(plan)
+        lines = card.splitlines()
+        self.assertLessEqual(len(lines), 35)
+        self.assertIn(" 1  Run Rscript 02_fit.py  |  Exact test.  [you]", lines)  # first sentence, no paths
+        self.assertNotIn("    check   12 donors", card)  # the user decided step 1
+        self.assertIn(" 2  View fig  |  Print size  [default: print rules]\n    check   labels >= 6 pt", card)
+        self.assertIn("  script   analysis/a/02_fit.py  pinned", card)  # grants stay in full
+        self.assertIn("Reads 1 pinned \u00b7 Writes 0", card)
+        self.assertNotIn("Diff of changed scripts", card)
+        self.assertTrue(lines[-1].startswith("\u25b6 approve plan "))
+        self.assertIn("`card {} diff` (".format(lines[-1][-8:]), lines[-2])
+        self.assertIn(" 1  12 donors", self.asked(card, "checks"))
+        self.assertIn("\u2026 and 51 more diff lines", self.asked(card, "diff"))
+        full = self.asked(card)
+        self.assertIn("    choice  Exact test. Two-sided.  [you]", full)
+        self.assertIn(" 1  Run Rscript analysis/a/02_fit.py", full)  # full card: root-relative, program name
+        self.assertIn("no pending plan", self.hook("prompt", {"prompt": "card 0badf00d"})["reason"])
 
     def card_plan_for(self, scripts=("analysis/a/02_fit.py",), objective="Compare A with B.", inputs="data/in.tsv"):
         rows = "\n".join("| {} | Run `{}` | exact test | user | 12 donors |".format(i + 1, path)
@@ -308,7 +340,7 @@ class GateTest(unittest.TestCase):
         self.write_file("analysis/a/02_fit.py", "".join("a{}\n".format(i) for i in range(40)))
         self.approve(self.card_plan_for())
         self.write_file("analysis/a/02_fit.py", "".join("b{}\n".format(i) for i in range(40)))
-        card = self.card(self.card_plan_for())
+        card = self.asked(self.card(self.card_plan_for()), "full")
         after = card.split("CAN RUN (in full)")[1]
         self.assertIn("\u2026 and 51 more diff lines", after)
         self.assertNotIn("diff lines", card.split("CAN RUN (in full)")[0])
