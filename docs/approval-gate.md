@@ -41,7 +41,7 @@ Before each shell call (both hosts expose it to hooks as `Bash`), the gate denie
 
 A dry run (`snakemake -n`, `bash run.sh -n`) is gated like any run: a Snakefile is Python, and Snakemake runs its top-level code and input functions while building the job list.
 
-Only the plan table counts. A path or command word in the brief's prose, its Evidence, a Source column, or a `repo:` citation approves nothing, so a plan that cites a script as evidence does not approve running it. A plan with no table approves nothing, and the approval notice says so.
+Only the plan table's Step column counts. A path or command word in a Choice, Validation or Source cell, the brief's prose, its Evidence, or a `repo:` citation approves nothing, so a plan that cites a script as evidence does not approve running it. A plan with no table approves nothing, and the approval notice says so. A table whose header has no Step column (or no header) grants from every cell but Source, as before 0.9.57. The card lists scripts named outside the Step column as "not authorised". `verify` still reads every cell but Source when it asks what a plan named, so its record of older plans is unchanged.
 
 Reading gated files (`cat`, `rg`, `git`) is never gated.
 
