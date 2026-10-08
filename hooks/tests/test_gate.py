@@ -38,8 +38,8 @@ class GateTest(unittest.TestCase):
         with open(os.path.join(self.root, ".mycelium-extra", "gate.json"), "w") as handle:
             json.dump(data, handle)
 
-    def hook(self, event, payload, cwd=None):
-        payload = dict(payload, session_id="s1", cwd=cwd or self.root)
+    def hook(self, event, payload, cwd=None, session="s1"):
+        payload = dict(payload, session_id=session, cwd=cwd or self.root)
         proc = subprocess.Popen([sys.executable, self.entry, event], stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = proc.communicate(json.dumps(payload).encode("utf-8"))
@@ -383,6 +383,30 @@ class GateTest(unittest.TestCase):
         result = self.hook("prompt", {"prompt": "approve plan"})
         self.assertIn(digest, result["hookSpecificOutput"]["additionalContext"])
         self.assertTrue(self.denied(self.bash("python analysis/x.py")))
+
+    def test_handed_off_plan_is_approved_where_it_is_shown_again(self):
+        # the handoff skill's own commands find the stored plan and print it unchanged
+        skill = open(os.path.join(os.path.dirname(GATE), "..", "skills", "handoff", "SKILL.md")).read()
+        find = skill.split("```bash\n", 1)[1].split("```", 1)[0].replace("\n  ", "\n").strip()
+        show = skill.split("Print it with:\n  `", 1)[1].split("`", 1)[0]
+        text = "> Question: why\n\n" + PLAN
+        old = self.hook("stop", {"last_assistant_message": text})["systemMessage"].split("approve plan ")[1][:8]
+        self.hook("stop", {"last_assistant_message": PLAN})  # another plan, stored later
+        find = find.replace("'<distinctive line>'", "'Question: why'")
+        self.assertIsNone(self.bash(find))
+        path, digest, state = subprocess.check_output(find, shell=True, cwd=self.root).decode().split()
+        self.assertEqual((digest, state), (old, "pending"))
+        show = show.replace("<pending file>", path).replace("<hash>", digest)
+        self.assertIsNone(self.bash(show))
+        printed = subprocess.check_output(show, shell=True, cwd=self.root).decode().rstrip("\n")
+        self.assertEqual(printed, text)
+        new = self.hook("stop", {"last_assistant_message": printed}, session="s2")["systemMessage"]
+        self.assertIn("approve plan " + old, new)  # same text, same hash
+        refused = self.hook("prompt", {"prompt": "approve plan " + old}, session="s3")
+        self.assertIn("no pending plan", refused["systemMessage"])
+        approved = self.hook("prompt", {"prompt": "approve plan " + old}, session="s2")
+        self.assertIn("approved", approved["systemMessage"])
+        self.assertIsNone(self.bash("python analysis/x.py"))
 
     def test_status_must_be_its_own_line(self):
         echoed = "blocked; present a plan ending with a `Plan status: READY` line"
