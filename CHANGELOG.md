@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.56] - 2026-10-08
+
+### Fixed
+
+- The 150-word brief limit (0.9.54) could squeeze out lines the gate and `verify` read. Now the `Inputs:`, `Outputs:`, `Facts:` and `Plan status:` lines and the failure-mode guards do not count and are never cut, and Evidence bullets that name a failure, a flag or an unverified fact are always kept (the card quotes them). Evidence reads "one bullet per fact you keep".
+
 ## [0.9.55] - 2026-10-08
 
 ### Changed
