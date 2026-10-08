@@ -513,7 +513,7 @@ class VerifyTest(unittest.TestCase):
         for path, text in texts.items():
             self.write(path, text + "# edited\n", mtime=start + 60)
         out = self.verify("report", digest)
-        self.assertNotIn("`{}`".format(log), out)
+        self.assertNotIn(log, out)  # no script row, finding, or Folder line
         self.assertIn("`{}` was edited after its Snakemake run".format(job), out)
         self.assertIn("`{}` was edited after its Snakemake run".format(snakefile), out)
 
