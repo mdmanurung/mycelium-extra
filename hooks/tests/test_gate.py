@@ -193,16 +193,22 @@ class GateTest(unittest.TestCase):
         self.assertTrue(lines[-1].startswith("\u25b6 approve plan ") and len(lines[-1].split()[-1]) == 8)
         for text in ('Question   "does A beat B?"', "Goal       Compare A with B on the cohort, no refits.",
                      "Defaults to confirm: step 1", "Facts: 1 agent-derived, 1 human-stated, 0 agent-asserted.",
-                     " 1  Back up the old table  (agent says: done)",
-                     "    choice  keep old output  [default: nothing is lost]", "    check   md5 equal",
-                     " 2  Run analysis/a/02_fit.py", "    choice  exact permutation test  [you]",
-                     "    choice  dry run only  [repo: CLAUDE.md]",
+                     "Sequence   (* = a default decided; confirm it)\n    1 Back up the old table*  (agent says: done)\n"
+                     "        - choice: keep old output\n        - assumed: nothing is lost\n        - check: md5 equal\n"
+                     "  \u2193 2 02_fit.py\n        - choice: exact permutation test  [you]\n"
+                     "        - check: 12 donors x 2 visits\n  \u2193 3 snakemake\n"
+                     "        - choice: dry run only  [repo: CLAUDE.md]",
                      "From Evidence (flagged)\n  - Both placebo fits fail the E-BFMI gate. [derived]",
                      "CAN RUN (in full)\n  script   analysis/a/02_fit.py  pinned\n  command  snakemake  (any invocation)",
                      "Reads 1 pinned: data/in.tsv", "Writes 1: analysis/a/out/res.tsv"):
             self.assertIn(text, card)
         self.assertNotIn("Cohort has 24 rows", card)
         self.assertNotIn("Runs allowed", card)
+
+    def test_card_lines_are_capped_at_250_characters(self):
+        long = "x" * 400
+        card = self.card(self.CARD_PLAN.replace("exact permutation test", long).replace("Goal", "Goal"))
+        self.assertTrue(all(len(line) <= 250 for line in card.splitlines()), card)
 
     def test_card_reads_output_lists_and_flags_shorthand(self):
         outputs = ("Outputs: analysis/a/out/fit_{hsc,gdt}_k40_{fit,summary}.rds, `analysis/a/out/pairs.csv`, "
@@ -259,9 +265,8 @@ class GateTest(unittest.TestCase):
         rows = "\n".join("| {0} | Step {0} | choice {0} | user | check {0} |".format(i) for i in range(1, 18))
         plan = "| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n" + rows + "\n\nPlan status: READY"
         card = self.asked(self.card(plan), "full")
-        self.assertNotIn("    choice  ", card)
-        self.assertIn(" 7  Step 7  |  choice 7  [you]\n    check   check 7", card)
-        self.assertIn("15  Step 15", card)
+        self.assertIn("  \u2193 7 Step 7\n        - choice: choice 7  [you]\n        - check: check 7", card)
+        self.assertIn("  \u2193 15 Step 15", card)
         self.assertNotIn("Step 16", card)
         self.assertIn("\u2026 and 2 more steps in the plan above", card)
 
@@ -275,9 +280,11 @@ class GateTest(unittest.TestCase):
         card = self.card(plan)
         lines = card.splitlines()
         self.assertLessEqual(len(lines), 35)
-        self.assertIn(" 1  Run Rscript 02_fit.py  |  Exact test.  [you]", lines)  # first sentence, no paths
-        self.assertNotIn("    check   12 donors", card)  # the user decided step 1
-        self.assertIn(" 2  View fig  |  Print size  [default: print rules]\n    check   labels >= 6 pt", card)
+        self.assertIn("    1 Rscript 02_fit.py", lines)  # no paths
+        self.assertIn("        - choice: Exact test.  [you]", lines)  # first sentence
+        self.assertNotIn("check: 12 donors", card)  # the user decided step 1
+        self.assertIn("  \u2193 2 View fig*\n        - choice: Print size\n        - assumed: print rules\n"
+                      "        - check: labels >= 6 pt", card)
         self.assertIn("  script   analysis/a/02_fit.py  pinned", card)  # grants stay in full
         self.assertIn("Reads 1 pinned \u00b7 Writes 0", card)
         self.assertNotIn("Diff of changed scripts", card)
@@ -286,8 +293,8 @@ class GateTest(unittest.TestCase):
         self.assertIn(" 1  12 donors", self.asked(card, "checks"))
         self.assertIn("\u2026 and 51 more diff lines", self.asked(card, "diff"))
         full = self.asked(card)
-        self.assertIn("    choice  Exact test. Two-sided.  [you]", full)
-        self.assertIn(" 1  Run Rscript analysis/a/02_fit.py", full)  # full card: root-relative, program name
+        self.assertIn("        - choice: Exact test. Two-sided.  [you]", full)
+        self.assertIn("    1 Rscript 02_fit.py", full)  # program name, no directories
         self.assertIn("no pending plan", self.hook("prompt", {"prompt": "card 0badf00d"})["reason"])
 
     def card_plan_for(self, scripts=("analysis/a/02_fit.py",), objective="Compare A with B.", inputs="data/in.tsv"):

@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [Unreleased]
+
+### Added
+
+- The approval card's step list is now a top-down `Sequence`: each step (`↓ 2 fit.R*`, `*` = a default decided) with bullets for its choice and who decided it, what a default assumed, and its check. It replaces the old `Procedure` list. No card line is longer than 250 characters, except a `CAN RUN` grant and a script-diff line, which are never cut.
+
 ## [0.9.61] - 2026-10-08
 
 ### Fixed

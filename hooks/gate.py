@@ -972,10 +972,10 @@ def approval_card(root, text, config, digest, pins, outside, previous, scripts=N
 # and everything the gate would let run. Display only: the gate still approves from plan_table,
 # and nothing quoted here is read back as a path or a command.
 
-CARD_COMPACT = 6   # up to this many steps take three lines each; more take two
 CARD_STEPS = 15    # steps shown at all; the plan above lists the rest
 CARD_CELL = 200   # a choice or a check is quoted up to this many characters
 CARD_PREFIX = 12   # a shared path prefix is stripped when it is at least this long
+CARD_WIDTH = 250   # no line of the card, except a grant or a diff line, is longer
 CARD_LINES = 35    # a longer card is shown as a digest; `card <hash> checks|diff|full` shows the rest
 CARD_ASK = re.compile(r"^\s*card ([0-9a-f]{8})(?:\s+(checks|diff|full))?\s*[.!]?\s*$", re.IGNORECASE)
 ABS_PATH = re.compile(r"(?<![\w./~-])/[^\s`|'\"]+")
@@ -1231,6 +1231,10 @@ def names_plain(items, short):
     return ", ".join(shown) + (", \u2026 and {} more".format(len(items) - 3) if len(items) > 3 else "")
 
 
+def fit(line):
+    return line if len(line) <= CARD_WIDTH else line[:CARD_WIDTH - 1].rstrip() + "\u2026"
+
+
 def procedure_card(root, text, config, digest, pins, outside, previous, scripts):
     """The card for a plan whose table has Step and Choice or Validation columns, else None."""
     rows = plan_rows(text)
@@ -1263,25 +1267,32 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
     if facts:
         lines.append(clean(facts.group(0), 160))
     procedure_at = len(lines)
-    lines += ["", "Procedure (choice [who decided], then the check)"]
-    brief = ["", "Steps (step | choice [who]; the check where a default decided)"]
+    legend = "   (* = a default decided; confirm it)" if defaults else ""
+    lines += ["", "Sequence" + legend]
+    brief = list(lines[-2:])
     for row in rows[:CARD_STEPS]:
         cells = " ".join((row["step"], row["choice"], row["check"]))
         done = "  (agent says: done)" if DONE_MARK.search(cells) else ""
-        step = quote(short_runs(root, DONE_MARK.sub("", row["step"])), 110)
+        is_default = row["source"].lower().startswith("default")
+        name = quote(re.sub(r"/?(?:[^\s/]+/)+(?=[\w.-])", "", re.sub(r"^run\s+", "", short_runs(root, DONE_MARK.sub(
+            "", row["step"])).replace("`", ""), flags=re.IGNORECASE)), 70)
+        head = "{} {} {}{}{}".format("  \u2193" if len(lines) > procedure_at + 2 else "   ", row["num"], name,
+                                    "*" if is_default else "", done)
+        why = "assumed: " + quote(re.sub(r"^default\s*:?\s*", "", row["source"], flags=re.IGNORECASE)) if is_default else ""
+        who = "  [{}]".format(source_tag(row["source"])) if row["source"].strip() and not is_default else ""
         choice, check = (quote(DONE_MARK.sub("", row[key])) for key in ("choice", "check"))
-        source = "  [{}]".format(source_tag(row["source"])) if row["source"].strip() else ""
-        if len(rows) > CARD_COMPACT:
-            lines.append("{:>2}  {}{}  |  {}{}".format(row["num"], step, done, choice, source))
-        else:
-            lines += ["{:>2}  {}{}".format(row["num"], step, done), "    choice  " + choice + source]
+        short_choice = quote(first_sentence(clean(DONE_MARK.sub("", row["choice"]), 1000)), 120)
+        lines.append(head)
+        brief.append(head)
+        for bucket, text_ in ((lines, choice), (brief, short_choice)):
+            if text_:
+                bucket.append("        - choice: " + text_ + who)
+            if why:
+                bucket.append("        - " + why)
         if check:
-            lines.append("    check   " + check)
-        brief.append("{:>2}  {}{}  |  {}{}".format(row["num"], quote(re.sub(r"/?(?:[^\s/]+/)+(?=[\w.-])", "", DONE_MARK.sub(
-            "", row["step"])), 70), done, quote(first_sentence(clean(DONE_MARK.sub("", row["choice"]), 1000)), 120),
-            source))
-        if check and row["source"].lower().startswith("default"):
-            brief.append("    check   " + quote(DONE_MARK.sub("", row["check"]), 120))
+            lines.append("        - check: " + check)
+            if is_default:
+                brief.append("        - check: " + quote(DONE_MARK.sub("", row["check"]), 120))
     if len(rows) > CARD_STEPS:
         lines.append("\u2026 and {} more steps in the plan above".format(len(rows) - CARD_STEPS))
         brief.append(lines[-1])
@@ -1291,6 +1302,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
         lines += ["", "From Evidence (flagged)"] + ["  - " + flag for flag in flags[:3]]
         if len(flags) > 3:
             lines.append("  (+{} more flagged in Evidence)".format(len(flags) - 3))
+    can_run_at = len(lines) + 1
     lines += ["", "CAN RUN (in full)"]
     for path in paths:
         if os.path.isfile(os.path.join(root, path)) or SCRIPT_EXT.search(path):
@@ -1317,6 +1329,9 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
     if script_diff_lines:
         lines += ["Diff of changed scripts"] + script_diff_lines
     lines.append("\u25b6 approve plan {}".format(digest))
+    # A grant line and a diff line are never cut: what the gate allows and what changed are shown whole.
+    lines = [line if can_run_at <= i < reads_at or i >= diff_at else fit(line) for i, line in enumerate(lines)]
+    brief = [fit(line) for line in brief]
     full = "\n".join(lines)
     if len(lines) <= CARD_LINES:
         return full, None
