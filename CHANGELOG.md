@@ -2,6 +2,13 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.63] - 2026-10-11
+
+### Added
+
+- `idea` skill: park a passing idea in one line, with no questions. It writes `todo/<slug>.md` and one `todo/TODO_REGISTRY.md` row (priority `idea`, status `open`) in Mycelium's todo format, replies with one line, and touches nothing else, so a plan waiting for approval stays approvable (tests in `test_gate.py` and `test_codex_gate.py`). It uses Mycelium's `upsert_table_row.py` when that runs, and a plain edit when it does not (the script needs Python 3.7, and system `python3` here is 3.6).
+- `idea-triage` skill: ranks the open ideas in `todo/` by impact (two axes by idea type), the things that must go right, the riskiest assumption (1 to 5, months to test), and a search of existing findings; names the cheapest go/no-go test for the top idea; shows a ranked table with a `park all` option and waits for the user's choice. Rubric adapted from Fischbach and Walsh (2024), *Cell*.
+
 ## [0.9.62] - 2026-10-11
 
 ### Added
