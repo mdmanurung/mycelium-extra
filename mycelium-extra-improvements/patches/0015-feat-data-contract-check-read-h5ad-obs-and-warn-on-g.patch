@@ -1,0 +1,770 @@
+From 7465937574db3c747320d603498e61e683bc8c9f Mon Sep 17 00:00:00 2001
+From: Biomni draft <biomni@phylo.local>
+Date: Sun, 4 Oct 2026 12:27:12 +0000
+Subject: [PATCH 15/22] feat(data-contract-check): read h5ad obs and warn on
+ graded batch imbalance (max_share)
+
+---
+ docs/roadmap/05-mindfulness-core.md           |   4 +-
+ skills/data-contract-check/SKILL.md           |  12 +-
+ .../scripts/data_contract_check.py            | 234 ++++++++++++--
+ .../tests/fixtures/imbalance.tsv              |  21 ++
+ .../tests/test_data_contract_check.py         | 288 +++++++++++++++++-
+ 5 files changed, 528 insertions(+), 31 deletions(-)
+ create mode 100644 skills/data-contract-check/tests/fixtures/imbalance.tsv
+
+diff --git a/docs/roadmap/05-mindfulness-core.md b/docs/roadmap/05-mindfulness-core.md
+index cc0ffa3..ee761af 100644
+--- a/docs/roadmap/05-mindfulness-core.md
++++ b/docs/roadmap/05-mindfulness-core.md
+@@ -79,10 +79,10 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
+ - **Depends on:** none.
+ - **Constraints:** `h5py` is optional, never required; without it the check is a gap. `max_share` is a contract field the plan sets, with its reason, so the plan owns the number; without it the check behaves as today.
+ - **Grill prompt:** `/mycelium-extra:grill Extend data-contract-check to read obs from h5ad files when h5py is available, and add an optional max_share imbalance warning to the existing batch_confounding check. Read check_batch first and keep everything it blocks and warns on today unchanged.`
+-- **Acceptance:** on a fixture `.h5ad` the existing checks run unchanged; with `max_share: 0.7` and one batch holding 80% of one level, the check warns and shows the table; without `h5py` the check reports a gap.
++- **Acceptance:** on a fixture `.h5ad` the existing checks run unchanged; with `max_share: 0.7` and one batch holding 80% of one level, the check warns and shows the table; without `h5py` the check reports a gap (status `GAP`, exit 3; a gap never passes). An unreadable column or unrecognised `obs` encoding is also a gap, for the checks that name it.
+ - **Tests:** unit tests with a tiny generated `.h5ad` (skipped when `h5py` is missing) and CSV equivalents for the imbalance logic; the existing tests pass unchanged.
+ - **Effort:** M.
+-- **Status:** todo.
++- **Status:** done.
+ 
+ ### D7: Label how each finding was established
+ 
+diff --git a/skills/data-contract-check/SKILL.md b/skills/data-contract-check/SKILL.md
+index 8417be2..2b42621 100644
+--- a/skills/data-contract-check/SKILL.md
++++ b/skills/data-contract-check/SKILL.md
+@@ -1,6 +1,6 @@
+ ---
+ name: data-contract-check
+-description: Test a plan's data assumptions against the actual sample-level table before an analysis runs, read-only. The plan's assumptions (required columns, cohort levels and row counts, unit of replication, pairing across timepoints, batch versus contrast nesting) go into a small JSON contract; a stdlib checker reports each mismatch as a structured alert with expected, observed, and evidence, and blocks on any failure of a coverage-list kind. Use when the user invokes mycelium-extra data-contract-check, when grill or a plan rests on properties of a metadata or sample table that nobody has verified, or before a statistical test whose validity depends on replication, pairing, or batch structure. Not for per-cell matrices or h5ad internals (v1 reads CSV/TSV tables only), and not for checking code.
++description: Test a plan's data assumptions against the actual sample-level table before an analysis runs, read-only. The plan's assumptions (required columns, cohort levels and row counts, unit of replication, pairing across timepoints, batch versus contrast nesting) go into a small JSON contract; a stdlib checker reports each mismatch as a structured alert with expected, observed, and evidence, and blocks on any failure of a coverage-list kind. Use when the user invokes mycelium-extra data-contract-check, when grill or a plan rests on properties of a metadata or sample table that nobody has verified, or before a statistical test whose validity depends on replication, pairing, or batch structure. Reads CSV/TSV tables and the `obs` of an `.h5ad` file (through h5py when it is installed); not for expression matrices, layers, or Seurat objects, and not for checking code.
+ ---
+ 
+ # Mycelium Extra: Data contract check
+@@ -10,6 +10,7 @@ Write down what the plan assumes about its sample table, check it against the fi
+ ## 1. Write the contract
+ 
+ - Find the sample-level table the analysis will use (one row per sample, acquisition, or pseudobulk unit), from the data manifest, analysis doc, or loading code. Name columns by header, as the table spells them.
++- A table is a `.csv` (comma), a `.h5ad` (its `obs`), or anything else read as tab-separated. For an `.h5ad`, `obs` is read through h5py when it is importable; X and layers are never read. The index is a column named as the file names it (`_index` unless the index had a name). Values compare as the strings a CSV export would hold: categories as written, integers as `28`, floats as `28.0`, booleans as `True`/`False`; a missing category, masked value, or NaN counts as missing. An `.h5ad` `obs` is usually one row per cell: a unit check on it counts cells, and `max_share` is a share of cells.
+ - State only assumptions the plan relies on. Take each value from the plan or the repository, not from a first look at the data: a contract fitted to the data checks nothing.
+ - The unit column must hold resolved identity. The checker cannot follow a crosswalk: if one person carries two IDs (for example a repeat-donor map), a unit check on the raw ID column undercounts repeats. Say so in the report, or use a column that already resolves identity.
+ - Pass the contract by process substitution (section 2), which writes no file. Inside grill it is the only allowed form. Outside grill, a `mktemp` file outside the repository also works; never write the contract into the repository before the plan is approved.
+@@ -24,7 +25,7 @@ Write down what the plan assumes about its sample table, check it against the fi
+     {"kind": "cohort", "column": "cohort", "levels": ["A", "B"], "min_rows": 40, "no_missing": ["batch"]},
+     {"kind": "unit_of_replication", "unit": "participant", "group": "cohort", "within": ["visit"], "min_units_per_group": 3},
+     {"kind": "pairing", "unit": "participant", "within": "visit", "levels": ["0", "28"]},
+-    {"kind": "batch_confounding", "batch": "batch", "contrast": "cohort"}
++    {"kind": "batch_confounding", "batch": "batch", "contrast": "cohort", "max_share": 0.7}
+   ]
+ }
+ ```
+@@ -33,7 +34,7 @@ Write down what the plan assumes about its sample table, check it against the fi
+ - `cohort`: required `levels` present, `min_rows` or exact `rows`, and no missing values in `no_missing` columns.
+ - `unit_of_replication`: at most one row per unit in each `group` × `within` cell; at least `min_units_per_group` distinct units per group (default 2); no unit in two groups unless `units_may_span_groups` is true (a crossover or paired contrast).
+ - `pairing`: every unit observed at every `within` level (listed, or all levels present).
+-- `batch_confounding`: blocks when the contrast is fully nested in batch, or when any level shares no batch with another level; warns when some batches hold one level, or a level sits in one batch.
++- `batch_confounding`: blocks when the contrast is fully nested in batch, or when any level shares no batch with another level; warns when some batches hold one level, or a level sits in one batch. With `max_share` (a share above 0 and at most 1, such as `0.7`), it also warns when any batch holds more than that share of one contrast level's rows. The plan sets `max_share` with its reason; without it the check is unchanged. Every run prints the batch-by-contrast table of row counts, each with its share of the level.
+ - Missing values (`""`, `NA`, `NaN`, `NULL`) in a check's key columns are left out of that check and reported as a warning.
+ 
+ ## 2. Run it
+@@ -47,13 +48,14 @@ EOF
+ ) < <skill-dir>/scripts/data_contract_check.py
+ ```
+ 
+-Output is one line per check (`PASS`, `WARN`, or `BLOCK`, with the rows it ran on), followed by its alerts. `--json` gives `{"checks": [...], "alerts": [...]}`; `--root <dir>` resolves relative table paths from another directory. Exit 0 is clean or warnings only, 2 is blocking, 1 is a malformed contract (bad JSON, unknown kind, missing required key): fix its syntax, never its assumptions. A missing table or column, or a filter that leaves no rows, is a failed assumption and blocks. Running the script by path opens Mycelium's post-action cycle, so never do that.
++Output is one line per check (`PASS`, `WARN`, `GAP`, or `BLOCK`, with the rows it ran on), then the batch-by-contrast table for a `batch_confounding` check, then its alerts. `--json` gives `{"checks": [...], "alerts": [...]}`, with the table as `cross_table` on its check; `--root <dir>` resolves relative table paths from another directory. Exit 0 is clean or warnings only, 2 is blocking, 3 is a gap with nothing blocking, 1 is a malformed contract (bad JSON, unknown kind, missing required key, `max_share` out of range): fix its syntax, never its assumptions. A missing table or column, or a filter that leaves no rows, is a failed assumption and blocks. A table or column the checker cannot read (an `.h5ad` without h5py, a file that is not HDF5, an `obs` encoding it does not recognise) is a gap: the check did not run, so it is neither a pass nor a failure. Running the script by path opens Mycelium's post-action cycle, so never do that.
+ 
+ ## 3. Act on the alerts
+ 
+ - **Blocking alert**: report it to the user with its expected, observed, and evidence lines, and what it means for the plan (for example, "20 participants have two acquisitions at the same visit, so a cell-level or row-level test would count them twice"). In grill, it becomes a plan edit the user approves or a `DECISION_REQUIRED`. Do not start the analysis while a blocking alert stands.
+ - **Never loosen the contract to make it pass** (drop a check, change a threshold, add a filter, switch the unit column) without the user agreeing. That silent adjustment is the failure this skill exists to catch. When the user agrees to a change, re-run and cite both runs.
+-- **Warning**: list it at the end with its count; it does not stop the plan.
++- **Warning**: list it at the end with its count; it does not stop the plan. A `max_share` warning is the plan's own threshold: quote the batch-by-contrast table with it, so the user sees how unbalanced the design is.
++- **Gap**: say which checks did not run and why, and how to close it (install h5py in the environment the check runs in, or export `obs` to a TSV and name that table). A gap never counts as a pass; the plan's rows it would cover stay unverified.
+ - **Relaxations** (`units_may_span_groups`) are echoed next to their check. Use one only when the plan's design calls for it (a crossover or paired contrast), and name it in the report.
+ - A check the table cannot answer (a column or table the plan needs is absent, or its filters leave no rows) blocks; report which property is unverified and where it might live.
+ 
+diff --git a/skills/data-contract-check/scripts/data_contract_check.py b/skills/data-contract-check/scripts/data_contract_check.py
+index c7500aa..495bc2e 100644
+--- a/skills/data-contract-check/scripts/data_contract_check.py
++++ b/skills/data-contract-check/scripts/data_contract_check.py
+@@ -7,8 +7,10 @@ not open the post-action cycle:
+ 
+ The contract states what the plan assumes; this script decides what blocks.
+ Every failed check of a coverage-list kind blocks, and the contract cannot
+-downgrade it. Exit codes: 0 clean or warnings only, 2 blocking, 1 usage or
+-input error.
++downgrade it. A table is CSV, TSV, or the `obs` of an `.h5ad` file; h5ad is
++read through h5py when it is importable, and is a gap (never a pass) when it
++is not. Exit codes: 0 clean or warnings only, 2 blocking, 3 a gap and nothing
++blocking, 1 usage or input error.
+ """
+ 
+ import argparse
+@@ -28,14 +30,18 @@ class ContractError(Exception):
+     pass
+ 
+ 
++class TableGap(Exception):
++    """The table, or a column of it, cannot be read here; the checks on it are gaps."""
++
++
+ def is_missing(value):
+     return value is None or value.strip().lower() in MISSING
+ 
+ 
+-def alert(kind, message, blocking, expected=None, observed=None, evidence=None):
++def alert(kind, message, blocking, expected=None, observed=None, evidence=None, gap=False):
+     record = {
+         "schema": ALERT_SCHEMA,
+-        "severity": "error" if blocking else "warning",
++        "severity": "error" if blocking else ("gap" if gap else "warning"),
+         "kind": kind,
+         "message": message,
+         "blocking": blocking,
+@@ -51,12 +57,119 @@ def alert(kind, message, blocking, expected=None, observed=None, evidence=None):
+     return record
+ 
+ 
+-def read_table(path):
++def read_table(path, wanted=None):
++    """Return (columns, rows, unreadable): rows are dicts of strings, unreadable maps column to reason."""
++    if path.lower().endswith(".h5ad"):
++        return read_h5ad_obs(path, wanted)
+     delimiter = "," if path.lower().endswith(".csv") else "\t"
+     with open(path, newline="", encoding="utf-8-sig", errors="replace") as handle:
+         reader = csv.DictReader(handle, delimiter=delimiter)
+         rows = list(reader)
+-        return list(reader.fieldnames or []), rows
++        return list(reader.fieldnames or []), rows, {}
++
++
++# ---------------------------------------------------------------- h5ad obs
++
++def text(value):
++    """One obs value as the string a CSV export would hold; missing values become ""."""
++    if value is None:
++        return ""
++    if isinstance(value, bytes):
++        return value.decode("utf-8", "replace")
++    if isinstance(value, bool):
++        return "True" if value else "False"
++    if isinstance(value, float) and value != value:
++        return ""
++    return str(value)
++
++
++def attr(node, key, default=None):
++    value = node.attrs.get(key, default)
++    if isinstance(value, bytes):
++        return value.decode("utf-8", "replace")
++    if hasattr(value, "tolist") and not isinstance(value, str):
++        value = value.tolist()
++    if isinstance(value, list):
++        return [text(v) for v in value]
++    return value
++
++
++def obs_values(h5file, node, h5py):
++    """A 1-D obs column as a list of strings, in AnnData's on-disk encodings.
++
++    anndata >= 0.8 (dataframe 0.2.0): arrays and string arrays are datasets;
++    categoricals are groups with `codes` and `categories`; nullable integer,
++    boolean, and string arrays are groups with `values` and `mask`.
++    anndata 0.7 (dataframe 0.1.0): a categorical is a dataset of codes whose
++    `categories` attribute references `obs/__categories/<column>`.
++    Anything else raises TableGap.
++    """
++    encoding = attr(node, "encoding-type", "")
++    if isinstance(node, h5py.Group):
++        if encoding == "categorical" and "codes" in node and "categories" in node:
++            return decode_codes(node["codes"][()].tolist(), obs_values(h5file, node["categories"], h5py))
++        if encoding in ("nullable-integer", "nullable-boolean", "nullable-string-array") \
++                and "values" in node and "mask" in node:
++            values = obs_values(h5file, node["values"], h5py)
++            mask = node["mask"][()].tolist()
++            if len(mask) != len(values):
++                raise TableGap("its mask and values differ in length")
++            return ["" if hidden else v for v, hidden in zip(values, mask)]
++        raise TableGap("unrecognised encoding '{}'".format(encoding or "none"))
++    if node.dtype.names or len(node.shape) != 1:
++        raise TableGap("not a 1-D column (shape {}, encoding '{}')".format(node.shape, encoding or "none"))
++    if "categories" in node.attrs and isinstance(node.attrs["categories"], h5py.Reference):
++        categories = h5file[node.attrs["categories"]][()].tolist()
++        return decode_codes(node[()].tolist(), [text(c) for c in categories])
++    return [text(v) for v in node[()].tolist()]
++
++
++def decode_codes(codes, categories):
++    if any(c >= len(categories) for c in codes):
++        raise TableGap("a categorical code has no category")
++    return ["" if c < 0 else categories[c] for c in codes]
++
++
++def read_h5ad_obs(path, wanted=None):
++    """Read obs from an .h5ad file through h5py; never reads X or layers."""
++    try:
++        import h5py
++    except ImportError as error:
++        raise TableGap("h5py cannot be imported ({}), so the obs of an .h5ad file cannot be read; install "
++                       "h5py or export obs to a TSV".format(error))
++    try:
++        h5file = h5py.File(path, "r")
++    except (OSError, IOError) as error:
++        raise TableGap("not readable as HDF5: {}".format(error))
++    with h5file:
++        obs = h5file.get("obs")
++        if not isinstance(obs, h5py.Group) or attr(obs, "encoding-type") != "dataframe" \
++                or not isinstance(attr(obs, "_index"), str) or attr(obs, "_index") not in obs:
++            raise TableGap("obs is not in a recognised AnnData encoding (anndata 0.7 or later expected: "
++                           "a dataframe group with an _index attribute)")
++        index = attr(obs, "_index")
++        order = attr(obs, "column-order", [])
++        if not isinstance(order, list):
++            order = [text(order)] if order else []
++        columns = [index] + [c for c in order if c != index]
++        missing = [c for c in columns if c not in obs]
++        if missing:
++            raise TableGap("obs lists columns it does not hold: " + ", ".join(missing))
++        values, unreadable = {}, {}
++        for column in columns:
++            if wanted is not None and column not in wanted and column != index:
++                continue  # read only what the contract names, plus the index for the row count
++            try:
++                values[column] = obs_values(h5file, obs[column], h5py)
++            except TableGap as error:
++                if column == index:
++                    raise TableGap("its index '{}' is unreadable: {}".format(index, error))
++                unreadable[column] = str(error)
++        if len({len(v) for v in values.values()}) > 1:
++            raise TableGap("obs columns differ in length")
++    names = list(values)
++    rows = [dict(zip(names, cells)) for cells in zip(*[values[c] for c in names])]
++    return columns, rows, unreadable
+ 
+ 
+ def apply_filters(rows, filters, columns):
+@@ -238,9 +351,63 @@ def check_batch(check, columns, rows):
+         alerts.append(alert(
+             "batch_confounding", "contrast levels measured in a single batch", False,
+             observed=", ".join(lone)))
++    share = check.get("max_share")
++    if share is not None:
++        totals = Counter(r[contrast] for r in rows)
++        over = [(b, l) for b, c in sorted(table.items()) for l in levels
++                if c[l] and c[l] / float(totals[l]) > share]
++        if over:
++            alerts.append(alert(
++                "batch_confounding",
++                "a batch holds more than {} of a '{}' level".format(percent(share), contrast), False,
++                expected="each batch at most {} of each {} level".format(percent(share), contrast),
++                observed="{} batch-level pairs over".format(len(over)),
++                evidence=["{} holds {} of {} {} rows ({})".format(
++                    b, table[b][l], totals[l], l, percent(table[b][l] / float(totals[l]))) for b, l in over]))
+     return alerts
+ 
+ 
++def percent(share):
++    return "{:.0f}%".format(100 * share)
++
++
++def cross_table(check, rows):
++    """The batch-by-contrast row counts the check ran on, shown on every run."""
++    batch, contrast = check["batch"], check["contrast"]
++    rows = [r for r in rows if not is_missing(r[batch]) and not is_missing(r[contrast])]
++    counts = defaultdict(Counter)
++    for r in rows:
++        counts[r[batch]][r[contrast]] += 1
++    return {"batch": batch, "contrast": contrast, "levels": sorted({r[contrast] for r in rows}),
++            "counts": dict((b, dict(c)) for b, c in sorted(counts.items()))}
++
++
++def render_cross_table(table):
++    """Counts with each cell's share of its contrast level, as plain aligned text."""
++    levels = table["levels"]
++    totals = Counter()
++    for counts in table["counts"].values():
++        totals.update(counts)
++    header = ["{} \\ {}".format(table["batch"], table["contrast"])] + levels + ["total"]
++    body = []
++    for b, counts in sorted(table["counts"].items()):
++        cells = ["{} ({})".format(counts.get(l, 0), percent(counts.get(l, 0) / float(totals[l])))
++                 for l in levels]
++        body.append([b] + cells + [str(sum(counts.values()))])
++    body.append(["total"] + [str(totals[l]) for l in levels] + [str(sum(totals.values()))])
++    widths = [max(len(row[i]) for row in [header] + body) for i in range(len(header))]
++    return ["  ".join(cell.ljust(w) for cell, w in zip(row, widths)).rstrip() for row in [header] + body]
++
++
++def validate(check, index):
++    """Contract syntax the checks rely on; a bad value is a usage error, never a pass."""
++    if check.get("kind") == "batch_confounding" and "max_share" in check:
++        share = check["max_share"]
++        if isinstance(share, bool) or not isinstance(share, (int, float)) or not 0 < share <= 1:
++            raise ContractError("checks[{}] max_share must be a number above 0 and at most 1, as a "
++                                "share (0.7 for 70%): {}".format(index, json.dumps(share)))
++
++
+ CHECKS = {
+     "schema": check_schema,
+     "cohort": check_cohort,
+@@ -270,16 +437,24 @@ def run_contract(contract, base_dir):
+         raise ContractError("contract schema must be " + SCHEMA)
+     summaries, alerts = [], []
+     cache = {}
++    plan = []
+     for index, check in enumerate(need(contract, "checks")):
+         kind = check.get("kind")
+         if kind not in CHECKS:
+             raise ContractError("unknown check kind at checks[{}]: {}".format(index, kind))
++        validate(check, index)
+         table = check.get("table", contract.get("table"))
+         if not table:
+             raise ContractError("checks[{}] has no table".format(index))
+-        label = "checks[{}] {}".format(index, check.get("label", kind))
+         filters = contract.get("filters", []) + check.get("filters", [])
+         path = table if os.path.isabs(table) else os.path.join(base_dir, table)
++        named = filter_columns(filters) + ([] if kind == "schema" else referenced_columns(check))
++        plan.append((index, check, kind, table, filters, path, named))
++    wanted = defaultdict(set)  # an .h5ad's obs is read only for the columns the contract names
++    for _, _, _, _, _, path, named in plan:
++        wanted[path].update(named)
++    for index, check, kind, table, filters, path, named in plan:
++        label = "checks[{}] {}".format(index, check.get("label", kind))
+         found = []
+         if not os.path.isfile(path):
+             found.append(alert("schema", "the table the plan names does not exist", True,
+@@ -287,13 +462,25 @@ def run_contract(contract, base_dir):
+             columns, rows = [], []
+         else:
+             if path not in cache:
+-                cache[path] = read_table(path)
+-            columns, rows = cache[path]
+-            named = filter_columns(filters) + ([] if kind == "schema" else referenced_columns(check))
+-            absent = sorted({c for c in named if c not in columns})
++                try:
++                    cache[path] = read_table(path, wanted[path])
++                except TableGap as error:
++                    cache[path] = error
++            if isinstance(cache[path], TableGap):
++                found.append(alert(kind, "the table cannot be read, so this check did not run", False,
++                                   observed=str(cache[path]), gap=True))
++                columns, rows, unreadable = [], [], {}
++            else:
++                columns, rows, unreadable = cache[path]
++            absent = sorted({c for c in named if c not in columns}) if columns else []
+             if absent:
+                 found.append(alert("schema", "columns this check or its filters name are absent", True,
+                                    observed="missing: " + ", ".join(absent)))
++            gaps = sorted({c for c in named if c in unreadable})
++            if gaps:
++                found.append(alert(kind, "columns this check or its filters name cannot be read, so "
++                                         "this check did not run", False, gap=True,
++                                   evidence=["{}: {}".format(c, unreadable[c]) for c in gaps]))
+         rows_checked = 0
+         if not found:
+             rows = apply_filters(rows, filters, columns)
+@@ -309,24 +496,33 @@ def run_contract(contract, base_dir):
+             record["check"] = label
+             record["table"] = table
+             record["rows_checked"] = rows_checked
+-        status = "block" if any(a["blocking"] for a in found) else ("warn" if found else "pass")
+-        summaries.append({"check": label, "kind": kind, "table": table, "rows_checked": rows_checked,
+-                          "status": status, "relaxations": [k for k in RELAXATIONS if check.get(k)]})
++        status = "block" if any(a["blocking"] for a in found) else \
++            "gap" if any(a["severity"] == "gap" for a in found) else ("warn" if found else "pass")
++        summary = {"check": label, "kind": kind, "table": table, "rows_checked": rows_checked,
++                   "status": status, "relaxations": [k for k in RELAXATIONS if check.get(k)]}
++        if kind == "batch_confounding" and rows_checked:
++            summary["cross_table"] = cross_table(check, rows)
++        summaries.append(summary)
+         alerts.extend(found)
+     return summaries, alerts
+ 
+ 
+ def render(summaries, alerts):
+     blocking = sum(a["blocking"] for a in alerts)
+-    lines = ["{} checks; {} blocking alerts, {} warnings.".format(
+-        len(summaries), blocking, len(alerts) - blocking)]
++    gaps = sum(a["severity"] == "gap" for a in alerts)
++    lines = ["{} checks; {} blocking alerts, {} warnings{}.".format(
++        len(summaries), blocking, len(alerts) - blocking - gaps, ", {} gaps".format(gaps) if gaps else "")]
+     for summary in summaries:
+         line = "{:5} {} ({} rows)".format(summary["status"].upper(), summary["check"], summary["rows_checked"])
+         if summary["relaxations"]:
+             line += "  relaxed: " + ", ".join(summary["relaxations"])
+         lines.append(line)
++        if "cross_table" in summary:
++            lines.append("    rows by batch and contrast level (share of the level):")
++            lines.extend("      " + row for row in render_cross_table(summary["cross_table"]))
+         for a in (a for a in alerts if a["check"] == summary["check"]):
+-            lines.append("    {} {}".format("BLOCK" if a["blocking"] else "warn:", a["message"]))
++            label = "BLOCK" if a["blocking"] else ("GAP  " if a["severity"] == "gap" else "warn:")
++            lines.append("    {} {}".format(label, a["message"]))
+             for key in ("expected", "observed"):
+                 if key in a:
+                     lines.append("      {}: {}".format(key, a[key]))
+@@ -353,7 +549,9 @@ def main(argv=None):
+         print()
+     else:
+         print(render(summaries, alerts))
+-    return 2 if any(a["blocking"] for a in alerts) else 0
++    if any(a["blocking"] for a in alerts):
++        return 2
++    return 3 if any(a["severity"] == "gap" for a in alerts) else 0
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/skills/data-contract-check/tests/fixtures/imbalance.tsv b/skills/data-contract-check/tests/fixtures/imbalance.tsv
+new file mode 100644
+index 0000000..682cf5a
+--- /dev/null
++++ b/skills/data-contract-check/tests/fixtures/imbalance.tsv
+@@ -0,0 +1,21 @@
++sample	batch	condition
++a1	b1	A
++a2	b1	A
++a3	b1	A
++a4	b1	A
++a5	b1	A
++a6	b1	A
++a7	b1	A
++a8	b1	A
++a11	b2	A
++a12	b2	A
++c1	b1	B
++d1	b2	B
++c2	b1	B
++d2	b2	B
++c3	b1	B
++d3	b2	B
++c4	b1	B
++d4	b2	B
++c5	b1	B
++d5	b2	B
+diff --git a/skills/data-contract-check/tests/test_data_contract_check.py b/skills/data-contract-check/tests/test_data_contract_check.py
+index 3a2214a..5787072 100644
+--- a/skills/data-contract-check/tests/test_data_contract_check.py
++++ b/skills/data-contract-check/tests/test_data_contract_check.py
+@@ -1,7 +1,10 @@
+ """Run: python3 skills/data-contract-check/tests/test_data_contract_check.py"""
+ 
++import csv
++import importlib
+ import json
+ import os
++import shutil
+ import subprocess
+ import sys
+ import tempfile
+@@ -12,21 +15,39 @@ SCRIPT = os.path.join(HERE, "..", "scripts", "data_contract_check.py")
+ FIXTURES = os.path.join(HERE, "fixtures")
+ 
+ 
+-def run(checks, filters=None):
+-    contract = {"schema": "mycelium-extra.data_contract.v1", "table": "samples.tsv",
++def importable(name):
++    try:
++        importlib.import_module(name)
++        return True
++    except Exception:  # an install that fails to import counts as absent
++        return False
++
++
++HAVE_H5PY = importable("h5py")
++NO_H5PY = "h5py is not installed; the .h5ad tests need it to build their fixture (uv pip install h5py)"
++
++
++def invoke(checks, filters=None, table="samples.tsv", root=FIXTURES, as_json=True, env=None):
++    """Run the checker from stdin, as the skill does; return (exit code, stdout text)."""
++    contract = {"schema": "mycelium-extra.data_contract.v1", "table": table,
+                 "filters": filters or [], "checks": checks}
+     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+         json.dump(contract, handle)
+     try:
+         with open(SCRIPT) as source:
+             proc = subprocess.Popen(
+-                [sys.executable, "-", "--contract", handle.name, "--root", FIXTURES, "--json"],
+-                stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
++                [sys.executable, "-", "--contract", handle.name, "--root", root] + (["--json"] if as_json else []),
++                stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+             out, _ = proc.communicate()
+     finally:
+         os.unlink(handle.name)
+-    alerts = json.loads(out.decode("utf-8"))["alerts"] if proc.returncode != 1 else None
+-    return proc.returncode, alerts
++    return proc.returncode, out.decode("utf-8")
++
++
++def run(checks, filters=None, **kwargs):
++    code, out = invoke(checks, filters, **kwargs)
++    alerts = json.loads(out)["alerts"] if code != 1 else None
++    return code, alerts
+ 
+ 
+ KEEP = [{"column": "keep", "equals": "TRUE"}]
+@@ -107,5 +128,260 @@ class DataContractCheckTest(unittest.TestCase):
+         self.assertEqual(code, 1)
+ 
+ 
++IMBALANCE = {"kind": "batch_confounding", "batch": "batch", "contrast": "condition", "table": "imbalance.tsv"}
++
++
++class GradedImbalanceTest(unittest.TestCase):
++    """imbalance.tsv: b1 holds 8 of 10 A rows and 5 of 10 B rows; b2 the rest."""
++
++    def test_max_share_warns_with_counts(self):
++        code, alerts = run([dict(IMBALANCE, max_share=0.7)])
++        self.assertEqual(code, 0)
++        self.assertEqual(len(alerts), 1)
++        self.assertFalse(alerts[0]["blocking"])
++        self.assertEqual(alerts[0]["severity"], "warning")
++        self.assertIn("more than 70%", alerts[0]["message"])
++        self.assertEqual(alerts[0]["evidence"], ["b1 holds 8 of 10 A rows (80%)"])
++
++    def test_max_share_warning_shows_the_table(self):
++        code, out = invoke([dict(IMBALANCE, max_share=0.7)], as_json=False)
++        self.assertEqual(code, 0)
++        self.assertIn("WARN  checks[0] batch_confounding (20 rows)", out)
++        lines = [line.split() for line in out.splitlines()]
++        self.assertIn(["b1", "8", "(80%)", "5", "(50%)", "13"], lines)
++        self.assertIn(["b2", "2", "(20%)", "5", "(50%)", "7"], lines)
++        self.assertIn("warn: a batch holds more than 70%", out)
++
++    def test_share_at_the_limit_does_not_warn(self):
++        code, alerts = run([dict(IMBALANCE, max_share=0.8)])
++        self.assertEqual((code, alerts), (0, []))
++
++    def test_without_max_share_behaves_as_before_and_still_shows_the_table(self):
++        code, out = invoke([IMBALANCE])
++        self.assertEqual(code, 0)
++        result = json.loads(out)
++        self.assertEqual(result["alerts"], [])
++        self.assertEqual(result["checks"][0]["status"], "pass")
++        self.assertEqual(result["checks"][0]["cross_table"]["counts"],
++                         {"b1": {"A": 8, "B": 5}, "b2": {"A": 2, "B": 5}})
++        code, out = invoke([IMBALANCE], as_json=False)
++        self.assertIn("PASS  checks[0] batch_confounding (20 rows)", out)
++        self.assertIn(["b1", "8", "(80%)", "5", "(50%)", "13"], [line.split() for line in out.splitlines()])
++
++    def test_table_shown_when_the_check_blocks(self):
++        code, out = invoke([{"kind": "batch_confounding", "batch": "participant", "contrast": "cohort"}],
++                           as_json=False)
++        self.assertEqual(code, 2)
++        self.assertIn("rows by batch and contrast level", out)
++        self.assertIn(["p1", "2", "(50%)", "0", "(0%)", "2"], [line.split() for line in out.splitlines()])
++
++    def test_bad_max_share_is_usage_error(self):
++        for bad in (70, 0, "0.7", True, -0.1):
++            code, _ = run([dict(IMBALANCE, max_share=bad)])
++            self.assertEqual(code, 1, bad)
++
++
++def read_tsv(name):
++    with open(os.path.join(FIXTURES, name), newline="", encoding="utf-8-sig") as handle:
++        return list(csv.DictReader(handle, delimiter="\t"))
++
++
++def write_h5ad(path, index, columns):
++    """Write a minimal AnnData file (obs only) in anndata >= 0.8's on-disk encoding, with h5py alone.
++
++    columns: list of (name, kind, values); kind is "strings", "categorical", or "int".
++    Missing categorical values (NA in the TSV) are code -1, as anndata writes them.
++    """
++    import h5py
++    import numpy as np
++    strings = h5py.special_dtype(vlen=str)
++
++    def string_array(group, name, values):
++        node = group.create_dataset(name, data=np.array(values, dtype=object), dtype=strings)
++        node.attrs["encoding-type"] = "string-array"
++        node.attrs["encoding-version"] = "0.2.0"
++
++    with h5py.File(path, "w") as handle:
++        handle.attrs["encoding-type"] = "anndata"
++        handle.attrs["encoding-version"] = "0.1.0"
++        obs = handle.create_group("obs")
++        obs.attrs["encoding-type"] = "dataframe"
++        obs.attrs["encoding-version"] = "0.2.0"
++        obs.attrs["_index"] = index[0]
++        obs.attrs["column-order"] = np.array([c[0] for c in columns], dtype=object)
++        string_array(obs, index[0], index[1])
++        for name, kind, values in columns:
++            if kind == "strings":
++                string_array(obs, name, values)
++            elif kind == "int":
++                node = obs.create_dataset(name, data=np.array([int(v) for v in values], dtype="int64"))
++                node.attrs["encoding-type"] = "array"
++                node.attrs["encoding-version"] = "0.2.0"
++            else:
++                categories = sorted({v for v in values if v != "NA"})
++                group = obs.create_group(name)
++                group.attrs["encoding-type"] = "categorical"
++                group.attrs["encoding-version"] = "0.2.0"
++                group.attrs["ordered"] = False
++                group.create_dataset("codes", data=np.array(
++                    [-1 if v == "NA" else categories.index(v) for v in values], dtype="int8"))
++                string_array(group, "categories", categories)
++
++
++def samples_h5ad(path):
++    rows = read_tsv("samples.tsv")
++    write_h5ad(path, ("sample", [r["sample"] for r in rows]), [
++        ("participant", "strings", [r["participant"] for r in rows]),
++        ("cohort", "categorical", [r["cohort"] for r in rows]),
++        ("visit", "int", [r["visit"] for r in rows]),
++        ("batch", "categorical", [r["batch"] for r in rows]),
++        ("keep", "categorical", [r["keep"] for r in rows]),
++    ])
++
++
++# Every contract the TSV tests above run against samples.tsv.
++CASES = [
++    ([{"kind": "schema", "columns": ["sample", "participant", "donor"]}], None),
++    ([{"kind": "unit_of_replication", "unit": "participant", "group": "cohort", "within": ["visit"]}], None),
++    ([{"kind": "unit_of_replication", "unit": "participant", "group": "cohort", "within": ["visit"]}], KEEP),
++    ([{"kind": "pairing", "unit": "participant", "within": "visit"}], KEEP),
++    ([{"kind": "batch_confounding", "batch": "batch", "contrast": "cohort"}], KEEP),
++    ([{"kind": "batch_confounding", "batch": "participant", "contrast": "cohort"}], None),
++    ([{"kind": "cohort", "column": "cohort", "levels": ["A", "C"], "rows": 8, "no_missing": ["batch"]}], KEEP),
++    ([{"kind": "unit_of_replication", "unit": "participant", "group": "cohort"}],
++     [{"column": "keep", "equals": "True"}]),
++    ([{"kind": "schema", "columns": ["participant"]}], [{"column": "preferred", "equals": "TRUE"}]),
++]
++
++
++@unittest.skipUnless(HAVE_H5PY, NO_H5PY)
++class H5adTest(unittest.TestCase):
++    def setUp(self):
++        self.root = tempfile.mkdtemp()
++
++    def tearDown(self):
++        shutil.rmtree(self.root)
++
++    def test_existing_checks_run_unchanged_on_h5ad(self):
++        shutil.copy(os.path.join(FIXTURES, "samples.tsv"), self.root)
++        samples_h5ad(os.path.join(self.root, "samples.h5ad"))
++        for checks, filters in CASES:
++            tsv = invoke(checks, filters, table="samples.tsv", root=self.root)
++            h5ad = invoke(checks, filters, table="samples.h5ad", root=self.root)
++            self.assertEqual(tsv[0], h5ad[0], checks)
++            expected, observed = json.loads(tsv[1]), json.loads(h5ad[1])
++            for result in (expected, observed):
++                for record in result["alerts"] + result["checks"]:
++                    record.pop("table")
++            self.assertEqual(expected, observed, checks)
++
++    def test_max_share_on_h5ad_warns_and_shows_the_table(self):
++        rows = read_tsv("imbalance.tsv")
++        write_h5ad(os.path.join(self.root, "cells.h5ad"), ("sample", [r["sample"] for r in rows]), [
++            ("batch", "categorical", [r["batch"] for r in rows]),
++            ("condition", "categorical", [r["condition"] for r in rows])])
++        check = dict(IMBALANCE, table="cells.h5ad", max_share=0.7)
++        code, out = invoke([check], root=self.root, as_json=False)
++        self.assertEqual(code, 0)
++        self.assertIn("warn: a batch holds more than 70% of a 'condition' level", out)
++        self.assertIn("- b1 holds 8 of 10 A rows (80%)", out)
++        self.assertIn(["b1", "8", "(80%)", "5", "(50%)", "13"], [line.split() for line in out.splitlines()])
++
++    def test_unrecognised_column_encoding_is_a_gap_for_checks_that_name_it(self):
++        import h5py
++        path = os.path.join(self.root, "odd.h5ad")
++        samples_h5ad(path)
++        with h5py.File(path, "a") as handle:
++            handle["obs/batch"].attrs["encoding-type"] = "awkward-array"
++        code, out = invoke([{"kind": "schema", "columns": ["batch"]},
++                            {"kind": "batch_confounding", "batch": "batch", "contrast": "cohort"},
++                            {"kind": "pairing", "unit": "participant", "within": "visit"}],
++                           KEEP, table="odd.h5ad", root=self.root)
++        self.assertEqual(code, 2)  # the pairing check still runs and blocks
++        statuses = [c["status"] for c in json.loads(out)["checks"]]
++        self.assertEqual(statuses, ["pass", "gap", "block"])
++        gap = [a for a in json.loads(out)["alerts"] if a["severity"] == "gap"][0]
++        self.assertFalse(gap["blocking"])
++        self.assertIn("unrecognised encoding 'awkward-array'", gap["evidence"][0])
++
++    def test_unrecognised_obs_encoding_is_a_gap_not_a_pass(self):
++        import h5py
++        import numpy as np
++        path = os.path.join(self.root, "old.h5ad")
++        with h5py.File(path, "w") as handle:  # anndata < 0.7 wrote obs as one compound dataset
++            handle.create_dataset("obs", data=np.array([(b"c1", 1)], dtype=[("index", "S2"), ("n", "i4")]))
++        code, out = invoke([{"kind": "schema", "columns": ["index"]}], table="old.h5ad", root=self.root)
++        self.assertEqual(code, 3)
++        result = json.loads(out)
++        self.assertEqual(result["checks"][0]["status"], "gap")
++        self.assertIn("not in a recognised AnnData encoding", result["alerts"][0]["observed"])
++
++    def test_not_hdf5_is_a_gap(self):
++        with open(os.path.join(self.root, "broken.h5ad"), "w") as handle:
++            handle.write("not hdf5")
++        code, out = invoke([{"kind": "schema", "columns": ["x"]}], table="broken.h5ad", root=self.root)
++        self.assertEqual(code, 3)
++        self.assertIn("not readable as HDF5", json.loads(out)["alerts"][0]["observed"])
++
++    def test_anndata_07_categorical_reference_is_read(self):
++        import h5py
++        import numpy as np
++        path = os.path.join(self.root, "v07.h5ad")
++        strings = h5py.special_dtype(vlen=str)
++        with h5py.File(path, "w") as handle:
++            obs = handle.create_group("obs")
++            obs.attrs["encoding-type"] = "dataframe"
++            obs.attrs["encoding-version"] = "0.1.0"
++            obs.attrs["_index"] = "_index"
++            obs.attrs["column-order"] = np.array(["cohort"], dtype=object)
++            obs.create_dataset("_index", data=np.array(["c1", "c2", "c3"], dtype=object), dtype=strings)
++            categories = obs.create_dataset("__categories/cohort", data=np.array(["A", "B"], dtype=object),
++                                            dtype=strings)
++            codes = obs.create_dataset("cohort", data=np.array([0, 1, 1], dtype="int8"))
++            codes.attrs["categories"] = categories.ref
++        code, alerts = run([{"kind": "cohort", "column": "cohort", "levels": ["A", "B"], "rows": 3}],
++                           table="v07.h5ad", root=self.root)
++        self.assertEqual((code, alerts), (0, []))
++
++    @unittest.skipUnless(importable("anndata"), "anndata is not installed; the round trip through its writer "
++                                                "is optional")
++    def test_reads_a_file_anndata_wrote(self):
++        import anndata
++        import pandas
++        rows = read_tsv("imbalance.tsv")
++        obs = pandas.DataFrame({"batch": pandas.Categorical([r["batch"] for r in rows]),
++                                "condition": [r["condition"] for r in rows]},
++                               index=[r["sample"] for r in rows])
++        anndata.AnnData(obs=obs).write_h5ad(os.path.join(self.root, "real.h5ad"))
++        code, alerts = run([dict(IMBALANCE, table="real.h5ad", max_share=0.7)], root=self.root)
++        self.assertEqual(code, 0)
++        self.assertEqual(alerts[0]["evidence"], ["b1 holds 8 of 10 A rows (80%)"])
++
++
++class WithoutH5pyTest(unittest.TestCase):
++    """Runs whether or not h5py is installed: a stub on PYTHONPATH makes `import h5py` fail."""
++
++    def test_h5ad_without_h5py_is_a_gap(self):
++        root = tempfile.mkdtemp()
++        try:
++            with open(os.path.join(root, "h5py.py"), "w") as handle:
++                handle.write("raise ImportError('h5py hidden by the test')\n")
++            with open(os.path.join(root, "cells.h5ad"), "wb") as handle:
++                handle.write(b"\x89HDF\r\n\x1a\n")
++            env = dict(os.environ, PYTHONPATH=root)
++            checks = [{"kind": "schema", "columns": ["batch"]}, dict(IMBALANCE, table="cells.h5ad", max_share=0.7)]
++            code, out = invoke(checks, table="cells.h5ad", root=root, env=env)
++            self.assertEqual(code, 3)
++            result = json.loads(out)
++            self.assertEqual([c["status"] for c in result["checks"]], ["gap", "gap"])
++            self.assertTrue(all(a["severity"] == "gap" and not a["blocking"] for a in result["alerts"]))
++            self.assertIn("h5py cannot be imported", result["alerts"][0]["observed"])
++            code, out = invoke(checks, table="cells.h5ad", root=root, env=env, as_json=False)
++            self.assertIn("GAP   checks[1] batch_confounding (0 rows)", out)
++            self.assertIn("2 gaps", out.splitlines()[0])
++        finally:
++            shutil.rmtree(root)
++
++
+ if __name__ == "__main__":
+     unittest.main()
+-- 
+2.43.0
+

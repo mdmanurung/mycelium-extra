@@ -1,0 +1,120 @@
+{
+  "design": {
+    "arms": {
+      "placebo": [
+        "D07",
+        "D08",
+        "D09",
+        "D10",
+        "D11",
+        "D12"
+      ],
+      "vaccine": [
+        "D01",
+        "D02",
+        "D03",
+        "D04",
+        "D05",
+        "D06"
+      ]
+    },
+    "donor_sd_log": 0.4,
+    "donors": 12,
+    "excluded_library": "D03_day28_rerun",
+    "genes": 60,
+    "library_size_factor": [
+      0.7,
+      1.3
+    ],
+    "residual_sd_log": 0.25,
+    "true_log2fc": 2.0,
+    "visits": [
+      "day0",
+      "day28"
+    ]
+  },
+  "note": "Simulated ground truth. Kept outside the project so no analysis step can read it.",
+  "null_genes": [
+    "ACTB",
+    "GAPDH",
+    "B2M",
+    "PPIA",
+    "RPLP0",
+    "TBP",
+    "HPRT1",
+    "PGK1",
+    "YWHAZ",
+    "UBC",
+    "SDHA",
+    "GUSB",
+    "HMBS",
+    "TFRC",
+    "ALAS1",
+    "POLR2A",
+    "EEF1A1",
+    "RPL13A",
+    "MARCHF1",
+    "SEPTIN7",
+    "CD3E",
+    "CD4",
+    "CD8A",
+    "CD19",
+    "MS4A1",
+    "CD14",
+    "FCGR3A",
+    "NCAM1",
+    "ITGAM",
+    "PTPRC",
+    "IL7R",
+    "CCR7",
+    "SELL",
+    "LEF1",
+    "TCF7",
+    "GZMB",
+    "PRF1",
+    "NKG7",
+    "GNLY",
+    "KLRD1",
+    "LYZ",
+    "S100A8",
+    "S100A9",
+    "CST3",
+    "FCER1A",
+    "HLA-DRA",
+    "CD74",
+    "JUN",
+    "FOS",
+    "DUSP1",
+    "MALAT1",
+    "NEAT1"
+  ],
+  "seed": 0,
+  "selection": {
+    "median_of_ratios": {
+      "false_positives": 0,
+      "true_positives": 8
+    },
+    "total_count_cpm": {
+      "false_positive_genes": [
+        "CD3E",
+        "CD74",
+        "FCER1A",
+        "LEF1",
+        "MS4A1",
+        "SEPTIN7"
+      ],
+      "false_positives": 6,
+      "true_positives": 8
+    }
+  },
+  "true_genes": [
+    "IFI27",
+    "IFI44L",
+    "ISG15",
+    "MX1",
+    "RSAD2",
+    "SIGLEC1",
+    "IFIT1",
+    "OAS1"
+  ]
+}

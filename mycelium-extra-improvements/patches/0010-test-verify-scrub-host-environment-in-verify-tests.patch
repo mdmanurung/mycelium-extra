@@ -1,0 +1,62 @@
+From f739979df799c729aeb5124b6964f2751d67607a Mon Sep 17 00:00:00 2001
+From: Biomni draft <biomni@phylo.local>
+Date: Sun, 4 Oct 2026 12:25:28 +0000
+Subject: [PATCH 10/22] test(verify): scrub host environment in verify tests
+
+---
+ hooks/tests/test_gate.py           |  8 ++++++++
+ skills/verify/tests/test_verify.py | 12 ++++++++++++
+ 2 files changed, 20 insertions(+)
+
+diff --git a/hooks/tests/test_gate.py b/hooks/tests/test_gate.py
+index efc6af9..37a5c1f 100644
+--- a/hooks/tests/test_gate.py
++++ b/hooks/tests/test_gate.py
+@@ -19,6 +19,14 @@ class GateTest(unittest.TestCase):
+     entry = GATE
+ 
+     def setUp(self):
++        # Hooks record the session's env variables in receipts; keep the host's out of them.
++        saved = dict(os.environ)
++        self.addCleanup(lambda: (os.environ.clear(), os.environ.update(saved)))
++        for key in ("CONDA_DEFAULT_ENV", "CONDA_PREFIX", "VIRTUAL_ENV", "PIXI_ENVIRONMENT_NAME"):
++            os.environ.pop(key, None)
++        home = tempfile.mkdtemp()
++        self.addCleanup(shutil.rmtree, home)
++        os.environ["HOME"] = home
+         self.root = tempfile.mkdtemp()
+         os.makedirs(os.path.join(self.root, ".mycelium-extra"))
+         self.config({})
+diff --git a/skills/verify/tests/test_verify.py b/skills/verify/tests/test_verify.py
+index c324136..bf3635e 100644
+--- a/skills/verify/tests/test_verify.py
++++ b/skills/verify/tests/test_verify.py
+@@ -26,6 +26,17 @@ import gate  # noqa: E402
+ FIT = "analysis/a/scripts/01_fit.py"
+ 
+ 
++def hermetic(test):
++    """Hide the host's env variables and ~/.conda from the gate and verify for one test."""
++    saved = dict(os.environ)
++    test.addCleanup(lambda: (os.environ.clear(), os.environ.update(saved)))
++    for key in gate.HOOK_ENV + ("CLAUDE_CODE_SESSION_ID",):
++        os.environ.pop(key, None)
++    home = tempfile.mkdtemp()
++    test.addCleanup(shutil.rmtree, home)
++    os.environ["HOME"] = home
++
++
+ def plan(*rows, outputs="analysis/a/outputs/", inputs=None):
+     lines = ["**Objective.** Fit the model; see `analysis/a/scripts/old.py` for the previous attempt.", ""]
+     if inputs:
+@@ -39,6 +50,7 @@ def plan(*rows, outputs="analysis/a/outputs/", inputs=None):
+ 
+ class VerifyTest(unittest.TestCase):
+     def setUp(self):
++        hermetic(self)
+         self.root = tempfile.mkdtemp()
+         os.makedirs(os.path.join(self.root, ".mycelium-extra"))
+         self.write(".mycelium-extra/gate.json", "{}")
+-- 
+2.43.0
+

@@ -1,0 +1,65 @@
+From ea70a0eaf5681b7fc739c38fde4aabc538c7768d Mon Sep 17 00:00:00 2001
+From: Biomni draft <biomni@phylo.local>
+Date: Sun, 4 Oct 2026 13:30:38 +0000
+Subject: [PATCH 22/22] chore: bump version to 0.9.30
+
+---
+ .claude-plugin/marketplace.json | 2 +-
+ .claude-plugin/plugin.json      | 2 +-
+ .codex-plugin/plugin.json       | 2 +-
+ CHANGELOG.md                    | 2 ++
+ 4 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/.claude-plugin/marketplace.json b/.claude-plugin/marketplace.json
+index 2e619cd..b6f1d61 100644
+--- a/.claude-plugin/marketplace.json
++++ b/.claude-plugin/marketplace.json
+@@ -7,7 +7,7 @@
+   },
+   "metadata": {
+     "description": "Repository-aware, bounded challenge and scoping for research and software work",
+-    "version": "0.9.29"
++    "version": "0.9.30"
+   },
+   "plugins": [
+     {
+diff --git a/.claude-plugin/plugin.json b/.claude-plugin/plugin.json
+index 1228962..a7f33e6 100644
+--- a/.claude-plugin/plugin.json
++++ b/.claude-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "mycelium-extra",
+-  "version": "0.9.29",
++  "version": "0.9.30",
+   "description": "Repository-aware, bounded challenge and scoping for research and software work",
+   "author": {
+     "name": "Mikhael Manurung"
+diff --git a/.codex-plugin/plugin.json b/.codex-plugin/plugin.json
+index a73e123..2190273 100644
+--- a/.codex-plugin/plugin.json
++++ b/.codex-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "mycelium-extra",
+-  "version": "0.9.29",
++  "version": "0.9.30",
+   "description": "Repository-aware, bounded challenge and scoping for research and software work",
+   "author": {
+     "name": "Mikhael Manurung"
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 41747dc..e661942 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -4,6 +4,8 @@ All notable changes to mycelium-extra are listed here, newest first. The format
+ 
+ ## [Unreleased]
+ 
++## [0.9.30] - 2026-10-04
++
+ ### Added
+ 
+ - MIT `LICENSE`, named in both plugin manifests.
+-- 
+2.43.0
+

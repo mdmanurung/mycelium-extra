@@ -1,0 +1,1621 @@
+From d2e4126f33d2f986ece14be4a948aada51e8b1e2 Mon Sep 17 00:00:00 2001
+From: Biomni draft <biomni@phylo.local>
+Date: Sun, 4 Oct 2026 12:40:52 +0000
+Subject: [PATCH 19/22] test(e2e): add the fixture project and its data
+ generator
+
+---
+ docs/design/c1-fixture-project.md             |  10 +-
+ docs/roadmap/03-robustness.md                 |   2 +-
+ tests/e2e/expected/baseline.json              |  32 ++
+ tests/e2e/expected/summary.tsv                |   2 +
+ tests/e2e/expected/truth.json                 | 120 ++++++
+ tests/fixtures/README.md                      |  34 ++
+ tests/fixtures/make_fixture_data.py           | 342 ++++++++++++++++++
+ tests/fixtures/mycelium-project/.gitignore    |   1 +
+ .../mycelium-project/.living/INDEX.md         |   7 +
+ .../mycelium-project/.living/conventions.md   |   6 +
+ .../mycelium-project/.living/decisions.md     |  75 ++++
+ .../.living/findings/FINDINGS_REGISTRY.md     |   5 +
+ .../.living/findings/vaccine-response.md      |  23 ++
+ .../mycelium-project/.living/learnings.md     |  34 ++
+ .../.living/log/2026-09-01-001-setup.md       |   5 +
+ .../.living/log/LOG_REGISTRY.md               |   5 +
+ tests/fixtures/mycelium-project/AGENTS.md     |   9 +
+ tests/fixtures/mycelium-project/CLAUDE.md     |   9 +
+ .../ENVIRONMENTS_INSTALLATIONS.md             |   8 +
+ tests/fixtures/mycelium-project/MYCELIUM.md   |  18 +
+ .../analysis/ANALYSIS_MANIFEST.md             |  18 +
+ .../analysis/vaccine-response/Snakefile       |  59 +++
+ .../vaccine-response/VACCINE_RESPONSE.md      |  26 ++
+ .../vaccine-response/outputs/.gitkeep         |   0
+ .../vaccine-response/reports/report.Rmd       |  12 +
+ .../analysis/vaccine-response/run.sh          |   7 +
+ .../analysis/vaccine-response/run_all.sbatch  |  11 +
+ .../scripts/01_select_samples.py              |  30 ++
+ .../scripts/02_paired_test.py                 |  90 +++++
+ .../vaccine-response/scripts/03_summary.R     |  16 +
+ .../vaccine-response/scripts/04_extra_plot.py |  24 ++
+ .../mycelium-project/data/DATA_MANIFEST.md    |  24 ++
+ .../vaccine-cohort/DATA_DICTIONARY.md         |  19 +
+ .../data/processed/vaccine-cohort/counts.tsv  |  61 ++++
+ .../vaccine-cohort/sample_metadata.tsv        |  26 ++
+ .../data/raw/vaccine-cohort/VACCINE_COHORT.md |   4 +
+ .../mycelium-project/nbs/qc_explore.ipynb     |  39 ++
+ .../mycelium-project/todo/TODO_REGISTRY.md    |   5 +
+ tests/test_fixture_data.py                    |  45 +++
+ 39 files changed, 1258 insertions(+), 5 deletions(-)
+ create mode 100644 tests/e2e/expected/baseline.json
+ create mode 100644 tests/e2e/expected/summary.tsv
+ create mode 100644 tests/e2e/expected/truth.json
+ create mode 100644 tests/fixtures/README.md
+ create mode 100644 tests/fixtures/make_fixture_data.py
+ create mode 100644 tests/fixtures/mycelium-project/.gitignore
+ create mode 100644 tests/fixtures/mycelium-project/.living/INDEX.md
+ create mode 100644 tests/fixtures/mycelium-project/.living/conventions.md
+ create mode 100644 tests/fixtures/mycelium-project/.living/decisions.md
+ create mode 100644 tests/fixtures/mycelium-project/.living/findings/FINDINGS_REGISTRY.md
+ create mode 100644 tests/fixtures/mycelium-project/.living/findings/vaccine-response.md
+ create mode 100644 tests/fixtures/mycelium-project/.living/learnings.md
+ create mode 100644 tests/fixtures/mycelium-project/.living/log/2026-09-01-001-setup.md
+ create mode 100644 tests/fixtures/mycelium-project/.living/log/LOG_REGISTRY.md
+ create mode 100644 tests/fixtures/mycelium-project/AGENTS.md
+ create mode 100644 tests/fixtures/mycelium-project/CLAUDE.md
+ create mode 100644 tests/fixtures/mycelium-project/ENVIRONMENTS_INSTALLATIONS.md
+ create mode 100644 tests/fixtures/mycelium-project/MYCELIUM.md
+ create mode 100644 tests/fixtures/mycelium-project/analysis/ANALYSIS_MANIFEST.md
+ create mode 100644 tests/fixtures/mycelium-project/analysis/vaccine-response/Snakefile
+ create mode 100644 tests/fixtures/mycelium-project/analysis/vaccine-response/VACCINE_RESPONSE.md
+ create mode 100644 tests/fixtures/mycelium-project/analysis/vaccine-response/outputs/.gitkeep
+ create mode 100644 tests/fixtures/mycelium-project/analysis/vaccine-response/reports/report.Rmd
+ create mode 100755 tests/fixtures/mycelium-project/analysis/vaccine-response/run.sh
+ create mode 100644 tests/fixtures/mycelium-project/analysis/vaccine-response/run_all.sbatch
+ create mode 100644 tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/01_select_samples.py
+ create mode 100644 tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/02_paired_test.py
+ create mode 100644 tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/03_summary.R
+ create mode 100644 tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/04_extra_plot.py
+ create mode 100644 tests/fixtures/mycelium-project/data/DATA_MANIFEST.md
+ create mode 100644 tests/fixtures/mycelium-project/data/metadata/vaccine-cohort/DATA_DICTIONARY.md
+ create mode 100644 tests/fixtures/mycelium-project/data/processed/vaccine-cohort/counts.tsv
+ create mode 100644 tests/fixtures/mycelium-project/data/processed/vaccine-cohort/sample_metadata.tsv
+ create mode 100644 tests/fixtures/mycelium-project/data/raw/vaccine-cohort/VACCINE_COHORT.md
+ create mode 100644 tests/fixtures/mycelium-project/nbs/qc_explore.ipynb
+ create mode 100644 tests/fixtures/mycelium-project/todo/TODO_REGISTRY.md
+ create mode 100644 tests/test_fixture_data.py
+
+diff --git a/docs/design/c1-fixture-project.md b/docs/design/c1-fixture-project.md
+index 10c443c..f5a1c8c 100644
+--- a/docs/design/c1-fixture-project.md
++++ b/docs/design/c1-fixture-project.md
+@@ -33,7 +33,7 @@ tests/
+ ├── fixtures/
+ │   ├── README.md                         what the fixture is, how to regenerate it, the size budget
+ │   ├── make_fixture_data.py              deterministic generator (section 4); --check compares with the committed files
+-│   └── mycelium-project/                 the project (30 files)
++│   └── mycelium-project/                 the project (31 files)
+ │       ├── MYCELIUM.md                   Mycelium protocol stub; names the convention "results come from analysis/ only"
+ │       ├── CLAUDE.md                     Mycelium routing block (grill reads it)
+ │       ├── AGENTS.md                     same, for Codex
+@@ -65,6 +65,7 @@ tests/
+ │       │       ├── scripts/04_extra_plot.py       not in the plan (scope-growth defects)
+ │       │       ├── run.sh                         wrapper: runs 01, 02, 03 in order
+ │       │       ├── Snakefile                      same steps, in the rule shape new-analysis generates
++│       │       ├── run_all.sbatch                 Slurm script: the same steps in one job (wrapper defects)
+ │       │       ├── outputs/.gitkeep
+ │       │       └── reports/report.Rmd             one R chunk (E4, E5)
+ │       ├── nbs/qc_explore.ipynb          explore notebook (gated path `nbs/**`); Python kernel
+@@ -78,8 +79,9 @@ tests/
+ │   └── expected/
+ │       ├── baseline.json                 statuses, counts, and values the baseline must produce
+ │       ├── truth.json                    simulated ground truth; kept outside the project so no step can read it
+-│       ├── summary.tsv                   03_summary.R output from a real R run; used when R is absent
++│       ├── summary.tsv                   03_summary.R output (generator's Python twin, checked against real R); used when R is absent
+ │       └── claims.json                   D1's expected verdicts (unused until D1 ships)
++├── test_fixture_data.py                  runs make_fixture_data.py --check, a refused seed, and the size budget
+ └── test_end_to_end.py                    baseline chain, one case per defect, catalog contract tests
+ ```
+ 
+@@ -131,7 +133,7 @@ decision-status run with `--term normalisation` must list entries 1, 4, and 5, o
+ - residual noise with SD 0.25;
+ - a library-size factor between 0.7 and 1.3.
+ 
+-`DATA_MANIFEST.md` and the file headers say SIMULATED.
++`DATA_MANIFEST.md`, `DATA_DICTIONARY.md`, and `VACCINE_COHORT.md` say SIMULATED. The TSVs carry no comment header, because data-contract-check reads them with `csv.DictReader`, which would take a `#` line as the header.
+ 
+ **Analysis.** `02_paired_test.py` does the following:
+ 
+@@ -150,7 +152,7 @@ It writes `de_results.tsv` (`gene log2fc p padj`).
+ 
+ A design with more genes fails differently: at 200 genes, BH cannot reach 0.05 for 8 hits, because the permutation floor (0.0022 × 200 / 8 = 0.054) is above it. So the gene count is part of the design, not a free parameter.
+ 
+-**Generator.** `make_fixture_data.py --seed N` writes the two TSVs. It runs the three scripts on a temporary copy and writes the values to `expected/baseline.json` and `expected/truth.json`. It also fills the Key Findings numbers in `VACCINE_RESPONSE.md`. It selects the seed by stated criteria and refuses one that fails them:
++**Generator.** `make_fixture_data.py --seed N` (default 0) writes the two TSVs. Its simulation reproduces the probe draw for draw, so seed N gives the probe's seed N result. It runs 01 and 02 on a temporary copy, checks that 02's hits equal its own analysis, computes 03's summary with a Python twin (R's median, `sprintf("%.4f")`), and writes the values to `expected/baseline.json` (row counts and SHA-256 of each output), `expected/truth.json`, and `expected/summary.tsv`. The end-to-end test compares `expected/summary.tsv` with the real R output when R is present. It also fills the Key Findings numbers in `VACCINE_RESPONSE.md`. It selects the seed by stated criteria and refuses one that fails them:
+ 
+ - exactly the 8 true genes at `padj < 0.05` under median-of-ratios;
+ - at least 3 false positives under total-count CPM, so DC-11 has an effect.
+diff --git a/docs/roadmap/03-robustness.md b/docs/roadmap/03-robustness.md
+index a2a6172..1bc9fc8 100644
+--- a/docs/roadmap/03-robustness.md
++++ b/docs/roadmap/03-robustness.md
+@@ -15,7 +15,7 @@ Tasks that make the existing tools trustworthy before new ones are added. C1 com
+ - **Acceptance:** the baseline chain passes on a clean checkout with `Verify status: CONFORMS`; every defect case passes; every failure mode whose Check names a tool has at least one defect the tool catches; for the three named guard ablations, the matching defect case fails with a message naming the check.
+ - **Tests:** `tests/test_end_to_end.py` is the deliverable; `tests/e2e/ablate.py` runs the ablations. Record one ablation run in the PR description.
+ - **Effort:** L.
+-- **Status:** todo.
++- **Status:** in-progress: build-order commit 1 landed (fixture and generator); commit 2 (harness, baseline chain) not yet.
+ 
+ ### C2: Optional fail-closed gate
+ 
+diff --git a/tests/e2e/expected/baseline.json b/tests/e2e/expected/baseline.json
+new file mode 100644
+index 0000000..d11b235
+--- /dev/null
++++ b/tests/e2e/expected/baseline.json
+@@ -0,0 +1,32 @@
++{
++  "outputs": {
++    "de_results.tsv": {
++      "hits": [
++        "IFI27",
++        "IFI44L",
++        "IFIT1",
++        "ISG15",
++        "MX1",
++        "OAS1",
++        "RSAD2",
++        "SIGLEC1"
++      ],
++      "rows": 60,
++      "sha256": "67c17edf1d9b7457c4424df7ec4eab958058b29edfdd696e9810b26077898db3"
++    },
++    "samples_used.tsv": {
++      "rows": 24,
++      "sha256": "b980761d554c4338b622d64378014068cf4017797be480f8aedee365cd18a0bd"
++    },
++    "summary.tsv": {
++      "rows": 1,
++      "sha256": "409ac0ca64d2e8c6047e4fdb922ce52f88b1d77440e614767b6210e8fdf9fabb",
++      "values": {
++        "median_log2fc_hits": "1.6806",
++        "n_hits": "8",
++        "n_tested": "60"
++      }
++    }
++  },
++  "seed": 0
++}
+diff --git a/tests/e2e/expected/summary.tsv b/tests/e2e/expected/summary.tsv
+new file mode 100644
+index 0000000..387dc5f
+--- /dev/null
++++ b/tests/e2e/expected/summary.tsv
+@@ -0,0 +1,2 @@
++n_tested	n_hits	median_log2fc_hits
++60	8	1.6806
+diff --git a/tests/e2e/expected/truth.json b/tests/e2e/expected/truth.json
+new file mode 100644
+index 0000000..2c3b24f
+--- /dev/null
++++ b/tests/e2e/expected/truth.json
+@@ -0,0 +1,120 @@
++{
++  "design": {
++    "arms": {
++      "placebo": [
++        "D07",
++        "D08",
++        "D09",
++        "D10",
++        "D11",
++        "D12"
++      ],
++      "vaccine": [
++        "D01",
++        "D02",
++        "D03",
++        "D04",
++        "D05",
++        "D06"
++      ]
++    },
++    "donor_sd_log": 0.4,
++    "donors": 12,
++    "excluded_library": "D03_day28_rerun",
++    "genes": 60,
++    "library_size_factor": [
++      0.7,
++      1.3
++    ],
++    "residual_sd_log": 0.25,
++    "true_log2fc": 2.0,
++    "visits": [
++      "day0",
++      "day28"
++    ]
++  },
++  "note": "Simulated ground truth. Kept outside the project so no analysis step can read it.",
++  "null_genes": [
++    "ACTB",
++    "GAPDH",
++    "B2M",
++    "PPIA",
++    "RPLP0",
++    "TBP",
++    "HPRT1",
++    "PGK1",
++    "YWHAZ",
++    "UBC",
++    "SDHA",
++    "GUSB",
++    "HMBS",
++    "TFRC",
++    "ALAS1",
++    "POLR2A",
++    "EEF1A1",
++    "RPL13A",
++    "MARCHF1",
++    "SEPTIN7",
++    "CD3E",
++    "CD4",
++    "CD8A",
++    "CD19",
++    "MS4A1",
++    "CD14",
++    "FCGR3A",
++    "NCAM1",
++    "ITGAM",
++    "PTPRC",
++    "IL7R",
++    "CCR7",
++    "SELL",
++    "LEF1",
++    "TCF7",
++    "GZMB",
++    "PRF1",
++    "NKG7",
++    "GNLY",
++    "KLRD1",
++    "LYZ",
++    "S100A8",
++    "S100A9",
++    "CST3",
++    "FCER1A",
++    "HLA-DRA",
++    "CD74",
++    "JUN",
++    "FOS",
++    "DUSP1",
++    "MALAT1",
++    "NEAT1"
++  ],
++  "seed": 0,
++  "selection": {
++    "median_of_ratios": {
++      "false_positives": 0,
++      "true_positives": 8
++    },
++    "total_count_cpm": {
++      "false_positive_genes": [
++        "CD3E",
++        "CD74",
++        "FCER1A",
++        "LEF1",
++        "MS4A1",
++        "SEPTIN7"
++      ],
++      "false_positives": 6,
++      "true_positives": 8
++    }
++  },
++  "true_genes": [
++    "IFI27",
++    "IFI44L",
++    "ISG15",
++    "MX1",
++    "RSAD2",
++    "SIGLEC1",
++    "IFIT1",
++    "OAS1"
++  ]
++}
+diff --git a/tests/fixtures/README.md b/tests/fixtures/README.md
+new file mode 100644
+index 0000000..b4c6163
+--- /dev/null
++++ b/tests/fixtures/README.md
+@@ -0,0 +1,34 @@
++# Test fixtures
++
++`mycelium-project/` is a small, SIMULATED Mycelium project used by the end-to-end tests
++(`tests/test_end_to_end.py`, design in `docs/design/c1-fixture-project.md`). It follows the layout
++of Mycelium 0.8.1 (`skills/core/references/folder-structure.md`).
++
++The repository commits only the project's content. File times, git history, approvals, receipts,
++and the data-lineage manifest are built by `tests/e2e/harness.py` on every run, in a temporary copy.
++
++## The data
++
++12 donors (D01 to D06 vaccine, D07 to D12 placebo) at `day0` and `day28`, plus a re-sequenced
++library `D03_day28_rerun` with `preferred_acquisition=FALSE`; 60 genes with real HGNC symbols, of
++which 8 interferon-response genes are up 4-fold at day 28 in the vaccine arm only. The ground truth
++is in `tests/e2e/expected/truth.json`, outside the project, so no analysis step can read it.
++
++## Regenerating
++
++    python3 tests/fixtures/make_fixture_data.py            # seed 0
++    python3 tests/fixtures/make_fixture_data.py --check    # compare, write nothing
++
++The generator writes the two TSVs, the Key Findings block of `VACCINE_RESPONSE.md`, and
++`tests/e2e/expected/{truth.json,baseline.json,summary.tsv}`. It refuses a seed unless
++median-of-ratios recovers exactly the 8 true genes at padj < 0.05 and total-count CPM gives at
++least 3 false positives; seeds 0, 1, 5, 16 and 25 pass. `tests/test_fixture_data.py` runs
++`--check`, so a hand edit to the data fails the suite. Change the data through the generator only.
++
++`expected/summary.tsv` comes from the generator's Python twin of `03_summary.R`; the end-to-end
++test compares it with the real R output when `Rscript` is on `PATH`.
++
++## Size budget
++
++Under 40 files and 200 KB for `mycelium-project/`, so a reviewer can read all of it.
++`tests/test_fixture_data.py` enforces the budget.
+diff --git a/tests/fixtures/make_fixture_data.py b/tests/fixtures/make_fixture_data.py
+new file mode 100644
+index 0000000..994686e
+--- /dev/null
++++ b/tests/fixtures/make_fixture_data.py
+@@ -0,0 +1,342 @@
++"""Deterministic generator for the C1 fixture project's simulated data.
++
++Run from anywhere:
++
++    python3 tests/fixtures/make_fixture_data.py [--seed N]   # write the files
++    python3 tests/fixtures/make_fixture_data.py --check      # compare, write nothing
++
++It simulates a paired vaccine cohort (12 donors x day0/day28, 60 genes, 8 true
++interferon-response genes up 4-fold in the vaccine arm at day 28), refuses a seed
++that fails the selection criteria, runs 01_select_samples.py and 02_paired_test.py
++on a temporary copy of the project, and writes:
++
++    mycelium-project/data/processed/vaccine-cohort/sample_metadata.tsv
++    mycelium-project/data/processed/vaccine-cohort/counts.tsv
++    mycelium-project/analysis/vaccine-response/VACCINE_RESPONSE.md (Key Findings block)
++    ../e2e/expected/truth.json, baseline.json, summary.tsv
++
++Seed criteria (docs/design/c1-fixture-project.md, section 4):
++  - exactly the 8 true genes at padj < 0.05 under median-of-ratios;
++  - at least 3 false positives under total-count CPM.
++
++The simulation reproduces c1_feasibility_probe.py draw for draw, so seed N here
++gives the probe's seed N result. stdlib only, Python 3.6 grammar.
++"""
++
++import argparse
++import difflib
++import hashlib
++import itertools
++import json
++import math
++import os
++import random
++import shutil
++import subprocess
++import sys
++import tempfile
++
++HERE = os.path.dirname(os.path.abspath(__file__))
++PROJECT = os.path.join(HERE, "mycelium-project")
++EXPECTED = os.path.normpath(os.path.join(HERE, "..", "e2e", "expected"))
++ANALYSIS = os.path.join("analysis", "vaccine-response")
++METADATA = os.path.join("data", "processed", "vaccine-cohort", "sample_metadata.tsv")
++COUNTS = os.path.join("data", "processed", "vaccine-cohort", "counts.tsv")
++DOC = os.path.join(ANALYSIS, "VACCINE_RESPONSE.md")
++DEFAULT_SEED = 0
++VISITS = ("day0", "day28")
++N_DONORS = 12
++TRUE_GENES = ["IFI27", "IFI44L", "ISG15", "MX1", "RSAD2", "SIGLEC1", "IFIT1", "OAS1"]
++NULL_GENES = [
++    "ACTB", "GAPDH", "B2M", "PPIA", "RPLP0", "TBP", "HPRT1", "PGK1", "YWHAZ", "UBC",
++    "SDHA", "GUSB", "HMBS", "TFRC", "ALAS1", "POLR2A", "EEF1A1", "RPL13A", "MARCHF1", "SEPTIN7",
++    "CD3E", "CD4", "CD8A", "CD19", "MS4A1", "CD14", "FCGR3A", "NCAM1", "ITGAM", "PTPRC",
++    "IL7R", "CCR7", "SELL", "LEF1", "TCF7", "GZMB", "PRF1", "NKG7", "GNLY", "KLRD1",
++    "LYZ", "S100A8", "S100A9", "CST3", "FCER1A", "HLA-DRA", "CD74", "JUN", "FOS", "DUSP1",
++    "MALAT1", "NEAT1",
++]
++GENES = TRUE_GENES + NULL_GENES
++RERUN = "D03_day28_rerun"
++START = "<!-- key-findings:start (written by tests/fixtures/make_fixture_data.py) -->"
++END = "<!-- key-findings:end -->"
++
++
++class SeedRefused(Exception):
++    pass
++
++
++# --- simulation (draw order identical to c1_feasibility_probe.py) -----------------
++
++def simulate(seed, n_genes=60, n_true=8):
++    rng = random.Random(seed)
++    donors = ["D%02d" % i for i in range(1, N_DONORS + 1)]
++    arm = {d: "vaccine" if i < 6 else "placebo" for i, d in enumerate(donors)}
++    genes = ["G%03d" % i for i in range(n_genes)]
++    true = set(genes[:n_true])
++    base = {g: rng.uniform(math.log(50), math.log(2000)) for g in genes}
++    lib = {(d, v): rng.uniform(0.7, 1.3) for d in donors for v in VISITS}
++    donor = {(g, d): rng.gauss(0, 0.4) for g in genes for d in donors}
++    counts = {}
++    for g in genes:
++        for d in donors:
++            for v in VISITS:
++                up = g in true and v == "day28" and arm[d] == "vaccine"
++                mu = base[g] + donor[g, d] + (math.log(4) if up else 0.0)
++                counts[g, d, v] = max(0, int(round(math.exp(mu + rng.gauss(0, 0.25)) * lib[d, v])))
++    # Draws below come after the probe's, so they never change its result.
++    rerun = {g: max(0, int(round(counts[g, "D03", "day28"] * 1.6 * math.exp(rng.gauss(0, 0.1)))))
++             for g in genes}
++    rin = {(d, v): rng.uniform(6.5, 9.5) for d in donors for v in VISITS}
++    rin[RERUN] = rng.uniform(6.5, 9.5)
++    return {"donors": donors, "arm": arm, "genes": genes, "true": true, "counts": counts,
++            "rerun": rerun, "rin": rin}
++
++
++def size_factors(counts, donors, genes, method):
++    samples = [(d, v) for d in donors for v in VISITS]
++    if method == "cpm":
++        return {s: sum(counts[g, s[0], s[1]] for g in genes) / 1e6 for s in samples}
++    usable = [g for g in genes if all(counts[g, d, v] > 0 for d, v in samples)]
++    geo = {g: sum(math.log(counts[g, d, v]) for d, v in samples) / len(samples) for g in usable}
++    factors = {}
++    for d, v in samples:
++        ratios = sorted(math.log(counts[g, d, v]) - geo[g] for g in usable)
++        factors[d, v] = math.exp(ratios[len(ratios) // 2])
++    return factors
++
++
++def found(sim, method):
++    donors, genes, counts = sim["donors"], sim["genes"], sim["counts"]
++    sf = size_factors(counts, donors, genes, method)
++    combos = list(itertools.combinations(range(N_DONORS), 6))
++    pvalues = {}
++    for g in genes:
++        diff = [math.log2(counts[g, d, "day28"] / sf[d, "day28"] + 1)
++                - math.log2(counts[g, d, "day0"] / sf[d, "day0"] + 1) for d in donors]
++        total = sum(diff)
++        observed = abs(sum(diff[:6]) / 6 - sum(diff[6:]) / 6)
++        null = [abs(sum(diff[i] for i in c) / 6 - (total - sum(diff[i] for i in c)) / 6) for c in combos]
++        pvalues[g] = sum(s >= observed - 1e-12 for s in null) / len(null)
++    order = sorted(genes, key=lambda g: pvalues[g])
++    adjusted, running = {}, 1.0
++    for rank in range(len(genes), 0, -1):
++        g = order[rank - 1]
++        running = min(running, pvalues[g] * len(genes) / rank)
++        adjusted[g] = running
++    return set(g for g in genes if adjusted[g] < 0.05)
++
++
++def symbol(sim, g):
++    return GENES[sim["genes"].index(g)]
++
++
++def select(seed):
++    """Return the simulation and its criteria record, or raise SeedRefused."""
++    sim = simulate(seed)
++    mor, cpm = found(sim, "median-of-ratios"), found(sim, "cpm")
++    record = {
++        "median_of_ratios": {"true_positives": len(mor & sim["true"]), "false_positives": len(mor - sim["true"])},
++        "total_count_cpm": {"true_positives": len(cpm & sim["true"]), "false_positives": len(cpm - sim["true"]),
++                            "false_positive_genes": sorted(symbol(sim, g) for g in cpm - sim["true"])},
++    }
++    if mor != sim["true"]:
++        raise SeedRefused("seed {}: median-of-ratios finds {} true and {} false positive(s); need exactly the 8 "
++                          "true genes".format(seed, len(mor & sim["true"]), len(mor - sim["true"])))
++    if len(cpm - sim["true"]) < 3:
++        raise SeedRefused("seed {}: total-count CPM gives {} false positive(s); need at least 3".format(
++            seed, len(cpm - sim["true"])))
++    return sim, record
++
++
++# --- rendering --------------------------------------------------------------------
++
++def run_of(donor_index):
++    # D01-02 and D07-08 in R1, D03-04 and D09-10 in R2, D05-06 and D11-12 in R3: both arms per run.
++    return "R%d" % (donor_index % 6 // 2 + 1)
++
++
++def render_tables(sim):
++    donors, arm = sim["donors"], sim["arm"]
++    header = ["sample_id", "donor", "arm", "visit", "run_id", "lane", "preferred_acquisition", "rin"]
++    rows = []
++    for i, d in enumerate(donors):
++        for j, v in enumerate(VISITS):
++            sid = "{}_{}".format(d, v)
++            rows.append([sid, d, arm[d], v, run_of(i), "L%d" % ((i + j) % 2 + 1), "TRUE",
++                         "%.1f" % sim["rin"][d, v]])
++            if sid == "D03_day28":
++                rows.append([RERUN, d, arm[d], v, run_of(i), "L2", "FALSE", "%.1f" % sim["rin"][RERUN]])
++    metadata = "\t".join(header) + "\n" + "".join("\t".join(r) + "\n" for r in rows)
++
++    # Columns in an order different from the metadata, so a positional join is wrong (DC-09).
++    columns = sorted([r[0] for r in rows], key=lambda s: (s.split("_")[1], s), reverse=True)
++    lines = ["\t".join(["gene"] + columns)]
++    for g in sim["genes"]:
++        values = []
++        for sid in columns:
++            if sid == RERUN:
++                values.append(sim["rerun"][g])
++            else:
++                d, v = sid.split("_")
++                values.append(sim["counts"][g, d, v])
++        lines.append("\t".join([symbol(sim, g)] + [str(x) for x in values]))
++    return metadata, "\n".join(lines) + "\n"
++
++
++def run_scripts(metadata, counts):
++    """Run 01 and 02 on a temporary copy of the project; return their outputs."""
++    tmp = tempfile.mkdtemp(prefix="mx-fixture-")
++    try:
++        copy = os.path.join(tmp, "project")
++        shutil.copytree(PROJECT, copy)
++        for rel, text in ((METADATA, metadata), (COUNTS, counts)):
++            path = os.path.join(copy, rel)
++            if not os.path.isdir(os.path.dirname(path)):
++                os.makedirs(os.path.dirname(path))
++            with open(path, "w") as handle:
++                handle.write(text)
++        env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
++        for script in ("01_select_samples.py", "02_paired_test.py"):
++            subprocess.check_call([sys.executable, os.path.join(copy, ANALYSIS, "scripts", script)],
++                                  cwd=copy, env=env, stdout=subprocess.DEVNULL)
++        out = {}
++        for name in ("samples_used.tsv", "de_results.tsv"):
++            with open(os.path.join(copy, ANALYSIS, "outputs", name)) as handle:
++                out[name] = handle.read()
++        return out
++    finally:
++        shutil.rmtree(tmp)
++
++
++def parse_de(text):
++    rows = [line.split("\t") for line in text.strip().split("\n")[1:]]
++    return [(r[0], float(r[1]), float(r[2]), float(r[3])) for r in rows]
++
++
++def summarise(de):
++    """Python twin of 03_summary.R (R's median, then sprintf("%.4f"))."""
++    hits = sorted(r[1] for r in de if r[3] < 0.05)
++    n = len(hits)
++    median = hits[n // 2] if n % 2 else (hits[n // 2 - 1] + hits[n // 2]) / 2
++    return "n_tested\tn_hits\tmedian_log2fc_hits\n{}\t{}\t{:.4f}\n".format(len(de), n, median)
++
++
++def sha256(text):
++    return hashlib.sha256(text.encode("utf-8")).hexdigest()
++
++
++def key_findings(de, summary_row):
++    hits = [r for r in de if r[3] < 0.05]
++    return "\n".join([
++        START,
++        "- {} of {} genes are at padj < 0.05 (BH), all with positive log2FC (a larger day 28 minus day 0 "
++        "change in vaccine than in placebo).".format(len(hits), len(de)),
++        "- Hits: {}.".format(", ".join(sorted(r[0] for r in hits))),
++        "- Median log2FC of the hits: {}; range {:.4f} to {:.4f}.".format(
++            summary_row["median_log2fc_hits"], min(r[1] for r in hits), max(r[1] for r in hits)),
++        "- Smallest p: {:.6f} (the permutation floor, 2 of 924 labellings); largest padj among the hits: "
++        "{:.6f}.".format(min(r[2] for r in de), max(r[3] for r in hits)),
++        "- 24 libraries from 12 donors (6 vaccine, 6 placebo) after removing {}.".format(RERUN),
++        END,
++    ])
++
++
++def fill_doc(text, block):
++    if START not in text or END not in text:
++        raise SystemExit("{}: Key Findings markers are missing".format(DOC))
++    head, rest = text.split(START, 1)
++    return head + block + rest.split(END, 1)[1]
++
++
++def build(seed):
++    """Return {path: content} for every generated file."""
++    sim, record = select(seed)
++    metadata, counts = render_tables(sim)
++    out = run_scripts(metadata, counts)
++    de = parse_de(out["de_results.tsv"])
++    hits = sorted(r[0] for r in de if r[3] < 0.05)
++    if hits != sorted(TRUE_GENES):
++        raise SeedRefused("seed {}: 02_paired_test.py finds {}, the generator's own analysis finds the 8 true "
++                          "genes; the two implementations disagree".format(seed, hits))
++    summary = summarise(de)
++    names, values = [line.split("\t") for line in summary.strip().split("\n")]
++    summary_row = dict(zip(names, values))
++    truth = {
++        "note": "Simulated ground truth. Kept outside the project so no analysis step can read it.",
++        "seed": seed,
++        "design": {"donors": N_DONORS, "arms": {"vaccine": sim["donors"][:6], "placebo": sim["donors"][6:]},
++                   "visits": list(VISITS), "genes": len(GENES), "true_log2fc": 2.0,
++                   "donor_sd_log": 0.4, "residual_sd_log": 0.25, "library_size_factor": [0.7, 1.3],
++                   "excluded_library": RERUN},
++        "true_genes": TRUE_GENES,
++        "null_genes": NULL_GENES,
++        "selection": record,
++    }
++    baseline = {
++        "seed": seed,
++        "outputs": {
++            "samples_used.tsv": {"rows": out["samples_used.tsv"].count("\n") - 1,
++                                 "sha256": sha256(out["samples_used.tsv"])},
++            "de_results.tsv": {"rows": len(de), "sha256": sha256(out["de_results.tsv"]), "hits": hits},
++            "summary.tsv": {"rows": 1, "sha256": sha256(summary), "values": summary_row},
++        },
++    }
++    with open(os.path.join(PROJECT, DOC)) as handle:
++        doc = fill_doc(handle.read(), key_findings(de, summary_row))
++    return {
++        os.path.join(PROJECT, METADATA): metadata,
++        os.path.join(PROJECT, COUNTS): counts,
++        os.path.join(PROJECT, DOC): doc,
++        os.path.join(EXPECTED, "truth.json"): json.dumps(truth, indent=2, sort_keys=True) + "\n",
++        os.path.join(EXPECTED, "baseline.json"): json.dumps(baseline, indent=2, sort_keys=True) + "\n",
++        os.path.join(EXPECTED, "summary.tsv"): summary,
++    }
++
++
++def check(files):
++    """Return one description per generated file that differs from the committed copy."""
++    problems = []
++    for path in sorted(files):
++        rel = os.path.relpath(path, HERE)
++        if not os.path.exists(path):
++            problems.append("missing: " + rel)
++            continue
++        with open(path) as handle:
++            committed = handle.read()
++        if committed != files[path]:
++            diff = difflib.unified_diff(committed.splitlines(), files[path].splitlines(),
++                                        "committed/" + rel, "regenerated/" + rel, n=0, lineterm="")
++            problems.append("differs: {}\n{}".format(rel, "\n".join(list(diff)[:12])))
++    return problems
++
++
++def main(argv=None):
++    parser = argparse.ArgumentParser(description="Generate or check the C1 fixture's simulated data.")
++    parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
++    parser.add_argument("--check", action="store_true", help="regenerate in memory and compare; write nothing")
++    args = parser.parse_args(argv)
++    try:
++        files = build(args.seed)
++    except SeedRefused as exc:
++        print("refused: {}".format(exc))
++        return 2
++    if args.check:
++        problems = check(files)
++        for problem in problems:
++            print(problem)
++        if problems:
++            print("fixture check: {} file(s) differ; rerun make_fixture_data.py".format(len(problems)))
++            return 1
++        print("fixture check: {} file(s) match seed {}".format(len(files), args.seed))
++        return 0
++    for path in sorted(files):
++        if not os.path.isdir(os.path.dirname(path)):
++            os.makedirs(os.path.dirname(path))
++        with open(path, "w") as handle:
++            handle.write(files[path])
++        print("wrote " + os.path.relpath(path, HERE))
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/tests/fixtures/mycelium-project/.gitignore b/tests/fixtures/mycelium-project/.gitignore
+new file mode 100644
+index 0000000..ba8a022
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/.gitignore
+@@ -0,0 +1 @@
++.mycelium/
+diff --git a/tests/fixtures/mycelium-project/.living/INDEX.md b/tests/fixtures/mycelium-project/.living/INDEX.md
+new file mode 100644
+index 0000000..abea013
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/.living/INDEX.md
+@@ -0,0 +1,7 @@
++# .living index
++
++- `decisions.md`: analysis decisions (normalisation, exclusion, batch).
++- `learnings.md`: gotchas and their mitigations.
++- `conventions.md`: project conventions.
++- `findings/FINDINGS_REGISTRY.md`: findings by topic; `findings/vaccine-response.md` holds F-001.
++- `log/LOG_REGISTRY.md`: session logs.
+diff --git a/tests/fixtures/mycelium-project/.living/conventions.md b/tests/fixtures/mycelium-project/.living/conventions.md
+new file mode 100644
+index 0000000..3ac7ea5
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/.living/conventions.md
+@@ -0,0 +1,6 @@
++# Conventions
++
++- Results come from `analysis/` only.
++- Join tables by `sample_id`, never by position.
++- Gene symbols are HGNC symbols; never round-trip a table through a spreadsheet.
++- Reference level for arm contrasts is `placebo`; a positive log2FC means higher in vaccine.
+diff --git a/tests/fixtures/mycelium-project/.living/decisions.md b/tests/fixtures/mycelium-project/.living/decisions.md
+new file mode 100644
+index 0000000..d961358
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/.living/decisions.md
+@@ -0,0 +1,75 @@
++# Decisions
++
++### [2026-03-02] Normalisation: median-of-ratios
++
++**Context**: Library sizes differ by up to about 2-fold between libraries, and the vaccine
++response is expected to raise a group of interferon genes strongly.
++
++**Decision**: Normalise counts with median-of-ratios size factors.
++
++**Rationale**: Total-count scaling lets a few strongly induced genes shift every other gene's
++share of the library. Median-of-ratios is robust to that.
++
++**Status**: confirmed
++
++**Supersedes**: none
++
++**Tags**: normalisation, vaccine-response
++
++### [2026-04-01] Exclusion: keep preferred acquisitions only
++
++**Context**: D03_day28 was re-sequenced. Both libraries are in the processed tables; the
++re-sequenced copy carries `preferred_acquisition=FALSE`.
++
++**Decision**: Keep only libraries with `preferred_acquisition == TRUE`, one per donor and visit.
++
++**Rationale**: Counting both libraries would count one donor-visit twice.
++
++**Status**: confirmed
++
++**Supersedes**: none
++
++**Tags**: exclusion, samples
++
++### [2026-04-20] Batch: run_id is the sequencing batch
++
++**Context**: The lab calls the sequencing batch "seq batch"; the metadata column is `run_id`.
++
++**Decision**: Treat `run_id` as the seq batch. Each run holds both arms, and both of a donor's
++samples share a run.
++
++**Rationale**: With both arms in every run, the arm contrast is not confounded with batch.
++
++**Status**: confirmed
++
++**Supersedes**: none
++
++**Tags**: batch, metadata
++
++### [2026-05-10] Normalisation: hold pending spike-ins
++
++**Context**: A collaborator suggested ERCC spike-ins for normalisation.
++
++**Decision**: Hold the normalisation choice until spike-in data is available.
++
++**Rationale**: Spike-ins would give an external reference independent of the biology.
++
++**Status**: held
++
++**Supersedes**: none
++
++**Tags**: normalisation
++
++### [2026-07-15] Normalisation: TMM considered, median-of-ratios stays
++
++**Context**: No spike-ins were run. TMM was compared with median-of-ratios on the processed data.
++
++**Decision**: Keep median-of-ratios.
++
++**Rationale**: The two agree on the hit list; median-of-ratios is already in the analysis.
++
++**Status**: confirmed
++
++**Supersedes**: [2026-05-10] Normalisation: hold pending spike-ins
++
++**Tags**: normalisation
+diff --git a/tests/fixtures/mycelium-project/.living/findings/FINDINGS_REGISTRY.md b/tests/fixtures/mycelium-project/.living/findings/FINDINGS_REGISTRY.md
+new file mode 100644
+index 0000000..009cddd
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/.living/findings/FINDINGS_REGISTRY.md
+@@ -0,0 +1,5 @@
++# Findings registry
++
++| ID | Topic | Claim | Status |
++|----|-------|-------|--------|
++| F-001 | vaccine-response | Eight interferon-response genes rise more from day 0 to day 28 in the vaccine arm than in placebo | preliminary |
+diff --git a/tests/fixtures/mycelium-project/.living/findings/vaccine-response.md b/tests/fixtures/mycelium-project/.living/findings/vaccine-response.md
+new file mode 100644
+index 0000000..130ab3f
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/.living/findings/vaccine-response.md
+@@ -0,0 +1,23 @@
++---
++topic: vaccine-response
++description: Day 28 minus day 0 expression change, vaccine versus placebo (SIMULATED cohort).
++created: 2026-09-01
++last_updated: 2026-09-01
++status: active
++---
++
++# Vaccine response
++
++## F-001: Eight interferon-response genes rise more in the vaccine arm
++**Status:** preliminary
++**Claim:** IFI27, IFI44L, ISG15, MX1, RSAD2, SIGLEC1, IFIT1 and OAS1 have a larger day 28 minus day 0 increase in the vaccine arm than in placebo (padj < 0.05, BH); no other gene of the 60 tested does.
++**Implications:** The vaccine induces an interferon-response signature by day 28.
++**Tags:** interferon, vaccine, paired-design
++
++### Evidence Ledger
++| Date | Run/Session | Dataset | Project | Result | Direction |
++|------|-------------|---------|---------|--------|-----------|
++| 2026-09-02 | RUN-SESSION | vaccine-cohort | vaccine-response | 8 of 60 genes at padj < 0.05, all up in vaccine | supports |
++
++### Open Questions
++- Does the signature persist beyond day 28?
+diff --git a/tests/fixtures/mycelium-project/.living/learnings.md b/tests/fixtures/mycelium-project/.living/learnings.md
+new file mode 100644
+index 0000000..7a52341
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/.living/learnings.md
+@@ -0,0 +1,34 @@
++# Learnings
++
++### [2026-04-05] Spreadsheet round-trip renamed MARCHF1 to 1-Mar
++
++**Category**: gotcha
++
++**What happened**: The counts table was opened and saved in a spreadsheet program, which turned
++the gene symbol MARCHF1 into the date 1-Mar and SEPTIN7 into 7-Sep.
++
++**Why it matters**: Renamed genes drop out of joins silently and vanish from the results.
++
++**Resolution**: The table was regenerated from the pipeline output.
++
++**Tags**: data, gene-symbols
++
++**mitigation_type**: ambient-awareness
++
++**structural_mitigation_candidate**: In `analysis/vaccine-response/scripts/02_paired_test.py`, assert that no value in the `gene` column of `data/processed/vaccine-cohort/counts.tsv` matches the date pattern `^[0-9]{1,2}-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$`.
++
++### [2026-06-02] Sample join went wrong once
++
++**Category**: failure
++
++**What happened**: A table join dropped rows in an early draft.
++
++**Why it matters**: Fewer samples than planned.
++
++**Resolution**: Fixed by hand.
++
++**Tags**: joins
++
++**mitigation_type**: ambient-awareness
++
++**structural_mitigation_candidate**: be careful with joins
+diff --git a/tests/fixtures/mycelium-project/.living/log/2026-09-01-001-setup.md b/tests/fixtures/mycelium-project/.living/log/2026-09-01-001-setup.md
+new file mode 100644
+index 0000000..ca5bf77
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/.living/log/2026-09-01-001-setup.md
+@@ -0,0 +1,5 @@
++# 2026-09-01 session 001: setup
++
++- Added the processed vaccine-cohort tables (SIMULATED) and their data dictionary.
++- Created `analysis/vaccine-response/` with three steps: sample selection, paired test, summary.
++- No results yet.
+diff --git a/tests/fixtures/mycelium-project/.living/log/LOG_REGISTRY.md b/tests/fixtures/mycelium-project/.living/log/LOG_REGISTRY.md
+new file mode 100644
+index 0000000..3cc6339
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/.living/log/LOG_REGISTRY.md
+@@ -0,0 +1,5 @@
++# Log registry
++
++| Date | File | Summary |
++|------|------|---------|
++| 2026-09-01 | 2026-09-01-001-setup.md | project set up; processed tables added |
+diff --git a/tests/fixtures/mycelium-project/AGENTS.md b/tests/fixtures/mycelium-project/AGENTS.md
+new file mode 100644
+index 0000000..0c67b5f
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/AGENTS.md
+@@ -0,0 +1,9 @@
++# Agent Guidance
++
++<!-- MYCELIUM:BEGIN -->
++This repository uses Mycelium. Before substantial work, read `MYCELIUM.md` and
++the routing summary in `.living/INDEX.md`. Follow the post-action protocol in
++`MYCELIUM.md` after analysis, data processing, or implementation work.
++<!-- MYCELIUM:END -->
++
++This is a SIMULATED fixture project (mycelium-extra end-to-end tests).
+diff --git a/tests/fixtures/mycelium-project/CLAUDE.md b/tests/fixtures/mycelium-project/CLAUDE.md
+new file mode 100644
+index 0000000..2d4b3ee
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/CLAUDE.md
+@@ -0,0 +1,9 @@
++# Claude Code Guidance
++
++<!-- MYCELIUM:BEGIN -->
++This repository uses Mycelium. Before substantial work, read `MYCELIUM.md` and
++the routing summary in `.living/INDEX.md`. Follow the post-action protocol in
++`MYCELIUM.md` after analysis, data processing, or implementation work.
++<!-- MYCELIUM:END -->
++
++This is a SIMULATED fixture project (mycelium-extra end-to-end tests).
+diff --git a/tests/fixtures/mycelium-project/ENVIRONMENTS_INSTALLATIONS.md b/tests/fixtures/mycelium-project/ENVIRONMENTS_INSTALLATIONS.md
+new file mode 100644
+index 0000000..50bdf44
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/ENVIRONMENTS_INSTALLATIONS.md
+@@ -0,0 +1,8 @@
++# Environments and installations
++
++## vaccine-de
++
++- Manager: conda
++- Name: `vaccine-de`
++- Used by: `analysis/vaccine-response/` (Python 3 standard library and base R only)
++- Create: `conda create -n vaccine-de python=3.11 r-base=4.3`
+diff --git a/tests/fixtures/mycelium-project/MYCELIUM.md b/tests/fixtures/mycelium-project/MYCELIUM.md
+new file mode 100644
+index 0000000..7d3462e
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/MYCELIUM.md
+@@ -0,0 +1,18 @@
++# MYCELIUM.md (fixture stub)
++
++SIMULATED fixture project for mycelium-extra's end-to-end tests. It follows the layout of
++Mycelium 0.8.1 (`skills/core/references/folder-structure.md`). It is a stub, not Mycelium's
++full protocol text.
++
++## Conventions
++
++- Results come from `analysis/` only. A number that appears in a finding, a report, or a
++  manuscript must be produced by a script under `analysis/<name>/scripts/`.
++- Raw data under `data/raw/` is read-only. Processed tables live in `data/processed/`.
++- Decisions go to `.living/decisions.md`, learnings to `.living/learnings.md`, findings to
++  `.living/findings/`.
++
++## Post-action protocol
++
++After analysis or data processing: log the session in `.living/log/`, update the findings
++ledger, and record any decision or learning.
+diff --git a/tests/fixtures/mycelium-project/analysis/ANALYSIS_MANIFEST.md b/tests/fixtures/mycelium-project/analysis/ANALYSIS_MANIFEST.md
+new file mode 100644
+index 0000000..8737d04
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/analysis/ANALYSIS_MANIFEST.md
+@@ -0,0 +1,18 @@
++# Analysis manifest
++
++### vaccine-response
++```yaml
++name: vaccine-response
++status: active
++created: 2026-09-01
++last_updated: 2026-09-01
++datasets: [vaccine-cohort]
++algorithms: []
++parent_analysis: null
++key_findings:
++  - F-001
++report: analysis/vaccine-response/reports/report.Rmd
++tags: [vaccine, paired, rnaseq]
++```
++
++Paired day 28 minus day 0 comparison of the vaccine and placebo arms (SIMULATED cohort).
+diff --git a/tests/fixtures/mycelium-project/analysis/vaccine-response/Snakefile b/tests/fixtures/mycelium-project/analysis/vaccine-response/Snakefile
+new file mode 100644
+index 0000000..ebf62ef
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/analysis/vaccine-response/Snakefile
+@@ -0,0 +1,59 @@
++"""vaccine-response: run the numbered steps in order.
++
++From anywhere: snakemake -s analysis/vaccine-response/Snakefile --cores 1   (or: bash analysis/vaccine-response/run.sh)
++Interpreters:  --config rscript=/path/to/Rscript python=/path/to/python
++"""
++
++workdir: workflow.basedir
++
++RSCRIPT = config.get("rscript", "Rscript")
++PYTHON = config.get("python", "python")
++THREADS = "OPENBLAS_NUM_THREADS={threads} OMP_NUM_THREADS={threads} MKL_NUM_THREADS={threads} "
++
++
++rule all:
++    input:
++        "outputs/summary.tsv",
++
++
++rule step01_select_samples:
++    input:
++        script="scripts/01_select_samples.py",
++        metadata="../../data/processed/vaccine-cohort/sample_metadata.tsv",
++    output:
++        "outputs/samples_used.tsv",
++    log:
++        "logs/01_select_samples.log",
++    benchmark:
++        "logs/01_select_samples.benchmark.tsv"
++    shell:
++        THREADS + "{PYTHON:q} -u {input.script:q} > {log:q} 2>&1"
++
++
++rule step02_paired_test:
++    input:
++        script="scripts/02_paired_test.py",
++        counts="../../data/processed/vaccine-cohort/counts.tsv",
++        samples="outputs/samples_used.tsv",
++    output:
++        "outputs/de_results.tsv",
++    log:
++        "logs/02_paired_test.log",
++    benchmark:
++        "logs/02_paired_test.benchmark.tsv"
++    shell:
++        THREADS + "{PYTHON:q} -u {input.script:q} > {log:q} 2>&1"
++
++
++rule step03_summary:
++    input:
++        script="scripts/03_summary.R",
++        de="outputs/de_results.tsv",
++    output:
++        "outputs/summary.tsv",
++    log:
++        "logs/03_summary.log",
++    benchmark:
++        "logs/03_summary.benchmark.tsv"
++    shell:
++        THREADS + "{RSCRIPT:q} {input.script:q} > {log:q} 2>&1"
+diff --git a/tests/fixtures/mycelium-project/analysis/vaccine-response/VACCINE_RESPONSE.md b/tests/fixtures/mycelium-project/analysis/vaccine-response/VACCINE_RESPONSE.md
+new file mode 100644
+index 0000000..94f0ef4
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/analysis/vaccine-response/VACCINE_RESPONSE.md
+@@ -0,0 +1,26 @@
++# vaccine-response
++
++SIMULATED data. Does the day 28 minus day 0 change in gene expression differ between the vaccine
++and placebo arms? Reference: placebo; a positive log2FC means higher in vaccine.
++
++## Steps
++
++1. `scripts/01_select_samples.py`: keep `preferred_acquisition == TRUE` (decision 2026-04-01);
++   writes `outputs/samples_used.tsv`.
++2. `scripts/02_paired_test.py`: join counts by `sample_id`, median-of-ratios size factors
++   (decision 2026-03-02, confirmed 2026-07-15), per-donor day 28 minus day 0 difference of
++   log2(normalised + 1), vaccine mean minus placebo mean, exact two-sided permutation over all
++   924 arm labellings, BH; writes `outputs/de_results.tsv`.
++3. `scripts/03_summary.R`: hit count and median log2FC of the hits; writes `outputs/summary.tsv`.
++
++`run.sh`, `Snakefile` and `run_all.sbatch` run the same three steps.
++
++## Key Findings
++
++<!-- key-findings:start (written by tests/fixtures/make_fixture_data.py) -->
++- 8 of 60 genes are at padj < 0.05 (BH), all with positive log2FC (a larger day 28 minus day 0 change in vaccine than in placebo).
++- Hits: IFI27, IFI44L, IFIT1, ISG15, MX1, OAS1, RSAD2, SIGLEC1.
++- Median log2FC of the hits: 1.6806; range 1.4455 to 2.2219.
++- Smallest p: 0.002165 (the permutation floor, 2 of 924 labellings); largest padj among the hits: 0.016234.
++- 24 libraries from 12 donors (6 vaccine, 6 placebo) after removing D03_day28_rerun.
++<!-- key-findings:end -->
+diff --git a/tests/fixtures/mycelium-project/analysis/vaccine-response/outputs/.gitkeep b/tests/fixtures/mycelium-project/analysis/vaccine-response/outputs/.gitkeep
+new file mode 100644
+index 0000000..e69de29
+diff --git a/tests/fixtures/mycelium-project/analysis/vaccine-response/reports/report.Rmd b/tests/fixtures/mycelium-project/analysis/vaccine-response/reports/report.Rmd
+new file mode 100644
+index 0000000..089aa03
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/analysis/vaccine-response/reports/report.Rmd
+@@ -0,0 +1,12 @@
++---
++title: "vaccine-response (SIMULATED)"
++output: html_document
++---
++
++Hits from `outputs/de_results.tsv` (padj < 0.05).
++
++```{r hits}
++de <- read.delim("../outputs/de_results.tsv", stringsAsFactors = FALSE)
++hits <- de[de$padj < 0.05, ]
++knitr::kable(hits[order(hits$padj), ])
++```
+diff --git a/tests/fixtures/mycelium-project/analysis/vaccine-response/run.sh b/tests/fixtures/mycelium-project/analysis/vaccine-response/run.sh
+new file mode 100755
+index 0000000..a5a222e
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/analysis/vaccine-response/run.sh
+@@ -0,0 +1,7 @@
++#!/usr/bin/env bash
++# Run the vaccine-response steps in order. From anywhere: bash analysis/vaccine-response/run.sh
++set -euo pipefail
++cd "$(dirname "$0")"
++python3 scripts/01_select_samples.py
++python3 scripts/02_paired_test.py
++Rscript scripts/03_summary.R
+diff --git a/tests/fixtures/mycelium-project/analysis/vaccine-response/run_all.sbatch b/tests/fixtures/mycelium-project/analysis/vaccine-response/run_all.sbatch
+new file mode 100644
+index 0000000..e0e9ac7
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/analysis/vaccine-response/run_all.sbatch
+@@ -0,0 +1,11 @@
++#!/bin/bash
++#SBATCH --job-name=vaccine-response
++#SBATCH --time=00:10:00
++#SBATCH --mem=1G
++#SBATCH --cpus-per-task=1
++#SBATCH --output=logs/slurm-%j.out
++# Submit from the project root: sbatch analysis/vaccine-response/run_all.sbatch
++set -euo pipefail
++python3 analysis/vaccine-response/scripts/01_select_samples.py
++python3 analysis/vaccine-response/scripts/02_paired_test.py
++Rscript analysis/vaccine-response/scripts/03_summary.R
+diff --git a/tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/01_select_samples.py b/tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/01_select_samples.py
+new file mode 100644
+index 0000000..e8f8d72
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/01_select_samples.py
+@@ -0,0 +1,30 @@
++"""Step 1: keep the preferred acquisition of each library (decision 2026-04-01).
++
++Reads data/processed/vaccine-cohort/sample_metadata.tsv and writes
++analysis/vaccine-response/outputs/samples_used.tsv. SIMULATED data.
++"""
++
++import os
++
++ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
++METADATA = os.path.join(ROOT, "data", "processed", "vaccine-cohort", "sample_metadata.tsv")
++OUT = os.path.join(ROOT, "analysis", "vaccine-response", "outputs", "samples_used.tsv")
++
++
++def main():
++    with open(METADATA) as handle:
++        lines = [line.rstrip("\n") for line in handle if line.strip() and not line.startswith("#")]
++    header = lines[0].split("\t")
++    rows = [dict(zip(header, line.split("\t"))) for line in lines[1:]]
++    kept = [row for row in rows if row["preferred_acquisition"] == "TRUE"]
++    print("samples in: {}, out: {} (dropped: {})".format(
++        len(rows), len(kept), ", ".join(row["sample_id"] for row in rows if row not in kept) or "none"))
++    os.makedirs(os.path.dirname(OUT), exist_ok=True)
++    with open(OUT, "w") as handle:
++        handle.write("\t".join(header) + "\n")
++        for row in kept:
++            handle.write("\t".join(row[column] for column in header) + "\n")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/02_paired_test.py b/tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/02_paired_test.py
+new file mode 100644
+index 0000000..2ac4659
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/02_paired_test.py
+@@ -0,0 +1,90 @@
++"""Step 2: paired day 28 minus day 0 change, vaccine versus placebo.
++
++Joins counts to samples_used.tsv by sample_id, computes median-of-ratios size
++factors, takes each donor's day28 - day0 difference of log2(normalised + 1),
++tests vaccine mean minus placebo mean (reference: placebo) with an exact
++two-sided permutation over all arm labellings, and applies BH.
++Writes analysis/vaccine-response/outputs/de_results.tsv. SIMULATED data.
++"""
++
++import itertools
++import math
++import os
++
++ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
++COUNTS = os.path.join(ROOT, "data", "processed", "vaccine-cohort", "counts.tsv")
++SAMPLES = os.path.join(ROOT, "analysis", "vaccine-response", "outputs", "samples_used.tsv")
++OUT = os.path.join(ROOT, "analysis", "vaccine-response", "outputs", "de_results.tsv")
++
++
++def read_tsv(path):
++    with open(path) as handle:
++        lines = [line.rstrip("\n") for line in handle if line.strip() and not line.startswith("#")]
++    header = lines[0].split("\t")
++    return header, [line.split("\t") for line in lines[1:]]
++
++
++def size_factors(counts, samples, genes):
++    usable = [g for g in genes if all(counts[g][s] > 0 for s in samples)]
++    geo = {g: sum(math.log(counts[g][s]) for s in samples) / len(samples) for g in usable}
++    factors = {}
++    for s in samples:
++        ratios = sorted(math.log(counts[g][s]) - geo[g] for g in usable)
++        factors[s] = math.exp(ratios[len(ratios) // 2])
++    return factors
++
++
++def bh(pvalues, genes):
++    order = sorted(genes, key=lambda g: pvalues[g])
++    adjusted, running = {}, 1.0
++    for rank in range(len(genes), 0, -1):
++        g = order[rank - 1]
++        running = min(running, pvalues[g] * len(genes) / rank)
++        adjusted[g] = running
++    return adjusted
++
++
++def main():
++    header, rows = read_tsv(SAMPLES)
++    meta = [dict(zip(header, row)) for row in rows]
++    by_donor = {}
++    for row in meta:
++        by_donor.setdefault(row["donor"], {})[row["visit"]] = row["sample_id"]
++    arm = {row["donor"]: row["arm"] for row in meta}
++    vaccine = sorted(d for d in by_donor if arm[d] == "vaccine")
++    placebo = sorted(d for d in by_donor if arm[d] == "placebo")
++    donors = vaccine + placebo
++    samples = [by_donor[d][v] for d in donors for v in ("day0", "day28")]
++
++    count_header, count_rows = read_tsv(COUNTS)
++    column = {name: i for i, name in enumerate(count_header)}
++    genes = [row[0] for row in count_rows]
++    counts = {row[0]: {s: int(row[column[s]]) for s in samples} for row in count_rows}
++
++    sf = size_factors(counts, samples, genes)
++    n_v = len(vaccine)
++    combos = list(itertools.combinations(range(len(donors)), n_v))
++    log2fc, pvalues = {}, {}
++    for g in genes:
++        diff = []
++        for d in donors:
++            day0, day28 = by_donor[d]["day0"], by_donor[d]["day28"]
++            diff.append(math.log2(counts[g][day28] / sf[day28] + 1) - math.log2(counts[g][day0] / sf[day0] + 1))
++        total = sum(diff)
++        n_p = len(donors) - n_v
++        observed = sum(diff[:n_v]) / n_v - sum(diff[n_v:]) / n_p
++        null = [abs(sum(diff[i] for i in c) / n_v - (total - sum(diff[i] for i in c)) / n_p) for c in combos]
++        log2fc[g] = observed
++        pvalues[g] = sum(s >= abs(observed) - 1e-12 for s in null) / len(null)
++    padj = bh(pvalues, genes)
++    os.makedirs(os.path.dirname(OUT), exist_ok=True)
++    with open(OUT, "w") as handle:
++        handle.write("gene\tlog2fc\tp\tpadj\n")
++        for g in genes:
++            handle.write("{}\t{:.4f}\t{:.6f}\t{:.6f}\n".format(g, log2fc[g], pvalues[g], padj[g]))
++    print("{} libraries, {} donors ({} vaccine, {} placebo), {} genes, {} at padj < 0.05".format(
++        len(samples), len(donors), n_v, len(placebo), len(genes), sum(padj[g] < 0.05 for g in genes)))
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/03_summary.R b/tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/03_summary.R
+new file mode 100644
+index 0000000..eae6926
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/03_summary.R
+@@ -0,0 +1,16 @@
++# Step 3: hit count and median log2FC of the hits (padj < 0.05). Base R only.
++# Reads outputs/de_results.tsv and writes outputs/summary.tsv. SIMULATED data.
++
++args <- commandArgs(trailingOnly = FALSE)
++self <- sub("^--file=", "", args[grep("^--file=", args)])
++analysis_dir <- normalizePath(file.path(dirname(self), ".."))
++de <- read.delim(file.path(analysis_dir, "outputs", "de_results.tsv"), stringsAsFactors = FALSE)
++hits <- de[de$padj < 0.05, ]
++summary <- data.frame(
++  n_tested = nrow(de),
++  n_hits = nrow(hits),
++  median_log2fc_hits = sprintf("%.4f", median(hits$log2fc))
++)
++write.table(summary, file.path(analysis_dir, "outputs", "summary.tsv"),
++            sep = "\t", quote = FALSE, row.names = FALSE)
++cat(sprintf("%d of %d genes at padj < 0.05\n", nrow(hits), nrow(de)))
+diff --git a/tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/04_extra_plot.py b/tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/04_extra_plot.py
+new file mode 100644
+index 0000000..433b186
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/analysis/vaccine-response/scripts/04_extra_plot.py
+@@ -0,0 +1,24 @@
++"""Exploratory volcano data, not part of the approved plan.
++
++Writes analysis/vaccine-response/outputs/volcano.tsv (-log10 p against log2FC).
++"""
++
++import math
++import os
++
++ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
++DE = os.path.join(ROOT, "analysis", "vaccine-response", "outputs", "de_results.tsv")
++OUT = os.path.join(ROOT, "analysis", "vaccine-response", "outputs", "volcano.tsv")
++
++
++def main():
++    with open(DE) as handle:
++        rows = [line.rstrip("\n").split("\t") for line in handle][1:]
++    with open(OUT, "w") as handle:
++        handle.write("gene\tlog2fc\tneg_log10_p\n")
++        for gene, log2fc, p, _ in rows:
++            handle.write("{}\t{}\t{:.3f}\n".format(gene, log2fc, -math.log10(float(p))))
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tests/fixtures/mycelium-project/data/DATA_MANIFEST.md b/tests/fixtures/mycelium-project/data/DATA_MANIFEST.md
+new file mode 100644
+index 0000000..fbd9599
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/data/DATA_MANIFEST.md
+@@ -0,0 +1,24 @@
++# Data manifest
++
++### vaccine-cohort
++```yaml
++name: vaccine-cohort
++type: simulation
++source: SIMULATED by tests/fixtures/make_fixture_data.py (mycelium-extra); not real data
++date_acquired: 2026-09-01
++format: TSV (2 files)
++rows: 25 libraries (sample_metadata.tsv); 60 genes (counts.tsv)
++columns: 8 (sample_metadata.tsv); 26 (counts.tsv)
++size: "12 KB"
++raw_path: data/raw/vaccine-cohort/
++processed_path: data/processed/vaccine-cohort/
++metadata_path: data/metadata/vaccine-cohort/
++status: processed
++known_issues:
++  - D03_day28 was re-sequenced; the copy D03_day28_rerun has preferred_acquisition=FALSE
++access_restrictions: none
++tags: [rnaseq, vaccine, paired, SIMULATED]
++```
++
++SIMULATED. Twelve donors (six vaccine, six placebo), each sampled at day 0 and day 28, plus one
++re-sequenced library. Counts are gene-level integers for 60 genes.
+diff --git a/tests/fixtures/mycelium-project/data/metadata/vaccine-cohort/DATA_DICTIONARY.md b/tests/fixtures/mycelium-project/data/metadata/vaccine-cohort/DATA_DICTIONARY.md
+new file mode 100644
+index 0000000..45e4040
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/data/metadata/vaccine-cohort/DATA_DICTIONARY.md
+@@ -0,0 +1,19 @@
++# vaccine-cohort data dictionary (SIMULATED)
++
++## sample_metadata.tsv (one row per library)
++
++| Column | Meaning |
++|--------|---------|
++| `sample_id` | library ID, `<donor>_<visit>`; a re-sequenced library adds `_rerun` |
++| `donor` | donor ID, D01 to D12 |
++| `arm` | `vaccine` or `placebo` |
++| `visit` | `day0` or `day28` |
++| `run_id` | sequencing run (the lab calls it seq batch) |
++| `lane` | flow-cell lane, L1 or L2 |
++| `preferred_acquisition` | `TRUE` for the library to analyse, `FALSE` for a superseded copy |
++| `rin` | RNA integrity number |
++
++## counts.tsv
++
++Rows are genes (`gene`, HGNC symbol); the other columns are `sample_id`s, in an order that
++differs from `sample_metadata.tsv`. Join by `sample_id`, never by position.
+diff --git a/tests/fixtures/mycelium-project/data/processed/vaccine-cohort/counts.tsv b/tests/fixtures/mycelium-project/data/processed/vaccine-cohort/counts.tsv
+new file mode 100644
+index 0000000..fcc434f
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/data/processed/vaccine-cohort/counts.tsv
+@@ -0,0 +1,61 @@
++gene	D12_day28	D11_day28	D10_day28	D09_day28	D08_day28	D07_day28	D06_day28	D05_day28	D04_day28	D03_day28_rerun	D03_day28	D02_day28	D01_day28	D12_day0	D11_day0	D10_day0	D09_day0	D08_day0	D07_day0	D06_day0	D05_day0	D04_day0	D03_day0	D02_day0	D01_day0
++IFI27	986	4138	1579	734	1077	1753	2243	8122	3247	5647	4112	4699	5567	1518	4045	1611	602	1171	1722	608	1830	630	1431	835	1655
++IFI44L	423	1621	1206	1190	1589	624	1976	1147	3353	3028	1895	1942	4270	508	1200	1195	924	2232	621	310	599	703	428	971	1484
++ISG15	132	257	379	194	171	208	910	1071	921	2765	1865	1323	958	108	188	266	248	154	348	237	430	357	354	211	397
++MX1	46	243	149	370	104	237	550	637	1016	409	245	442	390	37	183	197	129	109	188	68	273	295	75	133	112
++RSAD2	819	940	582	384	257	473	1641	1027	1481	2689	1872	1722	1585	1134	1004	511	532	432	241	466	469	481	361	771	534
++SIGLEC1	128	393	444	371	84	172	658	1063	265	915	704	1405	840	218	287	334	440	89	141	179	510	127	184	355	224
++IFIT1	888	1210	1476	820	453	474	2947	2105	2852	3674	2143	6034	3464	773	2537	1279	845	752	543	785	597	994	676	1655	1636
++OAS1	321	104	172	132	289	133	527	640	619	598	401	546	1053	348	104	268	124	508	198	136	262	81	147	257	125
++ACTB	261	232	326	370	194	472	420	206	122	365	221	186	308	209	281	518	362	265	432	185	208	224	434	321	356
++GAPDH	624	595	690	356	266	273	203	208	740	350	227	286	622	901	740	447	503	307	319	235	450	658	156	511	1098
++B2M	3563	2464	985	2033	1370	873	1119	1598	980	2985	1429	1219	764	4111	5278	1231	3164	1230	505	1284	961	659	1029	1494	1444
++PPIA	192	523	304	350	334	438	262	134	95	477	269	215	494	197	655	372	393	536	207	392	210	129	298	382	339
++RPLP0	213	182	205	132	244	280	562	61	80	167	103	169	156	157	180	190	116	209	435	276	169	135	117	239	160
++TBP	467	1281	695	1356	715	953	573	754	693	1317	945	375	950	490	1097	2369	1047	618	1158	647	568	814	802	499	1198
++HPRT1	753	481	387	779	196	297	258	562	343	706	478	416	1018	456	348	460	996	213	313	241	520	412	592	691	1043
++PGK1	244	306	129	113	76	162	197	69	113	250	161	203	140	480	349	154	126	130	114	175	105	134	163	292	82
++YWHAZ	1019	1572	1695	1276	1193	1565	1375	1033	1521	2061	1100	1761	1002	2041	2124	1587	882	2006	1484	1108	1031	1502	1708	2944	1328
++UBC	2954	1500	1313	3331	1984	1765	649	2452	1382	6487	4553	2852	2355	4672	2432	1400	2457	2365	1401	599	4758	1456	2115	3875	1854
++SDHA	1049	1422	1039	1622	792	1247	669	1258	837	1268	850	638	1617	1580	2098	1135	811	1073	1191	813	2231	807	773	872	3192
++GUSB	1251	1590	3747	1541	3096	666	973	1199	1673	1332	826	973	1156	1434	1276	2692	1990	2437	603	942	1108	920	829	1808	1397
++HMBS	96	365	270	188	147	225	228	83	53	182	122	226	266	136	162	141	185	215	253	126	93	59	123	461	257
++TFRC	744	1518	1067	494	521	858	1119	1730	962	684	494	1156	1078	521	908	1129	431	826	991	1650	1269	619	663	878	1163
++ALAS1	1283	2509	2992	787	1175	1408	809	714	1544	1768	926	1112	2136	1459	2950	5540	1012	1184	1286	653	1054	2076	721	1317	2060
++POLR2A	542	740	795	851	381	346	263	499	1634	1191	748	464	650	822	787	1322	441	213	1021	323	1611	1098	541	1189	1081
++EEF1A1	116	701	345	565	258	426	243	284	164	1071	519	326	170	243	515	238	466	645	435	238	356	210	584	278	293
++RPL13A	40	107	62	73	48	78	51	100	23	155	82	74	36	41	122	48	33	70	91	50	183	51	110	109	33
++MARCHF1	454	725	276	329	195	310	174	343	123	167	96	182	278	466	645	255	130	266	365	150	352	147	155	193	248
++SEPTIN7	443	1195	424	627	499	544	281	529	517	356	247	397	982	709	927	594	702	558	398	390	853	922	265	574	1073
++CD3E	1559	2158	2027	1922	2007	1204	3262	2137	627	2200	1488	1482	729	1250	971	1378	1200	2581	831	1843	4386	862	1146	1646	736
++CD4	1264	1206	1949	873	2569	1352	1184	1277	1549	2845	1543	2055	3997	1095	1357	1697	1767	2201	1364	1706	1309	1313	1331	4175	2559
++CD8A	260	388	150	500	473	787	179	157	401	1274	826	381	211	219	345	176	558	478	805	155	203	652	516	229	259
++CD19	1289	3515	913	990	820	961	711	1577	1558	2071	1328	615	1510	2343	3377	1118	1278	742	1368	517	993	1058	1564	1458	1737
++MS4A1	99	214	126	340	156	384	132	88	86	433	276	116	83	92	112	83	224	148	376	145	94	103	190	138	62
++CD14	943	1796	689	1241	575	1299	526	2119	872	951	599	1321	1002	1244	1276	768	1670	660	823	429	1964	1331	833	2226	606
++FCGR3A	264	1612	352	1119	318	456	143	425	234	1613	964	246	419	279	999	470	792	295	758	322	274	212	674	510	708
++NCAM1	70	156	62	111	27	101	87	56	39	64	48	52	53	69	92	113	65	63	72	54	74	40	102	49	57
++ITGAM	461	2475	699	1008	471	987	650	410	1173	1149	722	711	1058	1135	1930	609	673	638	660	440	918	1230	1161	529	842
++PTPRC	636	393	187	327	177	337	127	159	190	380	248	194	247	400	273	170	462	126	497	160	241	304	250	180	277
++IL7R	1396	1572	930	798	900	1715	1179	854	1120	1535	1044	1650	1229	1405	1855	1614	462	1235	1309	1801	1027	1333	1477	1598	1174
++CCR7	709	927	623	680	679	486	586	767	472	516	340	672	689	507	1077	354	913	649	726	535	593	816	455	578	606
++SELL	77	25	79	85	49	49	40	14	16	128	69	60	17	55	66	105	18	30	60	25	24	31	48	50	18
++LEF1	383	540	308	302	259	334	90	226	439	408	219	354	116	326	625	421	233	244	264	150	232	647	364	567	151
++TCF7	3616	1886	2639	1258	653	732	726	772	889	3099	1568	548	1264	2964	1029	2556	1619	816	1221	940	584	1083	971	1076	1527
++GZMB	40	183	229	192	118	86	91	39	153	188	127	226	272	61	226	120	134	155	114	96	97	143	190	232	317
++PRF1	166	133	281	297	246	251	137	88	115	217	165	189	186	266	246	366	260	512	181	320	149	151	160	191	181
++NKG7	893	1689	2447	1462	448	2105	769	893	1003	1225	796	1085	481	1203	950	1855	1069	922	2618	1186	1066	910	734	1418	1006
++GNLY	100	123	133	109	110	73	77	49	92	133	81	85	108	168	119	95	41	134	69	75	95	73	81	143	107
++KLRD1	495	1032	677	708	244	147	387	444	198	698	403	510	722	338	666	559	835	383	172	244	323	459	346	450	714
++LYZ	207	192	52	120	102	319	107	206	119	256	143	54	71	301	175	124	114	138	338	148	317	86	107	96	117
++S100A8	1868	3114	2505	1151	707	3547	2075	1522	1493	1259	846	2258	1685	1855	2063	2172	1136	1461	2178	1639	2542	2275	843	2852	2043
++S100A9	974	1986	733	1460	1055	982	581	1161	404	1222	758	673	1989	1609	1626	747	2999	1017	1419	773	1922	988	675	782	1944
++CST3	408	171	176	184	114	201	126	220	240	421	250	284	536	592	291	210	220	264	160	163	270	329	314	332	284
++FCER1A	48	96	59	48	54	189	43	158	43	54	33	84	47	57	60	70	61	27	181	64	196	37	55	125	59
++HLA-DRA	159	273	160	335	109	132	109	85	122	349	194	206	221	135	248	298	314	128	260	120	244	165	135	327	119
++CD74	477	593	500	553	303	487	375	181	286	822	542	464	308	483	396	397	502	329	272	441	325	195	600	733	500
++JUN	939	1755	2251	1771	1466	2073	2850	775	1161	2170	1163	2501	2219	1770	2149	1395	1274	1583	1891	2800	1390	993	1110	2023	1863
++FOS	118	52	213	167	58	106	61	100	83	245	154	133	35	70	47	96	159	62	66	64	101	123	200	88	60
++DUSP1	310	540	677	941	438	375	299	246	374	240	144	371	336	477	913	1057	662	666	486	293	542	725	175	464	396
++MALAT1	1078	738	955	413	554	830	883	643	789	1011	561	992	425	1100	741	806	904	498	507	659	611	1472	880	781	587
++NEAT1	506	653	498	263	160	368	676	225	189	451	308	297	364	522	628	800	141	169	300	743	251	261	494	391	346
+diff --git a/tests/fixtures/mycelium-project/data/processed/vaccine-cohort/sample_metadata.tsv b/tests/fixtures/mycelium-project/data/processed/vaccine-cohort/sample_metadata.tsv
+new file mode 100644
+index 0000000..948a4e8
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/data/processed/vaccine-cohort/sample_metadata.tsv
+@@ -0,0 +1,26 @@
++sample_id	donor	arm	visit	run_id	lane	preferred_acquisition	rin
++D01_day0	D01	vaccine	day0	R1	L1	TRUE	9.4
++D01_day28	D01	vaccine	day28	R1	L2	TRUE	7.0
++D02_day0	D02	vaccine	day0	R1	L2	TRUE	9.1
++D02_day28	D02	vaccine	day28	R1	L1	TRUE	6.6
++D03_day0	D03	vaccine	day0	R2	L1	TRUE	8.1
++D03_day28	D03	vaccine	day28	R2	L2	TRUE	7.9
++D03_day28_rerun	D03	vaccine	day28	R2	L2	FALSE	7.2
++D04_day0	D04	vaccine	day0	R2	L2	TRUE	6.9
++D04_day28	D04	vaccine	day28	R2	L1	TRUE	8.9
++D05_day0	D05	vaccine	day0	R3	L1	TRUE	7.3
++D05_day28	D05	vaccine	day28	R3	L2	TRUE	9.2
++D06_day0	D06	vaccine	day0	R3	L2	TRUE	8.6
++D06_day28	D06	vaccine	day28	R3	L1	TRUE	9.1
++D07_day0	D07	placebo	day0	R1	L1	TRUE	9.1
++D07_day28	D07	placebo	day28	R1	L2	TRUE	8.9
++D08_day0	D08	placebo	day0	R1	L2	TRUE	8.7
++D08_day28	D08	placebo	day28	R1	L1	TRUE	6.5
++D09_day0	D09	placebo	day0	R2	L1	TRUE	6.9
++D09_day28	D09	placebo	day28	R2	L2	TRUE	7.1
++D10_day0	D10	placebo	day0	R2	L2	TRUE	8.2
++D10_day28	D10	placebo	day28	R2	L1	TRUE	6.5
++D11_day0	D11	placebo	day0	R3	L1	TRUE	6.9
++D11_day28	D11	placebo	day28	R3	L2	TRUE	8.0
++D12_day0	D12	placebo	day0	R3	L2	TRUE	6.6
++D12_day28	D12	placebo	day28	R3	L1	TRUE	7.5
+diff --git a/tests/fixtures/mycelium-project/data/raw/vaccine-cohort/VACCINE_COHORT.md b/tests/fixtures/mycelium-project/data/raw/vaccine-cohort/VACCINE_COHORT.md
+new file mode 100644
+index 0000000..5ed8291
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/data/raw/vaccine-cohort/VACCINE_COHORT.md
+@@ -0,0 +1,4 @@
++# vaccine-cohort raw data
++
++SIMULATED. Raw FASTQs are not included: this fixture has no raw reads. The processed tables in
++`data/processed/vaccine-cohort/` are generated directly by `tests/fixtures/make_fixture_data.py`.
+diff --git a/tests/fixtures/mycelium-project/nbs/qc_explore.ipynb b/tests/fixtures/mycelium-project/nbs/qc_explore.ipynb
+new file mode 100644
+index 0000000..83cb0f2
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/nbs/qc_explore.ipynb
+@@ -0,0 +1,39 @@
++{
++ "cells": [
++  {
++   "cell_type": "markdown",
++   "metadata": {},
++   "source": [
++    "# QC exploration (SIMULATED)\n",
++    "\n",
++    "Library sizes and RIN by run. Exploration only; results come from `analysis/`."
++   ]
++  },
++  {
++   "cell_type": "code",
++   "execution_count": null,
++   "metadata": {},
++   "outputs": [],
++   "source": [
++    "import csv\n",
++    "with open('../data/processed/vaccine-cohort/sample_metadata.tsv') as handle:\n",
++    "    rows = list(csv.DictReader(handle, delimiter='\\t'))\n",
++    "for run in sorted(set(r['run_id'] for r in rows)):\n",
++    "    rins = [float(r['rin']) for r in rows if r['run_id'] == run]\n",
++    "    print(run, len(rins), min(rins), max(rins))"
++   ]
++  }
++ ],
++ "metadata": {
++  "kernelspec": {
++   "display_name": "Python 3",
++   "language": "python",
++   "name": "python3"
++  },
++  "language_info": {
++   "name": "python"
++  }
++ },
++ "nbformat": 4,
++ "nbformat_minor": 5
++}
+diff --git a/tests/fixtures/mycelium-project/todo/TODO_REGISTRY.md b/tests/fixtures/mycelium-project/todo/TODO_REGISTRY.md
+new file mode 100644
+index 0000000..97b0b7e
+--- /dev/null
++++ b/tests/fixtures/mycelium-project/todo/TODO_REGISTRY.md
+@@ -0,0 +1,5 @@
++# TODO registry
++
++| ID | Item | Status |
++|----|------|--------|
++| T-001 | Check whether the interferon signature persists at day 90 | open |
+diff --git a/tests/test_fixture_data.py b/tests/test_fixture_data.py
+new file mode 100644
+index 0000000..1a9e596
+--- /dev/null
++++ b/tests/test_fixture_data.py
+@@ -0,0 +1,45 @@
++"""Run: python3 tests/test_fixture_data.py
++
++The committed fixture data must be exactly what the generator produces, so a hand
++edit to a count, a metadata cell, or an expected value fails here.
++"""
++
++import os
++import subprocess
++import sys
++import unittest
++
++HERE = os.path.dirname(os.path.abspath(__file__))
++GENERATOR = os.path.join(HERE, "fixtures", "make_fixture_data.py")
++PROJECT = os.path.join(HERE, "fixtures", "mycelium-project")
++
++
++def run(*args):
++    proc = subprocess.Popen([sys.executable, GENERATOR] + list(args), stdout=subprocess.PIPE,
++                            stderr=subprocess.STDOUT, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
++    out = proc.communicate()[0].decode("utf-8")
++    return proc.returncode, out
++
++
++class FixtureDataTest(unittest.TestCase):
++    def test_committed_files_match_generator(self):
++        code, out = run("--check")
++        self.assertEqual(code, 0, out)
++        self.assertIn("fixture check: 6 file(s) match seed 0", out)
++
++    def test_failing_seed_is_refused(self):
++        code, out = run("--check", "--seed", "2")
++        self.assertEqual(code, 2, out)
++        self.assertIn("refused: seed 2: median-of-ratios finds 7 true", out)
++        code, out = run("--check", "--seed", "13")
++        self.assertEqual(code, 2, out)
++        self.assertIn("refused: seed 13: total-count CPM gives 0 false positive(s)", out)
++
++    def test_project_stays_small(self):
++        files = [os.path.join(d, f) for d, _, names in os.walk(PROJECT) for f in names]
++        self.assertLess(len(files), 40)
++        self.assertLess(sum(os.path.getsize(f) for f in files), 200 * 1024)
++
++
++if __name__ == "__main__":
++    unittest.main()
+-- 
+2.43.0
+

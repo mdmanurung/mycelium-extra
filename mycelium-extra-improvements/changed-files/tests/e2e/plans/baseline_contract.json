@@ -1,0 +1,12 @@
+{
+  "schema": "mycelium-extra.data_contract.v1",
+  "table": "data/processed/vaccine-cohort/sample_metadata.tsv",
+  "filters": [{"column": "preferred_acquisition", "equals": "TRUE"}],
+  "checks": [
+    {"kind": "schema", "columns": ["sample_id", "donor", "arm", "visit", "run_id"]},
+    {"kind": "cohort", "column": "arm", "levels": ["vaccine", "placebo"], "rows": 24, "no_missing": ["run_id"]},
+    {"kind": "unit_of_replication", "unit": "donor", "group": "arm", "within": ["visit"], "min_units_per_group": 6},
+    {"kind": "pairing", "unit": "donor", "within": "visit", "levels": ["day0", "day28"]},
+    {"kind": "batch_confounding", "batch": "run_id", "contrast": "arm"}
+  ]
+}

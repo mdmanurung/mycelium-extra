@@ -1,0 +1,233 @@
+From 74cc811fa4c21bf97a8b8423ae5cb033b1235673 Mon Sep 17 00:00:00 2001
+From: Biomni draft <biomni@phylo.local>
+Date: Sun, 4 Oct 2026 12:38:19 +0000
+Subject: [PATCH 17/22] feat(verify): report unexplained defaults in the frozen
+ plan (D9)
+
+---
+ docs/roadmap/05-mindfulness-core.md         |   2 +-
+ skills/verify/SKILL.md                      |   2 +
+ skills/verify/scripts/verify.py             |  19 +++
+ skills/verify/tests/test_default_reasons.py | 150 ++++++++++++++++++++
+ 4 files changed, 172 insertions(+), 1 deletion(-)
+ create mode 100644 skills/verify/tests/test_default_reasons.py
+
+diff --git a/docs/roadmap/05-mindfulness-core.md b/docs/roadmap/05-mindfulness-core.md
+index ee761af..a8387ed 100644
+--- a/docs/roadmap/05-mindfulness-core.md
++++ b/docs/roadmap/05-mindfulness-core.md
+@@ -121,4 +121,4 @@ Two documents from the planning session feed D1: `claim_artifact_checker_design.
+ - **Acceptance:** a plan row with `default:` alone or `default: standard` is flagged by row; `default: BH, since the tests are not strongly dependent and no weighting is planned` is not.
+ - **Tests:** unit tests for the check; one case in `skills/plan-review/tests/test_plan_review.py`.
+ - **Effort:** S.
+-- **Status:** todo.
++- **Status:** done. `skills/plan-review/scripts/default_reasons.py` (run by plan-review on the draft; verify imports it from the plugin root and reports each flag as an `info` finding, status unchanged; a missing or failing checker is a verify gap). A reason needs three words besides filler, and three besides an empty phrase.
+diff --git a/skills/verify/SKILL.md b/skills/verify/SKILL.md
+index 58c92f7..531b70c 100644
+--- a/skills/verify/SKILL.md
++++ b/skills/verify/SKILL.md
+@@ -28,6 +28,8 @@ The analysis folder is guessed from the plan's scripts; pass `--analysis-dir` wh
+ 
+ It also runs scilintr on the analysis folder's code (outputs, logs, and provenance skipped; the planned scripts when there is no folder): `scilintr` for Python, `Rscript -e 'scilintr::main()'` for R, as Mycelium's analyze skill requires. A Jupyter notebook's code cells are extracted (magic and shell lines commented out) and linted with its kernel's language; findings are cited as `<notebook>.ipynb[code cell N]:<line>`, and a notebook whose code does not parse is a gap. The `{r}` and `{python}` chunks of `.qmd` and `.Rmd` files are linted the same way, with prose and other lines blanked so a finding cites the document's own line (`<doc>.qmd:<line>`); display blocks, other engines, and inline `` `r x` `` code are not linted, and `eval=FALSE` chunks are. The `## Lint` section lists remaining findings and every `ANALYSIS_OK` waiver. If a linter is missing, say how to install it (`pip install scilintr`, `install.packages("scilintr")`); never treat an unchecked language as clean.
+ 
++It also checks the reason on each `default:` in the frozen plan's Source column, with plan-review's `scripts/default_reasons.py` (loaded from the plugin root). A row with no reason, a reason under three words, or only an empty phrase such as `standard` is an advisory `info` finding that names the row; it does not change the status. If that script is missing or fails, the check is a gap.
++
+ The report ends with `Verify status:` and one of these values:
+ - `CONFORMS`
+ - `CONFORMS_WITH_GAPS`: something the records cannot show, such as a run with no receipt, an unrecorded exit status, an output not tied to a run, or code scilintr could not check.
+diff --git a/skills/verify/scripts/verify.py b/skills/verify/scripts/verify.py
+index e071e8f..ffe28d5 100644
+--- a/skills/verify/scripts/verify.py
++++ b/skills/verify/scripts/verify.py
+@@ -588,6 +588,24 @@ def conda_snapshots(root, runs, report):
+     return snapshots
+ 
+ 
++def default_reasons(plan, report):
++    """D9, advisory: each plan row whose `default:` gives no usable reason is an info finding, so the
++    status does not change. The check lives in plan-review's scripts and is imported from the plugin
++    root, as gate.py is; a checker that is missing or fails is a gap, like a missing scilintr."""
++    folder = os.path.join(PLUGIN_ROOT, "skills", "plan-review", "scripts")
++    try:
++        if folder not in sys.path:
++            sys.path.insert(0, folder)
++        import default_reasons as module
++        found, defaults, flags = module.check_plan(plan)
++    except Exception as error:  # ImportError, SyntaxError, or a bug in the checker
++        report.add("gap", "Default reasons not checked: `{}` could not run ({}: {}).".format(
++            os.path.join(folder, "default_reasons.py"), type(error).__name__, cell(str(error))[:120]))
++        return
++    for flag in flags:
++        report.add("info", "Default without a usable reason (advisory): " + cell(module.describe(flag)))
++
++
+ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
+           rscript="Rscript"):
+     config = gate.load_config(root)
+@@ -855,6 +873,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
+         report.add("info", "{} inline command(s) ran in the window (Mycelium lineage); read-only "
+                            "probes are typical, and they are not checked.".format(inline))
+ 
++    default_reasons(plan, report)
+     envs = conda_snapshots(root, mine, report)
+     linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds)
+ 
+diff --git a/skills/verify/tests/test_default_reasons.py b/skills/verify/tests/test_default_reasons.py
+new file mode 100644
+index 0000000..081cfef
+--- /dev/null
++++ b/skills/verify/tests/test_default_reasons.py
+@@ -0,0 +1,150 @@
++"""verify reports unexplained defaults in the frozen plan (roadmap D9).
++
++Run: python3 skills/verify/tests/test_default_reasons.py
++
++Approvals and receipts are made by the real gate hooks, as in test_verify.py. The
++helpers are copied rather than imported, so this file runs on its own.
++"""
++
++import json
++import os
++import shutil
++import stat
++import subprocess
++import sys
++import tempfile
++import time
++import unittest
++
++HERE = os.path.dirname(os.path.abspath(__file__))
++SCRIPT = os.path.join(HERE, "..", "scripts", "verify.py")
++PLUGIN = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
++GATE = os.path.join(PLUGIN, "hooks", "gate.py")
++sys.dont_write_bytecode = True
++sys.path.insert(0, os.path.join(PLUGIN, "hooks"))
++import gate  # noqa: E402
++
++FIT = "analysis/a/scripts/01_fit.py"
++BH = "default: BH, since the tests are not strongly dependent and no weighting is planned"
++
++
++def plan(*sources):
++    lines = ["**Objective.** Fit the model.", "", "Outputs: analysis/a/outputs/", "",
++             "| # | Step | Choice | Source | Validation |", "|---|---|---|---|---|"]
++    lines += ["| {} | run `{}` step {} | x | {} | ok |".format(i + 1, FIT, i + 1, s) for i, s in enumerate(sources)]
++    return "\n".join(lines + ["", "Plan status: READY"])
++
++
++def hermetic(test):
++    """Hide the host's env variables and ~/.conda from the gate and verify for one test."""
++    saved = dict(os.environ)
++    test.addCleanup(lambda: (os.environ.clear(), os.environ.update(saved)))
++    for key in gate.HOOK_ENV + ("CLAUDE_CODE_SESSION_ID",):
++        os.environ.pop(key, None)
++    home = tempfile.mkdtemp()
++    test.addCleanup(shutil.rmtree, home)
++    os.environ["HOME"] = home
++
++
++class VerifyDefaultReasonsTest(unittest.TestCase):
++    def setUp(self):
++        hermetic(self)
++        self.root = tempfile.mkdtemp()
++        os.makedirs(os.path.join(self.root, ".mycelium-extra"))
++        self.write(".mycelium-extra/gate.json", "{}")
++        self.write(FIT, "print(1)\n", mtime=time.time() - 3600)
++        self.tools = {name: self.tool("bin/" + name) for name in ("sacct", "scilintr", "Rscript")}
++
++    def tearDown(self):
++        shutil.rmtree(self.root)
++
++    def write(self, rel, text, mtime=None, root=None):
++        path = os.path.join(root or self.root, rel)
++        if not os.path.isdir(os.path.dirname(path)):
++            os.makedirs(os.path.dirname(path))
++        with open(path, "w") as handle:
++            handle.write(text)
++        if mtime is not None:
++            os.utime(path, (mtime, mtime))
++        return path
++
++    def tool(self, rel):
++        path = self.write(rel, "#!/bin/sh\nexit 0\n")
++        os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC)
++        return path
++
++    def hook(self, event, payload):
++        payload = dict(payload, session_id="s1", cwd=self.root)
++        proc = subprocess.Popen([sys.executable, GATE, event], stdin=subprocess.PIPE,
++                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
++        out, err = proc.communicate(json.dumps(payload).encode("utf-8"))
++        self.assertEqual(proc.returncode, 0, err)
++        return json.loads(out.decode("utf-8")) if out.strip() else None
++
++    def approve_and_run(self, text):
++        notice = self.hook("stop", {"last_assistant_message": text})["systemMessage"]
++        digest = notice.split("approve plan ")[1][:8]
++        self.hook("prompt", {"prompt": "approve plan " + digest})
++        self.hook("post", {"tool_name": "Bash", "tool_input": {"command": "python " + FIT},
++                           "tool_response": {"stdout": "", "exit_code": 0}})
++        self.write("analysis/a/outputs/fit.tsv", "x\n")
++        return digest
++
++    def verify(self, digest, plugin=PLUGIN, json_out=False):
++        with open(SCRIPT) as source:
++            proc = subprocess.Popen([sys.executable, "-", "--plugin-root", plugin, "--repo", self.root,
++                                     "--sacct", self.tools["sacct"], "--scilintr", self.tools["scilintr"],
++                                     "--rscript", self.tools["Rscript"], "report", digest]
++                                    + (["--json"] if json_out else []),
++                                    stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.root)
++            out, err = proc.communicate()
++        self.assertEqual(proc.returncode, 0, err.decode("utf-8"))
++        return out.decode("utf-8")
++
++    def plugin_without_checker(self, broken=None):
++        """A plugin root with the real hooks and no (or a broken) plan-review checker."""
++        plugin = tempfile.mkdtemp()
++        self.addCleanup(shutil.rmtree, plugin)
++        shutil.copytree(os.path.join(PLUGIN, "hooks"), os.path.join(plugin, "hooks"),
++                        ignore=shutil.ignore_patterns("tests", "__pycache__"))
++        if broken is not None:
++            self.write("skills/plan-review/scripts/default_reasons.py", broken, root=plugin)
++        return plugin
++
++    def test_unexplained_defaults_are_named_by_row_and_status_is_unchanged(self):
++        digest = self.approve_and_run(plan("default:", "default: standard", BH, "user"))
++        out = self.verify(digest)
++        self.assertIn("- **info**: Default without a usable reason (advisory): row 1 (run `{}` step 1): "
++                      "\"default:\" is no reason.".format(FIT), out)
++        self.assertIn("- **info**: Default without a usable reason (advisory): row 2 (run `{}` step 2): "
++                      "\"default: standard\" is an empty phrase, not a reason.".format(FIT), out)
++        self.assertNotIn("row 3", out)
++        self.assertNotIn("row 4", out)
++        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
++        result = json.loads(self.verify(digest, json_out=True))
++        self.assertEqual(result["status"], "CONFORMS")
++        self.assertEqual(sum("Default without a usable reason" in text for _, text in result["findings"]), 2)
++
++    def test_explained_defaults_add_nothing(self):
++        digest = self.approve_and_run(plan(BH, "default: matches step 2"))
++        out = self.verify(digest)
++        self.assertNotIn("Default", out)
++        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
++
++    def test_missing_checker_is_a_gap(self):
++        digest = self.approve_and_run(plan(BH))
++        out = self.verify(digest, plugin=self.plugin_without_checker())
++        self.assertIn("- **gap**: Default reasons not checked:", out)
++        self.assertRegex(out, r"(ModuleNotFound|Import)Error")
++        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
++
++    def test_broken_checker_is_a_gap(self):
++        digest = self.approve_and_run(plan(BH))
++        out = self.verify(digest, plugin=self.plugin_without_checker("def check_plan(:\n"))
++        self.assertIn("- **gap**: Default reasons not checked:", out)
++        self.assertIn("SyntaxError", out)
++        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
++
++
++if __name__ == "__main__":
++    unittest.main()
+-- 
+2.43.0
+

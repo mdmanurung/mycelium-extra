@@ -1,0 +1,186 @@
+From 1772356c438c4d72f68e3d29426007dcfc567c0f Mon Sep 17 00:00:00 2001
+From: Biomni draft <biomni@phylo.local>
+Date: Sun, 4 Oct 2026 12:28:00 +0000
+Subject: [PATCH 11/22] fix(gate): pass state-folder mentions that only name
+ text (E2)
+
+---
+ docs/roadmap/04-handoff-backlog.md |  2 +-
+ hooks/gate.py                      | 73 +++++++++++++++++++++++++++---
+ hooks/tests/test_gate.py           | 32 +++++++++++++
+ 3 files changed, 99 insertions(+), 8 deletions(-)
+
+diff --git a/docs/roadmap/04-handoff-backlog.md b/docs/roadmap/04-handoff-backlog.md
+index 32ced9f..63ccf26 100644
+--- a/docs/roadmap/04-handoff-backlog.md
++++ b/docs/roadmap/04-handoff-backlog.md
+@@ -28,7 +28,7 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
+ - **Acceptance:** the three commands pass; their write-shaped twins still block; `gate_diff.py` shows exactly the three expected changes.
+ - **Tests:** six cases in `hooks/tests/test_gate.py` (three allows, three twins).
+ - **Effort:** M.
+-- **Status:** todo.
++- **Status:** done. A literal that only reaches a `.write()` call's content through path-building calls (`os.path.join`, `os.getcwd`) is text; `sed -i`'s script word is not a file; Python a runner's interpreter cannot parse is scanned by its string tokens (comments ignored) before the any-mention rule, which still applies to R and perl. On Python 3.8+ the heredoc case already passed.
+ 
+ ### E3: Close receipt gaps
+ 
+diff --git a/hooks/gate.py b/hooks/gate.py
+index f8bebb5..3217fba 100644
+--- a/hooks/gate.py
++++ b/hooks/gate.py
+@@ -572,29 +572,84 @@ def literal_values(tokens):
+     return values
+ 
+ 
+-def names_state(code, root, cwd):
++WRITE_CONTENT = {"write", "writelines", "write_text", "write_bytes"}
++PURE_CALLS = {"join", "getcwd", "abspath", "realpath", "normpath", "relpath", "dirname", "basename",
++              "expanduser", "str", "repr", "format"}
++
++
++def names_state(code, root, cwd, python=False):
+     """Whether code names the state folder as a target, not as text it writes elsewhere.
+ 
+     For Python, a string literal counts when it is a path (no whitespace) or a
+     shell command that writes the folder; prose and multi-line strings are text
+-    (a file's new content), and a comment is not code. Code that does not parse
+-    as Python (R, perl) counts on any mention.
++    (a file's new content), and a comment is not code. A literal that only reaches
++    a `.write()` call's content, through path-building calls such as `os.path.join`,
++    is text too. Python that this interpreter cannot parse (3.8+ syntax on 3.6) is
++    scanned token by token for the same literals; other code (R, perl) counts on
++    any mention.
+     """
+     # ponytail: a state path split across pieces or hidden in a multi-line string passes;
+     # data-flow tracking if that ever shows up in real use
++    def target(value):
++        return isinstance(value, str) and STATE_DIR in value and (
++            not value.split(None, 1)[1:] or "\n" not in value and writes_state(value, root, cwd))
+     try:
+         tree = ast.parse(code)
+     except (SyntaxError, ValueError):
+-        return STATE_DIR in code
++        values = string_literals(code) if python else None
++        return STATE_DIR in code if values is None else any(target(value) for value in values)
++    text = written_text(tree)
+     for node in ast.walk(tree):
+         kind = type(node).__name__
+         value = node.value if kind == "Constant" else node.s if kind == "Str" else None
+-        if isinstance(value, str) and STATE_DIR in value and (
+-                not value.split(None, 1)[1:] or "\n" not in value and writes_state(value, root, cwd)):
++        if id(node) not in text and target(value):
+             return True
+     return False
+ 
+ 
++def written_text(tree):
++    """ids of the string literals that are only content handed to a `.write()` call."""
++    found = set()
++
++    def descend(node):
++        kind = type(node).__name__
++        if kind == "Call":
++            name = getattr(node.func, "attr", None) or getattr(node.func, "id", None)
++            if name not in PURE_CALLS:
++                return  # its result is not plain text: open(...).read(), a write, a delete
++            children = list(node.args) + [keyword.value for keyword in node.keywords]
++            children += [node.func.value] if type(node.func).__name__ == "Attribute" else []
++        else:
++            if kind in ("Constant", "Str"):
++                found.add(id(node))
++            children = ast.iter_child_nodes(node)
++        for child in children:
++            descend(child)
++
++    for node in ast.walk(tree):
++        if type(node).__name__ == "Call" and getattr(node.func, "attr", None) in WRITE_CONTENT:
++            for arg in node.args:
++                descend(arg)
++    return found
++
++
++def string_literals(code):
++    """The string literals of Python source, read by its tokens; None if it does not tokenize."""
++    import io
++    import tokenize as pytokenize  # local: this module has its own tokenize()
++    values = []
++    try:
++        for token in pytokenize.generate_tokens(io.StringIO(code).readline):
++            if pytokenize.tok_name.get(token[0]) in ("STRING", "FSTRING_MIDDLE"):
++                try:
++                    values.append(ast.literal_eval(token[1]))
++                except (SyntaxError, ValueError):
++                    values.append(token[1])  # an f-string: its raw text
++    except (pytokenize.TokenError, SyntaxError):
++        return None
++    return values
++
++
+ def binds_state(tokens):
+     """Whether a variable in the command may hold a path into the state folder."""
+     for j, token in enumerate(tokens):
+@@ -650,6 +705,9 @@ def segment_writes(tokens, bodies, command, inside, root, cwd):
+     if head == "dd":
+         return any(t.startswith("of=") and inside(t[3:]) for t in args)
+     if head in ("sed", "perl") and any(re.match(r"^-\w*i", t) for t in args):
++        if head == "sed" and not any(t in ("-f", "--expression", "--file") or t.startswith(
++                ("--expression=", "--file=")) for t in args + code):
++            positional = positional[1:] if not code else positional  # the first word is the script
+         return any(inside(t) for t in positional)
+     if head == "find" and any(t in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for t in args):
+         return any(inside(t) for t in positional)
+@@ -658,7 +716,8 @@ def segment_writes(tokens, bodies, command, inside, root, cwd):
+             return True
+         if not (code or bodies or positional or stdin):  # code piped in from another segment
+             return WRITE_CODE.search(command) is not None
+-        return any(names_state(text, root, cwd) and WRITE_CODE.search(text) for text in code + bodies)
++        return any(names_state(text, root, cwd, head.startswith("python")) and WRITE_CODE.search(text)
++                   for text in code + bodies)
+     return False
+ 
+ 
+diff --git a/hooks/tests/test_gate.py b/hooks/tests/test_gate.py
+index 37a5c1f..0c9f959 100644
+--- a/hooks/tests/test_gate.py
++++ b/hooks/tests/test_gate.py
+@@ -321,6 +321,38 @@ class GateTest(unittest.TestCase):
+         self.assertIsNone(self.hook("tool", {"tool_name": "Write",
+                                              "tool_input": {"file_path": "analysis/x.py"}}))
+ 
++    def test_state_folder_named_only_in_text_passes(self):
++        # E2: each allowed command, then a write in the same shape that must still block.
++        for allowed, twin in [
++            ("python3 -c \"import os; open('notes.txt','w').write(os.path.join('x', '.mycelium-extra'))\"",
++             "python3 -c \"import os; open(os.path.join('x', '.mycelium-extra', 'g.json'),'w').write('x')\""),
++            ("python3 -c \"import os; open('notes.txt','w').write(os.path.join(os.getcwd(), '.mycelium-extra'))\"",
++             "python3 -c \"import os; p = os.path.join(os.getcwd(), '.mycelium-extra'); "
++             "open(p + '/gate.json','w').write('x')\""),
++            ("sed -i 's/gate state/the `.mycelium-extra` folder/' notes.md",
++             "sed -i 's/gate state/the `.mycelium-extra` folder/' .mycelium-extra/gate.json"),
++        ]:
++            self.assertIsNone(self.bash(allowed), allowed)
++            self.assertTrue(self.denied(self.bash(twin)), twin)
++        for command in ["echo hi > .mycelium-extra/x.json", "sed -i -e s/24/9/ .mycelium-extra/gate.json",
++                        "python3 -c \"open('n.txt','w').write(open('.mycelium-extra/gate.json').read()); "
++                        "import os; os.remove('.mycelium-extra/gate.json')\""]:
++            self.assertTrue(self.denied(self.bash(command)), command)
++
++    def test_python_that_does_not_parse_is_scanned_by_tokens(self):
++        # Stands in for 3.8+ syntax on Python 3.6: a source this interpreter's ast cannot parse.
++        sys.path.insert(0, os.path.dirname(GATE))
++        import gate
++        text = "if (n := 1)\n    open('notes.txt','w').write('see the .mycelium-extra folder')  # .mycelium-extra\n"
++        write = "if (n := 1)\n    open('.mycelium-extra/gate.json','w').write('x')\n"
++        for source in (text, write):
++            self.assertRaises(SyntaxError, compile, source, "<case>", "exec")
++        self.assertFalse(gate.names_state(text, self.root, self.root, python=True))
++        self.assertTrue(gate.names_state(write, self.root, self.root, python=True))
++        self.assertTrue(gate.names_state(text, self.root, self.root), "not Python: any mention counts")
++        self.assertTrue(gate.names_state("x = \'\'\'.mycelium-extra\n", self.root, self.root, python=True),
++                        "does not tokenize: any mention counts")
++
+     def test_no_gate_file_means_no_gate(self):
+         os.remove(os.path.join(self.root, ".mycelium-extra", "gate.json"))
+         self.assertIsNone(self.bash("python analysis/x.py"))
+-- 
+2.43.0
+

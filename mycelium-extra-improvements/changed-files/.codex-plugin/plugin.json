@@ -1,0 +1,23 @@
+{
+  "name": "mycelium-extra",
+  "version": "0.9.30",
+  "description": "Repository-aware, bounded challenge and scoping for research and software work",
+  "author": {
+    "name": "Mikhael Manurung"
+  },
+  "license": "MIT",
+  "keywords": ["research", "analysis", "planning", "scoping"],
+  "skills": "./skills/",
+  "hooks": {},
+  "interface": {
+    "displayName": "Mycelium Extra",
+    "shortDescription": "Challenge plans using repository evidence",
+    "longDescription": "Search project memory and code before asking, challenge consequential assumptions, and return a sourced plan. Challenge a draft before approval with independent Codex engineering and Biomni biomedical reviews in Claude Code; Codex-host invocation provides engineering critique only. Settle past Mycelium decisions, check sample-table assumptions, and create a new analysis folder. The approval gate and execution verification remain Claude Code only.",
+    "developerName": "Mikhael Manurung",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": [
+      "Grill this analysis plan against the current repository and give me a sourced step-by-step plan before running anything."
+    ]
+  }
+}

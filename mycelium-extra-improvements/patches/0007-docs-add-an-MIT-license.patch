@@ -1,0 +1,95 @@
+From c3ba289d931842da13bbbd9c1083e059b09af009 Mon Sep 17 00:00:00 2001
+From: Biomni draft <biomni@phylo.local>
+Date: Sun, 4 Oct 2026 12:22:41 +0000
+Subject: [PATCH 07/22] docs: add an MIT license
+
+LICENSE carries the standard MIT text. Both plugin manifests name it in
+a license field, and the README says which file covers the bundled
+Mycelium template.
+---
+ .claude-plugin/plugin.json   |  1 +
+ .codex-plugin/plugin.json    |  1 +
+ LICENSE                      | 21 +++++++++++++++++++++
+ README.md                    |  4 ++++
+ docs/roadmap/01-packaging.md |  2 +-
+ 5 files changed, 28 insertions(+), 1 deletion(-)
+ create mode 100644 LICENSE
+
+diff --git a/.claude-plugin/plugin.json b/.claude-plugin/plugin.json
+index 34a01f8..1228962 100644
+--- a/.claude-plugin/plugin.json
++++ b/.claude-plugin/plugin.json
+@@ -5,5 +5,6 @@
+   "author": {
+     "name": "Mikhael Manurung"
+   },
++  "license": "MIT",
+   "skills": "./skills/"
+ }
+diff --git a/.codex-plugin/plugin.json b/.codex-plugin/plugin.json
+index 1d2eb67..a73e123 100644
+--- a/.codex-plugin/plugin.json
++++ b/.codex-plugin/plugin.json
+@@ -5,6 +5,7 @@
+   "author": {
+     "name": "Mikhael Manurung"
+   },
++  "license": "MIT",
+   "keywords": ["research", "analysis", "planning", "scoping"],
+   "skills": "./skills/",
+   "hooks": {},
+diff --git a/LICENSE b/LICENSE
+new file mode 100644
+index 0000000..6d2a7ce
+--- /dev/null
++++ b/LICENSE
+@@ -0,0 +1,21 @@
++MIT License
++
++Copyright (c) 2026 Mikhael Dito Manurung
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
+diff --git a/README.md b/README.md
+index 1ec80cf..cc6b559 100644
+--- a/README.md
++++ b/README.md
+@@ -102,3 +102,7 @@ A typical analysis task, in order:
+ - [docs/development.md](docs/development.md) — tests, the gate-diff rule, Python 3.6 compatibility, version bumps.
+ 
+ The gate catches mistakes; it is not security. Read the full [limits](docs/approval-gate.md#limits) before relying on it.
++
++## License
++
++MIT, see [LICENSE](LICENSE). `skills/new-analysis/templates/analysis-readme.md` is copied from Mycelium and keeps Mycelium's MIT notice in [MYCELIUM_LICENSE](skills/new-analysis/templates/MYCELIUM_LICENSE).
+diff --git a/docs/roadmap/01-packaging.md b/docs/roadmap/01-packaging.md
+index 6fab81b..5f99515 100644
+--- a/docs/roadmap/01-packaging.md
++++ b/docs/roadmap/01-packaging.md
+@@ -15,7 +15,7 @@ Small tasks that decide whether anyone else can use the plugin.
+ - **Acceptance:** `LICENSE` exists at the root; GitHub detects it; MYCELIUM_LICENSE stays in place for the template it covers.
+ - **Tests:** none.
+ - **Effort:** S.
+-- **Status:** todo.
++- **Status:** done, pending the maintainer's confirmation of MIT and the copyright line. `LICENSE` is the standard MIT text (Copyright (c) 2026 Mikhael Dito Manurung, the year of the first commit); both `plugin.json` files gain `"license": "MIT"` (both schemas document the field); the README gains a License section that points to MYCELIUM_LICENSE, which is unchanged. GitHub detection can only be confirmed after a push.
+ 
+ ### A2: Continuous integration
+ 
+-- 
+2.43.0
+

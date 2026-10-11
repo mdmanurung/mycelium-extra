@@ -40,7 +40,8 @@ jobs:
       - name: Ablations
         run: python3 tests/e2e/ablate.py
       - name: Links
-        run: python3 tests/check_links.py $(git ls-files '*.md')
+        # The historical patch snapshot includes changed files only.
+        run: python3 tests/check_links.py $(git ls-files '*.md' ':!:mycelium-extra-improvements/**')
 
   gate-diff:
     if: github.event_name == 'pull_request'

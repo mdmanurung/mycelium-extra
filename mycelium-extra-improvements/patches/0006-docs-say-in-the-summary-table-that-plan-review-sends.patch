@@ -1,0 +1,40 @@
+From 41aa4843df3799eeda0f941023c810d4a504f908 Mon Sep 17 00:00:00 2001
+From: Biomni draft <biomni@phylo.local>
+Date: Sun, 4 Oct 2026 12:22:16 +0000
+Subject: [PATCH 06/22] docs: say in the summary table that plan-review sends a
+ packet off the machine
+
+---
+ README.md                       | 2 +-
+ docs/roadmap/02-docs-hygiene.md | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/README.md b/README.md
+index 35c76ff..1ec80cf 100644
+--- a/README.md
++++ b/README.md
+@@ -7,7 +7,7 @@ It has nine skills and one hook set:
+ | Part | What it does | Writes |
+ |---|---|---|
+ | `grill` | Turns a proposed task into a sourced, numbered plan | Nothing |
+-| `plan-review` | Challenges a grill plan with independent Codex engineering and Biomni biomedical reviews before approval | Nothing |
++| `plan-review` | Challenges a grill plan with independent Codex engineering and Biomni biomedical reviews before approval | Nothing; sends a review packet to Codex and to Biomni's cloud, after you agree |
+ | `decision-status` | Settles which past decision binds a task | Appends to `.living/decisions.md`, after you confirm |
+ | `data-contract-check` | Tests a plan's sample-table assumptions | Nothing |
+ | `init` | Turns on the approval gate in a repository | `.mycelium-extra/gate.json`, `.gitignore` |
+diff --git a/docs/roadmap/02-docs-hygiene.md b/docs/roadmap/02-docs-hygiene.md
+index 37a8b88..d6c4002 100644
+--- a/docs/roadmap/02-docs-hygiene.md
++++ b/docs/roadmap/02-docs-hygiene.md
+@@ -54,7 +54,7 @@ Small corrections found while restructuring the README.
+ - **Acceptance:** a reader of the summary table alone knows which skill sends data elsewhere.
+ - **Tests:** none.
+ - **Effort:** S.
+-- **Status:** todo.
++- **Status:** done. plan-review's Writes cell in the README summary table now reads "Nothing; sends a review packet to Codex and to Biomni's cloud, after you agree".
+ 
+ ### B5: Decide whether HANDOFF.md stays committed
+ 
+-- 
+2.43.0
+
