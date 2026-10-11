@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra Idea Triage"
+  short_description: "Rank parked ideas by impact and risk; you pick the next one"
+  default_prompt: "Use $mycelium-extra:idea-triage to rank the open ideas in todo/ and help me choose what to work on next."

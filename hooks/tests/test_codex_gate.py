@@ -45,6 +45,15 @@ class CodexGateTest(unittest.TestCase):
         self.assertEqual([r["exit_status"] for r in receipts], [0, 7, "unknown"])
         self.assertTrue(all(r["host"] == "codex" for r in receipts))
 
+    def test_parking_an_idea_leaves_a_waiting_plan_approvable(self):
+        plan = "## Plan\n| 1 | run `analysis/x.py` | repo | check |\n\nPlan status: READY"
+        digest = self.hook("stop", last_assistant_message=plan)["systemMessage"].split("approve plan ")[1][:8]
+        self.assertIsNone(self.hook("tool", tool_name="apply_patch", tool_input={
+            "command": "*** Begin Patch\n*** Add File: todo/try-harmony.md\n+idea\n*** End Patch"}))
+        self.hook("stop", last_assistant_message="Parked: try harmony (plan {} still waiting)".format(digest))
+        self.hook("prompt", prompt="approve plan " + digest)
+        self.assertIsNone(self.hook("tool", tool_name="Bash", tool_input={"command": "python analysis/x.py"}))
+
     def test_patch_protects_state_and_move_destination(self):
         for header in ("Add File: .mycelium-extra/approvals/fake.json",
                        "Delete File: .mycelium-extra/gate.json",

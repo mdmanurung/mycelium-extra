@@ -9,7 +9,7 @@ or pricing levels. Install the [plugin for your host](installation.md) first.
 | 1. Plan | You want to clarify a question before writing or running code | `grill` |
 | 2. Run with approval | You want execution checked against your plan | `init` once, then approval |
 | 3. Verify reportable work | You will use the outputs in a finding or report | `verify`, a pinned run plan |
-| 4. Full project workflow | You need structure, independent review, and continuity | `new-analysis`, `plan-review`, `handoff`, `harden`; Mycelium integration |
+| 4. Full project workflow | You need structure, independent review, and continuity | `new-analysis`, `plan-review`, `handoff`, `idea`, `idea-triage`, `harden`; Mycelium integration |
 
 Examples use Claude Code's `/mycelium-extra:` prefix. In Codex, use
 `$mycelium-extra:` instead. `approve plan <hash>` is the same in both hosts.
@@ -79,13 +79,15 @@ See [Verification reference](verification.md) for report details and
 ## Tier 4: Full project workflow
 
 Add tools **when the project needs them**; there is no requirement to invoke
-all nine skills for every analysis.
+all eleven skills for every analysis.
 
 | Need | Tool | When to use it |
 |---|---|---|
 | Predictable analysis structure | `new-analysis` | Before implementing a new analysis; creates stubs, workflow, plan, and tracker |
 | Independent challenge | `plan-review` | After `grill`, before approval; revised plans return to `grill` |
 | Continuity between sessions | `handoff` | Before starting a fresh session |
+| Keep flow when an idea strikes | `idea` | Any time; one line, no questions |
+| Choose what to work on next | `idea-triage` | Between analyses, when several ideas are waiting |
 | Prevent a recurring mistake | `harden` | When a Mycelium learning names a concrete test candidate |
 | Project memory, execution, code review, reports | Mycelium | Use its normal lifecycle around Extra's planning and verification |
 

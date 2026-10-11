@@ -15,6 +15,8 @@ with `$mycelium-extra:`. See [Host compatibility](installation.md#host-compatibi
 | Check a completed run | `/mycelium-extra:verify <hash>` |
 | Create an analysis folder | `/mycelium-extra:new-analysis analysis/<name>: <question>` |
 | Resume in a fresh session | `/mycelium-extra:handoff` |
+| Park a passing idea | `/mycelium-extra:idea <idea>` |
+| Choose the next idea | `/mycelium-extra:idea-triage` |
 
 ## grill
 
@@ -113,6 +115,25 @@ handoff and ends with a resume prompt. A grill plan still waiting for approval i
 carried word for word: `HANDOFF.md` points to the gate's stored copy (or holds the
 whole brief when there is none), and the new session prints it unchanged for a
 fresh approval card. Does not commit or change `.living/`.
+
+## idea
+
+Parks a passing idea without a question, so the main work keeps its flow. Writes
+`todo/<slug>.md` and one `todo/TODO_REGISTRY.md` row (priority `idea`, status
+`open`) in Mycelium's todo format, then replies with one line. Uses your words as
+written. Writes only under `todo/`: no code runs, and a plan waiting for approval
+stays approvable. Mycelium's own `todo-idea` mode asks up to six questions first;
+`idea` is the no-question path into the same registry.
+
+## idea-triage
+
+Ranks the open ideas in `todo/` so you can choose the next one. Each idea gets a
+pitch, two impact ratings, the number of things that must go right, its riskiest
+assumption (1 to 5) with months to test, a search of existing findings, and red
+flags; the top idea gets a cheapest go/no-go test. It shows a ranked table with a
+`park all` option and waits. After you pick, it records the triage in the item file
+and marks the pick `in-progress`; it offers `grill` but does not start it. Based on
+Fischbach and Walsh (2024), *Cell*.
 
 ## harden
 

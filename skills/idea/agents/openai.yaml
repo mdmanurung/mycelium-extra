@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra Idea"
+  short_description: "Park a passing idea in one line, without breaking flow"
+  default_prompt: "Use $mycelium-extra:idea to park this idea in todo/ with no questions, then continue the current task."

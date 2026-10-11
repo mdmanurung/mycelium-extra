@@ -468,6 +468,16 @@ class GateTest(unittest.TestCase):
         self.assertIn(digest, result["hookSpecificOutput"]["additionalContext"])
         self.assertTrue(self.denied(self.bash("python analysis/x.py")))
 
+    def test_parking_an_idea_leaves_a_waiting_plan_approvable(self):
+        # the idea skill writes under todo/ and replies in one line while a card waits
+        digest = self.hook("stop", {"last_assistant_message": PLAN})["systemMessage"].split("approve plan ")[1][:8]
+        write = {"tool_name": "Write", "tool_input": {"file_path": os.path.join(self.root, "todo", "try-harmony.md")}}
+        self.assertFalse(self.denied(self.hook("tool", write)))
+        reply = "Parked: try harmony \u2192 todo/try-harmony.md (plan {} still waiting)".format(digest)
+        self.hook("stop", {"last_assistant_message": reply})
+        self.assertIn("approved", self.hook("prompt", {"prompt": "approve plan " + digest})["systemMessage"])
+        self.assertIsNone(self.bash("python analysis/x.py"))
+
     def test_handed_off_plan_is_approved_where_it_is_shown_again(self):
         # the handoff skill's own commands find the stored plan and print it unchanged
         skill = open(os.path.join(os.path.dirname(GATE), "..", "skills", "handoff", "SKILL.md")).read()
