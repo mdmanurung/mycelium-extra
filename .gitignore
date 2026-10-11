@@ -2,3 +2,6 @@
 .mycelium-extra/
 __pycache__/
 docs/_build/
+
+# local session handoff (written by the handoff skill)
+HANDOFF.md
