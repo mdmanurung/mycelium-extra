@@ -33,9 +33,13 @@ python3 - [--paths 'scripts/**' 'workflow/**'] [--commands sbatch snakemake] [--
 
 Pass only the options that differ from the defaults; with none, `gate.json` is `{}`. The script never overwrites an existing `gate.json` and never commits.
 
+## 3b. Find the linters (optional)
+
+`verify` and the approval card run scilintr, and on a cluster neither `scilintr` nor an `Rscript` whose R has the `scilintr` package is usually on `PATH`. Run, from stdin as above, `python3 - --tools < <skill-dir>/scripts/gate_init.py` (it works on a gate that is already on and leaves `gate.json` alone). It looks at `$MX_SCILINTR`, `$MX_RSCRIPT`, then `PATH`, checks that each tool works, and writes `.mycelium-extra/tools.json`. For one it cannot find, ask the user for its path (a venv's `bin/scilintr`; after `module load R`, `which Rscript`) and rerun with `--scilintr PATH` or `--rscript PATH`. Never install packages without asking.
+
 ## 4. Report
 
-- The files it created or changed (`.mycelium-extra/gate.json`, `.gitignore`) and the effective config.
+- The files it created or changed (`.mycelium-extra/gate.json`, `.gitignore`, and `tools.json` when `--tools` ran) and the effective config, and which linters were found.
 - The gate is live on the next tool call in any Claude Code or Codex session that loaded and enabled this plugin's hooks at start; a session started before the plugin was installed needs a restart.
 - How to use it: a grill plan that ends with `Plan status: READY` shows `approve plan <hash>`; typing that line allows the runs it names for `approval_hours`. `allow explore` lets `MYCELIUM_EXTRA_EXPLORE=1` runs through for the session.
 - Offer to commit `.gitignore`; `.mycelium-extra/` itself stays untracked.

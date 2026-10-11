@@ -754,6 +754,7 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("Verify status: DOES_NOT_CONFORM", out)
         missing = self.verify("report", digest, scilintr=os.path.join(self.root, "no-scilintr"))
         self.assertIn("scilintr (Python) not checked", missing)
+        self.assertIn("gate_init.py --tools --scilintr PATH", missing)
         self.assertIn("Verify status: CONFORMS_WITH_GAPS", missing)
         broken = self.fake_tool("bin/Rscript-broken", "there is no package called scilintr", 1)
         self.assertIn("scilintr (R) not checked: exit 1", self.verify("report", digest, rscript=broken))
@@ -848,6 +849,78 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("scilintr not checked: `analysis/a/12_parent.Rmd:{}` pulls in `missing.R`, which was not "
                       "found next to the document.".format(parent.index("knitr::read_chunk(\"missing.R\")") + 1), out)
         self.assertIn("1 notebook(s) not linted: analysis/a/14_prose.Rmd.", out)  # a child-only document is linted
+
+    LINTER = """#!PYTHON
+import sys
+args = sys.argv[1:]
+off = '--no-waivers' in args or any('assignInNamespace' in a for a in args)
+hits = 0
+for path in args:
+    if path.endswith(('.py', '.R')):
+        lines = open(path).read().splitlines()
+        for n, line in enumerate(lines, 1):
+            if 'FLAG' not in line:
+                continue
+            if not off and any('ANALYSIS_OK[' in l and (REACH) for w, l in enumerate(lines, 1)):
+                continue
+            hits += 1
+            print('{}:{}:{}: [{}] flagged'.format(path, n, 1 if path.endswith('.R') else 0,
+                                                 'R002' if path.endswith('.R') else 'magic-threshold'))
+sys.exit(1 if hits else 0)
+"""
+
+    def waiver_aware_linter(self, name, language):
+        """A linter that flags each FLAG line unless a waiver is near it and waivers are on (`--no-waivers` for
+        Python, scilintr's waiver functions replaced in the R expression), with scilintr's reach for each."""
+        reach = "-8 <= n - w <= 8" if language == "R" else "0 <= n - w <= 4"
+        path = self.write("bin/" + name, self.LINTER.replace("PYTHON", sys.executable).replace("REACH", reach))
+        os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC)
+        return path
+
+    def test_waived_findings_are_listed_with_their_reason(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        self.write("analysis/a/scripts/02_plot.py", "# ANALYSIS_OK[threshold]: alpha is fixed by the protocol\n"
+                   "FLAG = 1\nx = 1\nx = 2\nx = 3\nx = 4\nFLAG = 2\n", mtime=time.time() - 3600)
+        linter = self.waiver_aware_linter("py-waivers", "Python")
+        out = self.verify("report", digest, scilintr=linter)
+        self.assertIn("1 scilintr finding(s) remain in Python code", out)  # line 7 is past the waiver's reach
+        self.assertIn("1 finding(s) waived", out)
+        self.assertIn("`analysis/a/scripts/02_plot.py:2` [magic-threshold] by `analysis/a/scripts/02_plot.py:1`: "
+                      "alpha is fixed by the protocol", out)
+        self.verify("write", digest, "--analysis-dir", "analysis/a", scilintr=linter)
+        with open(os.path.join(self.root, "analysis/a/provenance/lint-{}.txt".format(digest))) as handle:
+            text = handle.read()
+        self.assertIn("# Waived findings (", text)
+        self.assertIn("analysis/a/scripts/02_plot.py:2 [magic-threshold] <- analysis/a/scripts/02_plot.py:1: "
+                      "alpha is fixed by the protocol", text)
+
+    def test_an_r_waiver_with_no_reason_blocks(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        rscript = self.waiver_aware_linter("Rscript-waivers", "R")
+        self.write("analysis/a/scripts/02_plot.R", "# ANALYSIS_OK[threshold]:\ny <- FLAG\n", mtime=time.time() - 3600)
+        out = self.verify("report", digest, rscript=rscript)
+        self.assertIn("`analysis/a/scripts/02_plot.R:1` waives R002 with no reason", out)
+        self.assertIn("Verify status: DOES_NOT_CONFORM", out)
+        self.write("analysis/a/scripts/02_plot.R", "# ANALYSIS_OK[threshold]:\n# alpha is fixed by the protocol\n"
+                   "y <- FLAG\n", mtime=time.time() - 3600)  # the reason may continue on the next comment line
+        out = self.verify("report", digest, rscript=rscript)
+        self.assertNotIn("with no reason", out)
+        self.assertIn("`analysis/a/scripts/02_plot.R:3` [R002] by `analysis/a/scripts/02_plot.R:1`: alpha is fixed by the protocol", out)
+
+    def test_a_failed_unwaived_run_is_only_an_info_line(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        self.write("analysis/a/scripts/02_plot.py", "# ANALYSIS_OK[x]: y\nFLAG = 1\n", mtime=time.time() - 3600)
+        picky = self.write("bin/picky", "#!/bin/sh\ncase \"$*\" in *--no-waivers*) echo boom; exit 2;; esac\nexit 0\n")
+        os.chmod(picky, os.stat(picky).st_mode | stat.S_IEXEC)
+        out = self.verify("report", digest, scilintr=picky)
+        self.assertIn("Waived Python findings were not listed", out)
+        self.assertIn("scilintr: 2 Python file(s) clean", out)
 
     def test_r_code_is_linted_as_one_folder(self):
         """E6: R code goes to `lint_project()` as one copied folder (scilintr 0.1.1's `main()` lints only

@@ -41,7 +41,7 @@
           {
             "type": "command",
             "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then python3 \"${PLUGIN_ROOT}/hooks/gate_run.py\" --host codex stop; fi",
-            "timeout": 10
+            "timeout": 30
           }
         ]
       }

@@ -18,6 +18,7 @@ import ast
 import collections
 import fnmatch
 import functools
+import importlib.util
 import json
 import os
 import re
@@ -136,6 +137,14 @@ def read_json(path, default):
             return json.load(handle)
     except (OSError, ValueError):
         return default
+
+
+def lint_tools(root):
+    """(scilintr, rscript): the paths `gate_init.py --tools` recorded in .mycelium-extra/tools.json,
+    else the bare names, looked up on PATH."""
+    tools = read_json(state_path(root, "tools.json"), {})
+    tools = tools if isinstance(tools, dict) else {}
+    return tools.get("scilintr") or "scilintr", tools.get("rscript") or "Rscript"
 
 
 def write_json(path, data):
@@ -975,6 +984,8 @@ def approval_card(root, text, config, digest, pins, outside, previous, scripts=N
 CARD_STEPS = 15    # steps shown at all; the plan above lists the rest
 CARD_CELL = 200   # a choice or a check is quoted up to this many characters
 CARD_PREFIX = 12   # a shared path prefix is stripped when it is at least this long
+LINT_EXT = (".py", ".R", ".r", ".ipynb", ".qmd", ".Rmd", ".rmd")  # what verify's lint reads
+LINT_SECONDS = 8   # each language's linter gets this long on the card; verify's own check gets longer
 CARD_WIDTH = 250   # no line of the card, except a grant or a diff line, is longer
 CARD_LINES = 35    # a longer card is shown as a digest; `card <hash> checks|diff|full` shows the rest
 CARD_ASK = re.compile(r"^\s*card ([0-9a-f]{8})(?:\s+(checks|diff|full))?\s*[.!]?\s*$", re.IGNORECASE)
@@ -1235,6 +1246,52 @@ def fit(line):
     return line if len(line) <= CARD_WIDTH else line[:CARD_WIDTH - 1].rstrip() + "\u2026"
 
 
+def load_verify():
+    """skills/verify/scripts/verify.py as a module, wired to this gate (it is otherwise run from stdin)."""
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "skills", "verify", "scripts",
+                        "verify.py")
+    spec = importlib.util.spec_from_file_location("mycelium_extra_verify", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.gate = sys.modules[__name__]
+    return module
+
+
+def lint_bullets(root, rows, config):
+    """{step number: one-line scilintr verdict} for the planned code each step names, by running verify's
+    lint once on all of it: `clean`, `2 open (R002 2)`, or `not checked (...)`. Show only, never blocks;
+    {} when the plan names no code, `card_lint` is false in gate.json, or the linter cannot be run."""
+    if config.get("card_lint", True) is False:
+        return {}
+    files = {row["num"]: sorted(p for p in plan_paths_in(root, DONE_MARK.sub("", row["step"]))
+                                if p.endswith(LINT_EXT) and os.path.isfile(os.path.join(root, p))) for row in rows}
+    every = sorted(set(p for names in files.values() for p in names))
+    if not every:
+        return {}
+    try:
+        verify = load_verify()
+        report = verify.Report()
+        found = verify.lint(root, every, report, *lint_tools(root), seconds=LINT_SECONDS)["findings"]
+    except Exception:  # ANALYSIS_OK[card-best-effort]: the card still shows the plan; verify lints in full later
+        return {}
+    gaps = [text for level, text in report.findings if level == "gap"]
+    out = {}
+    for num, names in files.items():
+        if not names:
+            continue
+        mine = collections.Counter(f[3] for f in found if re.sub(r"\[code cell \d+\]$", "", f[0]) in names)
+        unchecked = [g for g in gaps if any("`{}`".format(n) in g or "`{}:".format(n) in g for n in names)
+                     or not re.search(r"`[^`]*\.\w+[:`]", g)]  # a gap that names no file is the whole language's
+        if mine:
+            out[num] = "{} open ({})".format(sum(mine.values()), ", ".join(
+                "{} {}".format(r, n) if n > 1 else r for r, n in mine.most_common(3)))
+        elif unchecked:
+            out[num] = "not checked ({})".format(re.sub(r"^scilintr(?: \(\w+\))? (?:not checked:? ?)?", "", unchecked[0])[:90])
+        else:
+            out[num] = "clean"
+    return out
+
+
 def procedure_card(root, text, config, digest, pins, outside, previous, scripts):
     """The card for a plan whose table has Step and Choice or Validation columns, else None."""
     rows = plan_rows(text)
@@ -1267,6 +1324,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
     if facts:
         lines.append(clean(facts.group(0), 160))
     procedure_at = len(lines)
+    lint = lint_bullets(root, rows[:CARD_STEPS], config)
     legend = "   (* = a default decided; confirm it)" if defaults else ""
     lines += ["", "Sequence" + legend]
     brief = list(lines[-2:])
@@ -1293,6 +1351,10 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
             lines.append("        - check: " + check)
             if is_default:
                 brief.append("        - check: " + quote(DONE_MARK.sub("", row["check"]), 120))
+        if row["num"] in lint:
+            lines.append("        - lint: " + lint[row["num"]])
+            if lint[row["num"]] != "clean":
+                brief.append(lines[-1])
     if len(rows) > CARD_STEPS:
         lines.append("\u2026 and {} more steps in the plan above".format(len(rows) - CARD_STEPS))
         brief.append(lines[-1])

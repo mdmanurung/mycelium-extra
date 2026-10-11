@@ -90,6 +90,45 @@ class GateInitTest(unittest.TestCase):
                              stdout=subprocess.PIPE, universal_newlines=True).stdout
         self.assertEqual(json.loads(out)["hookSpecificOutput"]["permissionDecision"], "deny")
 
+    def fake(self, name, output, code=0):
+        path = os.path.join(self.root, name)
+        with open(path, "w") as handle:
+            handle.write("#!/bin/sh\nprintf '%s' '{}'\nexit {}\n".format(output, code))
+        os.chmod(path, 0o755)
+        return path
+
+    def test_tools_are_recorded_beside_an_existing_gate(self):
+        run(self.root)
+        gate_before = read(self.gate_json)
+        python, rscript = self.fake("lint", ""), self.fake("rs", "0.1.1")
+        out = run(self.root, "--tools", "--scilintr", python, "--rscript", rscript)
+        self.assertIn("already gated", out)
+        self.assertEqual(json.loads(read(os.path.join(self.root, ".mycelium-extra", "tools.json"))),
+                         {"scilintr": python, "rscript": rscript, "scilintr_r": "0.1.1"})
+        self.assertEqual(read(self.gate_json), gate_before)
+
+    def test_a_tool_that_does_not_work_is_reported_and_not_recorded(self):
+        run(self.root)
+        broken, no_package = self.fake("lint", "boom", 1), self.fake("rs", "there is no package", 1)
+        out = run(self.root, "--tools", "--scilintr", broken, "--rscript", no_package)
+        self.assertIn("scilintr (Python) not found or not working", out)
+        self.assertIn("scilintr (R) not found or not working", out)
+        self.assertFalse(os.path.exists(os.path.join(self.root, ".mycelium-extra", "tools.json")))
+
+    def test_working_tool_keeps_the_other_recorded_path(self):
+        run(self.root)
+        python, rscript = self.fake("lint", ""), self.fake("rs", "0.1.1")
+        run(self.root, "--tools", "--scilintr", python, "--rscript", rscript)
+        run(self.root, "--tools", "--scilintr", python, "--rscript", self.fake("bad", "", 1))
+        tools = json.loads(read(os.path.join(self.root, ".mycelium-extra", "tools.json")))
+        self.assertEqual(tools["rscript"], rscript)
+
+    def test_fresh_init_with_tools_and_dry_run(self):
+        python = self.fake("lint", "")
+        out = run(self.root, "--tools", "--scilintr", python, "--rscript", self.fake("bad", "", 1), "--dry-run")
+        self.assertIn("would write", out)
+        self.assertFalse(os.path.exists(os.path.join(self.root, ".mycelium-extra")))
+
 
 if __name__ == "__main__":
     unittest.main()

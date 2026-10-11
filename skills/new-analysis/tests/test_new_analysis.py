@@ -155,6 +155,13 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertIn('INPUT = Path("outputs/02_train_model.parquet")', setup)
         self.assertNotIn("assert ", setup)  # scilintr's runtime-assert would fail verify's lint
 
+    def test_r_stub_points_at_scilintr_stage_without_setting_one(self):
+        self.scaffold()
+        head = read(os.path.join(self.dest, "01_prepare_data.R")).splitlines()[:10]
+        self.assertTrue(any("scilintr stage" in line for line in head))
+        # scilintr reads a stage from `# STAGE: <name>` in the first 10 lines; the guidance must not set one
+        self.assertFalse(any(re.match(r"^\s*#\s*STAGE:\s*\S+", line) for line in head))
+
     def test_snakefile_chains_every_step_in_order(self):
         self.scaffold("--steps=01_load.py,04_fit.R,07_look.ipynb", "--data=data/anndatas/cells.h5ad")
         snakefile = read(os.path.join(self.dest, "Snakefile"))

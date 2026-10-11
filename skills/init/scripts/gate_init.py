@@ -1,18 +1,23 @@
 """Turn on the mycelium-extra approval gate in a repository.
 
 Run from stdin so Mycelium's hooks stay closed:
-    python3 - [--root DIR] [--paths GLOB ...] [--commands CMD ...] [--hours N] [--dry-run] < gate_init.py
+    python3 - [--root DIR] [--paths GLOB ...] [--commands CMD ...] [--hours N] [--dry-run]
+        [--tools [--scilintr PATH] [--rscript PATH]] < gate_init.py
 
 Creates .mycelium-extra/gate.json and ignores .mycelium-extra/ in .gitignore.
 Never changes an existing gate.json: after init, the gate's settings are the
-user's to edit by hand. Stdlib-only; runs on Python 3.6+.
+user's to edit by hand. `--tools` also records where the scilintr linters are in
+.mycelium-extra/tools.json (separate from gate.json, so it works on a gate that is
+already on). Stdlib-only; runs on Python 3.6+.
 """
 
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 
 STATE_DIR = ".mycelium-extra"
 IGNORE_LINE = STATE_DIR + "/"
@@ -88,12 +93,80 @@ def missing_paths(root, patterns):
     return [p for p in patterns if not os.path.isdir(os.path.join(root, glob_base(p) or "."))]
 
 
+def find_tool(flag, env, name):
+    """A tool's path: the flag, else the environment variable, else PATH; None when none is set."""
+    value = flag or os.environ.get(env) or shutil.which(name)
+    return os.path.abspath(os.path.expanduser(value)) if value and os.sep in value else value
+
+
+def run_tool(command):
+    try:
+        return subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8",
+                              errors="replace", timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def check_scilintr(path):
+    """The Python linter exits 0 on an empty file."""
+    with tempfile.TemporaryDirectory() as folder:
+        empty = os.path.join(folder, "empty.py")
+        open(empty, "w").close()
+        done = run_tool([path, empty])
+    return done is not None and done.returncode == 0
+
+
+def r_scilintr_version(path):
+    """The installed R package's version through this Rscript, else None."""
+    done = run_tool([path, "-e", 'cat(format(packageVersion("scilintr")))'])
+    return done.stdout.strip() if done is not None and done.returncode == 0 and \
+        done.stdout.strip()[:1].isdigit() else None
+
+
+def record_tools(root, flags, dry_run):
+    """Write the linters that work to .mycelium-extra/tools.json, keeping a path already recorded for
+    one that does not; say what is missing and how to give its path."""
+    path = os.path.join(root, STATE_DIR, "tools.json")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            tools = json.load(handle)
+    except (OSError, ValueError):
+        tools = {}
+    python = find_tool(flags[0], "MX_SCILINTR", "scilintr")
+    rscript = find_tool(flags[1], "MX_RSCRIPT", "Rscript")
+    version = r_scilintr_version(rscript) if rscript else None
+    if python and check_scilintr(python):
+        tools["scilintr"] = python
+    else:
+        print("scilintr (Python) not found or not working: {}. Pass --scilintr PATH (such as a venv's "
+              "bin/scilintr) or set MX_SCILINTR.".format(python or "no `scilintr` on PATH"))
+    if version:
+        tools["rscript"], tools["scilintr_r"] = rscript, version
+    else:
+        print("scilintr (R) not found or not working: {}. Pass --rscript PATH of an Rscript whose R has "
+              "scilintr installed (after `module load`, `which Rscript`) or set MX_RSCRIPT.".format(
+                  rscript or "no `Rscript` on PATH"))
+    if dry_run:
+        print("would write {}: {}".format(path, json.dumps(tools)))
+        return
+    if tools:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(tools, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        print("wrote {}: {}".format(path, json.dumps(tools, sort_keys=True)))
+
+
 def main(argv):
     parser = argparse.ArgumentParser(prog="gate_init")
     parser.add_argument("--root", default=None, help="repository to gate (default: git toplevel of cwd)")
     parser.add_argument("--paths", nargs="+", help="gated_paths globs (default: analysis/** nbs/**)")
     parser.add_argument("--commands", nargs="+", help="gated_commands (default: sbatch snakemake nextflow)")
     parser.add_argument("--hours", type=float, help="approval_hours (default: 24)")
+    parser.add_argument("--tools", action="store_true",
+                        help="also record where scilintr (Python) and Rscript with scilintr are, in tools.json")
+    parser.add_argument("--scilintr", help="--tools: path of the Python scilintr (default: $MX_SCILINTR, else PATH)")
+    parser.add_argument("--rscript", help="--tools: path of an Rscript whose R has scilintr (default: $MX_RSCRIPT, else PATH)")
     parser.add_argument("--dry-run", action="store_true", help="report what would change, write nothing")
     args = parser.parse_args(argv)
 
@@ -109,8 +182,10 @@ def main(argv):
             return 0
         print("already gated: {}".format(existing))
         print("effective config: " + json.dumps(config, sort_keys=True))
-        print("no changes made; edit {}/gate.json by hand to change it.".format(
+        print("no changes made to gate.json; edit {}/gate.json by hand to change it.".format(
             os.path.join(existing, STATE_DIR)))
+        if args.tools:
+            record_tools(existing, (args.scilintr, args.rscript), args.dry_run)
         return 0
 
     config = {}
@@ -146,6 +221,8 @@ def main(argv):
               "blocked until they do.".format(", ".join(missing)))
     elif missing:
         print("note: not present yet: " + ", ".join(missing))
+    if args.tools:
+        record_tools(root, (args.scilintr, args.rscript), args.dry_run)
     return 0
 
 

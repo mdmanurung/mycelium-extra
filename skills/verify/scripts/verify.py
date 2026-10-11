@@ -280,6 +280,13 @@ R_LINT = ('a <- commandArgs(TRUE); for (p in a[-1]) tryCatch(parse(p), error = f
           'quit(status = if (length(f)) 1 else 0)')
 
 
+# The same run with waivers off: a finding a waiver suppresses is then reported, so verify can name it.
+R_NO_WAIVERS = ('for (n in c("apply_waivers", "filter_waivers_cross_file")) '
+                'assignInNamespace(n, function(f, ...) f, "scilintr"); ')
+WAIVER = re.compile(r"ANALYSIS_OK\[([\w-]+)\]:\s*(.*?)\s*$")
+R_WAIVER_LINES, PY_WAIVER_LINES = 8, 4  # how far from its line scilintr lets a waiver reach, each way / downward
+
+
 def code_files(root, analysis_dir, planned):
     """The analysis folder's code (skipping outputs, provenance, logs), else the planned scripts."""
     if not analysis_dir or analysis_dir == ".":
@@ -425,21 +432,60 @@ def lint(root, files, report, scilintr, rscript, seconds):
                     extract(rel, language, code)
             elif rel.endswith(NOTEBOOK_EXT) and not refs:
                 result["notebooks"].append(rel)
+        result["reasons"] = scan_waivers(root, files, result)
         lint_languages(root, by_language, cells, report, result, scilintr, [rscript, "-e", R_LINT, scratch], seconds)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
-    for rel in files:
-        if os.path.splitext(rel)[1] in LINT_LANGUAGES or rel.endswith(NOTEBOOK_EXT):
-            try:
-                with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as handle:
-                    result["waivers"] += [(rel, n, line.strip()) for n, line in enumerate(handle, 1)
-                                          if "ANALYSIS_OK[" in line]
-            except OSError:
-                continue
+    pair_waivers(result, report)
     if result["notebooks"]:
         report.add("info", "{} notebook(s) not linted: {}.".format(
             len(result["notebooks"]), gate.listing(result["notebooks"], 5)))
     return result
+
+
+def scan_waivers(root, files, result):
+    """Fill result["waivers"] with every `ANALYSIS_OK[` line of the code; return {(file, line): reason}. A reason
+    may continue on the next comment line, as scilintr's R waiver (which needs none) is often written."""
+    reasons = {}
+    for rel in files:
+        if os.path.splitext(rel)[1] in LINT_LANGUAGES or rel.endswith(NOTEBOOK_EXT):
+            try:
+                with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as handle:
+                    lines = handle.read().splitlines()
+            except OSError:
+                continue
+            for n, line in enumerate(lines, 1):
+                if "ANALYSIS_OK[" not in line:
+                    continue
+                result["waivers"].append((rel, n, line.strip()))
+                match = WAIVER.search(line)
+                reason = match.group(2).rstrip('",') if match else ""
+                follow = lines[n] if n < len(lines) else ""
+                if match and not reason and re.match(r"^\s*#\s*\S", follow):
+                    reason = follow.strip().lstrip("# ")
+                reasons[(rel, n)] = reason
+    return reasons
+
+
+def pair_waivers(result, report):
+    """result["waived"]: each finding scilintr suppressed (found only with waivers off) with the waiver that
+    covers it and that waiver's reason. R accepts a waiver with no reason, which Python does not: block it."""
+    result["waived"] = []
+    blocked = set()
+    for path, line, rule, message, language in result.get("unwaived", []):
+        file_ = re.sub(r"\[code cell \d+\]$", "", path)
+        reach = R_WAIVER_LINES if language == "R" else PY_WAIVER_LINES
+        near = [w for w in result["waivers"] if w[0] == file_ and (
+            file_.endswith(NOTEBOOK_EXT) or (language == "R" and abs(w[1] - line) <= reach)
+            or (language != "R" and 0 <= line - w[1] <= reach))]
+        waiver = min(near, key=lambda w: abs(w[1] - line), default=None)
+        reason = result["reasons"].get((waiver[0], waiver[1]), "") if waiver else ""
+        result["waived"].append((path, line, rule, message, waiver and waiver[0], waiver and waiver[1], reason))
+        if waiver and language == "R" and not reason and (waiver[0], waiver[1]) not in blocked:
+            blocked.add((waiver[0], waiver[1]))
+            report.add("block", "`{}:{}` waives {} with no reason after `ANALYSIS_OK[...]:`. Python's scilintr "
+                       "requires one; write what is done, why it is valid, and where it is checked.".format(
+                           waiver[0], waiver[1], rule))
 
 
 def cell_line(line, cells):
@@ -455,6 +501,29 @@ def cell_line(line, cells):
     return "{}[code cell {}]:{}:{}: [{}] {}".format(rel, index, number - starts[index - 1] + 1, *match.groups()[2:])
 
 
+def unwaived_pass(root, language, paths, cells, result, report, command, seconds, normal):
+    """Lint again with waivers off; a finding that only this run reports was waived. Best effort: the first
+    pass decides the status, so a failure here is only an info line."""
+    if language == "Python":
+        command = [command[0], "--no-waivers"]
+    else:
+        command = command[:2] + [R_NO_WAIVERS + command[2]] + command[3:]
+    try:
+        proc = subprocess.run(command + paths, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              encoding="utf-8", errors="replace", timeout=seconds)
+        out = "\n".join(cell_line(line, cells) for line in proc.stdout.splitlines())
+        for path, (rel, _) in cells.items():
+            out = out.replace(path, rel)
+        every = [m.groups() for m in map(LINT_LINE.match, out.splitlines()) if m]
+        if proc.returncode not in (0, 1) or (proc.returncode == 1) != bool(every):
+            raise OSError("exit {}".format(proc.returncode))
+    except (OSError, subprocess.SubprocessError):
+        report.add("info", "Waived {} findings were not listed: the run with waivers off failed.".format(language))
+        return
+    result.setdefault("unwaived", []).extend((f[0], int(f[1]), f[3], f[4], language) for f in every
+                                              if (f[0], f[1], f[2], f[3]) not in normal)
+
+
 def lint_languages(root, by_language, cells, report, result, scilintr, r_lint, seconds):
     for language, paths in sorted(by_language.items()):
         command = [scilintr] if language == "Python" else r_lint
@@ -465,9 +534,11 @@ def lint_languages(root, by_language, cells, report, result, scilintr, r_lint, s
             if isinstance(error, subprocess.TimeoutExpired):
                 report.add("gap", "scilintr ({}) not checked: timed out after {:.0f} s.".format(language, seconds))
             else:
-                report.add("gap", "scilintr ({}) not checked: `{}` not found. Install it (`{}`) and re-verify."
-                           .format(language, command[0], "pip install scilintr" if language == "Python"
-                                   else 'install.packages("scilintr")'))
+                report.add("gap", "scilintr ({}) not checked: `{}` not found. Install it (`{}`) and re-verify, or "
+                           "record its path (`gate_init.py --tools {} PATH`).".format(
+                               language, command[0], "pip install scilintr" if language == "Python"
+                               else 'install.packages("scilintr")',
+                               "--scilintr" if language == "Python" else "--rscript"))
             continue
         proc.stdout = "\n".join(cell_line(line, cells) for line in proc.stdout.splitlines())
         for path, (rel, _) in cells.items():
@@ -493,6 +564,8 @@ def lint_languages(root, by_language, cells, report, result, scilintr, r_lint, s
         else:
             report.add("gap", "scilintr ({}) not checked: exit {} with output it could not read: {}".format(
                 language, proc.returncode, cell((proc.stdout.strip().splitlines() or [""])[-1])[:200]))
+        if result["waivers"] and (proc.returncode, bool(found)) in ((1, True), (0, False)):
+            unwaived_pass(root, language, paths, cells, result, report, command, seconds, {f[:4] for f in found})
 
 
 def guess_analysis_dir(files):
@@ -1393,6 +1466,12 @@ def cell(text):
     return str(text).replace("|", "\\|").replace("\n", " ")
 
 
+def waiver_note(w):
+    """`file:line`: reason, for a waived finding (path, line, rule, message, waiver file, waiver line, reason)."""
+    where = "`{}:{}`".format(cell(w[4]), w[5]) if w[5] else "a waiver in `{}`".format(cell(w[4])) if w[4] else "a waiver"
+    return "{}: {}".format(where, cell(w[6]) if w[6] else "no reason given")
+
+
 def render(result, all_outputs=False):
     git = result["git"]
     head = "HEAD {} ({})".format(git["head"][:12], "uncommitted changes" if git.get("dirty") else "clean") \
@@ -1445,6 +1524,12 @@ def render(result, all_outputs=False):
     waivers = result["lint"]["waivers"]
     lines.append("{} `ANALYSIS_OK` waiver(s){}".format(len(waivers), ":" if waivers else "."))
     lines += ["- `{}:{}` {}".format(cell(w[0]), w[1], cell(w[2])) for w in waivers[:SHOWN_OUTPUTS]]
+    waived = result["lint"].get("waived", [])
+    if waived:
+        lines.append("{} finding(s) waived:".format(len(waived)))
+        lines += ["- `{}:{}` [{}] by {}".format(cell(w[0]), w[1], w[2], waiver_note(w)) for w in waived[:SHOWN_OUTPUTS]]
+        if len(waived) > SHOWN_OUTPUTS:
+            lines.append("- {} more; `write` records them all.".format(len(waived) - SHOWN_OUTPUTS))
     lines += ["", "## Claims", ""]
     for doc in result.get("claims", []):
         counts = doc["counts"]
@@ -1520,6 +1605,9 @@ def write(root, result):
         handle.write("\n\n".join(lint["output"]) or "scilintr did not run.")
         handle.write("\n\n# ANALYSIS_OK waivers ({})\n".format(len(lint["waivers"])))
         handle.writelines("{}:{}: {}\n".format(*w) for w in lint["waivers"])
+        handle.write("\n# Waived findings ({})\n".format(len(lint.get("waived", []))))
+        handle.writelines("{}:{} [{}] <- {}\n".format(w[0], w[1], w[2], waiver_note(w).replace("`", ""))
+                          for w in lint.get("waived", []))
     with open(os.path.join(folder, paths["report"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
         handle.write("Written {} by mycelium-extra verify.\n\n".format(stamp))
         handle.write(render(result, all_outputs=True))
@@ -2030,8 +2118,8 @@ def main(argv):
     parser.add_argument("--plugin-root", required=True)
     parser.add_argument("--repo", default=".")
     parser.add_argument("--sacct", default="sacct")
-    parser.add_argument("--scilintr", default="scilintr")
-    parser.add_argument("--rscript", default="Rscript")
+    parser.add_argument("--scilintr", help="default: the path in tools.json, else `scilintr` on PATH")
+    parser.add_argument("--rscript", help="default: the path in tools.json, else `Rscript` on PATH")
     parser.add_argument("--hash-mb", type=float, default=2000)
     parser.add_argument("--seconds", type=float, default=120)
     parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore", "multiplicity"])
@@ -2081,8 +2169,9 @@ def main(argv):
         return 0
     if args.action == "write" and not args.analysis_dir:
         sys.exit("verify: `write` needs --analysis-dir, confirmed by the user.")
-    result = check(root, args.hash, args.analysis_dir, args.sacct, args.hash_mb, args.seconds, args.scilintr,
-                   args.rscript, args.claims)
+    recorded = gate.lint_tools(root)
+    result = check(root, args.hash, args.analysis_dir, args.sacct, args.hash_mb, args.seconds,
+                   args.scilintr or recorded[0], args.rscript or recorded[1], args.claims)
     if args.action == "write":
         written = write(root, result)
         for path in written:

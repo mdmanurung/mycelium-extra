@@ -6,6 +6,8 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Added
 
+- scilintr integration, in four parts. (1) `gate_init.py --tools` finds the Python `scilintr` and an `Rscript` whose R has the package (`--scilintr`, `--rscript`, `$MX_SCILINTR`, `$MX_RSCRIPT`, then `PATH`), checks that each works, and records them in `.mycelium-extra/tools.json`; `verify` and the card read it, so a cluster where neither is on `PATH` no longer gets a lint gap on every plan. (2) The approval card adds a `- lint:` bullet under each step that names existing code (`clean`, `2 open (R002, R011)`, `not checked (...)`), from the same run `verify` does; show only, never blocking, off with `"card_lint": false`. The Stop hook timeout is 30 s. (3) `verify` runs scilintr a second time with waivers off and lists each suppressed finding with its waiver and reason in the report and `lint-<hash>.txt`; an R waiver with no reason (R's scilintr accepts one, Python's does not) that suppresses a finding blocks. (4) The R scaffold stub opens with a `scilintr stage` line telling the user how to set `# STAGE:`; it sets none.
+
 - The approval card's step list is now a top-down `Sequence`: each step (`↓ 2 fit.R*`, `*` = a default decided) with bullets for its choice and who decided it, what a default assumed, and its check. It replaces the old `Procedure` list. No card line is longer than 250 characters, except a `CAN RUN` grant and a script-diff line, which are never cut.
 
 ## [0.9.61] - 2026-10-08

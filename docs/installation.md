@@ -82,7 +82,8 @@ Only planning? Start with [Tier 1](usage.md#tier-1-plan); no `init` needed.
 - The approval gate and helper scripts use Python 3.6 or later.
 - Scientific checks need the tools for the files you use: R and R scilintr,
   Python scilintr, or h5py for H5AD inspection. A missing tool is reported as
-  a gap rather than a successful check.
+  a gap rather than a successful check. Neither is usually on `PATH` on a cluster; record where they are
+  with `gate_init.py --tools` (see [Verification](verification.md)).
 - Independent plan review needs a Codex CLI and a connected Biomni MCP in the
   Claude Code session. Missing reviewers are reported unavailable. Review
   packets leave the machine only after the user agrees.

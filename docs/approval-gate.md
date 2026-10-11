@@ -22,6 +22,7 @@ When a reply ends with `Plan status: READY` or `READY_WITH_ASSUMPTIONS`, the Sto
 - what is new since the newest earlier approval that covers or writes the same paths, of any age: scripts as `SAME`, `CHANGED` or `NEW` by fingerprint (from the plan's pins, else the receipts of its runs; `NEW` means that plan recorded nothing for the script), inputs the same way, and whether the objective and each step row are unchanged; with no such plan the card says "no baseline" and why, never an empty "nothing changed";
 - the question (verbatim, or "none in the plan"), the goal from the plan's Objective, the `default:` steps to confirm, and the Facts count line;
 - a top-down `Sequence`: each step as `↓ 2 fit.R*` (the program and file name, no directories; `*` where a default decided; "agent says: done" for a step the agent marks `(done)`, since the hook does not verify it), with bullets under it: `choice` and who decided it (`[you]`, `[repo: ...]`), `assumed` (the reason, for a `default:` step), and the `check`, quoted from the table; beyond 15 steps the rest are left to the plan above;
+- a `lint` bullet under each step that names code (`.py`, `.R`, `.ipynb`, `.qmd`, `.Rmd`) that exists: `clean`, `2 open (R002, R011)`, or `not checked (...)`. It is scilintr's verdict from the same run `verify` does, shown on the card only; it never blocks approval, and `verify` still blocks on a finding left unfixed or unwaived. The digest card shows it only when something is open or unchecked. Set `"card_lint": false` in `gate.json` to leave it off, or record the linters' paths with `gate_init.py --tools` (see [Verification](verification.md)); each language's linter gets 8 s here, and the Stop hook's timeout is 30 s;
 - the Evidence bullets that name a failure or a flag;
 - `CAN RUN (in full)`: every gated script, folder (everything gated below it) and command (any invocation) the plan table lets through, never collapsed, with a shared path prefix written once as `P`;
 - what it reads (pinned inputs) and writes, and any script the plan mentions only in prose, which approves nothing.
@@ -122,6 +123,7 @@ Type `hints on` to get a one-line suggestion of the command to run next; `hints 
 | `approval_hours` | `24` | How long an approval covers runs. Approvals are never deleted. |
 | `pin_hash_mb` | `200` | Bytes of pinned inputs (in MB) hashed per hook before falling back to size and mtime. |
 | `pin_seconds` | `5` | Seconds the pin check may take per hook. |
+| `card_lint` | `true` | Lint the planned code when a plan is presented and show the result on the card. `false` turns it off. |
 | `pin_scripts` | `true` | Block a run whose script changed since it was approved or first run. `false` turns it off. |
 
 Two switches are not keys. `hints on` and `hints off` create and remove `.mycelium-extra/hints.json`. `allow explore` and `stop explore` apply to one session.

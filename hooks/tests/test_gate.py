@@ -183,10 +183,32 @@ class GateTest(unittest.TestCase):
         self.assertEqual(answer["decision"], "block")
         return answer["reason"]
 
+    def fake_linter(self, output="", code=0):
+        """A scilintr that prints `output`, recorded in tools.json."""
+        path = os.path.join(self.root, "fake-scilintr")
+        with open(path, "w") as handle:
+            handle.write("#!/bin/sh\nprintf '%s\\n' '{}'\nexit {}\n".format(output, code))
+        os.chmod(path, 0o755)
+        self.write_file(".mycelium-extra/tools.json", json.dumps({"scilintr": path}))
+
+    def test_card_shows_scilintr_per_step_and_never_blocks(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.fake_linter()
+        self.assertIn("        - check: 12 donors x 2 visits\n        - lint: clean\n  \u2193 3 snakemake", self.card(self.CARD_PLAN))
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
+        card = self.card(self.CARD_PLAN)
+        self.assertIn("        - lint: 1 open (broad-exception)", card)
+        self.assertIn("\u25b6 approve plan ", card.splitlines()[-1])
+        self.write_file(".mycelium-extra/tools.json", json.dumps({"scilintr": "/nonexistent/scilintr"}))
+        self.assertIn("        - lint: not checked (`/nonexistent/scilintr` not found.", self.card(self.CARD_PLAN))
+        self.write_file(".mycelium-extra/gate.json", json.dumps({"card_lint": False}))
+        self.assertNotIn("- lint:", self.card(self.CARD_PLAN))
+
     def test_card_describes_the_procedure(self):
         os.makedirs(os.path.join(self.root, "analysis", "a"))
         with open(os.path.join(self.root, "analysis", "a", "02_fit.py"), "w") as handle:
             handle.write("print(1)\n")
+        self.write_file(".mycelium-extra/gate.json", json.dumps({"card_lint": False}))
         card = self.card(self.CARD_PLAN)
         lines = card.splitlines()
         self.assertTrue(lines[0].startswith("mycelium-extra \u00b7 plan ") and "ready for approval" in lines[0])
@@ -204,6 +226,15 @@ class GateTest(unittest.TestCase):
             self.assertIn(text, card)
         self.assertNotIn("Cohort has 24 rows", card)
         self.assertNotIn("Runs allowed", card)
+
+    def test_lint_tools_come_from_tools_json_else_the_bare_names(self):
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        self.assertEqual(gate.lint_tools(self.root), ("scilintr", "Rscript"))
+        self.write_file(".mycelium-extra/tools.json", json.dumps({"scilintr": "/v/bin/scilintr"}))
+        self.assertEqual(gate.lint_tools(self.root), ("/v/bin/scilintr", "Rscript"))
+        self.write_file(".mycelium-extra/tools.json", "[1]")
+        self.assertEqual(gate.lint_tools(self.root), ("scilintr", "Rscript"))
 
     def test_card_lines_are_capped_at_250_characters(self):
         long = "x" * 400
