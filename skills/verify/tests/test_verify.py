@@ -1202,6 +1202,51 @@ sys.exit(1 if hits else 0)
         self.assertEqual(json.loads(self.verify("report", digest, "--json"))["claims"][0]["counts"],
                          {"verified": 6, "verified-transform": 1})
 
+    def test_non_finite_claim_cells_are_gaps(self):
+        values = ["NaN", "nan", "sNaN", "-NaN", "Infinity", "-Infinity", "Inf", "+inf", "-inf"]
+        rows, claims, expected = [], [], []
+        for i, value in enumerate(values):
+            label = "CELL{}".format(i)
+            rows.append("{}\t{}".format(label, value))
+            for qualifier in ("<", ">", "<=", ">=", "=", ""):
+                claims.append("- {} 0.05 | outputs/de.tsv value {}".format(qualifier, label))
+                expected.append((value, label))
+            claims.append("- < 5% | outputs/de.tsv value {}".format(label))
+            expected.append((value, label))
+        claims.append("- < 0.05 | outputs/numbers.json qc.value")
+        expected.append(("NaN", None))
+        digest, receipt = self.claims_run("\n".join(claims))
+        self.write("analysis/a/outputs/de.tsv", "gene\tvalue\n" + "\n".join(rows) + "\n",
+                   mtime=receipt["ts"] - 1)
+        self.write("analysis/a/outputs/numbers.json", '{"qc": {"value": "NaN"}}',
+                   mtime=receipt["ts"] - 1)
+        out = self.verify("report", digest)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+        self.assertNotIn("**block**", out)
+        result = json.loads(self.verify("report", digest, "--json"))
+        document = result["claims"][0]
+        self.assertEqual(document["counts"], {"unverified": len(expected)})
+        self.assertEqual(len(document["claims"]), len(expected))
+        for claim, (value, label) in zip(document["claims"], expected):
+            self.assertEqual((claim["verdict"], claim["observed"], claim["row"]),
+                             ("unverified", value, label))
+            self.assertIn("holds `{}`, not a finite number".format(value), claim["reason"])
+            self.assertIn(claim["file"], claim["reason"])
+            if label:
+                self.assertIn("row " + label, claim["reason"])
+
+    def test_non_finite_claim_does_not_hide_a_finite_mismatch(self):
+        digest, receipt = self.claims_run("- < 0.05 | outputs/de.tsv padj IL7R\n"
+                                         "- 2 | outputs/de.tsv log2fc IL7R")
+        self.write("analysis/a/outputs/de.tsv", "gene\tlog2fc\tpadj\nIL7R\t1.23456\tNaN\n",
+                   mtime=receipt["ts"] - 1)
+        out = self.verify("report", digest)
+        self.assertIn("claim <0.05 is unverified", out)
+        self.assertIn("claims 2, but", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: DOES_NOT_CONFORM"), out)
+        result = json.loads(self.verify("report", digest, "--json"))
+        self.assertEqual(result["claims"][0]["counts"], {"unverified": 1, "mismatch": 1})
+
     def test_claims_mismatch_blocks(self):
         digest, _ = self.claims_run("- 1.3 | outputs/de.tsv log2fc IL7R\n- > 0.05 | outputs/de.tsv padj IL7R")
         out = self.verify("report", digest)
@@ -1259,7 +1304,7 @@ sys.exit(1 if hits else 0)
         for text in ["claim 0.05 is unverified: 3 rows match; name one by its first-column label",
                      "claim 2 is unverified: 2 rows are labelled `CD3E`",
                      "cites `analysis/a/outputs/missing.tsv`, but it does not exist", "no column `pval`",
-                     "no row `GAPDH`", "row IL7R holds `IL7R`, not a number", "claims line does not parse",
+                     "no row `GAPDH`", "row IL7R holds `IL7R`, not a finite number", "claims line does not parse",
                      "Claims not checked in `analysis/a/notes.md`: it has no `<!-- claims -->` block",
                      "Claims not checked in `nope.md`: it does not exist"]:
             self.assertIn(text, out)

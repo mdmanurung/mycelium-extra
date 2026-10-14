@@ -937,7 +937,8 @@ SKIPPED_PROSE = re.compile(r"<!--.*?-->|`[^`\n]*`|\]\([^)]*\)", re.S)
 
 def number(text):
     try:
-        return decimal.Decimal(text.replace(",", ""))
+        value = decimal.Decimal(text.replace(",", ""))
+        return value if value.is_finite() else None
     except (decimal.InvalidOperation, AttributeError):
         return None
 
@@ -1044,7 +1045,7 @@ def check_claims(root, analysis_dir, outputs, extra, report, max_bytes):
                     observed = number(found) if found is not None else None
                     entry["observed"] = found
                     if found is not None and observed is None:
-                        why = "{} holds `{}`, not a number".format(coordinate, cell(found)[:40])
+                        why = "{} holds `{}`, not a finite number".format(coordinate, cell(found)[:40])
                     if observed is None:
                         entry.update(verdict="unverified", reason=why)
                     elif agrees(claim, qualifier, observed):

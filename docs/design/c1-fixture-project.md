@@ -346,6 +346,7 @@ DC-08 to DC-11 are the reason the fixture exists. Every tool reports success, ye
 | V-28 | M8-T03 B3: a fourth row reads an existing `logs/02_paired_test.log`, rewritten after the runs | `CONFORMS`; the log is not listed as a planned script | `tool: verify` |
 | V-29 | M8-T03 B2: the baseline `Outputs:` line written as `outputs/{samples_used,de_results,summary}.tsv` plus a `…_summary.tsv` word | `CONFORMS_WITH_GAPS`; one gap `is shorthand that names no path`, no `does not exist` | Outputs and reporting |
 | V-30 | Backlog #4: the baseline `sbatch` run as `S=…/run_all.sbatch; sbatch $S`, with a fake `sacct` whose SubmitLine names the job script and says FAILED | `DOES_NOT_CONFORM`; `Slurm job 4242 ended FAILED` | `tool: verify` |
+| V-31 | An inequality claim against the SIGLEC1 padj cell holding `NaN` | `CONFORMS_WITH_GAPS`; exit 0, claim unverified with the cell value and location | `tool: verify` |
 
 V-13 keeps the steps in the plan table because verify reads a rule's `incomplete` flag only for a planned step that ran inside a wrapper. A plan that names only the Snakefile gets a direct receipt for it, and an incomplete rule is not reported; that is not a case yet.
 
@@ -398,13 +399,14 @@ These run with the suite and need no project:
 
 ## 10. Guard ablations (`tests/e2e/ablate.py`)
 
-`ablate.py` feeds verify or the gate a patched copy of its source. Each patch disables one `report.add` call or the `deny` branch. It first runs the defect case against the real source (it must pass), then against the patched copy (it must fail). Verify is already run as source on stdin, and the gate is copied with its `hooks/` folder, so the patch never touches the repository; the harness's `VERIFY` and `GATE_RUN` name the copies. A guard text that is not found exactly once stops the run, so a wording change cannot turn an ablation into a no-op. The three required ablations are:
+`ablate.py` feeds verify or the gate a patched copy of its source. Each patch disables one guard. It first runs the defect case against the real source (it must pass), then against the patched copy (it must fail). Verify is already run as source on stdin, and the gate is copied with its `hooks/` folder, so the patch never touches the repository; the harness's `VERIFY` and `GATE_RUN` name the copies. A guard text that is not found exactly once stops the run, so a wording change cannot turn an ablation into a no-op. The four required ablations are:
 
 | Ablation | Line removed | Case that must fail |
 | --- | --- | --- |
 | A-1 | verify: the `was edited after its run` block | V-03 |
 | A-2 | verify: the `Input ... changed since the approval` block | V-06 |
 | A-3 | gate: the pinned-input deny in `on_tool` | G-02 |
+| A-4 | verify: the finite-number guard in `number` | V-31 |
 
 A2 (CI) can run `ablate.py` weekly rather than on every pull request.
 

@@ -654,6 +654,17 @@ def v23(p):
     return whole_chain(p, claims=True)
 
 
+@defect("V-31", "verify", "verify", ["tool: verify"],
+        {"code": 0, "status": GAPS,
+         "messages": ["claim <0.05 is unverified", "padj row SIGLEC1 holds `NaN`, not a finite number"]})
+def v31(p):
+    p.edit(DOC, replace("\n0.016234 | outputs/de_results.tsv padj SIGLEC1",
+                        "\n<0.05 | outputs/de_results.tsv padj SIGLEC1"))
+    digest = p.run_plan()[0]
+    p.edit(DE, set_cells(lambda r: r["gene"] == "SIGLEC1", "padj", "NaN"))
+    return report(p, digest)
+
+
 @defect("V-24", "verify", "verify", ["Retry until significant"],
         {"code": 0, "messages": [
             "2 earlier plan revision(s), 3 explore run(s) before the approval, 0 run(s) under earlier plans, "
