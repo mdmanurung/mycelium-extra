@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.65] - 2026-10-14
+
+### Fixed
+
+- Verify reports NaN and infinity output cells as unverified claim gaps before numeric comparison or percent conversion. Reports retain the cell value and location, and finite mismatches still block. Regression coverage includes all comparisons, percent claims, a JSON cell, planted defect V-31 and guard ablation A-4.
+
 ## [0.9.64] - 2026-10-14
 
 ### Fixed
