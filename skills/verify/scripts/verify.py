@@ -361,7 +361,7 @@ def chunk_code(path):
     return {language: "\n".join(body) for language, body in code.items()}, refs
 
 
-def lint(root, files, report, scilintr, rscript, seconds):
+def lint(root, files, report, scilintr, rscript, seconds, deadline=None):
     """Run scilintr on the code; remaining findings block, an unchecked language is a gap.
     The Python CLI skips R files and exits 0 on a missing path, so each language gets
     its own CLI and only existing files are passed. It also exits 0, silent, on code that
@@ -433,7 +433,8 @@ def lint(root, files, report, scilintr, rscript, seconds):
             elif rel.endswith(NOTEBOOK_EXT) and not refs:
                 result["notebooks"].append(rel)
         result["reasons"] = scan_waivers(root, files, result)
-        lint_languages(root, by_language, cells, report, result, scilintr, [rscript, "-e", R_LINT, scratch], seconds)
+        lint_languages(root, by_language, cells, report, result, scilintr, [rscript, "-e", R_LINT, scratch],
+                       seconds, deadline)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     pair_waivers(result, report)
@@ -501,7 +502,7 @@ def cell_line(line, cells):
     return "{}[code cell {}]:{}:{}: [{}] {}".format(rel, index, number - starts[index - 1] + 1, *match.groups()[2:])
 
 
-def unwaived_pass(root, language, paths, cells, result, report, command, seconds, normal):
+def unwaived_pass(root, language, paths, cells, result, report, command, seconds, normal, deadline=None):
     """Lint again with waivers off; a finding that only this run reports was waived. Best effort: the first
     pass decides the status, so a failure here is only an info line."""
     if language == "Python":
@@ -509,6 +510,7 @@ def unwaived_pass(root, language, paths, cells, result, report, command, seconds
     else:
         command = command[:2] + [R_NO_WAIVERS + command[2]] + command[3:]
     try:
+        seconds = min(seconds, max(0.001, deadline - time.monotonic())) if deadline is not None else seconds
         proc = subprocess.run(command + paths, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               encoding="utf-8", errors="replace", timeout=seconds)
         out = "\n".join(cell_line(line, cells) for line in proc.stdout.splitlines())
@@ -524,15 +526,16 @@ def unwaived_pass(root, language, paths, cells, result, report, command, seconds
                                               if (f[0], f[1], f[2], f[3]) not in normal)
 
 
-def lint_languages(root, by_language, cells, report, result, scilintr, r_lint, seconds):
+def lint_languages(root, by_language, cells, report, result, scilintr, r_lint, seconds, deadline=None):
     for language, paths in sorted(by_language.items()):
         command = [scilintr] if language == "Python" else r_lint
         try:
+            timeout = min(seconds, max(0.001, deadline - time.monotonic())) if deadline is not None else seconds
             proc = subprocess.run(command + paths, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                  encoding="utf-8", errors="replace", timeout=seconds)
+                                  encoding="utf-8", errors="replace", timeout=timeout)
         except (OSError, subprocess.SubprocessError) as error:
             if isinstance(error, subprocess.TimeoutExpired):
-                report.add("gap", "scilintr ({}) not checked: timed out after {:.0f} s.".format(language, seconds))
+                report.add("gap", "scilintr ({}) not checked: timed out after {:.0f} s.".format(language, timeout))
             else:
                 report.add("gap", "scilintr ({}) not checked: `{}` not found. Install it (`{}`) and re-verify, or "
                            "record its path (`gate_init.py --tools {} PATH`).".format(
@@ -565,7 +568,8 @@ def lint_languages(root, by_language, cells, report, result, scilintr, r_lint, s
             report.add("gap", "scilintr ({}) not checked: exit {} with output it could not read: {}".format(
                 language, proc.returncode, cell((proc.stdout.strip().splitlines() or [""])[-1])[:200]))
         if result["waivers"] and (proc.returncode, bool(found)) in ((1, True), (0, False)):
-            unwaived_pass(root, language, paths, cells, result, report, command, seconds, {f[:4] for f in found})
+            unwaived_pass(root, language, paths, cells, result, report, command, seconds, {f[:4] for f in found},
+                          deadline)
 
 
 def guess_analysis_dir(files):

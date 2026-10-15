@@ -7,12 +7,16 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
+from unittest import mock
 
 GATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "gate.py")
 LAUNCHER = os.path.join(os.path.dirname(GATE), "gate_run.py")
 PLAN = "## Plan\n| 1 | run `analysis/x.py` | repo | check |\n\nPlan status: READY"
+
+REAL_HOME = os.environ.get("HOME", "")  # setUp points HOME at a scratch folder
 
 
 class GateTest(unittest.TestCase):
@@ -225,26 +229,156 @@ class GateTest(unittest.TestCase):
         self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
         self.assertIn("1 open finding(s)", self.context(self.written("analysis/a/02_fit.py")), "reappears after clean")
 
-    def test_write_lint_stays_silent_when_it_cannot_judge(self):
+    def test_write_lint_stays_silent_outside_gated_code(self):
         self.fake_linter("scripts/x.py:1:1: [broad-exception] x", 1)
         self.write_file("scripts/x.py", "print(1)\n")
         self.write_file("analysis/a/NOTES.md", "x\n")
-        self.write_file("analysis/a/bad.py", "def (:\n")
-        for rel in ("scripts/x.py", "analysis/a/NOTES.md", "analysis/a/bad.py", "analysis/a/missing.py"):
+        for rel in ("scripts/x.py", "analysis/a/NOTES.md", "analysis/a/missing.py"):
             self.assertIsNone(self.written(rel), rel)
         self.write_file("analysis/a/02_fit.py", "print(1)\n")
         self.write_file(".mycelium-extra/gate.json", json.dumps({"lint_on_write": False}))
         self.assertIsNone(self.written("analysis/a/02_fit.py"))
 
-    def test_half_written_draft_keeps_the_recorded_findings(self):
+    def test_what_could_not_be_checked_is_said_once_per_session(self):
+        # A script that does not parse under the hook's Python is not "clean", whether half written or
+        # valid for a newer Python than the hook's (`:=` on 3.6): say so once, and keep earlier findings.
         self.write_file("analysis/a/02_fit.py", "print(1)\n")
         self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
         self.written("analysis/a/02_fit.py")
         self.write_file("analysis/a/02_fit.py", "def (:\n")
-        self.assertIsNone(self.written("analysis/a/02_fit.py"))
-        state = os.path.join(self.root, ".mycelium-extra", "pending", "s1.lint.json")
-        with open(state) as handle:
-            self.assertIn("analysis/a/02_fit.py", json.load(handle)["open"])
+        first = self.context(self.written("analysis/a/02_fit.py"))
+        self.assertIn("not a clean result", first)
+        self.assertIn("`analysis/a/02_fit.py` does not parse", first)
+        self.assertEqual(self.context(self.written("analysis/a/02_fit.py")), "", "once per session")
+        self.assertIn("not a clean result", self.context(self.written("analysis/a/02_fit.py", session="s2")))
+        folder = os.path.join(self.root, ".mycelium-extra", "pending", "s1.lint")
+        self.assertEqual(len(os.listdir(folder)), 1, "the earlier findings are kept")
+        self.fake_linter("analysis/b/03.py:1:1: [x] y", 1)
+        self.write_file(".mycelium-extra/tools.json", json.dumps({"scilintr": "/nonexistent/scilintr"}))
+        self.write_file("analysis/a/03_ok.py", "print(1)\n")
+        self.assertIn("`/nonexistent/scilintr` not found", self.context(self.written("analysis/a/03_ok.py")))
+        self.assertEqual(self.context(self.written("analysis/a/03_ok.py", "Edit")), "")
+
+    def test_unreadable_notebook_is_reported_as_unchecked(self):
+        self.write_file("analysis/a/draft.ipynb", "{unfinished")
+        text = self.context(self.written("analysis/a/draft.ipynb", "NotebookEdit"))
+        self.assertIn("not a clean result", text)
+        self.assertIn("`analysis/a/draft.ipynb` has no readable code", text)
+
+    def test_parallel_writes_keep_every_script(self):
+        names = ["analysis/a/0{}_fit.py".format(n) for n in range(1, 5)]
+        for rel in names:
+            self.write_file(rel, "print(1)\n")
+        self.fake_linter("\n".join("{}:1:1: [broad-exception] x".format(rel) for rel in names), 1)
+        threads = [threading.Thread(target=self.written, args=(rel,)) for rel in names]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        notice = self.hook("stop", {"last_assistant_message": "done"})["systemMessage"]
+        for n in range(1, 5):
+            self.assertIn("0{}_fit.py".format(n), notice)
+
+    def test_missing_linter_with_extension_keeps_earlier_findings(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
+        self.written("analysis/a/02_fit.py")
+        self.write_file(".mycelium-extra/tools.json", json.dumps({"scilintr": "/missing/scilintr.py"}))
+        self.assertIn("not a clean result", self.context(self.written("analysis/a/02_fit.py")))
+        notice = self.hook("stop", {"last_assistant_message": "done"})
+        self.assertIn("02_fit.py (broad-exception)", notice["systemMessage"])
+
+    def test_parallel_unchecked_writes_report_a_gap_once_without_errors(self):
+        names = ["analysis/a/0{}_fit.py".format(n) for n in range(1, 5)]
+        for rel in names:
+            self.write_file(rel, "print(1)\n")
+        self.write_file(".mycelium-extra/tools.json", json.dumps({"scilintr": "/missing/scilintr.py"}))
+        replies, errors = [], []
+
+        def written(rel):
+            try:
+                replies.append(self.written(rel))
+            except Exception as error:
+                errors.append(error)
+
+        threads = [threading.Thread(target=written, args=(rel,)) for rel in names]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        self.assertEqual(errors, [])
+        self.assertEqual(sum("not a clean result" in self.context(reply) for reply in replies), 1)
+        self.assertFalse(any(reply and "gate error" in reply.get("systemMessage", "") for reply in replies))
+
+    def test_stop_includes_an_r_waiver_without_a_reason(self):
+        self.write_file("analysis/a/03_sum.R", '# ANALYSIS_OK[R016]:\nsamples <- c("S1", "S2")\n')
+        rscript = os.path.join(self.root, "fake-rscript")
+        with open(rscript, "w") as handle:
+            handle.write("#!/bin/sh\ncase \"$*\" in *apply_waivers*) "
+                         "printf '%s\\n' 'analysis/a/03_sum.R:2:1: [R016] sample IDs'; exit 1;; esac\n")
+        os.chmod(rscript, 0o755)
+        self.write_file(".mycelium-extra/tools.json", json.dumps({"rscript": rscript}))
+        self.assertIn("waives R016 with no reason", self.context(self.written("analysis/a/03_sum.R")))
+        notice = self.hook("stop", {"last_assistant_message": "done"})
+        self.assertIn("03_sum.R (waiver-reason)", notice["systemMessage"])
+
+    def test_a_patch_is_linted_for_every_file_it_adds_or_updates(self):
+        names = ["analysis/a/01_load.py", "analysis/a/02_fit.py", "analysis/a/03_plot.py"]
+        for rel in names:
+            self.write_file(rel, "print(1)\n")
+        self.fake_linter("analysis/a/01_load.py:1:1: [unchecked-merge] x\nanalysis/a/02_fit.py:2:1: [silent-pass] y", 1)
+        patch = ("*** Begin Patch\n*** Update File: {}\n@@\n-a\n+b\n*** Add File: {}\n+print(1)\n"
+                 "*** Delete File: {}\n*** End Patch").format(*names)
+        notice = self.hook("post", {"tool_name": "apply_patch", "tool_input": {"command": patch},
+                                    "hook_event_name": "PostToolUse"})
+        text = self.context(notice)
+        self.assertIn("analysis/a/01_load.py:1: [unchecked-merge] x", text)
+        self.assertIn("analysis/a/02_fit.py:2: [silent-pass] y", text)
+        self.assertNotIn("03_plot", text, "a deleted file is not linted")
+
+    def test_patch_limit_reports_the_files_it_could_not_check(self):
+        names = ["analysis/a/0{}_fit.py".format(n) for n in range(1, 7)]
+        for rel in names:
+            self.write_file(rel, "print(1)\n")
+        self.fake_linter("analysis/a/01_fit.py:1:1: [silent-pass] x", 1)
+        patch = "*** Begin Patch\n" + "".join("*** Update File: {}\n".format(rel) for rel in names) + "*** End Patch"
+        text = self.context(self.hook("post", {"tool_name": "apply_patch", "tool_input": {"command": patch}}))
+        self.assertIn("01_fit.py:1: [silent-pass]", text)
+        self.assertIn("`analysis/a/06_fit.py` exceeds the five-file write limit", text)
+
+    def test_internal_lint_error_is_advisory_and_reported_once(self):
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        event = {"session_id": "s1", "tool_name": "Write", "tool_input": {"file_path": "analysis/a/02_fit.py"}}
+        config = {"gated_paths": ["analysis/**"]}
+        with mock.patch.object(gate, "load_verify", side_effect=ValueError("unreadable")):
+            self.assertIn("lint hook failed (ValueError)", self.context(gate.lint_on_write(event, self.root, config)))
+            self.assertIsNone(gate.lint_on_write(event, self.root, config))
+
+    def test_stop_skips_a_script_changed_while_the_linter_ran(self):
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        rel = "analysis/a/02_fit.py"
+        self.write_file(rel, "print(1)\n")
+        path = os.path.join(self.root, rel)
+        verify = gate.load_verify()
+
+        def lint(*args, **kwargs):
+            os.utime(path, (os.path.getmtime(path) + 5,) * 2)
+            return {"findings": [(rel, "1", "1", "silent-pass", "x")]}
+
+        event = {"session_id": "s1", "tool_name": "Write", "tool_input": {"file_path": rel}}
+        with mock.patch.object(gate, "load_verify", return_value=verify), mock.patch.object(verify, "lint", side_effect=lint):
+            gate.lint_on_write(event, self.root, {"gated_paths": ["analysis/**"]})
+        self.assertIsNone(gate.open_lint_notice(self.root, event, {}))
+
+    def test_finding_text_is_cleaned_before_the_agent_reads_it(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] a\x1b[31m" + "b" * 400, 1)
+        text = self.context(self.written("analysis/a/02_fit.py"))
+        self.assertNotIn("\x1b", text)
+        self.assertLess(max(len(line) for line in text.splitlines()), 330)
 
     def test_stop_tells_the_user_what_is_still_open_once(self):
         self.write_file("analysis/a/02_fit.py", "print(1)\n")
@@ -255,8 +389,22 @@ class GateTest(unittest.TestCase):
         self.assertIsNone(self.hook("stop", {"last_assistant_message": "done"}), "shown once")
         self.assertIsNone(self.hook("stop", {"last_assistant_message": "done"}, session="s2"), "another session")
         self.fake_linter()
+        self.write_file("analysis/a/03_clean.py", "print(1)\n")
+        self.written("analysis/a/03_clean.py")
+        self.assertIsNone(self.hook("stop", {"last_assistant_message": "done"}), "a clean new file is no change")
+        self.fake_linter()
         self.written("analysis/a/02_fit.py")
         self.assertIsNone(self.hook("stop", {"last_assistant_message": "done"}))
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
+        self.written("analysis/a/02_fit.py")
+        self.assertIn("still open", self.hook("stop", {"last_assistant_message": "done"})["systemMessage"],
+                      "findings that return after a clean result must be shown again")
+        self.fake_linter()
+        self.written("analysis/a/02_fit.py")
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
+        self.written("analysis/a/02_fit.py")
+        self.assertIn("still open", self.hook("stop", {"last_assistant_message": "done"})["systemMessage"],
+                      "a clean result followed by the same finding in one turn must also be shown")
 
     def test_stop_skips_a_script_edited_since_its_lint(self):
         self.write_file("analysis/a/02_fit.py", "print(1)\n")
@@ -265,6 +413,24 @@ class GateTest(unittest.TestCase):
         path = os.path.join(self.root, "analysis/a/02_fit.py")
         os.utime(path, (os.path.getmtime(path) + 5,) * 2)
         self.assertIsNone(self.hook("stop", {"last_assistant_message": "done"}))
+
+    @unittest.skipUnless(os.environ.get("MX_E2E_REAL_TOOLS") == "1" and os.environ.get("MX_E2E_SCILINTR"),
+                         "real tools off (MX_E2E_REAL_TOOLS=1, MX_E2E_SCILINTR, optional MX_E2E_RSCRIPT)")
+    def test_write_lint_with_real_scilintr(self):
+        tools = {"scilintr": os.environ["MX_E2E_SCILINTR"]}
+        if os.environ.get("MX_E2E_RSCRIPT"):  # under the real HOME, so ~/.Renviron's R_LIBS_USER finds scilintr
+            tools["rscript"] = os.path.join(self.root, "real-rscript")
+            with open(tools["rscript"], "w") as handle:
+                handle.write('#!/bin/sh\nHOME={} exec {} "$@"\n'.format(REAL_HOME, os.environ["MX_E2E_RSCRIPT"]))
+            os.chmod(tools["rscript"], 0o755)
+        self.write_file(".mycelium-extra/tools.json", json.dumps(tools))
+        self.write_file("analysis/a/02_fit.py", "import pandas as pd\ntry:\n    pd.read_csv('x')\nexcept Exception:\n    pass\n")
+        text = self.context(self.written("analysis/a/02_fit.py"))
+        self.assertIn("[broad-exception]", text)
+        self.assertIn("[silent-pass]", text)
+        if "rscript" in tools:
+            self.write_file("analysis/a/03_sum.R", 'samples <- c("S1", "S2", "S3")\n')
+            self.assertIn("R016", self.context(self.written("analysis/a/03_sum.R")))
 
     def test_card_describes_the_procedure(self):
         os.makedirs(os.path.join(self.root, "analysis", "a"))

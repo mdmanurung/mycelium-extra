@@ -1624,9 +1624,7 @@ def on_tool(event, root, config):
     tool_input = event.get("tool_input") or {}
     state = os.path.realpath(state_path(root))
     if tool == "apply_patch":
-        targets = re.findall(r"^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$",
-                             tool_input.get("command", ""), re.M)
-        for target in targets:
+        for _, target in PATCH_TARGET.findall(tool_input.get("command", "")):
             target = os.path.realpath(os.path.join(event.get("cwd") or root, target.strip()))
             if target == state or target.startswith(state + os.sep):
                 return deny("mycelium-extra: {} is gate state. Only the user's approval "
@@ -1980,52 +1978,118 @@ def new_explore_runs(root, session_id):
 
 # ---------------------------------------------------------------- run receipts
 
-WRITE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
-WRITE_LINT_SECONDS = 5  # the PostToolUse hook is killed at 20 s; R starts slowly on a network filesystem
+WRITE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit", "apply_patch")
+WRITE_LINT_SECONDS = 8  # per subprocess; all passes share 16 s, leaving room for the 20 s hook limit
+WRITE_LINT_FILES = 5    # files of one apply_patch that are linted
+LINT_ROW = 240          # characters of a finding shown to the agent: scilintr echoes the code it flags
+PATCH_TARGET = re.compile(r"^\*\*\* (Add File|Update File|Delete File|Move to): (.+)$", re.M)
 
 
-def lint_state(root, session_id):
-    """{"open": {file: {"rows": [finding lines], "mtime": float}}, "shown": last Stop notice} for one session."""
-    return state_path(root, "pending", safe_session(session_id) + ".lint.json")
+def lint_dir(root, session_id):
+    """One state file per linted script, so parallel writes in one turn never overwrite each other:
+    {"file", "rows": [finding lines], "mtime"}. The session's `.lint-shown` holds what the
+    user was already told; separate `.lint-note-*` markers deduplicate gaps for the agent."""
+    return state_path(root, "pending", safe_session(session_id) + ".lint")
+
+
+def lint_entry_path(root, session_id, rel):
+    return os.path.join(lint_dir(root, session_id), sha256(rel.encode("utf-8")).hexdigest()[:16] + ".json")
+
+
+def written_scripts(event, root, config):
+    """Gated code files this write touched, as repository paths (a deleted file is not one)."""
+    tool_input = event.get("tool_input") or {}
+    if event.get("tool_name") == "apply_patch":
+        names = [name.strip() for kind, name in PATCH_TARGET.findall(tool_input.get("command", "")) if kind != "Delete File"]
+    else:
+        names = [tool_input.get("file_path") or tool_input.get("notebook_path") or ""]
+    found = []
+    for name in names:
+        rel = gated_rel(root, event.get("cwd") or root, name, config) if name else None
+        if rel and rel.endswith(LINT_EXT) and rel not in found and os.path.isfile(os.path.join(root, rel)):
+            found.append(rel)
+    return found
 
 
 def lint_on_write(event, root, config):
-    """After a script is written or edited, hand the agent scilintr's open findings on that one file, once per
-    change. Advisory: never blocks. Silent when the file is not gated code, the linter cannot run, or the
-    file does not parse (a half-written draft); a gap leaves what was recorded as it was. Cross-file rules
-    wait for the card and `verify`. Stop later tells the user what is still open."""
+    """After a script is written or edited, hand the agent scilintr's open findings on the touched files, once
+    per change. Advisory: never blocks. The files go through one `verify.lint` call, so at most two passes per
+    language. R may check cross-file rules among those files; `verify` checks the wider analysis.
+    What scilintr could not check is said once per session, never shown as clean, and leaves that file's
+    recorded findings as they were. Stop later tells the user what is still open."""
     if config.get("lint_on_write", True) is False:
         return None
-    tool_input = event.get("tool_input") or {}
-    target = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
-    rel = gated_rel(root, event.get("cwd") or root, target, config) if target else None
-    if not rel or not rel.endswith(LINT_EXT) or not os.path.isfile(os.path.join(root, rel)):
+    rels = written_scripts(event, root, config)
+    if not rels:
         return None
+    session = event.get("session_id")
+    skipped, rels = rels[WRITE_LINT_FILES:], rels[:WRITE_LINT_FILES]
+    mtimes = {rel: os.path.getmtime(os.path.join(root, rel)) for rel in rels}
     try:
         verify = load_verify()
         report = verify.Report()
-        found = verify.lint(root, [rel], report, *lint_tools(root), seconds=WRITE_LINT_SECONDS)["findings"]
-    except Exception:  # ANALYSIS_OK[lint-best-effort]: the card and verify lint in full later
+        linted = verify.lint(root, rels, report, *lint_tools(root), seconds=WRITE_LINT_SECONDS,
+                             deadline=time.monotonic() + 16)
+        found = linted["findings"]
+        findings = report.findings + [("gap", "scilintr not checked: `{}` has no readable code for a supported language.".format(rel))
+                                      for rel in linted.get("notebooks", [])]
+    except Exception as error:  # ANALYSIS_OK[lint-best-effort]: advisory hook; verify checks in full later
+        found, findings = [], [("gap", "scilintr not checked: lint hook failed ({}).".format(type(error).__name__))]
+    findings += [("gap", "scilintr not checked: `{}` exceeds the five-file write limit.".format(rel)) for rel in skipped]
+    clean = lambda text: re.sub(r"[\x00-\x1f\x7f]", " ", text)[:LINT_ROW]
+    gaps = [text for level, text in findings if level == "gap"]
+    names_file = lambda gap, rel: "`{}`".format(rel) in gap or "`{}:".format(rel) in gap
+    whole = any(not any(names_file(g, rel) for rel in rels + skipped) for g in gaps)
+    unknown = set(rels) if whole else set(
+        rel for rel in rels if any(names_file(g, rel) for g in gaps))
+    lines = []
+    for rel in rels:
+        if rel in unknown:
+            continue
+        rows = ["{}:{}: [{}] {}".format(f[0], f[1], f[3], clean(f[4]))
+                for f in sorted(found, key=lambda f: (f[0], int(f[1])))
+                if re.sub(r"\[code cell \d+\]$", "", f[0]) == rel]
+        rows += ["[waiver-reason] " + clean(text) for level, text in findings
+                 if level == "block" and "`{}:".format(rel) in text]
+        path = lint_entry_path(root, session, rel)
+        previous = read_json(path, {}).get("rows", [])
+        if rows:
+            write_json(path, {"file": rel, "rows": rows, "mtime": mtimes[rel]})
+        elif os.path.isfile(path):
+            os.remove(path)
+        shown = state_path(root, "pending", safe_session(session) + ".lint-shown")
+        if rows != previous:
+            try:
+                os.remove(shown)
+            except FileNotFoundError:
+                pass
+        if rows and rows != previous:
+            lines.append("{} open finding(s) in `{}`:\n{}".format(
+                len(rows), rel, "\n".join("  " + r for r in rows[:8]) + ("\n  ..." if len(rows) > 8 else "")))
+    notes = []
+    for gap in dict.fromkeys(gaps):
+        marker = state_path(root, "pending", safe_session(session) + ".lint-note-" +
+                            sha256(gap.encode("utf-8")).hexdigest()[:16])
+        os.makedirs(os.path.dirname(marker), exist_ok=True)
+        try:
+            with open(marker, "x"):
+                pass
+        except FileExistsError:
+            continue
+        notes.append(clean(gap))
+    if not lines and not notes:
         return None
-    if any(level == "gap" for level, _ in report.findings):
-        return None
-    rows = ["{}:{}: [{}] {}".format(f[0], f[1], f[3], f[4]) for f in sorted(found, key=lambda f: (f[0], int(f[1])))]
-    path = lint_state(root, event.get("session_id"))
-    state = read_json(path, {})
-    state.setdefault("open", {})
-    previous = (state["open"].get(rel) or {}).get("rows")
-    if rows:
-        state["open"][rel] = {"rows": rows, "mtime": os.path.getmtime(os.path.join(root, rel))}
-    else:
-        state["open"].pop(rel, None)
-    write_json(path, state)
-    if not rows or rows == previous:
-        return None
-    return {"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": (
-        "mycelium-extra: scilintr reports {} open finding(s) in `{}` after this write:\n{}\n"
-        "Fix each one, or waive it with `ANALYSIS_OK[rule]: <what is done, why it is valid, where it is "
-        "checked>` where the choice is deliberate. `verify` blocks on any finding left.".format(
-            len(rows), rel, "\n".join("  " + r for r in rows[:8]) + ("\n  ..." if len(rows) > 8 else "")))}}
+    text = ""
+    if lines:
+        text += ("mycelium-extra: scilintr reports after this write:\n{}\nFix each one, or waive it with "
+                 "`ANALYSIS_OK[rule]: <what is done, why it is valid, where it is checked>` where the choice is "
+                 "deliberate. `verify` blocks on any finding left.".format("\n".join(lines)))
+    if notes:
+        text += ("\n" if text else "mycelium-extra: ") + (
+            "scilintr could not check everything just written, so this is not a clean result:\n{}\n`verify` "
+            "reports it as a gap until it can be checked.".format("\n".join("  " + n for n in notes[:4])))
+    return {"hookSpecificOutput": {"hookEventName": event.get("hook_event_name") or "PostToolUse",
+                                   "additionalContext": text}}
 
 
 def open_lint_notice(root, event, config):
@@ -2033,26 +2097,28 @@ def open_lint_notice(root, event, config):
     per change. A script edited since its lint (say by `sed` through Bash) is skipped: nothing is known."""
     if config.get("lint_on_write", True) is False:
         return None
-    path = lint_state(root, event.get("session_id"))
-    state = read_json(path, {})
+    folder = lint_dir(root, event.get("session_id"))
     still = {}
-    for rel, entry in sorted((state.get("open") or {}).items()):
+    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        entry = read_json(os.path.join(folder, name), {})
         try:
-            if os.path.getmtime(os.path.join(root, rel)) == entry["mtime"]:
-                still[rel] = collections.Counter(re.search(r"\[([\w-]+)\]", r).group(1) for r in entry["rows"])
+            if os.path.getmtime(os.path.join(root, entry["file"])) == entry["mtime"]:
+                still[entry["file"]] = collections.Counter(re.search(r"\[([\w-]+)\]", r).group(1) for r in entry["rows"])
         except (OSError, KeyError, AttributeError, TypeError):
             continue
+    marker = state_path(root, "pending", safe_session(event.get("session_id")) + ".lint-shown")
     if not still:
+        if os.path.isfile(marker):
+            os.remove(marker)
         return None
     message = ("mycelium-extra: scilintr findings are still open in script(s) written this session: {}. "
                "`verify` blocks on them unless they are fixed or waived with `ANALYSIS_OK[rule]: reason`.".format(
                    listing(("{} ({})".format(os.path.basename(rel), ", ".join(
                        "{} {}".format(r, n) if n > 1 else r for r, n in rules.most_common(3)))
-                       for rel, rules in still.items()), 5)))
-    if state.get("shown") == message:
+                       for rel, rules in sorted(still.items())), 5)))
+    if read_json(marker, "") == message:
         return None
-    state["shown"] = message
-    write_json(path, state)
+    write_json(marker, message)
     return message
 
 

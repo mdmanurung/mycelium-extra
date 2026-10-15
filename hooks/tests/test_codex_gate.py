@@ -66,6 +66,20 @@ class CodexGateTest(unittest.TestCase):
         self.assertIsNone(self.hook("tool", tool_name="apply_patch", tool_input={
             "command": "*** Begin Patch\n*** Add File: notes.md\n+hello\n*** End Patch"}))
 
+    def test_patch_lints_the_move_destination_through_the_codex_launcher(self):
+        os.makedirs(os.path.join(self.root, "analysis"))
+        with open(os.path.join(self.root, "analysis", "moved.py"), "w") as handle:
+            handle.write("print(1)\n")
+        with open(os.path.join(self.root, ".mycelium-extra", "tools.json"), "w") as handle:
+            json.dump({"scilintr": "/missing/scilintr"}, handle)
+        patch = "*** Begin Patch\n*** Update File: old.py\n*** Move to: analysis/moved.py\n*** End Patch"
+        reply = self.hook("post", tool_name="apply_patch", tool_input={"command": patch})
+        self.assertEqual(reply["hookSpecificOutput"]["hookEventName"], "PostToolUse")
+        self.assertIn("not a clean result", reply["hookSpecificOutput"]["additionalContext"])
+        with open(os.path.join(PLUGIN, "hooks", "codex.json")) as handle:
+            groups = json.load(handle)["hooks"]["PostToolUse"]
+        self.assertTrue(any(group.get("matcher") == "apply_patch" for group in groups))
+
     def test_codex_missing_status_is_not_success(self):
         for response in (None, False, {"exit_code": False},
                          "Process exited with code 0", '{"exit_code": 0}'):

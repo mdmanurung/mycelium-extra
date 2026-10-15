@@ -17,6 +17,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "..", "scripts", "verify.py")
@@ -52,6 +53,26 @@ def plan(*rows, outputs="analysis/a/outputs/", inputs=None):
 
 
 class VerifyTest(unittest.TestCase):
+    def test_write_lint_deadline_covers_both_languages_and_waiver_passes(self):
+        verify = gate.load_verify()
+        report = verify.Report()
+        result = {"findings": [], "waivers": [(FIT, 1, "waiver")], "output": []}
+        clock, limits = [100.0], []
+
+        def run(command, **kwargs):
+            limits.append(kwargs["timeout"])
+            clock[0] += min(6, kwargs["timeout"])
+            if kwargs["timeout"] < 6:
+                raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+            return subprocess.CompletedProcess(command, 0, stdout="")
+
+        with mock.patch.object(verify.time, "monotonic", side_effect=lambda: clock[0]), \
+                mock.patch.object(verify.subprocess, "run", side_effect=run):
+            verify.lint_languages(self.root, {"Python": [FIT], "R": ["analysis/a/x.R"]}, {}, report,
+                                  result, self.scilintr, [self.rscript, "-e", "lint"], 8, deadline=116)
+        self.assertEqual(limits, [8, 8, 4])
+        self.assertEqual(report.status(), "CONFORMS_WITH_GAPS")
+
     def setUp(self):
         hermetic(self)
         self.root = tempfile.mkdtemp()

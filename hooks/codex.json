@@ -33,6 +33,16 @@
             "timeout": 20
           }
         ]
+      },
+      {
+        "matcher": "apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then python3 \"${PLUGIN_ROOT}/hooks/gate_run.py\" --host codex post; fi",
+            "timeout": 20
+          }
+        ]
       }
     ],
     "Stop": [

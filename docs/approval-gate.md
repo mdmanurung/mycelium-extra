@@ -106,13 +106,13 @@ Type `allow explore` to let runs prefixed with `MYCELIUM_EXTRA_EXPLORE=1` throug
 
 ## Lint on write
 
-Mycelium's `analyze` skill tells the agent to run scilintr after every code write. That is an instruction, and nothing checks that it was followed. With a gate on, a PostToolUse hook on `Write`, `Edit`, `MultiEdit` and `NotebookEdit` does it for the agent.
+Mycelium's `analyze` skill tells the agent to run scilintr after every code write. That is an instruction, and nothing checks that it was followed. With a gate on, a PostToolUse hook on `Write`, `Edit`, `MultiEdit` and `NotebookEdit` (Claude Code) and `apply_patch` (Codex) does it for the agent.
 
-- It lints the one file just written, if the file is under `gated_paths` and is code (`.py`, `.R`, `.ipynb`, `.qmd`, `.Rmd`), with the linters `init --tools` recorded and a 5 s limit. Cross-file rules are left to the plan card and `verify`.
-- Open findings go to the agent as context, once per change: the same findings after the next edit are not repeated, and they return if they were fixed and then reappear. Waived findings are not listed.
-- It never blocks. It stays silent when the linter cannot run, times out, or the file does not parse (a half-written draft), and in that case it keeps what it recorded before.
+- It lints the files just written (up to five per patch), if they are under `gated_paths` and are code (`.py`, `.R`, `.ipynb`, `.qmd`, `.Rmd`), with the linters `init --tools` recorded. Each subprocess has an 8 s limit; both languages and their waiver checks share a 16 s subprocess budget under the 20 s hook limit. Files beyond the five-file limit are reported as unchecked. One call covers a whole patch; R may also report cross-file rules among those files. The plan card and `verify` check the wider analysis.
+- Open findings go to the agent as context, once per change: the same findings after the next edit are not repeated, and they return if they were fixed and then reappear. Waived findings are not listed; an R waiver with no reason is. Finding text is stripped of control characters and cut at 240 characters.
+- It never blocks. When scilintr could not check something (not installed, timed out, unreadable output, an internal lint error, or a script that does not parse under the hook's Python, which on some clusters is older than the linter's), the agent is told once per session that this is not a clean result, and the file's earlier findings are kept. `verify` reports the same as a gap.
+- Each script's findings are kept in its own file under `.mycelium-extra/pending/`, so parallel writes to different scripts do not overwrite each other. Unchecked notices use separate markers so simultaneous writes report the same gap once.
 - When a turn ends, you see one line naming the scripts written this session that still have open findings, once per change. The agent does not see it. A script edited after its lint (for example by `sed` through Bash) is left out, because nothing is known about it.
-- Claude Code only. Codex edits through `apply_patch`, which this hook does not read.
 
 `verify` still decides: it blocks on any finding left unfixed and unwaived.
 
