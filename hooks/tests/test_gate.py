@@ -204,6 +204,68 @@ class GateTest(unittest.TestCase):
         self.write_file(".mycelium-extra/gate.json", json.dumps({"card_lint": False}))
         self.assertNotIn("- lint:", self.card(self.CARD_PLAN))
 
+    def written(self, rel, tool="Write", session="s1"):
+        path = os.path.join(self.root, rel)
+        return self.hook("post", {"tool_name": tool, "tool_input": {"file_path": path}}, session=session)
+
+    def context(self, notice):
+        return ((notice or {}).get("hookSpecificOutput") or {}).get("additionalContext", "")
+
+    def test_write_lint_reaches_the_agent_once_per_change(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
+        first = self.context(self.written("analysis/a/02_fit.py"))
+        self.assertIn("1 open finding(s) in `analysis/a/02_fit.py`", first)
+        self.assertIn("analysis/a/02_fit.py:1: [broad-exception] x", first)
+        self.assertEqual(self.context(self.written("analysis/a/02_fit.py", "Edit")), "", "same findings: once")
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x\nanalysis/a/02_fit.py:2:1: [silent-coercion] y", 1)
+        self.assertIn("2 open finding(s)", self.context(self.written("analysis/a/02_fit.py", "MultiEdit")))
+        self.fake_linter()
+        self.assertEqual(self.context(self.written("analysis/a/02_fit.py")), "")
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
+        self.assertIn("1 open finding(s)", self.context(self.written("analysis/a/02_fit.py")), "reappears after clean")
+
+    def test_write_lint_stays_silent_when_it_cannot_judge(self):
+        self.fake_linter("scripts/x.py:1:1: [broad-exception] x", 1)
+        self.write_file("scripts/x.py", "print(1)\n")
+        self.write_file("analysis/a/NOTES.md", "x\n")
+        self.write_file("analysis/a/bad.py", "def (:\n")
+        for rel in ("scripts/x.py", "analysis/a/NOTES.md", "analysis/a/bad.py", "analysis/a/missing.py"):
+            self.assertIsNone(self.written(rel), rel)
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.write_file(".mycelium-extra/gate.json", json.dumps({"lint_on_write": False}))
+        self.assertIsNone(self.written("analysis/a/02_fit.py"))
+
+    def test_half_written_draft_keeps_the_recorded_findings(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
+        self.written("analysis/a/02_fit.py")
+        self.write_file("analysis/a/02_fit.py", "def (:\n")
+        self.assertIsNone(self.written("analysis/a/02_fit.py"))
+        state = os.path.join(self.root, ".mycelium-extra", "pending", "s1.lint.json")
+        with open(state) as handle:
+            self.assertIn("analysis/a/02_fit.py", json.load(handle)["open"])
+
+    def test_stop_tells_the_user_what_is_still_open_once(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
+        self.written("analysis/a/02_fit.py")
+        notice = self.hook("stop", {"last_assistant_message": "done"})["systemMessage"]
+        self.assertIn("still open in script(s) written this session: 02_fit.py (broad-exception)", notice)
+        self.assertIsNone(self.hook("stop", {"last_assistant_message": "done"}), "shown once")
+        self.assertIsNone(self.hook("stop", {"last_assistant_message": "done"}, session="s2"), "another session")
+        self.fake_linter()
+        self.written("analysis/a/02_fit.py")
+        self.assertIsNone(self.hook("stop", {"last_assistant_message": "done"}))
+
+    def test_stop_skips_a_script_edited_since_its_lint(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
+        self.written("analysis/a/02_fit.py")
+        path = os.path.join(self.root, "analysis/a/02_fit.py")
+        os.utime(path, (os.path.getmtime(path) + 5,) * 2)
+        self.assertIsNone(self.hook("stop", {"last_assistant_message": "done"}))
+
     def test_card_describes_the_procedure(self):
         os.makedirs(os.path.join(self.root, "analysis", "a"))
         with open(os.path.join(self.root, "analysis", "a", "02_fit.py"), "w") as handle:
@@ -1369,8 +1431,9 @@ class CompatibilityTest(unittest.TestCase):
         # PostToolUse fires only on success, so a failed run is receipted from PostToolUseFailure.
         with open(os.path.join(os.path.dirname(GATE), "hooks.json")) as handle:
             hooks = json.load(handle)["hooks"]
-        self.assertEqual(hooks["PostToolUseFailure"], hooks["PostToolUse"])
+        self.assertEqual(hooks["PostToolUseFailure"], hooks["PostToolUse"][:1])
         self.assertEqual(hooks["PostToolUse"][0]["matcher"], "Bash")
+        self.assertEqual(hooks["PostToolUse"][1]["matcher"], "Write|Edit|MultiEdit|NotebookEdit")  # lint on write
         self.assertIn('gate_run.py" post;', hooks["PostToolUse"][0]["hooks"][0]["command"])
 
     def test_scripts_compile_on_python_36(self):

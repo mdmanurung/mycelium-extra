@@ -6,6 +6,8 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Added
 
+- Lint on write. A PostToolUse hook on `Write`, `Edit`, `MultiEdit` and `NotebookEdit` runs scilintr on each gated script as it is written and gives the agent its open findings as context, once per change; it never blocks and stays silent on a file that does not parse. The Stop hook tells the user, once per change, which scripts written this session still have open findings. Off with `"lint_on_write": false`; Claude Code only. Mycelium's "lint after every write" rule is otherwise prose.
+
 - `"on_error": "deny"` in `gate.json` blocks every tool call the gate could not check after an internal error, including a `gate.py` that fails to load. The default stays fail-open. Errors are recorded in `.mycelium-extra/gate-errors.jsonl` when it can be written; a failed write never changes the decision. An invalid value is ignored with a notice.
 
 ### Fixed
