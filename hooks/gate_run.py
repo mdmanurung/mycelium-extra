@@ -13,6 +13,7 @@ import time
 
 sys.dont_write_bytecode = True  # leave no __pycache__ in the plugin folder
 STATE_DIR = ".mycelium-extra"
+EVENT = {}
 
 
 def find_root(cwd):  # gate.find_root, copied so the gate need not load; a test checks they agree
@@ -57,28 +58,76 @@ def error_output(name, error, cwd):
     return {"systemMessage": message + note}
 
 
-def main(argv):
+def run(argv):
     host = None
     if len(argv) == 4 and argv[1:3] == ["--host", "codex"]:
         host = "codex"
         argv = [argv[0], argv[3]]
     text = sys.stdin.buffer.read().decode("utf-8", "replace")  # Claude Code sends UTF-8, whatever the locale
+    EVENT["text"] = text
     try:
         event = json.loads(text)
-        if len(argv) == 2 and find_root(event.get("cwd") or os.getcwd()) is None:
-            return 0
         if host:
             event["host"] = host
             text = json.dumps(event)
     except Exception:
         pass  # an unreadable event: gate.py fails open and says so
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    # Capacity is independent of plan approval; closeout must run before gate hints.
+    import capacity
     try:
-        import gate
-        return gate.main(argv, text)
+        event = json.loads(text)
+        event.setdefault("hook_event_name", {"prompt": "UserPromptSubmit", "tool": "PreToolUse",
+                         "post": "PostToolUse", "stop": "Stop"}.get(argv[-1], argv[-1]))
+        handled, notice = capacity.handle(event)
+        if handled:
+            if notice:
+                print(json.dumps(notice))
+            return 0
+    except Exception as error:
+        # Capacity opted in: unreadable state never turns a missing quota into permission.
+        if capacity.project(event.get("cwd") or os.getcwd()) if isinstance(locals().get("event"), dict) else capacity.project(os.getcwd()):
+            name = locals().get("event", {}).get("hook_event_name", argv[-1])
+            reason = "Capacity unavailable: {}; save notes and stop.".format(error)
+            notice = (capacity.deny(reason) if name == "PreToolUse" else
+                      {"continue": False, "stopReason": reason, "systemMessage": reason})
+            print(json.dumps(notice))
+            return 0
+        notice = None
+    try:
+        if len(argv) == 2 and find_root(event.get("cwd") or os.getcwd()) is None:
+            if notice:
+                print(json.dumps(notice))
+            return 0
+    except Exception:
+        pass
+    if len(argv) == 2 and argv[1] not in ("prompt", "tool", "post", "stop"):
+        return 0
+    import gate
+    if notice:
+        # Wind-down context and approval denial must coexist in a single JSON response.
+        import io
+        saved = sys.stdout
+        output = io.StringIO()
+        try:
+            sys.stdout = output
+            result = gate.main(argv, text)
+        finally:
+            sys.stdout = saved
+        payload = json.loads(output.getvalue()) if output.getvalue().strip() else {}
+        extra = notice.get("hookSpecificOutput", {})
+        payload.setdefault("hookSpecificOutput", {}).update(extra)
+        print(json.dumps(payload))
+        return result
+    return gate.main(argv, text)
+
+
+def main(argv):
+    try:
+        return run(argv)
     except Exception as error:  # the gate would not load: still honour on_error
         try:
-            cwd = json.loads(text).get("cwd")
+            cwd = json.loads(EVENT.get("text", "")).get("cwd")
         except Exception:
             cwd = None
         print(json.dumps(error_output(argv[-1], error, cwd or os.getcwd())))
