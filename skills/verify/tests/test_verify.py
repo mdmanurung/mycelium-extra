@@ -406,7 +406,9 @@ class VerifyTest(unittest.TestCase):
             self.write("analysis/a/outputs/{}.rds".format(name), "x\n", mtime=receipt["ts"] + 1)
         self.write("analysis/a/outputs/scope_bcells.csv", "x\n", mtime=receipt["ts"] + 1)
         out = self.verify("report", digest)
-        self.assertIn("Output `\u2026_meta.csv` is shorthand that names no path", out)
+        # the report escapes what the locale cannot print (backslashreplace), so accept either form
+        self.assertTrue(any("Output `{}_meta.csv` is shorthand that names no path".format(dots) in out
+                            for dots in ("\u2026", "\\u2026")), out)
         self.assertEqual(out.count("does not exist"), 0, out)
         self.assertIn("| `analysis/a/outputs/fit_b_y.rds` |", out)
         self.assertIn("| `analysis/a/outputs/scope_bcells.csv` |", out)
