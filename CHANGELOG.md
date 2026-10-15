@@ -2,6 +2,16 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.66] - 2026-10-15
+
+### Added
+
+- `"on_error": "deny"` in `gate.json` blocks every tool call the gate could not check after an internal error, including a `gate.py` that fails to load. The default stays fail-open. Errors are recorded in `.mycelium-extra/gate-errors.jsonl` when it can be written; a failed write never changes the decision. An invalid value is ignored with a notice.
+
+### Fixed
+
+- Python 3.6 under `LC_ALL=C`: the gate test reads the handoff skill as UTF-8, and the verify shorthand test accepts the report's backslash-escaped output.
+
 ## [0.9.65] - 2026-10-14
 
 ### Fixed
