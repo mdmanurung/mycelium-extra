@@ -2,7 +2,7 @@
 
 [Choose a usage tier](usage.md)
 
-**On this page:** [Approving a plan](#approving-a-plan) · [What is gated](#what-is-gated) · [Pinned inputs](#pinned-inputs) · [Pinned scripts](#pinned-scripts) · [Run receipts](#run-receipts) · [Mycelium's post-action protocol](#myceliums-post-action-protocol) · [Exploratory runs](#exploratory-runs) · [Command hints](#command-hints) · [Settings](#settings) · [Limits](#limits)
+**On this page:** [Approving a plan](#approving-a-plan) · [What is gated](#what-is-gated) · [Pinned inputs](#pinned-inputs) · [Pinned scripts](#pinned-scripts) · [Run receipts](#run-receipts) · [Mycelium's post-action protocol](#myceliums-post-action-protocol) · [Exploratory runs](#exploratory-runs) · [Lint on write](#lint-on-write) · [Command hints](#command-hints) · [Settings](#settings) · [Limits](#limits)
 
 A plan is useful only if the run still follows it. The approval gate checks covered analysis commands before execution, so an agent cannot start a new run just because a previous conversation discussed it. You decide what is approved, and the gate keeps a record of the runs that follow.
 
@@ -104,6 +104,18 @@ Sometimes you need a quick experiment before you can write the final plan. Explo
 
 Type `allow explore` to let runs prefixed with `MYCELIUM_EXTRA_EXPLORE=1` through for this session; type `stop explore` to end it. Without the grant the prefix is denied, so the agent cannot exempt itself. Each explore run is logged, and the Stop hook lists those runs as not reportable. To make them reportable, say "promote explore runs": grill lists this session's explore runs (`verify explore`, prefix removed, scripts edited since flagged) and drafts a normal plan that re-runs them, for the usual approval. Explore outputs are never promoted to results. After each one, the receipt hook tells the agent the run is not reportable, so a learning or finding it records from the run (for example under Mycelium's post-action protocol) is labeled `Exploratory run (not reportable)`. Output files carry no label.
 
+## Lint on write
+
+Mycelium's `analyze` skill tells the agent to run scilintr after every code write. That is an instruction, and nothing checks that it was followed. With a gate on, a PostToolUse hook on `Write`, `Edit`, `MultiEdit` and `NotebookEdit` does it for the agent.
+
+- It lints the one file just written, if the file is under `gated_paths` and is code (`.py`, `.R`, `.ipynb`, `.qmd`, `.Rmd`), with the linters `init --tools` recorded and a 5 s limit. Cross-file rules are left to the plan card and `verify`.
+- Open findings go to the agent as context, once per change: the same findings after the next edit are not repeated, and they return if they were fixed and then reappear. Waived findings are not listed.
+- It never blocks. It stays silent when the linter cannot run, times out, or the file does not parse (a half-written draft), and in that case it keeps what it recorded before.
+- When a turn ends, you see one line naming the scripts written this session that still have open findings, once per change. The agent does not see it. A script edited after its lint (for example by `sed` through Bash) is left out, because nothing is known about it.
+- Claude Code only. Codex edits through `apply_patch`, which this hook does not read.
+
+`verify` still decides: it blocks on any finding left unfixed and unwaived.
+
 ## Command hints
 
 Type `hints on` to get a one-line suggestion of the command to run next; `hints off` stops them. The setting lasts for the repository until you turn it off. Hints need the gate (`init`), since the gate's hooks carry them.
@@ -124,6 +136,7 @@ Type `hints on` to get a one-line suggestion of the command to run next; `hints 
 | `pin_hash_mb` | `200` | Bytes of pinned inputs (in MB) hashed per hook before falling back to size and mtime. |
 | `pin_seconds` | `5` | Seconds the pin check may take per hook. |
 | `card_lint` | `true` | Lint the planned code when a plan is presented and show the result on the card. `false` turns it off. |
+| `lint_on_write` | `true` | Lint each gated script as it is written and tell the agent the open findings; the user sees what is left when the turn ends. `false` turns it off. |
 | `pin_scripts` | `true` | Block a run whose script changed since it was approved or first run. `false` turns it off. |
 | `on_error` | `"allow"` | What a PreToolUse hook does when the gate itself breaks. `"deny"` blocks every tool call the gate could not check, including when `gate.py` cannot load; any other value is ignored with a notice. |
 

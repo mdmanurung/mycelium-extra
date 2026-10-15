@@ -1946,6 +1946,9 @@ def on_stop(event, root, config):
         notices.append("mycelium-extra: {} exploratory run(s) this session are not reportable: {}. "
                        "Say \"promote explore runs\" to plan a reportable re-run.".format(
                            len(fresh), "; ".join(listed[:5]) + (" ..." if len(listed) > 5 else "")))
+    open_lint = open_lint_notice(root, event, config)
+    if open_lint:
+        notices.append(open_lint)
     if hints_on(root):
         notices += stop_hints(root, event)
     return {"systemMessage": "\n\n".join(notices)} if notices else None
@@ -1977,7 +1980,85 @@ def new_explore_runs(root, session_id):
 
 # ---------------------------------------------------------------- run receipts
 
+WRITE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
+WRITE_LINT_SECONDS = 5  # the PostToolUse hook is killed at 20 s; R starts slowly on a network filesystem
+
+
+def lint_state(root, session_id):
+    """{"open": {file: {"rows": [finding lines], "mtime": float}}, "shown": last Stop notice} for one session."""
+    return state_path(root, "pending", safe_session(session_id) + ".lint.json")
+
+
+def lint_on_write(event, root, config):
+    """After a script is written or edited, hand the agent scilintr's open findings on that one file, once per
+    change. Advisory: never blocks. Silent when the file is not gated code, the linter cannot run, or the
+    file does not parse (a half-written draft); a gap leaves what was recorded as it was. Cross-file rules
+    wait for the card and `verify`. Stop later tells the user what is still open."""
+    if config.get("lint_on_write", True) is False:
+        return None
+    tool_input = event.get("tool_input") or {}
+    target = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
+    rel = gated_rel(root, event.get("cwd") or root, target, config) if target else None
+    if not rel or not rel.endswith(LINT_EXT) or not os.path.isfile(os.path.join(root, rel)):
+        return None
+    try:
+        verify = load_verify()
+        report = verify.Report()
+        found = verify.lint(root, [rel], report, *lint_tools(root), seconds=WRITE_LINT_SECONDS)["findings"]
+    except Exception:  # ANALYSIS_OK[lint-best-effort]: the card and verify lint in full later
+        return None
+    if any(level == "gap" for level, _ in report.findings):
+        return None
+    rows = ["{}:{}: [{}] {}".format(f[0], f[1], f[3], f[4]) for f in sorted(found, key=lambda f: (f[0], int(f[1])))]
+    path = lint_state(root, event.get("session_id"))
+    state = read_json(path, {})
+    state.setdefault("open", {})
+    previous = (state["open"].get(rel) or {}).get("rows")
+    if rows:
+        state["open"][rel] = {"rows": rows, "mtime": os.path.getmtime(os.path.join(root, rel))}
+    else:
+        state["open"].pop(rel, None)
+    write_json(path, state)
+    if not rows or rows == previous:
+        return None
+    return {"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": (
+        "mycelium-extra: scilintr reports {} open finding(s) in `{}` after this write:\n{}\n"
+        "Fix each one, or waive it with `ANALYSIS_OK[rule]: <what is done, why it is valid, where it is "
+        "checked>` where the choice is deliberate. `verify` blocks on any finding left.".format(
+            len(rows), rel, "\n".join("  " + r for r in rows[:8]) + ("\n  ..." if len(rows) > 8 else "")))}}
+
+
+def open_lint_notice(root, event, config):
+    """User-only Stop line for scripts written this session that still have open scilintr findings, shown once
+    per change. A script edited since its lint (say by `sed` through Bash) is skipped: nothing is known."""
+    if config.get("lint_on_write", True) is False:
+        return None
+    path = lint_state(root, event.get("session_id"))
+    state = read_json(path, {})
+    still = {}
+    for rel, entry in sorted((state.get("open") or {}).items()):
+        try:
+            if os.path.getmtime(os.path.join(root, rel)) == entry["mtime"]:
+                still[rel] = collections.Counter(re.search(r"\[([\w-]+)\]", r).group(1) for r in entry["rows"])
+        except (OSError, KeyError, AttributeError, TypeError):
+            continue
+    if not still:
+        return None
+    message = ("mycelium-extra: scilintr findings are still open in script(s) written this session: {}. "
+               "`verify` blocks on them unless they are fixed or waived with `ANALYSIS_OK[rule]: reason`.".format(
+                   listing(("{} ({})".format(os.path.basename(rel), ", ".join(
+                       "{} {}".format(r, n) if n > 1 else r for r, n in rules.most_common(3)))
+                       for rel, rules in still.items()), 5)))
+    if state.get("shown") == message:
+        return None
+    state["shown"] = message
+    write_json(path, state)
+    return message
+
+
 def on_post(event, root, config):
+    if event.get("tool_name") in WRITE_TOOLS:
+        return lint_on_write(event, root, config)
     if event.get("tool_name") != "Bash":
         return None
     command = (event.get("tool_input") or {}).get("command", "")
