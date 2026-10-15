@@ -125,6 +125,7 @@ Type `hints on` to get a one-line suggestion of the command to run next; `hints 
 | `pin_seconds` | `5` | Seconds the pin check may take per hook. |
 | `card_lint` | `true` | Lint the planned code when a plan is presented and show the result on the card. `false` turns it off. |
 | `pin_scripts` | `true` | Block a run whose script changed since it was approved or first run. `false` turns it off. |
+| `on_error` | `"allow"` | What a PreToolUse hook does when the gate itself breaks. `"deny"` blocks every tool call the gate could not check, including when `gate.py` cannot load; any other value is ignored with a notice. |
 
 Two switches are not keys. `hints on` and `hints off` create and remove `.mycelium-extra/hints.json`. `allow explore` and `stop explore` apply to one session.
 
@@ -135,7 +136,7 @@ The gate catches execution mistakes; it is not a security boundary or a judgment
 - The gate denies the agent's Write/Edit calls into `.mycelium-extra/` and Codex `apply_patch` targets, including move destinations. For Bash, it checks where a command writes: redirect targets, and the targets of `rm`, `cp`, `mv`, `tee`, `sed -i`, `find -delete`, and similar. A command that only mentions the folder passes, such as a learning about the gate appended to `.living/learnings.md`. An interpreter's code cannot be traced, so a runner is denied when it gets a path in the folder, or when its own code (`-c`, a heredoc, or a script written by a heredoc earlier in the command) names the folder and writes anything. In Python code, the folder counts only in a path string or a shell-command string that writes it; prose and multi-line strings are text being written elsewhere. A variable set to a literal in the same command is expanded before the check.
 - Inline code (`python -c`, `Rscript -e`) counts as a gated run when it names a gated script (`.py`, `.R`, ...), or any gated path when it changes `sys.path`, the working directory, or `.libPaths()`. A read-only probe of gated data passes.
 - It passes a command by staying silent and never auto-allows, so your own permission prompts still apply.
-- On an internal error it fails open and says so.
+- On an internal error it fails open and says so, unless `gate.json` sets `"on_error": "deny"`: then every tool call it could not check is denied until the error is fixed or the key is set back to `"allow"`. Each error is appended to `.mycelium-extra/gate-errors.jsonl` when it can be written. Only tool calls are blocked; prompt, stop and post hooks report the error and carry on. A `gate.json` that cannot be read cannot opt in, and a host that never runs the hook cannot be controlled by it.
 - It catches mistakes; it is not security. An agent set on bypassing it through Bash can do so.
 - Size-and-mtime and folder fingerprints miss an edit that keeps both (for example `cp -p` or `rsync -t`). The notice says which fingerprint each input got.
 - A receipt records the environment a job declares, not the one it resolved. `hook_env` is the host hook's environment, not the job's.

@@ -2319,15 +2319,17 @@ def main(argv, text=None):
     if len(argv) != 2 or argv[1] not in HANDLERS:
         print("usage: gate.py stop|prompt|tool|post", file=sys.stderr)
         return 0
+    cwd = os.getcwd()
     try:
         event = json.loads(text if text is not None else sys.stdin.buffer.read().decode("utf-8", "replace"))
-        root = find_root(event.get("cwd") or os.getcwd())
+        cwd = event.get("cwd") or cwd
+        root = find_root(cwd)
         if root is None:
             return 0
         emit(HANDLERS[argv[1]](event, root, load_config(root)))
-    except Exception as error:  # fail open, but tell the user the gate broke
-        emit({"systemMessage": "mycelium-extra gate error ({}): {}; the gate did not run.".format(
-            argv[1], error)})
+    except Exception as error:  # fail open, but tell the user the gate broke; on_error "deny" blocks
+        from gate_run import error_output
+        emit(error_output(argv[1], error, cwd))
     return 0
 
 

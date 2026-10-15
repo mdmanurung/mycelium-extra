@@ -50,7 +50,7 @@ class GateTest(unittest.TestCase):
         return self.hook("tool", {"tool_name": "Bash", "tool_input": {"command": command}}, cwd)
 
     def denied(self, result):
-        return bool(result) and result["hookSpecificOutput"]["permissionDecision"] == "deny"
+        return bool(result) and result.get("hookSpecificOutput", {}).get("permissionDecision") == "deny"
 
     def approve(self, text=PLAN):
         notice = self.hook("stop", {"last_assistant_message": text})
@@ -480,7 +480,8 @@ class GateTest(unittest.TestCase):
 
     def test_handed_off_plan_is_approved_where_it_is_shown_again(self):
         # the handoff skill's own commands find the stored plan and print it unchanged
-        skill = open(os.path.join(os.path.dirname(GATE), "..", "skills", "handoff", "SKILL.md")).read()
+        with open(os.path.join(os.path.dirname(GATE), "..", "skills", "handoff", "SKILL.md"), encoding="utf-8") as f:
+            skill = f.read()
         find = skill.split("```bash\n", 1)[1].split("```", 1)[0].replace("\n  ", "\n").strip()
         show = skill.split("Print it with:\n  `", 1)[1].split("`", 1)[0]
         text = "> Question: why\n\n" + PLAN
@@ -1228,6 +1229,45 @@ class GateTest(unittest.TestCase):
         self.assertEqual(self.receipts()[-1]["script"]["git"], "untracked")
 
 
+    def test_on_error_fails_open_by_default_and_denies_only_tool_calls_when_set(self):
+        broken = {"gated_commands": 5, "gated_paths": 5}  # the tool handler raises on a config it cannot read
+        self.config(broken)
+        result = self.bash("ls")
+        self.assertFalse(self.denied(result))
+        self.assertIn("mycelium-extra gate error (tool)", result["systemMessage"])
+        self.config(dict(broken, on_error="deny"))
+        result = self.bash("ls")
+        self.assertTrue(self.denied(result))
+        self.assertIn("on_error", result["hookSpecificOutput"]["permissionDecisionReason"])
+        for event in ("prompt", "stop", "post"):  # nothing to block outside a tool call
+            proc = subprocess.Popen([sys.executable, self.entry, event], stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.root)
+            out, err = proc.communicate(b"{not json")  # an unreadable event is an error in any handler
+            self.assertEqual(proc.returncode, 0, err)
+            reply = json.loads(out.decode("utf-8"))
+            self.assertFalse(self.denied(reply), event)
+            self.assertIn("gate error ({})".format(event), reply["systemMessage"])
+        with open(os.path.join(self.root, ".mycelium-extra", "gate-errors.jsonl"), encoding="utf-8") as log:
+            records = [json.loads(line) for line in log]
+        self.assertEqual([r["decision"] for r in records if r["event"] == "tool"], ["allow", "deny"])
+
+    def test_on_error_deny_survives_a_log_that_cannot_be_written(self):
+        self.config({"gated_commands": 5, "on_error": "deny"})
+        os.makedirs(os.path.join(self.root, ".mycelium-extra", "gate-errors.jsonl"))  # a folder cannot be appended to
+        self.assertTrue(self.denied(self.bash("ls")))
+
+    def test_on_error_must_be_allow_or_deny(self):
+        self.config({"gated_commands": 5, "on_error": "block"})
+        result = self.bash("ls")
+        self.assertFalse(self.denied(result))
+        self.assertIn('"on_error" in gate.json must be "allow" or "deny"', result["systemMessage"])
+
+    def test_default_decisions_do_not_change_without_an_error(self):
+        self.config({"on_error": "deny"})
+        self.assertTrue(self.denied(self.bash("python analysis/x.py")))
+        self.assertIsNone(self.bash("ls"))
+
+
 class LauncherTest(GateTest):
     """Every gate test again, through the entry point hooks.json calls."""
     entry = LAUNCHER
@@ -1260,6 +1300,42 @@ class LauncherOnlyTest(unittest.TestCase):
         self.assertIn("mycelium-extra gate error (tool)", message)
         proc = subprocess.Popen([sys.executable, GATE, "tool"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         self.assertEqual(message, proc.communicate(b"{not json")[0].decode("utf-8"))
+
+    def test_on_error_covers_a_gate_that_cannot_load_on_both_hosts(self):
+        folder = tempfile.mkdtemp()
+        try:
+            hooks = os.path.join(folder, "hooks")
+            os.makedirs(hooks)
+            shutil.copy(LAUNCHER, hooks)
+            with open(os.path.join(hooks, "gate.py"), "w") as broken:
+                broken.write("def main(:\n")
+            repo = os.path.join(folder, "repo")
+            os.makedirs(os.path.join(repo, ".mycelium-extra"))
+            event = json.dumps({"tool_name": "Bash", "cwd": repo, "tool_input": {"command": "ls"}})
+
+            def run(*args):
+                proc = subprocess.Popen([sys.executable, os.path.join(hooks, "gate_run.py")] + list(args),
+                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                out, err = proc.communicate(event.encode("utf-8"))
+                self.assertEqual(proc.returncode, 0, err)
+                return json.loads(out.decode("utf-8"))
+
+            def config(text):
+                with open(os.path.join(repo, ".mycelium-extra", "gate.json"), "w") as handle:
+                    handle.write(text)
+
+            for args in (("tool",), ("--host", "codex", "tool")):
+                config("{}")
+                reply = run(*args)
+                self.assertIn("mycelium-extra gate error (tool)", reply["systemMessage"])
+                config('{"on_error": "deny"}')
+                reply = run(*args)
+                self.assertEqual(reply["hookSpecificOutput"]["permissionDecision"], "deny")
+                config('{"on_error": "deny"')  # unreadable: it cannot opt in
+                reply = run(*args)
+                self.assertIn("unreadable", reply["systemMessage"])
+        finally:
+            shutil.rmtree(folder)
 
     def test_find_root_copies_agree(self):
         sys.dont_write_bytecode = True
