@@ -41,4 +41,4 @@ Tasks that make the existing tools trustworthy before new ones are added. C1 com
 - **Acceptance:** a gap list exists in the PR; the packet with planted identifiers is flagged before sending; a packet with no flags still states that the check is pattern-based.
 - **Tests:** contract additions in `skills/plan-review/tests/test_plan_review.py`; unit tests for the pre-send check with true positives, known false positives, and one documented miss.
 - **Effort:** M.
-- **Status:** todo.
+- **Status:** done (0.9.70): gap list and results in [c3-plan-review-redaction-audit.md](../design/c3-plan-review-redaction-audit.md); `presend_check.py` plus contract, skill and Codex wording changes. No model was run through `plan-review`, so agent behaviour is unobserved.
