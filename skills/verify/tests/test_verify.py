@@ -120,8 +120,24 @@ class VerifyTest(unittest.TestCase):
         return digest
 
     def run_cmd(self, command, exit_code=0, stdout=""):
-        self.hook("post", {"tool_name": "Bash", "tool_input": {"command": command},
-                           "tool_response": {"stdout": stdout, "exit_code": exit_code}})
+        """A run the gate saw from start to end: its Pre callback, which must allow it, then its
+        Post with the same tool_use_id (as Claude Code and Codex send them). Returns the receipt."""
+        self.calls = getattr(self, "calls", 0) + 1
+        call_id = "toolu_test_{}".format(self.calls)
+        reply = self.hook("tool", {"tool_name": "Bash", "tool_input": {"command": command}, "tool_use_id": call_id})
+        decision = ((reply or {}).get("hookSpecificOutput") or {}).get("permissionDecision")
+        self.assertNotEqual(decision, "deny", "the gate denied `{}`; use post_only for a run it blocks: {}".format(
+            command, reply))
+        return self.post_only(command, exit_code, stdout, call_id=call_id)
+
+    def post_only(self, command, exit_code=0, stdout="", call_id=None):
+        """A Post callback with no Pre before it: a run the gate never launched (a denied or missed
+        call, or a host that sends no Pre). Returns the receipt."""
+        event = {"tool_name": "Bash", "tool_input": {"command": command},
+                 "tool_response": {"stdout": stdout, "exit_code": exit_code}}
+        if call_id:
+            event["tool_use_id"] = call_id
+        self.hook("post", event)
         receipts = gate.state_path(self.root, "receipts.jsonl")
         with open(receipts) as handle:
             return json.loads(handle.readlines()[-1])
@@ -264,6 +280,18 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("observation history unavailable", out)
         self.assertIn("gate-errors.jsonl", out)
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+
+    def test_run_cmd_sends_pre_then_post_and_post_only_sends_no_pre(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        launches = gate.state_path(self.root, "launches")
+        self.post_only("python " + FIT)
+        self.assertFalse(os.path.isdir(launches))  # no Pre ever wrote a launch record
+        receipt = self.run_cmd("python " + FIT)
+        self.assertTrue(os.path.isdir(launches))  # Pre wrote one, and the matching Post took it
+        self.assertEqual(os.listdir(launches), [])
+        self.assertEqual(receipt["plans"], [digest])
+        self.run_cmd("python " + FIT)  # each call has its own id, so a second run finds its own launch
+        self.assertEqual(os.listdir(launches), [])
 
     def test_competing_timestamp_writers_are_a_gap(self):
         digest = self.approve(plan("run `{}`".format(FIT)))
