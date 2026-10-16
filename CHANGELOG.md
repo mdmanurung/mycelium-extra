@@ -2,6 +2,16 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.70] - 2026-10-16
+
+### Added
+
+- `plan-review` pre-send check (`scripts/presend_check.py`, roadmap C3). Before the packet is shown to the user, it flags likely secrets, contact details, home paths and the participant IDs found in the tables the plan names under `Inputs:`. Flags with an empty `redactions:` exit 3 (do not send); with `redactions:` filled in they exit 2 (the user decides); a clean result says it is pattern-based. Matched values are masked. The audit and its gap list are in `docs/design/c3-plan-review-redaction-audit.md`.
+
+### Changed
+
+- The `plan-review` contract defines the `redactions:` entry shape, extends the exclusion list, and says Codex can read the repository beyond the packet, so it should run on a data-free copy when the repository holds participant-level data. The check's result is part of the reviewer status.
+
 ## [0.9.69] - 2026-10-16
 
 ### Added
