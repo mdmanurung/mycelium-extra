@@ -132,6 +132,7 @@ OUTPUT_SHORTHAND = re.compile(r"(?<![^\s`(,])(?:\u2026|\.\.\.)[^\s`,;()]*")  # `
 OUTPUT_BRACES = re.compile(r"[^\s`,;()]*\{[^\s`;()]*")
 MAX_OUTPUT_WORDS = 200
 MAX_FOLDER_FILES = 5000
+MAX_OBSERVED_OUTPUTS = 200  # declared output files watched around one launch; more and the observation is skipped
 MAX_SNAPSHOT = 256 * 1024  # bytes; a larger script is pinned, but a change shows hashes only
 MAX_SCRIPT_PINS = 500
 DIFF_LINES = 30  # lines of diff on one approval card
@@ -1127,6 +1128,73 @@ def take_attempt(root, event):
 def take_launch(root, event):
     """This call's launch record, removed once read: {segment: [{paths, plans, pins}]}, or {} if there is none."""
     return (take_attempt(root, event)["attempt"] or {}).get("runs") or {}
+
+
+def stat_pair(path):
+    """[size, mtime_ns] of a path, or None when it does not exist."""
+    try:
+        info = os.stat(path)
+    except OSError:
+        return None
+    return [info.st_size, info.st_mtime_ns]
+
+
+def expand_outputs(root, words, deadline):
+    """(paths, None) for the declared output paths of a plan, repo-relative where they are inside it, or
+    (None, reason) when they cannot be watched: a `**` pattern, more than MAX_OBSERVED_OUTPUTS files, or time
+    ran out. Literal paths and one-level globs only; a data tree is never scanned."""
+    paths = []
+    for word in words:
+        word = os.path.expanduser(word)
+        full = word if os.path.isabs(word) else os.path.join(root, word)
+        hits = [full]
+        if re.search(r"[*?\[]", word):
+            if "**" in word:
+                return None, "pattern with ** not expanded: " + word
+            hits = []
+            # ponytail: glob lists a whole folder before matching; a folder of millions of files is slow here
+            for hit in glob.iglob(full):
+                hits.append(hit)
+                if len(paths) + len(hits) > MAX_OBSERVED_OUTPUTS:
+                    break
+                if time.time() >= deadline:
+                    return None, "time limit"
+        for hit in hits:
+            rel = os.path.relpath(hit, root)
+            rel = hit if rel == ".." or rel.startswith(".." + os.sep) else rel
+            if rel not in paths:
+                paths.append(rel)
+        if len(paths) > MAX_OBSERVED_OUTPUTS:
+            return None, "cap reached ({} files)".format(MAX_OBSERVED_OUTPUTS)
+    return paths, None
+
+
+def snapshot_outputs(root, plan, budget):
+    """The launch-entry fields that record the plan's declared outputs before the run."""
+    words = (output_words(plan) or [])[:MAX_OUTPUT_WORDS]
+    if not words:
+        return {"outputs_skipped": "no declared outputs"}
+    paths, reason = expand_outputs(root, words, budget["deadline"])
+    if reason:
+        return {"outputs_skipped": reason}
+    return {"outputs_declared": words, "outputs_before": dict((p, stat_pair(os.path.join(root, p))) for p in paths)}
+
+
+def observe_outputs(root, launch, budget):
+    """(outputs_changed, outputs_observation) for one matched launch entry, compared with its snapshot."""
+    if launch.get("outputs_skipped"):
+        return None, "skipped: " + launch["outputs_skipped"]
+    before = launch.get("outputs_before")
+    if not isinstance(before, dict):
+        return None, "skipped: no output snapshot in the launch record"
+    paths, reason = expand_outputs(root, launch.get("outputs_declared") or [], budget["deadline"])
+    if reason:
+        return None, "skipped: {} when the run ended".format(reason)
+    now = dict((p, stat_pair(os.path.join(root, p))) for p in set(paths) | set(before))
+    return {"created": sorted(p for p in now if before.get(p) is None and now[p] is not None),
+            "changed": sorted(p for p in before if before[p] is not None and now[p] is not None
+                              and list(before[p]) != now[p]),
+            "deleted": sorted(p for p in before if before[p] is not None and now[p] is None)}, "observed"
 
 
 def pin_limitations(pins, what):
@@ -2481,7 +2549,8 @@ def on_tool(event, root, config):
             entry["instance_ids"] = instances
         if isinstance(run_cwd, UnknownFolder):  # allowed by one of its readings, not by a resolved folder
             entry["limitations"] = ["cwd unresolved: " + run_cwd.raw]
-        if entry not in launched.setdefault(segment, []):
+        if not any(all(e.get(key) == value for key, value in entry.items()) for e in launched.setdefault(segment, [])):
+            entry.update(snapshot_outputs(root, newest.get("plan", ""), budget))
             launched[segment].append(entry)
         changes, skipped = changed_pins(root, newest.get("pins") or {}, budget, cache)
         if changes:
@@ -3174,6 +3243,16 @@ def on_post(event, root, config):
         }
         if limitations:
             receipt["limitations"] = limitations
+        if launch_match != "matched":
+            receipt["outputs_observation"] = "skipped: {} launch".format(launch_match)
+        elif compound:
+            receipt["outputs_observation"] = "skipped: compound shell command"
+        elif label == "sbatch":
+            receipt["outputs_observation"] = "skipped: job submission (outputs are written after the call returns)"
+        else:
+            changed, receipt["outputs_observation"] = observe_outputs(root, launch, budget)
+            if changed is not None:
+                receipt["outputs_changed"] = changed
         if launch_match != "matched" and note:
             receipt["launch_note"] = note
         if launch_match == "ambiguous":

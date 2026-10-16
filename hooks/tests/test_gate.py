@@ -3070,6 +3070,107 @@ class AttemptEvidenceTest(unittest.TestCase):
         with open(self.path("script-pins", "deadbeef.json")) as handle:
             self.assertEqual(sorted(json.load(handle)), ["analysis/a.py", "analysis/b.py"])
 
+    # C05 gate side: declared outputs observed around each launch
+
+    OUT = "analysis/out/r.csv"
+
+    def with_outputs(self, *words, **kwargs):
+        step = kwargs.get("step", "run `analysis/x.py`")
+        return "Outputs: {}\n\n".format(", ".join(words)) + self.plan(step)
+
+    def out_receipt(self, run=None, command="python analysis/x.py", **event):
+        """Launch, run `run()` between the hooks, report back: the one receipt."""
+        self.assertIsNone(self.tool(command, tool_use_id="t1", **event))
+        if run:
+            run()
+        self.post(command, tool_use_id="t1", **event)
+        receipt, = self.receipts()
+        return receipt
+
+    def test_a_changed_output_is_observed(self):
+        self.write(self.OUT, "a\n")
+        self.approve(self.with_outputs(self.OUT))
+        self.assertIsNone(self.tool(tool_use_id="t1"))
+        entry, = [e for r in self.launch_records() for es in r["runs"].values() for e in es]
+        self.assertEqual(sorted(entry["outputs_before"]), [self.OUT])
+        size, mtime_ns = entry["outputs_before"][self.OUT]
+        self.assertEqual((size, isinstance(mtime_ns, int)), (2, True))
+        self.write(self.OUT, "a longer table\n")
+        self.post(tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual(receipt["outputs_observation"], "observed")
+        self.assertEqual(receipt["outputs_changed"], {"created": [], "changed": [self.OUT], "deleted": []})
+
+    def test_a_created_and_a_deleted_output_are_observed(self):
+        self.write("analysis/out/gone.csv", "x\n")
+        self.approve(self.with_outputs(self.OUT, "analysis/out/gone.csv"))
+        receipt = self.out_receipt(lambda: (self.write(self.OUT, "new\n"), os.remove(
+            os.path.join(self.root, "analysis/out/gone.csv"))))
+        self.assertEqual(receipt["outputs_changed"], {"created": [self.OUT], "changed": [],
+                                                      "deleted": ["analysis/out/gone.csv"]})
+        self.assertEqual(receipt["outputs_observation"], "observed")
+
+    def test_an_untouched_pre_existing_output_is_not_reported_changed(self):  # control
+        self.write(self.OUT, "a\n")
+        self.write("analysis/out/other.csv", "b\n")
+        self.approve(self.with_outputs(self.OUT, "analysis/out/other.csv"))
+        receipt = self.out_receipt(lambda: self.write("analysis/out/other.csv", "bb changed\n"))
+        self.assertEqual(receipt["outputs_changed"], {"created": [], "changed": ["analysis/out/other.csv"],
+                                                      "deleted": []})
+        self.assertNotIn(self.OUT, json.dumps(receipt["outputs_changed"]))
+
+    def test_nothing_written_is_an_observation_of_no_change(self):
+        self.write(self.OUT, "a\n")
+        self.approve(self.with_outputs(self.OUT))
+        receipt = self.out_receipt()
+        self.assertEqual((receipt["outputs_observation"], receipt["outputs_changed"]),
+                         ("observed", {"created": [], "changed": [], "deleted": []}))
+
+    def test_a_glob_sees_a_new_file_and_not_an_untouched_one(self):
+        self.write("analysis/out/old.csv", "o\n")
+        self.approve(self.with_outputs("analysis/out/*.csv"))
+        receipt = self.out_receipt(lambda: self.write("analysis/out/new.csv", "n\n"))
+        self.assertEqual(receipt["outputs_changed"], {"created": ["analysis/out/new.csv"], "changed": [],
+                                                      "deleted": []})
+
+    def test_a_glob_over_too_many_files_is_skipped_not_scanned_on(self):
+        for i in range(201):
+            self.write("analysis/out/f{}.csv".format(i), "x\n")
+        self.approve(self.with_outputs("analysis/out/*.csv"))
+        receipt = self.out_receipt(lambda: self.write("analysis/out/f0.csv", "changed\n"))
+        self.assertTrue(receipt["outputs_observation"].startswith("skipped: cap reached"), receipt)
+        self.assertNotIn("outputs_changed", receipt)
+
+    def test_a_recursive_glob_is_not_expanded(self):
+        self.approve(self.with_outputs("analysis/**/r.csv"))
+        receipt = self.out_receipt()
+        self.assertTrue(receipt["outputs_observation"].startswith("skipped: pattern with **"), receipt)
+
+    def test_an_unmatched_launch_skips_the_observation(self):
+        self.write(self.OUT, "a\n")
+        self.approve(self.with_outputs(self.OUT))
+        self.post()  # no pre hook, so nothing was snapshotted
+        receipt, = self.receipts()
+        self.assertEqual(receipt["outputs_observation"], "skipped: unmatched launch")
+        self.assertNotIn("outputs_changed", receipt)
+
+    def test_a_plan_without_outputs_skips_the_observation(self):
+        self.approve()
+        receipt = self.out_receipt()
+        self.assertEqual(receipt["outputs_observation"], "skipped: no declared outputs")
+        self.assertNotIn("outputs_changed", receipt)
+
+    def test_a_job_submission_and_a_compound_call_skip_the_observation(self):
+        self.write("job.sh", "#!/bin/bash\necho hi\n")
+        self.approve(self.with_outputs(self.OUT, step="run `analysis/x.py` with sbatch job.sh"))
+        receipt = self.out_receipt(command="sbatch job.sh")
+        self.assertTrue(receipt["outputs_observation"].startswith("skipped: job submission"), receipt)
+        compound = "python analysis/x.py; python analysis/x.py"
+        self.assertIsNone(self.tool(compound, tool_use_id="t2"))
+        self.post(compound, tool_use_id="t2")
+        for receipt in self.receipts()[1:]:
+            self.assertEqual(receipt["outputs_observation"], "skipped: compound shell command")
+
 
 if __name__ == "__main__":
     unittest.main()
