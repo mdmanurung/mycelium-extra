@@ -7,23 +7,23 @@ Every oversight step can turn into a reflex: approve without reading, answer the
 ## Preconditions for the whole workstream
 
 - C1 (fixture project) and D1 (claims checker) have shipped, so there is something real to audit.
-- Seeded errors (D12) are disclosed at install: `init` says that audits may plant a known error, and a user can turn them off. No covert testing.
+- Review exercises (D12, reshaped) are synthetic, labelled as exercises, off by default, and never placed in a real report. No covert testing, and no falsified genuine record.
 - All metrics stay local, in `.mycelium-extra/`, which git ignores. Nothing is sent anywhere, and nothing is shown to anyone but the user.
-- No SessionStart surface (it competes with Mycelium's SESSION RESUME). The dashboard lives in `verify status`.
+- No SessionStart surface (it competes with Mycelium's SESSION RESUME). A habits summary, if one is ever built, lives in `verify status`; none exists today.
 - Metrics describe a person's own habits over time. They are not a score, and they never block work.
 
 ## D10: Comprehension checkpoint and approval latency
 
 - **Why:** the gate records that a plan was approved, not that it was read. A plan approved four seconds after it appeared, every time, is a sign the approval has become a reflex.
-- **Scope:** the gate records, per approval, the time between the plan being shown and the approval, and the plan's length. For plans above a size threshold, approval asks one short question whose answer is in the plan (for example, "which contrast is the reference level?"), generated from the plan table, not by an LLM; a wrong answer shows the relevant row and asks again, it does not deny. Latency and checkpoint results feed the D12 dashboard.
+- **Scope:** the gate records, per approval, the time between the plan being shown and the approval, and the plan's length. When `checkpoint_steps` is set in `gate.json` (off by default), a plan with more step rows than that asks one short question whose answer is in the plan, generated from the plan table, not by an LLM; a wrong answer shows the relevant row and asks again, it does not deny. The log is for the researcher to read; no dashboard consumes it.
 - **Out of scope:** blocking approval on speed; any remote reporting; questions about anything not in the plan.
-- **Depends on:** C1, D1, D12.
-- **Constraints:** `gate_diff.py` before and after; approval decisions must not change except for the added checkpoint prompt. The checkpoint can be turned off in `gate.json`. Approvals are not pruned.
+- **Depends on:** C1, D1. (The user approved D10 on 2026-10-16 as the log and the opt-in checkpoint only; D12's dashboard was not built first.)
+- **Constraints:** `gate_diff.py` before and after; approval decisions must not change except for the added checkpoint prompt. The checkpoint is off unless `checkpoint_steps` is set. Approvals are not pruned.
 - **Grill prompt:** `/mycelium-extra:grill Add approval-latency logging and an optional one-question comprehension checkpoint for long plans to the approval gate. The question comes from the plan table, never from an LLM, and a wrong answer re-shows the row instead of denying. Read how gate.py detects and records approvals, and run gate_diff.py before and after.`
-- **Acceptance:** latency is recorded for every approval in the fixture; a long plan triggers one question; a wrong answer re-shows the row; with the checkpoint off, `gate_diff.py` shows no change.
+- **Acceptance:** latency is recorded for every approval in the fixture; with `checkpoint_steps` set, a long plan triggers one question; a wrong answer re-shows the row; with the checkpoint off, `gate_diff.py` shows no change.
 - **Tests:** gate tests for latency recording, question generation from a fixture plan table, and the off switch.
 - **Effort:** M.
-- **Status:** done (0.9.73): every approval appends a line to `approvals.jsonl` (latency, plan rows and length; never shown, never blocking). `checkpoint_steps` in `gate.json` (off by default) asks one question from the plan table when a plan has more step rows; a wrong answer re-shows the row, a right one approves. The D12 dashboard is not built.
+- **Status:** done (0.9.73): every approval appends a line to `approvals.jsonl` (latency, plan rows and length; never shown, never blocking). `checkpoint_steps` in `gate.json` (off by default) asks one question from the plan table when a plan has more step rows; a wrong answer re-shows the row, a right one approves. No latency scoring is done: latency is only logged, never displayed, scored, compared, or used to block or slow an approval. The D12 dashboard is not built.
 
 ## D11: Approval expiry by reuse count
 
@@ -36,17 +36,19 @@ Every oversight step can turn into a reflex: approve without reading, answer the
 - **Acceptance:** with the limit at 3, the fourth run on the fixture asks for re-approval and lists the changes; with the limit unset, behaviour is unchanged per `gate_diff.py`.
 - **Tests:** gate tests for the limit, explore runs not counting, and the expired-but-kept record.
 - **Effort:** S.
-- **Status:** done (0.9.71): `max_runs_per_approval` in `gate.json`; the denial lists the commit and script changes since the first counted run, the approval file is untouched, and `verify list`/`status` mark an approval that reached the limit. The count lags by runs in flight.
+- **Status:** done (0.9.71), and optional: it is off unless set and is not part of the default journey. `max_runs_per_approval` in `gate.json`; the denial lists the commit and script changes since the first counted run, the approval file is untouched, and `verify list`/`status` mark an approval that reached the limit. The count lags by runs in flight.
 
-## D12: Seeded-error audits and a personal dashboard
+## D12: Synthetic review exercises (reshaped; not implemented)
 
-- **Why:** the only ground truth for "does the user still catch errors?" is an error whose presence is known. Latency and checkpoint scores (D10) are proxies; a seeded error is a direct measure.
-- **Scope:** at a rate the user sets (default off; suggested one in twenty verify runs), verify or the claims checker plants one known, harmless discrepancy in its report (for example, a claim marked `VERIFIED` that is not), and records whether the user flagged it before accepting. The report says afterwards that it was a seeded audit and what the real result is. `verify status` gains a short personal section: seeded errors caught versus missed, median approval latency, checkpoint accuracy, explore-to-plan ratio, each over the last 30 days and the 30 before.
-- **Out of scope:** comparing users; exporting metrics; seeding errors in data, code, or anything written to disk outside the report.
+The earlier proposal planted a known false claim in the researcher's genuine verification report and recorded whether it was caught. That is dropped: a genuine verification report must not contain an invented discrepancy, even briefly.
+
+- **Why:** the only ground truth for "does the user still catch errors?" is an error whose presence is known. A synthetic exercise gives that ground truth without touching real work.
+- **Scope:** an opt-in command, off by default, that shows a clearly labelled synthetic exercise: a fixture plan, receipts, and report with one known discrepancy, built from the fixture project's defect cases (C1). It says at the start that it is an exercise, asks what the user finds, and then reveals the known answer. A personal summary in `verify status` (exercises caught versus missed, over the last 30 days and the 30 before) may follow, kept in `.mycelium-extra/` only.
+- **Out of scope:** any change to a genuine plan, receipt, report, provenance file, `.living/` entry, or claims check; seeding errors in the user's data or code; comparing users; exporting metrics; scheduled or covert exercises.
 - **Depends on:** C1, D1.
-- **Constraints:** disclosed at install, off by default, and switchable off at any time. A seeded discrepancy is always revealed in the same session, and never reaches provenance or `.living/`: the provenance written after an audit carries the real result. Metrics live in `.mycelium-extra/` only.
-- **Grill prompt:** `/mycelium-extra:grill Plan seeded-error audits for verify and the claims checker, plus a personal habits section in verify status. Audits must be disclosed at install, off by default, revealed in the same session, and never reach provenance or .living/. Show where the real result is kept while the audit is pending.`
-- **Acceptance:** with the rate at 1, every verify run on the fixture plants and then reveals one discrepancy, and the written provenance carries the real result; `verify status` shows the habits section with both 30-day windows; with the rate at 0, nothing changes.
-- **Tests:** unit tests for planting, revealing, and the provenance guarantee; a test that metrics files are written only under `.mycelium-extra/`.
-- **Effort:** L.
-- **Status:** todo.
+- **Constraints:** every exercise carries an unmistakable label and lives in its own folder, never next to or inside real provenance. Nothing it writes can be mistaken for, or read by `verify`, `status`, or `stale` as, a real run. Metrics live in `.mycelium-extra/` only. Off by default and switchable off at any time.
+- **Grill prompt:** `/mycelium-extra:grill Plan opt-in synthetic review exercises built from the fixture project's defect cases. They must be labelled as exercises, kept out of real reports and provenance, and revealed in the same session. Show where an exercise lives so that verify cannot mistake it for a real run.`
+- **Acceptance:** an exercise is created only on request; its files are labelled and never appear in `verify list`, `status`, or `stale`; the real result of any genuine verify run is unchanged by it; with the feature off, nothing changes.
+- **Tests:** unit tests for labelling and isolation, and a test that no exercise file is written outside its own folder under `.mycelium-extra/`.
+- **Effort:** M.
+- **Status:** reshaped, not implemented. The seeded-discrepancy design is replaced; no code exists.

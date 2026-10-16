@@ -44,7 +44,7 @@ Phases are a suggested order, not a gate; a task may start once its dependencies
 - D3 depends on D1 (cites the claims summary) and on A3 (cites the plugin version).
 - D4 depends on C1 (needs explore and gated receipts to test against).
 - E4 depends on C1 (real-use tests run against the fixture project).
-- D10, D11, D12 depend on C1 and D1; D10 also depends on D12 (a checkpoint without a way to see it being gamed is theatre).
+- D10, D11, D12 depend on C1 and D1. D10 shipped without D12 (the user approved its log and opt-in checkpoint on 2026-10-16); D12 is reshaped and not built.
 
 ## Task template
 
@@ -70,6 +70,7 @@ Every task uses these fields, under a `### <ID>: <title>` heading:
 - [04-handoff-backlog.md](04-handoff-backlog.md): E1 to E8 and E1b, open items from the session handoff.
 - [05-mindfulness-core.md](05-mindfulness-core.md): D1 to D9, keeping LLM output honest.
 - [06-anti-gaming.md](06-anti-gaming.md): D10 to D12, checking that oversight stays real.
+- [07-execution-fidelity.md](07-execution-fidelity.md): C01 to C13, the implementation tracker for execution fidelity: no false assurance from incomplete evidence.
 
 ## Updating this roadmap
 
