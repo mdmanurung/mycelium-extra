@@ -11,19 +11,23 @@ downgrade it. A table is CSV, TSV (.tsv, .tab, .txt), or the `obs` of an `.h5ad`
 is read through h5py when it is importable, and is a gap (never a pass) when
 it is not. Any other format, or bytes that are not UTF-8, is a gap; a row with
 more fields than the header, or a quote that never closes, blocks. Exit codes: 0 clean or warnings only, 2 blocking, 3 a gap and nothing
-blocking, 1 usage or input error.
+blocking, 1 usage or input error. `--result-json PATH` also writes a machine-readable result
+(contract and table identities, each check's status and message, the exit code, and whether each
+check could run at all) so a later step can read what happened without parsing text.
 """
 
 import argparse
 import csv
 import io
 import json
+import hashlib
 import os
 import sys
 from collections import Counter, defaultdict
 
 SCHEMA = "mycelium-extra.data_contract.v1"
 ALERT_SCHEMA = "mycelium-extra.contract_alert.v1"
+RESULT_SCHEMA = "mycelium-extra.contract_result.v1"
 MISSING = {"", "na", "nan", "null", "none", "<na>"}
 MAX_EVIDENCE = 5
 
@@ -36,11 +40,15 @@ class TableGap(Exception):
     """The table, or a column of it, cannot be read here; the checks on it are gaps."""
 
 
+class ReaderMissing(TableGap):
+    """An optional reader (h5py) is not installed; kept apart from a table that is unreadable."""
+
+
 def is_missing(value):
     return value is None or value.strip().lower() in MISSING
 
 
-def alert(kind, message, blocking, expected=None, observed=None, evidence=None, gap=False):
+def alert(kind, message, blocking, expected=None, observed=None, evidence=None, gap=False, cause=None):
     record = {
         "schema": ALERT_SCHEMA,
         "severity": "error" if blocking else ("gap" if gap else "warning"),
@@ -48,6 +56,8 @@ def alert(kind, message, blocking, expected=None, observed=None, evidence=None, 
         "message": message,
         "blocking": blocking,
     }
+    if cause:
+        record["cause"] = cause  # why the check could not run at all; absent when it ran
     if expected is not None:
         record["expected"] = expected
     if observed is not None:
@@ -199,8 +209,8 @@ def read_h5ad_obs(path, wanted=None):
     try:
         import h5py
     except ImportError as error:
-        raise TableGap("h5py cannot be imported ({}), so the obs of an .h5ad file cannot be read; install "
-                       "h5py or export obs to a TSV".format(error))
+        raise ReaderMissing("h5py cannot be imported ({}), so the obs of an .h5ad file cannot be read; install "
+                            "h5py or export obs to a TSV".format(error))
     try:
         h5file = h5py.File(path, "r")
     except (OSError, IOError) as error:
@@ -278,7 +288,7 @@ def drop_missing(rows, keys, kind):
     return kept, warnings
 
 
-def check_schema(check, columns, rows):
+def check_schema(check, columns, rows, ctx=None):
     missing = [c for c in need(check, "columns") if c not in columns]
     if not missing:
         return []
@@ -286,7 +296,7 @@ def check_schema(check, columns, rows):
                   expected=", ".join(check["columns"]), observed="missing: " + ", ".join(missing))]
 
 
-def check_cohort(check, columns, rows):
+def check_cohort(check, columns, rows, ctx=None):
     alerts = []
     column = check.get("column")
     if column is not None:
@@ -312,7 +322,7 @@ def check_cohort(check, columns, rows):
     return alerts
 
 
-def check_unit(check, columns, rows):
+def check_unit(check, columns, rows, ctx=None):
     unit = need(check, "unit")
     group = need(check, "group")
     within = as_list(check.get("within"))
@@ -351,7 +361,7 @@ def check_unit(check, columns, rows):
     return alerts
 
 
-def check_pairing(check, columns, rows):
+def check_pairing(check, columns, rows, ctx=None):
     unit = need(check, "unit")
     within = need(check, "within")
     rows, alerts = drop_missing(rows, [unit, within], "pairing")
@@ -371,7 +381,7 @@ def check_pairing(check, columns, rows):
     return alerts
 
 
-def check_batch(check, columns, rows):
+def check_batch(check, columns, rows, ctx=None):
     batch = need(check, "batch")
     contrast = need(check, "contrast")
     rows, alerts = drop_missing(rows, [batch, contrast], "batch_confounding")
@@ -463,6 +473,36 @@ def render_cross_table(table):
     return ["  ".join(cell.ljust(w) for cell, w in zip(row, widths)).rstrip() for row in [header] + body]
 
 
+# ------------------------------------------------- unique_key
+
+def failed(kind, message, observed=None, evidence=None, expected=None):
+    return alert(kind, message, True, expected=expected, observed=observed, evidence=evidence)
+
+
+def gap_cause(error, default="table_unreadable"):
+    return "optional_reader_missing" if isinstance(error, ReaderMissing) else default
+
+
+def check_unique_key(check, columns, rows, ctx=None):
+    kind, names = "unique_key", as_list(check["columns"])
+    alerts = []
+    for col in names:
+        empty = [i + 1 for i, r in enumerate(rows) if is_missing(r[col])]
+        if empty:
+            alerts.append(failed(kind, "'{}' has empty or missing values, so it cannot be a key".format(col),
+                                 "{} of {} rows".format(len(empty), len(rows)),
+                                 evidence=["row {} after filters".format(i) for i in empty]))
+    if alerts:
+        return alerts
+    counts = Counter(tuple(r[c] for c in names) for r in rows)
+    again = sorted((k, n) for k, n in counts.items() if n > 1)
+    if again:
+        alerts.append(failed(kind, "the key ({}) is not unique".format(", ".join(names)),
+                             "{} repeated keys".format(len(again)), expected="1 row per key",
+                             evidence=["{} ({} rows)".format(", ".join(k), n) for k, n in again]))
+    return alerts
+
+
 def validate(check, index):
     """Contract syntax the checks rely on; a bad value is a usage error, never a pass."""
     kind = check["kind"]
@@ -501,11 +541,34 @@ def validate(check, index):
                 raise ContractError("checks[{}] {} must be an integer >= {}".format(index, key, minimum))
     if "units_may_span_groups" in check and not isinstance(check["units_may_span_groups"], bool):
         raise ContractError("units_may_span_groups must be a boolean")
+    if "id" in check and (not isinstance(check["id"], str) or not check["id"]):
+        raise ContractError("checks[{}] id must be a nonempty string".format(index))
+    if kind in DECLARED:
+        validate_declared(check, index)
     if check.get("kind") == "batch_confounding" and "max_share" in check:
         share = check["max_share"]
         if isinstance(share, bool) or not isinstance(share, (int, float)) or not 0 < share <= 1:
             raise ContractError("checks[{}] max_share must be a number above 0 and at most 1, as a "
                                 "share (0.7 for 70%): {}".format(index, json.dumps(share)))
+
+
+DECLARED = {  # kind: the keys it accepts besides kind, id, label, table and filters; nothing else is read,
+    # so a contract cannot carry a severity or a waiver that softens one of these checks
+    "unique_key": {"columns"},
+}
+
+
+def names_list(value, what, index):
+    if not isinstance(value, list) or not value or any(not isinstance(v, str) or not v for v in value):
+        raise ContractError("checks[{}] {} must be a nonempty list of names".format(index, what))
+
+
+def validate_declared(check, index):
+    kind = check["kind"]
+    extra = set(check) - {"kind", "id", "label", "table", "filters"} - DECLARED[kind]
+    if extra:
+        raise ContractError("checks[{}] {} does not accept: {}".format(index, kind, ", ".join(sorted(extra))))
+    names_list(need(check, "columns"), "columns", index)
 
 
 CHECKS = {
@@ -514,6 +577,7 @@ CHECKS = {
     "unit_of_replication": check_unit,
     "pairing": check_pairing,
     "batch_confounding": check_batch,
+    "unique_key": check_unique_key,
 }
 
 
@@ -521,6 +585,8 @@ def referenced_columns(check):
     keys = ["column", "unit", "group", "batch", "contrast"]
     cols = [check[k] for k in keys if k in check]
     cols += as_list(check.get("within")) + as_list(check.get("no_missing"))
+    if check.get("kind") == "unique_key":
+        cols += as_list(check["columns"])
     return cols
 
 
@@ -546,8 +612,12 @@ def filter_columns(filters):
 RELAXATIONS = ("units_may_span_groups",)
 
 
-def run_contract(contract, base_dir):
-    """Return (per-check summaries, alerts)."""
+def table_inputs(check, table, path, base_dir):
+    return [{"role": "table", "path": table, "resolved": path}]
+
+
+def run_contract(contract, base_dir, inputs=None):
+    """Return (per-check summaries, alerts); `inputs`, when a list, receives every file the checks name."""
     if not isinstance(contract, dict) or contract.get("schema") != SCHEMA:
         raise ContractError("contract schema must be " + SCHEMA)
     checks = need(contract, "checks")
@@ -558,6 +628,7 @@ def run_contract(contract, base_dir):
     summaries, alerts = [], []
     cache = {}
     plan = []
+    ids = set()
     for index, check in enumerate(checks):
         if not isinstance(check, dict):
             raise ContractError("checks[{}] must be an object".format(index))
@@ -565,6 +636,10 @@ def run_contract(contract, base_dir):
         if not isinstance(kind, str) or kind not in CHECKS:
             raise ContractError("unknown check kind at checks[{}]: {}".format(index, kind))
         validate(check, index)
+        ident = check.get("id", "checks[{}]".format(index))
+        if ident in ids:
+            raise ContractError("check id '{}' is used twice".format(ident))
+        ids.add(ident)
         table = check.get("table", contract.get("table"))
         if not isinstance(table, str) or not table:
             raise ContractError("checks[{}] has no table".format(index))
@@ -580,10 +655,13 @@ def run_contract(contract, base_dir):
     for index, check, kind, table, filters, path, named in plan:
         label = "checks[{}] {}".format(index, check.get("label", kind))
         found = []
+        rows_checked = 0
+        ctx = {"base_dir": base_dir, "path": path, "table": table}
+        if inputs is not None:
+            inputs.extend(table_inputs(check, table, path, base_dir))
         if not os.path.isfile(path):
             found.append(alert("schema", "the table the plan names does not exist", True,
-                               observed="not found: " + table))
-            columns, rows = [], []
+                               observed="not found: " + table, cause="table_missing"))
         else:
             if path not in cache:
                 try:
@@ -592,34 +670,33 @@ def run_contract(contract, base_dir):
                     cache[path] = error
             if isinstance(cache[path], TableGap):
                 found.append(alert(kind, "the table cannot be read, so this check did not run", False,
-                                   observed=str(cache[path]), gap=True))
+                                   observed=str(cache[path]), gap=True, cause=gap_cause(cache[path])))
                 columns, rows, unreadable = [], [], {}
             elif isinstance(cache[path], TableShapeError):
                 found.append(alert("schema", "the table is malformed, so no check on it can be trusted", True,
-                                   observed=str(cache[path])))
+                                   observed=str(cache[path]), cause="table_malformed"))
                 columns, rows, unreadable = [], [], {}
             else:
                 columns, rows, unreadable = cache[path]
             absent = sorted({c for c in named if c not in columns}) if columns else []
             if absent:
                 found.append(alert("schema", "columns this check or its filters name are absent", True,
-                                   observed="missing: " + ", ".join(absent)))
+                                   observed="missing: " + ", ".join(absent), cause="columns_absent"))
             gaps = sorted({c for c in named if c in unreadable})
             if gaps:
                 found.append(alert(kind, "columns this check or its filters name cannot be read, so "
-                                         "this check did not run", False, gap=True,
+                                         "this check did not run", False, gap=True, cause="columns_unreadable",
                                    evidence=["{}: {}".format(c, unreadable[c]) for c in gaps]))
-        rows_checked = 0
-        if not found:
-            rows = apply_filters(rows, filters, columns)
-            rows_checked = len(rows)
-            if not rows:
-                found.append(alert(kind, "no rows left after filters; the check would pass vacuously", True,
-                                   expected=">= 1 row",
-                                   observed="0 of {} rows".format(len(cache[path][1])),
-                                   evidence=[json.dumps(f, sort_keys=True) for f in filters]))
-            else:
-                found.extend(CHECKS[kind](check, columns, rows))
+            if not found:
+                rows = apply_filters(rows, filters, columns)
+                rows_checked = len(rows)
+                if not rows:
+                    found.append(alert(kind, "no rows left after filters; the check would pass vacuously", True,
+                                       expected=">= 1 row", cause="no_rows",
+                                       observed="0 of {} rows".format(len(cache[path][1])),
+                                       evidence=[json.dumps(f, sort_keys=True) for f in filters]))
+                else:
+                    found.extend(CHECKS[kind](check, columns, rows, ctx))
         for record in found:
             record["check"] = label
             record["table"] = table
@@ -627,7 +704,10 @@ def run_contract(contract, base_dir):
         status = "block" if any(a["blocking"] for a in found) else \
             "gap" if any(a["severity"] == "gap" for a in found) else ("warn" if found else "pass")
         summary = {"check": label, "kind": kind, "table": table, "rows_checked": rows_checked,
-                   "status": status, "relaxations": [k for k in RELAXATIONS if check.get(k)]}
+                   "status": status, "relaxations": [k for k in RELAXATIONS if check.get(k)],
+                   "id": check.get("id", "checks[{}]".format(index)),
+                   "runnable": next((a["cause"] for a in found if a.get("cause")), "ran"),
+                   "message": "; ".join(a["message"] for a in found) or "passed on {} rows".format(rows_checked)}
         if kind == "batch_confounding" and rows_checked:
             summary["cross_table"] = cross_table(check, rows)
         summaries.append(summary)
@@ -659,17 +739,99 @@ def render(summaries, alerts):
     return "\n".join(lines)
 
 
+HASH_LIMIT = 1 << 30
+
+
+def file_identity(path):
+    """sha256 of the bytes, or a stated weaker identity; read after the checks, so a file changed during the run
+    is described as it ended (ponytail: hash before and after if a concurrent writer ever matters)."""
+    try:
+        if not os.path.isfile(path):
+            return {"sha256": None, "identity": "absent"}
+        info = os.stat(path)
+        if info.st_size > HASH_LIMIT:
+            return {"sha256": None, "identity": "size+mtime_ns", "size": info.st_size,
+                    "mtime_ns": info.st_mtime_ns}
+        digest = hashlib.sha256()
+        with open(path, "rb") as handle:
+            for block in iter(lambda: handle.read(1 << 20), b""):
+                digest.update(block)
+        return {"sha256": digest.hexdigest(), "identity": "sha256", "size": info.st_size}
+    except OSError as error:
+        return {"sha256": None, "identity": "unavailable: {}".format(error)}
+
+
+def exit_code(alerts):
+    if any(a["blocking"] for a in alerts):
+        return 2
+    return 3 if any(a["severity"] == "gap" for a in alerts) else 0
+
+
+def build_result(contract_path, root, contract_bytes, summaries, alerts, inputs, code, error=None):
+    """The machine-readable result: identities, each check's own status and message, and whether it could run."""
+    seen, tables = set(), []
+    for item in inputs:
+        if (item["role"], item["resolved"]) not in seen:
+            seen.add((item["role"], item["resolved"]))
+            tables.append(dict(item, resolved=os.path.abspath(item["resolved"]), **file_identity(item["resolved"])))
+    checks = []
+    for summary in summaries:
+        record = dict((k, summary[k]) for k in ("id", "check", "kind", "status", "runnable", "message", "table",
+                                                "rows_checked", "relaxations") if k in summary)
+        record["alerts"] = [a for a in alerts if a["check"] == summary["check"]]
+        checks.append(record)
+    not_run = [c["id"] for c in checks if c["runnable"] != "ran"]
+    worst = "error" if error else ("block" if code == 2 else "gap" if code == 3 else
+                                   "warn" if alerts else "pass")
+    return {
+        "schema": RESULT_SCHEMA,
+        "contract": {"path": os.path.abspath(contract_path),
+                     "sha256": hashlib.sha256(contract_bytes).hexdigest() if contract_bytes is not None else None},
+        "root": os.path.abspath(root),
+        "tables": tables,
+        "checks": checks,
+        "exit_code": code,
+        "status": worst,
+        # "ran" means the check's own logic executed; a table or reader that was missing is not a pass
+        "runnable": "contract_error" if error else ("incomplete" if not_run else "all_ran"),
+        "not_run": not_run,
+        "error": error,
+    }
+
+
+def write_result(path, result):
+    tmp = "{}.{}.tmp".format(path, os.getpid())
+    with open(tmp, "w", encoding="utf-8") as handle:
+        json.dump(result, handle, indent=1, sort_keys=True)
+        handle.write("\n")
+    os.replace(tmp, path)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--contract", required=True, help="path to the contract JSON")
     parser.add_argument("--root", default=".", help="directory relative table paths resolve from")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--result-json", metavar="PATH",
+                        help="also write a machine-readable result (identities, per-check status, exit code) here")
     args = parser.parse_args(argv)
+    contract_bytes, summaries, alerts, inputs, error = None, [], [], [], None
     try:
-        with open(args.contract, encoding="utf-8") as handle:
-            contract = json.load(handle)
-        summaries, alerts = run_contract(contract, args.root)
-    except (ContractError, ValueError, OSError) as error:
+        with open(args.contract, "rb") as handle:
+            contract_bytes = handle.read()
+        contract = json.loads(contract_bytes.decode("utf-8"))
+        summaries, alerts = run_contract(contract, args.root, inputs)
+    except (ContractError, ValueError, OSError) as caught:
+        error = str(caught)
+    code = 1 if error else exit_code(alerts)
+    if args.result_json:
+        try:
+            write_result(args.result_json, build_result(args.contract, args.root, contract_bytes, summaries,
+                                                        alerts, inputs, code, error))
+        except OSError as caught:
+            print("cannot write the result file: {}".format(caught), file=sys.stderr)
+            return 1
+    if error:
         print("contract error: {}".format(error), file=sys.stderr)
         return 1
     if args.json:
@@ -677,9 +839,7 @@ def main(argv=None):
         print()
     else:
         print(render(summaries, alerts))
-    if any(a["blocking"] for a in alerts):
-        return 2
-    return 3 if any(a["severity"] == "gap" for a in alerts) else 0
+    return code
 
 
 if __name__ == "__main__":

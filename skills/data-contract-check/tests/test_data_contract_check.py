@@ -528,5 +528,194 @@ class WithoutH5pyTest(unittest.TestCase):
             shutil.rmtree(root)
 
 
+class TempTables(unittest.TestCase):
+    """A scratch directory of tables, and a runner that also asks for the machine-readable result."""
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.root)
+
+    def put(self, name, text):
+        path = os.path.join(self.root, name)
+        with open(path, "w", encoding="utf-8", newline="") as handle:
+            handle.write(text)
+        return path
+
+    def result_run(self, checks, table="t.tsv", filters=None, env=None, contract=None):
+        """Run the contract with --result-json; return (exit code, parsed result or None, stdout/stderr text)."""
+        contract = contract or {"schema": "mycelium-extra.data_contract.v1", "table": table,
+                                "filters": filters or [], "checks": checks}
+        contract_path = self.put("contract.json", json.dumps(contract))
+        result_path = os.path.join(self.root, "result.json")
+        with open(SCRIPT) as source:
+            proc = subprocess.Popen(
+                [sys.executable, "-", "--contract", contract_path, "--root", self.root, "--result-json", result_path],
+                stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+            out, err = proc.communicate()
+        result = None
+        if os.path.exists(result_path):
+            with open(result_path, encoding="utf-8") as handle:
+                result = json.load(handle)
+        return proc.returncode, result, (out + err).decode("utf-8")
+
+
+def sha256_of(path):
+    import hashlib
+    with open(path, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()
+
+
+class ResultJsonTest(TempTables):
+    TSV = "sample_id\tgroup\nS1\tA\nS2\tB\n"
+
+    def test_a_blocking_run_records_identities_statuses_and_messages(self):
+        table = self.put("t.tsv", self.TSV)
+        code, result, _ = self.result_run([{"kind": "schema", "columns": ["sample_id"]},
+                                           {"kind": "cohort", "rows": 3, "label": "three rows"}])
+        self.assertEqual(code, 2)
+        self.assertEqual(result["schema"], "mycelium-extra.contract_result.v1")
+        self.assertEqual(result["contract"]["sha256"], sha256_of(os.path.join(self.root, "contract.json")))
+        self.assertEqual(result["tables"][0]["role"], "table")
+        self.assertEqual(result["tables"][0]["sha256"], sha256_of(table))
+        self.assertEqual(result["tables"][0]["identity"], "sha256")
+        self.assertEqual([c["status"] for c in result["checks"]], ["pass", "block"])
+        self.assertEqual([c["id"] for c in result["checks"]], ["checks[0]", "checks[1]"])
+        self.assertEqual(result["checks"][0]["message"], "passed on 2 rows")
+        self.assertEqual(result["checks"][1]["message"], "row count differs from the plan")
+        self.assertEqual(result["checks"][1]["alerts"][0]["observed"], "2")
+        self.assertEqual((result["exit_code"], result["status"], result["runnable"]), (2, "block", "all_ran"))
+
+    def test_a_warnings_only_run_keeps_each_warning_and_exit_zero(self):
+        shutil.copy(os.path.join(FIXTURES, "imbalance.tsv"), self.root)
+        code, result, _ = self.result_run([dict(IMBALANCE, table="imbalance.tsv", max_share=0.7),
+                                           {"kind": "schema", "columns": ["batch"], "table": "imbalance.tsv"}])
+        self.assertEqual(code, 0)
+        self.assertEqual(result["exit_code"], 0)
+        self.assertEqual([c["status"] for c in result["checks"]], ["warn", "pass"])
+        warning = result["checks"][0]["alerts"][0]
+        self.assertEqual((warning["severity"], warning["blocking"]), ("warning", False))
+        self.assertIn("a batch holds more than 70%", warning["message"])
+        self.assertEqual(result["status"], "warn")
+        self.assertEqual(result["runnable"], "all_ran")
+
+    def test_a_missing_table_is_not_a_pass_and_is_not_run(self):
+        code, result, _ = self.result_run([{"kind": "schema", "columns": ["a"]}], table="gone.tsv")
+        self.assertEqual(code, 2)
+        self.assertEqual(result["checks"][0]["runnable"], "table_missing")
+        self.assertEqual(result["tables"][0]["identity"], "absent")
+        self.assertEqual((result["runnable"], result["not_run"]), ("incomplete", ["checks[0]"]))
+
+    def test_an_unreadable_table_is_a_gap_distinct_from_pass(self):
+        self.put("t.xlsx", "not a table")
+        code, result, _ = self.result_run([{"kind": "schema", "columns": ["a"]}], table="t.xlsx")
+        self.assertEqual(code, 3)
+        self.assertEqual((result["checks"][0]["status"], result["checks"][0]["runnable"]),
+                         ("gap", "table_unreadable"))
+        self.assertEqual(result["status"], "gap")
+
+    def test_a_missing_optional_reader_is_distinct_from_an_unreadable_table(self):
+        self.put("h5py.py", "raise ImportError('h5py hidden by the test')\n")
+        self.put("cells.h5ad", "\x89HDF")
+        code, result, _ = self.result_run([{"kind": "schema", "columns": ["a"]}], table="cells.h5ad",
+                                          env=dict(os.environ, PYTHONPATH=self.root))
+        self.assertEqual(code, 3)
+        self.assertEqual(result["checks"][0]["runnable"], "optional_reader_missing")
+        self.assertEqual(result["checks"][0]["status"], "gap")
+
+    def test_a_malformed_table_blocks_and_says_so(self):
+        self.put("t.tsv", "a\tb\n1\t2\t3\n")
+        code, result, _ = self.result_run([{"kind": "schema", "columns": ["a"]}])
+        self.assertEqual((code, result["checks"][0]["runnable"]), (2, "table_malformed"))
+
+    def test_a_contract_error_writes_an_error_result_and_exits_one(self):
+        self.put("t.tsv", self.TSV)
+        code, result, text = self.result_run([{"kind": "nonsense"}])
+        self.assertEqual(code, 1)
+        self.assertIn("unknown check kind", text)
+        self.assertEqual((result["status"], result["exit_code"], result["runnable"]), ("error", 1, "contract_error"))
+        self.assertIn("unknown check kind", result["error"])
+        self.assertEqual(result["checks"], [])
+        self.assertEqual(result["contract"]["sha256"], sha256_of(os.path.join(self.root, "contract.json")))
+
+    def test_check_ids_are_declared_unique_and_reported(self):
+        self.put("t.tsv", self.TSV)
+        code, result, _ = self.result_run([{"kind": "cohort", "rows": 2, "id": "rows-24"}])
+        self.assertEqual((code, result["checks"][0]["id"]), (0, "rows-24"))
+        code, result, _ = self.result_run([{"kind": "cohort", "rows": 2, "id": "x"},
+                                           {"kind": "schema", "columns": ["group"], "id": "x"}])
+        self.assertEqual(code, 1)
+        code, _, _ = self.result_run([{"kind": "cohort", "rows": 2, "id": ""}])
+        self.assertEqual(code, 1)
+
+    def test_no_result_file_without_the_flag(self):
+        self.put("t.tsv", self.TSV)
+        code, _ = run([{"kind": "cohort", "rows": 2}], table="t.tsv", root=self.root)
+        self.assertEqual(code, 0)
+        self.assertFalse(os.path.exists(os.path.join(self.root, "result.json")))
+
+    def test_a_result_that_cannot_be_written_fails_loudly(self):
+        self.put("t.tsv", self.TSV)
+        contract = self.put("c.json", json.dumps({"schema": "mycelium-extra.data_contract.v1", "table": "t.tsv",
+                                                  "checks": [{"kind": "cohort", "rows": 2}]}))
+        with open(SCRIPT) as source:
+            proc = subprocess.Popen([sys.executable, "-", "--contract", contract, "--root", self.root,
+                                     "--result-json", os.path.join(self.root, "no", "such", "dir", "r.json")],
+                                    stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            _, err = proc.communicate()
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("cannot write the result file", err.decode())
+
+    def test_a_file_too_large_to_hash_gets_a_stated_weaker_identity(self):
+        spec = importlib.util.spec_from_file_location("data_contract_check_identity", SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        table = self.put("t.tsv", self.TSV)
+        module.HASH_LIMIT = 4
+        identity = module.file_identity(table)
+        self.assertEqual((identity["sha256"], identity["identity"]), (None, "size+mtime_ns"))
+        self.assertEqual(identity["size"], len(self.TSV))
+
+
+class UniqueKeyTest(TempTables):
+    def keys(self, text, columns=("sample_id",), filters=None):
+        self.put("t.tsv", text)
+        return run([{"kind": "unique_key", "columns": list(columns)}], filters, table="t.tsv", root=self.root)
+
+    def test_unique_nonempty_keys_pass(self):
+        code, alerts = self.keys("sample_id\tg\nS1\tA\nS2\tA\n")
+        self.assertEqual((code, alerts), (0, []))
+
+    def test_a_repeated_key_blocks_and_names_it(self):
+        code, alerts = self.keys("sample_id\tg\nS1\tA\nS2\tA\nS1\tB\n")
+        self.assertEqual(code, 2)
+        self.assertEqual(alerts[0]["message"], "the key (sample_id) is not unique")
+        self.assertEqual(alerts[0]["evidence"], ["S1 (2 rows)"])
+
+    def test_an_empty_key_blocks_even_though_other_checks_drop_such_rows(self):
+        code, alerts = self.keys("sample_id\tg\nS1\tA\n\tB\nNA\tC\n")
+        self.assertEqual(code, 2)
+        self.assertIn("has empty or missing values", alerts[0]["message"])
+        self.assertEqual(alerts[0]["observed"], "2 of 3 rows")
+
+    def test_a_composite_key_is_unique_as_a_whole(self):
+        self.assertEqual(self.keys("a\tb\n1\tx\n1\ty\n2\tx\n", columns=("a", "b"))[0], 0)
+        self.assertEqual(self.keys("a\tb\n1\tx\n1\tx\n", columns=("a", "b"))[0], 2)
+        self.assertEqual(self.keys("a\tb\n1\tx\n1\ty\n", columns=("a",))[0], 2)
+
+    def test_filters_decide_which_rows_must_be_unique(self):
+        text = "sample_id\tkeep\nS1\tTRUE\nS1\tFALSE\n"
+        self.assertEqual(self.keys(text)[0], 2)
+        self.assertEqual(self.keys(text, filters=KEEP)[0], 0)
+
+    def test_an_absent_key_column_blocks_and_bad_syntax_is_a_usage_error(self):
+        self.assertEqual(self.keys("a\tb\n1\t2\n", columns=("nope",))[0], 2)
+        self.assertEqual(run([{"kind": "unique_key"}], table="t.tsv", root=self.root)[0], 1)
+        self.assertEqual(run([{"kind": "unique_key", "columns": []}], table="t.tsv", root=self.root)[0], 1)
+        self.assertEqual(run([{"kind": "unique_key", "columns": ["a"], "severity": "warn"}],
+                             table="t.tsv", root=self.root)[0], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
