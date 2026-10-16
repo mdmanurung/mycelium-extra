@@ -109,6 +109,39 @@ class GateTest(unittest.TestCase):
         ]:
             self.assertIsNone(self.bash(command), command)
 
+    # wrapper options: a known option's value is skipped, not read as the command (ME-04)
+    def test_wrapper_option_values_do_not_hide_gated_runs(self):
+        root = self.root
+        for command in [
+            "conda run -p /tmp/env python analysis/x.py",
+            "conda run --prefix=/tmp/env python analysis/x.py",
+            "conda run -n scanpy python analysis/x.py",
+            "uv run --project envdir python analysis/x.py",
+            "uv run --project . python analysis/x.py",
+            "uv run --python 3.12 python analysis/x.py",
+            "uv run -p 3.12 --with pandas python analysis/x.py",
+            "uv run --directory . python analysis/x.py",
+            "env -C %s python analysis/x.py" % root,
+            "env --chdir=%s python analysis/x.py" % root,
+            "env -C analysis python x.py",  # relative path resolves against the new folder
+            "env -u HOME python analysis/x.py",
+            "env -S 'python analysis/x.py'",
+            "env FOO=1 python analysis/x.py",
+            "srun -D analysis python x.py",
+            "timeout -s KILL 5 python analysis/x.py",  # an option the reader does not know
+            "uv run --not-an-option value python analysis/x.py",
+        ]:
+            self.assertTrue(self.denied(self.bash(command)), command)
+
+    def test_wrapped_commands_that_run_nothing_gated_pass(self):
+        for command in [
+            "uv run --help", "env", "env -u HOME", "conda env list", "conda run -n x ls",
+            "conda run -p /tmp/env ls", "time ls", "uv run --with pandas ls",
+            "uv run --not-an-option value cat analysis/x.py",
+            "env -C /tmp python tools/y.py", "conda run --cwd /tmp python y.py",
+        ]:
+            self.assertIsNone(self.bash(command), command)
+
     def test_explore_prefix_needs_user_grant(self):
         self.assertTrue(self.denied(self.bash("MYCELIUM_EXTRA_EXPLORE=1 python analysis/x.py")))
         self.assertIsNone(self.hook("prompt", {"prompt": "please allow explore now"}))

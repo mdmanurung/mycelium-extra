@@ -71,6 +71,24 @@ WRAPPERS = {"env", "time", "nohup", "nice", "command", "exec", "stdbuf", "timeou
             "conda", "mamba", "micromamba", "pixi", "uv", "run", "xvfb-run"}
 VALUE_FLAGS = {"-n", "-p", "--name", "--prefix", "-e", "--environment", "--env",
                "-J", "--job-name", "-t", "--time", "-A", "--account", "--partition"}
+# Value options of the wrappers that precede a command, and the ones that move the command's
+# folder; `classify` skips an option's value instead of mistaking it for the command.
+_CONDA_OPTIONS = ({"-n", "--name", "-p", "--prefix", "-r", "--root-prefix", "-a", "--attach", "--label",
+                   "-e", "--environment", "--manifest-path", "--config", "--cwd"}, {"--cwd"})
+WRAPPER_OPTIONS = {
+    "env": ({"-u", "--unset", "-C", "--chdir", "-S", "--split-string"}, {"-C", "--chdir"}),
+    "srun": (VALUE_FLAGS | {"-D", "--chdir"}, {"-D", "--chdir"}),
+    "conda": _CONDA_OPTIONS, "mamba": _CONDA_OPTIONS, "micromamba": _CONDA_OPTIONS, "pixi": _CONDA_OPTIONS,
+    "uv": ({"--extra", "--no-extra", "--group", "--no-group", "--only-group", "--env-file", "-w", "--with",
+            "--with-editable", "--with-requirements", "--package", "--python-platform", "--index",
+            "--default-index", "-i", "--index-url", "--extra-index-url", "-f", "--find-links",
+            "--index-strategy", "--keyring-provider", "-P", "--upgrade-package", "--upgrade-group",
+            "--resolution", "--prerelease", "--fork-strategy", "--exclude-newer", "--exclude-newer-package",
+            "--no-sources-package", "--reinstall-package", "--link-mode", "-C", "--config-setting",
+            "--config-settings-package", "--no-build-isolation-package", "--no-build-package",
+            "--no-binary-package", "--cache-dir", "--refresh-package", "-p", "--python", "--color",
+            "--allow-insecure-host", "--directory", "--project", "--config-file"}, {"--directory"}),
+}
 WRITE_ALL = {"rm", "rmdir", "mv", "tee", "touch", "truncate", "mkdir", "chmod", "chown", "shred",
              "unlink"}  # every path argument is written
 WRITE_LAST = {"cp", "ln", "install", "rsync", "scp"}  # only the destination is written
@@ -467,6 +485,18 @@ def paths_in_text(root, cwd, text, config):
     return found
 
 
+def split_option(token, flags):
+    """(option, attached value or None) if token is one of flags, as `-C DIR`, `-CDIR` or `--chdir=DIR`."""
+    if token in flags:
+        return token, None
+    if token.startswith("--"):
+        name, equals, value = token.partition("=")
+        return (name, value) if equals and name in flags else (None, None)
+    if token.startswith("-") and token[:2] in flags and len(token) > 2:
+        return token[:2], token[2:]
+    return None, None
+
+
 def classify(tokens, root, cwd, config):
     """Return (explore, gated_label or None, [gated repo paths]) for one segment."""
     explore = False
@@ -475,11 +505,21 @@ def classify(tokens, root, cwd, config):
         if tokens[i] == EXPLORE_VAR + "=1":
             explore = True
         i += 1
-    previous = ""
+    previous, wrapper, unknown = "", None, False
     while i < len(tokens):
         word = os.path.basename(tokens[i])
         if word == "command" and tokens[i + 1:i + 2] in (["-v"], ["-V"]):
             return explore, None, []  # looks the name up, runs nothing
+        flag, inline = split_option(tokens[i], WRAPPER_OPTIONS.get(wrapper, ((), ()))[0])
+        if flag:  # a known option of the wrapper: its value is not the command
+            step = 1 if inline is not None else 2
+            value = inline if inline is not None else (tokens[i + 1] if i + 1 < len(tokens) else None)
+            if wrapper == "env" and flag in ("-S", "--split-string") and value:
+                return explore, "recurse", [" ".join([value] + tokens[i + step:])]
+            if value and flag in WRAPPER_OPTIONS[wrapper][1] and not re.search(r"[$`]", value):
+                cwd = os.path.normpath(os.path.join(cwd, os.path.expanduser(value)))
+            previous, unknown, i = "", False, i + step
+            continue
         if RUNNERS.match(word) or word in config["gated_commands"] or "/" in tokens[i]:
             break
         if (word in WRAPPERS or tokens[i].startswith("-") or previous in VALUE_FLAGS
@@ -487,8 +527,17 @@ def classify(tokens, root, cwd, config):
                 or is_assignment(tokens[i])):
             if tokens[i] == EXPLORE_VAR + "=1":
                 explore = True
+            if word in WRAPPERS and word != "run":
+                wrapper = word
+            unknown = wrapper is not None and tokens[i].startswith("-") and "=" not in tokens[i]
             previous = tokens[i]
             i += 1
+            continue
+        # a word after an option this reader does not know may be that option's value: skip it
+        # when a runner or gated command still follows, rather than call the segment ungated
+        if unknown and any(RUNNERS.match(os.path.basename(t)) or os.path.basename(t) in config["gated_commands"]
+                           for t in tokens[i + 1:]):
+            unknown, i = False, i + 1
             continue
         return explore, None, []
     if i >= len(tokens):
