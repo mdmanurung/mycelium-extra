@@ -1,0 +1,19 @@
+# Staged live validation packet
+
+**Not approved.** This packet is reviewable preparation, not permission to send or submit. Cumulative external model/reviewer spend is EUR0 of EUR50. No broader release claim can be made while required checks remain unobserved.
+
+## External review
+
+Send the exact bytes of `review-prompt.txt` to Codex/OpenAI and Biomni/Phylo, once each, after explicit approval. The factual packet is identical (`review-packet.txt`). Current local Codex identity is recorded in `packet.json`; Biomni access/identity and provider cost bounds are unresolved release blockers. Do not substitute a reviewer/model or consume the EUR50 cap to probe access. The journey packet permits at most 64 model turns across both hosts, still within EUR20. Published [OpenAI model pricing](https://developers.openai.com/api/docs/models/gpt-6.1-sol) was checked on 2026-10-16: standard USD2/M input, USD0.10/M cached input, USD2.50/M cache writes, USD10/M output. At 6000 input tokens conservatively charged as cache writes plus 2000 total output/reasoning tokens, the arithmetic bound is USD0.035 per reviewer call before conversion, taxes, regional or tool fees. This is conditional on standard-tier API billing, not a confirmed charge for a subscription or a different tier. The EUR15 + EUR15 reviewer allocations and EUR20 agent-journey allocation are spending ceilings, not price estimates. Final approval requires verified estimates in the budget currency, any platform hard limits, and exact configured identities. Record cumulative actual cost, tokens, response IDs, timestamps and prompt/response hashes after each call; stop before any call whose maximum cost would exceed its allocation or EUR50 total.
+
+Review independently, then have a human adjudicate each factual disagreement against the supplied packet. Retain both attributable responses, disagreements and disposition; a scripted user confirmation does not count as model judgment.
+
+## Slurm packet
+
+Read-only partition discovery on 2026-10-16 found `short` with a one-hour maximum. The proposed tasks each request one node, one CPU, no GPU, 1 GiB and five minutes. Four submissions produce five tasks: success, exit-7 failure, two array elements, and a cancellable sleep. No task is submitted by a test suite.
+
+After approval, initialize the approval gate in a new disposable project, present the exact [scheduler plan](scheduler-plan.md) through the native host and obtain its same-session hash approval. Retain native PreToolUse/PostToolUse traces and plugin receipts, including unknown exit metadata. Copy the four reviewed scripts into that disposable working directory, record their SHA256s and the unique run directory, and submit each exactly once using `sbatch --parsable <script>`. Write a submission-intent record **before** every call. If interrupted before the job ID is recorded, query accounting for this exact run directory and script; unresolved identity forbids resubmission. Cancel only the exact job ID from this packet's cancel script after its started marker is observed. Inspect `sacct -j <id> --format=JobIDRaw,State,ExitCode,SubmitLine,WorkDir --parsable2`; retain per-array-element IDs, stdout/stderr, receipts and output hashes. Reconcile all five tasks, including cancellation, before marking A09 complete. Never relaunch a job during recovery.
+
+## Native and behavioral qualification
+
+Use disposable host configurations and an immutable candidate. Review and trust the exact current Codex hook definitions, record source/cache hashes and restart. Retain actual event traces plus terminal capture for denial/card/approval/run/failure/unknown/fresh-session reapproval and lifecycle/pause events. Mock API responses qualify only native control flow. Real responses and human adjudication are required for the journeys. Personal installations remain separate.

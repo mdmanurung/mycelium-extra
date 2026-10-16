@@ -1,0 +1,19 @@
+Review only the supplied canonical synthetic packet. Do not read project files, fetch external material, execute tools, write files or make scientific-truth claims. Identify concrete errors, missing decisions, unsupported claims and cheapest validation checks. Return at most eight numbered findings with severity, exact packet field, evidence, proposed repair and uncertainty. Distinguish defaults from evidence. Do not approve execution.
+
+objective: Audit a synthetic paired two-arm experiment plan for methodological and execution gaps.
+estimand: Difference between arms in mean donor-level day-28 minus day-0 count change.
+unit_of_inference: donor
+design: 12 donors per arm, 2 visits per donor; randomized arm; six batches balanced across arm and visit.
+data_summary: Synthetic aggregate facts only. 48 observations. No participant identifiers or raw data.
+constraints: One CPU, no GPU, at most 1 GiB and five minutes per scheduler task. Report uncertainty.
+known_decisions: Use paired donor changes, compare arms, retain all predefined QC-passing samples.
+proposed_plan: |
+  Inputs: none
+  Outputs: outputs/effect.tsv
+  | Step | Choice | Source | Validation |
+  |---|---|---|---|
+  | S1 compute donor visit differences | Pair within donor | user: synthetic design | 24 differences, one per donor |
+  | S2 compare arms | Difference in means with donor-level permutation interval | user: synthetic estimand | unit/arm balance and seeded reproducibility |
+  | S3 report result | Effect and interval; no causal claim beyond randomized assignment | user: synthetic estimand | numbers match retained output cells |
+unknowns: Missingness mechanism and the permutation count are intentionally unresolved; flag these, do not invent values.
+redactions: []

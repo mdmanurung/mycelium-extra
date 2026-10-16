@@ -36,7 +36,7 @@ Every oversight step can turn into a reflex: approve without reading, answer the
 - **Acceptance:** with the limit at 3, the fourth run on the fixture asks for re-approval and lists the changes; with the limit unset, behaviour is unchanged per `gate_diff.py`.
 - **Tests:** gate tests for the limit, explore runs not counting, and the expired-but-kept record.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** done (0.9.71): `max_runs_per_approval` in `gate.json`; the denial lists the commit and script changes since the first counted run, the approval file is untouched, and `verify list`/`status` mark an approval that reached the limit. The count lags by runs in flight.
 
 ## D12: Seeded-error audits and a personal dashboard
 

@@ -8,6 +8,13 @@ A finished job is only the beginning of checking an analysis. Did every planned 
 
 It uses the gate's own table parser, so the scripts covered by verification are the same ones covered by approval. It reads the record without re-running the analysis. In Codex 0.160.0, missing hook exit metadata remains a gap even when the command appeared to finish successfully.
 
+Damaged receipt lines or workflow metadata are reported as evidence gaps, rather
+than silently discarded as a complete history. Malformed approval records produce
+an explicit error. A compound shell command does not prove each named step ran:
+individual outcomes remain gaps, while a failed aggregate command blocks.
+Claim tables with duplicate column headers or no data rows are unverified;
+unrepresentable numeric values are also gaps, never verified by accident.
+
 **In this section:** [What the report shows](#what-the-report-shows) · [Status](#status) · [What it writes](#what-it-writes) · [Stale plans](#stale-plans) · [Overview of all plans](#overview-of-all-plans)
 
 ## What the report shows
@@ -62,7 +69,16 @@ After a planned run in a Mycelium repository, the gate suggests writing the find
 - its analysis folder, runs, verify status, and staleness;
 - the lint verify recorded (a missing or unreadable linter shows as a gap, never `clean`);
 - the folder's `ANALYSIS_MANIFEST.md` entry: `listed: <first status word>`, `listed`, or `not listed`. It reads Mycelium's YAML `status:`, `**Status**:` lines, and a table's Status cell.
+- with `max_runs_per_approval` set in `gate.json`, whether a plan has reached it: the run count then reads `N (limit L reached (M since approval))`.
 
 No hook runs it.
 
 One limit: an output is tied to a run by time, since receipts do not record which files a run wrote.
+
+## Recoverable provenance publication
+
+`write` serializes writers per analysis and stages a complete bundle beside the public files. It retains the previous bytes in `provenance/.transactions/`, writes a pending transaction before replacing members, writes `complete-<hash>.json` with member SHA256s, and updates `PROVENANCE.md` last. Keep these internal transaction files until the save and any recovery have been reviewed. Public plan/receipt/output/lint/report filenames are unchanged.
+
+Under the same lock, the next `write` finalizes a fully matching publication or restores the previous snapshot before saving again. An unexpected edit or damaged backup stops recovery and retains evidence. Do not remove a pending marker to make a report look complete. `report`, `stale`, and `status` distinguish complete, legacy (no checksummed record), and interrupted/damaged bundles. Legacy files are read without automatic rewriting; the next confirmed save retains their prior bytes.
+
+Timestamp-compatible outputs with competing writers remain attribution gaps. A metadata-only input or script fingerprint does not verify content. Shell/wrapper and notebook-tool visibility remains bounded by the recorded receipts.

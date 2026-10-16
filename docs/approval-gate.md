@@ -33,7 +33,7 @@ No card line is longer than 250 characters, except a `CAN RUN` grant and a scrip
 
 Text quoted from the plan has control characters, markup and the phrase "approve plan" removed. The card shows what the gate allows; it does not check the choices or the checks. Any other plan keeps the older card: runs allowed, inputs, scripts, outputs. Type exactly that (a trailing `.` is fine) to record the approval in `.mycelium-extra/approvals/`. A bare `approve plan` lists pending hashes and approves nothing.
 
-Approve in the same session that presented the plan. If you move to a new session, present the plan there first; a pending hash from another session does not grant approval. When the context fills up while a plan waits, `/mycelium-extra:handoff` points `HANDOFF.md` at the plan's stored text, and the new session prints it unchanged. Approve the hash on the new card: it matches the old one when the text is unchanged.
+Execution grants are restricted to the approving session. Approvals without a recorded session remain readable historical evidence, but require a new card and approval before execution. Approve in the same session that presented the plan. If you move to a new session, present the plan there first; a pending hash from another session does not grant approval. When the context fills up while a plan waits, `/mycelium-extra:handoff` points `HANDOFF.md` at the plan's stored text, and the new session prints it unchanged. Approve the hash on the new card: it matches the old one when the text is unchanged.
 
 ## What is gated
 
@@ -47,6 +47,14 @@ A dry run (`snakemake -n`, `bash run.sh -n`) is gated like any run: a Snakefile 
 Only the plan table's Step column counts. A path or command word in a Choice, Validation or Source cell, the brief's prose, its Evidence, or a `repo:` citation approves nothing, so a plan that cites a script as evidence does not approve running it. A plan with no table approves nothing, and the approval notice says so. A table whose header has no Step column (or no header) grants from every cell but Source, as before 0.9.57. The card lists scripts named outside the Step column as "not authorised". `verify` still reads every cell but Source when it asks what a plan named, so its record of older plans is unchanged.
 
 Reading gated files (`cat`, `rg`, `git`) is never gated.
+
+An existing script path containing spaces can be quoted or backticked in the
+Step cell. Its complete path is granted and pinned; its fragments grant nothing.
+
+A malformed approval record or first-run script-pin ledger blocks covered runs
+with an invalid-state notice. Restore the record or move the damaged approval
+aside and present the plan again; a damaged record never supplies authorization.
+This differs from an internal gate error governed by `on_error`.
 
 ## Pinned inputs
 
@@ -62,6 +70,14 @@ A grill brief has an `Inputs:` line naming, by repository path, the files the pl
 - A plan with no `Inputs:` line pins nothing, and the notice says so.
 
 Approving copies the pins into the approval. Before a covered run, the gate fingerprints the pins of the newest approval that covers it. An older plan that pinned less therefore cannot let a run through after a newer plan's pins changed. The gate blocks the run if one changed, naming the file with its old and new fingerprint. Re-check the input (for example, re-run the data-contract check), show the plan again, and approve it. Explore runs skip this check.
+
+## Run limit
+
+One approval can cover many runs of the same scripts, and after enough re-runs the plan you approved may no longer describe what runs. Set `"max_runs_per_approval": 3` (any whole number of 1 or more) in `gate.json`, and the fourth gated run is denied with the number of runs so far and what differs from the first of them: the commit, uncommitted changes, and each script's content (shown even with `pin_scripts` off). Present the plan again; `approve plan <hash>` restarts the count.
+
+- The count comes from the run receipts since the approval, so it matches `verify`: explore runs do not count, a `command -v` lookup is not a run, a failed run is, and a denied run leaves no receipt. A run is counted when its receipt arrives, so runs still in flight, or two runs in one command, can overshoot by that many. A Slurm job counts when it is submitted.
+- The approval file is not changed. `verify list` and `verify status` show `(limit N reached (M since approval))` next to the run count, derived from the same receipts.
+- An invalid value is ignored with a notice. Unset means no limit and no change in behaviour.
 
 ## Pinned scripts
 
@@ -91,6 +107,13 @@ Receipts provide the execution record that `verify` reads later. After a covered
 - For `sbatch --wrap`, the payload's scripts resolved against `-D`/`--chdir` (`paths`), and that folder (`job_cwd`).
 
 Receipts stay in `.mycelium-extra/`, which is gitignored, so they do not trip Mycelium's Stop hook. `verify` copies a plan's receipts into the analysis folder after you confirm.
+
+For a compound shell call (`a.py; b.py`, `a.py && b.py`, or a compound shell
+wrapper), the shell's exit status does not establish whether each step ran or
+succeeded. Receipts keep `command_exit_status` and `command_exit_source`, mark
+individual outcomes unknown, and leave scheduler output unattributed. Verification
+reports those unknown outcomes as gaps and a failed aggregate command as a block.
+Run steps in separate shell calls when each needs its own attributable receipt.
 
 Codex uses its own post hook and marks receipts with `host: codex`. In CLI 0.160.0, the hook provides command output without exit metadata. Its receipt therefore records `unknown`, and verification reports a gap. The gate never treats a line printed by the command as proof of its exit status.
 
@@ -137,6 +160,7 @@ Type `hints on` to get a one-line suggestion of the command to run next; `hints 
 | `gated_paths` | `["analysis/**", "nbs/**"]` | Scripts under these globs need an approved plan naming them. |
 | `gated_commands` | `["sbatch", "snakemake", "nextflow"]` | Commands that need an approved plan containing the command word. |
 | `approval_hours` | `24` | How long an approval covers runs. Approvals are never deleted. |
+| `max_runs_per_approval` | unset | A whole number of 1 or more. After that many runs under one approval, the next gated run is denied until you re-approve the plan. See [Run limit](#run-limit). |
 | `pin_hash_mb` | `200` | Bytes of pinned inputs (in MB) hashed per hook before falling back to size and mtime. |
 | `pin_seconds` | `5` | Seconds the pin check may take per hook. |
 | `card_lint` | `true` | Lint the planned code when a plan is presented and show the result on the card. `false` turns it off. |
@@ -163,3 +187,11 @@ The gate catches execution mistakes; it is not a security boundary or a judgment
 - The exit status is inferred from which hook event fired, not read from the command. `verify` reports a nonzero, `failed`, or `interrupted` run as a failure, and an `unknown` status (or an empty one in older receipts) as a gap.
 - `verify` credits a script to a Snakemake rule only when the rule runs it: the expanded `shell:` command, or the `script:`/`notebook:` path in the rule's `code` record. A rule input is not a run. The `script:` path is matched against Snakemake's working directory, so a Snakefile in another folder (`-s other/Snakefile`) is not matched, and Snakemake 9 releases that record only `shell:` commands leave a `script:` rule's script with `no receipt`.
 - Codex needs enabled/trusted hooks and CLI 0.160.0 or later. Its 0.160.0 post hook omits exit metadata, so run status is `unknown` and verification reports a gap. A hook that never dispatches leaves no receipt. See [Host compatibility](installation.md#host-compatibility).
+
+## Capacity and diary candidate (not yet release qualified)
+
+Capacity remains opt-in. `enabled: false` disables capacity hooks and quota-record writes; approval checks continue independently. SessionStart records recovery state silently. The candidate manifests register SessionStart, SubagentStart/Stop, PreCompact and SessionEnd on both hosts, and check all tools before execution so assignment calls cannot create new workers during wind-down or pause. SubagentStart is advisory, so enforcement occurs at PreToolUse before assignment. Native lifecycle qualification is still required.
+
+Below 80% usage is normal; 80–90% permits only finishing the current bounded unit without new assignments. At 90%, or when either reading is unavailable/stale, new work pauses. Only explicit `capacity resume` with fresh readings below 80% clears the pause. Missing initial usage remains unknown; checkpoint, diary, status and shutdown recovery remain available. Claude's existing status-line command is preserved. Its quota percentages and reset timestamps are host supplied ([status-line reference](https://code.claude.com/docs/en/statusline)). Host event contracts are documented by [Claude](https://code.claude.com/docs/en/hooks) and [Codex](https://learn.chatgpt.com/docs/hooks).
+
+Checkpoints retain prior checkout snapshots when the checkout changes. Worker closeout messages are unverified assistant notes, never verified completion. Repeated finalization preserves completed-unit records and edited diary drafts. Corrupt state is retained as a recovery gap. Recovery queries existing process/job state and never relaunches a job. A reviewed diary save is idempotent for the same content.

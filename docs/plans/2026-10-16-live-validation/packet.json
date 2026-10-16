@@ -1,0 +1,66 @@
+{
+  "status": "NOT APPROVED - do not execute external calls or submit jobs",
+  "budget_eur": 50,
+  "spent_eur": 0,
+  "reviewers": [
+    {
+      "service": "Codex/OpenAI",
+      "configured_identity": "gpt-6.1-sol",
+      "calls_max": 1,
+      "input_tokens_max": 6000,
+      "output_tokens_max": 2000,
+      "price_eur": "USD rates verified; EUR billing conversion, taxes and service tier still require confirmation",
+      "allocation_eur": 15,
+      "published_usd_per_million": {
+        "input": 2,
+        "cached_input": 0.1,
+        "cache_write": 2.5,
+        "output": 10
+      },
+      "standard_usd_token_bound": 0.035,
+      "pricing_source": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+      "estimate_assumptions": "6000 input tokens charged conservatively at cache-write rate, 2000 total output/reasoning tokens, standard tier, no regional/tools fees, no retries"
+    },
+    {
+      "service": "Biomni/Phylo",
+      "configured_identity": "unavailable in this session; must resolve before approval",
+      "calls_max": 1,
+      "input_tokens_max": 6000,
+      "output_tokens_max": 2000,
+      "price_eur": "unresolved; require verified provider bound before approval",
+      "allocation_eur": 15
+    }
+  ],
+  "agent_journeys": {
+    "calls_max": 64,
+    "aggregate_allocation_eur": 20,
+    "status": "maximum 64 turns across both hosts, exact identities and verified EUR bound required before approval",
+    "note": "USD/EUR conversion, actual host billing mode and Claude identity/rate remain unresolved; per-turn context and total generated reasoning tokens must be bounded before approval."
+  },
+  "scheduler": {
+    "partition": "short",
+    "cpus_per_task": 1,
+    "memory_gib": 1,
+    "minutes_per_task": 5,
+    "gpu": 0,
+    "tasks_total": 5,
+    "submissions_total": 4,
+    "script_names": [
+      "success.sh",
+      "failure.sh",
+      "array.sh",
+      "cancel.sh"
+    ]
+  },
+  "files": {
+    "scheduler-plan.md": "290e1c233766f3106e402cc08da69e148579dd30bf05a88b21ee96fcb2ba565c",
+    "README.md": "f573c297a872798d9e2db92b668e0e4e3df2ef263697eae72fa95aaca9a68e3f",
+    "journeys.md": "7f2b48f81debceeb634fd9a52c927c606a24d94d8973ccb550742dabbb3b3f09",
+    "review-packet.txt": "4c797ab33b348378e2bbc0b29f21f1507cec365bb8d939f6b04c760c2a8d6d08",
+    "cancel.sh": "f06d5ee0a35f1476b67a1cd9de880e3359550d45a35ecfad3d6ba6d90ac86dab",
+    "success.sh": "51dd3216228406bb2b2c91f726d7b1ddf7db43c310964ee16b6286e8250d32ac",
+    "failure.sh": "6a95e64cde05e9525a90119faa72d31a328d3d92535a435fa9d6f0f96ef3f7e7",
+    "review-prompt.txt": "be6f8254cb6776cf9c26d8789005b3049e00466b712d2882213dfeb63bd2f000",
+    "array.sh": "562536b062bdfb16cafae2252291021a2a82e5f9b68c325b420e2a5ebd8fc00e"
+  }
+}
