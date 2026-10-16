@@ -18,3 +18,15 @@ A coverage list, not a question list. For each point that applies, the plan must
 | Leakage and circularity | Selection or feature choice on the evaluation data; clustering then testing on the same cells; train/test split by subject | Code, prior reviews |
 | Validation and sensitivity | Which choices get a sensitivity run; null or permutation checks; the result that would change the conclusion | Active robust-analysis conventions, analysis doc |
 | Outputs and reporting | Deliverable (figure, table, report); values a report will cite; n, uncertainty, and units in figures | Analysis doc, `numbers.json`, report conventions |
+
+## Declaring a data check in the plan
+
+When a row above rests on a property of a table or file, record it as a `data-contract-check` check, with its evidence named in the plan's "Decisions to record" and the independent source (`repo: <path>`) it compares against. The checker only compares what the plan declares and cannot confirm the source is independent. Example for "Reference and identifiers" and "Unit of replication":
+
+```json
+{"kind": "identifiers", "column": "gene", "namespace": {"path": "data/metadata/<dataset>/gene_annotation.tsv", "column": "symbol"}}
+{"kind": "sample_alignment", "key": "sample_id", "reference": {"path": "data/metadata/<dataset>/sample_sheet.tsv", "column": "sample_id"}}
+{"kind": "h5ad_layer", "table": "data/processed/<dataset>/cells.h5ad", "h5_path": "layers/counts", "properties": {"non_negative": true, "integer_valued": true}}
+```
+
+A passing key or identifier check does not show the analysis joins by key (needs a shuffle-invariance test in the project) or that a normalization is the planned one (needs a known-answer test). Say which of those the plan still covers by hand.

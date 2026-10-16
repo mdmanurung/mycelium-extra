@@ -717,5 +717,402 @@ class UniqueKeyTest(TempTables):
                              table="t.tsv", root=self.root)[0], 1)
 
 
+FIXTURE_PROJECT = os.path.join(HERE, "..", "..", "..", "tests", "fixtures", "mycelium-project")
+FIXTURE_COUNTS = os.path.join(FIXTURE_PROJECT, "data", "processed", "vaccine-cohort", "counts.tsv")
+SOFTENERS = [{"severity": "warn"}, {"blocking": False}, {"level": "warning"}]
+
+
+def alignment(**extra):
+    return dict({"kind": "sample_alignment", "key": "sample_id",
+                 "reference": {"path": "meta.tsv", "column": "sample_id"}}, **extra)
+
+
+class SampleAlignmentTest(TempTables):
+    META = "sample_id\tdonor\nS1\tD1\nS2\tD2\nS3\tD3\n"
+
+    def go(self, table_text, checks=None, **kwargs):
+        self.put("meta.tsv", self.META)
+        self.put("t.tsv", table_text)
+        return self.result_run(checks or [alignment()], table="t.tsv", **kwargs)
+
+    def test_a_mis_keyed_table_passes_every_existing_check_but_blocks_here(self):
+        wrong = "sample_id\tdonor\nS1\tD1\nS2\tD2\nS9\tD3\n"
+        existing = [{"kind": "schema", "columns": ["sample_id", "donor"]}, {"kind": "cohort", "rows": 3}]
+        code, result, _ = self.go(wrong, existing)
+        self.assertEqual(code, 0)  # the miss: nothing compares the keys with anything independent
+        code, result, _ = self.go(wrong)
+        self.assertEqual(code, 2)
+        messages = [a["message"] for a in result["checks"][0]["alerts"]]
+        self.assertIn("keys in the table but not in the independent list", messages)
+        self.assertIn("keys in the independent list but not in the table", messages)
+        evidence = [e for a in result["checks"][0]["alerts"] for e in a.get("evidence", [])]
+        self.assertEqual(sorted(evidence), ["'S3'", "'S9'"])
+
+    def test_the_same_keys_in_another_order_pass_and_the_limit_is_printed(self):
+        code, result, _ = self.go("sample_id\tdonor\nS3\tD3\nS1\tD1\nS2\tD2\n")
+        self.assertEqual((code, result["checks"][0]["status"]), (0, "pass"))
+        note = result["checks"][0]["note"]
+        self.assertIn("order is not compared", note)
+        self.assertIn("no failure for keyed data", note)
+        self.assertIn("shuffle-invariance", note)  # equal key sets do not show the analysis uses them correctly
+
+    def test_a_different_count_blocks(self):
+        code, result, _ = self.go("sample_id\tdonor\nS1\tD1\nS2\tD2\n")
+        messages = [a["message"] for a in result["checks"][0]["alerts"]]
+        self.assertEqual(code, 2)
+        self.assertIn("the table and the independent list hold different numbers of keys", messages)
+
+    def test_repeated_and_empty_keys_block_on_either_side(self):
+        code, result, _ = self.go("sample_id\tdonor\nS1\tD1\nS1\tD2\n\tD3\nS2\tD2\nS3\tD3\n")
+        messages = [a["message"] for a in result["checks"][0]["alerts"]]
+        self.assertEqual(code, 2)
+        self.assertIn("the table repeats keys", messages)
+        self.assertIn("the table has empty or missing keys", messages)
+        self.put("meta.tsv", self.META + "S3\tD3\n")
+        code, result, _ = self.result_run([alignment()], table="t.tsv")
+        self.assertIn("the independent list repeats keys", [a["message"] for a in result["checks"][0]["alerts"]])
+
+    def test_header_keys_compare_a_matrix_header_with_the_list(self):
+        self.put("meta.tsv", self.META)
+        self.put("m.tsv", "gene\tS2\tS1\tS3\nG1\t1\t2\t3\n")
+        check = {"kind": "sample_alignment", "header_keys": True, "exclude": ["gene"],
+                 "reference": {"path": "meta.tsv", "column": "sample_id"}}
+        self.assertEqual(self.result_run([check], table="m.tsv")[0], 0)
+        self.put("m.tsv", "gene\tS2\tS1\tS4\nG1\t1\t2\t3\n")
+        code, result, _ = self.result_run([check], table="m.tsv")
+        self.assertEqual(code, 2)
+        evidence = [e for a in result["checks"][0]["alerts"] for e in a.get("evidence", [])]
+        self.assertEqual(sorted(evidence), ["'S3'", "'S4'"])
+
+    def test_a_plain_list_and_reference_filters_are_supported(self):
+        self.put("list.txt", "# keys\nS1\nS2\n\nS3\n")
+        self.put("t.tsv", "sample_id\tdonor\nS1\tD1\nS2\tD2\nS3\tD3\n")
+        check = alignment(reference={"path": "list.txt", "lines": True})
+        self.assertEqual(self.result_run([check], table="t.tsv")[0], 0)
+        self.put("meta.tsv", "sample_id\tkeep\nS1\tTRUE\nS2\tTRUE\nS3\tFALSE\n")
+        check = alignment(reference={"path": "meta.tsv", "column": "sample_id", "filters": KEEP})
+        code, result, _ = self.result_run([check], table="t.tsv")
+        self.assertEqual(code, 2)  # S3 is excluded by the list's filter but present in the table
+
+    def test_agreeing_values_catch_swapped_labels(self):
+        swapped = "sample_id\tdonor\nS1\tD2\nS2\tD1\nS3\tD3\n"
+        self.assertEqual(self.go(swapped)[0], 0)  # the key sets match, so the plain check passes
+        code, result, _ = self.go(swapped, [alignment(agree_on=["donor"])])
+        self.assertEqual(code, 2)
+        self.assertEqual(result["checks"][0]["alerts"][0]["evidence"],
+                         ["S1: donor is D2 in the table but D1 in the list",
+                          "S2: donor is D1 in the table but D2 in the list"])
+        self.assertEqual(self.go(self.META, [alignment(agree_on=["donor"])])[0], 0)
+
+    def test_an_unusable_reference_is_never_a_pass(self):
+        self.put("t.tsv", self.META)
+        code, result, _ = self.result_run([alignment()], table="t.tsv")  # meta.tsv absent
+        self.assertEqual((code, result["checks"][0]["runnable"]), (2, "reference_unusable"))
+        self.put("meta.xlsx", "x")
+        code, result, _ = self.result_run([alignment(reference={"path": "meta.xlsx", "column": "k"})],
+                                          table="t.tsv")
+        self.assertEqual((code, result["checks"][0]["status"], result["checks"][0]["runnable"]),
+                         (3, "gap", "reference_unreadable"))
+        self.put("meta.tsv", "other\nS1\n")
+        code, result, _ = self.result_run([alignment()], table="t.tsv")
+        self.assertEqual((code, result["checks"][0]["runnable"]), (2, "reference_unusable"))
+
+    def test_a_reference_that_is_the_table_itself_is_a_usage_error(self):
+        self.put("t.tsv", self.META)
+        code, result, text = self.result_run([alignment(reference={"path": "t.tsv", "column": "sample_id"})],
+                                             table="t.tsv")
+        self.assertEqual(code, 1)
+        self.assertIn("independent file", text)
+        self.assertEqual((result["status"], result["checks"]), ("error", []))  # refused before anything ran
+
+    def test_syntax_errors_and_softeners_are_usage_errors(self):
+        self.put("t.tsv", self.META)
+        bad = [{"kind": "sample_alignment", "reference": {"path": "meta.tsv", "column": "sample_id"}},
+               alignment(header_keys=True), alignment(exclude=["x"]), alignment(agree_on="donor"),
+               alignment(reference={"path": "meta.tsv"}),
+               alignment(reference={"path": "meta.tsv", "column": "a", "lines": True}),
+               alignment(reference={"path": "meta.tsv", "lines": True}, agree_on=["donor"]),
+               {"kind": "sample_alignment", "key": "sample_id"}] + [alignment(**s) for s in SOFTENERS]
+        for check in bad:
+            self.assertEqual(self.result_run([check], table="t.tsv")[0], 1, check)
+
+    @unittest.skipUnless(os.path.exists(FIXTURE_COUNTS), "the fixture project is not present")
+    def test_the_fixture_counts_columns_against_its_metadata(self):
+        meta = os.path.join(FIXTURE_PROJECT, "data", "processed", "vaccine-cohort", "sample_metadata.tsv")
+        check = {"kind": "sample_alignment", "header_keys": True, "exclude": ["gene"],
+                 "reference": {"path": meta, "column": "sample_id"}}
+        code, result, _ = self.result_run([check], table=FIXTURE_COUNTS)
+        self.assertEqual(code, 0)
+        # the analysis keeps only preferred acquisitions: the matrix still holds the rerun column
+        check["reference"]["filters"] = [{"column": "preferred_acquisition", "equals": "TRUE"}]
+        code, result, _ = self.result_run([check], table=FIXTURE_COUNTS)
+        self.assertEqual(code, 2)
+        self.assertEqual([e for a in result["checks"][0]["alerts"] for e in a.get("evidence", [])],
+                         ["'D03_day28_rerun'"])
+
+
+class IdentifiersTest(TempTables):
+    NAMESPACE = "MARCHF1\nSEPTIN7\nMX1\n"
+
+    def go(self, table_text, check=None, namespace=NAMESPACE):
+        self.put("ns.txt", namespace)
+        self.put("t.tsv", table_text)
+        check = check or {"kind": "identifiers", "column": "gene", "namespace": {"path": "ns.txt", "lines": True}}
+        return self.result_run([check], table="t.tsv")
+
+    def test_identifiers_inside_the_namespace_pass(self):
+        code, result, _ = self.go("gene\tn\nMX1\t1\nSEPTIN7\t2\n")
+        self.assertEqual((code, result["checks"][0]["status"]), (0, "pass"))
+
+    def test_date_rewritten_symbols_outside_the_namespace_block_and_are_not_repaired(self):
+        code, result, _ = self.go("gene\tn\nMX1\t1\n1-Mar\t2\n7-Sep\t3\n")
+        alert_ = result["checks"][0]["alerts"][0]
+        self.assertEqual(code, 2)
+        self.assertEqual(alert_["message"], "identifiers that are not in the declared namespace")
+        self.assertEqual(alert_["evidence"], ["'1-Mar'", "'7-Sep'"])
+        self.assertNotIn("MARCHF1", json.dumps(result["checks"][0]["alerts"]))  # no guessed repair
+
+    def test_a_date_like_string_the_namespace_lists_is_legitimate(self):
+        self.assertEqual(self.go("gene\n1-Mar\n", namespace="1-Mar\nMX1\n")[0], 0)
+
+    def test_matching_is_exact_not_case_or_space_folded(self):
+        code, result, _ = self.go("gene\nmx1\n MX1\n")
+        self.assertEqual(code, 2)
+        self.assertEqual(result["checks"][0]["alerts"][0]["evidence"], ["' MX1'", "'mx1'"])
+
+    def test_duplicates_and_empties_block_with_or_without_a_namespace(self):
+        for check in (None, {"kind": "identifiers", "column": "gene"}):
+            code, result, _ = self.go("gene\nMX1\nMX1\n\nNA\n", check)
+            messages = [a["message"] for a in result["checks"][0]["alerts"]]
+            self.assertEqual(code, 2)
+            self.assertIn("'gene' repeats identifiers", messages)
+            self.assertIn("'gene' has empty or missing identifiers", messages)
+
+    def test_without_a_namespace_date_like_ids_are_a_suspicion_and_never_a_pass(self):
+        code, result, _ = self.go("gene\nMX1\n1-Mar\nSep-7\n2020-03-01\n", {"kind": "identifiers", "column": "gene"})
+        check = result["checks"][0]
+        self.assertEqual((code, check["status"]), (3, "gap"))
+        warning = [a for a in check["alerts"] if a["severity"] == "warning"][0]
+        self.assertFalse(warning["blocking"])
+        self.assertEqual(warning["evidence"], ["'1-Mar'", "'2020-03-01'", "'Sep-7'"])
+        self.assertIn("cannot be told without a declared namespace", warning["message"])
+        self.assertIn("no identifier namespace is declared", [a for a in check["alerts"]
+                                                              if a["severity"] == "gap"][0]["message"])
+
+    def test_clean_identifiers_without_a_namespace_are_still_only_a_gap(self):
+        code, result, _ = self.go("gene\nMX1\nIFI27\n", {"kind": "identifiers", "column": "gene"})
+        self.assertEqual((code, result["checks"][0]["status"], result["checks"][0]["runnable"]), (3, "gap", "ran"))
+
+    def test_a_crosswalk_table_column_serves_as_the_namespace(self):
+        self.put("xwalk.tsv", "old\tsymbol\nMARCH1\tMARCHF1\nSEPT7\tSEPTIN7\n")
+        self.put("t.tsv", "gene\nMARCHF1\nSEPT7\n")
+        check = {"kind": "identifiers", "column": "gene", "namespace": {"path": "xwalk.tsv", "column": "symbol"}}
+        code, result, _ = self.result_run([check], table="t.tsv")
+        self.assertEqual((code, result["checks"][0]["alerts"][0]["evidence"]), (2, ["'SEPT7'"]))
+
+    def test_contract_filters_reach_a_table_that_lacks_their_column_and_block(self):
+        # documented limit: a global filter on metadata columns also applies to a check on another table
+        self.put("ns.txt", "MX1\n")
+        self.put("t.tsv", "gene\nMX1\n")
+        check = {"kind": "identifiers", "column": "gene", "namespace": {"path": "ns.txt", "lines": True}}
+        code, result, _ = self.result_run([check], table="t.tsv", filters=KEEP)
+        self.assertEqual((code, result["checks"][0]["runnable"]), (2, "columns_absent"))
+
+    def test_an_unusable_namespace_is_never_a_pass(self):
+        self.put("t.tsv", "gene\nMX1\n")
+        spec = {"kind": "identifiers", "column": "gene", "namespace": {"path": "absent.txt", "lines": True}}
+        code, result, _ = self.result_run([spec], table="t.tsv")
+        self.assertEqual((code, result["checks"][0]["runnable"]), (2, "reference_unusable"))
+        code, result, _ = self.go("gene\nMX1\n", namespace="# nothing\n\n")
+        self.assertEqual((code, result["checks"][0]["status"]), (3, "gap"))
+
+    def test_syntax_errors_and_softeners_are_usage_errors(self):
+        self.put("t.tsv", "gene\nMX1\n")
+        bad = [{"kind": "identifiers"}, {"kind": "identifiers", "column": "gene", "namespace": "ns.txt"},
+               {"kind": "identifiers", "column": "gene", "namespace": {"lines": True}}]
+        bad += [{"kind": "identifiers", "column": "gene", "namespace": {"path": "n", "lines": True}, **s}
+                for s in SOFTENERS]
+        for check in bad:
+            self.assertEqual(self.result_run([check], table="t.tsv")[0], 1, check)
+
+    @unittest.skipUnless(os.path.exists(FIXTURE_COUNTS), "the fixture project is not present")
+    def test_the_fixtures_planted_date_symbols(self):
+        with open(FIXTURE_COUNTS, encoding="utf-8") as handle:
+            original = [line.split("\t")[0] for line in handle][1:]
+        self.put("ns.txt", "\n".join(original) + "\n")  # stands in for an independent gene annotation
+        with open(FIXTURE_COUNTS, encoding="utf-8") as handle:
+            corrupted = handle.read().replace("\nMARCHF1\t", "\n1-Mar\t").replace("\nSEPTIN7\t", "\n7-Sep\t")
+        check = {"kind": "identifiers", "column": "gene", "namespace": {"path": "ns.txt", "lines": True}}
+        self.put("counts.tsv", corrupted)
+        code, result, _ = self.result_run([check], table="counts.tsv")
+        self.assertEqual((code, result["checks"][0]["alerts"][0]["evidence"]), (2, ["'1-Mar'", "'7-Sep'"]))
+        with open(FIXTURE_COUNTS, encoding="utf-8") as handle:
+            self.put("counts.tsv", handle.read())
+        self.assertEqual(self.result_run([check], table="counts.tsv")[0], 0)
+        del check["namespace"]  # no authority: a suspicion, not a verdict
+        self.put("counts.tsv", corrupted)
+        code, result, _ = self.result_run([check], table="counts.tsv")
+        self.assertEqual(code, 3)
+        warning = [a for a in result["checks"][0]["alerts"] if a["severity"] == "warning"][0]
+        self.assertEqual(warning["evidence"], ["'1-Mar'", "'7-Sep'"])
+
+
+def write_layers(path):
+    """A minimal AnnData file with obs, X (integer counts), layers and obsm, with h5py alone."""
+    import h5py
+    import numpy as np
+    counts = np.array([[0, 3, 5], [2, 0, 7], [1, 1, 4], [9, 0, 2]], dtype="int64")
+    with h5py.File(path, "w") as handle:
+        handle.attrs["encoding-type"] = "anndata"
+        handle.attrs["encoding-version"] = "0.1.0"
+        handle.create_dataset("X", data=counts)
+        layers = handle.create_group("layers")
+        layers.create_dataset("counts", data=counts)
+        cp10k = counts / counts.sum(axis=1, keepdims=True) * 1e4
+        layers.create_dataset("log_cp10k", data=np.log1p(cp10k))
+        layers.create_dataset("log_cpm", data=np.log1p(counts / counts.sum(axis=1, keepdims=True) * 1e6))
+        layers.create_dataset("negative", data=counts - 4.0)
+        layers.create_dataset("with_nan", data=np.array([[1.0, np.nan], [2.0, 3.0]]))
+        layers.create_dataset("words", data=np.array([b"a", b"b"]))
+        csr = layers.create_group("csr")
+        csr.attrs["encoding-type"] = "csr_matrix"
+        csr.attrs["shape"] = np.array([2, 3])
+        csr.create_dataset("data", data=np.array([4.0, 5.0, 6.0]))
+        csr.create_dataset("indices", data=np.array([0, 2, 1]))
+        csr.create_dataset("indptr", data=np.array([0, 2, 3]))
+        odd = layers.create_group("odd")
+        odd.attrs["encoding-type"] = "dataframe"
+        handle.create_group("obsm").create_dataset("X_pca", data=np.ones((4, 2)))
+
+
+def layer(h5_path, **properties):
+    check = {"kind": "h5ad_layer", "h5_path": h5_path}
+    sample_values = properties.pop("sample_values", None)
+    if sample_values:
+        check["sample_values"] = sample_values
+    if properties:
+        check["properties"] = properties
+    return check
+
+
+@unittest.skipUnless(HAVE_H5PY, NO_H5PY)
+class H5adLayerTest(TempTables):
+    def setUp(self):
+        TempTables.setUp(self)
+        write_layers(os.path.join(self.root, "cells.h5ad"))
+
+    def go(self, check):
+        code, result, _ = self.result_run([check], table="cells.h5ad")
+        return code, result["checks"][0]
+
+    def test_required_paths_that_exist_pass_without_reading_values(self):
+        for path in ("X", "layers/counts", "/layers/log_cp10k", "obsm/X_pca"):
+            self.assertEqual(self.go(layer(path))[0], 0, path)
+
+    def test_a_missing_layer_or_obsm_blocks(self):
+        for path in ("layers/raw", "obsm/X_umap"):
+            code, check = self.go(layer(path))
+            self.assertEqual((code, check["alerts"][0]["message"]), (2, "the required path is absent from the file"))
+
+    def test_counts_that_hold_their_declared_properties_pass(self):
+        code, check = self.go(layer("layers/counts", non_negative=True, integer_valued=True, max_at_most=9))
+        self.assertEqual((code, check["status"], check["runnable"]), (0, "pass", "ran"))
+        self.assertEqual(self.go(layer("X", non_negative=True, integer_valued=True))[0], 0)
+
+    def test_normalised_values_fail_a_declared_integer_property(self):
+        code, check = self.go(layer("layers/log_cp10k", non_negative=True, integer_valued=True))
+        self.assertEqual(code, 2)
+        self.assertEqual([a["message"] for a in check["alerts"]],
+                         ["'layers/log_cp10k' violates a declared property: integer_valued"])
+        self.assertIn("of 12 sampled values", check["alerts"][0]["observed"])
+
+    def test_negative_values_and_a_too_large_maximum_block(self):
+        code, check = self.go(layer("layers/negative", non_negative=True))
+        self.assertEqual(code, 2)
+        self.assertIn("min -4.0", check["alerts"][0]["observed"])
+        code, check = self.go(layer("layers/counts", max_at_most=8))
+        self.assertEqual((code, check["alerts"][0]["expected"]), (2, "max_at_most 8"))
+        self.assertEqual(self.go(layer("layers/counts", max_at_most=9))[0], 0)
+
+    def test_properties_switched_off_are_not_checked(self):
+        self.assertEqual(self.go(layer("layers/negative", non_negative=False))[0], 0)
+
+    def test_a_sparse_matrix_is_judged_by_its_stored_values(self):
+        self.assertEqual(self.go(layer("layers/csr", non_negative=True, max_at_most=6))[0], 0)
+        self.assertEqual(self.go(layer("layers/csr", integer_valued=True, max_at_most=5))[0], 2)
+
+    def test_a_partial_sample_is_a_warning_never_a_clean_pass(self):
+        # dense arrays are read by whole leading rows: 6 values are two rows of three
+        code, check = self.go(layer("layers/counts", non_negative=True, max_at_most=8, sample_values=6))
+        self.assertEqual((code, check["status"]), (0, "warn"))
+        self.assertIn("first 6 of 12 stored values only", check["alerts"][0]["message"])
+        # the 9 sits in the last row, beyond the declared cap: only the warning shows it was not looked at
+        code, check = self.go(layer("layers/counts", non_negative=True, max_at_most=8))
+        self.assertEqual(code, 2)
+
+    def test_nan_and_non_numeric_values_are_gaps_and_a_violation_still_blocks(self):
+        code, check = self.go(layer("layers/with_nan", non_negative=True))
+        self.assertEqual((code, check["status"], check["runnable"]), (3, "gap", "values_not_judgeable"))
+        code, check = self.go(layer("layers/with_nan", max_at_most=2))
+        self.assertEqual((code, check["status"]), (2, "block"))
+        self.assertEqual(sorted(a["severity"] for a in check["alerts"]), ["error", "gap"])
+        for path in ("layers/words", "layers/odd"):
+            code, check = self.go(layer(path, non_negative=True))
+            self.assertEqual((code, check["status"], check["runnable"]), (3, "gap", "values_not_judgeable"), path)
+
+    def test_two_different_normalizations_look_the_same_and_the_note_says_so(self):
+        properties = {"non_negative": True, "max_at_most": 20}
+        a = self.go(layer("layers/log_cp10k", **properties))
+        b = self.go(layer("layers/log_cpm", **properties))
+        self.assertEqual((a[0], a[1]["status"]), (0, "pass"))
+        self.assertEqual((b[0], b[1]["status"]), (0, "pass"))
+        self.assertIn("cannot tell which normalization algorithm produced the values", a[1]["note"])
+
+    def test_a_file_that_is_not_hdf5_is_a_gap(self):
+        self.put("bad.h5ad", "plain text")
+        code, result, _ = self.result_run([layer("X")], table="bad.h5ad")
+        self.assertEqual((code, result["checks"][0]["runnable"]), (3, "table_unreadable"))
+
+    def test_the_layer_check_never_reads_obs_so_a_broken_obs_does_not_hide_it(self):
+        self.assertEqual(self.go(layer("layers/counts", non_negative=True))[0], 0)  # the file has no obs at all
+
+    def test_filters_do_not_apply_to_a_layer_and_a_local_one_is_refused(self):
+        code, result, _ = self.result_run([layer("X")], table="cells.h5ad", filters=KEEP)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.result_run([dict(layer("X"), filters=KEEP)], table="cells.h5ad")[0], 1)
+
+
+class H5adLayerSyntaxTest(TempTables):
+    """Runs without h5py: usage errors are found before any file is opened."""
+
+    def test_bad_declarations_are_usage_errors(self):
+        self.put("cells.h5ad", "x")
+        bad = [{"kind": "h5ad_layer"}, layer("/"), layer("X", unknown=True),
+               {"kind": "h5ad_layer", "h5_path": "X", "properties": ["non_negative"]},
+               {"kind": "h5ad_layer", "h5_path": "X", "properties": {"non_negative": "yes"}},
+               {"kind": "h5ad_layer", "h5_path": "X", "properties": {"max_at_most": True}},
+               {"kind": "h5ad_layer", "h5_path": "X", "properties": {"non_negative": 1}},
+               {"kind": "h5ad_layer", "h5_path": "X", "sample_values": 0},
+               {"kind": "h5ad_layer", "h5_path": "X", "sample_values": True}]
+        bad += [dict(layer("X"), **s) for s in SOFTENERS]
+        for check in bad:
+            self.assertEqual(self.result_run([check], table="cells.h5ad")[0], 1, check)
+        self.put("t.tsv", "a\n1\n")
+        self.assertEqual(self.result_run([layer("X")], table="t.tsv")[0], 1)  # not an .h5ad file
+
+    def test_a_missing_h5ad_blocks(self):
+        code, result, _ = self.result_run([layer("X")], table="gone.h5ad")
+        self.assertEqual((code, result["checks"][0]["runnable"]), (2, "table_missing"))
+
+    def test_without_h5py_the_layer_check_is_a_gap_that_says_which_reader_is_missing(self):
+        self.put("h5py.py", "raise ImportError('h5py hidden by the test')\n")
+        self.put("cells.h5ad", "\x89HDF")
+        code, result, _ = self.result_run([layer("X", non_negative=True)], table="cells.h5ad",
+                                          env=dict(os.environ, PYTHONPATH=self.root))
+        check = result["checks"][0]
+        self.assertEqual((code, check["status"], check["runnable"]), (3, "gap", "optional_reader_missing"))
+        self.assertIn("h5py cannot be imported", check["alerts"][0]["observed"])
+
+
 if __name__ == "__main__":
     unittest.main()

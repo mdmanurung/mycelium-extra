@@ -31,6 +31,8 @@ In the last column, a named tool (`data-contract-check`, `verify`, or the approv
 | Sample label swap | Metadata row order assumed to match the matrix's column order | Join by explicit ID, never by position; assert the IDs are identical | none |
 | Silent type coercion | IDs read as numbers (lost leading zeros), dates parsed as strings, factors as integers | Name the column types on read; a probe checks a few known IDs round-trip unchanged | none |
 
+Note: `data-contract-check` can now declare `sample_alignment`, `identifiers` and `h5ad_layer` checks against independent evidence (see [analysis-decisions.md](analysis-decisions.md)). The coverage claims for "Identifier mismatch", "Gene symbol corruption" and "Sample label swap" above are unchanged: end-to-end detection of those defects with the declared variants is pending, and a declared check does not detect a positional join or a substituted normalization inside the code.
+
 ## Code and tools
 
 | Failure mode | How it shows up | Guard the plan must name | Check |

@@ -22,6 +22,7 @@ import io
 import json
 import hashlib
 import os
+import re
 import sys
 from collections import Counter, defaultdict
 
@@ -42,6 +43,10 @@ class TableGap(Exception):
 
 class ReaderMissing(TableGap):
     """An optional reader (h5py) is not installed; kept apart from a table that is unreadable."""
+
+
+class ReferenceMissing(Exception):
+    """A reference file the contract declares does not exist; blocks, like a missing table."""
 
 
 def is_missing(value):
@@ -473,14 +478,159 @@ def render_cross_table(table):
     return ["  ".join(cell.ljust(w) for cell, w in zip(row, widths)).rstrip() for row in [header] + body]
 
 
-# ------------------------------------------------- unique_key
+# ------------------------------------------------- unique_key and the declared checks
+
+def resolve(base_dir, path):
+    return path if os.path.isabs(path) else os.path.join(base_dir, path)
+
 
 def failed(kind, message, observed=None, evidence=None, expected=None):
     return alert(kind, message, True, expected=expected, observed=observed, evidence=evidence)
 
 
+def read_lines(path):
+    """One identifier per line, strict UTF-8; blank lines and lines starting with # are skipped."""
+    try:
+        with open(path, encoding="utf-8-sig") as handle:
+            return [line.strip() for line in handle if line.strip() and not line.lstrip().startswith("#")]
+    except UnicodeDecodeError as error:
+        raise TableGap("the list is not valid UTF-8 (offset {}); re-export it as UTF-8".format(error.start))
+
+
+def load_keys(spec, base_dir, extra=()):
+    """Keys, and rows when a column names them, from an independent file the contract declares.
+
+    spec: {"path"} and one of "column" (optional "filters"), "header" (optional "exclude"), "lines".
+    Returns (keys in file order, rows). Raises ReferenceMissing, TableGap or TableShapeError.
+    """
+    path = resolve(base_dir, spec["path"])
+    if not os.path.isfile(path):
+        raise ReferenceMissing("not found: " + spec["path"])
+    if spec.get("lines"):
+        return read_lines(path), []
+    named = [spec["column"]] + list(extra) + [f["column"] for f in spec.get("filters", [])] \
+        if "column" in spec else []
+    columns, rows, unreadable = read_table(path, set(named) if named else None)
+    if spec.get("header"):
+        return [c for c in columns if c not in as_list(spec.get("exclude"))], []
+    absent = sorted(set(c for c in named if c not in columns))
+    if absent:
+        raise TableShapeError("the file lacks column(s) " + ", ".join(absent))
+    bad = sorted(set(c for c in named if c in unreadable))
+    if bad:
+        raise TableGap("column(s) cannot be read: " + ", ".join(bad))
+    rows = apply_filters(rows, spec.get("filters", []), columns)
+    return [r[spec["column"]] for r in rows], rows
+
+
 def gap_cause(error, default="table_unreadable"):
     return "optional_reader_missing" if isinstance(error, ReaderMissing) else default
+
+
+def reference_failure(kind, error, what):
+    """A declared file that cannot be used is never a pass: unreadable is a gap, missing or malformed blocks."""
+    if isinstance(error, TableGap):
+        return alert(kind, "the {} cannot be read, so this check did not run".format(what), False,
+                     observed=str(error), gap=True, cause=gap_cause(error, "reference_unreadable"))
+    return alert(kind, "the {} the contract declares cannot be used".format(what), True, observed=str(error),
+                 cause="reference_unusable")
+
+
+def repeated(values):
+    return sorted(v for v, n in Counter(values).items() if n > 1)
+
+
+def quoted(values):
+    return ["'{}'".format(v) if v else "'' (empty)" for v in values]
+
+
+def check_sample_alignment(check, columns, rows, ctx=None):
+    kind, spec = "sample_alignment", check["reference"]
+    extra = as_list(check.get("agree_on"))
+    try:
+        ref_keys, ref_rows = load_keys(spec, ctx["base_dir"], extra)
+    except (ReferenceMissing, TableGap, TableShapeError) as error:
+        return [reference_failure(kind, error, "independent key list")]
+    if check.get("header_keys"):
+        keys = [c for c in columns if c not in as_list(check.get("exclude"))]
+    else:
+        keys = [r[check["key"]] for r in rows]
+    alerts = []
+    for side, values in (("the table", keys), ("the independent list", ref_keys)):
+        empty = sum(1 for v in values if is_missing(v))
+        if empty:
+            alerts.append(failed(kind, "{} has empty or missing keys".format(side),
+                                 "{} of {}".format(empty, len(values))))
+        again = repeated([v for v in values if not is_missing(v)])
+        if again:
+            alerts.append(failed(kind, "{} repeats keys".format(side), "{} repeated keys".format(len(again)),
+                                 evidence=quoted(again)))
+    have, want = set(keys), set(ref_keys)
+    if len(have) != len(want):
+        alerts.append(failed(kind, "the table and the independent list hold different numbers of keys",
+                             "table {}, list {}".format(len(have), len(want)), expected="the same distinct keys"))
+    for message, only in (("keys in the table but not in the independent list", sorted(have - want)),
+                          ("keys in the independent list but not in the table", sorted(want - have))):
+        if only:
+            alerts.append(failed(kind, message, "{} keys".format(len(only)), evidence=quoted(only)))
+    if extra:
+        theirs = {}
+        for r in ref_rows:
+            theirs.setdefault(r[spec["column"]], r)
+        wrong = ["{}: {} is {} in the table but {} in the list".format(r[check["key"]], col, r[col],
+                                                                       theirs[r[check["key"]]][col])
+                 for r in rows if r[check["key"]] in theirs for col in extra
+                 if r[col] != theirs[r[check["key"]]][col]]
+        if wrong:
+            alerts.append(failed(kind, "values differ between the table and the independent list",
+                                 "{} differing values".format(len(wrong)), evidence=wrong))
+    return alerts
+
+
+MONTH = "(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*"
+DATE_LIKE = re.compile(
+    r"^(?:\d{{1,2}}-{m}(?:-\d{{2,4}})?|{m}-\d{{1,2}}(?:-\d{{2,4}})?|\d{{4}}-\d{{1,2}}-\d{{1,2}}"
+    r"|\d{{1,2}}[/-]\d{{1,2}}[/-]\d{{2,4}})$".format(m=MONTH), re.IGNORECASE)
+
+
+def check_identifiers(check, columns, rows, ctx=None):
+    kind, column = "identifiers", check["column"]
+    ids = [r[column] for r in rows]
+    alerts = []
+    empty = sum(1 for v in ids if is_missing(v))
+    if empty:
+        alerts.append(failed(kind, "'{}' has empty or missing identifiers".format(column),
+                             "{} of {} rows".format(empty, len(ids))))
+    again = repeated([v for v in ids if not is_missing(v)])
+    if again:
+        alerts.append(failed(kind, "'{}' repeats identifiers".format(column),
+                             "{} repeated identifiers".format(len(again)), evidence=quoted(again)))
+    if "namespace" in check:
+        try:
+            names, _ = load_keys(check["namespace"], ctx["base_dir"])
+        except (ReferenceMissing, TableGap, TableShapeError) as error:
+            return alerts + [reference_failure(kind, error, "identifier namespace")]
+        known = set(n for n in names if not is_missing(n))
+        if not known:
+            return alerts + [alert(kind, "the declared namespace holds no identifiers, so it cannot be an "
+                                         "authority", False, gap=True, cause="reference_unusable")]
+        outside = sorted(set(v for v in ids if not is_missing(v) and v not in known))
+        if outside:
+            alerts.append(failed(
+                kind, "identifiers that are not in the declared namespace", "{} identifiers".format(len(outside)),
+                evidence=quoted(outside),
+                expected="every identifier in the namespace (exact match; nothing is repaired or renamed)"))
+        return alerts
+    # No authority: whatever the strings look like, they cannot be certified.
+    datelike = sorted(set(v for v in ids if DATE_LIKE.match(v.strip())))
+    if datelike:
+        alerts.append(alert(
+            kind, "date-like identifiers: a spreadsheet may have rewritten symbols as dates, but legitimate or "
+                  "corrupted cannot be told without a declared namespace", False,
+            observed="{} date-like identifiers".format(len(datelike)), evidence=quoted(datelike)))
+    alerts.append(alert(kind, "no identifier namespace is declared, so identifier validity is unverified; only "
+                              "empties and repeats were checked", False, gap=True))
+    return alerts
 
 
 def check_unique_key(check, columns, rows, ctx=None):
@@ -501,6 +651,120 @@ def check_unique_key(check, columns, rows, ctx=None):
                              "{} repeated keys".format(len(again)), expected="1 row per key",
                              evidence=["{} ({} rows)".format(", ".join(k), n) for k, n in again]))
     return alerts
+
+
+def sample_facts(array, properties):
+    """Facts about a bounded sample of numeric values (numpy is present whenever h5py is)."""
+    import numpy as np
+    facts = {"violations": {}, "nonfinite": 0, "sampled": int(array.size)}
+    if array.dtype.kind not in "iufb":
+        facts["not_numeric"] = str(array.dtype)
+        return facts
+    values = array.astype("float64").ravel()
+    finite = np.isfinite(values)
+    facts["nonfinite"] = int(values.size - finite.sum())
+    values = values[finite]
+    if values.size == 0:
+        return facts
+    facts["min"], facts["max"] = float(values.min()), float(values.max())
+    tests = {"non_negative": values < 0, "integer_valued": values != np.floor(values)}
+    if "max_at_most" in properties:
+        tests["max_at_most"] = values > properties["max_at_most"]
+    for name, bad in tests.items():
+        if properties.get(name) and bad.any():
+            facts["violations"][name] = int(bad.sum())
+    return facts
+
+
+def inspect_h5ad_path(path, h5_path, properties, cap):
+    """Does `h5_path` (X, layers/<name>, obsm/<name>) exist, and what do up to `cap` of its values look like?
+
+    Never loads the matrix whole: a dense array is read by leading rows, a CSR/CSC matrix by its first
+    stored values (implicit zeros are not counted). Raises ReaderMissing or TableGap.
+    """
+    try:
+        import h5py
+        import numpy as np
+    except ImportError as error:
+        raise ReaderMissing("h5py cannot be imported ({}), so the layer cannot be inspected; install h5py in "
+                            "the environment the check runs in".format(error))
+    try:
+        h5file = h5py.File(path, "r")
+    except (OSError, IOError) as error:
+        raise TableGap("not readable as HDF5: {}".format(error))
+    with h5file:
+        node = h5file.get(h5_path)
+        if node is None:
+            return {"exists": False}
+        facts = {"exists": True}
+        if not properties:
+            return facts
+        if isinstance(node, h5py.Dataset):
+            shape = node.shape
+            facts["total"] = int(np.prod(shape)) if shape else 1
+            if node.dtype.kind not in "iufb":
+                facts["not_numeric"] = str(node.dtype)
+                return facts
+            width = max(1, int(np.prod(shape[1:]))) if shape else 1
+            sample = np.asarray(node[:max(1, cap // width)] if shape else node[()]).ravel()[:cap]
+        elif isinstance(node, h5py.Group) and attr(node, "encoding-type") in ("csr_matrix", "csc_matrix") \
+                and isinstance(node.get("data"), h5py.Dataset):
+            facts["total"] = int(node["data"].shape[0])
+            sample = np.asarray(node["data"][:cap])
+        else:
+            facts["unsupported"] = "not a dense array or a CSR/CSC matrix (encoding '{}')".format(
+                attr(node, "encoding-type", "") or "none")
+            return facts
+        facts.update(sample_facts(sample, properties))
+        return facts
+
+
+def check_h5ad_layer(check, columns, rows, ctx=None):
+    kind, h5_path, properties = "h5ad_layer", check["h5_path"], check.get("properties", {})
+    try:
+        facts = inspect_h5ad_path(ctx["path"], h5_path, properties, check.get("sample_values", 100000))
+    except TableGap as error:
+        return [alert(kind, "the layer cannot be inspected, so this check did not run", False,
+                      observed=str(error), gap=True, cause=gap_cause(error))]
+    if not facts["exists"]:
+        return [failed(kind, "the required path is absent from the file", "no '{}'".format(h5_path),
+                       expected="'{}' present".format(h5_path))]
+    if not properties:
+        return []
+    if "unsupported" in facts or "not_numeric" in facts:
+        return [alert(kind, "the declared properties cannot be judged for '{}'".format(h5_path), False, gap=True,
+                      cause="values_not_judgeable",
+                      observed=facts.get("unsupported") or "values are not numeric ({})".format(facts["not_numeric"]))]
+    alerts = []
+    for name, count in sorted(facts["violations"].items()):
+        alerts.append(failed(
+            kind, "'{}' violates a declared property: {}".format(h5_path, name),
+            "{} of {} sampled values; observed min {}, max {}".format(count, facts["sampled"], facts["min"],
+                                                                      facts["max"]),
+            expected=name if properties[name] is True else "{} {}".format(name, properties[name])))
+    if facts["sampled"] == 0:
+        alerts.append(alert(kind, "'{}' has no values to inspect".format(h5_path), False, gap=True,
+                            cause="values_not_judgeable"))
+    elif facts["nonfinite"]:
+        alerts.append(alert(kind, "'{}' holds NaN or infinite values, which these properties cannot judge".format(
+            h5_path), False, gap=True, cause="values_not_judgeable",
+            observed="{} of {} sampled values".format(facts["nonfinite"], facts["sampled"])))
+    elif not alerts and facts["sampled"] < facts["total"]:
+        alerts.append(alert(kind, "the declared properties held in the first {} of {} stored values only; the "
+                                  "rest was not read".format(facts["sampled"], facts["total"]), False))
+    return alerts
+
+
+# A limit each declared check always prints, because passing it proves less than it sounds like.
+NOTES = {
+    "sample_alignment": "keys are compared as sets: order is not compared (it is no failure for keyed data), and "
+                        "equal key sets do not show the analysis uses them correctly (a positional use of the "
+                        "inputs needs a project shuffle-invariance test)",
+    "identifiers": "strings are compared exactly with an independent namespace; without one the check is a gap, "
+                   "and no identifier is repaired or renamed",
+    "h5ad_layer": "checks the path and the declared properties of a bounded sample; this cannot tell which "
+                  "normalization algorithm produced the values",
+}
 
 
 def validate(check, index):
@@ -555,7 +819,11 @@ def validate(check, index):
 DECLARED = {  # kind: the keys it accepts besides kind, id, label, table and filters; nothing else is read,
     # so a contract cannot carry a severity or a waiver that softens one of these checks
     "unique_key": {"columns"},
+    "sample_alignment": {"key", "header_keys", "exclude", "reference", "agree_on"},
+    "identifiers": {"column", "namespace"},
+    "h5ad_layer": {"h5_path", "properties", "sample_values"},
 }
+PROPERTIES = {"non_negative": bool, "integer_valued": bool, "max_at_most": (int, float)}
 
 
 def names_list(value, what, index):
@@ -563,12 +831,74 @@ def names_list(value, what, index):
         raise ContractError("checks[{}] {} must be a nonempty list of names".format(index, what))
 
 
+def validate_source(spec, what, index):
+    """An independent file the contract declares: a table column, a table header, or a list of lines."""
+    allowed = {"path", "column", "header", "lines", "exclude", "filters"}
+    if not isinstance(spec, dict) or set(spec) - allowed:
+        raise ContractError("checks[{}] {} must be an object with only {}".format(
+            index, what, ", ".join(sorted(allowed))))
+    if not isinstance(spec.get("path"), str) or not spec["path"]:
+        raise ContractError("checks[{}] {} needs a file path".format(index, what))
+    forms = [k for k in ("column", "header", "lines") if k in spec]
+    if len(forms) != 1:
+        raise ContractError("checks[{}] {} needs exactly one of column, header, or lines".format(index, what))
+    if forms[0] == "column" and (not isinstance(spec["column"], str) or not spec["column"]):
+        raise ContractError("checks[{}] {} column must be a nonempty name".format(index, what))
+    if forms[0] != "column" and spec[forms[0]] is not True:
+        raise ContractError("checks[{}] {} {} must be true".format(index, what, forms[0]))
+    if "exclude" in spec:
+        if forms[0] != "header":
+            raise ContractError("checks[{}] {} exclude goes with header".format(index, what))
+        names_list(spec["exclude"], what + " exclude", index)
+    if "filters" in spec:
+        if forms[0] != "column":
+            raise ContractError("checks[{}] {} filters go with column".format(index, what))
+        filter_columns(spec["filters"])
+
+
 def validate_declared(check, index):
     kind = check["kind"]
-    extra = set(check) - {"kind", "id", "label", "table", "filters"} - DECLARED[kind]
+    common = {"kind", "id", "label", "table"} | (set() if kind == "h5ad_layer" else {"filters"})
+    extra = set(check) - common - DECLARED[kind]
     if extra:
         raise ContractError("checks[{}] {} does not accept: {}".format(index, kind, ", ".join(sorted(extra))))
-    names_list(need(check, "columns"), "columns", index)
+    if kind == "unique_key":
+        names_list(need(check, "columns"), "columns", index)
+    elif kind == "sample_alignment":
+        validate_source(need(check, "reference"), "reference", index)
+        if ("key" in check) == bool(check.get("header_keys")):
+            raise ContractError("checks[{}] sample_alignment needs a key column or header_keys: true, not both"
+                                .format(index))
+        if "key" in check and (not isinstance(check["key"], str) or not check["key"]):
+            raise ContractError("checks[{}] key must be a nonempty column name".format(index))
+        if "header_keys" in check and check["header_keys"] is not True:
+            raise ContractError("checks[{}] header_keys must be true".format(index))
+        if "exclude" in check:
+            if not check.get("header_keys"):
+                raise ContractError("checks[{}] exclude goes with header_keys".format(index))
+            names_list(check["exclude"], "exclude", index)
+        if "agree_on" in check:
+            if "key" not in check or "column" not in check["reference"]:
+                raise ContractError("checks[{}] agree_on needs a key column and a reference column".format(index))
+            names_list(check["agree_on"], "agree_on", index)
+    elif kind == "identifiers":
+        need(check, "column")
+        if "namespace" in check:
+            validate_source(check["namespace"], "namespace", index)
+    else:
+        if not isinstance(need(check, "h5_path"), str) or not check["h5_path"].strip("/"):
+            raise ContractError("checks[{}] h5_path must name a path in the file, such as X or "
+                                "layers/counts".format(index))
+        props = check.get("properties", {})
+        if not isinstance(props, dict) or set(props) - set(PROPERTIES):
+            raise ContractError("checks[{}] properties accepts only {}".format(index, ", ".join(sorted(PROPERTIES))))
+        for name, value in props.items():
+            if isinstance(value, bool) != (PROPERTIES[name] is bool) or not isinstance(value, PROPERTIES[name]):
+                raise ContractError("checks[{}] property {} has an invalid value".format(index, name))
+        if "sample_values" in check and (isinstance(check["sample_values"], bool)
+                                         or not isinstance(check["sample_values"], int)
+                                         or check["sample_values"] < 1):
+            raise ContractError("checks[{}] sample_values must be a positive integer".format(index))
 
 
 CHECKS = {
@@ -578,13 +908,17 @@ CHECKS = {
     "pairing": check_pairing,
     "batch_confounding": check_batch,
     "unique_key": check_unique_key,
+    "sample_alignment": check_sample_alignment,
+    "identifiers": check_identifiers,
+    "h5ad_layer": check_h5ad_layer,
 }
+NO_ROWS = ("h5ad_layer",)  # reads its own file, not the table's rows
 
 
 def referenced_columns(check):
-    keys = ["column", "unit", "group", "batch", "contrast"]
+    keys = ["column", "unit", "group", "batch", "contrast", "key"]
     cols = [check[k] for k in keys if k in check]
-    cols += as_list(check.get("within")) + as_list(check.get("no_missing"))
+    cols += as_list(check.get("within")) + as_list(check.get("no_missing")) + as_list(check.get("agree_on"))
     if check.get("kind") == "unique_key":
         cols += as_list(check["columns"])
     return cols
@@ -613,7 +947,12 @@ RELAXATIONS = ("units_may_span_groups",)
 
 
 def table_inputs(check, table, path, base_dir):
-    return [{"role": "table", "path": table, "resolved": path}]
+    found = [{"role": "table", "path": table, "resolved": path}]
+    for role in ("reference", "namespace"):
+        if role in check:
+            found.append({"role": role, "path": check[role]["path"],
+                          "resolved": resolve(base_dir, check[role]["path"])})
+    return found
 
 
 def run_contract(contract, base_dir, inputs=None):
@@ -643,11 +982,23 @@ def run_contract(contract, base_dir, inputs=None):
         table = check.get("table", contract.get("table"))
         if not isinstance(table, str) or not table:
             raise ContractError("checks[{}] has no table".format(index))
-        local_filters = check.get("filters", [])
+        if kind == "h5ad_layer" and not table.lower().endswith(".h5ad"):
+            raise ContractError("checks[{}] h5ad_layer needs an .h5ad table".format(index))
+        if kind == "sample_alignment" and check.get("header_keys") and table.lower().endswith(".h5ad"):
+            raise ContractError("checks[{}] header_keys needs a CSV or TSV table".format(index))
+        if kind == "sample_alignment" and check["reference"].get("path") and \
+                os.path.realpath(resolve(base_dir, check["reference"]["path"])) == \
+                os.path.realpath(resolve(base_dir, table)) and \
+                check["reference"].get("column") == check.get("key") and \
+                bool(check["reference"].get("header")) == bool(check.get("header_keys")):
+            raise ContractError("checks[{}] sample_alignment compares the table with itself; the reference "
+                                "must be an independent file".format(index))
+        # h5ad_layer reads no rows, so neither the contract's filters nor columns apply to it
+        local_filters = [] if kind in NO_ROWS else check.get("filters", [])
         filter_columns(local_filters)
-        filters = global_filters + local_filters
+        filters = [] if kind in NO_ROWS else global_filters + local_filters
         path = table if os.path.isabs(table) else os.path.join(base_dir, table)
-        named = filter_columns(filters) + ([] if kind == "schema" else referenced_columns(check))
+        named = filter_columns(filters) + ([] if kind in ("schema",) + NO_ROWS else referenced_columns(check))
         plan.append((index, check, kind, table, filters, path, named))
     wanted = defaultdict(set)  # an .h5ad's obs is read only for the columns the contract names
     for _, _, _, _, _, path, named in plan:
@@ -662,6 +1013,8 @@ def run_contract(contract, base_dir, inputs=None):
         if not os.path.isfile(path):
             found.append(alert("schema", "the table the plan names does not exist", True,
                                observed="not found: " + table, cause="table_missing"))
+        elif kind in NO_ROWS:
+            found.extend(CHECKS[kind](check, [], [], ctx))
         else:
             if path not in cache:
                 try:
@@ -708,6 +1061,8 @@ def run_contract(contract, base_dir, inputs=None):
                    "id": check.get("id", "checks[{}]".format(index)),
                    "runnable": next((a["cause"] for a in found if a.get("cause")), "ran"),
                    "message": "; ".join(a["message"] for a in found) or "passed on {} rows".format(rows_checked)}
+        if kind in NOTES:
+            summary["note"] = NOTES[kind]
         if kind == "batch_confounding" and rows_checked:
             summary["cross_table"] = cross_table(check, rows)
         summaries.append(summary)
@@ -725,6 +1080,8 @@ def render(summaries, alerts):
         if summary["relaxations"]:
             line += "  relaxed: " + ", ".join(summary["relaxations"])
         lines.append(line)
+        if "note" in summary:
+            lines.append("    note: " + summary["note"])
         if "cross_table" in summary:
             lines.append("    rows by batch and contrast level (share of the level):")
             lines.extend("      " + row for row in render_cross_table(summary["cross_table"]))
@@ -777,7 +1134,7 @@ def build_result(contract_path, root, contract_bytes, summaries, alerts, inputs,
     checks = []
     for summary in summaries:
         record = dict((k, summary[k]) for k in ("id", "check", "kind", "status", "runnable", "message", "table",
-                                                "rows_checked", "relaxations") if k in summary)
+                                                "rows_checked", "relaxations", "note") if k in summary)
         record["alerts"] = [a for a in alerts if a["check"] == summary["check"]]
         checks.append(record)
     not_run = [c["id"] for c in checks if c["runnable"] != "ran"]
