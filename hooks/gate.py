@@ -16,6 +16,7 @@ After `hints on`, the prompt and Stop hooks also suggest the command to run next
 
 import ast
 import collections
+import contextlib
 import fnmatch
 import functools
 import glob
@@ -997,27 +998,70 @@ def active_approvals(root, config, session_id=None):
     return approvals
 
 
+def call_id(event):
+    """The host's id for this tool call, or None (older hosts, synthetic callers)."""
+    return event.get("tool_use_id") or event.get("tool_call_id") or event.get("call_id") or None
+
+
 def launch_path(root, event):
     """Where one tool call's launch record lives: keyed by the host's call id, else by session and command."""
-    call = (event.get("tool_use_id") or event.get("tool_call_id") or event.get("call_id")
-            or (event.get("tool_input") or {}).get("command", ""))
+    call = call_id(event) or (event.get("tool_input") or {}).get("command", "")
     key = sha256(json.dumps([event.get("session_id"), call]).encode("utf-8")).hexdigest()[:16]
-    # ponytail: with no call id, the same command running twice at once shares one record
     return state_path(root, "launches", key + ".json")
 
 
+def abandon_launch(folder, name, stamp):
+    """Move a launch record that never reported back to launches/abandoned/: an incomplete attempt, kept."""
+    kept = os.path.join(folder, "abandoned")
+    os.makedirs(kept, exist_ok=True)
+    os.replace(os.path.join(folder, name), os.path.join(kept, "{}-{}".format(int(stamp), name)))
+
+
+def create_exclusive(path, data):
+    """Write `data` at `path` only if nothing is there yet; False when a record already is."""
+    tmp = "{}.{}.{}.tmp".format(path, os.getpid(), os.urandom(4).hex())
+    write_json(tmp, data)
+    try:
+        os.link(tmp, path)
+        return True
+    except FileExistsError:
+        return False
+    except OSError:  # no hard links on this filesystem: fall back to a plain (racy) check
+        if os.path.exists(path):
+            return False
+        os.replace(tmp, path)
+        return True
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+
+
 def write_launch(root, event, runs):
-    """Save the approvals that let this call launch, and the pins checked, so its receipt keeps them after expiry."""
+    """Save this call's attempt: the approvals that let it launch and the pins checked, so its receipt keeps them
+    after expiry. Without a call id, a second identical launch while the first record exists makes the key
+    ambiguous: both attempts are stored and no Post is matched to either."""
     folder = state_path(root, "launches")
     if os.path.isdir(folder):  # records of calls that never reported back
         for name in os.listdir(folder):
             path = os.path.join(folder, name)
             try:
-                if os.path.getmtime(path) < time.time() - LAUNCH_SECONDS:
-                    os.remove(path)
+                if name.endswith(".json") and os.path.getmtime(path) < time.time() - LAUNCH_SECONDS:
+                    abandon_launch(folder, name, os.path.getmtime(path))
             except OSError:  # a parallel call's hook got there first
                 pass
-    write_json(launch_path(root, event), {"ts": time.time(), "runs": runs})
+    now = time.time()
+    attempt = {"ts": now, "started": now, "attempt_id": os.urandom(8).hex(), "call_id": call_id(event),
+               "cwd": repo_relative(root, root, event.get("cwd") or root) or ".", "runs": runs}
+    path = launch_path(root, event)
+    # ponytail: three simultaneous identical launches can lose one attempt from the ambiguous list
+    if call_id(event) is None and not create_exclusive(path, attempt):
+        existing = read_json(path, {})
+        attempts = existing.get("attempts") if existing.get("ambiguous") else [existing]
+        write_json(path, {"ts": now, "ambiguous": True, "attempts": (attempts or []) + [attempt]})
+    elif call_id(event) is not None:
+        write_json(path, attempt)
 
 
 def pins_of(launch, record):
@@ -1026,17 +1070,101 @@ def pins_of(launch, record):
     return (checked[record["hash"]] if record["hash"] in checked else record.get("pins")) or {}
 
 
-def take_launch(root, event):
-    """This call's launch record, removed once read: {segment: [{paths, plans, pins}]}, or {} if there is none."""
-    path = launch_path(root, event)
-    record = read_json(path, {})
+def reported_call(root, event):
+    """Whether a receipt of this session already names this call id (a duplicate Post callback)."""
+    call = call_id(event)
+    if not call:
+        return False
     try:
-        os.remove(path)
+        with open(state_path(root, "receipts.jsonl"), "rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            handle.seek(max(0, handle.tell() - (1 << 20)))
+            tail = handle.read().decode("utf-8", "replace")
+    except OSError:
+        return False
+    return any('"call_id": ' + json.dumps(call) in line and json.dumps(event.get("session_id")) in line
+               for line in tail.splitlines())
+
+
+def take_attempt(root, event):
+    """This call's launch record, removed once read: {"match": matched | unmatched | ambiguous, "attempt": the
+    record or None, "note": why not matched, "candidates": attempt ids when ambiguous}. Taking is one atomic
+    rename, so two callbacks for one record cannot both match it."""
+    path = launch_path(root, event)
+    claim = "{}.{}.{}.taken".format(path, os.getpid(), os.urandom(4).hex())
+    try:
+        os.rename(path, claim)
+    except OSError:
+        note = ("duplicate callback: this call id already reported" if reported_call(root, event)
+                else "no launch record for this call")
+        return {"match": "unmatched", "attempt": None, "note": note, "candidates": []}
+    record = read_json(claim, {})
+    record = record if isinstance(record, dict) else {}
+    try:
+        os.remove(claim)
     except OSError:
         pass
-    if record.get("ts", 0) < time.time() - LAUNCH_SECONDS:
-        return {}
-    return record.get("runs") or {}
+    if record.get("ts", 0) < time.time() - LAUNCH_SECONDS:  # a very late report: the attempt stays incomplete
+        folder = os.path.dirname(path)
+        os.makedirs(os.path.join(folder, "abandoned"), exist_ok=True)
+        write_json(os.path.join(folder, "abandoned", "{}-{}".format(int(record.get("ts", 0)), os.path.basename(path))),
+                   record)
+        return {"match": "unmatched", "attempt": None, "candidates": [],
+                "note": "launch record older than {} h".format(LAUNCH_SECONDS // 3600)}
+    if record.get("ambiguous"):
+        attempts = [a for a in record.get("attempts") or [] if isinstance(a, dict)]
+        ids = record.get("candidates") or [a.get("attempt_id") for a in attempts]
+        if len(attempts) > 1:  # which attempt this Post belongs to is not known: one is consumed, never named
+            create_exclusive(path, dict(record, attempts=attempts[1:], candidates=ids))
+        return {"match": "ambiguous", "attempt": None, "candidates": ids,
+                "note": "{} identical launches without a call id".format(len(ids))}
+    if not record.get("attempt_id"):
+        return {"match": "unmatched", "attempt": record, "candidates": [],
+                "note": "launch record predates attempt ids"}
+    return {"match": "matched", "attempt": record, "note": None, "candidates": []}
+
+
+def take_launch(root, event):
+    """This call's launch record, removed once read: {segment: [{paths, plans, pins}]}, or {} if there is none."""
+    return (take_attempt(root, event)["attempt"] or {}).get("runs") or {}
+
+
+def pin_limitations(pins, what):
+    """Why a pin identifies its file less strongly than a content hash, one string per weak pin."""
+    found = []
+    for rel in sorted(pins or {}):
+        pin = pins[rel]
+        if isinstance(pin.get("skipped"), str):
+            found.append("{} {}: not fingerprinted ({})".format(what, rel, pin["skipped"]))
+        elif pin.get("missing") is True:
+            found.append("{} {}: did not exist when approved".format(what, rel))
+        elif pin.get("folder") is True:
+            found.append("{} {}: folder pinned by its file listing, not by content".format(what, rel))
+        elif "sha256" not in pin:
+            found.append("{} {}: pinned by size and modification time only".format(what, rel))
+    return found
+
+
+def write_instance(root, record, complete):
+    """Write the approval instance (the frozen contract of this approval) under approval-instances/<hash>/ unless
+    that exact freeze is already there, and return its id. The id covers the frozen content (plan, pins, scripts,
+    preparation, limitations) but not the approval time or session, so approving the same freeze again reuses the
+    instance; different pins under the same prose make a second one. Instances are never rewritten."""
+    limitations = []
+    if not complete:
+        limitations.append("prepared before readiness was recorded (legacy entry without `ready`): that pinning "
+                           "and the card finished is not established")
+    limitations += pin_limitations(record.get("pins"), "input") + pin_limitations(record.get("scripts"), "script")
+    body = {"schema": "mycelium-extra.approval-instance.v1", "hash": record["hash"],
+            "plan_sha256": sha256(record["plan"].encode("utf-8")).hexdigest(),
+            "pins": record.get("pins") or {}, "scripts": record.get("scripts") or {},
+            "limitations": limitations, "prepared": "complete" if complete else "legacy-no-ready"}
+    instance_id = sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()[:16]
+    path = state_path(root, "approval-instances", record["hash"], instance_id + ".json")
+    if not os.path.isfile(path):
+        write_json(path, dict(body, instance_id=instance_id, approved_at=record["approved_at"],
+                              session_id=record.get("session_id")))
+    return instance_id
 
 
 def covering_any(root, label, paths, cwd, approvals):
@@ -2155,9 +2283,10 @@ def keep_snapshot(root, rel, pin):
     if data is not None and len(data) <= MAX_SNAPSHOT and sha256(data).hexdigest() == digest:
         # (the file may have changed since it was hashed)
         os.makedirs(os.path.dirname(target), exist_ok=True)
-        with open(target + ".tmp", "wb") as handle:
+        tmp = "{}.{}.{}.tmp".format(target, os.getpid(), os.urandom(4).hex())  # parallel hooks never share one
+        with open(tmp, "wb") as handle:
             handle.write(data)
-        os.replace(target + ".tmp", target)
+        os.replace(tmp, target)
 
 
 def pin_scripts(root, text, config):
@@ -2243,16 +2372,40 @@ def script_state(root, scripts, config):
     return lines, after, diff
 
 
+@contextlib.contextmanager
+def state_lock(root, name):
+    """Serialize a read-modify-write of one state file across parallel hooks, with the repository's existing
+    flock helper (capacity.locked). Best effort: where it cannot lock (no fcntl, a symlinked path, 2 s busy) the
+    update goes ahead unlocked, as it always did. Never hold it while hashing or running a tool."""
+    guard = None
+    try:
+        import capacity
+        guard = capacity.locked(state_path(root, "locks", name + ".lock"))
+        guard.__enter__()
+    except Exception:
+        guard = None
+    try:
+        yield
+    finally:
+        if guard is not None:
+            guard.__exit__(None, None, None)
+
+
 def note_first_runs(root, firsts, budget):
     """Pin scripts that did not exist when their plan was shown, at the run that first uses them."""
-    ledgers = {}
-    for digest, rel in firsts:
-        ledger = ledgers.setdefault(digest, read_script_pins(root, digest))
-        if rel not in ledger:
-            ledger[rel] = fingerprint(os.path.join(root, rel), budget)
-            keep_snapshot(root, rel, ledger[rel])
-    for digest, ledger in ledgers.items():
-        write_json(state_path(root, "script-pins", digest + ".json"), ledger)
+    found = collections.OrderedDict()
+    for digest, rel in firsts:  # hashing happens before the lock is taken
+        if rel not in read_script_pins(root, digest) and (digest, rel) not in found:
+            found[(digest, rel)] = fingerprint(os.path.join(root, rel), budget)
+            keep_snapshot(root, rel, found[(digest, rel)])
+    if not found:
+        return
+    with state_lock(root, "script-pins"):  # a parallel hook may have added its own pin since
+        ledgers = {}
+        for (digest, rel), pin in found.items():
+            ledgers.setdefault(digest, read_script_pins(root, digest)).setdefault(rel, pin)
+        for digest, ledger in ledgers.items():
+            write_json(state_path(root, "script-pins", digest + ".json"), ledger)
 
 
 # ---------------------------------------------------------------- events
@@ -2323,6 +2476,9 @@ def on_tool(event, root, config):
         # one entry per (segment, paths): the same text in two folders is two runs with their own plans
         entry = {"paths": paths, "plans": [r["hash"] for r in records],
                  "pins": dict((r["hash"], r.get("pins") or {}) for r in records)}
+        instances = dict((r["hash"], r["instance_id"]) for r in records if r.get("instance_id"))
+        if instances:
+            entry["instance_ids"] = instances
         if isinstance(run_cwd, UnknownFolder):  # allowed by one of its readings, not by a resolved folder
             entry["limitations"] = ["cwd unresolved: " + run_cwd.raw]
         if entry not in launched.setdefault(segment, []):
@@ -2661,6 +2817,7 @@ def on_prompt(event, root, config):
         scripts = plan.get("scripts") or {}
         record = {"hash": wanted, "approved_at": time.time(), "session_id": event.get("session_id"),
                   "plan": plan["text"], "pins": pins, "scripts": scripts}
+        record["instance_id"] = write_instance(root, record, bool(plan.get("ready")))
         write_json(state_path(root, "approvals", wanted + ".json"), record)
         log_approval(root, event, plan, record["approved_at"], checkpoint)
         ledger = state_path(root, "script-pins", wanted + ".json")  # approving again re-baselines
@@ -2938,7 +3095,9 @@ def on_post(event, root, config):
     runs = list(analyse_command(command, root, event.get("cwd") or root, config))
     if not runs:
         return None
-    launched = take_launch(root, event)  # the approvals this launch was checked against, not today's
+    taken = take_attempt(root, event)  # the approvals this launch was checked against, not today's
+    attempt = taken["attempt"]
+    launched = (attempt or {}).get("runs") or {}
     wrapped = set()  # an `sbatch --wrap` payload was submitted, not run here
     for run in runs:
         if run[1] == "sbatch":
@@ -2977,7 +3136,9 @@ def on_post(event, root, config):
             records = [r for r in records if names_all(root, r, wrapped_paths)]
         paths = paths + wrapped_paths
         # a run counts as launched only when this call's own launch record names this segment
-        launch_match = "matched" if launch is not None else "unmatched"
+        launch_match, note = taken["match"], taken["note"]
+        if launch_match == "matched" and launch is None:
+            launch_match, note = "unmatched", "no launch entry for this run in the call's launch record"
         limitations = list((launch or {}).get("limitations") or [])
         if isinstance(cwd, UnknownFolder) and "cwd unresolved: " + cwd.raw not in limitations:
             limitations.append("cwd unresolved: " + cwd.raw)
@@ -2999,6 +3160,11 @@ def on_post(event, root, config):
             "pins": pins_of(launch, records[-1]) if records else {},
             "pins_checked": launch_match == "matched" and bool(records) and not explore,
             "launch_match": launch_match,
+            "attempt_id": attempt["attempt_id"] if launch_match == "matched" else None,
+            "call_id": call_id(event),
+            # the freeze this launch was checked against, not the approval file as it reads now
+            "approval_instance": (None if not records else (launch.get("instance_ids") or {}).get(
+                records[-1]["hash"]) if launch is not None else records[-1].get("instance_id")),
             "git": git,
             "hook_env": {key: os.environ[key] for key in HOOK_ENV if os.environ.get(key)},
             "command_env": command_env(tokens),
@@ -3008,6 +3174,10 @@ def on_post(event, root, config):
         }
         if limitations:
             receipt["limitations"] = limitations
+        if launch_match != "matched" and note:
+            receipt["launch_note"] = note
+        if launch_match == "ambiguous":
+            receipt["attempt_candidates"] = taken["candidates"]
         receipt.update(extra)
         if event.get("host"):
             receipt["host"] = event["host"]

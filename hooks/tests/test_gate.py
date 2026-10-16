@@ -1962,7 +1962,7 @@ class PreparationAndLaunchTest(unittest.TestCase):
 
     def launches(self):
         folder = self.path("launches")
-        return sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+        return sorted(n for n in os.listdir(folder) if n.endswith(".json")) if os.path.isdir(folder) else []
 
     def stop_fails(self, name):
         sys.dont_write_bytecode = True
@@ -2502,7 +2502,7 @@ class OpenGapsTest(unittest.TestCase):
 
     def launches_left(self):
         folder = self.path("launches")
-        return sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+        return sorted(n for n in os.listdir(folder) if n.endswith(".json")) if os.path.isdir(folder) else []
 
     def read_launch(self, name):
         with open(self.path("launches", name)) as handle:
@@ -2813,6 +2813,262 @@ class AttemptEvidenceTest(unittest.TestCase):
         receipt, = self.receipts()
         self.assertNotIn("limitations", receipt)
         self.assertNotIn("unresolved", notice["systemMessage"])
+
+    # C04: attempts
+
+    def age(self, path, seconds):
+        old = time.time() - seconds
+        os.utime(path, (old, old))
+
+    def test_a_launch_record_and_its_receipt_share_an_attempt_id(self):
+        self.approve()
+        self.tool(tool_use_id="t1")
+        self.tool(tool_use_id="t2")
+        records = self.launch_records()
+        ids = sorted(r["attempt_id"] for r in records)
+        self.assertEqual(len(set(ids)), 2)
+        self.assertTrue(all(re.fullmatch(r"[0-9a-f]{16}", i) for i in ids))
+        first, = [r for r in records if r["call_id"] == "t1"]
+        self.assertEqual((first["cwd"], isinstance(first["started"], float)), (".", True))
+        self.post(tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual((receipt["attempt_id"], receipt["call_id"], receipt["launch_match"]),
+                         (first["attempt_id"], "t1", "matched"))
+
+    def test_identical_launches_without_a_call_id_are_ambiguous_and_never_guessed(self):  # F05
+        digest = self.approve()
+        self.tool()
+        self.tool()  # the same command again before the first one reported back
+        record, = self.launch_records()
+        self.assertTrue(record["ambiguous"])
+        self.assertEqual(len(record["attempts"]), 2)
+        self.assertEqual(len(set(a["attempt_id"] for a in record["attempts"])), 2)
+        self.post()
+        self.post()
+        for receipt in self.receipts():
+            self.assertEqual((receipt["launch_match"], receipt["pins_checked"], receipt["attempt_id"]),
+                             ("ambiguous", False, None))
+            self.assertEqual(receipt["plans"], [digest], "the covering plan stays visible as context")
+            self.assertEqual(len(receipt["attempt_candidates"]), 2)
+        self.assertEqual(self.launch_records(), [])
+
+    def test_a_single_launch_without_a_call_id_is_matched(self):  # control
+        self.approve()
+        self.tool()
+        self.post()
+        receipt, = self.receipts()
+        self.assertEqual((receipt["launch_match"], receipt["pins_checked"]), ("matched", True))
+        self.assertTrue(receipt["attempt_id"])
+        self.assertIsNone(receipt["call_id"])
+
+    def test_parallel_identical_launches_with_call_ids_stay_matched(self):  # control
+        self.approve()
+        self.tool(tool_use_id="t1")
+        self.tool(tool_use_id="t2")
+        self.post(tool_use_id="t2")
+        self.post(tool_use_id="t1")
+        second, first = self.receipts()
+        self.assertEqual((first["launch_match"], second["launch_match"]), ("matched", "matched"))
+        self.assertTrue(first["pins_checked"] and second["pins_checked"])
+        self.assertNotEqual(first["attempt_id"], second["attempt_id"])
+
+    def test_a_duplicate_post_for_a_taken_call_id_is_unmatched(self):
+        self.approve()
+        self.tool(tool_use_id="t1")
+        self.post(tool_use_id="t1")
+        self.post(tool_use_id="t1")
+        first, second = self.receipts()
+        self.assertEqual(first["launch_match"], "matched")
+        self.assertEqual((second["launch_match"], second["pins_checked"], second["attempt_id"]),
+                         ("unmatched", False, None))
+        self.assertIn("duplicate", second["launch_note"])
+
+    def test_a_launch_that_never_reported_back_is_kept_as_abandoned(self):
+        self.approve()
+        self.tool(tool_use_id="t1")
+        stale, = [n for n in os.listdir(self.path("launches")) if n.endswith(".json")]
+        with open(self.path("launches", stale)) as handle:
+            lost = json.load(handle)
+        self.age(self.path("launches", stale), 3 * 24 * 3600)
+        self.tool(tool_use_id="t2")
+        self.assertFalse(os.path.exists(self.path("launches", stale)))
+        kept = os.listdir(self.path("launches", "abandoned"))
+        self.assertEqual(len(kept), 1)
+        with open(self.path("launches", "abandoned", kept[0])) as handle:
+            self.assertEqual(json.load(handle)["attempt_id"], lost["attempt_id"])
+        self.post(tool_use_id="t1")  # a very late report finds nothing to match
+        receipt, = self.receipts()
+        self.assertEqual((receipt["launch_match"], receipt["pins_checked"]), ("unmatched", False))
+
+    def test_a_launch_taken_after_its_expiry_is_unmatched_and_kept(self):
+        self.approve()
+        self.tool(tool_use_id="t1")
+        name, = [n for n in os.listdir(self.path("launches")) if n.endswith(".json")]
+        with open(self.path("launches", name)) as handle:
+            record = json.load(handle)
+        record["ts"] = time.time() - 3 * 24 * 3600
+        with open(self.path("launches", name), "w") as handle:
+            json.dump(record, handle)
+        self.post(tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual(receipt["launch_match"], "unmatched")
+        self.assertEqual(len(os.listdir(self.path("launches", "abandoned"))), 1)
+
+    def test_a_launch_record_without_attempt_fields_is_legacy_and_not_matched(self):
+        digest = self.approve()
+        self.tool(tool_use_id="t1")
+        name, = [n for n in os.listdir(self.path("launches")) if n.endswith(".json")]
+        with open(self.path("launches", name)) as handle:
+            record = json.load(handle)
+        for key in ("attempt_id", "call_id", "started", "cwd"):
+            del record[key]
+        with open(self.path("launches", name), "w") as handle:
+            json.dump(record, handle)
+        self.post(tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual((receipt["launch_match"], receipt["pins_checked"], receipt["plans"]),
+                         ("unmatched", False, [digest]))
+
+    # C04: approval instances
+
+    def instances(self, digest):
+        folder = self.path("approval-instances", digest)
+        out = {}
+        for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+            with open(os.path.join(folder, name)) as handle:
+                out[name[:-5]] = json.load(handle)
+        return out
+
+    def test_approval_writes_an_immutable_instance_and_names_it_in_the_approval(self):
+        self.write("data/in.tsv", "a\n")
+        digest = self.approve(self.plan("run `analysis/x.py`", "data/in.tsv"))
+        (instance_id, instance), = self.instances(digest).items()
+        self.assertEqual(self.approval(digest)["instance_id"], instance_id)
+        self.assertEqual((instance["schema"], instance["instance_id"], instance["hash"], instance["prepared"],
+                          instance["limitations"]), ("mycelium-extra.approval-instance.v1", instance_id, digest,
+                                                     "complete", []))
+        self.assertEqual(instance["pins"], self.approval(digest)["pins"])
+        self.assertEqual(instance["scripts"], self.approval(digest)["scripts"])
+        self.assertEqual(len(instance["plan_sha256"]), 64)
+        self.assertTrue(instance["plan_sha256"].startswith(digest))
+        self.assertEqual(instance["session_id"], "s1")
+        self.assertTrue(re.fullmatch(r"[0-9a-f]{16}", instance_id))
+
+    def test_same_prose_reapproval_while_a_run_is_active_keeps_both_instances(self):  # roadmap probe
+        self.write("data/in.tsv", "first\n")
+        text = self.plan("run `analysis/x.py`", "data/in.tsv")
+        digest = self.approve(text)
+        old, = self.instances(digest)
+        old_pins = self.approval(digest)["pins"]
+        self.assertIsNone(self.tool(tool_use_id="t1"))  # the run starts under the first freeze
+        self.write("data/in.tsv", "second, longer\n")
+        self.assertEqual(self.approve(text), digest)  # the same prose, new pins
+        instances = self.instances(digest)
+        self.assertEqual(len(instances), 2)
+        new, = [i for i in instances if i != old]
+        self.assertEqual(self.approval(digest)["instance_id"], new)
+        self.assertNotEqual(instances[old]["pins"], instances[new]["pins"])
+        self.assertEqual(instances[old]["pins"], old_pins, "the first freeze is untouched")
+        self.post(tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual((receipt["approval_instance"], receipt["pins"]), (old, old_pins))
+
+    def test_identical_reapproval_reuses_the_instance(self):  # control
+        self.write("data/in.tsv", "a\n")
+        text = self.plan("run `analysis/x.py`", "data/in.tsv")
+        digest = self.approve(text)
+        first = self.approval(digest)
+        self.approve(text)
+        self.assertEqual(list(self.instances(digest)), [first["instance_id"]])
+        self.assertEqual(self.approval(digest)["instance_id"], first["instance_id"])
+
+    def test_a_receipt_names_the_instance_of_the_credited_plan(self):
+        digest = self.approve()
+        self.tool(tool_use_id="t1")
+        self.post(tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual(receipt["approval_instance"], self.approval(digest)["instance_id"])
+
+    def test_an_approval_without_an_instance_id_is_legacy(self):
+        digest = self.approve()
+        record = self.approval(digest)
+        del record["instance_id"]
+        with open(self.path("approvals", digest + ".json"), "w") as handle:
+            json.dump(record, handle)
+        self.tool(tool_use_id="t1")
+        self.post(tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual((receipt["plans"], receipt["approval_instance"], receipt["pins_checked"]),
+                         ([digest], None, True))
+
+    def test_a_pending_entry_approved_by_the_legacy_rule_is_marked(self):
+        digest = self.show(PLAN)
+        entry, = self.pending()
+        del entry["ready"]  # 0.9.44 to 0.9.70 wrote no `ready`; `scripts` marks a finished preparation
+        with open(self.path("pending", "s1.json"), "w") as handle:
+            json.dump([entry], handle)
+        self.prompt("approve plan " + digest)
+        (_, instance), = self.instances(digest).items()
+        self.assertEqual(instance["prepared"], "legacy-no-ready")
+        self.assertTrue(instance["limitations"])
+        self.assertIn("readiness", instance["limitations"][0])
+
+    def test_pins_that_are_not_content_hashes_are_listed_as_limitations(self):
+        self.write("data/in.tsv", "a\n")
+        digest = self.approve(self.plan("run `analysis/x.py`", "data/in.tsv"))
+        (_, instance), = self.instances(digest).items()
+        self.assertEqual(instance["limitations"], [])
+        self.config({"pin_hash_mb": 0})  # nothing may be hashed: size and mtime only
+        self.write("data/in.tsv", "b\n")
+        digest = self.approve(self.plan("run `analysis/x.py`", "data/in.tsv"))
+        weak = [i for i in self.instances(digest).values() if i["limitations"]]
+        self.assertEqual(len(weak), 1)
+        self.assertIn("data/in.tsv", weak[0]["limitations"][0])
+
+    # C04: concurrency hygiene
+
+    def gate(self):
+        sys.dont_write_bytecode = True
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        return gate
+
+    def test_snapshots_of_parallel_hooks_do_not_share_a_temp_file(self):
+        gate = self.gate()
+        self.write("analysis/x.py", "print(1)\n")
+        pin = gate.fingerprint(os.path.join(self.root, "analysis", "x.py"), gate.hash_budget(gate.DEFAULTS))
+        real, inner = os.replace, []
+
+        def other_hook_finishes_first(source, target):
+            if not inner:
+                inner.append(source)
+                gate.keep_snapshot(self.root, "analysis/x.py", pin)
+            real(source, target)
+
+        with mock.patch.object(gate.os, "replace", side_effect=other_hook_finishes_first):
+            gate.keep_snapshot(self.root, "analysis/x.py", pin)  # raised FileNotFoundError on the shared <hash>.tmp
+        with open(self.path("scripts", pin["sha256"]), "rb") as handle:
+            self.assertEqual(handle.read(), b"print(1)\n")
+        self.assertEqual(os.listdir(self.path("scripts")), [pin["sha256"]], "no temp file is left behind")
+
+    def test_first_run_pins_of_parallel_hooks_are_both_kept(self):
+        gate = self.gate()
+        for name in ("a", "b"):
+            self.write("analysis/{}.py".format(name), name + "\n")
+        budget = gate.hash_budget(gate.DEFAULTS)
+        real, calls = gate.fingerprint, []
+
+        def other_hook_finishes_first(path, budget_, pin=None):
+            found = real(path, budget_, pin)
+            if not calls:
+                calls.append(path)
+                gate.note_first_runs(self.root, [("deadbeef", "analysis/b.py")], budget)
+            return found
+
+        with mock.patch.object(gate, "fingerprint", side_effect=other_hook_finishes_first):
+            gate.note_first_runs(self.root, [("deadbeef", "analysis/a.py")], budget)
+        with open(self.path("script-pins", "deadbeef.json")) as handle:
+            self.assertEqual(sorted(json.load(handle)), ["analysis/a.py", "analysis/b.py"])
 
 
 if __name__ == "__main__":
