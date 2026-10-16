@@ -2349,5 +2349,201 @@ class ApprovalLatencyTest(unittest.TestCase):
         self.assertIn("approved", self.say(self.show(PLAN))["systemMessage"])  # no step table at all
 
 
+# ---------------------------------------------------------------- open gaps closed after 0.9.72
+
+class OpenGapsTest(unittest.TestCase):
+    """Folder options that hold an expansion, `sbatch --wrap` needing one plan, and legacy pending entries."""
+    entry = GATE
+    setUp, tearDown, config, hook, bash, denied = (
+        GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook, GateTest.bash, GateTest.denied)
+    path, write, approval, pending, show, prompt, receipts, tool, post = (
+        PreparationAndLaunchTest.path, PreparationAndLaunchTest.write, PreparationAndLaunchTest.approval,
+        PreparationAndLaunchTest.pending, PreparationAndLaunchTest.show, PreparationAndLaunchTest.prompt,
+        PreparationAndLaunchTest.receipts, PreparationAndLaunchTest.tool, PreparationAndLaunchTest.post)
+    plan = staticmethod(ReviewFixesTest.plan)
+
+    def approve(self, text, session="s1"):
+        digest = self.show(text, session)
+        self.prompt("approve plan " + digest, session)
+        return digest
+
+    def reason(self, command, cwd=None):
+        result = self.bash(command, cwd)
+        self.assertTrue(self.denied(result), command)
+        return result["hookSpecificOutput"]["permissionDecisionReason"]
+
+    # GAP 1: a wrapper's folder option that is a shell expansion
+
+    def test_pwd_and_home_in_a_folder_option_are_resolved(self):
+        os.environ["HOME"] = self.root  # the hook inherits it
+        for command in [
+            'env -C "$PWD/analysis/demo" python step.py',
+            'env -C "${PWD}/analysis/demo" python step.py',
+            "env -C $PWD/analysis/demo python step.py",
+            'srun -D "$PWD/analysis/demo" python step.py',
+            'conda run --cwd "$PWD/analysis/demo" python step.py',
+            'uv run --directory "$PWD/analysis/demo" python step.py',
+            "env --chdir=$PWD/analysis/demo python step.py",
+            'env -C "$HOME/analysis/demo" python step.py',
+            "env -C ~/analysis/demo python step.py",
+        ]:
+            reason = self.reason(command)
+            self.assertIn("python analysis/demo/step.py", reason, command)  # resolved: no guessing
+            self.assertNotIn("cannot resolve", reason, command)
+        self.assertIn("python analysis/demo/step.py", self.reason('env -C "$PWD/demo" python step.py',
+                                                                  os.path.join(self.root, "analysis")))
+        self.approve(self.plan("run `analysis/demo/step.py`"))
+        for command in ['env -C "$PWD/analysis/demo" python step.py', 'env -C "$HOME/analysis/demo" python step.py']:
+            self.assertIsNone(self.tool(command, tool_use_id="t1"), command)
+        self.post('env -C "$PWD/analysis/demo" python step.py', tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual((receipt["cwd"], receipt["paths"]), ("analysis/demo", ["analysis/demo/step.py"]))
+
+    def test_a_resolved_folder_outside_the_gated_paths_passes(self):
+        for command in ['env -C "$PWD/tools" python y.py', "env -C $HOME/x python y.py", 'env -C "$PWD" ls']:
+            self.assertIsNone(self.bash(command), command)
+
+    def test_an_unresolvable_folder_option_is_gated_and_says_so(self):
+        for command in [
+            'env -C "$ANALYSIS/demo" python step.py',
+            'env -C "$PWD/analysis/$NAME" python step.py',
+            'env -C "${PWD:-.}/analysis" python step.py',
+            'env -C "$PWDX/a" python step.py',
+            'env -C "$(pwd)/analysis/demo" python step.py',
+            "env -C `pwd`/analysis/demo python step.py",
+            'env --chdir="$X" python step.py',
+            'srun -D "$X" python step.py',
+            'conda run --cwd "$X" python step.py',
+            'uv run --directory "$X" python step.py',
+            'env -C "$X" bash -c "python step.py"',
+            'env -C "$X" -S "python step.py"',
+            'env -C "$X" -C sub python step.py',
+            "sbatch -D \"$X\" --wrap='python step.py'",
+            "env -C \"$X\" sbatch --wrap='python step.py'",
+        ]:
+            reason = self.reason(command)
+            self.assertIn("cannot resolve", reason, command)
+            self.assertIn("literal path", reason, command)
+        self.assertIn("`$ANALYSIS/demo`", self.reason('env -C "$ANALYSIS/demo" python step.py'))
+
+    def test_an_unresolvable_folder_is_checked_against_both_readings(self):
+        self.approve(self.plan("run `analysis/demo/step.py`"))
+        command = 'env -C "$X/demo" python step.py'
+        self.assertTrue(self.denied(self.bash(command)))  # from the root, the script is step.py: not planned
+        self.assertIsNone(self.bash(command, os.path.join(self.root, "analysis", "demo")), "outer folder reading")
+        self.approve(self.plan("run `analysis/x.py`"))
+        self.assertIsNone(self.bash('env -C "$X" python analysis/x.py'), "repo root reading")
+        self.assertTrue(self.denied(self.bash('env -C "$X" python analysis/other.py')))
+
+    def test_an_unresolvable_folder_leaves_read_only_wrapped_commands_alone(self):
+        for command in [
+            'env -C "$PWD/x" ls', 'env -C "$X" ls', 'env -C "$X" cat analysis/x.py', 'env -C "$X" grep -rn python .',
+            'env -C "$X" python -c "print(1)"', 'env -C "$X" python', 'conda run --cwd "$X" ls',
+            'uv run --directory "$X" pytest', 'srun -D "$X" hostname', 'env -C "$X" command -v python',
+        ]:
+            self.assertIsNone(self.bash(command), command)
+
+    def test_a_gated_command_in_an_unresolvable_folder_needs_its_word_in_a_plan(self):
+        self.assertTrue(self.denied(self.bash('env -C "$X" snakemake -j 4')))
+        self.approve(self.plan("run `analysis/x.py` with snakemake"))
+        self.assertIsNone(self.bash('env -C "$X" snakemake -j 4'))
+
+    def test_cd_into_an_expansion_is_unchanged(self):
+        # control: `cd` is not a wrapper option; this reading is the same as before this change
+        for command in ['cd "$PWD/analysis/demo" && python step.py', 'cd "$X" && python step.py']:
+            self.assertIsNone(self.bash(command), command)
+        self.assertTrue(self.denied(self.bash('cd analysis/demo && python step.py')))
+
+    def test_literal_folder_options_are_gated_as_before(self):
+        for command in ["env -C analysis/demo python step.py", "srun -D analysis/demo python step.py",
+                        "conda run -n synthetic python analysis/x.py", "uv run --project . python analysis/x.py"]:
+            reason = self.reason(command)
+            self.assertNotIn("cannot resolve", reason, command)
+
+    # GAP 2: one plan must name both sbatch and what --wrap runs
+
+    SPLIT = ("run `analysis/x.py`", "submit with sbatch")
+
+    def test_sbatch_wrap_with_the_parts_in_different_plans_is_denied(self):
+        for step in self.SPLIT:
+            self.approve(self.plan(step))
+        reason = self.reason("sbatch --wrap='python analysis/x.py'")
+        self.assertIn("one approved plan names both sbatch and what the payload runs", reason)
+        self.assertIn("analysis/x.py", reason)
+        self.assertEqual(self.launches_left(), [])
+
+    def test_sbatch_wrap_with_one_plan_naming_both_is_allowed_and_credited(self):
+        self.approve(self.plan("run `analysis/x.py`"))
+        both = self.approve(self.plan("run `analysis/x.py` via sbatch --wrap"))
+        self.approve(self.plan("submit with sbatch"))  # newer, names no script
+        command = "sbatch --wrap='python analysis/x.py'"
+        self.assertIsNone(self.tool(command, tool_use_id="t1"))
+        record, = [self.read_launch(name) for name in self.launches_left()]
+        plans = [e["plans"] for entries in record["runs"].values() for e in entries]
+        self.assertIn([both], plans, "the sbatch segment's launch record credits only the plan naming both")
+        self.post(command, tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual(receipt["plans"], [both])
+
+    def test_sbatch_without_a_wrap_and_with_a_read_only_wrap_are_unchanged(self):
+        self.approve(self.plan("submit with sbatch job"))
+        self.assertIsNone(self.bash("sbatch job.sh"))
+        self.assertIsNone(self.bash("sbatch --wrap='echo hello'"))
+        self.assertIsNone(self.bash("sbatch --wrap='cat analysis/x.py'"))
+        self.assertTrue(self.denied(self.bash("sbatch --wrap='python analysis/x.py'")))
+
+    def test_sbatch_wrap_in_a_job_folder_needs_one_plan_too(self):
+        for step in ("run `analysis/a/x.py`", "submit with sbatch"):
+            self.approve(self.plan(step))
+        self.assertIn("names both", self.reason("sbatch -D analysis/a --wrap='python x.py'"))
+        self.approve(self.plan("run `analysis/a/x.py` with sbatch"))
+        self.assertIsNone(self.bash("sbatch -D analysis/a --wrap='python x.py'"))
+
+    def launches_left(self):
+        folder = self.path("launches")
+        return sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+
+    def read_launch(self, name):
+        with open(self.path("launches", name)) as handle:
+            return json.load(handle)
+
+    # GAP 3: a pending plan from before the `ready` field
+
+    def legacy(self, **changes):
+        digest = self.show(PLAN)
+        entry, = self.pending()
+        del entry["ready"]
+        entry.update(changes)
+        with open(self.path("pending", "s1.json"), "w") as handle:
+            json.dump([entry], handle)
+        return digest
+
+    def test_a_complete_pending_entry_from_0_9_44_to_0_9_70_is_approvable(self):
+        digest = self.legacy()  # `scripts` is there: those versions wrote it only after pinning
+        self.assertIn("scripts", self.pending()[0])
+        self.assertNotIn("(preparing)", self.prompt("approve plan"))
+        self.assertIn("approved", self.prompt("approve plan " + digest))
+
+    def test_a_pending_entry_saved_before_its_scripts_were_pinned_is_not_approvable(self):
+        digest = self.legacy()
+        entry, = self.pending()
+        del entry["scripts"]  # what the first save of those versions held: hash, ts, text, pins
+        with open(self.path("pending", "s1.json"), "w") as handle:
+            json.dump([entry], handle)
+        self.assertIn(digest + " (preparing)", self.prompt("approve plan"))
+        self.assertIn("not fully prepared", self.prompt("approve plan " + digest))
+        self.assertFalse(os.path.exists(self.path("approvals", digest + ".json")))
+        self.assertEqual(self.show(PLAN), digest)  # showing it again prepares it
+        self.assertIn("approved", self.prompt("approve plan " + digest))
+
+    def test_an_entry_from_before_scripts_were_recorded_at_all_stays_approvable(self):
+        digest = self.legacy(ts=1790000000)  # 2026-09-21: 0.9.43 or older wrote no `scripts` to any entry
+        entry, = self.pending()
+        del entry["scripts"]
+        with open(self.path("pending", "s1.json"), "w") as handle:
+            json.dump([entry], handle)
+        self.assertIn("approved", self.prompt("approve plan " + digest))
+
+
 if __name__ == "__main__":
     unittest.main()

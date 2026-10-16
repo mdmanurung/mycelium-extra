@@ -515,9 +515,49 @@ def split_option(token, flags):
     return None, None
 
 
+class UnknownFolder(str):
+    """The outer folder, standing in for a command's real one when a wrapper's folder option held an
+    expansion that cannot be resolved (`env -C "$X/a"`). `raw` is that option's text; `readings` are the other
+    (label, paths) readings of the run, for a plan to cover instead of the one returned."""
+    def __new__(cls, path, raw, readings=()):
+        folder = str.__new__(cls, path)
+        folder.raw, folder.readings = raw, list(readings)
+        return folder
+
+
+def move_folder(cwd, value):
+    """The folder after a wrapper's folder option: `$PWD`/`${PWD}` and `$HOME`/`${HOME}` are resolved; a value
+    that still holds `$` or a backtick, or a relative move from an unknown folder, gives an UnknownFolder."""
+    unknown = isinstance(cwd, UnknownFolder)
+    if not unknown:
+        value = re.sub(r"\$(?:\{(PWD|HOME)\}|(PWD|HOME)(?![A-Za-z0-9_]))",
+                       lambda m: cwd if "PWD" in m.group(0) else os.path.expanduser("~"), value)
+    if re.search(r"[$`]", value):
+        return cwd if unknown else UnknownFolder(cwd, value)
+    path = os.path.normpath(os.path.join(cwd, os.path.expanduser(value)))
+    return UnknownFolder(path, cwd.raw, cwd.readings) if unknown and not os.path.isabs(
+        os.path.expanduser(value)) else path
+
+
 def classify(tokens, root, cwd, config):
     """Return (explore, gated_label or None, [gated repo paths], cwd) for one segment; cwd is the folder the
-    command runs in, after any folder option of a wrapper (`env -C DIR`)."""
+    command runs in, after any folder option of a wrapper (`env -C DIR`). If that folder cannot be resolved it
+    is an UnknownFolder, and a script or gated command in it is read twice (relative to the outer folder and
+    to the repo root): `.readings` of the returned folder lists the second reading."""
+    result = _classify(tokens, root, cwd, config)
+    folder = result[3]
+    if not isinstance(folder, UnknownFolder) or result[1] == "recurse":
+        return result
+    other = _classify(tokens, root, UnknownFolder(root, folder.raw), config)
+    found = [(r[1], r[2]) for r in (result, other) if r[1]]
+    if not found:
+        return result
+    if len(found) == 2 and found[0] == found[1]:
+        found.pop()
+    return (result[0] or other[0], found[0][0], found[0][1], UnknownFolder(folder, folder.raw, found[1:]))
+
+
+def _classify(tokens, root, cwd, config):
     explore = False
     i = 0
     while i < len(tokens) and is_assignment(tokens[i]):
@@ -535,8 +575,8 @@ def classify(tokens, root, cwd, config):
             value = inline if inline is not None else (tokens[i + 1] if i + 1 < len(tokens) else None)
             if wrapper == "env" and flag in ("-S", "--split-string") and value:
                 return explore, "recurse", [" ".join([value] + tokens[i + step:])], cwd
-            if value and flag in WRAPPER_OPTIONS[wrapper][1] and not re.search(r"[$`]", value):
-                cwd = os.path.normpath(os.path.join(cwd, os.path.expanduser(value)))
+            if value and flag in WRAPPER_OPTIONS[wrapper][1]:
+                cwd = move_folder(cwd, value)
             previous, unknown, i = "", False, i + step
             continue
         if RUNNERS.match(word) or word in config["gated_commands"]:
@@ -575,6 +615,11 @@ def classify(tokens, root, cwd, config):
     head, rest = tokens[i], tokens[i + 1:]
     word = os.path.basename(head)
     paths = []
+    def script_rel(token, direct=False):
+        if not isinstance(cwd, UnknownFolder):
+            return gated_rel(root, cwd, token, config)
+        # in an unknown folder any script counts, not only one under a gated path: the folder may be one
+        return repo_relative(root, cwd, token) if direct or SCRIPT_EXT.search(token) else None
     for j, token in enumerate(rest):
         if token == "<" and j + 1 < len(rest):
             rel = gated_rel(root, cwd, rest[j + 1], config)
@@ -614,14 +659,14 @@ def classify(tokens, root, cwd, config):
             value = token.split("=", 1)[1] if token.startswith("-") and "=" in token else token
             if token.startswith("-") and value == token:
                 continue
-            rel = gated_rel(root, cwd, value, config)
+            rel = script_rel(value)
             first = positional is None and not token.startswith("-")
             if first:
                 positional = token
             if rel and (first or SCRIPT_EXT.search(rel) or word in ("jupyter", "papermill", "quarto")):
                 paths.append(rel)
         return explore, (word if paths else None), paths, cwd
-    rel = gated_rel(root, cwd, head, config)
+    rel = script_rel(head, "/" in head)
     return explore, (head if rel else None), ([rel] if rel else []), cwd
 
 
@@ -629,7 +674,7 @@ def job_cwd(tokens, cwd):
     """Where an sbatch job runs: its `-D`/`--chdir` folder, relative to where sbatch ran."""
     args = after_word(tokens, "sbatch")
     folders = flag_values(args, ("-D", "--chdir")) + [t[2:] for t in args if t.startswith("-D") and len(t) > 2]
-    return os.path.normpath(os.path.join(cwd, os.path.expanduser(folders[-1]))) if folders else cwd
+    return move_folder(cwd, folders[-1]) if folders else cwd
 
 
 def cd_target(cwd, tokens):
@@ -992,6 +1037,31 @@ def take_launch(root, event):
     if record.get("ts", 0) < time.time() - LAUNCH_SECONDS:
         return {}
     return record.get("runs") or {}
+
+
+def covering_any(root, label, paths, cwd, approvals):
+    """(approvals covering a run, the paths they cover). Run in an unknown folder, the run counts as covered
+    if a plan covers any one of its readings."""
+    records = covering(root, label, paths, approvals)
+    for other_label, other_paths in getattr(cwd, "readings", ()):
+        if records:
+            break
+        records, paths = covering(root, other_label, other_paths, approvals), other_paths
+    return records, paths
+
+
+def wrapped_gated_paths(root, config, tokens, cwd, paths):
+    """The gated paths an `sbatch --wrap` payload runs, from the job's folder (first reading only)."""
+    found = []
+    for payload in flag_values(after_word(tokens, "sbatch"), ("--wrap",)):
+        for inner in analyse_command(payload, root, job_cwd(tokens, cwd), config):
+            found += [p for p in inner[2] if p not in paths + found]
+    return found
+
+
+def names_all(root, record, paths):
+    table = plan_table(record.get("plan", ""))
+    return all(path_in_plan(root, p, table) for p in paths)
 
 
 def covering(root, label, paths, approvals):
@@ -1990,8 +2060,9 @@ def on_tool(event, root, config):
     capped = []
     granted = explore_granted(root, event.get("session_id"))
     run_scripts, launched = [], {}
-    for explore, label, paths, segment, _, _ in analyse_command(command, root, event.get("cwd") or root,
-                                                                 config):
+    unresolved, wrap_blocked = [], []
+    for explore, label, paths, segment, tokens, run_cwd in analyse_command(command, root,
+                                                                            event.get("cwd") or root, config):
         run_scripts += [p for p in paths if p.endswith(LINT_EXT) and p not in run_scripts]
         if explore and granted:
             log_explore(root, event, segment, paths)
@@ -2004,9 +2075,16 @@ def on_tool(event, root, config):
             approvals = active_approvals(root, config, event.get("session_id") or "")
             if approvals is None:
                 return deny(SCAN_TIMEOUT)
-        records = covering(root, label, paths, approvals)
+        records, used = covering_any(root, label, paths, run_cwd, approvals)
+        wrapped = wrapped_gated_paths(root, config, tokens, run_cwd, paths) if label == "sbatch" else []
+        if wrapped:  # one plan must name sbatch and what its --wrap payload runs, as the receipt requires
+            records = [r for r in records if names_all(root, r, wrapped)]
         if not records:
             blocked.append((label, paths))
+            if wrapped:
+                wrap_blocked.append(wrapped)
+            if isinstance(run_cwd, UnknownFolder) and run_cwd.raw not in unresolved:
+                unresolved.append(run_cwd.raw)
             continue
         # The newest covering plan is the current intent: an older approval that pinned
         # less (or nothing) must not let a run through after the newer plan's pins changed.
@@ -2022,7 +2100,7 @@ def on_tool(event, root, config):
         else:
             unchecked += [rel for rel in skipped if rel not in unchecked]
         changed_scripts = []
-        for rel in paths if scripts_on else []:
+        for rel in used if scripts_on else []:
             if not os.path.isfile(os.path.join(root, rel)):
                 continue
             pin = (newest.get("scripts") or {}).get(rel) or read_script_pins(root, newest["hash"]).get(rel)
@@ -2097,6 +2175,15 @@ def on_tool(event, root, config):
     lines = ["mycelium-extra gate: blocked because no active approved plan covers this run."]
     for label, paths in blocked:
         lines.append("  - {}{}".format(label, (" " + ", ".join(paths)) if paths else ""))
+    for wrapped in wrap_blocked:
+        lines.append("An `sbatch --wrap` payload is covered only when one approved plan names both sbatch and "
+                     "what the payload runs ({}); plans that cover them separately do not count.".format(
+                         ", ".join(wrapped)))
+    for raw in unresolved:
+        lines.append("The folder `{}` given to a wrapper's folder option is a shell expansion the gate cannot "
+                     "resolve, so it read the run relative to the repo root and to the current folder, and "
+                     "no approved plan covers either. Write a literal path (`env -C analysis/demo ...`) or "
+                     "`cd` there first.".format(raw))
     lines.append("Active approved plans (last {} h): {}.".format(config["approval_hours"], hashes))
     lines.append("Present a plan whose plan table names these paths (prose, Evidence, and Source "
                  "citations do not count) and that ends with the grill status line; "
@@ -2255,6 +2342,19 @@ def stop_hints(root, event):
     return hints
 
 
+SCRIPTS_PINNED_FROM = 1791289996  # 2026-10-06 12:33 UTC: 0.9.44 first wrote `scripts` to a pending entry
+
+
+def plan_ready(entry):
+    """Whether a pending plan was fully prepared. Entries from 0.9.44 to 0.9.70 have no `ready` field, but
+    wrote `scripts` only after pinning finished (the first save held hash, ts, text and pins), so an entry
+    without `ready` counts as ready only with `scripts`. Before 0.9.44 nothing marked completion: those
+    entries (older than that release) stay approvable."""
+    if "ready" in entry:
+        return bool(entry["ready"])
+    return "scripts" in entry or entry.get("ts", 0) < SCRIPTS_PINNED_FROM
+
+
 def on_prompt(event, root, config):
     prompt = event.get("prompt") or ""
     toggle = HINTS_TOGGLE.match(prompt)
@@ -2300,7 +2400,7 @@ def on_prompt(event, root, config):
             shown = (plan.get("card") or {}).get(part) or "mycelium-extra: plan {} showed its full card.".format(
                 plan["hash"])
         return {"decision": "block", "reason": shown}
-    known = ", ".join(p["hash"] + ("" if p.get("ready", True) else " (preparing)") for p in pending) or "none"
+    known = ", ".join(p["hash"] + ("" if plan_ready(p) else " (preparing)") for p in pending) or "none"
     if not match:
         if re.search(r"\bapprove plan\b", prompt, re.IGNORECASE) and len(prompt) < 200:
             message = ("mycelium-extra: nothing approved. To approve, send only `approve plan <hash>` "
@@ -2316,7 +2416,7 @@ def on_prompt(event, root, config):
     if plan is None:
         message = ("mycelium-extra: no pending plan {} in this session (pending: {}). "
                    "Nothing was approved.".format(wanted, known))
-    elif not plan.get("ready", True):  # preparation was interrupted; approving would drop the pins
+    elif not plan_ready(plan):  # preparation was interrupted; approving would drop the pins
         message = ("mycelium-extra: plan {} was not fully prepared (inputs, scripts or card). Nothing was "
                    "approved. Show the plan again so it is prepared, then approve its hash.".format(wanted))
     else:
@@ -2353,7 +2453,7 @@ def on_stop(event, root, config):
         session = safe_session(event.get("session_id"))
         path = state_path(root, "pending", session + ".json")
         pending = read_json(path, [])
-        previous = next((p for p in pending if p["hash"] == digest and p.get("ready", True)), None)
+        previous = next((p for p in pending if p["hash"] == digest and plan_ready(p)), None)
         pending = [p for p in pending if p["hash"] != digest]
         entry = {"hash": digest, "ts": time.time(), "text": text, "pins": {}, "ready": False}
         pending.append(entry)
@@ -2637,15 +2737,11 @@ def on_post(event, root, config):
                 approvals = approvals or []
                 if unread:
                     notes.append("approvals not read (time limit), so no plan is credited")
-            records = covering(root, label, paths, approvals)
-        wrapped_paths = []  # the gated scripts an `sbatch --wrap` payload runs, from the job's folder
-        if label == "sbatch":
-            for payload in flag_values(after_word(tokens, "sbatch"), ("--wrap",)):
-                for inner in analyse_command(payload, root, job_cwd(tokens, cwd), config):
-                    wrapped_paths += [p for p in inner[2] if p not in paths + wrapped_paths]
+            records, paths = covering_any(root, label, paths, cwd, approvals)
+        # the gated scripts an `sbatch --wrap` payload runs, from the job's folder
+        wrapped_paths = wrapped_gated_paths(root, config, tokens, cwd, paths) if label == "sbatch" else []
         if wrapped_paths:  # a plan is credited with the job only if it also names what the job runs
-            records = [r for r in records
-                       if all(path_in_plan(root, p, plan_table(r.get("plan", ""))) for p in wrapped_paths)]
+            records = [r for r in records if names_all(root, r, wrapped_paths)]
         paths = paths + wrapped_paths
         if records and not explore and records[-1]["hash"] not in planned:
             planned.append(records[-1]["hash"])
