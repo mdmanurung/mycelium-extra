@@ -35,6 +35,7 @@ DEFAULTS = {
     "pin_seconds": 5,
     "pin_scripts": True,
     "lint_before_run": False,
+    "lint_before_stop": False,
 }
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
@@ -2007,7 +2008,11 @@ def on_stop(event, root, config):
         notices.append(open_lint)
     if hints_on(root):
         notices += stop_hints(root, event)
-    return {"systemMessage": "\n\n".join(notices)} if notices else None
+    result = {"systemMessage": "\n\n".join(notices)} if notices else {}
+    block = lint_stop_block(root, event, config)
+    if block:
+        result.update(decision="block", reason=block)
+    return result or None
 
 
 def new_explore_runs(root, session_id):
@@ -2150,34 +2155,69 @@ def lint_on_write(event, root, config):
                                    "additionalContext": text}}
 
 
-def open_lint_notice(root, event, config):
-    """User-only Stop line for scripts written this session that still have open scilintr findings, shown once
-    per change. A script edited since its lint (say by `sed` through Bash) is skipped: nothing is known."""
-    if config.get("lint_on_write", True) is False:
-        return None
-    folder = lint_dir(root, event.get("session_id"))
+def open_lint_scripts(root, session_id):
+    """{script: [finding lines]} for scripts written this session whose findings are still open. A script edited
+    since its lint (say by `sed` through Bash) is skipped: nothing is known."""
+    folder = lint_dir(root, session_id)
     still = {}
     for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
         entry = read_json(os.path.join(folder, name), {})
         try:
             if os.path.getmtime(os.path.join(root, entry["file"])) == entry["mtime"]:
-                still[entry["file"]] = collections.Counter(re.search(r"\[([\w-]+)\]", r).group(1) for r in entry["rows"])
+                still[entry["file"]] = list(entry["rows"])
         except (OSError, KeyError, AttributeError, TypeError):
             continue
+    return still
+
+
+def open_lint_notice(root, event, config):
+    """User-only Stop line for scripts written this session that still have open scilintr findings, shown once
+    per change."""
+    if config.get("lint_on_write", True) is False:
+        return None
+    still = open_lint_scripts(root, event.get("session_id"))
     marker = state_path(root, "pending", safe_session(event.get("session_id")) + ".lint-shown")
     if not still:
         if os.path.isfile(marker):
             os.remove(marker)
         return None
+    counts = {rel: collections.Counter(re.search(r"\[([\w-]+)\]", r).group(1) for r in rows if "[" in r)
+              for rel, rows in still.items()}
     message = ("mycelium-extra: scilintr findings are still open in script(s) written this session: {}. "
                "`verify` blocks on them unless they are fixed or waived with `ANALYSIS_OK[rule]: reason`.".format(
                    listing(("{} ({})".format(os.path.basename(rel), ", ".join(
                        "{} {}".format(r, n) if n > 1 else r for r, n in rules.most_common(3)))
-                       for rel, rules in sorted(still.items())), 5)))
+                       for rel, rules in sorted(counts.items())), 5)))
     if read_json(marker, "") == message:
         return None
     write_json(marker, message)
     return message
+
+
+def lint_stop_block(root, event, config):
+    """With `lint_before_stop`, the reason that sends the agent back to fix or waive open findings, once per
+    change. Never twice in a row: the host sets `stop_hook_active` when it is already continuing because
+    of a Stop hook. Off by default; the user-only Stop line is the default backstop."""
+    if config.get("lint_before_stop") is not True or config.get("lint_on_write", True) is False:
+        return None
+    if event.get("stop_hook_active"):
+        return None
+    still = open_lint_scripts(root, event.get("session_id"))
+    if not still:
+        return None
+    lines = []
+    for rel, rows in sorted(still.items())[:5]:
+        lines.append("  {}:".format(rel))
+        lines += ["    " + row for row in rows[:5]] + (["    ..."] if len(rows) > 5 else [])
+    reason = ("mycelium-extra: scilintr findings are still open in script(s) you wrote this session:\n{}\n"
+              "Fix each one, or waive it with `ANALYSIS_OK[rule]: <what is done, why it is valid, where it is "
+              "checked>` where the choice is deliberate, then finish. `verify` blocks on any finding left. "
+              "This stop is blocked once per change (gate.json `lint_before_stop`).".format("\n".join(lines)))
+    marker = state_path(root, "pending", safe_session(event.get("session_id")) + ".lint-stop-blocked")
+    if read_json(marker, "") == reason:
+        return None
+    write_json(marker, reason)
+    return reason
 
 
 def on_post(event, root, config):

@@ -414,6 +414,37 @@ class GateTest(unittest.TestCase):
         os.utime(path, (os.path.getmtime(path) + 5,) * 2)
         self.assertIsNone(self.hook("stop", {"last_assistant_message": "done"}))
 
+    def test_lint_before_stop_is_off_by_default(self):
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
+        self.written("analysis/a/02_fit.py")
+        self.assertNotIn("decision", self.hook("stop", {"last_assistant_message": "done"}))
+
+    def test_lint_before_stop_sends_the_agent_back_once_per_change(self):
+        self.config({"lint_before_stop": True})
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
+        self.written("analysis/a/02_fit.py")
+        stop = lambda **extra: self.hook("stop", dict({"last_assistant_message": "done"}, **extra)) or {}
+        first = stop()
+        self.assertEqual(first["decision"], "block")
+        self.assertIn("analysis/a/02_fit.py:1: [broad-exception] x", first["reason"])
+        self.assertNotIn("decision", stop(), "the same findings: once")
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x\nanalysis/a/02_fit.py:2:1: [silent-pass] y", 1)
+        self.written("analysis/a/02_fit.py")
+        self.assertNotIn("decision", stop(stop_hook_active=True), "already continuing from a Stop hook")
+        self.assertEqual(stop()["decision"], "block", "changed findings")
+        self.fake_linter()
+        self.written("analysis/a/02_fit.py")
+        self.assertNotIn("decision", stop(), "fixed")
+
+    def test_lint_before_stop_needs_lint_on_write(self):
+        self.config({"lint_before_stop": True, "lint_on_write": False})
+        self.write_file("analysis/a/02_fit.py", "print(1)\n")
+        self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
+        self.written("analysis/a/02_fit.py")
+        self.assertNotIn("decision", self.hook("stop", {"last_assistant_message": "done"}) or {})
+
     @unittest.skipUnless(os.environ.get("MX_E2E_REAL_TOOLS") == "1" and os.environ.get("MX_E2E_SCILINTR"),
                          "real tools off (MX_E2E_REAL_TOOLS=1, MX_E2E_SCILINTR, optional MX_E2E_RSCRIPT)")
     def test_write_lint_with_real_scilintr(self):
