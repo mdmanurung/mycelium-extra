@@ -2,7 +2,7 @@
 
 Use this section order. The order and issue IDs are fixed; deciding which recommendation to accept requires evidence and judgment, not a vote.
 
-1. **Reviewer status:** name who actually ran, the packet version/content each saw, redactions, failures, and gaps. An unavailable or invalid review is not a negative finding.
+1. **Reviewer status:** name who actually ran, the packet version/content each saw, redactions, the pre-send check's result (exit status, what it flagged, what the user decided; a clean result is pattern-based, not a clearance), failures, and gaps. An unavailable or invalid review is not a negative finding.
 2. **Agreement:** independently raised concerns with each original issue ID and evidence. Similar wording without the same substantive concern is not agreement.
 3. **Biomni-only concerns** and **Codex-only concerns:** retain unique findings and uncertainty.
 4. **Conflicts:** present materially different recommendations side by side; do not force consensus.

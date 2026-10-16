@@ -53,6 +53,27 @@ class PlanReviewContractTest(unittest.TestCase):
         self.assertIn("User decision required", synthesis)
         self.assertIn("cannot impersonate an independent second Codex reviewer", skill)
 
+    def test_redaction_rules_are_backed_by_a_check_and_are_specific(self):
+        skill = read("SKILL.md")
+        contract = read("references/review-contract.md")
+        codex = read("references/codex-review.md")
+        biomni = read("references/biomni-review.md")
+        synthesis = read("references/synthesis.md")
+        self.assertTrue(os.path.isfile(os.path.join(SKILL, "scripts", "presend_check.py")))
+        self.assertIn("scripts/presend_check.py", skill)
+        self.assertIn("Exit 3 means flags with an empty `redactions:`: do not send", skill)
+        self.assertIn("Never write the removed value there", contract)
+        self.assertIn("`[]` means nothing was removed, and is acceptable only after the check", contract)
+        for item in ("home-directory paths", "contact details", "ID columns", "free-text clinical notes"):
+            self.assertIn(item, contract)
+        self.assertIn("a clean result is not evidence that nothing sensitive remains", contract.replace("Say the check is pattern-based and ", ""))
+        self.assertIn("Codex reads the repository, not only the packet", codex)
+        self.assertIn("data-free copy", codex)
+        self.assertIn("An instruction is not enforcement", codex)
+        self.assertIn("the pre-send check's output", biomni)
+        self.assertIn("pre-send check's result", synthesis)
+        self.assertIn("never report it as clean", skill)
+
     def test_packet_and_provenance_require_evidence(self):
         contract = read("references/review-contract.md")
         synthesis = read("references/synthesis.md")

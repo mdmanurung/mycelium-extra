@@ -21,8 +21,18 @@ Challenge a proposed plan before approval. This skill is consultation only: do n
   ```
 
   It names each plan row whose `default:` has no reason, a reason under three words, or only an empty phrase (the list is `EMPTY_PHRASES` at the top of the script). It is advisory: it never blocks the review or approval, and it does not judge whether a reason is correct. Put its output in the packet's `unknowns:` and in the report, and propose a reason or a `user` source for each flagged row as an amendment. Exit 3 (no plan table found) or a failed run means the check did not run; say so, never report it as clean.
-- Use [review-contract.md](references/review-contract.md) to build one canonical packet for both reviewers. Include the objective, estimand, unit of inference, design, input/data summary, constraints, sourced decisions and findings, exact proposed plan, assumptions, and validation. Mark unknown fields unknown. Exclude raw data, participant identifiers, credentials, unpublished full tables, and irrelevant history. If a necessary fact cannot be shared, say so and stop that external review.
-- The packet leaves the machine (Codex to OpenAI, Biomni to Phylo, which also bills credits). Show the user the packet and which reviewers will receive it, and send only after the user agrees.
+- Use [review-contract.md](references/review-contract.md) to build one canonical packet for both reviewers. Include the objective, estimand, unit of inference, design, input/data summary, constraints, sourced decisions and findings, exact proposed plan, assumptions, and validation. Mark unknown fields unknown. Exclude raw data, participant identifiers, credentials, unpublished full tables, and irrelevant history (the full list and the `redactions:` entry shape are in the contract). If a necessary fact cannot be shared, say so and stop that external review.
+- Check the packet before anything leaves the machine. Run, with the packet as it stands and the repository root:
+
+  ```bash
+  python3 - --packet <(cat <<'EOF'
+  <the packet>
+  EOF
+  ) --repo <repository-root> < <skill-dir>/scripts/presend_check.py
+  ```
+
+  It flags likely secrets, contact details, home paths, and the participant identifiers found in the tables the plan names under `Inputs:`. Exit 3 means flags with an empty `redactions:`: do not send until each is removed and recorded, or the user says why it must stay. Exit 2 means flags with `redactions:` filled in: show them to the user. Exit 0 is not a clearance: the check is pattern-based and says so. Exit 1 or a failed run means it did not run; say so, never report it as clean.
+- The packet leaves the machine (Codex to OpenAI, Biomni to Phylo, which also bills credits). Show the user the packet, the check's output, and which reviewers will receive it, and send only after the user agrees.
 
 ## 2. Route by host
 
@@ -38,6 +48,6 @@ Challenge a proposed plan before approval. This skill is consultation only: do n
 
 ## 4. Report
 
-State which reviewers actually ran, what evidence each saw, any redactions or missing context, and whether each result was complete, unavailable, or invalid. Provide the synthesis and one concrete next action. Keep raw reviewer transcripts ephemeral locally (a Biomni task persists in the user's Phylo project until they delete it); do not write `.mycelium-extra/reviews/` or durable provenance in this first version.
+State which reviewers actually ran, what evidence each saw, any redactions or missing context, the pre-send check's result, and whether each result was complete, unavailable, or invalid. Provide the synthesis and one concrete next action. Keep raw reviewer transcripts ephemeral locally (a Biomni task persists in the user's Phylo project until they delete it); do not write `.mycelium-extra/reviews/` or durable provenance in this first version.
 
 Stop here. Execution remains with Mycelium's analyze skill after the normal Mycelium Extra approval; verification remains with Mycelium Extra verify.

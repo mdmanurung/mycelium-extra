@@ -85,8 +85,12 @@ See [Full project workflow](usage.md#tier-4-full-project-workflow).
 
 Challenges a grill draft before approval. In Claude Code, Claude assembles a
 minimal packet for separate Codex engineering and Biomni biomedical critiques.
-It shows the packet and asks before sending it outside the machine; Biomni
-uses cloud credits. Missing reviewers are reported unavailable.
+It first runs a pattern-based pre-send check for secrets, contact details, home paths and
+the participant IDs in the plan's input tables, then shows the packet and the check's output
+and asks before sending it outside the machine; Biomni uses cloud credits. Flags with an
+empty `redactions:` mean do not send. A clean check is not a clearance. Codex can read the
+repository beyond the packet, so for participant-level data it runs on a data-free copy.
+Missing reviewers are reported unavailable.
 
 Writes nothing and approves nothing. Material revisions need a new approval.
 In Codex, this skill supplies the engineering critique only.

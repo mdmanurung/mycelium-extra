@@ -2,7 +2,7 @@
 
 The Phylo Biomni MCP has no lookup-only tool. A review is a Biomni agent task (`start_new_task`), which runs in Biomni's own cloud sandbox, may run code, search, or launch sub-jobs there, and spends the user's Biomni credits. "Read-only" here means nothing touches this repository, `.living/`, the gate, or provenance, and Biomni's output stays advisory.
 
-Before each run, show the user the redacted packet, the Biomni project, that the run costs credits, and that the task and packet stay in their Phylo project until they delete it in the Biomni web app; start only after the user agrees. Then:
+Before each run, show the user the redacted packet, the pre-send check's output, the Biomni project, that the run costs credits, and that the task and packet stay in their Phylo project until they delete it in the Biomni web app; start only after the user agrees. Then:
 
 - Use an existing project the user names, or `create_project` a dedicated review project. Never reuse an analysis project.
 - Call `start_new_task` with the packet and role below as `message`, `auto_mode` false, and no `file_ids`. Do not call `upload_file`: no data, tables, or result files leave the machine.

@@ -8,6 +8,14 @@ codex exec --sandbox read-only --ephemeral --ignore-user-config -C <repository-r
 
 `--ignore-user-config` skips `~/.codex/config.toml`, so no plugins or hooks load (authentication still works). In a repository with `.living/`, Mycelium's Codex hooks otherwise run in the reviewer session and add session-resume and audit instructions that are not part of the packet. If the user's Codex setup needs its config (for example a custom provider), drop the flag and say so in the reviewer status.
 
+Codex reads the repository, not only the packet: a read-only sandbox still lets it open any file under the working root, including `data/`, raw files and `.env`, and what it reads is sent to OpenAI. When the repository holds participant-level or unpublished data, or credentials, run it on a data-free copy of the tracked code instead (`-C <copy>`), for example:
+
+```bash
+copy=$(mktemp -d) && git -C <repository-root> archive HEAD <code and doc paths> | tar -x -C "$copy"
+```
+
+Name the paths to include; do not archive `data/`. If the user declines a copy, add to the role prompt: do not open files under `data/`, raw or participant-level tables, `.env`, key files or credentials, and say in the reviewer status that Codex could read the repository beyond the packet. An instruction is not enforcement.
+
 Do not use a write sandbox, `--dangerously-bypass-approvals-and-sandbox`, or a Codex implementation worker. Inspect the CLI help for the installed version before using flags. If the CLI, authentication, a usage limit, the sandbox, or project hooks prevent a read-only run, report Codex unavailable: an `ERROR:` line or a reply without the response format is never a clean review. Check the target repository's tracked and relevant ignored state before and after the review; unexpected changes invalidate the read-only claim.
 
 Give Codex the packet and this role:
