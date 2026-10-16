@@ -22,6 +22,7 @@ shape or keyword, a name or an identifier in free text, a value in a table the p
 import argparse
 import csv
 import io
+import json
 import os
 import re
 import sys
@@ -50,7 +51,7 @@ PATTERNS = [
 # Columns of a table named under `Inputs:` whose values are read as participant or sample identifiers.
 ID_COLUMN = re.compile(r"(?i)^(?:donor|subject|participant|patient|individual|person|case|specimen|mrn|"
                        r"sample|sample_?id|subject_?id|participant_?id|patient_?id|donor_?id)$")
-MIN_ID = 3          # shorter values are too common to mean anything
+MIN_ID = 1          # known short IDs still need exact token boundaries
 MAX_ROWS = 100000   # rows read per input table
 INPUT_EXT = (".tsv", ".csv", ".txt")
 REDACTIONS = re.compile(r"^(?P<indent>[ \t]*)redactions[ \t]*:[ \t]*(?P<rest>[^\n]*?)[ \t]*$", re.MULTILINE)
@@ -59,28 +60,50 @@ REDACTIONS = re.compile(r"^(?P<indent>[ \t]*)redactions[ \t]*:[ \t]*(?P<rest>[^\
 def mask(value, keep=3):
     """Enough to find the place, not enough to reuse the value. An identifier keeps one character: a short
     one is its first three."""
-    return "{}... ({} chars)".format(value[:keep] if len(value) > 2 * keep else value[:1], len(value))
+    return "{}... ({} chars)".format(value[:keep] if len(value) > 2 * keep else "[masked]", len(value))
 
 
 def redactions_listed(packet):
-    """True when the packet's `redactions:` field names something; False when it is `[]`, empty or missing."""
-    match = REDACTIONS.search(packet)
-    if not match:
+    """Require nonempty kind/field pairs; arbitrary scalars cannot satisfy disclosure."""
+    matches = list(REDACTIONS.finditer(packet))
+    if len(matches) != 1:
         return False
-    rest = re.sub(r"\s*#.*$", "", match.group("rest")).strip()
+    match = matches[0]
+    rest = re.sub(r"\s+#.*$", "", match.group("rest")).strip()
     if rest:
-        return rest not in ("[]", "~", "null")
-    for line in packet[match.end():].splitlines():
-        if line.strip():
-            return bool(re.match(r"\s*-\s*[^\s#]", line))
-    return False
+        try:
+            entries = json.loads(rest)
+        except ValueError:
+            return False
+    else:
+        entries, current = [], None
+        for line in packet[match.end():].splitlines():
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            item = re.fullmatch(r"\s*-\s+kind:\s*(.+?)\s*", line)
+            field = re.fullmatch(r"\s+(field|replaced_with):\s*(.+?)\s*", line)
+            if item:
+                current = {"kind": item.group(1).strip("\"'")}
+                entries.append(current)
+            elif field and current is not None and field.group(1) not in current:
+                current[field.group(1)] = field.group(2).strip("\"'")
+            elif line[:1].isspace():
+                return False
+            else:
+                break
+    return isinstance(entries, list) and bool(entries) and all(
+        isinstance(entry, dict) and {"kind", "field"}.issubset(entry)
+        and not set(entry) - {"kind", "field", "replaced_with"} and all(
+            isinstance(value, str) and value.strip() and value.lower() not in ("null", "none", "~")
+            for value in entry.values()) for entry in entries)
 
 
 def packet_inputs(packet):
     """Paths named on the packet's or plan's `Inputs:` line."""
     found = []
-    for match in re.finditer(r"(?im)^\s*Inputs\s*:\s*(.+)$", packet):
-        found += [p.strip("`,;\"'") for p in match.group(1).split() if p.strip("`,;\"'")]
+    for match in re.finditer(r"(?im)^[ \t]*Inputs[ \t]*:[ \t]*([^\n]*)$", packet):
+        for parts in re.findall(r"`([^`]+)`|\"([^\"]+)\"|'([^']+)'|([^,;\s]+)", match.group(1)):
+            found.append(next(p for p in parts if p))
     return found
 
 
@@ -89,24 +112,33 @@ def known_identifiers(packet, repo):
     ids, unread = {}, []
     for rel in packet_inputs(packet):
         path = rel if os.path.isabs(rel) else os.path.join(repo, rel)
-        if not rel.lower().endswith(INPUT_EXT) or not os.path.isfile(path):
+        if not rel.lower().endswith(INPUT_EXT):
+            if rel.lower() not in ("none", "n/a"):
+                unread.append(rel)
+            continue
+        if not os.path.isfile(path):
+            unread.append(rel)
             continue
         try:
-            with open(path, encoding="utf-8", errors="replace", newline="") as handle:
+            with open(path, encoding="utf-8-sig", errors="strict", newline="") as handle:
                 sample = handle.read(4096)
                 handle.seek(0)
                 delimiter = "," if sample.count(",") > sample.count("\t") else "\t"
-                reader = csv.reader(handle, delimiter=delimiter)
+                reader = csv.reader(handle, delimiter=delimiter, strict=True)
                 header = next(reader, [])
+                if not header or len(set(header)) != len(header):
+                    unread.append(rel)
                 columns = [i for i, name in enumerate(header) if ID_COLUMN.match(name.strip())]
                 for n, row in enumerate(reader):
                     if n >= MAX_ROWS:
                         unread.append(rel)
                         break
+                    if len(row) != len(header) and rel not in unread:
+                        unread.append(rel)
                     for i in columns:
                         if i < len(row) and len(row[i].strip()) >= MIN_ID:
                             ids.setdefault(row[i].strip(), header[i].strip())
-        except (OSError, csv.Error):
+        except (OSError, csv.Error, UnicodeError):
             unread.append(rel)
     return ids, unread
 
@@ -123,12 +155,12 @@ def check(packet, repo=None):
     if repo:
         ids, unread = known_identifiers(packet, repo)
         if ids:
-            token = re.compile(r"(?<![A-Za-z0-9])(?:{})(?![A-Za-z0-9])".format(
+            token = re.compile(r"(?<![\w-])(?:{})(?![\w-])".format(
                 "|".join(re.escape(v) for v in sorted(ids, key=len, reverse=True))))
             for number, line in enumerate(lines, 1):
                 for match in token.finditer(line):
                     flags.append((number, "participant identifier", mask(match.group(0), keep=1),
-                                  "a value in the `{}` column of an input table".format(ids[match.group(0)])))
+                                  "a value in a known identifier column of an input table"))
     return sorted(set(flags)), unread
 
 
@@ -142,12 +174,12 @@ def render(flags, unread, listed):
         if listed:
             out.append("`redactions:` lists what was removed. Show these flags to the user; they decide whether to send.")
         else:
-            out.append("`redactions:` is empty, so do not send. Remove or replace each flagged value and list "
+            out.append("`redactions:` is empty or malformed, so do not send. Remove or replace each flagged value and list "
                        "what was removed (kind and field, never the value), or tell the user why it must stay.")
     else:
         out.append("Pre-send check: nothing flagged.")
     if unread:
-        out.append("Not checked against identifiers: {} (unreadable or too long).".format(", ".join(unread)))
+        out.append("Not checked against identifiers: {} input(s) (missing, unsupported, malformed or truncated). Do not send before disclosing this coverage gap.".format(len(unread)))
     out.append(NOTE)
     return "\n".join(out) + "\n"
 
@@ -166,7 +198,11 @@ def main(argv):
     flags, unread = check(packet, os.path.abspath(args.repo) if args.repo else None)
     listed = redactions_listed(packet)
     sys.stdout.write(render(flags, unread, listed))
-    return 0 if not flags else 2 if listed else 3
+    matches = list(REDACTIONS.finditer(packet))
+    valid = len(matches) == 1 and (re.sub(r"\s+#.*$", "", matches[0].group("rest")).strip() == "[]" or listed)
+    if not valid:
+        sys.stdout.write("Redaction entries are missing or malformed; do not send. Use [] or objects with kind/field strings.\n")
+    return 3 if unread or not valid else 0 if not flags else 2 if listed else 3
 
 
 if __name__ == "__main__":

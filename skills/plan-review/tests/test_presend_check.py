@@ -67,13 +67,13 @@ class PresendCheckTest(unittest.TestCase):
         self.assertEqual(code, 3, out)
         for kind in ("participant identifier", "GitHub token", "email address", "home path", "AWS access key"):
             self.assertIn(kind, out)
-        self.assertIn("`redactions:` is empty, so do not send", out)
+        self.assertIn("`redactions:` is empty or malformed, so do not send", out)
         for secret in (TOKEN, KEY, "D07_day28", "D12_day0", "jdevries@example.org", "/home/jdevries"):
             self.assertNotIn(secret, out, "a flag must not print the value it matched")
 
     def test_listed_redactions_leave_the_decision_to_the_user(self):
         extra = "  The donor D07 failed QC."
-        for redactions in ('["participant IDs removed from the QC note"]',
+        for redactions in ('[{"kind":"participant id","field":"proposed_plan"}]',
                            "\n  - kind: participant id\n    field: proposed_plan"):
             code, out = run(packet(extra, redactions), "--repo", FIXTURE)
             self.assertEqual(code, 2, out)
@@ -125,8 +125,50 @@ class PresendCheckTest(unittest.TestCase):
         for text in ("redactions: []", "redactions:", "redactions: [] # none needed", "x: 1", "",
                      "redactions:\n  # none\nunknowns: []", "redactions:\nunknowns: []"):
             self.assertFalse(listed(text), repr(text))
-        for text in ('redactions: ["a"]', "redactions:\n  - IDs removed", "redactions:\n- kind: id"):
+        for text in ('redactions: [{"kind":"participant id","field":"proposed_plan"}]', "redactions:\n  - kind: participant id\n    field: proposed_plan") :
             self.assertTrue(listed(text), repr(text))
+
+    def test_short_ids_use_exact_token_boundaries(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        with open(os.path.join(folder, "meta.tsv"), "w") as handle:
+            handle.write("sample_id\tarm\nA\tx\n12\ty\n")
+        flags, unread = presend_check.check("Inputs: meta.tsv\n[A] and (12), AA X12 A_extra 12-extra", folder)
+        self.assertEqual(len([f for f in flags if f[1] == "participant identifier"]), 2)
+        self.assertEqual(unread, [])
+
+    def test_malformed_redactions_cannot_authorize_disclosure(self):
+        for value in ('true', 'false', '"done"', '["a"]', '[{}]', '[{"kind":"id"}]',
+                      '[{"kind":"id","field":42}]', '[{"kind":"id","field":""}]'):
+            self.assertFalse(presend_check.redactions_listed("redactions: " + value))
+        self.assertFalse(presend_check.redactions_listed("redactions:\n - kind: id\n   field: notes\n   field: x"))
+
+    def test_truncated_coverage_blocks_and_diagnostics_mask_paths(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        with open(os.path.join(folder, "private-person.tsv"), "w") as handle:
+            handle.write("sample_id\nA\nB\n")
+        old = presend_check.MAX_ROWS
+        try:
+            presend_check.MAX_ROWS = 1
+            flags, unread = presend_check.check("Inputs: private-person.tsv", folder)
+        finally:
+            presend_check.MAX_ROWS = old
+        self.assertEqual(unread, ["private-person.tsv"])
+        self.assertNotIn("private-person", presend_check.render(flags, unread, False))
+        code, out = run("Inputs: missing.tsv\nredactions: []", "--repo", folder)
+        self.assertEqual(code, 3)
+        self.assertIn("coverage gap", out)
+
+    def test_unsupported_or_malformed_input_coverage_is_a_gap(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        for name, text in (("bad.tsv", "sample_id\tarm\nA\n"), ("duplicate.tsv", "sample_id\tsample_id\nA\tB\n")):
+            with open(os.path.join(folder, name), "w") as handle:
+                handle.write(text)
+            self.assertEqual(presend_check.check("Inputs: " + name, folder)[1], [name])
+        self.assertEqual(presend_check.check("Inputs: data.h5ad", folder)[1], ["data.h5ad"])
+        self.assertEqual(presend_check.check("Inputs: none", folder)[1], [])
 
     def test_an_unreadable_packet_exits_1(self):
         with open(SCRIPT) as source:
@@ -134,6 +176,23 @@ class PresendCheckTest(unittest.TestCase):
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         self.assertEqual(proc.returncode, 1)
         self.assertIn("cannot read the packet", proc.stderr)
+
+    def test_quoted_paths_and_bom_headers_still_find_identifiers(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        with open(os.path.join(folder, "sample sheet.csv"), "w", encoding="utf-8-sig") as handle:
+            handle.write("sample,arm\nPERSON001,control\n")
+        for quoted in ('`sample sheet.csv`', '"sample sheet.csv"', "'sample sheet.csv'"):
+            flags, unread = presend_check.check(
+                "Inputs: {}, other.tsv\nDonor PERSON001\n".format(quoted), folder)
+            self.assertIn("participant identifier", [f[1] for f in flags], quoted)
+            self.assertEqual(unread, ["other.tsv"])
+
+    def test_missing_named_tables_are_reported_as_unchecked(self):
+        flags, unread = presend_check.check("Inputs: missing.tsv\n", FIXTURE)
+        self.assertEqual(flags, [])
+        self.assertEqual(unread, ["missing.tsv"])
+        self.assertIn("Not checked against identifiers", presend_check.render(flags, unread, False))
 
 
 if __name__ == "__main__":

@@ -31,7 +31,8 @@ Challenge a proposed plan before approval. This skill is consultation only: do n
   ) --repo <repository-root> < <skill-dir>/scripts/presend_check.py
   ```
 
-  It flags likely secrets, contact details, home paths, and the participant identifiers found in the tables the plan names under `Inputs:`. Exit 3 means flags with an empty `redactions:`: do not send until each is removed and recorded, or the user says why it must stay. Exit 2 means flags with `redactions:` filled in: show them to the user. Exit 0 is not a clearance: the check is pattern-based and says so. Exit 1 or a failed run means it did not run; say so, never report it as clean.
+  It flags likely secrets, contact details, home paths, and the participant identifiers found in the tables the plan names under `Inputs:`. Exit 3 means flags with empty/malformed `redactions:` or missing/truncated input coverage: do not send until the flags and coverage gaps are disclosed and resolved, or the user explicitly consents to the stated gap. Redaction entries require nonempty `kind` and `field` strings; `replaced_with` is optional. Known short IDs use exact token boundaries. Exit 2 means flags with `redactions:` filled in: show them to the user. Exit 0 is not a clearance: the check is pattern-based and says so. Exit 1 or a failed run means it did not run; say so, never report it as clean.
+  Quote or backtick an input path containing spaces. Missing, unreadable, or truncated input tables are reported as unchecked identifier coverage; carry those gaps into the packet and report.
 - The packet leaves the machine (Codex to OpenAI, Biomni to Phylo, which also bills credits). Show the user the packet, the check's output, and which reviewers will receive it, and send only after the user agrees.
 
 ## 2. Route by host
