@@ -36,7 +36,8 @@ Then, for the top idea only: the **cheapest go/no-go test** (the specific questi
 
 ## 4. After the user picks
 
+- `park all` changes nothing: stop without writing triage blocks or updating statuses.
 - Write a `## Triage <date>` block (pitch, impact, risk, go/no-go test) into each scored item's file. Never delete or reorder items.
-- Set the picked item's registry Status to `in-progress` and its file's Status to match. Use `upsert_table_row.py` as the `idea` skill does, with the same plain-edit fallback.
+- Set the picked item's registry Status to `in-progress` and its file's Status to match. Use `upsert_table_row.py` as the `idea` skill does, keyed by the exact File cell with `--key-column 7`, without a plain-edit fallback. If the helper fails, retain the triage text, report the registry gap and retry the exact File-keyed update after fixing the helper. Duplicate titles identify different items.
 - Offer `/mycelium-extra:grill <the pitch as a question>`. Do not start it unasked.
 - Items not picked stay `open`. `discarded` needs the user's words: set `wont-do` and add the reason to the file.
