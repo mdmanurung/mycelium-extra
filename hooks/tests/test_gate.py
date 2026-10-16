@@ -2545,5 +2545,135 @@ class OpenGapsTest(unittest.TestCase):
         self.assertIn("approved", self.prompt("approve plan " + digest))
 
 
+class PlanComparisonAndPathsTest(unittest.TestCase):
+    """C02 (F03): the card compares whole plan cells, removed and reordered rows before it shortens
+    anything. C03 (F10): `Inputs:` and `Outputs:` read quoted literal paths exactly and say what they
+    could not read instead of pinning a fragment."""
+    entry = GATE
+    setUp, tearDown, config, hook, approve, card, asked, write_file = (
+        GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook, GateTest.approve,
+        GateTest.card, GateTest.asked, GateTest.write_file)
+    HEAD = ("#", "Step", "Choice", "Source", "Validation")
+
+    def gate(self):
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        return gate
+
+    def plan(self, rows, objective="Compare A with B.", inputs="data/in.tsv", outputs=None, head=HEAD, extra=()):
+        parts = ["**Objective.** " + objective, "", "Inputs: " + inputs]
+        parts += ["Outputs: " + outputs] if outputs else []
+        parts += ["", "| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
+        parts += ["| " + " | ".join(row) + " |" for row in rows] + list(extra) + ["", "Plan status: READY"]
+        return "\n".join(parts)
+
+    def row(self, num="1", script="fit", choice="exact test", check="12 donors"):
+        return (num, "Run `analysis/a/{}.py`".format(script), choice, "user", check)
+
+    def files(self):
+        for name in ("fit", "b"):
+            self.write_file("analysis/a/{}.py".format(name), "print(1)\n")
+        for name in ("in", "b"):
+            self.write_file("data/{}.tsv".format(name), "x\n")
+
+    # C03: literal paths
+
+    def read(self, line, root=None):
+        return self.gate().read_inputs("Inputs: " + line, root)
+
+    def test_a_quoted_input_with_a_space_is_pinned_exactly(self):
+        self.write_file("data/cohort samples.tsv", "sample\nA\n")
+        self.write_file("data/cohort", "x\n")
+        gate = self.gate()
+        pins, outside = gate.pin_inputs(self.root, "Inputs: `data/cohort samples.tsv`", gate.load_config(self.root))
+        self.assertEqual((sorted(pins), outside), (["data/cohort samples.tsv"], []))
+
+    def test_quotes_commas_and_apostrophes_are_read_literally(self):
+        for line, expected in [
+            ("`data/cohort samples.tsv`", ["data/cohort samples.tsv"]),
+            ("'data/cohort samples.tsv'.", ["data/cohort samples.tsv"]),
+            ('"data/cohort samples.tsv"', ["data/cohort samples.tsv"]),
+            ("`data/o'brien samples.tsv`", ["data/o'brien samples.tsv"]),
+            ("\"data/o'brien.tsv\"", ["data/o'brien.tsv"]),
+            ("'data/o'brien.tsv'", ["data/o'brien.tsv"]),
+            ("`data/a,b.tsv`, \"data/c d.tsv\", data/e.tsv", ["data/a,b.tsv", "data/c d.tsv", "data/e.tsv"]),
+            ("`/abs/dir/x y.tsv` and ./data/f.tsv", ["/abs/dir/x y.tsv", "and", "data/f.tsv"]),
+        ]:
+            words, notes = self.read(line)
+            self.assertEqual((words, notes), (expected, []), line)
+
+    def test_an_absolute_quoted_input_outside_the_repository_is_named_not_pinned(self):
+        gate = self.gate()
+        pins, outside = gate.pin_inputs(self.root, 'Inputs: "/abs/dir/x y.tsv"', gate.load_config(self.root))
+        self.assertEqual((pins, outside), ({}, ["/abs/dir/x y.tsv"]))
+
+    def test_unquoted_inputs_read_as_before(self):
+        self.assertEqual(self.read("data/a.tsv, ./data/b.tsv (from the lab's freezer), ~/c.tsv.")[0],
+                         ["data/a.tsv", "data/b.tsv", "from", "the", "lab", "s", "freezer", "~/c.tsv"])
+        self.assertEqual(self.read("**data/a.tsv** and [notes](data/b.tsv)"), (["data/a.tsv", "and", "notes", "data/b.tsv"], []))
+
+    def test_a_missing_exact_input_is_pinned_as_missing_not_as_a_fragment(self):
+        self.write_file("data/cohort", "x\n")
+        gate = self.gate()
+        pins, _ = gate.pin_inputs(self.root, 'Inputs: "data/cohort samples.tsv"', gate.load_config(self.root))
+        self.assertEqual(pins, {"data/cohort samples.tsv": {"missing": True}})
+
+    def test_unsupported_input_expressions_are_diagnosed_and_pin_nothing(self):
+        self.write_file("data/x.tsv", "x\n")
+        self.write_file("data/cohort", "x\n")
+        self.write_file("DATA/x.tsv", "x\n")
+        gate = self.gate()
+        for line in ["$DATA/x.tsv", "`$(ls data)/x.tsv`", "${DATA}/x.tsv", "data/*.tsv", "data/{x,y}.tsv", "`data/cohort samples.tsv",
+                     '"data/cohort samples.tsv', "` `", "data/cohort\\ samples.tsv", "`data/x.tsv, data/y.tsv`"]:
+            pins, outside = gate.pin_inputs(self.root, "Inputs: " + line, gate.load_config(self.root))
+            self.assertEqual((pins, outside), ({}, []), line)
+            self.assertTrue(self.read(line, self.root)[1], line)
+
+    def test_a_quoted_name_that_looks_like_a_pattern_is_read_when_the_file_exists(self):
+        self.write_file("data/s{1} a,b.tsv", "x\n")
+        gate = self.gate()
+        pins, _ = gate.pin_inputs(self.root, "Inputs: `data/s{1} a,b.tsv`", gate.load_config(self.root))
+        self.assertEqual(sorted(pins), ["data/s{1} a,b.tsv"])
+        self.assertTrue(gate.read_inputs("Inputs: `data/s{1} a,b.tsv`")[1])  # unknown to the reader without a folder
+
+    def test_the_card_names_each_unread_input_and_output_on_one_line(self):
+        self.files()
+        card = self.card(self.plan([self.row()], inputs="$DATA/x.tsv, `data/in.tsv, data/b.tsv`, data/*.tsv",
+                                   outputs="$OUT/y.tsv"))
+        lines = [line for line in card.splitlines() if "not read:" in line and "Shorthand" not in line]
+        self.assertEqual(len(lines), 4, card)
+        self.assertEqual([line.split(":")[0] for line in lines], ["Inputs not read"] * 3 + ["Outputs not read"])
+        self.assertIn("Reads none (the `Inputs:` line names no files)", card)
+
+    def test_the_plain_card_names_unread_inputs_too(self):
+        card = self.card(PLAN + "\nInputs: $DATA/x.tsv\n")
+        self.assertIn("Inputs not read: `$DATA/x.tsv`", card)
+
+    def test_quoted_outputs_are_read_literally(self):
+        gate = self.gate()
+        for line, expected in [
+            ("`results/cohort samples.tsv`, \"results/o'brien.tsv\", results/a,b.csv", ["results/cohort samples.tsv", "results/o'brien.tsv", "results/a", "b.csv"]),
+            ("`results/a,b.csv`", ["results/a,b.csv"]),
+            ("'results/{x,y} z.tsv'", ["results/x z.tsv", "results/y z.tsv"]),
+            ("`/abs/dir/o p.tsv`", ["/abs/dir/o p.tsv"]),
+        ]:
+            self.assertEqual(gate.read_outputs("Outputs: " + line)[0], expected, line)
+
+    def test_brace_and_wildcard_outputs_are_unchanged(self):
+        gate = self.gate()
+        self.assertEqual(gate.read_outputs("Outputs: results/{sample}.tsv, out/{a,b}_{1,2}.rds, out/*.pdf, out/<name>.csv"),
+                         (["results/*.tsv", "out/a_1.rds", "out/a_2.rds", "out/b_1.rds", "out/b_2.rds", "out/*.pdf", "out/*.csv"], []))
+        self.assertEqual(gate.read_outputs("Outputs: `…_meta.csv`, ...x.csv"), ([], ["…_meta.csv", "...x.csv"]))
+        self.assertEqual(gate.read_outputs("no outputs here"), (None, []))
+
+    def test_unsupported_and_truncated_outputs_are_diagnosed_not_read_as_fragments(self):
+        gate = self.gate()
+        big = "x_{" + ",".join(str(i) for i in range(15)) + "}_{" + ",".join(str(i) for i in range(15)) + "}.tsv"
+        for line in ["$OUT/y.tsv", "`$(pwd)/y.tsv`", "out/{a,b", "`out/y.tsv", big, "`out/a.tsv, out/b.tsv`"]:
+            words, shorthand, notes = gate.read_outputs_notes("Outputs: " + line)
+            self.assertEqual((words, shorthand), ([], []), line)
+            self.assertEqual(len(notes), 1, line)
+
+
 if __name__ == "__main__":
     unittest.main()

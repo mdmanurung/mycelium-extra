@@ -1172,30 +1172,172 @@ def scope_lines(root, plan, config):
     return ["  Runs allowed"] + bullets(runs)
 
 
-def expand_braces(word):
-    """`a_{x,y}.csv` -> `a_x.csv`, `a_y.csv`, every group in turn; `{sample}` (no comma) -> `*`."""
+def expand_braces(word, limit=MAX_OUTPUT_WORDS):
+    """`a_{x,y}.csv` -> `a_x.csv`, `a_y.csv`, every group in turn; `{sample}` (no comma) -> `*`.
+    At most `limit` words: a longer expansion is cut, so ask for one more than you accept."""
     match = re.search(r"\{([^{}]*)\}", word)
     if not match:
         return [word]
     head, tail = word[:match.start()], word[match.end():]
     parts = match.group(1).split(",") if "," in match.group(1) else ["*"]
-    return [w for part in parts for w in expand_braces(head + part + tail)][:MAX_OUTPUT_WORDS]
+    return [w for part in parts for w in expand_braces(head + part + tail, limit)][:limit]
+
+
+# What an `Inputs:` or `Outputs:` line names, read as literal paths. Nothing is evaluated: a shell
+# expression, a pattern an Inputs line cannot use, a quote left open, or an expansion cut short is
+# reported in `notes` and its text is never read as paths, so a fragment cannot stand for the file.
+MAX_PATH_LINE = 4000   # characters of one line that are read
+MAX_PATHS = 500        # paths read from one kind of line
+EXPRESSION = re.compile(r"\S*\$(?:\([^)]*\)|[\w({])\S*")   # $VAR, ${VAR}, $(command ...)
+PATTERN = re.compile(r"[{}*]|\?(?=[\w./])")           # a glob or brace pattern
+LISTED = re.compile(r",\s+\S")                         # `a.tsv, b.tsv` inside one pair of quotes
+QUOTE_END = " \t,;:)].`"                                # what may follow a closing single quote
+
+
+def path_note(item, reason):
+    return "`{}` {}".format(clean(item, 60), reason)
+
+
+def closing_quote(line, start):
+    """Index of the quote that closes the one at `start`, or -1. A single quote closes only before
+    a space or punctuation, so `'data/o'brien.tsv'` is one path."""
+    if line[start] != "'":
+        return line.find(line[start], start + 1)
+    for k in range(start + 1, len(line)):
+        if line[k] == "'" and (k + 1 == len(line) or line[k + 1] in QUOTE_END):
+            return k
+    return -1
+
+
+def split_quoted(line):
+    """(pieces, notes): `line` as ("text", unquoted run) and ("quoted", literal) pieces. A backtick
+    or a double quote opens anywhere; a single quote only after a space or an opening mark, so an
+    apostrophe in prose is not one. Nothing after a quote left open is read."""
+    pieces, notes, start, i = [], [], 0, 0
+    while i < len(line):
+        mark = line[i]
+        if mark == "`" or (mark in "'\"" and (i == 0 or line[i - 1] in " \t(,;:=[")):
+            end = closing_quote(line, i)
+            if end < 0:
+                notes.append(path_note(line[i:], "opens a quote that is never closed; nothing after it is read"))
+                return pieces + [("text", line[start:i])], notes
+            pieces += [("text", line[start:i]), ("quoted", line[i + 1:end])]
+            start = i = end + 1
+        else:
+            i += 1
+    return pieces + [("text", line[start:])], notes
+
+
+def quoted_problem(item, root=None, pattern=True):
+    """Why the text between quotes is not one literal path, or None. A name that exists is always
+    taken as written (`root` known); a pattern is an error only where `pattern` is true."""
+    if not item.strip():
+        return "an empty quotation names no path"
+    if re.search(r"\$(?:\(|[\w{])", item):
+        return "is a shell expression; it is not evaluated, so name the literal path"
+    if root is not None and os.path.exists(os.path.join(root, os.path.expanduser(item.strip()))):
+        return None
+    if pattern and PATTERN.search(item):
+        return "is a pattern, not a path; name each file"
+    if LISTED.search(re.sub(r"\{[^{}]*\}", "", item)):
+        return "holds more than one path; put each in its own quotes"
+    return None
+
+
+def read_inputs(text, root=None):
+    """(words, notes) for the plan's `Inputs:` lines; words is None without one. Quoted paths are
+    kept whole (a quoted name that exists as written is taken even when it looks like a pattern,
+    which needs `root`); unquoted words are the simple paths read since 0.9.x."""
+    lines = INPUTS_LINE.findall(text)
+    if not lines:
+        return None, []
+    words, notes = [], []
+
+    def add(word):
+        if word and word not in words and len(words) < MAX_PATHS:
+            words.append(word)
+        elif len(words) == MAX_PATHS and word not in words:
+            notes.append("more than {} paths on the `Inputs:` lines; the rest are not read".format(MAX_PATHS))
+
+    for line in lines:
+        if len(line) > MAX_PATH_LINE:
+            notes.append(path_note(line[:30], "starts a line longer than {} characters; the rest is not read".format(MAX_PATH_LINE)))
+        pieces, found = split_quoted(line[:MAX_PATH_LINE])
+        notes += found
+        for kind, piece in pieces:
+            if kind == "quoted":
+                problem = quoted_problem(piece, root)
+                if problem:
+                    notes.append(path_note(piece, problem) if piece.strip() else problem)
+                else:
+                    add(piece.strip()[2:] if piece.strip().startswith("./") else piece.strip())
+                continue
+            piece = EXPRESSION.sub(lambda m: notes.append(path_note(
+                m.group(0), "is a shell expression; it is not evaluated, so name the literal path")) or " ", piece)
+            tokens, skip = piece.split(), False
+            for token in tokens:
+                core = re.sub(r"^(\*+|_+)(.+?)\1$", r"\2", token)
+                if skip:
+                    skip = False
+                elif core.endswith("\\"):
+                    notes.append(path_note(core, "ends in a backslash; quote a path that has a space"))
+                    skip = True  # the rest of the name is the next word
+                elif PATTERN.search(core) and ("/" in core or re.search(r"\.\w", core)):
+                    notes.append(path_note(core, "is a pattern, not a path; name each file"))
+                else:
+                    for word in PATHLIKE.findall(token):
+                        word = word.rstrip(".,;:")
+                        add(word[2:] if word.startswith("./") else word)
+    return words, notes
+
+
+def read_outputs_notes(text):
+    """(words, shorthand, notes) on the plan's `Outputs:` lines, or (None, [], []) without one. A
+    `{a,b}` list is expanded and a `<name>` placeholder read as `*`; a word starting with `…` or
+    `...` names no path, so it is set aside as shorthand for the card and verify to flag. A quoted
+    path is kept whole, spaces and all."""
+    lines = OUTPUTS_LINE.findall(text)
+    if not lines:
+        return None, [], []
+    words, shorthand, notes = [], [], []
+
+    def expand(item):
+        found = expand_braces(item, MAX_OUTPUT_WORDS + 1)
+        if len(found) > MAX_OUTPUT_WORDS:
+            notes.append(path_note(item, "expands to more than {} paths; name them".format(MAX_OUTPUT_WORDS)))
+        elif any("{" in w or "}" in w for w in found):
+            notes.append(path_note(item, "has unbalanced braces"))
+        else:
+            return found
+        return []
+
+    for line in lines:
+        if len(line) > MAX_PATH_LINE:
+            notes.append(path_note(line[:30], "starts a line longer than {} characters; the rest is not read".format(MAX_PATH_LINE)))
+        pieces, found = split_quoted(line[:MAX_PATH_LINE])
+        notes += found
+        for kind, piece in pieces:
+            if kind == "quoted":
+                problem = quoted_problem(piece, pattern=False)
+                if problem:
+                    notes.append(path_note(piece, problem) if piece.strip() else problem)
+                elif piece.strip().startswith(("\u2026", "...")):
+                    shorthand += [piece.strip()] * (piece.strip() not in shorthand)
+                else:
+                    words += expand(re.sub(r"<[\w-]+>", "*", piece.strip()))
+                continue
+            piece = EXPRESSION.sub(lambda m: notes.append(path_note(
+                m.group(0), "is a shell expression; it is not evaluated, so name the literal path")) or " ", piece)
+            shorthand += [w for w in OUTPUT_SHORTHAND.findall(piece) if w not in shorthand]
+            piece = re.sub(r"<[\w-]+>", "*", OUTPUT_SHORTHAND.sub(" ", piece))
+            piece = OUTPUT_BRACES.sub(lambda m: " ".join(expand(m.group(0))) or " ", piece)
+            words += OUTPUT_WORD.findall(piece)
+    return words, shorthand, notes
 
 
 def read_outputs(text):
-    """(words, shorthand) on the plan's `Outputs:` lines, or (None, []) without one. A `{a,b}` list
-    is expanded and a `<name>` placeholder read as `*`; a word starting with `…` or `...` names no
-    path, so it is set aside as shorthand for the card and verify to flag."""
-    lines = OUTPUTS_LINE.findall(text)
-    if not lines:
-        return None, []
-    words, shorthand = [], []
-    for line in lines:
-        shorthand += [w for w in OUTPUT_SHORTHAND.findall(line) if w not in shorthand]
-        line = re.sub(r"<[\w-]+>", "*", OUTPUT_SHORTHAND.sub(" ", line))
-        line = OUTPUT_BRACES.sub(lambda m: " ".join(expand_braces(m.group(0))), line)
-        words += OUTPUT_WORD.findall(line)
-    return words, shorthand
+    """(words, shorthand) on the plan's `Outputs:` lines, or (None, []) without one; see read_outputs_notes."""
+    return read_outputs_notes(text)[:2]
 
 
 def output_words(text):
@@ -1243,7 +1385,8 @@ def approval_card(root, text, config, digest, pins, outside, previous, scripts=N
         card = "\n".join(["mycelium-extra \u00b7 plan ready for approval",
                           "  \u25b6 approve plan {}".format(digest), ""]
                          + scope_lines(root, text, config) + pin_lines(pins, outside, previous)
-                         + script_lines(root, scripts, config) + output_lines(text))
+                         + script_lines(root, scripts, config) + output_lines(text)
+                         + ["  " + line for line in unread_lines(root, text)])
     if state_unignored(root):
         def warn(text):
             head, _, rest = text.partition("\n")
@@ -1669,6 +1812,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
     lines.append("Writes " + ("{}{}".format(len(outputs), names(outputs, short)) if outputs else
                               "none named (no `Outputs:` line)"))
     lines += shorthand_line(text)
+    lines += unread_lines(root, text)
     if outside:
         lines.append("Outside the repository, not pinned" + names(outside, str))
     if prefix:
@@ -1701,26 +1845,26 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
 # ---------------------------------------------------------------- pinned inputs
 
 def plan_inputs(text):
-    """The words on a plan's `Inputs:` lines, or None when it has none."""
-    lines = INPUTS_LINE.findall(text)
-    if not lines:
-        return None
-    words = []
-    for line in lines:
-        for word in PATHLIKE.findall(line):
-            word = word.rstrip(".,;:")
-            if word.startswith("./"):
-                word = word[2:]
-            if word and word not in words:
-                words.append(word)
-    return words
+    """The words on a plan's `Inputs:` lines, or None when it has none; read_inputs says what it could not read."""
+    return read_inputs(text)[0]
+
+
+def unread_lines(root, text):
+    """One line for each `Inputs:` or `Outputs:` entry that could not be read as a literal path (at most
+    five of each kind), so the card never lets a fragment stand for the intended file."""
+    lines = []
+    for label, notes in (("Inputs", read_inputs(text, root)[1]), ("Outputs", read_outputs_notes(text)[2])):
+        lines += ["{} not read: {}".format(label, note) for note in notes[:5]]
+        lines += ["{} not read: \u2026 and {} more".format(label, len(notes) - 5)] * (len(notes) > 5)
+    return lines
 
 
 def pin_inputs(root, text, config):
     """Return (pins, outside). pins maps repo paths to fingerprints; it is None
     when the plan has no `Inputs:` line. A word without a slash counts only if
-    it names an existing file, so prose on the line is skipped."""
-    words = plan_inputs(text)
+    it names an existing file, so prose on the line is skipped. What read_inputs
+    could not read as a literal path is pinned as nothing; the card lists it."""
+    words = read_inputs(text, root)[0]
     if words is None:
         return None, []
     budget = hash_budget(config)

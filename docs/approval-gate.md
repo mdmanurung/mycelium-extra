@@ -62,6 +62,8 @@ An approval refers to the inputs you checked, as well as the steps you intend to
 
 A grill brief has an `Inputs:` line naming, by repository path, the files the plan rests on: the sample table, config or params files, a lockfile, or a folder of raw files. When the Stop hook shows `approve plan <hash>`, it also fingerprints those files and lists them.
 
+Paths are read as written, never evaluated: a path in backticks or single or double quotes may hold spaces, apostrophes and commas, and a plain path is read as before. An entry the gate cannot read as one literal path (a `$VAR` or `$(command)`, a glob or brace pattern, a quote left open, a quoted list, or an `Outputs:` brace expansion cut at 200 paths) is not pinned and not read as pieces; the card names it on an `Inputs not read` or `Outputs not read` line, so name each file instead (in quotes if its name has a space).
+
 - A file gets a sha256 while the per-hook budget lasts: `pin_hash_mb` bytes (default 200) and `pin_seconds` seconds (default 5) in `gate.json`. After that it gets size and mtime.
 - A folder gets a fingerprint of its file names, sizes, and mtimes, up to 5,000 files. Contents are not read. A folder the time limit cuts off is named as not pinned.
 - If the time limit cuts off the check before a run, the run goes ahead and the gate names the inputs it did not re-check.
