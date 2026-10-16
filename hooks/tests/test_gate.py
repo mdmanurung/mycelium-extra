@@ -432,6 +432,60 @@ class GateTest(unittest.TestCase):
             self.write_file("analysis/a/03_sum.R", 'samples <- c("S1", "S2", "S3")\n')
             self.assertIn("R016", self.context(self.written("analysis/a/03_sum.R")))
 
+    def run_with_open_finding(self, mode, session="w"):
+        """analysis/x.py written with one open finding (in `session`), a plan approved for it, then `mode` set."""
+        self.write_file("analysis/x.py", "print(1)\n")
+        self.fake_linter("analysis/x.py:1:1: [broad-exception] x", 1)
+        self.written("analysis/x.py", session=session)
+        self.approve()
+        self.config({} if mode is None else {"lint_before_run": mode})
+
+    def test_lint_before_run_is_off_by_default(self):
+        self.run_with_open_finding(None)
+        self.assertIsNone(self.bash("python3 analysis/x.py"))
+
+    def test_lint_before_run_warn_tells_both_and_runs(self):
+        self.run_with_open_finding("warn")  # written in another session: any session's record counts
+        result = self.bash("python3 analysis/x.py")
+        self.assertFalse(self.denied(result))
+        self.assertIn("analysis/x.py:1: [broad-exception] x", result["systemMessage"])
+        self.assertIn("Running anyway", result["hookSpecificOutput"]["additionalContext"])
+        self.assertEqual(result["hookSpecificOutput"]["hookEventName"], "PreToolUse")
+
+    def test_lint_before_run_block_denies_until_fixed_or_edited(self):
+        self.run_with_open_finding("block")
+        result = self.bash("python3 analysis/x.py")
+        self.assertTrue(self.denied(result))
+        self.assertIn("lint_before_run to block", result["hookSpecificOutput"]["permissionDecisionReason"])
+        self.assertIn("[broad-exception]", result["hookSpecificOutput"]["permissionDecisionReason"])
+        path = os.path.join(self.root, "analysis/x.py")
+        os.utime(path, (os.path.getmtime(path) + 5,) * 2)  # edited since its lint: unknown, not listed
+        self.assertFalse(self.denied(self.bash("python3 analysis/x.py")))
+        self.fake_linter("analysis/x.py:1:1: [silent-pass] y", 1)
+        self.write_file("analysis/x.py", "print(2)\n")
+        self.written("analysis/x.py", session="w")
+        self.approve()  # script pinning: an edited script needs the plan approved again
+        self.assertIn("[silent-pass]", self.bash("python3 analysis/x.py")["hookSpecificOutput"]["permissionDecisionReason"])
+        self.fake_linter()
+        self.write_file("analysis/x.py", "print(3)\n")
+        self.written("analysis/x.py", session="w")
+        self.approve()
+        self.assertFalse(self.denied(self.bash("python3 analysis/x.py")), "fixed")
+
+    def test_lint_before_run_covers_a_granted_explore_run(self):
+        self.write_file("analysis/y.py", "print(1)\n")
+        self.fake_linter("analysis/y.py:1:1: [broad-exception] x", 1)
+        self.written("analysis/y.py")
+        self.config({"lint_before_run": "block"})
+        self.hook("prompt", {"prompt": "allow explore"})
+        self.assertTrue(self.denied(self.bash("MYCELIUM_EXTRA_EXPLORE=1 python3 analysis/y.py")))
+
+    def test_lint_before_run_ignores_other_values_with_a_notice(self):
+        self.run_with_open_finding(True)
+        result = self.bash("python3 analysis/x.py")
+        self.assertFalse(self.denied(result))
+        self.assertIn('"lint_before_run" in gate.json must be "warn" or "block"', result["systemMessage"])
+
     def test_card_describes_the_procedure(self):
         os.makedirs(os.path.join(self.root, "analysis", "a"))
         with open(os.path.join(self.root, "analysis", "a", "02_fit.py"), "w") as handle:

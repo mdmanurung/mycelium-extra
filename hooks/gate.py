@@ -18,6 +18,7 @@ import ast
 import collections
 import fnmatch
 import functools
+import glob
 import importlib.util
 import json
 import os
@@ -33,6 +34,7 @@ DEFAULTS = {
     "pin_hash_mb": 200,
     "pin_seconds": 5,
     "pin_scripts": True,
+    "lint_before_run": False,
 }
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
@@ -1650,8 +1652,10 @@ def on_tool(event, root, config):
     scripts_on, notice = script_pinning(config)
     budget, cache = hash_budget(config), {}
     granted = explore_granted(root, event.get("session_id"))
+    run_scripts = []
     for explore, label, paths, segment, _, _ in analyse_command(command, root, event.get("cwd") or root,
                                                                  config):
+        run_scripts += [p for p in paths if p.endswith(LINT_EXT) and p not in run_scripts]
         if explore and granted:
             log_explore(root, event, segment, paths)
             continue
@@ -1717,7 +1721,15 @@ def on_tool(event, root, config):
                             "(time limit, `pin_seconds`): {}.".format(listing(unchecked)))
         if notice and approvals is not None:  # a gated run was checked
             messages.append(notice)
-        return {"systemMessage": "\n".join(messages)} if messages else None
+        denied, user_note, agent_note = lint_before_run(root, run_scripts, config)
+        if denied:
+            return denied
+        if user_note:
+            messages.append(user_note)
+        result = {"systemMessage": "\n".join(messages)} if messages else None
+        if agent_note:
+            result["hookSpecificOutput"] = {"hookEventName": "PreToolUse", "additionalContext": agent_note}
+        return result
     hashes = ", ".join(r["hash"] for r in approvals) or "none"
     lines = ["mycelium-extra gate: blocked because no active approved plan covers this run."]
     for label, paths in blocked:
@@ -1728,6 +1740,52 @@ def on_tool(event, root, config):
                  "the user approves it by typing `approve plan <hash>`. Do not work around this "
                  "block; if the user wants an exploratory run instead, they will say so.")
     return deny("\n".join(lines))
+
+
+LINT_RUN_MODES = ("warn", "block")
+
+
+def open_findings_before_run(root, rels):
+    """{script: [finding lines]} for the scripts a run uses that lint-on-write recorded with open findings and
+    that have not been edited since, from any session's record. A script never linted by the hook, or edited
+    since, is unknown and not listed; `verify` still checks it."""
+    found = {}
+    for rel in rels:
+        try:
+            mtime = os.path.getmtime(os.path.join(root, rel))
+        except OSError:
+            continue
+        name = sha256(rel.encode("utf-8")).hexdigest()[:16] + ".json"
+        for path in sorted(glob.glob(state_path(root, "pending", "*.lint", name))):
+            entry = read_json(path, {})
+            if entry.get("file") == rel and entry.get("mtime") == mtime and entry.get("rows"):
+                found[rel] = entry["rows"]
+                break
+    return found
+
+
+def lint_before_run(root, rels, config):
+    """(deny or None, message for the user, message for the agent) from `lint_before_run` in gate.json: false
+    (default) does nothing, "warn" tells both, "block" denies the run. Other values are ignored with a notice."""
+    mode = config.get("lint_before_run", False)
+    if mode is False:
+        return None, None, None
+    if mode not in LINT_RUN_MODES:
+        return None, 'mycelium-extra gate: "lint_before_run" in gate.json must be "warn" or "block"; it is off.', None
+    open_ = open_findings_before_run(root, rels)
+    if not open_:
+        return None, None, None
+    lines = ["mycelium-extra: scilintr findings recorded at write time are still open in a script this run uses:"]
+    for rel, rows in sorted(open_.items()):
+        lines.append("  {}:".format(rel))
+        lines += ["    " + row for row in rows[:5]] + (["    ..."] if len(rows) > 5 else [])
+    if mode == "block":
+        lines.append("Blocked because gate.json sets lint_before_run to block. Fix each finding, or waive it with "
+                     "`ANALYSIS_OK[rule]: <what is done, why it is valid, where it is checked>` where the choice is "
+                     "deliberate, then run again. The user can set it to warn. Do not work around this block.")
+        return deny("\n".join(lines)), None, None
+    lines.append("Running anyway (lint_before_run is warn). `verify` blocks on any finding left.")
+    return None, "\n".join(lines), "\n".join(lines)
 
 
 SCAN_TIMEOUT = (

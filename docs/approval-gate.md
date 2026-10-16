@@ -114,6 +114,8 @@ Mycelium's `analyze` skill tells the agent to run scilintr after every code writ
 - Each script's findings are kept in its own file under `.mycelium-extra/pending/`, so parallel writes to different scripts do not overwrite each other. Unchecked notices use separate markers so simultaneous writes report the same gap once.
 - When a turn ends, you see one line naming the scripts written this session that still have open findings, once per change. The agent does not see it. A script edited after its lint (for example by `sed` through Bash) is left out, because nothing is known about it.
 
+- **Before a run (opt-in).** `"lint_before_run": "warn"` tells you and the agent, when a gated run starts, that a script it uses still has the findings lint-on-write recorded; `"block"` denies the run until they are fixed or waived. It applies to explore runs too. It reads the records of any session and adds no lint run. A script the hook never linted, or edited since its lint (for example by `sed` through Bash), is unknown and not listed, so this narrows `verify`, never replaces it. Any other value is ignored with a notice.
+
 `verify` still decides: it blocks on any finding left unfixed and unwaived.
 
 ## Command hints
@@ -137,6 +139,7 @@ Type `hints on` to get a one-line suggestion of the command to run next; `hints 
 | `pin_seconds` | `5` | Seconds the pin check may take per hook. |
 | `card_lint` | `true` | Lint the planned code when a plan is presented and show the result on the card. `false` turns it off. |
 | `lint_on_write` | `true` | Lint each gated script as it is written and tell the agent the open findings; the user sees what is left when the turn ends. `false` turns it off. |
+| `lint_before_run` | `false` | `"warn"` or `"block"`: before a gated run, tell about or deny a script whose findings lint-on-write recorded and that has not been edited since. See [Lint on write](#lint-on-write). |
 | `pin_scripts` | `true` | Block a run whose script changed since it was approved or first run. `false` turns it off. |
 | `on_error` | `"allow"` | What a PreToolUse hook does when the gate itself breaks. `"deny"` blocks every tool call the gate could not check, including when `gate.py` cannot load; any other value is ignored with a notice. |
 
