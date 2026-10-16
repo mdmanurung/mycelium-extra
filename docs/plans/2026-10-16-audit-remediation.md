@@ -52,7 +52,7 @@ Every row remains open until its required executable or observed evidence exists
 | F22 | Feature coverage matrix: Mycelium integration | A08, A10 | real-mycelium-idea.json and real-mycelium-diary.log; J12 full installed lifecycle and human diary preservation | observed within named helper/native boundary; mandatory J/live checks remain open |
 | F23 | Feature coverage matrix: Capacity draft | A04, A06, A08 | hooks/tests/test_capacity.py; Claude replay pause/sticky/resume; native-allowance*.json unavailable; J13 native acquisition/assignment/lifecycle | observed within named helper/native boundary; mandatory J/live checks remain open |
 | F24 | Feature coverage matrix: Diary draft | A04, A06, A08 | hooks/tests/test_capacity.py draft/edit/idempotence/malformed metadata; real-mycelium-diary.log; J12 actual human edit/finalization | observed within named helper/native boundary; mandatory J/live checks remain open |
-| F25 | Feature coverage matrix: Package/docs | A10 | immutable matrix-rc2, four independent ablations, 23 exact differences/168 cases, identical-source check, links, docs-rc2-build.log | local executable checks recorded; release qualification remains open |
+| F25 | Feature coverage matrix: Package/docs | A10 | immutable matrix-rc2, four independent ablations, 42 exact differences/168 cases (23 at the first pass; the rest are the later launch-record and `ready` state changes), identical-source check, links, docs-rc2-build.log | local executable checks recorded; release qualification remains open |
 | F26 | Reproduced defects repaired: Compound/background receipts | A05, A07, A09 | historical gate receipt/background before-after logs; gate tests; exact oracle 18 compound cases; native unknown receipts | repaired and tested locally; external owner-step checks remain separate |
 | F27 | Reproduced defects repaired: Gate state aliases | A08, A10 | historical gate state-alias before-after logs; gate tests for aliases/reads/pipes; exact differential boundary | repaired and tested locally; external owner-step checks remain separate |
 | F28 | Reproduced defects repaired: Spaced script paths | A08, A10 | historical gate spaces before-after logs; whole-path grant/pin and fragment denial tests; exact differential boundaries | repaired and tested locally; external owner-step checks remain separate |
@@ -88,14 +88,14 @@ Every row remains open until its required executable or observed evidence exists
 
 - A02: `hooks/provenance.py` stages complete same-filesystem bundles, retains old bytes, records interrupted transactions, checks member hashes, and publishes the index last under one analysis lock. Fault injection covers staged/pending/every member/completion/index/done, first-save absence, ambiguous damage, and same/different-plan concurrent writers. Report/status/stale distinguish complete/legacy/interrupted. A render-failure reproduction damages the old writer's bundle and preserves the repaired writer's bundle (`evidence/2026-10-16-local/before-after/provenance-*.log`). Runtime lookup uses Git inventory rather than traversing data trees.
 - A03: exclusive capture plus File-keyed publication/recovery retains both concurrent ideas using the actual Mycelium 0.7.2 helper. No unlocked registry fallback. Scaffolds stage, validate and atomically publish under a destination lock; relative links, existing empty directories, and refusal to follow a symlink destination are covered.
-- A04: disabled hooks/statusline create no capacity records; silent SessionStart; all-tool PreToolUse matching and registered host lifecycle events; sticky thresholds and explicit fresh resume; unverified assistant notes; idempotent finalization; checkout history; visible malformed-record gaps; corrupted diary metadata retained. Native Claude replay observes pause/sticky pause/explicit resume, separately from unobserved real allowance acquisition. Capacity/diary remain draft for release.
+- A04: disabled hooks/statusline create no capacity records; silent SessionStart; all-tool PreToolUse matching and host lifecycle events (the registrations are held back from the shipped manifests since 0.9.72; see `hooks/capacity-hooks.json`); sticky thresholds and explicit fresh resume; unverified assistant notes; idempotent finalization; checkout history; visible malformed-record gaps; corrupted diary metadata retained. Native Claude replay observes pause/sticky pause/explicit resume, separately from unobserved real allowance acquisition. Capacity/diary remain draft for release.
 - A05: short known IDs use exact token boundaries; redaction entries require kind/field strings; unsupported, malformed, missing and truncated table coverage blocks the pre-send check. Diagnostics mask values and input paths. Competing output writers and metadata-only pins are gaps. E2E V-20 is now a detected ambiguity rather than a falsely attributed known miss. Existing numerical fixture comparisons remain unchanged.
 - Native qualification found an additional execution-grant defect: a fresh Codex thread reused the prior thread's approval. Repaired both execution lookup and receipt attribution to require the current session. Sessionless legacy approvals remain historical inventory only; they require re-presentation/reapproval. Direct and launcher reproductions fail before/pass after, and the native fresh thread is now denied. This is an additional documented approval interface change. The exact gate oracle contains the original 22 reviewed changes plus this one new boundary case: 23 differences across 168 cases.
 - Native evidence: Claude 2.1.301 denial/card/approval/success/failure/fresh-session and replayed pause/resume; Codex 0.161.0 trusted definitions/restart, real native denial/card/approval/execution/unknown failure/fresh-session and actual PTY card rendering. Scripted responses establish control flow only. Real allowance queries returned unavailable; they never became zero. Native compaction, positive worker lifecycle and Claude TTY remain mandatory A06 gaps.
 - A07 real tools: Snakemake 9.25.1, Nextflow 25.04.4, R4_51/R 4.5.1, notebook execution, Python scilintr 0.1.2, R scilintr 0.1.1, H5AD including a real AnnData writer. The completed run (`evidence/2026-10-16-local/workflows/attempt-m2bqd6m8/`) covers success, stub failure, changed input, stale-output rebuild, interrupted/resumed Snakemake, notebook failure, failed/resumed cached Nextflow, 32/32 H5AD/table tests and actual linters. Earlier development attempts are retained as failed attempts; a missing writer skip correctly failed qualification until installed. Full pinned tool versions are in `validation-tools.lock`.
 - A08/A09 preparation: [live packet](2026-10-16-live-validation/README.md), exact synthetic factual packet and prompt, predeclared journeys for all 11 skills and all eight verify actions, human rubric, and four Slurm scripts for five tasks. Read-only scheduler discovery confirms `short` max 1h and no minimum requiring an increase from the proposed one CPU/1 GiB/5 minutes. No job, reviewer call or real model journey has run. EUR0 spent. Biomni access/model identity and verified provider EUR cost bounds are unresolved. User clarification requested; no unavailable capability is silently dropped.
-- Delivery: remote main still matches `384e6394b71cdae6ab983f0b10fa8d4f5e65c900`; no remote 0.9.71 tag was found. Existing local 0.9.71 manifest/changelog work remains preserved and separate from any future release commit. No merge/publish is authorized before explicit approval of a fully qualified concrete candidate.
-- Concurrent filesystem changes moved historical archives into unowned `plans/`; they are untouched. Canonical HEAD archives are retained in the isolated qualification checkout so the existing tracked-link check can run. A final integration with those concurrent moves is still required before release.
+- Delivery (as of the first pass; superseded by the reconciliation below): remote main matched `384e6394b71cdae6ab983f0b10fa8d4f5e65c900` and no 0.9.71 tag existed.
+- Concurrent filesystem changes moved historical archives into unowned `plans/` (first pass; resolved by commit `4674ca8`, see the reconciliation below).
 
 ## Remaining release blockers
 
@@ -104,3 +104,44 @@ Every row remains open until its required executable or observed evidence exists
 3. A09: resolve exact reviewer access/identity and provider cost bounds, obtain approval of the concrete packet, then execute/reconcile reviewers and all five scheduler tasks.
 4. A10/A11: finish corrected immutable matrix, reconcile concurrent archive moves, review focused implementation commits, choose unused release version, PR/review, explicit merge/publish approval, remote CI/Pages and fresh marketplace installations. A local pass does not close these blockers.
 
+
+## Reconciliation at 0.9.74 (2026-10-17)
+
+The sections above record the first pass by the Codex session, which stopped on 2026-10-16. A second session took over, committed that work in its own commit-plan groups (`62628c3` to `0a4042e`), fixed what the independent approval and execution-evidence audit still found (the audit bundle `plans/mycelium_extra_audit/`, kept locally and not in the repository, pinned to 0.9.70 at `384e639`), and pushed to `origin/main`. Where the sections above say "dirty 0.9.71", "not pushed" or "23 differences", this section is current.
+
+### State
+
+| What | Now |
+|---|---|
+| Source | `main` carries 0.9.74; the Codex candidate and the earlier D11 work were byte-identical in the working tree and are inside the commits above |
+| Pushed | 0.9.72 (`0dc43f0`) is on `origin/main`; 0.9.73 (D10) and 0.9.74 (`verify runs`) are local until pushed |
+| Local checks | every test file on Python 3.6 and 3.12, `ablate.py` 4/4, links, `gate_diff.py --self-check` 168/168 and 42 exact differences against `384e639` |
+| Remote | CI and Pages for `450ccdc` (0.9.71) passed on 3.6, 3.12 and 3.14; the `gate-diff` job runs only on pull requests and was skipped |
+| Archive moves | `mycelium-extra-improvements/` and `mycelium-extra-review-bundle/` removed (`4674ca8`); evidence summaries kept in `evidence/` (`e87d3c5`), logs and traces local |
+| Capacity and diary | lifecycle registrations held back from the manifests (`bd3970b`); still an unqualified draft, D-01 open |
+
+### Audit findings
+
+Evidence is the audit's own reproduction, re-run against the merged tree (every case that asserted the old behaviour now deviates), plus the named regression tests.
+
+| Finding | Fixed in | Regression evidence |
+|---|---|---|
+| ME-01 compound shell status | `62628c3`, `bc42b9a` | `test_compound_command_exit_does_not_prove_each_step_ran`, `test_compound_shell_status_does_not_claim_each_script_succeeded` |
+| ME-02 command and folder failures | `77f4761`, `35ffbb8` | `verify` tests for failed command, zero-run folder, job state and supersession by step |
+| ME-03, ME-06, ME-08 reapproval, skipped pins, producer attribution | `62628c3`, `bc42b9a` | reproductions C03, C07, R-E1 deviate; `test_competing_timestamp_writers_are_a_gap` |
+| ME-04 wrapper options | `c9ea373`, `a9a188f` | `test_wrapper_option_values_do_not_hide_gated_runs`, `ReviewFixesTest` |
+| ME-05 paths with spaces | `62628c3` | `test_quoted_script_with_spaces_is_granted_and_pinned_without_fragment_grants` |
+| ME-07 launch approval | `610fb53`, `5ce359c` | `test_a_launch_keeps_its_approval_after_expiry_and_a_new_launch_is_denied`, `test_a_plan_approved_after_the_launch_is_not_credited_to_it` |
+| ME-09 interrupted preparation | `610fb53` | `test_interrupted_preparation_keeps_the_text_but_refuses_approval` |
+| ME-10 header-only claim table | `bc42b9a` | `claim_cell` returns "the table has no data rows"; `test_empty_or_ambiguous_claim_tables_are_gaps` |
+| ME-11 gate_diff context | `1381fa4` | `gate_diff.py --self-check` 168/168 on unchanged HEAD |
+| D-01 capacity note write | not fixed | draft feature, deferred with its registrations |
+
+### Remaining release blockers
+
+1. A06: real quota acquisition, native compaction and positive worker lifecycle, Claude terminal rendering.
+2. A08: real model journeys across the 11 skills and human assessment of confirmations, handoffs, hardening and promotion.
+3. A09: reviewer identities, access and cost bounds; approval of the concrete packet; five scheduler tasks.
+4. A10/A11: remote CI and Pages on the final commit, a fresh marketplace installation, and the installed plugin cache (0.9.61 on the author's machine) updated.
+
+None of these is closed by a local pass, and software checks do not establish scientific correctness.
