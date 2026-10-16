@@ -6,6 +6,13 @@ You can use Extra in an ordinary repository. Add
 [Mycelium](https://github.com/arjunrajlaboratory/mycelium) when you want its
 project memory, analysis conventions, code review, and reports.
 
+**Tested with Mycelium 0.6.0 and 0.7.2.** Extra's hook and file checks (for example, that a
+script piped through stdin is not counted as a post-action run, and that `Status` in
+`decisions.md` is read as body text) were checked against those versions. `/mycelium-extra:init`
+reads the version that `.mycelium/plugin-root` points at and prints one line when it is another
+version, or cannot be read. It never writes Mycelium's files, and says nothing in a repository
+without Mycelium.
+
 ## Who does what
 
 | Task | Use |

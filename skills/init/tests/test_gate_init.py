@@ -33,6 +33,39 @@ class GateInitTest(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.root)
 
+    def mycelium(self, version):
+        """A Mycelium plugin root of `version` (None: no manifest) that the repository's `.mycelium/plugin-root` names."""
+        plugin = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, plugin)
+        if version:
+            os.mkdir(os.path.join(plugin, ".claude-plugin"))
+            with open(os.path.join(plugin, ".claude-plugin", "plugin.json"), "w") as handle:
+                json.dump({"name": "mycelium", "version": version}, handle)
+        os.mkdir(os.path.join(self.root, ".mycelium"))
+        with open(os.path.join(self.root, ".mycelium", "plugin-root"), "w") as handle:
+            handle.write(plugin + "\n")
+
+    def test_tested_mycelium_versions_add_no_notice(self):
+        for version in ("0.6.0", "0.7.2"):
+            shutil.rmtree(os.path.join(self.root, ".mycelium"), ignore_errors=True)
+            self.mycelium(version)
+            self.assertNotIn("Mycelium", run(self.root, "--dry-run"), version)
+
+    def test_untested_mycelium_version_is_named_once_with_the_tested_ones(self):
+        self.mycelium("0.8.1")
+        out = run(self.root)
+        self.assertEqual(out.count("note: Mycelium 0.8.1 is installed here; mycelium-extra was tested with "
+                                   "0.6.0, 0.7.2."), 1, out)
+        self.assertIn("note: Mycelium 0.8.1", run(self.root), "also when the gate is already on")
+
+    def test_no_mycelium_says_nothing(self):
+        self.assertNotIn("Mycelium", run(self.root))
+
+    def test_unreadable_mycelium_version_is_said_not_assumed_fine(self):
+        self.mycelium(None)
+        self.assertIn("could not read Mycelium's version", run(self.root))
+        self.assertFalse(os.path.exists(os.path.join(self.root, ".mycelium", "anything-else")))
+
     def test_defaults_write_empty_config_and_ignore_line(self):
         os.mkdir(os.path.join(self.root, "analysis"))
         out = run(self.root)

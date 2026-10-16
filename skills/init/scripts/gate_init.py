@@ -20,6 +20,7 @@ import sys
 import tempfile
 
 STATE_DIR = ".mycelium-extra"
+TESTED_MYCELIUM = ("0.6.0", "0.7.2")  # the versions whose hooks and files the docs were checked against
 IGNORE_LINE = STATE_DIR + "/"
 DEFAULTS = {
     "gated_paths": ["analysis/**", "nbs/**"],
@@ -157,6 +158,32 @@ def record_tools(root, flags, dry_run):
         print("wrote {}: {}".format(path, json.dumps(tools, sort_keys=True)))
 
 
+def mycelium_notice(root):
+    """One plain-text line when the Mycelium this repository points at (`.mycelium/plugin-root`, which Mycelium
+    writes) is not a version mycelium-extra was tested with; nothing when there is no Mycelium here. Reads
+    only; never writes Mycelium's files. An unreadable version is said, not assumed fine."""
+    pointer = os.path.join(root, ".mycelium", "plugin-root")
+    try:
+        with open(pointer, encoding="utf-8") as handle:
+            plugin = handle.read().strip()
+    except OSError:
+        return None
+    tested = ", ".join(TESTED_MYCELIUM)
+    for manifest in (".claude-plugin", ".codex-plugin"):
+        try:
+            with open(os.path.join(plugin, manifest, "plugin.json"), encoding="utf-8") as handle:
+                version = json.load(handle).get("version")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if isinstance(version, str) and version:
+            if version in TESTED_MYCELIUM:
+                return None
+            return ("note: Mycelium {} is installed here; mycelium-extra was tested with {}. Its hook and file "
+                    "behaviour is unchecked on this version.".format(version, tested))
+    return ("note: could not read Mycelium's version from {} (listed by {}); mycelium-extra was tested with {}."
+            .format(plugin or "an empty path", os.path.join(".mycelium", "plugin-root"), tested))
+
+
 def main(argv):
     parser = argparse.ArgumentParser(prog="gate_init")
     parser.add_argument("--root", default=None, help="repository to gate (default: git toplevel of cwd)")
@@ -186,6 +213,9 @@ def main(argv):
             os.path.join(existing, STATE_DIR)))
         if args.tools:
             record_tools(existing, (args.scilintr, args.rscript), args.dry_run)
+        notice = mycelium_notice(existing)
+        if notice:
+            print(notice)
         return 0
 
     config = {}
@@ -223,6 +253,9 @@ def main(argv):
         print("note: not present yet: " + ", ".join(missing))
     if args.tools:
         record_tools(root, (args.scilintr, args.rscript), args.dry_run)
+    notice = mycelium_notice(root)
+    if notice:
+        print(notice)
     return 0
 
 

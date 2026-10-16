@@ -39,6 +39,7 @@ Pass only the options that differ from the defaults; with none, `gate.json` is `
 
 ## 4. Report
 
+- Any `note: Mycelium <version> is installed here...` line, passed on as printed: the Mycelium here is not one mycelium-extra was tested with. Do not act on it.
 - The files it created or changed (`.mycelium-extra/gate.json`, `.gitignore`, and `tools.json` when `--tools` ran) and the effective config, and which linters were found.
 - The gate is live on the next tool call in any Claude Code or Codex session that loaded and enabled this plugin's hooks at start; a session started before the plugin was installed needs a restart.
 - How to use it: a grill plan that ends with `Plan status: READY` shows `approve plan <hash>`; typing that line allows the runs it names for `approval_hours`. `allow explore` lets `MYCELIUM_EXTRA_EXPLORE=1` runs through for the session.
