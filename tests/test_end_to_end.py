@@ -93,7 +93,7 @@ class BaselineChain(unittest.TestCase):
         # 6. verify report
         code, report, err = p.verify("report", digest)
         self.check(code == 0, p, "step 6: verify report exited {}: {}".format(code, err))
-        self.check(harness.status_line(report) == "Verify status: CONFORMS", p, "step 6: report:\n" + report)
+        self.check(harness.status_line(report) == "Verify status: CONFORMS_WITH_GAPS", p, "step 6: report:\n" + report)
         claims = harness.expected("claims.json")
         self.check("- `{}`: {} verified (0 via transform), 0 mismatch, 0 unverified, 0 explore-only; {} other "
                    "number(s) not claimed".format(claims["doc"], len(claims["verified"]), len(claims["not_claims"]))
@@ -108,15 +108,20 @@ class BaselineChain(unittest.TestCase):
                        "step 6: script row for {}: {}".format(script, row))
         for rel, result in zip(OUTPUTS, results):
             row = [line for line in report.splitlines() if line.startswith("| `{}` |".format(rel))]
-            self.check(len(row) == 1 and "`{}` at".format(result.command) in row[0], p,
-                       "step 6: output {} not tied to its run: {}".format(rel, row))
+            if rel == OUTPUTS[-1]:
+                self.check(len(row) == 1 and "`{}` at".format(result.command) in row[0], p,
+                           "step 6: final output not tied to its run: {}".format(row))
+            else:
+                self.check(len(row) == 1 and "no recorded run" in row[0] and
+                           "Output `{}` has competing timestamp-compatible writers".format(rel) in report,
+                           p, "step 6: ambiguous attribution was not disclosed: {}".format(row))
         self.check("1 inline command(s)" in report, p, "step 6: no inline-command info:\n" + report)
         self.check("analysis folder `{}`".format(A) in report, p, "step 6: analysis folder:\n" + report)
 
         # 7. verify write, then commit the provenance (and F-001's ledger cell)
         p.fill_ledger(digest)
         code, out, err = p.verify("write", digest, "--analysis-dir", A)
-        self.check(code == 0 and harness.status_line(out) == "Verify status: CONFORMS", p,
+        self.check(code == 0 and harness.status_line(out) == "Verify status: CONFORMS_WITH_GAPS", p,
                    "step 7: verify write exited {}:\n{}{}".format(code, out, err))
         for name in ("PROVENANCE.md", "plan-{}.md".format(digest), "receipts-{}.jsonl".format(digest),
                      "outputs-{}.tsv".format(digest)):
@@ -127,7 +132,7 @@ class BaselineChain(unittest.TestCase):
         # 8. verify status: one row
         code, out, err = p.verify("status", "--json")
         rows = json.loads(out) if code == 0 else []
-        self.check(len(rows) == 1 and rows[0]["verified"] == "CONFORMS" and rows[0]["manifest"] == "listed: active"
+        self.check(len(rows) == 1 and rows[0]["verified"] == "CONFORMS_WITH_GAPS (complete)" and rows[0]["manifest"] == "listed: active"
                    and rows[0]["lint"] == "clean" and rows[0]["hash"] == digest, p, "step 8: status: " + out + err)
 
         # 9. verify stale

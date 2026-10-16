@@ -217,6 +217,38 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("analysis folder `analysis/a`", out)
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
 
+    def test_competing_timestamp_writers_are_a_gap(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        first = self.run_cmd("python " + FIT)
+        self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=first["ts"])
+        out = self.verify("report", digest)
+        self.assertIn("competing timestamp-compatible writers", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+
+    def test_metadata_only_input_fingerprints_never_prove_content(self):
+        self.write("data/huge.tsv", "value\n")
+        digest = self.approve(plan("run `{}`".format(FIT), inputs="data/huge.tsv"))
+        path = gate.state_path(self.root, "approvals", digest + ".json")
+        with open(path) as handle:
+            record = json.load(handle)
+        record["pins"]["data/huge.tsv"].pop("sha256", None)
+        with open(path, "w") as handle:
+            json.dump(record, handle)
+        self.run_cmd("python " + FIT)
+        out = self.verify("report", digest)
+        self.assertIn("metadata-only fingerprint", out)
+
+    def test_interrupted_first_save_is_visible_to_status_and_stale(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        folder = os.path.join(self.root, "analysis", "a", "provenance")
+        os.makedirs(os.path.join(folder, ".transactions"))
+        self.write("analysis/a/provenance/.transactions/pending.json", json.dumps({
+            "transaction": "txn-interrupted", "members": {"receipts-" + digest + ".jsonl": {}}}))
+        self.assertIn("interrupted", self.verify("status"))
+        self.assertIn("interrupted", self.verify("stale"))
+        self.assertIn("Saved provenance bundle is interrupted", self.verify("report", digest))
+
     def test_unknown_exit_status_is_a_gap(self):
         # Claude Code's Bash result may carry no exit status; the run is then not a success.
         digest = self.approve(plan("run `{}`".format(FIT)))
@@ -238,7 +270,43 @@ class VerifyTest(unittest.TestCase):
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
         self.run_cmd("python " + FIT)  # a later run that reports exit 0 conforms
         self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=time.time())
-        self.assertTrue(self.verify("report", digest).rstrip().endswith("Verify status: CONFORMS"))
+        repeated = self.verify("report", digest)
+        self.assertIn("competing timestamp-compatible writers", repeated)
+        self.assertTrue(repeated.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"))
+
+    def test_compound_command_exit_does_not_prove_each_step_ran(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("python " + FIT)
+        receipt.update(exit_status="unknown", exit_source=None, command_exit_status=0,
+                       command_exit_source="response")
+        path = gate.state_path(self.root, "receipts.jsonl")
+        for status, expected in [(0, "CONFORMS_WITH_GAPS"), (1, "DOES_NOT_CONFORM"),
+                                 ("failed", "DOES_NOT_CONFORM"), ("interrupted", "DOES_NOT_CONFORM")]:
+            with self.subTest(command_exit_status=status):
+                receipt["command_exit_status"] = status
+                with open(path, "w") as handle:
+                    handle.write(json.dumps(receipt) + "\n")
+                out = self.verify("report", digest)
+                self.assertIn("execution not attributable (compound command)", out)
+                self.assertTrue(out.rstrip().endswith("Verify status: " + expected), out)
+                if status != 0:
+                    self.assertIn("**block**: Compound command", out)
+
+    def test_damaged_receipts_are_reported_as_gaps(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("python " + FIT)
+        damaged = ['{"truncated":', 'null', '[]', '42', '{}',
+                   json.dumps(dict(receipt, ts="yesterday")),
+                   json.dumps(dict(receipt, ts=1e300)),
+                   json.dumps(dict(receipt, command=3)),
+                   json.dumps(dict(receipt, paths="not a list"))]
+        with open(gate.state_path(self.root, "receipts.jsonl"), "a") as handle:
+            handle.write("\n".join(damaged) + "\n")
+        out = self.verify("report", digest)
+        self.assertIn("9 malformed receipt record(s)", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+        for action in [("list",), ("status",), ("explore", "--all"), ("multiplicity", digest)]:
+            self.verify(*action)
 
     def test_exit_status_from_the_hook_event(self):
         # PostToolUse fires only after success: an event-inferred 0 conforms.
@@ -613,6 +681,24 @@ class VerifyTest(unittest.TestCase):
         self.run_cmd('sbatch -J b --wrap "python $F"', stdout="Submitted batch job 4243")  # one shared output
         out = self.verify("report", digest, sacct=self.fake_sacct(line.format("COMPLETED", FIT)))
         self.assertIn("job 4243 (state not attributable)", out)
+
+    def test_invalid_external_timestamps_do_not_crash_verification(self):
+        verify = gate.load_verify()
+        for stamp in ["2026-02-30T10:00:00Z", "2026-10-16T99:00:00Z", 42]:
+            with self.subTest(stamp=stamp):
+                self.assertIsNone(verify.parse_iso(stamp))
+        sacct = self.fake_sacct("4242|COMPLETED|0:0|2026-09-30T10:00:00|2026-02-30T10:05:00")
+        self.assertIsNone(verify.sacct_state(sacct, 4242, time.time())["end"])
+
+    def test_malformed_snakemake_metadata_does_not_prove_a_run(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        name = base64.urlsafe_b64encode(b"outputs/table.tsv").decode("ascii")
+        for data in [[], {"starttime": "yesterday"}, {"endtime": "NaN"}, {"shellcmd": ["python", FIT]}]:
+            with self.subTest(metadata=data):
+                self.write("analysis/a/.snakemake/metadata/" + name, json.dumps(data))
+                out = self.verify("report", digest)
+                self.assertIn("no run under this plan was recorded", out)
+                self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
 
     def test_lineage_shows_computation_the_gate_did_not_see(self):
         digest = self.approve(plan("run `{}`".format(FIT)))
@@ -1157,6 +1243,23 @@ sys.exit(1 if hits else 0)
         self.assertIn("no session ID found, so every session is shown", self.verify("explore"))
         self.assertEqual(len(json.loads(self.verify("explore", "--session", "s2", "--json"))), 1)
 
+    def test_status_and_list_mark_an_approval_that_reached_its_run_limit(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        self.run_cmd("python " + FIT)
+        self.run_cmd("python " + FIT)
+        self.assertNotIn("limit", self.verify("status"))
+        self.write(".mycelium-extra/gate.json", json.dumps({"max_runs_per_approval": 2}))
+        row = {r["hash"]: r for r in json.loads(self.verify("status", "--json"))}[digest]
+        self.assertEqual(row["runs"], 2)
+        self.assertEqual(row["expired"], "limit 2 reached (2 since approval)")
+        self.assertIn("| 2 (limit 2 reached (2 since approval)) |", self.verify("status"))
+        self.assertIn("| 2 (limit 2 reached (2 since approval)) |", self.verify("list"))
+        for ignored in ("2", 0, True):  # the gate ignores these too
+            self.write(".mycelium-extra/gate.json", json.dumps({"max_runs_per_approval": ignored}))
+            self.assertNotIn("limit", self.verify("status"))
+        self.write(".mycelium-extra/gate.json", json.dumps({"max_runs_per_approval": 3}))
+        self.assertNotIn("expired", json.loads(self.verify("status", "--json"))[0])
+
     def test_status_lists_plans_with_verify_lint_stale_and_manifest(self):
         self.assertIn("No plans", self.verify("status"))
         verified = self.approve(plan("run `{}`".format(FIT)))
@@ -1168,7 +1271,7 @@ sys.exit(1 if hits else 0)
         pending = self.approve(plan("run `analysis/b/scripts/01_x.py`"))
         out = self.verify("status")
         self.assertIn("| {} | `analysis/a` |".format(verified), out)
-        self.assertIn("| 1 | DOES_NOT_CONFORM | no | 1 finding(s) | not listed |", out)
+        self.assertIn("| 1 | DOES_NOT_CONFORM (complete) | no | 1 finding(s) | not listed |", out)
         self.assertIn("| {} | `analysis/b` |".format(pending), out)
         self.assertIn("| 0 | not verified | - | - | not listed |", out)
         shapes = {  # Mycelium's YAML template and the shapes real manifests use
@@ -1278,6 +1381,34 @@ sys.exit(1 if hits else 0)
         self.assertIn("`analysis/a/A.md:8` claims >0.05", out)
         self.assertIn("Verify status: DOES_NOT_CONFORM", out)
 
+    def test_empty_or_ambiguous_claim_tables_are_gaps(self):
+        digest, receipt = self.claims_run("- 1 | outputs/de.tsv value")
+        for text, reason in [("gene\tvalue\n", "the table has no data rows"),
+                             ("gene\tvalue\tvalue\nIL7R\t1\t2\n", "2 columns are named `value`")]:
+            with self.subTest(table=text):
+                self.write("analysis/a/outputs/de.tsv", text, mtime=receipt["ts"] - 1)
+                result = json.loads(self.verify("report", digest, "--json"))
+                self.assertEqual(result["status"], "CONFORMS_WITH_GAPS")
+                claim = result["claims"][0]["claims"][0]
+                self.assertEqual(claim["verdict"], "unverified")
+                self.assertIn(reason, claim["reason"])
+
+    def test_extreme_decimal_claim_does_not_crash_or_hide_mismatch(self):
+        digest, _ = self.claims_run("- 1e999999999999999999 | outputs/de.tsv log2fc IL7R\n"
+                                   "- 2 | outputs/de.tsv log2fc IL7R")
+        result = json.loads(self.verify("report", digest, "--json"))
+        self.assertEqual(result["status"], "DOES_NOT_CONFORM")
+        self.assertEqual(result["claims"][0]["counts"], {"mismatch": 2})
+
+    def test_unrepresentable_claim_and_percentage_overflow_are_gaps(self):
+        digest, receipt = self.claims_run("- 1e999999999999999999999 | outputs/de.tsv value\n"
+                                         "- < 1% | outputs/de.tsv value")
+        self.write("analysis/a/outputs/de.tsv", "gene\tvalue\nIL7R\t1e999999\n",
+                   mtime=receipt["ts"] - 1)
+        result = json.loads(self.verify("report", digest, "--json"))
+        self.assertEqual(result["status"], "CONFORMS_WITH_GAPS")
+        self.assertEqual(result["claims"][0]["counts"], {"unverified": 2})
+
     def test_fact_tags_counted_and_flagged_in_plan_and_key_findings(self):
         evidence = "\n".join([
             "", "**Evidence**", "- 48 donors [agent-derived: `data/meta.tsv:1`]",
@@ -1350,6 +1481,25 @@ sys.exit(1 if hits else 0)
     def test_gate_must_be_on(self):
         os.remove(os.path.join(self.root, ".mycelium-extra", "gate.json"))
         self.assertIn("not on", self.verify("list", fails=True))
+
+    def test_malformed_approval_records_fail_cleanly_across_actions(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        path = gate.state_path(self.root, "approvals", digest + ".json")
+        with open(path) as handle:
+            record = json.load(handle)
+        for invalid in [[], True, 42, dict(record, approved_at=float("nan")),
+                        dict(record, plan=[]), dict(record, pins=[])]:
+            with self.subTest(approval=invalid):
+                with open(path, "w") as handle:
+                    json.dump(invalid, handle)
+                for action in [("list",), ("status",), ("report", digest),
+                               ("write", digest, "--analysis-dir", "analysis/a"),
+                               ("diff", digest, digest), ("multiplicity", digest)]:
+                    error = self.verify(*action, fails=True)
+                    self.assertIn("invalid approval state", error)
+                    self.assertNotIn("Traceback", error)
+                self.verify("explore", "--all")
+                self.verify("stale")
 
 
 if __name__ == "__main__":

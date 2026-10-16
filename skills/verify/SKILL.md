@@ -47,6 +47,8 @@ The report ends with `Verify status:` and one of these values:
 
 A plan re-approved under the same hash keeps its earlier runs; the report says so.
 
+A compound shell command's overall exit status cannot establish that each named step executed. Such receipts keep the overall status separately: an overall failure blocks, while each step's unknown execution is a gap. Malformed receipt or Snakemake records are skipped and reported as gaps, so damaged history cannot establish conformity. Header-only tables and duplicate column labels leave claims unverified; claims or percentage transforms outside the supported numeric range also leave explicit gaps.
+
 ## 3. Report to the user
 
 - Give the status, the planned-scripts table, and each `block` and `gap` finding with what it means for the results. Keep the `info` lines short.

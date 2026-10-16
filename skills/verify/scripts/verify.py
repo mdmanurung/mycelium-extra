@@ -27,6 +27,7 @@ import decimal
 import glob
 import io
 import json
+import math
 import os
 import pickletools
 import re
@@ -72,37 +73,58 @@ def load_gate(plugin_root):
     PLUGIN_ROOT = os.path.abspath(plugin_root)
     path = os.path.join(PLUGIN_ROOT, "hooks", "gate.py")
     if not os.path.isfile(path):
-        sys.exit("verify: {} not found. verify reads the mycelium-extra approval gate's receipts "
-                 "(Claude Code only); pass --plugin-root <the plugin folder>.".format(path))
+        sys.exit("verify: {} not found. verify reads the mycelium-extra approval gate's receipts"
+                 "; pass --plugin-root <the plugin folder>.".format(path))
     sys.path.insert(0, os.path.dirname(path))
     sys.dont_write_bytecode = True  # leave no __pycache__ in the plugin folder
     import gate as module
     gate = module
 
 
-def read_jsonl(path):
+def read_jsonl(path, invalid=None):
     records = []
     if os.path.isfile(path):
         with open(path, encoding="utf-8") as handle:
-            for line in handle:
+            for line_no, line in enumerate(handle, 1):
                 try:
-                    records.append(json.loads(line))
-                except ValueError:
-                    continue
+                    record = json.loads(line)
+                    if not isinstance(record, dict) or not isinstance(record.get("ts"), (int, float)) \
+                            or isinstance(record["ts"], bool) or not math.isfinite(record["ts"]) \
+                            or not isinstance(record.get("command", ""), str):
+                        raise ValueError("invalid receipt")
+                    datetime.datetime.fromtimestamp(record["ts"])
+                    for key in ("paths", "plans", "env_lines"):
+                        if key in record and (not isinstance(record[key], list)
+                                              or any(not isinstance(v, str) for v in record[key])):
+                            raise ValueError("invalid receipt list")
+                    for key in ("script", "engine", "pins", "command_env", "hook_env"):
+                        if record.get(key) is not None and not isinstance(record[key], dict):
+                            raise ValueError("invalid receipt mapping")
+                    records.append(record)
+                except (ValueError, OverflowError, OSError):
+                    if invalid is not None:
+                        invalid.append(line_no)
     return records
 
 
 def parse_iso(text):
     """Epoch seconds for 2026-09-30T08:39:36Z, +0200, +02:00, or naive (UTC)."""
+    if not isinstance(text, str):
+        return None
     m = re.match(r"^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})?$",
                  (text or "").strip())
     if not m:
         return None
     import calendar
-    seconds = calendar.timegm(time.strptime(m.group(1) + " " + m.group(2), "%Y-%m-%d %H:%M:%S"))
+    try:
+        seconds = calendar.timegm(time.strptime(m.group(1) + " " + m.group(2), "%Y-%m-%d %H:%M:%S"))
+    except ValueError:
+        return None
     zone = m.group(3)
     if zone and zone != "Z":
         digits = zone[1:].replace(":", "")
+        if int(digits[:2]) > 23 or int(digits[2:]) > 59:
+            return None
         offset = int(digits[:2]) * 3600 + int(digits[2:]) * 60
         seconds -= offset if zone[0] == "+" else -offset
     return seconds
@@ -110,6 +132,15 @@ def parse_iso(text):
 
 def when(ts):
     return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts)) if ts else "?"
+
+
+def read_approval(path):
+    if not os.path.isfile(path):
+        return None
+    try:
+        return gate.read_approval(path)
+    except gate.InvalidApproval as error:
+        sys.exit("verify: " + str(error))
 
 
 def rel_or_abs(root, path):
@@ -148,7 +179,10 @@ def sacct_state(sacct, job_id, since):
         if len(parts) >= 5 and re.split(r"[._]", parts[0])[0] == str(job_id):  # `N_2`: an array task
             state = parts[1].split()[0] if parts[1] else "UNKNOWN"
             end = parts[4] if re.match(r"^\d{4}-", parts[4]) else None
-            end = time.mktime(time.strptime(end, "%Y-%m-%dT%H:%M:%S")) if end else None
+            try:
+                end = time.mktime(time.strptime(end, "%Y-%m-%dT%H:%M:%S")) if end else None
+            except (ValueError, OverflowError, OSError):
+                end = None
             if found is None:
                 found = {"state": state, "exit": parts[2], "end": end,
                          "workdir": parts[5] if len(parts) > 6 else None,
@@ -200,7 +234,7 @@ def code_text(code):
     return "\n".join([code] + pickle_strings(blob)) if blob[:1] == b"\x80" else code
 
 
-def snakemake_records(folders, since):
+def snakemake_records(folders, since, invalid=None):
     """Snakemake's per-output records (rule, start, end, command) written since `since`."""
     records = []
     for meta in folders:
@@ -213,7 +247,15 @@ def snakemake_records(folders, since):
                         continue
                     with open(full, encoding="utf-8") as handle:
                         data = json.load(handle)
-                except (OSError, ValueError):
+                    if not isinstance(data, dict):
+                        raise ValueError("invalid metadata")
+                    start, end = float(data.get("starttime") or 0), float(data.get("endtime") or 0)
+                    if not math.isfinite(start) or not math.isfinite(end) \
+                            or not isinstance(data.get("shellcmd") or "", str):
+                        raise ValueError("invalid metadata fields")
+                except (OSError, ValueError, TypeError, OverflowError):
+                    if invalid is not None:
+                        invalid.append(full)
                     continue
                 path = decode_name(os.path.relpath(full, meta).replace(os.sep, ""))
                 if path is None:
@@ -221,8 +263,8 @@ def snakemake_records(folders, since):
                 records.append({
                     "path": os.path.normpath(path if os.path.isabs(path) else os.path.join(workdir, path)),
                     "rule": data.get("rule"),
-                    "start": float(data.get("starttime") or 0),
-                    "end": float(data.get("endtime") or 0),
+                    "start": start,
+                    "end": end,
                     "incomplete": data.get("incomplete") in (True, "True", "true"),
                     # Not `input`: an input is read, not run. A `{input.script}` step is in the expanded
                     # shellcmd; a `script:`/`notebook:` path is in `code`.
@@ -675,6 +717,14 @@ def is_run(root, receipt, commands):
     return receipt.get("kind") in commands or bool(ran_paths(root, receipt))
 
 
+def approval_runs(root, config, digest, approved_at, receipts):
+    """The real, non-explore runs recorded under an approval since it was approved, oldest first. A
+    re-approval restarts the count, since it rewrites `approved_at`. The gate's `max_runs_per_approval`
+    counts with this, so it and `verify` agree."""
+    return [r for r in receipts if digest in r.get("plans", []) and not r.get("explore")
+            and r.get("ts", 0) >= approved_at and is_run(root, r, config["gated_commands"])]
+
+
 def is_wrapper(receipt):
     """A run that starts other steps: a shell script, Snakemake, Nextflow, or a Slurm job."""
     return receipt.get("kind") in ("bash", "sh", "zsh", "snakemake", "nextflow", "sbatch") or any(
@@ -684,7 +734,11 @@ def is_wrapper(receipt):
 def wrapper_receipt(receipts, record):
     """The first recorded wrapper run that ended after a Snakemake job finished: the run it was in."""
     later = [r for r in receipts if r.get("ts", 0) >= record["end"] - TOLERANCE and is_wrapper(r)]
-    return min(later, key=lambda r: r["ts"]) if later else None
+    if not later:
+        return None
+    earliest = min(r["ts"] for r in later)
+    possible = [r for r in later if r["ts"] <= earliest + 2 * TOLERANCE]
+    return possible[0] if len(possible) == 1 else None
 
 
 def describe_run(receipt, digest):
@@ -953,8 +1007,8 @@ def agrees(claim, qualifier, cell_value):
     if qualifier in ("<", ">", "<=", ">="):
         return {"<": cell_value < claim, ">": cell_value > claim, "<=": cell_value <= claim,
                 ">=": cell_value >= claim}[qualifier]
-    step = decimal.Decimal(1).scaleb(claim.as_tuple().exponent)
     try:
+        step = decimal.Decimal(1).scaleb(claim.as_tuple().exponent)
         return any(cell_value.quantize(step, rounding=r) == claim
                    for r in (decimal.ROUND_HALF_UP, decimal.ROUND_HALF_EVEN, decimal.ROUND_DOWN))
     except decimal.InvalidOperation:
@@ -986,10 +1040,14 @@ def claim_cell(path, column, row, max_bytes):
         return str(len(rows) - 1), None
     if column not in rows[0]:
         return None, "no column `{}`".format(column)
+    if rows[0].count(column) > 1:
+        return None, "{} columns are named `{}`; the cell is ambiguous".format(rows[0].count(column), column)
     index = rows[0].index(column)
     hits = [r for r in rows[1:] if r[0] == row] if row else rows[1:]
     if row and not hits:
         return None, "no row `{}`".format(row)
+    if not hits:
+        return None, "the table has no data rows"
     if len(hits) > 1:
         return None, "{} rows {}; name one by its first-column label".format(
             len(hits), "are labelled `{}`".format(row) if row else "match")
@@ -1040,7 +1098,9 @@ def check_claims(root, analysis_dir, outputs, extra, report, max_bytes):
                          "observed": None}
                 claims.append(entry)
                 coordinate = "`{}` {}{}".format(path, words[1], " row " + entry["row"] if entry["row"] else "")
-                if path not in by_path:
+                if claim is None:
+                    entry.update(verdict="unverified", reason="the claim is outside the supported numeric range")
+                elif path not in by_path:
                     why = "it does not exist" if not os.path.exists(os.path.join(root, path)) \
                         else "it is not an output this plan's runs wrote"
                     entry.update(verdict="unverified", reason="cites `{}`, but {}".format(path, why))
@@ -1054,10 +1114,15 @@ def check_claims(root, analysis_dir, outputs, extra, report, max_bytes):
                         entry.update(verdict="unverified", reason=why)
                     elif agrees(claim, qualifier, observed):
                         entry["verdict"] = "verified"
-                    elif percent and agrees(claim, qualifier, observed * 100):
-                        entry["verdict"] = "verified-transform"
                     else:
                         entry["verdict"] = "mismatch"
+                        if percent:
+                            try:
+                                if agrees(claim, qualifier, observed * 100):
+                                    entry["verdict"] = "verified-transform"
+                            except decimal.DecimalException:
+                                entry.update(verdict="unverified", reason="the percentage transform is outside "
+                                             "the supported numeric range")
                     if entry["verdict"].startswith("verified") and by_path[path].get("explore"):
                         entry["verdict"] = "explore-only"
                 if entry["verdict"] == "mismatch":
@@ -1133,7 +1198,7 @@ def edit_evidence(root, path, budget, receipts):
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
           rscript="Rscript", claims=()):
     config = gate.load_config(root)
-    approval = gate.read_json(gate.state_path(root, "approvals", digest + ".json"), None)
+    approval = read_approval(gate.state_path(root, "approvals", digest + ".json"))
     if approval is None:
         sys.exit("verify: no approved plan {}. Run `list` to see approved plans.".format(digest))
     plan, approved_at = approval.get("plan", ""), approval.get("approved_at", 0)
@@ -1145,8 +1210,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     analysis_dir = rel_or_abs(root, analysis_dir) if analysis_dir else guess_analysis_dir(planned)
     budget = {"bytes": float(hash_mb) * 1024 * 1024, "deadline": time.time() + seconds}
 
-    receipts, handed = [], []
-    for r in read_jsonl(gate.state_path(root, "receipts.jsonl")):
+    receipts, handed, invalid_receipts = [], [], []
+    for r in read_jsonl(gate.state_path(root, "receipts.jsonl"), invalid_receipts):
         if is_run(root, r, config["gated_commands"]):
             receipts.append(r)
         elif not LOOKUP.match(r.get("command", "")):
@@ -1174,9 +1239,34 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         record = (r.get("engine") or {}).get("record")
         if record:
             meta.add(os.path.normpath(os.path.join(root, r.get("cwd") or ".", record)))
-    smk = snakemake_records(sorted(m for m in meta if os.path.isdir(m)), start)
+    invalid_metadata = []
+    smk = snakemake_records(sorted(m for m in meta if os.path.isdir(m)), start, invalid_metadata)
 
     report = Report()
+    if analysis_dir:
+        import provenance
+        folder = os.path.join(root, analysis_dir, "provenance")
+        if os.path.isdir(folder):
+            with provenance.locked(os.path.join(folder, ".publish.lock")):
+                saved_state = provenance.bundle_state(folder, digest)
+            if saved_state != "complete":
+                report.add("gap", "Saved provenance bundle is {}; no checksummed completion established.".format(saved_state))
+    if invalid_receipts:
+        report.add("gap", "{} malformed receipt record(s) were skipped (lines {}); the run history "
+                   "is incomplete.".format(len(invalid_receipts), ", ".join(map(str, invalid_receipts[:12]))))
+    if invalid_metadata:
+        report.add("gap", "{} unreadable or malformed Snakemake record(s) were skipped; workflow "
+                   "evidence is incomplete.".format(len(invalid_metadata)))
+    failed_commands = set()
+    for receipt in mine:
+        code = receipt.get("command_exit_status")
+        key = (receipt.get("ts"), receipt.get("command"))
+        if ((isinstance(code, int) and code != 0) or code in ("failed", "interrupted")) \
+                and key not in failed_commands:
+            report.add("block", "Compound command containing `{}` failed or was interrupted "
+                       "(command exit {}) at {}; individual step outcomes are unknown.".format(
+                           receipt.get("command", ""), code, when(receipt.get("ts"))))
+            failed_commands.add(key)
     scripts, shown = [], set()  # shown: the Slurm jobs a planned script's row reports
     for path in planned:
         row = {"path": path, "status": "no receipt", "last_run": None, "notes": []}
@@ -1219,6 +1309,10 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                         path, last["job_id"], state or "of unknown state", last["job_id"]))
             elif code == 0:
                 row["status"] = "ran (exit 0 from hook event)" if last.get("exit_source") == "event" else "ran"
+            elif "command_exit_status" in last:
+                row["status"] = "execution not attributable (compound command)"
+                report.add("gap", "`{}` was named in a compound command at {}, but its execution and "
+                                  "exit status cannot be attributed to this step.".format(path, when(last["ts"])))
             elif last.get("background"):
                 row["status"] = "started in the background (exit status unknown)"
                 report.add("gap", "`{}` was started in the background at {}, so its exit status is not "
@@ -1241,6 +1335,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                     report.add("block", "`{}` was edited after its run at {}, so its outputs may not "
                                         "match the code.{}".format(path, when(last["ts"]),
                                                                    " " + covered if covered else ""))
+                if not recorded.get("sha256") or not now.get("sha256"):
+                    report.add("gap", "Script `{}` has a metadata-only fingerprint; its executed content is unverified.".format(path))
                 if recorded.get("git") in ("modified", "untracked"):
                     row["notes"].append("{} when it ran".format(recorded["git"]))
                     report.add("gap", "`{}` was {} when it ran, so no commit holds the code that ran."
@@ -1346,6 +1442,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                 rel, gate.describe(pin), gate.describe(now)))
         elif now.get("skipped"):
             report.add("gap", "Input `{}` could not be re-checked (time limit).".format(rel))
+        elif not pin.get("sha256") or not now.get("sha256"):
+            report.add("gap", "Input `{}` has a metadata-only fingerprint; unchanged content is unverified.".format(rel))
 
     outputs = []
     attributed = {}  # (producing run, folder) -> (run, [(output, written)]): one finding per group
@@ -1388,8 +1486,15 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                     later = [r for r in since if r.get("ts", 0) >= mtime - TOLERANCE and not r.get("job_id")]
                     batch = [r for r in since if r.get("job_id") and r["ts"] <= mtime + TOLERANCE
                              and ((jobs.get(r["job_id"]) or {}).get("end") or time.time()) >= mtime - TOLERANCE]
-                    owner = min(later, key=lambda r: r["ts"]) if later else (batch[-1] if batch else None)
+                    earliest = min((r["ts"] for r in later), default=None)
+                    possible = ([r for r in later if r["ts"] <= earliest + 2 * TOLERANCE]
+                                if later else []) + batch
+                    owner = possible[0] if len(possible) == 1 else None
                     via = None
+                    if len(possible) > 1:
+                        report.add("gap", "Output `{}` has competing timestamp-compatible writers; attribution is ambiguous.".format(rel))
+                    elif owner and abs(owner["ts"] - mtime) > TOLERANCE:
+                        report.add("gap", "Output `{}` has only distant timestamp evidence; its producer is unverified.".format(rel))
                 fingerprint = gate.fingerprint(full, budget)
                 outputs.append({"path": rel, "written": mtime, "by": describe_run(owner, digest), "rule": via,
                                 "fingerprint": gate.describe(fingerprint), "record": fingerprint,
@@ -1556,8 +1661,7 @@ def render(result, all_outputs=False):
     return "\n".join(lines) + "\n"
 
 
-def write(root, result):
-    folder = os.path.join(root, result["analysis_dir"], "provenance")
+def _write_bundle(root, result, folder):
     if not os.path.isdir(os.path.join(root, result["analysis_dir"])):
         sys.exit("verify: analysis folder {} does not exist.".format(result["analysis_dir"]))
     os.makedirs(folder, exist_ok=True)
@@ -1590,7 +1694,7 @@ def write(root, result):
                     "# changed after the run: this is the env as it was when verify read it\n"
                     if env["pip_changed_after_run"] else "", "\n".join(env["pip"])))
     with open(os.path.join(folder, paths["plan"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
-        handle.write("# Approved plan {}\n\nApproved {} in Claude Code session {}. Frozen copy of the plan "
+        handle.write("# Approved plan {}\n\nApproved {} in session {}. Frozen copy of the plan "
                      "the mycelium-extra gate approved; do not edit it. Revise the analysis's own plan "
                      "instead.\n\n---\n\n{}\n".format(digest, when(result["approved_at"]),
                                                       result["session_id"], result["plan"].rstrip()))
@@ -1633,8 +1737,16 @@ def write(root, result):
     lines.append(row)
     with open(index, "w", encoding="utf-8", errors="surrogateescape") as handle:
         handle.write("\n".join(lines) + "\n")
-    rel = os.path.relpath(folder, root)
-    return [os.path.join(rel, name) for name in ["PROVENANCE.md"] + list(paths.values())]
+    return ["PROVENANCE.md"] + list(paths.values())
+
+
+def write(root, result):
+    if not os.path.isdir(os.path.join(root, result["analysis_dir"])):
+        sys.exit("verify: analysis folder {} does not exist.".format(result["analysis_dir"]))
+    import provenance
+    folder = os.path.join(root, result["analysis_dir"], "provenance")
+    names = provenance.publish(folder, result["hash"], lambda stage: _write_bundle(root, result, stage))
+    return [os.path.join(os.path.relpath(folder, root), name) for name in names]
 
 
 def approved_plans(root):
@@ -1647,7 +1759,9 @@ def approved_plans(root):
                                for digest in set(r.get("plans", [])))
     rows = []
     for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
-        record = gate.read_json(os.path.join(folder, name), None)
+        if not name.endswith(".json"):
+            continue
+        record = read_approval(os.path.join(folder, name))
         if not record:
             continue
         digest = record.get("hash", name[:8])
@@ -1657,30 +1771,82 @@ def approved_plans(root):
     return rows
 
 
+def limit_marks(root, rows):
+    """{hash: "limit N reached (M since approval)"} for approvals at or over `max_runs_per_approval`, from the
+    receipts and `approved_at`. Empty when the setting is unset or invalid: the gate ignores those too. The
+    approval record is never written; this is derived each time."""
+    config = gate.load_config(root)
+    limit = config.get("max_runs_per_approval")
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        return {}
+    receipts = read_jsonl(gate.state_path(root, "receipts.jsonl"))
+    marks = {}
+    for approved, digest, _, _ in rows:
+        used = len(approval_runs(root, config, digest, approved, receipts))
+        if used >= limit:
+            marks[digest] = "limit {} reached ({} since approval)".format(limit, used)
+    return marks
+
+
 def list_plans(root):
     lines = ["| Plan | Approved | Scripts in table | Runs |", "|---|---|---|---|"]
-    for approved, digest, scripts, count in sorted(approved_plans(root), reverse=True):
-        lines.append("| {} | {} | {} | {} |".format(digest, when(approved), len(scripts), count))
+    plans = approved_plans(root)
+    marks = limit_marks(root, plans)
+    for approved, digest, scripts, count in sorted(plans, reverse=True):
+        lines.append("| {} | {} | {} | {}{} |".format(digest, when(approved), len(scripts), count,
+                                                     " ({})".format(marks[digest]) if digest in marks else ""))
     return "\n".join(lines) + "\n"
 
 
 # ---------------------------------------------------------------- stale sweep
 
 def provenance_receipts(root):
-    """Every provenance/receipts-<hash>.jsonl git tracks or would track; a walk outside git."""
-    listed = gate.git(root, "ls-files", "-co", "--exclude-standard", "--", "*provenance/receipts-*.jsonl")
+    """Include interrupted first saves, using Git's inventory without scanning data trees."""
+    listed = gate.git(root, "ls-files", "-co", "--exclude-standard", "--",
+                      "*provenance/receipts-*.jsonl", "*provenance/complete-*.json",
+                      "*provenance/.transactions/pending.json")
     if listed is not None:
-        return sorted(line for line in listed.splitlines() if line)
-    found = []
-    for folder, dirs, files in os.walk(root):
-        dirs[:] = sorted(d for d in dirs if not d.startswith("."))
-        if os.path.basename(folder) == "provenance":
-            found += [os.path.relpath(os.path.join(folder, f), root) for f in files
-                      if re.match(r"^receipts-[0-9a-f]{8}\.jsonl$", f)]
+        paths = set(line for line in listed.splitlines() if line)
+    else:
+        paths = set()
+        for folder, dirs, files in os.walk(root):
+            dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+            if os.path.basename(folder) == "provenance":
+                paths.update(os.path.relpath(os.path.join(folder, f), root) for f in files)
+                if os.path.isfile(os.path.join(folder, ".transactions", "pending.json")):
+                    paths.add(os.path.relpath(os.path.join(folder, ".transactions", "pending.json"), root))
+    found = set()
+    for rel in paths:
+        name, folder = os.path.basename(rel), os.path.dirname(rel)
+        if re.fullmatch(r"receipts-[0-9a-f]{8}\.jsonl", name):
+            found.add(rel)
+        elif re.fullmatch(r"complete-[0-9a-f]{8}\.json", name):
+            found.add(os.path.join(folder, "receipts-" + name[9:-5] + ".jsonl"))
+        elif name == "pending.json" and os.path.basename(folder) == ".transactions":
+            pending = gate.read_json(os.path.join(root, rel), {})
+            if isinstance(pending, dict) and isinstance(pending.get("members"), dict):
+                found.update(os.path.join(os.path.dirname(folder), f) for f in pending["members"]
+                             if re.fullmatch(r"receipts-[0-9a-f]{8}\.jsonl", f))
     return sorted(found)
 
 
 def stale_plan(root, rel, budget):
+    import provenance
+    folder = os.path.join(root, os.path.dirname(rel))
+    with provenance.locked(os.path.join(folder, ".publish.lock")):
+        digest = os.path.basename(rel)[len("receipts-"):-len(".jsonl")]
+        state = provenance.bundle_state(folder, digest)
+        result = ({"hash": digest, "analysis_dir": os.path.dirname(os.path.dirname(rel)) or ".",
+                   "changes": [], "sessions": []} if state == "interrupted" else _stale_plan(root, rel, budget))
+        result["bundle"] = state
+        result["recorded_approved"], result["recorded_verified"] = recorded_verify(folder, digest)
+        result["recorded_lint"] = recorded_lint(folder, digest) if state != "interrupted" else "unchecked"
+        if state != "complete":
+            result["changes"].append("provenance bundle {}: no checksummed completion established".format(state))
+        return result
+
+
+def _stale_plan(root, rel, budget):
     """What no longer matches one plan's provenance: scripts, pinned inputs, outputs."""
     folder = os.path.dirname(rel)
     digest = os.path.basename(rel)[len("receipts-"):-len(".jsonl")]
@@ -1831,17 +1997,21 @@ def status(root, hash_mb, seconds):
     budget = {"bytes": float(hash_mb) * 1024 * 1024, "deadline": time.time() + seconds}
     rows = {}
     if gate.find_root(root):
-        for approved, digest, scripts, count in approved_plans(root):
+        plans = approved_plans(root)
+        marks = limit_marks(root, plans)
+        for approved, digest, scripts, count in plans:
             rows[digest] = {"hash": digest, "approved": when(approved), "epoch": approved, "runs": count,
                             "analysis_dir": guess_analysis_dir(scripts) or "?", "verified": "not verified",
                             "stale": "-", "lint": "-"}
+            if digest in marks:
+                rows[digest]["expired"] = marks[digest]
     for rel in provenance_receipts(root):
         plan = stale_plan(root, rel, budget)
         folder = os.path.join(root, os.path.dirname(rel))
-        approved, verified = recorded_verify(folder, plan["hash"])
+        approved, verified = plan["recorded_approved"], plan["recorded_verified"]
         runs = sum(1 for r in read_jsonl(os.path.join(root, rel)) if not r.get("explore") and not r.get("not_a_run"))
         row = rows.setdefault(plan["hash"], {"hash": plan["hash"], "approved": approved, "epoch": 0, "runs": runs})
-        row.update(analysis_dir=plan["analysis_dir"], verified=verified, lint=recorded_lint(folder, plan["hash"]),
+        row.update(analysis_dir=plan["analysis_dir"], verified=verified + " (" + plan["bundle"] + ")", lint=plan["recorded_lint"],
                    stale="{} change(s)".format(len(plan["changes"])) if plan["changes"] else "no",
                    changes=plan["changes"])
     for row in rows.values():
@@ -1855,8 +2025,8 @@ def render_status(rows):
     lines = ["| Plan | Analysis | Approved | Runs | Verified | Stale | Lint | Manifest |",
              "|---|---|---|---|---|---|---|---|"]
     for r in rows:
-        lines.append("| {hash} | `{analysis_dir}` | {approved} | {runs} | {verified} | {stale} | {lint} | "
-                     "{manifest} |".format(**r))
+        lines.append("| {hash} | `{analysis_dir}` | {approved} | {runs}{expired} | {verified} | {stale} | {lint} | "
+                     "{manifest} |".format(**dict(r, expired=" ({})".format(r["expired"]) if r.get("expired") else "")))
     return "\n".join(lines) + "\n"
 
 
@@ -1974,7 +2144,7 @@ def diff_plans(root, old, new):
     """What changed between two approved plans: table rows by step, and the `Inputs:` line."""
     plans = []
     for digest in (old, new):
-        record = gate.read_json(gate.state_path(root, "approvals", digest + ".json"), None)
+        record = read_approval(gate.state_path(root, "approvals", digest + ".json"))
         text = record.get("plan") if record else shown_plan(root, digest)
         if text is None:
             sys.exit("verify: no approved or shown plan {} (see `list`).".format(digest))
@@ -2006,7 +2176,9 @@ def multiplicity(root, digest):
     folder = gate.state_path(root, "approvals")
     approvals = {}
     for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
-        record = gate.read_json(os.path.join(folder, name), None)
+        if not name.endswith(".json"):
+            continue
+        record = read_approval(os.path.join(folder, name))
         if record:
             approvals[record.get("hash", name[:8])] = record
     if digest not in approvals:

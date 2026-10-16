@@ -24,11 +24,12 @@ PAIRED = A + "/scripts/02_paired_test.py"
 DOC = A + "/VACCINE_RESPONSE.md"
 CLAIMS = re.compile(r"\n*<!-- claims.*?-->", re.S)
 CONFORMS = "Verify status: CONFORMS"
+GAPS = "Verify status: CONFORMS_WITH_GAPS"
 DENY = "deny"
 
 
 # Tasks whose fixtures C1 leaves for them to add (design section 8.6).
-LATER = ["D2", "C3", "D6", "E1b", "E4", "E5", "D10", "D11", "D12"]
+LATER = ["D2", "C3", "D6", "E1b", "E4", "E5", "D10", "D12"]
 
 
 class Defect(object):
@@ -186,7 +187,7 @@ def dc07(p):
 
 
 @defect("DC-08", "data", "none", ["Reversed contrast"], known_miss=True,
-        expect={"contract": 0, "status": CONFORMS, "hits_are_truth": True, "hit_sign": "-"})
+        expect={"contract": 0, "status": GAPS, "hits_are_truth": True, "hit_sign": "-"})
 def dc08(p):
     p.edit(PAIRED, replace("observed = sum(diff[:n_v]) / n_v - sum(diff[n_v:]) / n_p",
                            "observed = sum(diff[n_v:]) / n_p - sum(diff[:n_v]) / n_v"))
@@ -194,7 +195,7 @@ def dc08(p):
 
 
 @defect("DC-09", "data", "none", ["Sample label swap"], known_miss=True,
-        expect={"contract": 0, "status": CONFORMS, "hits_are_truth": False})
+        expect={"contract": 0, "status": GAPS, "hits_are_truth": False})
 def dc09(p):
     # Column i of the counts matrix is taken to be the i-th sample of samples_used.tsv.
     p.edit(PAIRED, replace("column = {name: i for i, name in enumerate(count_header)}",
@@ -203,7 +204,7 @@ def dc09(p):
 
 
 @defect("DC-10", "data", "none", ["Gene symbol corruption"], known_miss=True,
-        expect={"contract": 0, "status": CONFORMS, "hits_are_truth": True, "date_symbols": 2})
+        expect={"contract": 0, "status": GAPS, "hits_are_truth": True, "date_symbols": 2})
 def dc10(p):
     p.edit(COUNTS, lambda text: text.replace("\nMARCHF1\t", "\n1-Mar\t").replace("\nSEPTIN7\t", "\n7-Sep\t"))
     outcome = whole_chain(p)
@@ -213,7 +214,7 @@ def dc10(p):
 
 
 @defect("DC-11", "data", "none", ["Normalization and transformation"], known_miss=True,
-        expect={"contract": 0, "status": CONFORMS, "hits_are_truth": False, "cpm_false_positives": True})
+        expect={"contract": 0, "status": GAPS, "hits_are_truth": False, "cpm_false_positives": True})
 def dc11(p):
     p.edit(PAIRED, replace("    sf = size_factors(counts, samples, genes)\n",
                            "    sf = {s: sum(counts[g][s] for g in genes) / 1e6 for s in samples}\n"))
@@ -284,9 +285,19 @@ def g07(p):
     return gate(p.run_step(harness.SCRIPTS[0]))
 
 
+@defect("G-08", "gate", "approval gate", ["tool: approval run limit"],
+        {"decision": DENY, "messages": ["has been used for 2 run(s), its limit", "which restarts the count"]})
+def g08(p):
+    p.approve(harness.plan_text())
+    with open(p.path(".mycelium-extra", "gate.json"), "w", encoding="utf-8") as handle:
+        json.dump({"max_runs_per_approval": 2}, handle)
+    p.run_step(harness.SCRIPTS[0])
+    p.run_step(harness.SCRIPTS[1])
+    return gate(p.run_step(harness.SCRIPTS[0]))
+
+
 # ---------------------------------------------------------------- 8.3 verify layer
 
-GAPS = "Verify status: CONFORMS_WITH_GAPS"
 BLOCKED = "Verify status: DOES_NOT_CONFORM"
 DE = A + "/outputs/de_results.tsv"
 SUMMARY = A + "/outputs/summary.tsv"
@@ -371,13 +382,14 @@ def swallowed(p, rows, scripts):
 
 
 @defect("V-02a", "verify", "verify", ["Swallowed errors"],
-        {"status": GAPS, "row": "ran (exit 0 from hook event)", "messages": ["Output `{}` does not exist".format(DE)]})
+        {"status": GAPS, "row": "execution not attributable (compound command)",
+         "messages": ["Output `{}` does not exist".format(DE)]})
 def v02a(p):
     return swallowed(p, 0, harness.SCRIPTS[:2])
 
 
 @defect("V-02b", "verify", "none", ["Swallowed errors"], known_miss=True,
-        expect={"status": CONFORMS, "de_rows": 10})
+        expect={"status": GAPS, "de_rows": 10})
 def v02b(p):
     outcome = swallowed(p, 10, harness.SCRIPTS)
     with open(p.path(DE), encoding="utf-8") as handle:
@@ -406,7 +418,7 @@ TOP = A + "/outputs/top_genes.tsv"
 
 
 @defect("V-05", "verify", "verify", ["Number transcription"],
-        {"status": GAPS, "messages": ["Output `{}`".format(TOP), "is not tied to any recorded run"]})
+        {"status": GAPS, "top_unattributed": True, "messages": ["not tied to any recorded run"]})
 def v05(p):
     text = plan(change=lambda t: t.replace("outputs/summary.tsv\n", "outputs/summary.tsv " + TOP + "\n"))
     digest = p.run_plan(text)[0]
@@ -414,7 +426,10 @@ def v05(p):
     if inline.denied:
         return gate(inline)
     stale_mtime(p, TOP, p.receipts()[-1]["ts"] + 2 * harness.TOLERANCE)
-    return report(p, digest)
+    outcome = report(p, digest)
+    rows = [line for line in outcome["text"].splitlines() if line.startswith("| `{}` |".format(TOP))]
+    outcome["top_unattributed"] = len(rows) == 1 and "no recorded run" in rows[0]
+    return outcome
 
 
 @defect("V-06", "verify", "verify", ["Input and matrix state"],
@@ -502,7 +517,7 @@ def v12(p):
 def v30(p):
     # Backlog #4: `$S` hides the job script from the gate, so only sacct's SubmitLine names it.
     digest = p.approve(plan([row(1, SBATCH)]))[0]
-    p.agent_bash("S=" + A + "/run_all.sbatch; sbatch $S", effect=sbatch_effect)
+    p.agent_bash("sbatch $S", effect=sbatch_effect)
     now = time.time()
     p.write_fakes(sacct="4242|FAILED|1:0|{}|{}|{}|{}".format(
         time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(now - 60)),
@@ -606,16 +621,15 @@ def v18(p):
 
 
 @defect("V-19", "verify", "verify", ["Unstated defaults"],
-        {"status": CONFORMS, "messages": ["Default without a usable reason (advisory)"]})
+        {"status": GAPS, "messages": ["Default without a usable reason (advisory)"]})
 def v19(p):
     return baseline(p, plan(change=lambda t: t.replace("default: matches step 2", "default: standard")))[1]
 
 
-@defect("V-20", "verify", "none", ["Stale evidence as current"], known_miss=True,
-        expect={"status": CONFORMS, "credited_to": "python3 " + harness.SCRIPTS[0]})
+@defect("V-20", "verify", "verify", ["Stale evidence as current"],
+        expect={"status": GAPS, "credited_to": None, "messages": ["competing timestamp-compatible writers"]})
 def v20(p):
-    # 02 finished within TOLERANCE of 01's receipt (as on a fast machine), so verify credits
-    # de_results.tsv to the earliest receipt that could have written it: run 01, under the same plan.
+    # Close receipt times cannot identify the producing step, even under the same plan.
     digest = p.approve(harness.plan_text())[0]
     first, _, last = [p.run_step(script) for script in harness.SCRIPTS]
     stale_mtime(p, DE, first.receipts[0]["ts"] + 1)
@@ -623,7 +637,8 @@ def v20(p):
     p.lineage()
     outcome = report(p, digest)
     found = [line for line in outcome["text"].splitlines() if line.startswith("| `{}` |".format(DE))]
-    outcome["credited_to"] = found[0].split("`")[3] if found else None
+    parts = found[0].split("`") if found else []
+    outcome["credited_to"] = parts[3] if len(parts) > 3 else None
     return outcome
 
 
@@ -687,7 +702,7 @@ def v24(p):
 
 
 @defect("V-25", "verify", "verify", ["Version-specific behaviour"],
-        {"status": CONFORMS, "messages": ["Conda env `vaccine-de` (`conda run`): 1 packages recorded; 1 pip package."]})
+        {"status": GAPS, "messages": ["Conda env `vaccine-de` (`conda run`): 1 packages recorded; 1 pip package."]})
 def v25(p):
     # E1: a package pip installed into the env, which its conda-meta does not list.
     prefix = os.path.join(p.home, "envs", "vaccine-de")
@@ -705,7 +720,7 @@ def v25(p):
 
 
 @defect("V-26", "verify", "verify", ["tool: verify"],
-        {"code": 0, "status_code": 0, "status": CONFORMS, "crashed": False,
+        {"code": 0, "status_code": 0, "status": GAPS, "crashed": False,
          "messages": ["| `{}` | ran".format(harness.SCRIPTS[0])]})
 def v26(p):
     # M8-T03 B1: step 1 names its script by absolute path, steps 2 and 3 by root-relative path.
@@ -733,7 +748,7 @@ def v27(p):
 
 
 @defect("V-28", "verify", "verify", ["tool: verify"],
-        {"status": CONFORMS, "script_row": False})
+        {"status": GAPS, "script_row": False})
 def v28(p):
     # M8-T03 B3: a step names a log to read; the log is not a planned script, so rewriting it is not an edit.
     log = A + "/logs/02_paired_test.log"
@@ -769,8 +784,8 @@ def verified(p):
     digest = p.run_plan()[0]
     p.fill_ledger(digest)
     code, out, err = p.verify("write", digest, "--analysis-dir", A)
-    if harness.status_line(out) != CONFORMS:
-        raise harness.HarnessError("verify write did not conform:\n" + out + err)
+    if harness.status_line(out) != GAPS:
+        raise harness.HarnessError("verify write did not preserve attribution gaps:\n" + out + err)
     p.commit("provenance for plan " + digest)
     return digest
 

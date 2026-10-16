@@ -25,7 +25,7 @@ ABLATIONS = [
      '(lambda *a: None)("block", "`{}` was edited after its run', "V-03"),
     ("A-2", "verify", 'report.add("block", "Input `{}` changed since the approval',
      '(lambda *a: None)("block", "Input `{}` changed since the approval', "V-06"),
-    ("A-3", "gate", "    if (stale or stale_scripts) and not blocked:\n", "    if False:\n", "G-02"),
+    ("A-3", "gate", "    if (stale or stale_scripts or capped) and not blocked:\n", "    if False:\n", "G-02"),
     ("A-4", "verify", "return value if value.is_finite() else None", "return value", "V-31"),
 ]
 
