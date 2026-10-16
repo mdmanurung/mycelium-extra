@@ -40,6 +40,8 @@ with `$mycelium-extra:` and enable/trust the plugin hooks first.
 approve plan <hash>                          # use the displayed hash
 ```
 
+See [a worked example](docs/example.md) for the real output of each step.
+
 Run the approved steps through your normal workflow, then invoke
 `/mycelium-extra:verify <hash>`. For reportable or HPC work, freeze the finished
 code in a [run plan](skills/grill/references/run-plans.md) before the final run.

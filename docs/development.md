@@ -21,6 +21,10 @@ minutes) and `python3 tests/test_fixture_data.py`. The ablations in
 `python3 tests/e2e/ablate.py` remove individual guards to check that the defect
 cases actually depend on them. See the [fixture design](design/c1-fixture-project.md).
 
+`docs/example.md` is generated: with a real `scilintr` and an `Rscript` whose R has it, run
+`MX_E2E_SCILINTR=<path> MX_E2E_RSCRIPT=<path> python3 tests/e2e/make_example.py` when an output format
+changes. `python3 tests/test_example.py` checks that what it quotes still exists in the code.
+
 `python3 tests/test_versions.py` checks that the three manifests and the newest `CHANGELOG.md` heading name the same version, and `python3 tests/check_links.py $(git ls-files '*.md')` that every relative link and anchor resolves.
 
 CI (`.github/workflows/ci.yml`) runs all of the above on every push to `main` and every pull request, in the official `python:3.6-bullseye` image under `LC_ALL=C` and in `python:3.14-bookworm`, since hosted runners no longer ship 3.6. On a pull request it also runs `gate_diff.py --base` against the PR's base commit, so an intended gate change shows as a red check to explain in the PR.
