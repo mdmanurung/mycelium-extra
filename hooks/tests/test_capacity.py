@@ -244,17 +244,21 @@ class CapacityTest(unittest.TestCase):
             self.assertEqual(reply["hookSpecificOutput"]["permissionDecision"], "deny")
             self.assertIn("no active approved plan", reply["hookSpecificOutput"]["permissionDecisionReason"])
 
-    def test_manifests_register_lifecycle_and_all_assignment_tools(self):
+    def test_lifecycle_registrations_are_held_back_in_a_fragment(self):
         import re
+        folder = os.path.dirname(capacity.SCRIPT)
+        events = ("SessionStart", "SessionEnd", "SubagentStart", "SubagentStop", "PreCompact")
+        with open(os.path.join(folder, "capacity-hooks.json")) as handle:
+            fragment = json.load(handle)
         for name in ("hooks.json", "codex.json"):
-            with open(os.path.join(os.path.dirname(capacity.SCRIPT), name)) as handle:
+            with open(os.path.join(folder, name)) as handle:
                 hooks = json.load(handle)["hooks"]
-            for event in ("SessionStart", "SessionEnd", "SubagentStart", "SubagentStop", "PreCompact"):
-                self.assertIn(event, hooks)
-                self.assertIn(event, hooks[event][0]["hooks"][0]["command"])
-            matcher = hooks["PreToolUse"][0]["matcher"]
-            for tool in ("Agent", "spawn_agent", "functions.spawn_agent", "TaskCreate", "future_assignment_tool"):
-                self.assertIsNotNone(re.search(matcher, tool))
+            for event in events:  # shipped manifests stay as in 0.9.70 until native lifecycle checks pass
+                self.assertNotIn(event, hooks)
+                self.assertIn(event, fragment[name])
+                self.assertIn(event, fragment[name][event][0]["hooks"][0]["command"])
+        for tool in ("Agent", "spawn_agent", "functions.spawn_agent", "TaskCreate", "future_assignment_tool"):
+            self.assertIsNotNone(re.search(fragment["PreToolUse_matcher"], tool))
 
     def test_malformed_checkpoint_is_visible_and_diary_metadata_is_retained(self):
         path = self.record(completed="reported unit")

@@ -13,7 +13,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": ".*",
+        "matcher": "Bash|apply_patch",
         "hooks": [
           {
             "type": "command",
@@ -52,61 +52,6 @@
             "type": "command",
             "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then python3 \"${PLUGIN_ROOT}/hooks/gate_run.py\" --host codex stop; fi",
             "timeout": 30
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then python3 \"${PLUGIN_ROOT}/hooks/gate_run.py\" --host codex SessionStart; fi",
-            "timeout": 20
-          }
-        ]
-      }
-    ],
-    "SubagentStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then python3 \"${PLUGIN_ROOT}/hooks/gate_run.py\" --host codex SubagentStart; fi",
-            "timeout": 20
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then python3 \"${PLUGIN_ROOT}/hooks/gate_run.py\" --host codex SubagentStop; fi",
-            "timeout": 20
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then python3 \"${PLUGIN_ROOT}/hooks/gate_run.py\" --host codex PreCompact; fi",
-            "timeout": 20
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then python3 \"${PLUGIN_ROOT}/hooks/gate_run.py\" --host codex SessionEnd; fi",
-            "timeout": 20
           }
         ]
       }
