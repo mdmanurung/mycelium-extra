@@ -3,15 +3,19 @@
 Run from stdin so Mycelium's hooks stay closed:
     python3 - [--root DIR] [--paths GLOB ...] [--commands CMD ...] [--hours N] [--dry-run]
         [--tools [--scilintr PATH] [--rscript PATH]] < gate_init.py
+    python3 - --diagnose [--root DIR] [--plugin-root DIR] < gate_init.py
+
 
 Creates .mycelium-extra/gate.json and ignores .mycelium-extra/ in .gitignore.
 Never changes an existing gate.json: after init, the gate's settings are the
 user's to edit by hand. `--tools` also records where the scilintr linters are in
 .mycelium-extra/tools.json (separate from gate.json, so it works on a gate that is
-already on). Stdlib-only; runs on Python 3.6+.
+already on). `--diagnose` only reads and reports (effective config, hook registrations, Mycelium version,
+available tools, last observed receipt and gate error); it writes nothing. Stdlib-only; runs on Python 3.6+.
 """
 
 import argparse
+import importlib.util
 import json
 import math
 import os
@@ -162,17 +166,15 @@ def record_tools(root, flags, dry_run):
         print("wrote {}: {}".format(path, json.dumps(tools, sort_keys=True)))
 
 
-def mycelium_notice(root):
-    """One plain-text line when the Mycelium this repository points at (`.mycelium/plugin-root`, which Mycelium
-    writes) is not a version mycelium-extra was tested with; nothing when there is no Mycelium here. Reads
-    only; never writes Mycelium's files. An unreadable version is said, not assumed fine."""
+def mycelium_version(root):
+    """(plugin root, version) of the Mycelium `.mycelium/plugin-root` names: (None, None) when there is no
+    pointer; (path, None) when the version cannot be read. Reads only."""
     pointer = os.path.join(root, ".mycelium", "plugin-root")
     try:
         with open(pointer, encoding="utf-8") as handle:
             plugin = handle.read().strip()
     except OSError:
-        return None
-    tested = ", ".join(TESTED_MYCELIUM)
+        return None, None
     for manifest in (".claude-plugin", ".codex-plugin"):
         try:
             with open(os.path.join(plugin, manifest, "plugin.json"), encoding="utf-8") as handle:
@@ -180,12 +182,209 @@ def mycelium_notice(root):
         except (OSError, ValueError, AttributeError):
             continue
         if isinstance(version, str) and version:
-            if version in TESTED_MYCELIUM:
-                return None
-            return ("note: Mycelium {} is installed here; mycelium-extra was tested with {}. Its hook and file "
-                    "behaviour is unchecked on this version.".format(version, tested))
+            return plugin, version
+    return plugin, None
+
+
+def mycelium_notice(root):
+    """One plain-text line when the Mycelium this repository points at (`.mycelium/plugin-root`, which Mycelium
+    writes) is not a version mycelium-extra was tested with; nothing when there is no Mycelium here. Reads
+    only; never writes Mycelium's files. An unreadable version is said, not assumed fine."""
+    plugin, version = mycelium_version(root)
+    if plugin is None:
+        return None
+    tested = ", ".join(TESTED_MYCELIUM)
+    if version in TESTED_MYCELIUM:
+        return None
+    if version:
+        return ("note: Mycelium {} is installed here; mycelium-extra was tested with {}. Its hook and file "
+                "behaviour is unchecked on this version.".format(version, tested))
     return ("note: could not read Mycelium's version from {} (listed by {}); mycelium-extra was tested with {}."
             .format(plugin or "an empty path", os.path.join(".mycelium", "plugin-root"), tested))
+
+
+# ---------------------------------------------------------------- --diagnose (read-only)
+
+def _number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _strings(value):
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
+def _whole(value, low):
+    return isinstance(value, int) and not isinstance(value, bool) and value >= low
+
+
+# gate.json key -> (what the gate accepts, test). These mirror the checks in hooks/gate.py and
+# hooks/gate_run.py; gate_init runs from stdin and cannot import them, so keep the two in step.
+CONFIG_RULES = {
+    "gated_paths": ("a list of strings", _strings),
+    "gated_commands": ("a list of strings", _strings),
+    "approval_hours": ("a positive number", lambda v: _number(v) and v > 0),
+    "pin_hash_mb": ("a positive number", lambda v: _number(v) and v > 0),
+    "pin_seconds": ("a positive number", lambda v: _number(v) and v > 0),
+    "pin_scripts": ("true or false", lambda v: isinstance(v, bool)),
+    "card_lint": ("true or false", lambda v: isinstance(v, bool)),
+    "lint_on_write": ("true or false", lambda v: isinstance(v, bool)),
+    "lint_before_stop": ("true or false", lambda v: isinstance(v, bool)),
+    "lint_before_run": ('false, "warn" or "block"', lambda v: v is False or v in ("warn", "block")),
+    "on_error": ('"allow" or "deny"', lambda v: v in ("allow", "deny")),
+    "max_runs_per_approval": ("a whole number of 1 or more (or unset)", lambda v: _whole(v, 1)),
+    "checkpoint_steps": ("a whole number of 1 or more, or 0 for off (or unset)", lambda v: _whole(v, 0)),
+}
+CAPACITY_FILE = "capacity-hooks.json"
+
+
+def last_json_line(path):
+    """The last parseable JSON line of a .jsonl file, else None (also when the file is absent)."""
+    last = None
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                try:
+                    last = json.loads(line)
+                except ValueError:
+                    continue
+    except OSError:
+        pass
+    return last
+
+
+def load_json(path):
+    """(data, error): the parsed file, or None and a one-line reason."""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return json.load(handle), None
+    except OSError as error:
+        return None, error.strerror or str(error)
+    except ValueError as error:
+        return None, "not valid JSON ({})".format(error)
+
+
+def default_plugin_root():
+    """This plugin's root: $CLAUDE_PLUGIN_ROOT or $PLUGIN_ROOT, else three folders above this script when it
+    runs from a file (run from stdin, as the skill does, it has no path)."""
+    for name in ("CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT"):
+        if os.environ.get(name):
+            return os.environ[name]
+    here = globals().get("__file__")
+    return os.path.abspath(os.path.join(os.path.dirname(here), "..", "..", "..")) if here else None
+
+
+def hook_commands(events):
+    """{event: set of command strings} of a hooks mapping; non-conforming entries are skipped."""
+    found = {}
+    if not isinstance(events, dict):
+        return found
+    for event, groups in events.items():
+        commands = set()
+        for group in groups if isinstance(groups, list) else []:
+            for hook in group.get("hooks", []) if isinstance(group, dict) else []:
+                if isinstance(hook, dict) and isinstance(hook.get("command"), str):
+                    commands.add(hook["command"])
+        found[event] = commands
+    return found
+
+
+def diagnose_hooks(plugin, out):
+    if not plugin or not os.path.isdir(os.path.join(plugin, "hooks")):
+        out.append("hooks: plugin root not found ({}); pass --plugin-root DIR, the folder holding hooks/.".format(
+            plugin or "no CLAUDE_PLUGIN_ROOT or PLUGIN_ROOT set, and run from stdin"))
+        return
+    out.append("hooks (plugin root {}):".format(plugin))
+    registered = {}
+    for name in ("hooks.json", "codex.json"):
+        data, error = load_json(os.path.join(plugin, "hooks", name))
+        if error:
+            out.append("  {}: unreadable: {}".format(name, error))
+            registered[name] = None
+            continue
+        registered[name] = hook_commands(data.get("hooks") if isinstance(data, dict) else None)
+        out.append("  {}: {} events registered: {}".format(
+            name, len(registered[name]), ", ".join(sorted(registered[name])) or "none"))
+    held, error = load_json(os.path.join(plugin, "hooks", CAPACITY_FILE))
+    if error:
+        out.append("  {}: unreadable: {}".format(CAPACITY_FILE, error))
+        return
+    for name in ("hooks.json", "codex.json"):
+        wanted = hook_commands(held.get(name) if isinstance(held, dict) else None)
+        have = registered.get(name)
+        if have is None:
+            continue
+        missing = sorted(event for event, commands in wanted.items() if not commands & have.get(event, set()))
+        out.append("  {} capacity registrations ({}, held back by design): {}".format(
+            name, CAPACITY_FILE,
+            "{} of {} not registered: {}".format(len(missing), len(wanted), ", ".join(missing))
+            if missing else "all {} registered".format(len(wanted))))
+
+
+def diagnose(root, plugin_root):
+    """The read-only report, as a list of lines. Nothing here writes a file or creates a folder."""
+    out = ["mycelium-extra diagnose (read-only; nothing was written)", "repository: " + root]
+    gated = gated_ancestor(root)
+    state = os.path.join(gated or root, STATE_DIR)
+    if gated is None:
+        out.append("gate: off here (no {}/gate.json from {} upward); effective config would be the defaults.".format(
+            STATE_DIR, root))
+        saved = {}
+    else:
+        saved, error = load_json(os.path.join(state, "gate.json"))
+        out.append("gate: on, from {}/gate.json".format(os.path.join(gated, STATE_DIR)))
+        if error or not isinstance(saved, dict):
+            out.append("  gate.json unreadable: {}; the gate reads it as broken.".format(
+                error or "expected a JSON object"))
+            saved = {}
+    config = dict(DEFAULTS)
+    config.update(saved)
+    out.append("effective config (defaults merged with gate.json):")
+    for key in sorted(config):
+        out.append("  {}: {}{}".format(key, json.dumps(config[key]), "" if key in saved else "  (default)"))
+    for key in sorted(saved):
+        rule = CONFIG_RULES.get(key)
+        if rule is None:
+            out.append("  PROBLEM {}: not a key this gate reads (typo?); ignored.".format(key))
+        elif not rule[1](saved[key]):
+            out.append("  PROBLEM {}: {} is invalid; the gate wants {}.".format(
+                key, json.dumps(saved[key]), rule[0]))
+    diagnose_hooks(plugin_root, out)
+    plugin, version = mycelium_version(gated or root)
+    if plugin is None:
+        out.append("mycelium: none found here (no .mycelium/plugin-root); mycelium-extra works without it.")
+    elif version:
+        out.append("mycelium: {} at {} ({}).".format(
+            version, plugin, "tested" if version in TESTED_MYCELIUM else
+            "not one of the tested versions " + ", ".join(TESTED_MYCELIUM)))
+    else:
+        out.append("mycelium: version unreadable at {} (listed by .mycelium/plugin-root).".format(plugin))
+    recorded = load_json(os.path.join(state, "tools.json"))[0]
+    recorded = recorded if isinstance(recorded, dict) else {}
+    out.append("optional readers and linters (presence only; nothing is run):")
+    out.append("  h5py: {}".format("importable" if importlib.util.find_spec("h5py") else "not importable"))
+    for name in ("scilintr", "Rscript", "sacct"):
+        path = shutil.which(name)
+        out.append("  {}: {}".format(name, path or "not on PATH"))
+    if recorded:
+        out.append("  recorded by `--tools` in tools.json: " + json.dumps(recorded, sort_keys=True))
+    out.append("last observed:")
+    receipt = last_json_line(os.path.join(state, "receipts.jsonl"))
+    if isinstance(receipt, dict):
+        out.append("  newest receipt: host {}; exit_status {}; kind {}.".format(
+            receipt.get("host") or "not recorded (Claude Code, or a receipt from before hosts were recorded)",
+            "present: " + json.dumps(receipt["exit_status"]) if "exit_status" in receipt else "absent",
+            receipt.get("kind", "unknown")))
+    else:
+        out.append("  no run receipt recorded yet.")
+    error = last_json_line(os.path.join(state, "gate-errors.jsonl"))
+    if isinstance(error, dict):
+        out.append("  last gate error: {} hook, decision {}: {}".format(
+            error.get("event", "unknown"), error.get("decision", "unknown"), error.get("error", "")))
+    else:
+        out.append("  no gate error recorded.")
+    out.append("note: a hook registered in a manifest, or a gate.json in the repository, does not prove the host "
+               "has enabled or trusted the hooks. Check /hooks in Codex or Claude Code, and restart the session.")
+    return out
 
 
 def main(argv):
@@ -199,11 +398,24 @@ def main(argv):
     parser.add_argument("--scilintr", help="--tools: path of the Python scilintr (default: $MX_SCILINTR, else PATH)")
     parser.add_argument("--rscript", help="--tools: path of an Rscript whose R has scilintr (default: $MX_RSCRIPT, else PATH)")
     parser.add_argument("--dry-run", action="store_true", help="report what would change, write nothing")
+    parser.add_argument("--diagnose", action="store_true",
+                        help="read-only report: effective config, hooks, Mycelium, tools, last receipt and gate error")
+    parser.add_argument("--plugin-root", default=None,
+                        help="--diagnose: this plugin's folder (default: $CLAUDE_PLUGIN_ROOT, $PLUGIN_ROOT, or beside the script)")
     args = parser.parse_args(argv)
+    if args.diagnose and (args.paths or args.commands or args.hours is not None or args.tools
+                          or args.scilintr or args.rscript or args.dry_run):
+        parser.error("--diagnose only reports; do not combine it with options that change or record anything")
+    if args.plugin_root and not args.diagnose:
+        parser.error("--plugin-root only applies to --diagnose")
     if args.hours is not None and (not math.isfinite(args.hours) or args.hours <= 0):
         parser.error("--hours must be finite and positive")
 
     root = os.path.abspath(args.root) if args.root else repo_root(os.getcwd())
+    if args.diagnose:
+        print("\n".join(diagnose(root, os.path.abspath(args.plugin_root) if args.plugin_root
+                                  else default_plugin_root())))
+        return 0
     existing = gated_ancestor(root)
     if existing:
         config = dict(DEFAULTS)

@@ -10,7 +10,8 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "..", "scripts", "gate_init.py")
-GATE = os.path.join(HERE, "..", "..", "..", "hooks", "gate.py")
+PLUGIN = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+GATE = os.path.join(PLUGIN, "hooks", "gate.py")
 
 
 def run(root, *args):
@@ -200,6 +201,119 @@ class GateInitTest(unittest.TestCase):
         out = run(self.root, "--tools", "--scilintr", python, "--rscript", self.fake("bad", "", 1), "--dry-run")
         self.assertIn("would write", out)
         self.assertFalse(os.path.exists(os.path.join(self.root, ".mycelium-extra")))
+
+
+class DiagnoseTest(unittest.TestCase):
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root)
+        self.state = os.path.join(self.root, ".mycelium-extra")
+
+    def diagnose(self, *args, **env):
+        with open(SCRIPT) as source:
+            return subprocess.check_output(
+                [sys.executable, "-", "--root", self.root, "--diagnose", "--plugin-root", PLUGIN] + list(args),
+                stdin=source, universal_newlines=True, env=dict(os.environ, **env))
+
+    def listing(self):
+        found = {}
+        for folder, dirs, files in os.walk(self.root):
+            for name in dirs + files:
+                path = os.path.join(folder, name)
+                found[path] = os.lstat(path).st_mtime_ns
+        return found
+
+    def state_file(self, name, text):
+        os.makedirs(self.state, exist_ok=True)
+        with open(os.path.join(self.state, name), "w") as handle:
+            handle.write(text)
+
+    def test_diagnose_writes_nothing_with_or_without_state(self):
+        before = self.listing()
+        out = self.diagnose()
+        self.assertIn("gate: off here", out)
+        self.assertEqual(self.listing(), before)
+        self.assertFalse(os.path.exists(self.state))
+        self.state_file("gate.json", "{}")
+        self.state_file("receipts.jsonl", json.dumps({"host": "codex", "exit_status": 0, "kind": "sbatch"}) + "\n")
+        self.state_file("gate-errors.jsonl", json.dumps({"event": "tool", "error": "boom", "decision": "allow"}) + "\n")
+        before = self.listing()
+        out = self.diagnose()
+        self.assertEqual(self.listing(), before)
+        self.assertIn("gate: on", out)
+        self.assertIn("host codex; exit_status present: 0", out)
+        self.assertIn("last gate error: tool hook, decision allow: boom", out)
+
+    def test_invalid_config_value_and_unknown_key_are_flagged(self):
+        self.state_file("gate.json", json.dumps({"approval_hours": -3, "lint_before_run": "sometimes",
+                                                 "gated_pahts": ["x"], "pin_scripts": False}))
+        out = self.diagnose()
+        self.assertIn("PROBLEM approval_hours: -3 is invalid; the gate wants a positive number.", out)
+        self.assertIn('PROBLEM lint_before_run: "sometimes" is invalid', out)
+        self.assertIn("PROBLEM gated_pahts: not a key this gate reads", out)
+        self.assertNotIn("PROBLEM pin_scripts", out)
+        self.assertIn("gated_paths: [\"analysis/**\", \"nbs/**\"]  (default)", out)
+
+    def test_unreadable_gate_json_is_reported_with_exit_zero(self):
+        self.state_file("gate.json", "[1]")
+        self.assertIn("gate.json unreadable: expected a JSON object", self.diagnose())
+
+    def test_missing_linter_is_reported(self):
+        out = self.diagnose(PATH=self.root)
+        self.assertIn("scilintr: not on PATH", out)
+        self.assertIn("sacct: not on PATH", out)
+        self.assertIn("Rscript: not on PATH", out)
+
+    def test_held_back_capacity_registrations_are_not_registered(self):
+        out = self.diagnose()
+        self.assertIn("hooks.json capacity registrations (capacity-hooks.json, held back by design): "
+                      "5 of 5 not registered", out)
+        self.assertIn("codex.json capacity registrations (capacity-hooks.json, held back by design): "
+                      "5 of 5 not registered", out)
+
+    def test_a_registered_capacity_hook_is_seen(self):
+        plugin = os.path.join(self.root, "plugin")
+        shutil.copytree(os.path.join(PLUGIN, "hooks"), os.path.join(plugin, "hooks"),
+                        ignore=shutil.ignore_patterns("tests", "__pycache__"))
+        path = os.path.join(plugin, "hooks", "hooks.json")
+        held = json.loads(read(os.path.join(plugin, "hooks", "capacity-hooks.json")))["hooks.json"]
+        data = json.loads(read(path))
+        data["hooks"]["SessionStart"] = held["SessionStart"]
+        with open(path, "w") as handle:
+            json.dump(data, handle)
+        with open(SCRIPT) as source:
+            out = subprocess.check_output([sys.executable, "-", "--root", self.root, "--diagnose",
+                                           "--plugin-root", plugin], stdin=source, universal_newlines=True)
+        self.assertIn("4 of 5 not registered", out)
+
+    def test_works_without_mycelium_and_with_one(self):
+        self.assertIn("mycelium: none found here", self.diagnose())
+        plugin = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, plugin)
+        os.mkdir(os.path.join(plugin, ".claude-plugin"))
+        with open(os.path.join(plugin, ".claude-plugin", "plugin.json"), "w") as handle:
+            json.dump({"version": "0.7.2"}, handle)
+        os.mkdir(os.path.join(self.root, ".mycelium"))
+        with open(os.path.join(self.root, ".mycelium", "plugin-root"), "w") as handle:
+            handle.write(plugin)
+        self.assertIn("mycelium: 0.7.2 at " + plugin + " (tested)", self.diagnose())
+
+    def test_missing_plugin_root_is_said_and_the_caveat_always_printed(self):
+        with open(SCRIPT) as source:
+            out = subprocess.check_output([sys.executable, "-", "--root", self.root, "--diagnose"], stdin=source,
+                                          universal_newlines=True,
+                                          env={k: v for k, v in os.environ.items()
+                                               if k not in ("CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT")})
+        self.assertIn("hooks: plugin root not found", out)
+        self.assertIn("does not prove the host has enabled or trusted the hooks", out)
+
+    def test_diagnose_with_a_changing_option_is_a_usage_error(self):
+        with open(SCRIPT) as source:
+            proc = subprocess.run([sys.executable, "-", "--root", self.root, "--diagnose", "--hours", "5"],
+                                  stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                  universal_newlines=True)
+        self.assertEqual(proc.returncode, 2)
+        self.assertEqual(os.listdir(self.root), [])
 
 
 if __name__ == "__main__":
