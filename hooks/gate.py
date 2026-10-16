@@ -2323,6 +2323,8 @@ def on_tool(event, root, config):
         # one entry per (segment, paths): the same text in two folders is two runs with their own plans
         entry = {"paths": paths, "plans": [r["hash"] for r in records],
                  "pins": dict((r["hash"], r.get("pins") or {}) for r in records)}
+        if isinstance(run_cwd, UnknownFolder):  # allowed by one of its readings, not by a resolved folder
+            entry["limitations"] = ["cwd unresolved: " + run_cwd.raw]
         if entry not in launched.setdefault(segment, []):
             launched[segment].append(entry)
         changes, skipped = changed_pins(root, newest.get("pins") or {}, budget, cache)
@@ -2954,7 +2956,7 @@ def on_post(event, root, config):
     git = git_state(root)
     approvals, unread = False, False  # approvals: read only for a run with no launch record
     notes = ["compound shell command: per-run execution, exit status, and output attribution unknown"] if compound else []
-    planned = []
+    planned, coverage = [], []
     for explore, label, paths, segment, tokens, cwd in runs:
         entries = launched.get(segment)  # a record in the older shape is a dict: no match, covering decides
         launch = next((e for e in entries if e.get("paths") == paths), None) if isinstance(entries, list) else None
@@ -2974,6 +2976,14 @@ def on_post(event, root, config):
         if wrapped_paths:  # a plan is credited with the job only if it also names what the job runs
             records = [r for r in records if names_all(root, r, wrapped_paths)]
         paths = paths + wrapped_paths
+        # a run counts as launched only when this call's own launch record names this segment
+        launch_match = "matched" if launch is not None else "unmatched"
+        limitations = list((launch or {}).get("limitations") or [])
+        if isinstance(cwd, UnknownFolder) and "cwd unresolved: " + cwd.raw not in limitations:
+            limitations.append("cwd unresolved: " + cwd.raw)
+        for limitation in limitations:
+            if limitation.startswith("cwd unresolved: "):
+                coverage.append("{} (matched by reading it from the outer folder or the repo root)".format(limitation))
         if records and not explore and records[-1]["hash"] not in planned:
             planned.append(records[-1]["hash"])
         receipt = {
@@ -2987,7 +2997,8 @@ def on_post(event, root, config):
             "explore": explore,
             "plans": [record["hash"] for record in records],
             "pins": pins_of(launch, records[-1]) if records else {},
-            "pins_checked": bool(records) and not explore,
+            "pins_checked": launch_match == "matched" and bool(records) and not explore,
+            "launch_match": launch_match,
             "git": git,
             "hook_env": {key: os.environ[key] for key in HOOK_ENV if os.environ.get(key)},
             "command_env": command_env(tokens),
@@ -2995,6 +3006,8 @@ def on_post(event, root, config):
             "exit_source": source,
             "response_keys": sorted(response) if isinstance(response, dict) else type(response).__name__,
         }
+        if limitations:
+            receipt["limitations"] = limitations
         receipt.update(extra)
         if event.get("host"):
             receipt["host"] = event["host"]
@@ -3007,6 +3020,8 @@ def on_post(event, root, config):
         notes.append("{} ({})".format(what, "plan " + receipt["plans"][-1] if records
                                       else "explore run" if explore else "no approved plan"))
     result = {"systemMessage": "mycelium-extra: run receipt recorded: {}.".format("; ".join(notes))}
+    if coverage:
+        result["systemMessage"] += "\nmycelium-extra: coverage: " + "; ".join(sorted(set(coverage))) + "."
     context = []
     unseen = sorted({run[1] for run in runs if not MYCELIUM_SEES.match(run[1])})
     if unseen and os.path.isdir(os.path.join(root, ".living")):

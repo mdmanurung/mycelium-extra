@@ -1523,6 +1523,7 @@ class GateTest(unittest.TestCase):
                              "conda activate scanpy\nRscript analysis/x.R\n")
         self.write("renv.lock", "{}")
         digest, _ = self.approve(PLAN.replace("repo |", "repo | sbatch job.sh |"))
+        self.assertIsNone(self.bash("sbatch -o logs/%j.out job.sh"))  # the launch the receipt is checked against
         notice = self.post("sbatch -o logs/%j.out job.sh",
                            {"stdout": "Submitted batch job 4242\n", "stderr": "", "interrupted": False})
         self.assertIn("sbatch job 4242", notice["systemMessage"])
@@ -2746,6 +2747,72 @@ class PlanComparisonAndPathsTest(unittest.TestCase):
             words, shorthand, notes = gate.read_outputs_notes("Outputs: " + line)
             self.assertEqual((words, shorthand), ([], []), line)
             self.assertEqual(len(notes), 1, line)
+
+
+class AttemptEvidenceTest(unittest.TestCase):
+    """C01/C04/C05 gate side: what a receipt may claim about its launch, attempt, approval and outputs."""
+    entry = GATE
+    setUp, tearDown, config, hook, bash, denied = (
+        GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook, GateTest.bash, GateTest.denied)
+    path, write, approval, pending, show, prompt, receipts, tool, post, expire, launches = (
+        PreparationAndLaunchTest.path, PreparationAndLaunchTest.write, PreparationAndLaunchTest.approval,
+        PreparationAndLaunchTest.pending, PreparationAndLaunchTest.show, PreparationAndLaunchTest.prompt,
+        PreparationAndLaunchTest.receipts, PreparationAndLaunchTest.tool, PreparationAndLaunchTest.post,
+        PreparationAndLaunchTest.expire, PreparationAndLaunchTest.launches)
+    plan = staticmethod(ReviewFixesTest.plan)
+
+    def approve(self, text=None, session="s1"):
+        digest = self.show(text or self.plan("run `analysis/x.py`"), session)
+        self.prompt("approve plan " + digest, session)
+        return digest
+
+    def launch_records(self):
+        folder = self.path("launches")
+        names = [n for n in sorted(os.listdir(folder)) if n.endswith(".json")] if os.path.isdir(folder) else []
+        records = []
+        for name in names:
+            with open(os.path.join(folder, name)) as handle:
+                records.append(json.load(handle))
+        return records
+
+    # F02: pins_checked needs a launch record for this very call
+
+    def test_post_without_pre_does_not_claim_pins_checked(self):
+        digest = self.approve()
+        self.post()  # no PreToolUse hook saw this call
+        receipt, = self.receipts()
+        self.assertEqual(receipt["plans"], [digest], "a plan that covers it stays visible as context")
+        self.assertFalse(receipt["pins_checked"])
+        self.assertEqual(receipt["launch_match"], "unmatched")
+
+    def test_a_post_that_follows_its_pre_claims_checked_pins(self):  # control
+        digest = self.approve()
+        self.assertIsNone(self.tool(tool_use_id="t1"))
+        self.post(tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual((receipt["plans"], receipt["pins_checked"], receipt["launch_match"]),
+                         ([digest], True, "matched"))
+
+    # C01: a run allowed although its folder was unresolved says so
+
+    def test_an_allowed_run_with_an_unresolved_folder_carries_a_limitation(self):
+        self.approve()
+        command = 'env -C "$X" python analysis/x.py'  # covered by the repo-root reading
+        self.assertIsNone(self.tool(command, tool_use_id="t1"))
+        entry, = [e for r in self.launch_records() for es in r["runs"].values() for e in es]
+        self.assertEqual(entry["limitations"], ["cwd unresolved: $X"])
+        notice = self.post(command, tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual(receipt["limitations"], ["cwd unresolved: $X"])
+        self.assertIn("cwd unresolved: $X", notice["systemMessage"])
+
+    def test_a_resolved_folder_has_no_limitation(self):  # control
+        self.approve()
+        self.assertIsNone(self.tool("env -C analysis python x.py", tool_use_id="t1"))
+        notice = self.post("env -C analysis python x.py", tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertNotIn("limitations", receipt)
+        self.assertNotIn("unresolved", notice["systemMessage"])
 
 
 if __name__ == "__main__":
