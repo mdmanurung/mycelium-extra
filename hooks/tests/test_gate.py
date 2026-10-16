@@ -517,6 +517,23 @@ class GateTest(unittest.TestCase):
         self.assertFalse(self.denied(result))
         self.assertIn('"lint_before_run" in gate.json must be "warn" or "block"', result["systemMessage"])
 
+    def test_card_lint_gap_stays_with_its_language(self):
+        os.makedirs(os.path.join(self.root, "analysis", "a"))
+        for name in ("02_fit.py", "03_sum.R"):
+            self.write_file("analysis/a/" + name, "x\n" if name.endswith(".R") else "print(1)\n")
+        self.fake_linter()
+        with open(os.path.join(self.root, ".mycelium-extra", "tools.json")) as handle:
+            tools = json.load(handle)
+        tools["rscript"] = "/nonexistent/Rscript"
+        self.write_file(".mycelium-extra/tools.json", json.dumps(tools))
+        plan = "\n".join(["**Objective.** Two languages.", "", "Inputs: data/in.tsv", "Outputs: analysis/a/out/r.tsv", "",
+                          "| # | Step | Choice | Source | Validation |", "|---|---|---|---|---|",
+                          "| 1 | Run `analysis/a/02_fit.py` | exact test | user | 12 rows |",
+                          "| 2 | Run `analysis/a/03_sum.R` | hits at 0.05 | user | 1 row |", "", "Plan status: READY"])
+        card = self.card(plan)
+        self.assertIn("1 02_fit.py\n        - choice: exact test  [you]\n        - check: 12 rows\n        - lint: clean", card)
+        self.assertIn("- lint: not checked (`/nonexistent/Rscript` not found", card)
+
     def test_card_describes_the_procedure(self):
         os.makedirs(os.path.join(self.root, "analysis", "a"))
         with open(os.path.join(self.root, "analysis", "a", "02_fit.py"), "w") as handle:

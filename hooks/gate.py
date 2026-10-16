@@ -1260,6 +1260,14 @@ def load_verify():
     return module
 
 
+def lint_gap_applies(gap, names):
+    """A gap tagged `scilintr (R)` or `(Python)` concerns only steps whose code is that language; a step that
+    names notebooks or documents (either language), or a gap with no tag, takes it."""
+    match = re.match(r"scilintr \((\w+)\)", gap)
+    kinds = set("Python" if n.endswith(".py") else "R" if n.endswith((".R", ".r")) else None for n in names)
+    return not match or None in kinds or match.group(1) in kinds
+
+
 def lint_bullets(root, rows, config):
     """{step number: one-line scilintr verdict} for the planned code each step names, by running verify's
     lint once on all of it: `clean`, `2 open (R002 2)`, or `not checked (...)`. Show only, never blocks;
@@ -1284,7 +1292,7 @@ def lint_bullets(root, rows, config):
             continue
         mine = collections.Counter(f[3] for f in found if re.sub(r"\[code cell \d+\]$", "", f[0]) in names)
         unchecked = [g for g in gaps if any("`{}`".format(n) in g or "`{}:".format(n) in g for n in names)
-                     or not re.search(r"`[^`]*\.\w+[:`]", g)]  # a gap that names no file is the whole language's
+                     or (not re.search(r"`[^`]*\.\w+[:`]", g) and lint_gap_applies(g, names))]  # no file named: the language's
         if mine:
             out[num] = "{} open ({})".format(sum(mine.values()), ", ".join(
                 "{} {}".format(r, n) if n > 1 else r for r, n in mine.most_common(3)))
