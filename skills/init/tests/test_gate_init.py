@@ -112,6 +112,18 @@ class GateInitTest(unittest.TestCase):
         run(self.root, "--dry-run")
         self.assertEqual(os.listdir(self.root), [])
 
+    def test_invalid_hours_are_usage_errors_without_writes(self):
+        for hours in ("nan", "inf", "-inf", "0", "-1"):
+            with open(SCRIPT) as source:
+                proc = subprocess.run([sys.executable, "-", "--root", self.root,
+                                       "--hours=" + hours], stdin=source,
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                      universal_newlines=True)
+            self.assertEqual(proc.returncode, 2, hours)
+            self.assertIn("--hours must be finite and positive", proc.stderr)
+            self.assertNotIn("Traceback", proc.stderr)
+            self.assertEqual(os.listdir(self.root), [], hours)
+
     def test_gate_denies_after_init(self):
         os.mkdir(os.path.join(self.root, "analysis"))
         with open(os.path.join(self.root, "analysis", "x.py"), "w") as handle:
@@ -139,6 +151,33 @@ class GateInitTest(unittest.TestCase):
         self.assertEqual(json.loads(read(os.path.join(self.root, ".mycelium-extra", "tools.json"))),
                          {"scilintr": python, "rscript": rscript, "scilintr_r": "0.1.1"})
         self.assertEqual(read(self.gate_json), gate_before)
+
+    def test_nonobject_gate_is_reported_without_overwriting_it(self):
+        os.mkdir(os.path.dirname(self.gate_json))
+        for value in (None, [], "enabled"):
+            with open(self.gate_json, "w") as handle:
+                json.dump(value, handle)
+            with open(SCRIPT) as source:
+                proc = subprocess.run([sys.executable, "-", "--root", self.root], stdin=source,
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                      universal_newlines=True)
+            self.assertEqual(proc.returncode, 1, value)
+            self.assertIn("gate.json unreadable", proc.stdout)
+            self.assertNotIn("Traceback", proc.stderr)
+            self.assertEqual(json.loads(read(self.gate_json)), value)
+            self.assertFalse(os.path.exists(self.ignore))
+
+    def test_nonobject_tools_are_reported_and_replaced_with_checked_tools(self):
+        run(self.root)
+        path = os.path.join(self.root, ".mycelium-extra", "tools.json")
+        for value in (None, [], "tools"):
+            with open(path, "w") as handle:
+                json.dump(value, handle)
+            out = run(self.root, "--tools", "--scilintr", self.fake("lint", ""),
+                      "--rscript", self.fake("rs", "0.1.1"))
+            self.assertIn("tools.json", out)
+            self.assertIn("not a JSON object", out)
+            self.assertEqual(json.loads(read(path))["scilintr_r"], "0.1.1")
 
     def test_a_tool_that_does_not_work_is_reported_and_not_recorded(self):
         run(self.root)

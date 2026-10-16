@@ -13,6 +13,7 @@ already on). Stdlib-only; runs on Python 3.6+.
 
 import argparse
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -133,6 +134,9 @@ def record_tools(root, flags, dry_run):
             tools = json.load(handle)
     except (OSError, ValueError):
         tools = {}
+    if not isinstance(tools, dict):
+        print("note: {} is not a JSON object; rebuilding it from checked tools.".format(path))
+        tools = {}
     python = find_tool(flags[0], "MX_SCILINTR", "scilintr")
     rscript = find_tool(flags[1], "MX_RSCRIPT", "Rscript")
     version = r_scilintr_version(rscript) if rscript else None
@@ -196,6 +200,8 @@ def main(argv):
     parser.add_argument("--rscript", help="--tools: path of an Rscript whose R has scilintr (default: $MX_RSCRIPT, else PATH)")
     parser.add_argument("--dry-run", action="store_true", help="report what would change, write nothing")
     args = parser.parse_args(argv)
+    if args.hours is not None and (not math.isfinite(args.hours) or args.hours <= 0):
+        parser.error("--hours must be finite and positive")
 
     root = os.path.abspath(args.root) if args.root else repo_root(os.getcwd())
     existing = gated_ancestor(root)
@@ -203,10 +209,13 @@ def main(argv):
         config = dict(DEFAULTS)
         try:
             with open(os.path.join(existing, STATE_DIR, "gate.json"), encoding="utf-8") as handle:
-                config.update(json.load(handle))
+                saved = json.load(handle)
+            if not isinstance(saved, dict):
+                raise ValueError("expected a JSON object")
+            config.update(saved)
         except (OSError, ValueError) as error:
             print("already gated: {} (gate.json unreadable: {})".format(existing, error))
-            return 0
+            return 1
         print("already gated: {}".format(existing))
         print("effective config: " + json.dumps(config, sort_keys=True))
         print("no changes made to gate.json; edit {}/gate.json by hand to change it.".format(
@@ -224,8 +233,6 @@ def main(argv):
     if args.commands:
         config["gated_commands"] = args.commands
     if args.hours is not None:
-        if args.hours <= 0:
-            parser.error("--hours must be positive")
         config["approval_hours"] = int(args.hours) if args.hours == int(args.hours) else args.hours
     effective = dict(DEFAULTS, **config)
     ignored = is_ignored(root)
