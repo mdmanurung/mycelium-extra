@@ -90,6 +90,23 @@ WRAPPER_OPTIONS = {
             "--no-binary-package", "--cache-dir", "--refresh-package", "-p", "--python", "--color",
             "--allow-insecure-host", "--directory", "--project", "--config-file"}, {"--directory"}),
 }
+# Flags of the wrappers that take no value, so the word after one is the command, not its value.
+_CONDA_FLAGS = {"-v", "--verbose", "--dev", "--debug-wrapper-scripts", "--no-capture-output",
+                "--live-stream", "-h", "--help"}
+WRAPPER_FLAGS = {
+    "env": {"-i", "--ignore-environment", "-0", "--null", "-v", "--debug", "-h", "--help"},
+    "srun": {"-v", "-q", "--quiet", "-O", "--overcommit", "-s", "--oversubscribe", "-u", "--unbuffered",
+             "-k", "--no-kill", "-l", "--label", "-Q", "--exact", "--exclusive", "--overlap", "--pty",
+             "--contiguous", "--help", "--usage", "--verbose"},
+    "conda": _CONDA_FLAGS, "mamba": _CONDA_FLAGS, "micromamba": _CONDA_FLAGS, "pixi": _CONDA_FLAGS,
+    "uv": {"--all-extras", "--no-dev", "--no-default-groups", "--all-groups", "--dev", "-m", "--module",
+           "--only-dev", "--no-editable", "--exact", "--inexact", "--no-env-file", "--isolated", "--active",
+           "--no-sync", "--locked", "--frozen", "-s", "--script", "--gui-script", "--all-packages",
+           "--no-project", "--no-index", "-U", "--upgrade", "--no-sources", "--reinstall",
+           "--compile-bytecode", "--no-build-isolation", "--no-build", "--no-binary", "-n", "--no-cache",
+           "--refresh", "--managed-python", "--no-managed-python", "--no-python-downloads", "-q", "--quiet",
+           "-v", "--verbose", "--system-certs", "--offline", "--no-progress", "--no-config", "-h", "--help"},
+}
 WRITE_ALL = {"rm", "rmdir", "mv", "tee", "touch", "truncate", "mkdir", "chmod", "chown", "shred",
              "unlink"}  # every path argument is written
 WRITE_LAST = {"cp", "ln", "install", "rsync", "scp"}  # only the destination is written
@@ -499,7 +516,8 @@ def split_option(token, flags):
 
 
 def classify(tokens, root, cwd, config):
-    """Return (explore, gated_label or None, [gated repo paths]) for one segment."""
+    """Return (explore, gated_label or None, [gated repo paths], cwd) for one segment; cwd is the folder the
+    command runs in, after any folder option of a wrapper (`env -C DIR`)."""
     explore = False
     i = 0
     while i < len(tokens) and is_assignment(tokens[i]):
@@ -510,19 +528,21 @@ def classify(tokens, root, cwd, config):
     while i < len(tokens):
         word = os.path.basename(tokens[i])
         if word == "command" and tokens[i + 1:i + 2] in (["-v"], ["-V"]):
-            return explore, None, []  # looks the name up, runs nothing
+            return explore, None, [], cwd  # looks the name up, runs nothing
         flag, inline = split_option(tokens[i], WRAPPER_OPTIONS.get(wrapper, ((), ()))[0])
         if flag:  # a known option of the wrapper: its value is not the command
             step = 1 if inline is not None else 2
             value = inline if inline is not None else (tokens[i + 1] if i + 1 < len(tokens) else None)
             if wrapper == "env" and flag in ("-S", "--split-string") and value:
-                return explore, "recurse", [" ".join([value] + tokens[i + step:])]
+                return explore, "recurse", [" ".join([value] + tokens[i + step:])], cwd
             if value and flag in WRAPPER_OPTIONS[wrapper][1] and not re.search(r"[$`]", value):
                 cwd = os.path.normpath(os.path.join(cwd, os.path.expanduser(value)))
             previous, unknown, i = "", False, i + step
             continue
-        if RUNNERS.match(word) or word in config["gated_commands"] or "/" in tokens[i]:
+        if RUNNERS.match(word) or word in config["gated_commands"]:
             break
+        if "/" in tokens[i] and not (word in WRAPPERS and gated_rel(root, cwd, tokens[i], config) is None):
+            break  # a path, unless it names a wrapper (`/usr/bin/env`) rather than a gated script
         if (word in WRAPPERS or tokens[i].startswith("-") or previous in VALUE_FLAGS
                 or tokens[i].isdigit() or re.match(r"^\d+[smhd]?$", tokens[i])
                 or is_assignment(tokens[i])):
@@ -530,19 +550,28 @@ def classify(tokens, root, cwd, config):
                 explore = True
             if word in WRAPPERS and word != "run":
                 wrapper = word
-            unknown = wrapper is not None and tokens[i].startswith("-") and "=" not in tokens[i]
+            # an option may take the next word as its value; `-oL` carries its own, and `--x=v` too
+            unknown = (wrapper is not None and tokens[i].startswith("-") and "=" not in tokens[i]
+                       and tokens[i] not in WRAPPER_FLAGS.get(wrapper, ())
+                       and (tokens[i].startswith("--") or len(tokens[i]) == 2))
             previous = tokens[i]
             i += 1
             continue
         # a word after an option this reader does not know may be that option's value: skip it
-        # when a runner or gated command still follows, rather than call the segment ungated
-        if unknown and any(RUNNERS.match(os.path.basename(t)) or os.path.basename(t) in config["gated_commands"]
-                           for t in tokens[i + 1:]):
-            unknown, i = False, i + 1
-            continue
-        return explore, None, []
+        # when a runner or gated command follows with no other option between (`grep -rn python x/`
+        # is a grep, not a hidden python), rather than call the segment ungated
+        if unknown:
+            later = []
+            for t in tokens[i + 1:]:
+                if t.startswith("-"):
+                    break
+                later.append(os.path.basename(t))
+            if any(RUNNERS.match(t) or t in config["gated_commands"] for t in later):
+                unknown, i = False, i + 1
+                continue
+        return explore, None, [], cwd
     if i >= len(tokens):
-        return explore, None, []
+        return explore, None, [], cwd
     head, rest = tokens[i], tokens[i + 1:]
     word = os.path.basename(head)
     paths = []
@@ -558,7 +587,7 @@ def classify(tokens, root, cwd, config):
         folder = [j + 1 for j, t in enumerate(rest) if word == "sbatch" and t in ("-D", "--chdir")]
         paths += [p for p in (gated_rel(root, cwd, t, config) for j, t in enumerate(rest)
                               if not t.startswith("-") and j not in folder) if p]
-        return explore, word, paths + ["wrap:" + w for w in wraps]
+        return explore, word, paths + ["wrap:" + w for w in wraps], cwd
     if RUNNERS.match(word):
         positional = None
         skip = False
@@ -570,7 +599,7 @@ def classify(tokens, root, cwd, config):
                 skip = token in ("<", ">", ">>", "<<", "<<-") or token.endswith(">")
                 continue
             if word in SHELLS and re.match(r"^-[A-Za-z]*c[A-Za-z]*$", token) and j + 1 < len(rest):
-                return explore, "recurse", [rest[j + 1]]
+                return explore, "recurse", [rest[j + 1]], cwd
             if token in ("-c", "-e", "--eval") and j + 1 < len(rest):
                 paths += paths_in_text(root, cwd, rest[j + 1], config)
                 skip = True
@@ -591,9 +620,9 @@ def classify(tokens, root, cwd, config):
                 positional = token
             if rel and (first or SCRIPT_EXT.search(rel) or word in ("jupyter", "papermill", "quarto")):
                 paths.append(rel)
-        return explore, (word if paths else None), paths
+        return explore, (word if paths else None), paths, cwd
     rel = gated_rel(root, cwd, head, config)
-    return explore, (head if rel else None), ([rel] if rel else [])
+    return explore, (head if rel else None), ([rel] if rel else []), cwd
 
 
 def job_cwd(tokens, cwd):
@@ -615,19 +644,19 @@ def analyse_command(command, root, cwd, config):
         if tokens[0] == "cd":
             virtual_cwd = cd_target(virtual_cwd, tokens)
             continue
-        explore, label, paths = classify(tokens, root, virtual_cwd, config)
+        explore, label, paths, run_cwd = classify(tokens, root, virtual_cwd, config)
         if label == "recurse":
-            for inner in analyse_command(paths[0], root, virtual_cwd, config):
+            for inner in analyse_command(paths[0], root, run_cwd, config):
                 yield (inner[0] or explore,) + inner[1:]
             continue
         wraps = [p[5:] for p in paths if p.startswith("wrap:")]
         paths = [p for p in paths if not p.startswith("wrap:")]
         for payload in wraps:  # an sbatch --wrap payload runs in the job's folder
-            inner_cwd = job_cwd(tokens, virtual_cwd) if label == "sbatch" else virtual_cwd
+            inner_cwd = job_cwd(tokens, run_cwd) if label == "sbatch" else run_cwd
             for inner in analyse_command(payload, root, inner_cwd, config):
                 yield (inner[0] or explore,) + inner[1:]
         if label:
-            yield explore, label, paths, " ".join(tokens), tokens, virtual_cwd
+            yield explore, label, paths, " ".join(tokens), tokens, run_cwd
 
 
 def single_shell_command(command, root, cwd, config):
@@ -638,7 +667,7 @@ def single_shell_command(command, root, cwd, config):
         parts = list(segments(command))
         if len(parts) != 1 or "&" in operators:
             return False
-        _, label, paths = classify(parts[0], root, cwd, config)
+        _, label, paths, _ = classify(parts[0], root, cwd, config)
         if label != "recurse":
             return True
         command = paths[0]

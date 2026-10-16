@@ -2133,6 +2133,76 @@ class ReviewFixesTest(unittest.TestCase):
             gate.write_json(self.path("launches", "k.json"), {})
         self.assertNotEqual(names[0], self.path("launches", "k.json.tmp"))
 
+    def test_a_folder_option_before_a_recursing_payload_still_moves_the_folder(self):
+        for command in [
+            'env -C analysis/demo bash -c "python run.py"',
+            'srun -D analysis/demo bash -c "python run.py"',
+            'conda run --cwd analysis/demo bash -c "python step.py"',
+            'uv run --directory analysis/demo bash -c "python step.py"',
+            'env -C analysis/demo -S "python step.py"',
+            "env -C analysis/demo sbatch --wrap='python step.py'",
+        ]:
+            self.assertTrue(self.denied(self.bash(command)), command)
+        self.write("analysis/demo/step.py", "pass\n")
+        self.approve(self.plan("submit with sbatch"))
+        self.assertTrue(self.denied(self.bash("env -C analysis/demo sbatch --wrap='python step.py'")))
+        self.approve(self.plan("run `analysis/demo/step.py`"))
+        command = 'env -C analysis/demo bash -c "python step.py"'
+        self.assertIsNone(self.tool(command, tool_use_id="t1"))
+        self.post(command, tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual((receipt["cwd"], receipt["paths"]), ("analysis/demo", ["analysis/demo/step.py"]))
+
+    def test_wrapper_flags_that_take_no_value_do_not_hide_a_read(self):
+        for command in [
+            "stdbuf -oL grep -rn python analysis/",
+            "stdbuf -oL grep python analysis/",
+            "env -i grep -n python analysis/demo/step.py",
+            "env --ignore-environment grep -n python analysis/demo/step.py",
+            "uv run --frozen pytest -k python analysis/demo",
+            "uv run --locked --no-sync grep -n python analysis/demo/step.py",
+            "uv run --isolated --no-project pytest python analysis/demo",
+            "srun --exclusive grep -rn python analysis/",
+            "conda run --no-capture-output grep -rn python analysis/",
+        ]:
+            self.assertIsNone(self.bash(command), command)
+        for command in [
+            "env -i python analysis/demo/step.py",
+            "uv run --frozen python analysis/demo/step.py",
+            "uv run --no-project --python 3.12 python analysis/x.py",
+            "srun --exclusive python analysis/x.py",
+            "conda run --no-capture-output python analysis/x.py",
+            "stdbuf -oL python analysis/x.py",
+            "timeout -sKILL 5 python analysis/x.py",
+            "timeout -s KILL 5 python analysis/x.py",
+            "env -C %s python analysis/demo/step.py" % self.root,
+            "conda run -p /p python analysis/x.py",
+            "uv run --project envdir python analysis/x.py",
+            "uv run --python 3.12 python analysis/x.py",
+            "conda run -n synthetic python analysis/x.py",
+            "uv run --project . python analysis/x.py",
+        ]:
+            self.assertTrue(self.denied(self.bash(command)), command)
+
+    def test_wrappers_named_by_absolute_path_are_still_wrappers(self):
+        for command in [
+            "/usr/bin/env python analysis/x.py",
+            "/usr/bin/env -C analysis/demo python step.py",
+            "/usr/bin/time python analysis/x.py",
+            "/opt/conda/bin/conda run -n x python analysis/x.py",
+            "~/miniforge3/bin/conda run -n x python analysis/x.py",
+            "/usr/bin/python analysis/x.py",
+            "./analysis/x.py",
+        ]:
+            self.assertTrue(self.denied(self.bash(command)), command)
+        for command in ["/usr/bin/ls analysis/x.py", "/usr/bin/env", "/usr/bin/time ls analysis",
+                        "/opt/conda/bin/conda run -n x ls", "/usr/bin/env -C /tmp python tools/y.py"]:
+            self.assertIsNone(self.bash(command), command)
+
+    def test_a_gated_script_named_like_a_wrapper_stays_gated(self):
+        self.assertTrue(self.denied(self.bash("analysis/run")))
+        self.assertTrue(self.denied(self.bash("./analysis/time --fast")))
+
 
 if __name__ == "__main__":
     unittest.main()
