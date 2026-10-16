@@ -53,13 +53,21 @@ For coverage, exploration, or custom settings, see [Approval gate](approval-gate
 Add **`verify`**. For a reportable, long, or HPC run, also freeze the finished code
 in a run plan before executing it.
 
-1. Once code is written and linted, ask `grill` for a run plan. It revises the
-   existing `PLAN.md`, lists scripts, Snakefile, and `run.sh` under `Inputs:`,
-   and shows a dry run under the first plan's approval.
-2. Read the revised plan and approve its displayed hash. Run the covered steps.
-3. Invoke `/mycelium-extra:verify <hash>` for that run plan.
-4. Read the failures and gaps. Confirm if you want the check saved under
-   `<analysis>/provenance/`, then commit it with the analysis.
+1. Once code is written and linted, review it **before** freezing it. Ask
+   Mycelium's `review` for the principal methodological and code review (in an
+   ordinary repository, use your own review), and run the executable checks you
+   select, such as the project's tests or `data-contract-check`. Fix what they
+   find; every code edit belongs before the freeze.
+2. Ask `grill` for a run plan. It revises the existing `PLAN.md`, lists scripts,
+   Snakefile, and `run.sh` under `Inputs:`, and shows a dry run under the first
+   plan's approval.
+3. Read the revised plan and approve its displayed hash. Run the covered steps.
+4. Invoke `/mycelium-extra:verify <hash>` for that run plan.
+5. Read the failures and gaps. Confirm if you want the check saved under
+   `<analysis>/provenance/`, then commit it with the analysis. Ask for another
+   review only when `verify` leaves failures or gaps unresolved, a result needs
+   a closer look, or you want a deeper review; the review before the freeze
+   covered the code that ran, so repeating it after an unchanged run adds little.
 
 | Result | Meaning |
 |---|---|
@@ -84,12 +92,12 @@ all eleven skills for every analysis.
 | Need | Tool | When to use it |
 |---|---|---|
 | Predictable analysis structure | `new-analysis` | Before implementing a new analysis; creates stubs, workflow, plan, and tracker |
-| Independent challenge | `plan-review` | After `grill`, before approval; revised plans return to `grill` |
+| Independent challenge | `plan-review` | Optional, after `grill` and before the first approval; revised plans return to `grill` |
 | Continuity between sessions | `handoff` | Before starting a fresh session |
 | Keep flow when an idea strikes | `idea` | Any time; one line, no questions |
 | Choose what to work on next | `idea-triage` | Between analyses, when several ideas are waiting |
 | Prevent a recurring mistake | `harden` | When a Mycelium learning names a concrete test candidate |
-| Project memory, execution, code review, reports | Mycelium | Use its normal lifecycle around Extra's planning and verification |
+| Project memory, execution, code review, reports | Mycelium | Use its normal lifecycle around Extra's planning and verification; review the code before the final freeze |
 
 `plan-review` is Claude-led for separate Codex and Biomni reviews. It requires
 consent to send the packet outside the machine; Biomni uses cloud credits.
@@ -107,7 +115,7 @@ in place of the `mycelium:*` commands.
 ```mermaid
 flowchart TD
     accTitle: Full data analysis workflow with Mycelium Extra
-    accDescr: Set up inputs, plan and approve, implement and freeze code, run, verify, review, report, and record project memory.
+    accDescr: Set up inputs, plan and approve, implement, review and freeze code, run, verify, review again only if triggered, report, and record project memory.
     subgraph prepare["1. Set up and plan"]
         question["Analysis question + available data"]
         setup["Install Extra; enable hooks; init once per repository"]
@@ -118,25 +126,28 @@ flowchart TD
         question --> setup --> inputs --> folder --> plan --> approval
     end
 
-    subgraph execute["2. Implement and run"]
+    subgraph execute["2. Implement, review, and run"]
         code["mycelium:analyze or your own tools<br/>Implement preparation, models, and plots; lint and test"]
+        review["mycelium:review or your own review, before the freeze<br/>Methods and code against the approved plan; run selected checks"]
         freeze["grill: revise PLAN.md into a run plan<br/>Pin code + data; show dry run and tool versions"]
         runapproval["You approve the run plan's displayed hash"]
         run["Run preparation, models, diagnostics, and figures<br/>Use your normal runner; gate checks inputs and records receipts"]
-        code --> freeze --> runapproval --> run
+        code --> review --> freeze --> runapproval --> run
     end
 
     subgraph finish["3. Check and report"]
         verify["verify: compare plan, receipts, outputs, lint, and claims<br/>Read CONFORMS, CONFORMS_WITH_GAPS, or DOES_NOT_CONFORM"]
         provenance["Confirm saving the check<br/>Commit analysis + provenance with its recorded status"]
-        review["mycelium:review<br/>Review code and statistics against the frozen plan"]
+        recheck["Targeted review, only if triggered<br/>Unresolved failures or gaps, a surprising result, or a deeper review you ask for"]
         report["mycelium:report<br/>Write findings and figures with output-backed claims"]
         memory["Mycelium's normal memory updates<br/>Record findings, decisions, learnings, and verification status"]
-        verify -->|"after reading failures and gaps"| provenance --> review --> report --> memory
+        verify -->|"after reading failures and gaps"| provenance --> report --> memory
+        provenance -.->|"if triggered"| recheck -.-> report
     end
 
     approval --> code
     runapproval -.->|"frozen code or data changes: revise and reapprove"| freeze
+    review -.->|"findings: fix the code and review again"| code
     run --> verify
     verify -.->|"work needs correction: revise the plan and repeat affected steps"| plan
     plan -.->|"optional, before approval"| independent["plan-review: independent critique<br/>Claude leads Codex + Biomni; review grants no approval"]
@@ -153,9 +164,28 @@ so use `allow explore` for a debugging loop. Dry runs still need approval. Use o
 
 Verification reports missing evidence separately from failures; saving provenance
 does not turn a gap or failure into a pass. It checks the execution record, while
-code review assesses methods and interpretation. If the final report introduces
+code review assesses methods and interpretation, which is why the principal review
+comes before the freeze and verification does not replace it. If the final report introduces
 new or changed claims, run `verify` again with that document included before
 sharing it. See [Verification reference](verification.md#what-the-report-shows).
+
+### Two checkpoints
+
+Both are your approval of a displayed plan hash. They approve different things,
+and the gate checks only part of each.
+
+| | Scientific intent approval | Final execution freeze |
+|---|---|---|
+| You approve | The question, the choices and their sources, the steps, and the inputs | The finished code and data exactly as they will run |
+| When | After `grill`, before implementation | After implementation, lint, review, and checks, before the reportable run |
+| Checked mechanically today | The approved hash is tied to the plan text; covered commands are denied until it is approved; `Inputs:` files are pinned when the hash is shown; a script is pinned at its first covered run; receipts are recorded | Files listed under `Inputs:` (scripts, Snakefile, `run.sh`, data) are pinned when the hash is shown, and a launch after any of them changes is blocked until the revised plan is approved; receipts are recorded |
+| Instructional only | That each choice is sourced and the plan complete (`grill`); that independent critique happened (`plan-review`) | That the code is finished and lint-clean, that the principal review and selected checks ran and their findings were fixed, and that the dry run and tool versions are in the plan (`grill`'s run-plan instructions) |
+
+The gate does not check that a review happened or that a test passed, and no test
+or review result is tied to an approval. After the run, `verify` compares the
+execution record with the plan; it does not re-run tests or review the methods.
+See [Approval gate](approval-gate.md#pinned-scripts) and the
+[run-plan reference](../skills/grill/references/run-plans.md).
 
 `handoff` can be used at any pause. `harden` is for a specific recurring mistake,
 not a mandatory finishing step. See [Skill reference](skills.md) for each tool's
