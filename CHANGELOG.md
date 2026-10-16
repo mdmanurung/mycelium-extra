@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.74] - 2026-10-17
+
+### Added
+
+- `verify runs [PATH]` lists the runs in a results folder (default: `results/` of the newest approval's analysis): name, version, kind, status, last changed (the newest file inside, not the folder), a content id, and the label's `why`, read from each run's `RUN.txt` or a sibling `<run>.RUN.txt`. It writes nothing. A run without a label is a gap; a name with `final`, `complete` or similar is a note; a run that looks superseded by a later version of the same slug and kind is only suggested, never marked. A "Citations" section checks the `data/` and `code/` symlinks that point into another analysis's run: unlabelled, superseded, failed, scratch or dangling is a gap, and a run changed after the approval is noted. `check` and `status` are unchanged.
+
 ## [0.9.73] - 2026-10-17
 
 ### Added
