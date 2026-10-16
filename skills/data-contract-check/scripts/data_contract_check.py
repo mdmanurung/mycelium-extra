@@ -65,8 +65,11 @@ def read_table(path, wanted=None):
     delimiter = "," if path.lower().endswith(".csv") else "\t"
     with open(path, newline="", encoding="utf-8-sig", errors="replace") as handle:
         reader = csv.DictReader(handle, delimiter=delimiter)
+        columns = list(reader.fieldnames or [])
+        if len(set(columns)) != len(columns):
+            raise TableGap("the table has duplicate column headers")
         rows = list(reader)
-        return list(reader.fieldnames or []), rows, {}
+        return columns, rows, {}
 
 
 # ---------------------------------------------------------------- h5ad obs
@@ -232,7 +235,7 @@ def check_cohort(check, columns, rows):
         if absent:
             alerts.append(alert(
                 "cohort", "required levels of '{}' are absent after filtering".format(column), True,
-                expected=", ".join(str(l) for l in check["levels"]),
+                expected=", ".join(str(l) for l in as_list(check["levels"])),
                 observed="absent: " + ", ".join(str(l) for l in absent),
                 evidence=["{}={}".format(k, v) for k, v in sorted(present.items())]))
     if "min_rows" in check and len(rows) < int(check["min_rows"]):
@@ -402,6 +405,42 @@ def render_cross_table(table):
 
 def validate(check, index):
     """Contract syntax the checks rely on; a bad value is a usage error, never a pass."""
+    kind = check["kind"]
+    required = {"schema": ["columns"], "unit_of_replication": ["unit", "group"],
+                "pairing": ["unit", "within"], "batch_confounding": ["batch", "contrast"]}
+    for key in required.get(kind, []):
+        need(check, key)
+    for key in ("column", "unit", "group", "batch", "contrast"):
+        if key in check and (not isinstance(check[key], str) or not check[key]):
+            raise ContractError("checks[{}] {} must be a nonempty column name".format(index, key))
+    for key in ("columns", "within", "no_missing"):
+        if key not in check:
+            continue
+        value = check[key]
+        if key == "within" and kind == "pairing":
+            valid = isinstance(value, str) and bool(value)
+        else:
+            valid = (isinstance(value, (list, str)) and (bool(value) or key != "columns")
+                     and (key != "columns" or isinstance(value, list))
+                     and all(isinstance(c, str) and bool(c) for c in as_list(value)))
+        if not valid:
+            raise ContractError("checks[{}] {} has invalid column names".format(index, key))
+    if kind == "cohort" and "levels" in check and "column" not in check:
+        raise ContractError("cohort levels need a column")
+    if kind == "cohort" and not any(k in check for k in ("column", "rows", "min_rows")) \
+            and not check.get("no_missing"):
+        raise ContractError("cohort check needs a column, row count, or no_missing columns")
+    if "levels" in check and any(not isinstance(v, (str, int, float, bool))
+                                  for v in as_list(check["levels"])):
+        raise ContractError("checks[{}] levels must contain scalar values".format(index))
+    for key in ("rows", "min_rows", "min_units_per_group"):
+        if key in check:
+            value = check[key]
+            minimum = 1 if key == "min_units_per_group" else 0
+            if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+                raise ContractError("checks[{}] {} must be an integer >= {}".format(index, key, minimum))
+    if "units_may_span_groups" in check and not isinstance(check["units_may_span_groups"], bool):
+        raise ContractError("units_may_span_groups must be a boolean")
     if check.get("kind") == "batch_confounding" and "max_share" in check:
         share = check["max_share"]
         if isinstance(share, bool) or not isinstance(share, (int, float)) or not 0 < share <= 1:
@@ -426,7 +465,22 @@ def referenced_columns(check):
 
 
 def filter_columns(filters):
-    return [rule.get("column") for rule in filters]
+    if not isinstance(filters, list):
+        raise ContractError("filters must be a list")
+    for rule in filters:
+        if not isinstance(rule, dict) or not isinstance(rule.get("column"), str) or not rule["column"]:
+            raise ContractError("each filter needs a nonempty column name")
+        operations = [key for key in ("equals", "in", "not_in") if key in rule]
+        if len(operations) != 1:
+            raise ContractError("each filter needs exactly one of equals, in, or not_in")
+        operation = operations[0]
+        values = rule[operation]
+        if operation != "equals" and not isinstance(values, list):
+            raise ContractError("filter {} must be a list".format(operation))
+        if any(not isinstance(v, (str, int, float, bool)) for v in
+               ([values] if operation == "equals" else values)):
+            raise ContractError("filter values must be scalars")
+    return [rule["column"] for rule in filters]
 
 
 RELAXATIONS = ("units_may_span_groups",)
@@ -434,20 +488,29 @@ RELAXATIONS = ("units_may_span_groups",)
 
 def run_contract(contract, base_dir):
     """Return (per-check summaries, alerts)."""
-    if contract.get("schema") != SCHEMA:
+    if not isinstance(contract, dict) or contract.get("schema") != SCHEMA:
         raise ContractError("contract schema must be " + SCHEMA)
+    checks = need(contract, "checks")
+    if not isinstance(checks, list) or not checks:
+        raise ContractError("checks must be a nonempty list")
+    global_filters = contract.get("filters", [])
+    filter_columns(global_filters)
     summaries, alerts = [], []
     cache = {}
     plan = []
-    for index, check in enumerate(need(contract, "checks")):
+    for index, check in enumerate(checks):
+        if not isinstance(check, dict):
+            raise ContractError("checks[{}] must be an object".format(index))
         kind = check.get("kind")
-        if kind not in CHECKS:
+        if not isinstance(kind, str) or kind not in CHECKS:
             raise ContractError("unknown check kind at checks[{}]: {}".format(index, kind))
         validate(check, index)
         table = check.get("table", contract.get("table"))
-        if not table:
+        if not isinstance(table, str) or not table:
             raise ContractError("checks[{}] has no table".format(index))
-        filters = contract.get("filters", []) + check.get("filters", [])
+        local_filters = check.get("filters", [])
+        filter_columns(local_filters)
+        filters = global_filters + local_filters
         path = table if os.path.isabs(table) else os.path.join(base_dir, table)
         named = filter_columns(filters) + ([] if kind == "schema" else referenced_columns(check))
         plan.append((index, check, kind, table, filters, path, named))

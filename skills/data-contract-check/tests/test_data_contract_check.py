@@ -38,10 +38,10 @@ def invoke(checks, filters=None, table="samples.tsv", root=FIXTURES, as_json=Tru
             proc = subprocess.Popen(
                 [sys.executable, "-", "--contract", handle.name, "--root", root] + (["--json"] if as_json else []),
                 stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
-            out, _ = proc.communicate()
+            out, err = proc.communicate()
     finally:
         os.unlink(handle.name)
-    return proc.returncode, out.decode("utf-8")
+    return proc.returncode, (out + (err if proc.returncode == 1 else b"")).decode("utf-8")
 
 
 def run(checks, filters=None, **kwargs):
@@ -126,6 +126,65 @@ class DataContractCheckTest(unittest.TestCase):
     def test_bad_contract_is_usage_error(self):
         code, _ = run([{"kind": "nonsense"}])
         self.assertEqual(code, 1)
+
+    def test_malformed_checks_are_usage_errors_not_silent_relaxations(self):
+        cases = [[], [None], ["cohort"], [{"kind": "cohort"}],
+                 [{"kind": "cohort", "no_missing": []}],
+                 [{"kind": "schema", "columns": "participant"}],
+                 [{"kind": "pairing", "unit": "participant", "within": ["visit"]}],
+                 [{"kind": "unit_of_replication", "unit": "participant", "group": "cohort",
+                   "units_may_span_groups": "false"}],
+                 [{"kind": "cohort", "rows": 8.9}],
+                 [{"kind": "cohort", "min_rows": -1}],
+                 [{"kind": "cohort", "levels": ["A"]}],
+                 [{"kind": "pairing", "unit": "participant"}]]
+        for checks in cases:
+            code, out = invoke(checks)
+            self.assertEqual(code, 1, checks)
+            self.assertTrue(out.startswith("contract error:"), out)
+            self.assertNotIn("Traceback", out)
+
+    def test_nonobject_contracts_are_clear_usage_errors(self):
+        for value in (None, [], "contract", 1):
+            with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+                json.dump(value, handle)
+            try:
+                with open(SCRIPT) as source:
+                    proc = subprocess.run([sys.executable, "-", "--contract", handle.name], stdin=source,
+                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                          universal_newlines=True)
+            finally:
+                os.unlink(handle.name)
+            self.assertEqual(proc.returncode, 1, value)
+            self.assertTrue(proc.stderr.startswith("contract error:"), proc.stderr)
+            self.assertNotIn("Traceback", proc.stderr)
+
+    def test_malformed_filters_are_usage_errors(self):
+        for filters in ([{"column": "cohort", "in": "AB"}],
+                        [{"column": "cohort", "equals": "A", "not_in": ["B"]}],
+                        [None], "cohort"):
+            code, out = invoke([{"kind": "cohort", "min_rows": 1}], filters)
+            self.assertEqual(code, 1, filters)
+            self.assertTrue(out.startswith("contract error:"), out)
+
+    def test_scalar_cohort_level_and_empty_optional_columns_are_supported(self):
+        code, alerts = run([{"kind": "cohort", "column": "cohort", "levels": "missing",
+                             "no_missing": []}])
+        self.assertEqual(code, 2)
+        self.assertEqual(alerts[0]["expected"], "missing")
+        code, _ = run([{"kind": "unit_of_replication", "unit": "participant", "group": "cohort",
+                         "within": []}], KEEP)
+        self.assertEqual(code, 2)  # repeated visits still count as repeated units
+
+    def test_duplicate_headers_do_not_overwrite_a_required_column(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        with open(os.path.join(folder, "duplicate.tsv"), "w") as handle:
+            handle.write("cohort\tcohort\nA\tB\n")
+        code, out = invoke([{"kind": "cohort", "column": "cohort", "levels": ["B"]}],
+                           root=folder, table="duplicate.tsv")
+        self.assertEqual(code, 3)
+        self.assertIn("duplicate", json.loads(out)["alerts"][0]["observed"])
 
 
 IMBALANCE = {"kind": "batch_confounding", "batch": "batch", "contrast": "condition", "table": "imbalance.tsv"}

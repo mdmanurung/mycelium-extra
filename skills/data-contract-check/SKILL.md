@@ -31,6 +31,7 @@ Write down what the plan assumes about its sample table, check it against the fi
 ```
 
 - `filters` (`equals`, `in`, `not_in`) apply to every check; a check may add its own `filters`, `table`, and `label`. Values compare as strings (`"TRUE"`, not `true`).
+- A contract needs at least one check. A cohort check names a column, row-count constraint, or nonempty `no_missing` columns; an empty check is a usage error. Each filter names one column and exactly one operation; `in` and `not_in` take lists. Counts are nonnegative integers (`min_units_per_group` must be positive); `units_may_span_groups` is a JSON boolean, never a string. Malformed types are usage errors, not relaxed assumptions. Duplicate table headers are an unreadable-table gap because choosing one would lose data.
 - `cohort`: required `levels` present, `min_rows` or exact `rows`, and no missing values in `no_missing` columns.
 - `unit_of_replication`: at most one row per unit in each `group` × `within` cell; at least `min_units_per_group` distinct units per group (default 2); no unit in two groups unless `units_may_span_groups` is true (a crossover or paired contrast).
 - `pairing`: every unit observed at every `within` level (listed, or all levels present).
@@ -61,4 +62,4 @@ Output is one line per check (`PASS`, `WARN`, `GAP`, or `BLOCK`, with the rows i
 
 ## 4. Report
 
-One line per check: the kind, the assumption, pass / warn / block, and the observed counts. In grill, a passing contract is `repo` evidence for the plan's rows it covers; cite the table path and the contract's checks. Record the contract with the plan's "Decisions to record" so the executing workflow can re-run it.
+One line per check: the kind, the assumption, pass / warn / gap / block, and the observed counts. In grill, a passing contract is `repo` evidence for the plan's rows it covers; cite the table path and the contract's checks. Record the contract with the plan's "Decisions to record" so the executing workflow can re-run it.
