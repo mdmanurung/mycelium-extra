@@ -673,11 +673,10 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("job 4243 COMPLETED | ", out)
         self.assertIn("matched by its sacct submit line", out)
         out = self.verify("report", digest, sacct=self.fake_sacct(line.format("FAILED", "other.py")))
-        self.assertIn("Slurm job 4243 (`sbatch -J a", out)
-        self.assertIn("is FAILED, and it names no planned script", out)
+        self.assertIn("`sbatch -J a --wrap python $F`: Slurm job 4243 ended FAILED", out)  # a command receipt
         array = self.write("bin/sacct-array", "#!/bin/sh\nprintf '4243_1|COMPLETED|0:0|||\\n4243_2|TIMEOUT|0:0|||\\n'\n")
         os.chmod(array, os.stat(array).st_mode | stat.S_IEXEC)
-        self.assertIn("is TIMEOUT, and it names no planned script", self.verify("report", digest, sacct=array))
+        self.assertIn("Slurm job 4243 ended TIMEOUT", self.verify("report", digest, sacct=array))
         self.run_cmd('sbatch -J b --wrap "python $F"', stdout="Submitted batch job 4243")  # one shared output
         out = self.verify("report", digest, sacct=self.fake_sacct(line.format("COMPLETED", FIT)))
         self.assertIn("job 4243 (state not attributable)", out)
@@ -1508,6 +1507,89 @@ sys.exit(1 if hits else 0)
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
         self.run_cmd("python " + FIT, exit_code=3)  # and a failed run of the folder blocks
         self.assertIn("failed (exit 3)", self.verify("report", digest))
+
+    def test_failed_slurm_job_of_a_command_only_plan_blocks(self):
+        self.write("jobs/fit.job", "#!/bin/bash\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("`sbatch jobs/fit.job`"))
+        self.run_cmd("sbatch jobs/fit.job", stdout="Submitted batch job 4242")
+        line = "4242|{}|0:0|2026-09-30T10:00:00|2026-09-30T10:05:00"
+        for state in ("FAILED", "CANCELLED", "TIMEOUT"):
+            out = self.verify("report", digest, sacct=self.fake_sacct(line.format(state)))
+            self.assertIn("`sbatch jobs/fit.job`: Slurm job 4242 ended " + state, out)
+            self.assertIn("Verify status: DOES_NOT_CONFORM", out)
+        out = self.verify("report", digest, sacct=self.fake_sacct(line.format("COMPLETED")))
+        self.assertNotIn("**block**", out)
+        self.assertNotIn("Slurm job 4242", out)
+        out = self.verify("report", digest, sacct=os.path.join(self.root, "no-sacct"))
+        self.assertIn("Slurm job 4242 is of unknown state", out)
+        self.assertNotIn("**block**", out)
+
+    def test_unknown_exit_with_a_job_id_is_judged_by_the_job(self):
+        self.write("jobs/fit.job", "#!/bin/bash\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("`sbatch jobs/fit.job`"))
+        self.run_cmd("sbatch jobs/fit.job", stdout="Submitted batch job 4242")
+        path = gate.state_path(self.root, "receipts.jsonl")
+        with open(path) as handle:
+            receipt = json.loads(handle.readlines()[-1])
+        receipt["exit_status"] = "unknown"
+        with open(path, "w") as handle:
+            handle.write(json.dumps(receipt) + "\n")
+        out = self.verify("report", digest, sacct=self.fake_sacct(
+            "4242|COMPLETED|0:0|2026-09-30T10:00:00|2026-09-30T10:05:00"))
+        self.assertNotIn("carried no exit status", out)
+        self.assertNotIn("Slurm job", out)
+        self.assertNotIn("**block**", out)
+
+    def test_compound_command_receipt_gets_the_compound_gap(self):
+        self.write("analysis/a/Snakefile", "rule all:\n  input: 'x'\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("`snakemake -j1`"))
+        self.run_cmd("cd analysis/a && snakemake -j1")
+        out = self.verify("report", digest)
+        self.assertIn("`snakemake -j1` was named in a compound command at", out)
+        self.assertIn("cannot be attributed to this step", out)
+        self.assertNotIn("carried no exit status", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+        self.run_cmd("cd analysis/a && snakemake -j1", exit_code=2)
+        out = self.verify("report", digest)
+        self.assertIn("Compound command containing `snakemake -j1` failed", out)
+        self.assertNotIn("carried no exit status", out)
+        self.assertIn("Verify status: DOES_NOT_CONFORM", out)
+
+    def test_a_retry_with_other_arguments_supersedes_the_failed_try(self):
+        self.write("jobs/fit.job", "#!/bin/bash\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("`snakemake -j1`", "`sbatch jobs/fit.job`"))
+        done = self.fake_sacct("4242|COMPLETED|0:0|2026-09-30T10:00:00|2026-09-30T10:05:00")
+        self.run_cmd("snakemake -j1", exit_code=1)
+        self.run_cmd("sbatch -p wrong jobs/fit.job", exit_code=1)
+        out = self.verify("report", digest, sacct=done)
+        self.assertIn("`snakemake -j1` failed (exit 1)", out)
+        self.assertIn("`sbatch -p wrong jobs/fit.job` failed (exit 1)", out)
+        self.run_cmd("snakemake -j1 --rerun-incomplete")
+        self.run_cmd("sbatch -p cpu jobs/fit.job", stdout="Submitted batch job 4242")
+        out = self.verify("report", digest, sacct=done)
+        self.assertNotIn("failed (exit", out)
+        self.assertNotIn("**block**", out)
+        self.run_cmd("snakemake -j1 --rerun-incomplete", exit_code=4)  # a later failure of the step shows
+        self.assertIn("failed (exit 4)", self.verify("report", digest, sacct=done))
+
+    def test_a_later_failure_of_another_step_is_not_hidden_by_an_earlier_success(self):
+        self.write("jobs/fit.job", "#!/bin/bash\n", mtime=time.time() - 3600)
+        self.write("jobs/plot.job", "#!/bin/bash\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("`sbatch jobs/fit.job`", "`sbatch jobs/plot.job`"))
+        self.run_cmd("sbatch jobs/fit.job", stdout="Submitted batch job 4242")
+        self.run_cmd("sbatch jobs/plot.job", exit_code=1)
+        out = self.verify("report", digest, sacct=self.fake_sacct(
+            "4242|COMPLETED|0:0|2026-09-30T10:00:00|2026-09-30T10:05:00"))
+        self.assertIn("`sbatch jobs/plot.job` failed (exit 1)", out)
+        self.assertIn("Verify status: DOES_NOT_CONFORM", out)
+
+    def test_folder_run_by_cd_and_snakemake_is_not_a_zero_run_gap(self):
+        self.write("analysis/a/scripts/Snakefile", "rule all:\n  input: 'x'\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("run the scripts in `analysis/a/scripts/`", "`snakemake -j1`"))
+        self.run_cmd("cd analysis/a/scripts && snakemake -j1")
+        out = self.verify("report", digest)
+        self.assertNotIn("grants running", out)
+        self.assertIn("1 run(s) in it", out)
 
     def test_plan_that_runs_nothing_stays_valid(self):
         self.write("analysis/a/outputs/old.tsv", "x\n", mtime=time.time() - 3600)

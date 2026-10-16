@@ -1195,9 +1195,10 @@ def edit_evidence(root, path, budget, receipts):
     return "This version has not run under any plan, so no approval covers it."
 
 
-def check_receipt(report, r):
-    """A finding for a receipt that failed (block) or has no exit status (gap), in the wording of a
-    script's row. A Slurm submission that exited 0 is judged by its job's state, not here."""
+def check_receipt(report, r, judge_job=None):
+    """A finding for a command receipt no script row judged, in the wording of a script's row. A
+    submission that exited 0 and recorded a job is judged by `judge_job(what, r)`, the job's state;
+    a compound command's own failure is already a block, so only its attribution gap is added here."""
     what, at, code = "`{}`".format(r.get("command", "")[:80]), when(r.get("ts")), r.get("exit_status")
     if isinstance(code, int) and code != 0:
         report.add("block", "{} failed (exit {}) at {}.".format(what, code, at))
@@ -1205,14 +1206,42 @@ def check_receipt(report, r):
         report.add("block", "{} {} at {}{}.".format(
             what, "failed without an exit code" if code == "failed" else "was interrupted", at,
             ": " + r["error_line"] if r.get("error_line") else ""))
+    elif r.get("job_id") and judge_job:
+        judge_job(what, r)
     elif code == 0:
         return
+    elif "command_exit_status" in r:
+        failed = r["command_exit_status"]
+        if not (isinstance(failed, int) and failed != 0 or failed in ("failed", "interrupted")):
+            report.add("gap", "{} was named in a compound command at {}, but its execution and exit "
+                              "status cannot be attributed to this step.".format(what, at))
     elif r.get("background"):
         report.add("gap", "{} was started in the background at {}, so its exit status is not known and "
                           "the run is not counted as a success; check its output or log.".format(what, at))
     else:
         report.add("gap", "{} ran at {}, but the tool response carried no exit status, so the run is not "
                           "counted as a success.".format(what, at))
+
+
+def step_key(root, r):
+    """What a command receipt ran, for superseding an earlier try: its kind, cwd and the script,
+    Snakefile or job script it named (a path, or an existing file among its arguments). A Snakemake
+    run with none is the Snakefile in its cwd; any other command falls back to its command line."""
+    kind, cwd, command = r.get("kind"), r.get("cwd") or ".", r.get("command", "")
+    targets = set(ran_paths(root, r))
+    if not targets:
+        try:
+            words = shlex.split(command)
+        except ValueError:
+            words = command.split()
+        for word in words:
+            rel = os.path.normpath(os.path.join(cwd, word))
+            if not word.startswith("-") and os.path.basename(word) != kind \
+                    and os.path.isfile(os.path.join(root, rel)):
+                targets.add(rel)
+    if targets:
+        return (kind, cwd, tuple(sorted(targets)))
+    return (kind, cwd) if kind == "snakemake" else (kind, command)
 
 
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
@@ -1289,6 +1318,25 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             failed_commands.add(key)
     scripts, shown = [], set()  # shown: the Slurm jobs a planned script's row reports
     judged = set()  # ids of the receipts a planned script's row already judged
+
+    def judge_job(what, last):
+        """Report the state of `last`'s Slurm job under `what`; returns the row's status text."""
+        job_id = last["job_id"]
+        shown.add(job_id)
+        if job_id in shared:
+            report.add("gap", "{}: Slurm job {} is recorded for {} different sbatch commands, so its "
+                              "state is not attributable; check `sacct -j {}`.".format(
+                                  what, job_id, len({r["command"] for r in mine if r.get("job_id") == job_id}),
+                                  job_id))
+            return "job {} (state not attributable)".format(job_id)
+        state = (jobs.get(job_id) or {}).get("state")
+        if state in FAILED_JOB:
+            report.add("block", "{}: Slurm job {} ended {}.".format(what, job_id, state))
+        elif state != "COMPLETED":
+            report.add("gap", "{}: Slurm job {} is {}; check `sacct -j {}`.".format(
+                what, job_id, state or "of unknown state", job_id))
+        return "job {} {}".format(job_id, state or "state unknown (no sacct)")
+
     for path in planned:
         row = {"path": path, "status": "no receipt", "last_run": None, "notes": []}
         direct = [r for r in mine if path in ran_paths(root, r) or submitted(r, path)]
@@ -1302,7 +1350,6 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             last = direct[-1]
             shown.add(last.get("job_id"))
             row["last_run"] = last["ts"]
-            job = jobs.get(last.get("job_id")) if last.get("job_id") else None
             code = last.get("exit_status")
             if isinstance(code, int) and code != 0:
                 row["status"] = "failed (exit {})".format(code)
@@ -1312,23 +1359,10 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                 report.add("block", "`{}` {} at {}{}.".format(
                     path, "failed without an exit code" if code == "failed" else "was interrupted",
                     when(last["ts"]), ": " + last["error_line"] if last.get("error_line") else ""))
-            elif last.get("job_id") in shared:
-                row["status"] = "job {} (state not attributable)".format(last["job_id"])
-                report.add("gap", "`{}`: Slurm job {} is recorded for {} different sbatch commands, so "
-                                  "its state is not attributable; check `sacct -j {}`.".format(
-                                      path, last["job_id"], len({r["command"] for r in mine
-                                                                 if r.get("job_id") == last["job_id"]}),
-                                      last["job_id"]))
             elif last.get("job_id"):
-                state = (job or {}).get("state")
-                row["status"] = "job {} {}".format(last["job_id"], state or "state unknown (no sacct)")
-                if path not in ran_paths(root, last):
+                row["status"] = judge_job("`{}`".format(path), last)
+                if path not in ran_paths(root, last) and last["job_id"] not in shared:
                     row["notes"].append("matched by its sacct submit line")
-                if state in FAILED_JOB:
-                    report.add("block", "`{}`: Slurm job {} ended {}.".format(path, last["job_id"], state))
-                elif state != "COMPLETED":
-                    report.add("gap", "`{}`: Slurm job {} is {}; check `sacct -j {}`.".format(
-                        path, last["job_id"], state or "of unknown state", last["job_id"]))
             elif code == 0:
                 row["status"] = "ran (exit 0 from hook event)" if last.get("exit_source") == "event" else "ran"
             elif "command_exit_status" in last:
@@ -1401,6 +1435,34 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                                   "inside it.".format(path))
         scripts.append(row)
 
+    if handed:
+        report.add("info", "{} receipt(s) under this plan only passed planned paths to other code "
+                           "(`-e`/`-c` code or a program read from stdin) and are not counted as runs."
+                   .format(len(handed)))
+    granted = set(gate.plan_grants(root, plan, config)[0])  # the Step column alone grants runs
+    for folder in folders:
+        runs = [r for r in mine if any(under(p, folder) for p in ran_paths(root, r))
+                or under(r.get("cwd") or ".", folder)]  # `cd folder && snakemake` names no path
+        report.add("info", "Folder `{}/` is planned as a whole; {} run(s) in it.".format(folder, len(runs)))
+        if not runs and folder in granted and any(
+                gate.SCRIPT_EXT.search(n) or is_snakefile(n)
+                for _, _, names in os.walk(os.path.join(root, folder)) for n in names):
+            report.add("gap", "The plan grants running the scripts in `{}/`, but no run in it under this "
+                              "plan was recorded (looked for a run of a script in it, or a command "
+                              "run from it).".format(folder))
+    for command in commands:
+        runs = [r for r in mine if r.get("kind") == command]
+        if not runs:
+            report.add("gap", "The plan names `{}`, but no `{}` run under it was recorded.".format(
+                command, command))
+    # Command and folder runs name no planned script, so no row above judged them: the latest run
+    # of each step is, once, like a script row (an earlier failed try is superseded).
+    latest = {}
+    for r in mine:
+        if id(r) not in judged:
+            latest[step_key(root, r)] = r
+    for r in sorted(latest.values(), key=lambda r: r["ts"]):
+        check_receipt(report, r, judge_job)
     for job_id in sorted(set(jobs) - shown):  # jobs whose sbatch line names no planned script
         state = (jobs[job_id] or {}).get("state")
         if state == "COMPLETED" and job_id not in shared:
@@ -1410,32 +1472,6 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                    .format(job_id, describe_run(run, digest), "is recorded for several sbatch commands, so its state is "
                            "not attributable" if job_id in shared else "is " + (state or "of unknown state"),
                            job_id))
-    if handed:
-        report.add("info", "{} receipt(s) under this plan only passed planned paths to other code "
-                           "(`-e`/`-c` code or a program read from stdin) and are not counted as runs."
-                   .format(len(handed)))
-    granted = set(gate.plan_grants(root, plan, config)[0])  # the Step column alone grants runs
-    for folder in folders:
-        runs = [r for r in mine if any(under(p, folder) for p in ran_paths(root, r))]
-        report.add("info", "Folder `{}/` is planned as a whole; {} run(s) in it.".format(folder, len(runs)))
-        if not runs and folder in granted and any(
-                gate.SCRIPT_EXT.search(n) or is_snakefile(n)
-                for _, _, names in os.walk(os.path.join(root, folder)) for n in names):
-            report.add("gap", "The plan grants running the scripts in `{}/`, but no run in it under this "
-                              "plan was recorded.".format(folder))
-    for command in commands:
-        runs = [r for r in mine if r.get("kind") == command]
-        if not runs:
-            report.add("gap", "The plan names `{}`, but no `{}` run under it was recorded.".format(
-                command, command))
-    # Command and folder runs name no planned script, so no row above judged them: the latest run
-    # of each command line is, once, like a script row (an earlier failed try is superseded).
-    latest = {}
-    for r in mine:
-        if id(r) not in judged:
-            latest[r.get("command", "")] = r
-    for r in sorted(latest.values(), key=lambda r: r["ts"]):
-        check_receipt(report, r)
 
     # Runs in the analysis folder that this plan does not cover, and scripts it does not name.
     unplanned_files = []
