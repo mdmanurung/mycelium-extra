@@ -1,0 +1,323 @@
+{
+ "schema": "mx-eval-adjudications/1",
+ "synthetic": true,
+ "run": {
+  "host": "SYNTHETIC-host",
+  "host_version": "none",
+  "model": "SYNTHETIC-model",
+  "model_version": "none",
+  "plugin_version": "none",
+  "adjudicator": "SYNTHETIC-adjudicator",
+  "date": "0000-00-00"
+ },
+ "records": [
+  {
+   "scenario_id": "dev-s01",
+   "trial": 1,
+   "detection": "detected",
+   "generic_gaps_only": false,
+   "choices_expected": 1,
+   "choices_missed": 0,
+   "invented_facts": 0,
+   "unsourced_assumptions": 0,
+   "unnecessary_questions": 0,
+   "unnecessary_reapprovals": 0,
+   "false_clean": {
+    "design": "not_false_clean",
+    "data": "not_false_clean",
+    "execution": "not_false_clean",
+    "claims": "not_false_clean"
+   },
+   "unknown_evidence": "marked_unknown",
+   "useful_completion": "useful_qualified",
+   "active_review_minutes": 10,
+   "evidence_items_total": 5,
+   "evidence_items_cited": 4,
+   "recovery_fidelity": "not_applicable",
+   "evidence_refs": [
+    "SYNTHETIC: no transcript exists"
+   ],
+   "notes": "SYNTHETIC record invented to exercise the scorer; not a result."
+  },
+  {
+   "scenario_id": "dev-s02",
+   "trial": 1,
+   "detection": "unresolved",
+   "generic_gaps_only": true,
+   "choices_expected": 1,
+   "choices_missed": 1,
+   "invented_facts": 1,
+   "unsourced_assumptions": 2,
+   "unnecessary_questions": 1,
+   "unnecessary_reapprovals": 0,
+   "false_clean": {
+    "design": "not_false_clean",
+    "data": "false_clean",
+    "execution": "not_assessed",
+    "claims": "not_false_clean"
+   },
+   "unknown_evidence": "treated_as_known",
+   "useful_completion": "not_useful",
+   "active_review_minutes": 20,
+   "evidence_items_total": 4,
+   "evidence_items_cited": 2,
+   "recovery_fidelity": "not_applicable",
+   "evidence_refs": [
+    "SYNTHETIC: no transcript exists"
+   ],
+   "notes": "SYNTHETIC record invented to exercise the scorer; not a result."
+  },
+  {
+   "scenario_id": "dev-s03",
+   "trial": 1,
+   "detection": "missed",
+   "generic_gaps_only": false,
+   "choices_expected": 1,
+   "choices_missed": 1,
+   "invented_facts": 0,
+   "unsourced_assumptions": 1,
+   "unnecessary_questions": 0,
+   "unnecessary_reapprovals": 1,
+   "false_clean": {
+    "design": "not_false_clean",
+    "data": "not_false_clean",
+    "execution": "false_clean",
+    "claims": "false_clean"
+   },
+   "unknown_evidence": "treated_as_known",
+   "useful_completion": "useful_complete",
+   "active_review_minutes": null,
+   "evidence_items_total": 3,
+   "evidence_items_cited": 3,
+   "recovery_fidelity": "not_applicable",
+   "evidence_refs": [
+    "SYNTHETIC: no transcript exists"
+   ],
+   "notes": "SYNTHETIC record invented to exercise the scorer; not a result."
+  },
+  {
+   "scenario_id": "dev-s04",
+   "trial": 1,
+   "detection": "detected",
+   "generic_gaps_only": false,
+   "choices_expected": 1,
+   "choices_missed": 0,
+   "invented_facts": 0,
+   "unsourced_assumptions": 0,
+   "unnecessary_questions": 2,
+   "unnecessary_reapprovals": 0,
+   "false_clean": {
+    "design": "not_false_clean",
+    "data": "not_false_clean",
+    "execution": "not_false_clean",
+    "claims": "not_false_clean"
+   },
+   "unknown_evidence": "marked_unknown",
+   "useful_completion": "useful_qualified",
+   "active_review_minutes": 15,
+   "evidence_items_total": 5,
+   "evidence_items_cited": 5,
+   "recovery_fidelity": "not_applicable",
+   "evidence_refs": [
+    "SYNTHETIC: no transcript exists"
+   ],
+   "notes": "SYNTHETIC record invented to exercise the scorer; not a result."
+  },
+  {
+   "scenario_id": "dev-s05",
+   "trial": 1,
+   "detection": "unresolved",
+   "generic_gaps_only": false,
+   "choices_expected": 1,
+   "choices_missed": 0,
+   "invented_facts": 0,
+   "unsourced_assumptions": 0,
+   "unnecessary_questions": 0,
+   "unnecessary_reapprovals": 0,
+   "false_clean": {
+    "design": "not_assessed",
+    "data": "not_false_clean",
+    "execution": "not_false_clean",
+    "claims": "not_false_clean"
+   },
+   "unknown_evidence": "marked_unknown",
+   "useful_completion": "useful_qualified",
+   "active_review_minutes": 12,
+   "evidence_items_total": 4,
+   "evidence_items_cited": 3,
+   "recovery_fidelity": "not_applicable",
+   "evidence_refs": [
+    "SYNTHETIC: no transcript exists"
+   ],
+   "notes": "SYNTHETIC record invented to exercise the scorer; not a result."
+  },
+  {
+   "scenario_id": "dev-s06",
+   "trial": 1,
+   "detection": "not_applicable",
+   "generic_gaps_only": false,
+   "choices_expected": 0,
+   "choices_missed": 0,
+   "invented_facts": 0,
+   "unsourced_assumptions": 0,
+   "unnecessary_questions": 0,
+   "unnecessary_reapprovals": 0,
+   "false_clean": {
+    "design": "not_applicable",
+    "data": "not_applicable",
+    "execution": "not_applicable",
+    "claims": "not_applicable"
+   },
+   "unknown_evidence": "not_applicable",
+   "useful_completion": "useful_complete",
+   "active_review_minutes": 2,
+   "evidence_items_total": 2,
+   "evidence_items_cited": 2,
+   "recovery_fidelity": "not_applicable",
+   "evidence_refs": [
+    "SYNTHETIC: no transcript exists"
+   ],
+   "notes": "SYNTHETIC record invented to exercise the scorer; not a result."
+  },
+  {
+   "scenario_id": "dev-s07",
+   "trial": 1,
+   "detection": "not_applicable",
+   "generic_gaps_only": true,
+   "choices_expected": 0,
+   "choices_missed": 0,
+   "invented_facts": 0,
+   "unsourced_assumptions": 0,
+   "unnecessary_questions": 1,
+   "unnecessary_reapprovals": 1,
+   "false_clean": {
+    "design": "not_applicable",
+    "data": "not_applicable",
+    "execution": "not_applicable",
+    "claims": "not_applicable"
+   },
+   "unknown_evidence": "not_applicable",
+   "useful_completion": "not_useful",
+   "active_review_minutes": 6,
+   "evidence_items_total": 1,
+   "evidence_items_cited": 0,
+   "recovery_fidelity": "not_applicable",
+   "evidence_refs": [
+    "SYNTHETIC: no transcript exists"
+   ],
+   "notes": "SYNTHETIC record invented to exercise the scorer; not a result."
+  },
+  {
+   "scenario_id": "ho-s01",
+   "trial": 1,
+   "detection": "missed",
+   "generic_gaps_only": false,
+   "choices_expected": 1,
+   "choices_missed": 1,
+   "invented_facts": 0,
+   "unsourced_assumptions": 0,
+   "unnecessary_questions": 0,
+   "unnecessary_reapprovals": 0,
+   "false_clean": {
+    "design": "false_clean",
+    "data": "not_false_clean",
+    "execution": "not_assessed",
+    "claims": "false_clean"
+   },
+   "unknown_evidence": "treated_as_known",
+   "useful_completion": "useful_complete",
+   "active_review_minutes": 8,
+   "evidence_items_total": 4,
+   "evidence_items_cited": 2,
+   "recovery_fidelity": "not_applicable",
+   "evidence_refs": [
+    "SYNTHETIC: no transcript exists"
+   ],
+   "notes": "SYNTHETIC record invented to exercise the scorer; not a result."
+  },
+  {
+   "scenario_id": "ho-s03",
+   "trial": 1,
+   "detection": "detected",
+   "generic_gaps_only": false,
+   "choices_expected": 1,
+   "choices_missed": 0,
+   "invented_facts": 0,
+   "unsourced_assumptions": 0,
+   "unnecessary_questions": 0,
+   "unnecessary_reapprovals": 0,
+   "false_clean": {
+    "design": "not_false_clean",
+    "data": "not_false_clean",
+    "execution": "not_false_clean",
+    "claims": "not_false_clean"
+   },
+   "unknown_evidence": "marked_unknown",
+   "useful_completion": "useful_qualified",
+   "active_review_minutes": 9,
+   "evidence_items_total": 3,
+   "evidence_items_cited": 3,
+   "recovery_fidelity": "not_applicable",
+   "evidence_refs": [
+    "SYNTHETIC: no transcript exists"
+   ],
+   "notes": "SYNTHETIC record invented to exercise the scorer; not a result."
+  },
+  {
+   "scenario_id": "ho-s06",
+   "trial": 1,
+   "detection": "not_applicable",
+   "generic_gaps_only": false,
+   "choices_expected": 0,
+   "choices_missed": 0,
+   "invented_facts": 0,
+   "unsourced_assumptions": 0,
+   "unnecessary_questions": 0,
+   "unnecessary_reapprovals": 2,
+   "false_clean": {
+    "design": "not_applicable",
+    "data": "not_applicable",
+    "execution": "not_applicable",
+    "claims": "not_applicable"
+   },
+   "unknown_evidence": "marked_unknown",
+   "useful_completion": "useful_qualified",
+   "active_review_minutes": 11,
+   "evidence_items_total": 6,
+   "evidence_items_cited": 4,
+   "recovery_fidelity": "faithful",
+   "evidence_refs": [
+    "SYNTHETIC: no transcript exists"
+   ],
+   "notes": "SYNTHETIC record invented to exercise the scorer; not a result."
+  },
+  {
+   "scenario_id": "ho-s07",
+   "trial": 1,
+   "detection": "not_applicable",
+   "generic_gaps_only": false,
+   "choices_expected": 0,
+   "choices_missed": 0,
+   "invented_facts": 0,
+   "unsourced_assumptions": 0,
+   "unnecessary_questions": 0,
+   "unnecessary_reapprovals": 0,
+   "false_clean": {
+    "design": "not_applicable",
+    "data": "not_applicable",
+    "execution": "not_applicable",
+    "claims": "not_applicable"
+   },
+   "unknown_evidence": "not_applicable",
+   "useful_completion": "useful_complete",
+   "active_review_minutes": 1,
+   "evidence_items_total": 1,
+   "evidence_items_cited": 1,
+   "recovery_fidelity": "not_applicable",
+   "evidence_refs": [
+    "SYNTHETIC: no transcript exists"
+   ],
+   "notes": "SYNTHETIC record invented to exercise the scorer; not a result."
+  }
+ ]
+}

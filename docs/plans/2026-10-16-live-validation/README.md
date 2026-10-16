@@ -17,3 +17,7 @@ After approval, initialize the approval gate in a new disposable project, presen
 ## Native and behavioral qualification
 
 Use disposable host configurations and an immutable candidate. Review and trust the exact current Codex hook definitions, record source/cache hashes and restart. Retain actual event traces plus terminal capture for denial/card/approval/run/failure/unknown/fresh-session reapproval and lifecycle/pause events. Mock API responses qualify only native control flow. Real responses and human adjudication are required for the journeys. Personal installations remain separate.
+
+## Evaluation scaffold and native lifecycle journeys (C12)
+
+Not run. [journeys.md](journeys.md) now also lists lifecycle journeys J15-J18 (approval, exploration, freeze, failure, recovery, verification) and host checks H01-H09 (effective cwd, raw tool aliases, `exec_command` workdir, missing call id, post failures, background jobs, unavailable hooks, hook errors, fresh-session reapproval), each marked NOT RUN with the approval or access it needs. Record the host's actual dispatch trace for each; a discovered skill or an invoked launcher does not count. The false-clean and burden scoring scaffold is in [tests/eval/](../../../tests/eval/README.md); it contains only synthetic examples and no results. These add no spend: EUR0 of EUR50 remains the cumulative total.

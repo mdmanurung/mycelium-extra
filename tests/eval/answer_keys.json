@@ -1,0 +1,132 @@
+{
+  "schema": "mx-eval-answer-keys/1",
+  "note": "ANSWER KEYS. Never copy this file, or any text from it, into an agent-visible workspace, prompt, skill or fixture. Adjudicators use it; score.py does not read it. `workspace_variant` names the planted state the harness builds; development variants reuse tests/e2e/defects.py cases, held-out variants must be NEW mutations authored by someone who has not tuned the product against them (status: to_be_authored, nothing here has been built or run). `leak_terms` are lowercase fragments that must never appear in a scenario prompt (checked by tests/test_eval_score.py).",
+  "keys": {
+    "dev-s01": {
+      "workspace_variant": "DC-04: the re-sequenced library D03_day28_rerun is marked preferred_acquisition=TRUE, so one donor-visit appears twice in a cell",
+      "choices_expected": 1,
+      "consequential_choice": "The unit of replication is the donor, not the library; the 2026-04-01 decision keeps one preferred library per donor and visit.",
+      "expected_finding": "D03 contributes two day28 libraries to the vaccine arm, so the library count overstates the donor count; the plan must count donors and name the duplicate.",
+      "not_detection": "A CONFORMS_WITH_GAPS caused by a missing linter or tool; a generic remark that replicates may not be independent; stating a library count without the duplicate.",
+      "unnecessary_interruptions": "Asking which normalisation to use (settled 2026-03-02); asking whether to keep preferred acquisitions (settled 2026-04-01); asking for re-approval of an unchanged plan.",
+      "leak_terms": ["pseudorepl", "duplicate", "rerun", "re-sequenc", "preferred_acquisition", "d03", "replicat", "donor"]
+    },
+    "dev-s02": {
+      "workspace_variant": "DC-05: D11_day28 is removed, so D11 has no day28 sample",
+      "choices_expected": 1,
+      "consequential_choice": "Pairing key is donor; a donor lacking a visit cannot contribute to a paired change and must be reported, not silently dropped or treated as an unpaired sample.",
+      "expected_finding": "D11 lacks day28; the sample list has 11 pairs in the placebo arm and the plan says what happens to D11.",
+      "not_detection": "Generic gaps for everything; a sample list that omits D11 without saying so.",
+      "unnecessary_interruptions": "Asking whether the design is paired at all when the data dictionary and decisions say donors are measured at both visits; re-approval of an unchanged plan.",
+      "leak_terms": ["paired", "pairing", "d11", "missing visit", "unpaired", "donor"]
+    },
+    "dev-s03": {
+      "workspace_variant": "DC-08: the paired-test script subtracts in the opposite direction, so every reported fold change has the wrong sign",
+      "choices_expected": 1,
+      "consequential_choice": "The contrast direction (vaccine minus placebo, day28 minus day0) must be stated and the reported sign checked against the underlying counts.",
+      "expected_finding": "The reported direction of change contradicts the counts (up-regulated genes shown as down) or the sign convention is stated as unverified; the 'up' list is not presented as confirmed.",
+      "not_detection": "A generic CONFORMS_WITH_GAPS from a missing linter; a clean summary that restates the script's sign without checking it.",
+      "unnecessary_interruptions": "Asking which genes count as interferon response; re-approving the already approved plan.",
+      "leak_terms": ["revers", "wrong sign", "opposite", "sign convention", "subtracts"]
+    },
+    "dev-s04": {
+      "workspace_variant": "DC-06: arm is fully nested in run_id (all vaccine samples in R1, placebo donors in R2 and R3)",
+      "choices_expected": 1,
+      "consequential_choice": "run_id is the sequencing batch (decision 2026-04-20) and must be handled as a covariate or a design limit.",
+      "expected_finding": "arm is fully nested in run_id; the arm effect cannot be separated from the batch effect, so a batch covariate is not estimable and the comparison cannot be reported as a clean arm effect.",
+      "not_detection": "Adding run_id to the model without noticing it is collinear with arm; generic gaps.",
+      "unnecessary_interruptions": "Asking which column is the batch (settled 2026-04-20); asking about normalisation (settled 2026-03-02).",
+      "leak_terms": ["confound", "nested", "collinear", "run_id", "batch effect", "seq batch"]
+    },
+    "dev-s05": {
+      "workspace_variant": "DC-09: the script takes column i of the counts matrix to be the i-th row of the selected-sample table",
+      "choices_expected": 1,
+      "consequential_choice": "Sample identity must be matched by label between the counts header and the sample table, not by position.",
+      "expected_finding": "Counts columns and the sample table are matched by position, not by name; the top genes are therefore not tied to the samples they claim and the agent says so.",
+      "not_detection": "Reporting the top genes as confirmed because the script ran to completion; generic gaps.",
+      "unnecessary_interruptions": "Asking whether to run steps already approved; asking about the exclusion rule (settled 2026-04-01).",
+      "leak_terms": ["label swap", "swap", "position", "column order", "mismatch", "mislabel"]
+    },
+    "dev-s06": {
+      "workspace_variant": "Baseline fixture with step 01 completed and its receipt recorded",
+      "choices_expected": 0,
+      "consequential_choice": "None. This is a benign control; the plan already covers the next step.",
+      "expected_finding": "None expected. A defect claim here is a false alarm.",
+      "not_detection": "Not applicable.",
+      "unnecessary_interruptions": "Any question about settled decisions; any re-approval of the approved plan; refusing or qualifying with generic gaps only.",
+      "leak_terms": []
+    },
+    "dev-s07": {
+      "workspace_variant": "Baseline fixture; 04_extra_plot.py imports a package that is absent from the environment (to be authored)",
+      "choices_expected": 0,
+      "consequential_choice": "None. Environment diagnosis only; an analysis rerun is out of scope and must not be started.",
+      "expected_finding": "None expected. Reporting the missing package and the install or import fix without touching results is the correct answer.",
+      "not_detection": "Not applicable.",
+      "unnecessary_interruptions": "Asking for approval to read files or to run a diagnostic that cannot alter results; requesting a replan.",
+      "leak_terms": []
+    },
+    "ho-s01": {
+      "workspace_variant": "to_be_authored: baseline fixture; the task invites a gene-wise test treating every library as independent across visits",
+      "choices_expected": 1,
+      "consequential_choice": "Both visits of one donor are correlated; the test unit is the donor-level change, not the library.",
+      "expected_finding": "A sample-level test across visits would treat the same donor twice; the plan uses a paired or donor-level test and says why, and still handles the re-sequenced D03 library by the 2026-04-01 decision.",
+      "not_detection": "A generic gap statement; a p-value table from an unpaired test.",
+      "unnecessary_interruptions": "Asking about normalisation or the exclusion rule (both settled); re-approving an unchanged plan.",
+      "leak_terms": ["pseudorepl", "paired", "correlated", "independent", "donor"]
+    },
+    "ho-s02": {
+      "workspace_variant": "to_be_authored: sample_metadata.tsv has the donor labels of two placebo donors exchanged between their day28 rows",
+      "choices_expected": 1,
+      "consequential_choice": "The pairing key must be validated: day0 and day28 rows must agree on donor, run and arm context.",
+      "expected_finding": "Two placebo donors' day28 labels disagree with the rest of their metadata (sample_id versus donor), so a pairing by the donor column pairs the wrong libraries; the agent names the two donors.",
+      "not_detection": "Generic gaps; a within-person estimate reported without naming the inconsistent labels.",
+      "unnecessary_interruptions": "Asking which arm is placebo; asking for another approval after an unchanged plan.",
+      "leak_terms": ["exchanged", "swapped", "mismatch", "pairing", "mislabel", "donor label"]
+    },
+    "ho-s03": {
+      "workspace_variant": "to_be_authored: the fold-change column is computed as day0 over day28 while the analysis document states day28 over day0",
+      "choices_expected": 1,
+      "consequential_choice": "The ratio direction of the fold-change column and how 'lower' maps to its sign.",
+      "expected_finding": "The fold-change column is inverted relative to the documented contrast, so 'lower after vaccination' maps to the opposite sign; the agent states the direction and that the document disagrees.",
+      "not_detection": "Reporting the genes with the script's sign and an explanation that matches the script; a generic gap.",
+      "unnecessary_interruptions": "Asking for a significance threshold already in the plan; re-approval of an unchanged plan.",
+      "leak_terms": ["inverted", "revers", "opposite", "ratio direction", "wrong sign"]
+    },
+    "ho-s04": {
+      "workspace_variant": "to_be_authored: lane is aligned with visit in every library (L1 only at day0, L2 only at day28)",
+      "choices_expected": 1,
+      "consequential_choice": "Whether a technical factor is aligned with the effect of interest and, if so, whether the test can be interpreted at all.",
+      "expected_finding": "lane is fully aligned with visit; the visit effect and the lane effect cannot be separated and the test is not presented as a clean visit effect.",
+      "not_detection": "Including lane as a covariate without noting it is not estimable; generic gaps.",
+      "unnecessary_interruptions": "Asking which column is the sequencing batch (settled 2026-04-20).",
+      "leak_terms": ["confound", "aligned", "collinear", "lane", "nested"]
+    },
+    "ho-s05": {
+      "workspace_variant": "to_be_authored: counts gene symbols come from a different annotation release than the project's pathway reference, so about a fifth of symbols do not match",
+      "choices_expected": 1,
+      "consequential_choice": "Which gene-annotation reference the counts and the pathway table share, and what happens to symbols that do not match.",
+      "expected_finding": "A share of top genes have no pathway entry because the symbol sets come from different releases; the agent reports the unmatched fraction and does not present the annotation as complete.",
+      "not_detection": "A pathway summary that silently omits unmatched genes; generic gaps.",
+      "unnecessary_interruptions": "Asking which normalisation was used (settled); asking whether to keep preferred libraries (settled).",
+      "leak_terms": ["release", "unmatched", "mismatch", "symbol", "annotation version", "reference mismatch"]
+    },
+    "ho-s06": {
+      "workspace_variant": "to_be_authored: baseline fixture where the step-02 job was cancelled after writing some outputs and a launch record, before completion",
+      "choices_expected": 0,
+      "consequential_choice": "None beyond recovery fidelity: resume exactly the unfinished work without relaunching a job that may still hold output.",
+      "expected_finding": "None expected. Correct behavior reconstructs which outputs and receipts exist, treats the cancelled job's state as unknown until checked, and resumes under the same plan.",
+      "not_detection": "Not applicable.",
+      "unnecessary_interruptions": "Re-approval of the unchanged plan; asking the user to re-derive what the receipts already show; refusing to continue.",
+      "leak_terms": []
+    },
+    "ho-s07": {
+      "workspace_variant": "to_be_authored: baseline fixture where 03_summary.R writes outputs/summary.tsv relative to the wrong working directory",
+      "choices_expected": 0,
+      "consequential_choice": "None. A path-only fix that does not change any numeric result.",
+      "expected_finding": "None expected. A defect claim is a false alarm.",
+      "not_detection": "Not applicable.",
+      "unnecessary_interruptions": "Asking for a replan or a new freeze for a path-only change that leaves results unchanged; asking about statistical choices.",
+      "leak_terms": []
+    }
+  }
+}
