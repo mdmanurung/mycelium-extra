@@ -194,6 +194,27 @@ class PresendCheckTest(unittest.TestCase):
         self.assertEqual(unread, ["missing.tsv"])
         self.assertIn("Not checked against identifiers", presend_check.render(flags, unread, False))
 
+    def test_json_result_has_the_packet_hash_and_names_coverage_without_values(self):
+        import hashlib
+        import json
+        secret_input = "private_donor_sheet.h5ad"
+        text = packet("Inputs: {}, missing.tsv\nnote: {}\n".format(secret_input, TOKEN))
+        code, out = run(text, "--repo", FIXTURE, "--json")
+        result = json.loads(out)
+        self.assertEqual(code, 3)
+        self.assertEqual(result["exit"], 3)
+        self.assertEqual(result["packet_sha256"], hashlib.sha256(text.encode()).hexdigest())
+        self.assertEqual(sorted(r["reason"] for r in result["inputs_unread"]), ["missing", "unsupported type"])
+        self.assertEqual([f["kind"] for f in result["flags"]], ["GitHub token"])
+        for value in (TOKEN, secret_input, "missing.tsv"):
+            self.assertNotIn(value, out)
+
+    def test_text_result_names_the_packet_hash(self):
+        import hashlib
+        text = packet()
+        code, out = run(text, "--repo", FIXTURE)
+        self.assertIn(hashlib.sha256(text.encode()).hexdigest(), out)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,6 +10,11 @@ remains. It reports, the user decides, and it never prints a matched value in fu
     EOF
     ) [--repo <repository root>] < presend_check.py
 
+Add `--json` for one structured result on stdout instead of the text (same exit status): the packet's
+SHA-256 and size, each flag as line, kind and masked value, whether `redactions:` is valid, and each
+unread or unsupported input as a masked name and a reason. It never carries a matched value in full. The
+SHA-256 is of the exact bytes read, so `scripts/review_packet.py` can bind consent to them.
+
 Exit 0: nothing flagged. 1: the packet cannot be read. 2: something flagged and the packet's
 `redactions:` lists what was removed, so the user decides. 3: something flagged and `redactions:` is
 empty or missing, so do not send. Plain text on stdout.
@@ -21,6 +26,7 @@ shape or keyword, a name or an identifier in free text, a value in a table the p
 
 import argparse
 import csv
+import hashlib
 import io
 import json
 import os
@@ -184,25 +190,60 @@ def render(flags, unread, listed):
     return "\n".join(out) + "\n"
 
 
+def unread_reasons(unread, repo):
+    """Why each unread input was not checked: the name masked, never the path in full."""
+    out = []
+    for rel in sorted(set(unread)):
+        path = rel if os.path.isabs(rel) else os.path.join(repo, rel)
+        reason = ("unsupported type" if not rel.lower().endswith(INPUT_EXT) else
+                  "missing" if not os.path.isfile(path) else "unreadable, malformed or truncated")
+        out.append({"input": mask(rel), "reason": reason})
+    return out
+
+
+def analyse(raw, repo=None):
+    """Scan the packet bytes `raw`. Returns the structured result; its `exit` is the exit status."""
+    packet = raw.decode("utf-8", errors="replace").replace("\r\n", "\n")  # as text mode read it
+    flags, unread = check(packet, repo)
+    listed = redactions_listed(packet)
+    matches = list(REDACTIONS.finditer(packet))
+    valid = len(matches) == 1 and (re.sub(r"\s+#.*$", "", matches[0].group("rest")).strip() == "[]" or listed)
+    return {"schema": "mycelium-extra.presend-check.v1", "packet_sha256": hashlib.sha256(raw).hexdigest(),
+            "packet_bytes": len(raw), "flags": flags, "unread": unread, "redactions_listed": listed,
+            "redactions_valid": valid, "inputs_unread": unread_reasons(unread, repo) if repo else [],
+            "exit": 3 if unread or not valid else 0 if not flags else 2 if listed else 3, "note": NOTE}
+
+
+def as_json(result):
+    keys = ("schema", "packet_sha256", "packet_bytes", "exit", "redactions_listed", "redactions_valid",
+            "inputs_unread", "note")
+    out = {k: result[k] for k in keys}
+    out["flags"] = [{"line": n, "kind": k, "masked": m, "why": w} for n, k, m, w in result["flags"]]
+    return json.dumps(out, indent=2, sort_keys=True) + "\n"
+
+
 def main(argv):
     parser = argparse.ArgumentParser(prog="presend_check")
     parser.add_argument("--packet", required=True, help="the packet text (a path; use process substitution)")
     parser.add_argument("--repo", default=None, help="repository root, to read the tables the plan names under Inputs:")
+    parser.add_argument("--json", action="store_true", help="print one structured result instead of text")
     args = parser.parse_args(argv)
     try:
-        with open(args.packet, encoding="utf-8", errors="replace") as handle:
-            packet = handle.read()
+        with open(args.packet, "rb") as handle:
+            raw = handle.read()
     except (OSError, IOError) as error:
         sys.stderr.write("presend_check: cannot read the packet: {}\n".format(error))
         return 1
-    flags, unread = check(packet, os.path.abspath(args.repo) if args.repo else None)
-    listed = redactions_listed(packet)
-    sys.stdout.write(render(flags, unread, listed))
-    matches = list(REDACTIONS.finditer(packet))
-    valid = len(matches) == 1 and (re.sub(r"\s+#.*$", "", matches[0].group("rest")).strip() == "[]" or listed)
-    if not valid:
+    result = analyse(raw, os.path.abspath(args.repo) if args.repo else None)
+    if args.json:
+        sys.stdout.write(as_json(result))
+        return result["exit"]
+    sys.stdout.write("Packet sha256: {} ({} bytes). Consent applies to these exact bytes only.\n".format(
+        result["packet_sha256"], result["packet_bytes"]))
+    sys.stdout.write(render(result["flags"], result["unread"], result["redactions_listed"]))
+    if not result["redactions_valid"]:
         sys.stdout.write("Redaction entries are missing or malformed; do not send. Use [] or objects with kind/field strings.\n")
-    return 3 if unread or not valid else 0 if not flags else 2 if listed else 3
+    return result["exit"]
 
 
 if __name__ == "__main__":

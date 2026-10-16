@@ -36,7 +36,7 @@ Leave out of the packet: raw data; participant identifiers (participant, donor a
 
 `redactions:` lists what was removed or replaced, one entry per item, as `- kind: <participant id | secret | contact | path | table | other>, field: <packet field>, replaced_with: <placeholder>`. Require nonempty `kind` and `field` strings; `replaced_with` is optional. The helper accepts a JSON list of objects or YAML entries with one field per line. Never write the removed value there. `[]` means nothing was removed, and is acceptable only after the check below ran and flagged nothing.
 
-Before the packet is shown to the user for consent, run `scripts/presend_check.py` on it (see `SKILL.md`). Its exit status decides what happens next:
+Before the packet is shown to the user for consent, run `scripts/presend_check.py` on it (see `SKILL.md`); `--json` gives the same result as one structured object, with the packet's SHA-256 and the unread or unsupported inputs named by masked name and reason. Its exit status decides what happens next:
 
 | Exit | Meaning | Do |
 |---|---|---|
@@ -47,13 +47,23 @@ Before the packet is shown to the user for consent, run `scripts/presend_check.p
 
 The check reads the packet, and the tables named under `Inputs:` when given `--repo`, and prints each flag with its line, kind and a masked value. Its patterns are listed at the top of the script, and so are the things it cannot catch (a secret with no recognisable shape, a name or a diagnosis in free text, an identifier in a table the plan does not name). It does not stop a reviewer from reading files outside the packet; for Codex see [codex-review.md](codex-review.md).
 
+## Payload and attachment boundary
+
+What a reviewer receives is exactly the files `review_packet.py verify` prints, plus the skill's own fixed role prompt and response format:
+
+- `packet.txt`: the packet, byte for byte as scanned. `presend_check.py` and the manifest record its SHA-256, so an edit after the scan or after consent changes the hash and `verify` refuses.
+- `workspace/<repo-relative path>`: each explicitly selected code or document attachment, copied at `prepare`. Only the allowlisted types (`ALLOWED_EXT` in the script), under 1 MB each, and never from `data/`, `.git/`, `.mycelium-extra/` or `.ssh/`. A symlink that resolves outside the project or into those directories is refused. The workspace is data-free by construction: it holds only what was selected, not the repository.
+- Nothing else. An unlisted file in the packet folder is reported and refused. Biomni receives the packet text only and no files. Codex is rooted in the workspace copy, not the repository (see [codex-review.md](codex-review.md)).
+
+The digest is the SHA-256 of `manifest.json`, which records the packet's hash and each attachment's path, size and hash. The user's prompt `send packet <digest12>` is the consent. The approval gate records it as `.mycelium-extra/review-consent/<digest>.json` (`schema` `mycelium-extra.review-consent.v1`, `digest`, `session_id`, `ts`, `prompt`); the scripts only read it, and never write one. **Pending:** until the gate records it, no consent record exists and `verify` always refuses. Read-only access to the original repository still exposes whatever can be read there; this boundary covers only what the supported send route is given. It is a cooperative mechanism, not a sandbox, and it does not cover other transports.
+
 ## Common reviewer response
 
 Paste this format into the message each reviewer receives: neither reviewer can read this file (Codex runs rooted in the target repository; Biomni runs remotely). The two role-specific forms may include extra sections, but normalize each issue to:
 
 ```yaml
 reviewer: codex             # or biomni
-status: complete            # complete | unavailable | invalid
+status: complete            # complete | pending | unavailable | invalid
 issues:
   - id: C1                  # preserve original reviewer ID
     severity: major         # major | minor
@@ -68,6 +78,6 @@ questions: []
 confidence_notes: []
 ```
 
-Use `status: unavailable` with a reason when a reviewer cannot be reached or cannot be safely invoked. Use `status: invalid` when output cannot be attributed to the intended reviewer, lacks enough structure to recover issues, or claims work the reviewer did not do. An empty `issues` list is meaningful only with `status: complete`. Do not transform absence into agreement.
+Use `status: unavailable` with a reason when a reviewer cannot be reached, cannot be safely invoked, or was not sent because `verify` refused. Use `status: pending` for a launched review that has not finished. Use `status: invalid` when output cannot be attributed to the intended reviewer, lacks enough structure to recover issues, or claims work the reviewer did not do. An empty `issues` list is meaningful only with `status: complete`. Do not transform absence into agreement.
 
 The Source column is provenance, not permission. Grill's sources are `repo:`, `user`, and `default:`; a reviewer is not a source of authority. In a later revised plan, a recommendation the user accepted is sourced as `user (accepted review: codex)` or `user (accepted review: biomni; PMID ...)`, keeping the supporting repository citation or retrievable scientific reference. The approval gate ignores Source cells; only the rest of the approved plan table can authorize gated runs.
