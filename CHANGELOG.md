@@ -2,6 +2,25 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.71] - 2026-10-16
+
+### Added
+
+- `"max_runs_per_approval": N` in `gate.json` (roadmap D11). After N gated runs under one approval, the next is denied until the plan is approved again, and the denial lists what differs from the first of them (commit, uncommitted changes, script content). Explore runs and `command -v` lookups do not count; the approval file is never changed; `verify list` and `verify status` mark an approval that reached the limit. Unset means no limit and no change in behaviour; an invalid value is ignored with a notice.
+
+### Fixed
+
+From the 2026-10-16 feature stress audit and the independent approval and execution-evidence audit (`ME-01` to `ME-11`); each fix has a regression test.
+
+- A shell call that joins commands (`&&`, `||`, `;`, a pipe) no longer gives each script in it the call's overall exit status: the runs are recorded with an unknown status and `verify` reports a gap (`ME-01`).
+- A failed command receipt (`snakemake`, `sbatch`, a script run through a granted folder) now blocks in `verify`, an unknown exit status is a gap, and a folder the plan grants with no recorded run is a gap; a later run of the same command supersedes an earlier failed one (`ME-02`).
+- Reapproving a plan with changed inputs no longer counts the earlier runs as evidence for the new pins; a skipped pin stays a gap; an output with several timestamp-compatible writers is a gap instead of being credited to one run (`ME-03`, `ME-06`, `ME-08`).
+- `conda run -p`, `uv run --project`/`--python` and `env -C <dir>` are no longer missed by the gate; known option values of `env`, `uv`, `conda` and `srun` are read before the command is classified (`ME-04`).
+- Paths with spaces in `Inputs:` and in steps are pinned and approved under their real name (`ME-05`).
+- A plan is approvable only after its pins, scripts and card are prepared (`ready` in the pending entry; entries without it stay approvable), so an interrupted preparation cannot approve empty pins; the approvals that let a launch through are saved with the call, so its receipt keeps its plan after the approval expires or another plan is approved meanwhile (`ME-07`, `ME-09`).
+- A claim against a table with a header and no rows is an unverified gap, not a crash (`ME-10`). `gate_diff.py` compares each side with its own plugin context and checks the intended differences exactly (`ME-11`).
+- Provenance files are saved as one recoverable bundle; `idea` captures and `new-analysis` scaffolds are published atomically; `data-contract-check`, `decision-status`, `init` and `plan-review` refuse malformed input instead of passing it; the draft `capacity` and diary hooks keep recovery state.
+
 ## [0.9.70] - 2026-10-16
 
 ### Added
