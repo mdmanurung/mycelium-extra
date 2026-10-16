@@ -2051,5 +2051,88 @@ class PreparationAndLaunchTest(unittest.TestCase):
         self.assertEqual([r["plans"] for r in self.receipts()], [[digest], [digest]])
 
 
+class ReviewFixesTest(unittest.TestCase):
+    """Fixes from the independent review of the launch record and the wrapper reader."""
+    entry = GATE
+    setUp, tearDown, config, hook, bash, denied = (
+        GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook, GateTest.bash, GateTest.denied)
+    path, write, approval, show, prompt, receipts, tool, post, expire, launches = (
+        PreparationAndLaunchTest.path, PreparationAndLaunchTest.write, PreparationAndLaunchTest.approval,
+        PreparationAndLaunchTest.show, PreparationAndLaunchTest.prompt, PreparationAndLaunchTest.receipts,
+        PreparationAndLaunchTest.tool, PreparationAndLaunchTest.post, PreparationAndLaunchTest.expire,
+        PreparationAndLaunchTest.launches)
+
+    def approve(self, text, session="s1"):
+        digest = self.show(text, session)
+        self.prompt("approve plan " + digest, session)
+        return digest
+
+    @staticmethod
+    def plan(step, inputs=""):
+        return (("Inputs: {}\n\n".format(inputs) if inputs else "")
+                + "## Plan\n| 1 | {} | repo | check |\n\nPlan status: READY".format(step))
+
+    def gate(self):
+        sys.dont_write_bytecode = True
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        return gate
+
+    def test_the_same_segment_in_two_folders_is_credited_to_its_own_plan(self):
+        for name in ("a", "b"):
+            self.write("data/{}.tsv".format(name), name + "\n")
+            self.write("analysis/{}/run.py".format(name), "pass\n")
+        first = self.approve(self.plan("run `analysis/a/run.py`", "data/a.tsv"))
+        second = self.approve(self.plan("run `analysis/b/run.py`", "data/b.tsv"))
+        command = "cd analysis/a && python run.py; cd ../b && python run.py"
+        self.assertIsNone(self.tool(command, tool_use_id="t1"))
+        self.post(command, tool_use_id="t1")
+        one, two = self.receipts()
+        self.assertEqual((one["plans"], sorted(one["pins"])), ([first], ["data/a.tsv"]))
+        self.assertEqual((two["plans"], sorted(two["pins"])), ([second], ["data/b.tsv"]))
+
+    def test_a_wrap_receipt_keeps_the_pins_of_the_plan_it_credits(self):
+        self.write("data/a.tsv", "a\n")
+        self.write("data/b.tsv", "b\n")
+        first = self.approve(self.plan("run `analysis/x.py` via sbatch --wrap", "data/a.tsv"))
+        self.approve(self.plan("submit with sbatch", "data/b.tsv"))  # newer, names no script
+        command = "sbatch --wrap='python analysis/x.py'"
+        self.assertIsNone(self.tool(command, tool_use_id="t1"))
+        self.post(command, tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual((receipt["plans"], sorted(receipt["pins"])), ([first], ["data/a.tsv"]))
+
+    def test_launch_cleanup_survives_records_vanishing(self):
+        gate = self.gate()
+        event = {"session_id": "s1", "tool_use_id": "t1", "tool_input": {"command": "x"}}
+        folder = self.path("launches")
+        os.makedirs(folder)
+        for name in ("old.json", "gone.json"):
+            with open(os.path.join(folder, name), "w") as handle:
+                handle.write("{}")
+            os.utime(os.path.join(folder, name), (1, 1))
+        real_remove = os.remove
+
+        def racing_remove(path):  # a parallel call's hook removed it first
+            real_remove(path)
+            raise FileNotFoundError(path)
+
+        with mock.patch.object(gate.os, "listdir", return_value=["old.json", "ghost.json", "gone.json"]):
+            with mock.patch.object(gate.os, "remove", side_effect=racing_remove):
+                gate.write_launch(self.root, event, {"x": []})
+        self.assertEqual(self.launches(), [gate.os.path.basename(gate.launch_path(self.root, event))])
+        with mock.patch.object(gate.os, "remove", side_effect=racing_remove):
+            self.assertEqual(gate.take_launch(self.root, event), {"x": []})
+        self.assertEqual(self.launches(), [])
+
+    def test_parallel_launch_writes_do_not_share_a_temp_file(self):
+        gate = self.gate()
+        names = []
+        real_replace = os.replace
+        with mock.patch.object(gate.os, "replace", side_effect=lambda a, b: (names.append(a), real_replace(a, b))):
+            gate.write_json(self.path("launches", "k.json"), {})
+        self.assertNotEqual(names[0], self.path("launches", "k.json.tmp"))
+
+
 if __name__ == "__main__":
     unittest.main()

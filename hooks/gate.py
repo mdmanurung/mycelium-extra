@@ -172,7 +172,7 @@ def lint_tools(root):
 
 def write_json(path, data):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp = path + ".tmp"
+    tmp = "{}.{}.tmp".format(path, os.getpid())  # parallel hooks never share a temp file
     with open(tmp, "w", encoding="utf-8") as handle:
         json.dump(data, handle, indent=1)
     os.replace(tmp, path)
@@ -938,17 +938,28 @@ def write_launch(root, event, runs):
     if os.path.isdir(folder):  # records of calls that never reported back
         for name in os.listdir(folder):
             path = os.path.join(folder, name)
-            if os.path.getmtime(path) < time.time() - LAUNCH_SECONDS:
-                os.remove(path)
+            try:
+                if os.path.getmtime(path) < time.time() - LAUNCH_SECONDS:
+                    os.remove(path)
+            except OSError:  # a parallel call's hook got there first
+                pass
     write_json(launch_path(root, event), {"ts": time.time(), "runs": runs})
 
 
+def pins_of(launch, record):
+    """The pins a launch checked for this plan, else the approval's own."""
+    checked = (launch or {}).get("pins") or {}
+    return (checked[record["hash"]] if record["hash"] in checked else record.get("pins")) or {}
+
+
 def take_launch(root, event):
-    """This call's launch record, removed once read: {segment: {plans, pins}}, or {} if there is none."""
+    """This call's launch record, removed once read: {segment: [{paths, plans, pins}]}, or {} if there is none."""
     path = launch_path(root, event)
     record = read_json(path, {})
-    if os.path.isfile(path):
+    try:
         os.remove(path)
+    except OSError:
+        pass
     if record.get("ts", 0) < time.time() - LAUNCH_SECONDS:
         return {}
     return record.get("runs") or {}
@@ -1884,7 +1895,11 @@ def on_tool(event, root, config):
         # The newest covering plan is the current intent: an older approval that pinned
         # less (or nothing) must not let a run through after the newer plan's pins changed.
         newest = records[-1]
-        launched[segment] = {"plans": [r["hash"] for r in records], "pins": newest.get("pins") or {}}
+        # one entry per (segment, paths): the same text in two folders is two runs with their own plans
+        entry = {"paths": paths, "plans": [r["hash"] for r in records],
+                 "pins": dict((r["hash"], r.get("pins") or {}) for r in records)}
+        if entry not in launched.setdefault(segment, []):
+            launched[segment].append(entry)
         changes, skipped = changed_pins(root, newest.get("pins") or {}, budget, cache)
         if changes:
             stale.append((newest["hash"], changes))
@@ -2484,7 +2499,8 @@ def on_post(event, root, config):
     notes = ["compound shell command: per-run execution, exit status, and output attribution unknown"] if compound else []
     planned = []
     for explore, label, paths, segment, tokens, cwd in runs:
-        launch = launched.get(segment)
+        entries = launched.get(segment)  # a record in the older shape is a dict: no match, covering decides
+        launch = next((e for e in entries if e.get("paths") == paths), None) if isinstance(entries, list) else None
         if launch is not None:  # expired or replaced since, the launch's own approvals are credited
             records = [r for r in (read_json(state_path(root, "approvals", h + ".json"), None)
                                    for h in launch.get("plans", [])) if r]
@@ -2517,7 +2533,7 @@ def on_post(event, root, config):
             "paths": paths,
             "explore": explore,
             "plans": [record["hash"] for record in records],
-            "pins": ((launch or records[-1]).get("pins") or {}) if records else {},
+            "pins": pins_of(launch, records[-1]) if records else {},
             "pins_checked": bool(records) and not explore,
             "git": git,
             "hook_env": {key: os.environ[key] for key in HOOK_ENV if os.environ.get(key)},
