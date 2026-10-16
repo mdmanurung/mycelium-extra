@@ -36,7 +36,10 @@ def save(root, host, sid, reviewed=False):
         if not text.strip():
             raise ValueError("diary entry is empty")
         meta_path = os.path.join(directory, "draft.json")
-        meta = capacity.read(meta_path, {"saved": []})
+        meta = capacity.read(meta_path, {"saved": []}) if not os.path.exists(meta_path) else capacity.read(meta_path)
+        if (not isinstance(meta, dict) or not isinstance(meta.get("saved"), list)
+                or not all(isinstance(v, str) for v in meta["saved"])):
+            raise ValueError("diary metadata is malformed; preserve draft and metadata for recovery")
         digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
         entry = "{}:{}:{}".format(host, sid, digest)
         marker = "<!-- journal:{} -->".format(entry)

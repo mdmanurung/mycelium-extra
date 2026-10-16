@@ -20,7 +20,7 @@ STATE = ".mycelium-extra"
 SCRIPT = os.path.realpath(__file__)
 MAX_AGE = 300
 FIELDS = ("assignment", "ownership", "completed", "tests", "decisions", "blockers",
-          "running", "next_action", "pending_plan")
+          "running", "next_action", "pending_plan", "assistant_note")
 
 
 def read(path, default=None):
@@ -49,6 +49,11 @@ def atomic(path, text):
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp, path)
+        directory_fd = os.open(parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)
@@ -114,8 +119,15 @@ def session_dir(root, host, sid):
 
 def timestamp(value):
     # Native rollouts use UTC ISO timestamps; never use file mtime as quota time.
-    return datetime.datetime.strptime(value[:19], "%Y-%m-%dT%H:%M:%S").replace(
-        tzinfo=datetime.timezone.utc).timestamp()
+    if not isinstance(value, str):
+        raise ValueError("invalid native timestamp")
+    normalized = value[:-1] + "+0000" if value.endswith("Z") else re.sub(r"([+-]\d\d):(\d\d)$", r"\1\2", value)
+    for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S.%f%z"):
+        try:
+            return datetime.datetime.strptime(normalized, fmt).timestamp()
+        except ValueError:
+            pass
+    raise ValueError("native timestamp needs an unambiguous UTC offset")
 
 
 def normalize(raw, host, observed, source):
@@ -251,11 +263,16 @@ def usage(root, host, sid, transcript=None, refresh=False):
 
 
 def mode(root, host, sid, transcript=None, resume=False):
+    config = read(os.path.join(root, STATE, "capacity.json"), {})
+    if isinstance(config, dict) and config.get("enabled") is False:
+        return "disabled", "capacity disabled"
     current = usage(root, host, sid, transcript, refresh=resume)
     level, reason = assess(current)
     path = os.path.join(root, STATE, "capacity", host + ".json")
     with locked(path + ".lock"):
-        state = read(path, {})
+        state = read(path, {}) if not os.path.exists(path) else read(path)
+        if not isinstance(state, dict) or ("paused" in state and type(state["paused"]) is not bool):
+            raise ValueError("malformed capacity state; preserve it and pause new work")
         if resume:
             if level != "normal":
                 raise ValueError("resume requires both fresh allowance windows below 80%: " + reason)
@@ -289,7 +306,10 @@ def checkpoint(root, host, sid, agent, cwd, record=None, final=False):
     agent = safe_id(agent)
     path = os.path.join(directory, agent + ".json")
     with locked(path + ".lock"):
-        previous = read(path, {})
+        previous = read(path, {}) if not os.path.exists(path) else read(path)
+        if not isinstance(previous, dict):
+            raise ValueError("checkpoint record is unreadable or malformed; preserve it for recovery")
+        original = json.dumps(previous, sort_keys=True)
         if record is not None:
             if not isinstance(record, dict) or set(record) - set(FIELDS):
                 raise ValueError("checkpoint accepts only the documented record fields")
@@ -300,9 +320,16 @@ def checkpoint(root, host, sid, agent, cwd, record=None, final=False):
             raise ValueError("ownership must be a list of relative file paths")
         if not isinstance(previous["running"], list):
             raise ValueError("running must be a list of job records")
-        previous.update(host=host, session=sid, agent=agent, updated=time.time(),
-                        final_status="recorded" if final else "unconfirmed",
-                        checkout=checkout(cwd, previous["ownership"]))
+        current = checkout(cwd, previous["ownership"])
+        if previous.get("checkout") and previous["checkout"] != current:
+            previous.setdefault("checkout_history", []).append(previous["checkout"])
+        updated = dict(previous, host=host, session=sid, agent=agent,
+                       final_status="recorded" if final or previous.get("final_status") == "recorded" else "unconfirmed",
+                       completion_evidence="unverified worker report", checkout=current)
+        if json.dumps(updated, sort_keys=True) == original and os.path.isfile(os.path.join(directory, agent + ".md")):
+            return path
+        previous = updated
+        previous["updated"] = time.time()
         write(path, previous)
         text = "# {} checkpoint\n\nFinal status: {}\nCheckout: {}\n\n".format(
             agent, previous["final_status"], previous["checkout"]["cwd"])
@@ -314,16 +341,37 @@ def checkpoint(root, host, sid, agent, cwd, record=None, final=False):
     return path
 
 
+def record_inventory(directory):
+    valid, gaps = [], []
+    for path in sorted(glob.glob(os.path.join(directory, "*.json"))):
+        name = os.path.basename(path)
+        if name in ("usage.json", "draft.json", "recovery.json") or name.endswith(".input.json"):
+            continue
+        value = read(path)
+        if (not isinstance(value, dict) or not all(key in value for key in
+                ("agent", "final_status", "checkout") + tuple(k for k in FIELDS if k != "assistant_note"))
+                or not isinstance(value.get("checkout"), dict)
+                or not isinstance(value.get("running"), list)
+                or not isinstance(value.get("ownership"), list)
+                or not all(isinstance(p, str) for p in value.get("ownership", []))
+                or not isinstance(value.get("checkout", {}).get("cwd"), str)):
+            gaps.append(path)
+        else:
+            valid.append(value)
+    return valid, gaps
+
+
 def records(directory):
-    return [read(path) for path in sorted(glob.glob(os.path.join(directory, "*.json")))
-            if os.path.basename(path) not in ("usage.json", "draft.json", "recovery.json")
-            and isinstance(read(path), dict) and "agent" in read(path)]
+    return record_inventory(directory)[0]
 
 
 def summary(root, host, sid):
     directory = session_dir(root, host, sid)
-    text = "# Coordinator summary\n\nRecorded evidence; unconfirmed is not completed.\n\n"
-    for record in records(directory):
+    text = "# Coordinator summary\n\nWorker reports are unverified; a recorded final status is not verified completion.\n\n"
+    valid, gaps = record_inventory(directory)
+    for path in gaps:
+        text += "Recovery gap: malformed checkpoint `{}` retained; completion and jobs unresolved.\n\n".format(path)
+    for record in valid:
         text += "## [{}]({}.md) — {}\n\n".format(record["agent"], record["agent"], record["final_status"])
         for key in ("completed", "tests", "blockers", "running", "next_action"):
             text += "- {}: {}\n".format(key, record[key])
@@ -335,7 +383,9 @@ def summary(root, host, sid):
 
 def recovery(root, host, source):
     result = []
-    for record in records(session_dir(root, host, source)):
+    valid, gaps = record_inventory(session_dir(root, host, source))
+    result += [{"gap": path, "status": "malformed checkpoint retained; do not relaunch"} for path in gaps]
+    for record in valid:
         previous = record["checkout"]
         cwd = previous["cwd"]
         current = checkout(cwd, record["ownership"]) if os.path.isdir(cwd) else None
@@ -350,7 +400,7 @@ def recovery(root, host, source):
                     state = "process absent; inspect output before retry"
                 except PermissionError:
                     pass
-            elif isinstance(job, dict) and job.get("kind") == "slurm" and re.fullmatch(r"[0-9]+", str(job.get("id", ""))):
+            elif isinstance(job, dict) and job.get("kind") == "slurm" and re.fullmatch(r"[0-9]+(?:_[0-9]+)?", str(job.get("id", ""))):
                 status = command(cwd, ["squeue", "--noheader", "--jobs", str(job["id"]), "--format=%i %T"])
                 if status is not None:
                     state = status or "not in queue; inspect accounting and outputs before retry"
@@ -396,6 +446,8 @@ def statusline(root, raw_text):
     config = read(os.path.join(root, STATE, "capacity.json"), {})
     try:
         event = json.loads(raw_text)
+        if config.get("enabled") is False:
+            raise ValueError("capacity disabled")
         sid = safe_id(event["session_id"])
         write(os.path.join(session_dir(root, "claude", sid), "usage.json"),
               normalize(event.get("rate_limits", {}), "claude", time.time(), "Claude status line"))
@@ -428,7 +480,7 @@ def owned_note(root, host, sid, agent, value):
 
 
 def note_tool(event, root, host, sid, agent):
-    name = event.get("tool_name", "").split("__")[-1]
+    name = re.split(r"__|[./]", event.get("tool_name", ""))[-1]
     data = event.get("tool_input", {})
     if name in ("Read", "read_file"):
         path = data.get("file_path", data.get("path", ""))
@@ -459,6 +511,11 @@ def handle(event):
     root = project(event.get("cwd") or os.getcwd())
     if root is None:
         return False, None
+    config = read(os.path.join(root, STATE, "capacity.json"))
+    if isinstance(config, dict) and config.get("enabled") is False:
+        return False, None
+    if not isinstance(config, dict) or config.get("enabled") is not True:
+        raise ValueError("capacity configuration is malformed; preserve it for recovery")
     host = event.get("host", "claude")
     sid = safe_id(event.get("session_id"))
     agent = safe_id(event.get("agent_id") or "coordinator")
@@ -496,11 +553,11 @@ def handle(event):
     message += "save completed work units through capacity.py checkpoint; preserve pending plans verbatim."
     if name in ("SubagentStart", "SessionStart"):
         checkpoint(root, host, sid, agent, event.get("cwd") or root)
-        return True, context(event, message)
+        return True, None if name == "SessionStart" else context(event, message)
     if name in ("Stop", "SubagentStop", "PreCompact", "SessionEnd"):
-        record = {"completed": event["last_assistant_message"]} if event.get("last_assistant_message") else None
+        record = {"assistant_note": event["last_assistant_message"]} if event.get("last_assistant_message") else None
         checkpoint(root, host, sid, agent, event.get("cwd") or root, record,
-                   final=name in ("Stop", "SubagentStop"))
+                   final=name in ("Stop", "SubagentStop", "SessionEnd"))
         summary(root, host, sid)
         if agent == "coordinator":
             import journal
@@ -510,7 +567,7 @@ def handle(event):
         if name not in ("Stop",):
             return True, context(event, message) if name == "PreCompact" else None
     if name == "PreToolUse":
-        tool = event.get("tool_name", "").split("__")[-1]
+        tool = re.split(r"__|[./]", event.get("tool_name", ""))[-1]
         assignment = tool in ("Agent", "Task", "TaskCreate", "TaskUpdate", "SendMessage", "spawn_agent",
                               "followup_task", "send_message", "TeamCreate")
         if level != "normal" and assignment:
@@ -558,7 +615,10 @@ def main():
         elif args.action == "checkpoint":
             if not args.record:
                 raise ValueError("checkpoint requires --record with an owned JSON record")
-            print(checkpoint(root, args.host, sid, args.agent, args.root, read(args.record)))
+            record = read(args.record)
+            if not isinstance(record, dict):
+                raise ValueError("checkpoint input must be a readable JSON object")
+            print(checkpoint(root, args.host, sid, args.agent, args.root, record))
             summary(root, args.host, sid)
         else:
             import journal

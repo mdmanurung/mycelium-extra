@@ -73,6 +73,27 @@ def run(argv):
     except Exception:
         pass  # an unreadable event: gate.py fails open and says so
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    # Host payload decoding belongs at the launcher boundary.
+    try:
+        decoded = json.loads(text)
+        if isinstance(decoded, dict):
+            if host == "codex":
+                decoded.setdefault("session_id", decoded.get("thread_id"))
+                import re
+                tool_name = re.split(r"__|[./]", decoded.get("tool_name", ""))[-1]
+                if tool_name:
+                    decoded["tool_name"] = tool_name
+                if tool_name in ("exec_command", "shell_command", "shell"):
+                    data = decoded.get("tool_input") or {}
+                    command = data.get("cmd", data.get("command", ""))
+                    if isinstance(command, list):
+                        import shlex
+                        command = " ".join(shlex.quote(word) for word in command)
+                    decoded["tool_name"] = "Bash"
+                    decoded["tool_input"] = dict(data, command=command)
+            text = json.dumps(decoded)
+    except (ValueError, TypeError, AttributeError):
+        pass
     # Capacity is independent of plan approval; closeout must run before gate hints.
     import capacity
     try:
@@ -86,9 +107,20 @@ def run(argv):
             return 0
     except Exception as error:
         # Capacity opted in: unreadable state never turns a missing quota into permission.
-        if capacity.project(event.get("cwd") or os.getcwd()) if isinstance(locals().get("event"), dict) else capacity.project(os.getcwd()):
-            name = locals().get("event", {}).get("hook_event_name", argv[-1])
+        decoded = locals().get("event")
+        decoded = decoded if isinstance(decoded, dict) else {}
+        root = capacity.project(decoded.get("cwd") or os.getcwd())
+        config = capacity.read(os.path.join(root, STATE_DIR, "capacity.json")) if root else None
+        if root and not (isinstance(config, dict) and config.get("enabled") is False):
+            name = decoded.get("hook_event_name", argv[-1])
             reason = "Capacity unavailable: {}; save notes and stop.".format(error)
+            try:
+                capacity.write(os.path.join(root, STATE_DIR, "capacity-errors", "{}-{}.json".format(int(time.time() * 1000000), os.getpid())),
+                               {"event": name, "gap": reason})
+            except Exception:
+                pass
+            if name == "SessionStart":
+                return 0  # Startup is silent; the next tool still fails closed.
             notice = (capacity.deny(reason) if name == "PreToolUse" else
                       {"continue": False, "stopReason": reason, "systemMessage": reason})
             print(json.dumps(notice))
@@ -116,7 +148,12 @@ def run(argv):
             sys.stdout = saved
         payload = json.loads(output.getvalue()) if output.getvalue().strip() else {}
         extra = notice.get("hookSpecificOutput", {})
-        payload.setdefault("hookSpecificOutput", {}).update(extra)
+        specific = payload.setdefault("hookSpecificOutput", {})
+        for key, value in extra.items():
+            if key == "additionalContext" and specific.get(key):
+                specific[key] += "\n" + value
+            else:
+                specific[key] = value
         print(json.dumps(payload))
         return result
     return gate.main(argv, text)
