@@ -28,7 +28,7 @@ Tasks that make the existing tools trustworthy before new ones are added. C1 com
 - **Acceptance:** with `on_error: "deny"`, a forced internal error (for example, a corrupt approvals file) denies with the stated reason; with the key absent the behaviour is byte-identical to today per `gate_diff.py`.
 - **Tests:** three cases in `hooks/tests/test_gate.py`: key absent, `"allow"`, `"deny"`, each with a forced internal error; one case with an invalid value.
 - **Effort:** S.
-- **Status:** todo.
+- **Status:** done (0.9.66): `"on_error": "deny"` in `gate.json` blocks every tool call the gate could not check, including a `gate.py` that fails to load; the default stays fail-open. See `docs/approval-gate.md`.
 
 ## C3: Audit plan-review's redaction handling
 

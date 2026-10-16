@@ -67,4 +67,4 @@ Small corrections found while restructuring the README.
 - **Acceptance:** the chosen option is recorded here with its date.
 - **Tests:** none.
 - **Effort:** S.
-- **Status:** todo (maintainer decision; currently left as is).
+- **Status:** done 2026-10-16 (option b, ignore half): `HANDOFF.md` is in `.gitignore` and untracked, so it is session state. Its lasting sections were not moved to `docs/decisions.md`; reopen if you want that.
