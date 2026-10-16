@@ -7,9 +7,10 @@ not open the post-action cycle:
 
 The contract states what the plan assumes; this script decides what blocks.
 Every failed check of a coverage-list kind blocks, and the contract cannot
-downgrade it. A table is CSV, TSV, or the `obs` of an `.h5ad` file; h5ad is
-read through h5py when it is importable, and is a gap (never a pass) when it
-is not. Exit codes: 0 clean or warnings only, 2 blocking, 3 a gap and nothing
+downgrade it. A table is CSV, TSV (.tsv, .tab, .txt), or the `obs` of an `.h5ad` file; h5ad
+is read through h5py when it is importable, and is a gap (never a pass) when
+it is not. Any other format, or bytes that are not UTF-8, is a gap; a row with
+more fields than the header, or a quote that never closes, blocks. Exit codes: 0 clean or warnings only, 2 blocking, 3 a gap and nothing
 blocking, 1 usage or input error.
 """
 
@@ -58,28 +59,87 @@ def alert(kind, message, blocking, expected=None, observed=None, evidence=None, 
     return record
 
 
+TAB_SEPARATED = (".tsv", ".tab", ".txt")
+
+
+class TableShapeError(Exception):
+    """The table parses but its shape makes every check on it untrustworthy; blocks."""
+
+
 def read_table(path, wanted=None):
-    """Return (columns, rows, unreadable): rows are dicts of strings, unreadable maps column to reason."""
-    if path.lower().endswith(".h5ad"):
+    """Return (columns, rows, unreadable): rows are dicts of strings, unreadable maps column to reason.
+
+    The CSV/TSV reader follows Mycelium's skills/core/scripts/data_contract_check.py
+    (pinned 8f8b167; MIT, Copyright (c) 2024 Mycelium Contributors), which was
+    itself adapted from this file; it is copied here, never imported.
+    """
+    lower = path.lower()
+    if lower.endswith(".h5ad"):
         return read_h5ad_obs(path, wanted)
-    delimiter = "," if path.lower().endswith(".csv") else "\t"
-    with open(path, newline="", encoding="utf-8-sig", errors="replace") as handle:
-        reader = csv.DictReader(handle, delimiter=delimiter)
-        columns = list(reader.fieldnames or [])
-        if len(set(columns)) != len(columns):
-            raise TableGap("the table has duplicate column headers")
-        rows = list(reader)
-        return columns, rows, {}
+    if lower.endswith(".csv"):
+        delimiter = ","
+    elif lower.endswith(TAB_SEPARATED):
+        delimiter = "\t"
+    else:
+        raise TableGap("unsupported table format '{}'; export it to CSV or TSV".format(
+            os.path.splitext(path)[1] or path))
+    # Decode strictly: replacing bad bytes would merge distinct identifiers
+    # (p\xff and p\xfe both become p\ufffd) and could fake a passing check.
+    # Parse strictly too: lenient csv reads everything after an unclosed quote
+    # into one field, so later rows silently vanish.
+    try:
+        with open(path, newline="", encoding="utf-8-sig") as handle:
+            reader = csv.reader(handle, delimiter=delimiter, strict=True)
+            try:
+                records = list(reader)
+            except csv.Error as error:
+                raise TableShapeError("line {} cannot be parsed ({}), so later rows may be missing or "
+                                      "merged".format(reader.line_num, error))
+    except UnicodeDecodeError as error:
+        raise TableGap("the table is not valid UTF-8 (byte {} at offset {}); re-export it as UTF-8".format(
+            error.object[error.start:error.start + 1], error.start))
+    if not records:
+        return [], [], {}
+    columns = records[0]
+    # Blank header fields (trailing delimiters) cannot be named by a contract.
+    named = [c for c in columns if c.strip()]
+    if len(set(named)) != len(named):
+        raise TableGap("the table has duplicate column headers")
+    rows = []
+    for line_no, record in enumerate(records[1:], start=2):
+        if not record:
+            continue  # a blank line, as csv.DictReader skips it
+        # Any extra field is malformed, even an empty one: the extra field may be
+        # a leading row name, which shifts every value one column to the right.
+        extra = record[len(columns):]
+        if extra:
+            hint = "; an R write.table export with row names does this, so re-export with " \
+                "row.names = FALSE" if len(extra) == 1 else ""
+            raise TableShapeError("line {} has more fields than the header ({} > {}), so its values "
+                                  "cannot be assigned to columns{}".format(
+                                      line_no, len(record), len(columns), hint))
+        # A short row's absent trailing fields are missing values, never None.
+        record = record + [""] * (len(columns) - len(record))
+        rows.append(dict(zip(columns, record)))
+    return columns, rows, {}
 
 
 # ---------------------------------------------------------------- h5ad obs
+
+def decode(value):
+    """UTF-8 bytes from an .h5ad, strictly; undecodable bytes make the column unreadable."""
+    try:
+        return value.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise TableGap("a value is not valid UTF-8 ({!r})".format(value[:error.end]))
+
 
 def text(value):
     """One obs value as the string a CSV export would hold; missing values become ""."""
     if value is None:
         return ""
     if isinstance(value, bytes):
-        return value.decode("utf-8", "replace")
+        return decode(value)
     if isinstance(value, bool):
         return "True" if value else "False"
     if isinstance(value, float) and value != value:
@@ -90,7 +150,7 @@ def text(value):
 def attr(node, key, default=None):
     value = node.attrs.get(key, default)
     if isinstance(value, bytes):
-        return value.decode("utf-8", "replace")
+        return decode(value)
     if hasattr(value, "tolist") and not isinstance(value, str):
         value = value.tolist()
     if isinstance(value, list):
@@ -528,11 +588,15 @@ def run_contract(contract, base_dir):
             if path not in cache:
                 try:
                     cache[path] = read_table(path, wanted[path])
-                except TableGap as error:
+                except (TableGap, TableShapeError) as error:
                     cache[path] = error
             if isinstance(cache[path], TableGap):
                 found.append(alert(kind, "the table cannot be read, so this check did not run", False,
                                    observed=str(cache[path]), gap=True))
+                columns, rows, unreadable = [], [], {}
+            elif isinstance(cache[path], TableShapeError):
+                found.append(alert("schema", "the table is malformed, so no check on it can be trusted", True,
+                                   observed=str(cache[path])))
                 columns, rows, unreadable = [], [], {}
             else:
                 columns, rows, unreadable = cache[path]

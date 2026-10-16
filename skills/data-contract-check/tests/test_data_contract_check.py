@@ -2,6 +2,7 @@
 
 import csv
 import importlib
+import importlib.util
 import json
 import os
 import shutil
@@ -415,6 +416,91 @@ class H5adTest(unittest.TestCase):
         code, alerts = run([dict(IMBALANCE, table="real.h5ad", max_share=0.7)], root=self.root)
         self.assertEqual(code, 0)
         self.assertEqual(alerts[0]["evidence"], ["b1 holds 8 of 10 A rows (80%)"])
+
+
+class TableReaderTest(unittest.TestCase):
+    """CSV/TSV shape handling follows Mycelium's checker: malformed shape blocks, unreadable bytes are gaps."""
+
+    SCHEMA = [{"kind": "schema", "columns": ["sample_id", "group"]}, {"kind": "cohort", "rows": 2}]
+
+    def table(self, name, content):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        with open(os.path.join(folder, name), "wb") as handle:
+            handle.write(content if isinstance(content, bytes) else content.encode("utf-8"))
+        return folder
+
+    def check(self, name, content, checks=None):
+        code, out = invoke(checks or self.SCHEMA, root=self.table(name, content), table=name)
+        self.assertIn(code, (0, 2, 3), out)  # never a crash (exit 1 is a usage error or traceback)
+        return code, json.loads(out)
+
+    def test_ragged_extra_field_blocks_every_check(self):  # roadmap F11
+        code, result = self.check("ragged.tsv", "sample_id\tgroup\nS1\tA\textra\nS2\tB\n")
+        self.assertEqual(code, 2)
+        self.assertEqual([c["status"] for c in result["checks"]], ["block", "block"])
+        self.assertIn("line 2 has more fields than the header (3 > 2)", result["alerts"][0]["observed"])
+
+    def test_empty_extra_field_blocks_too(self):
+        code, _ = self.check("trailing.csv", "sample_id,group\nS1,A,\nS2,B\n")
+        self.assertEqual(code, 2)
+
+    def test_short_row_is_padded_with_missing_values(self):
+        checks = [{"kind": "cohort", "no_missing": ["group"]}]
+        code, result = self.check("short.tsv", "sample_id\tgroup\nS1\tA\nS2\n", checks)
+        self.assertEqual(code, 2)
+        self.assertEqual(result["alerts"][0]["observed"], "1 of 2 rows")
+        checks = [{"kind": "unit_of_replication", "unit": "sample_id", "group": "group"},
+                  {"kind": "pairing", "unit": "sample_id", "within": "group"},
+                  {"kind": "batch_confounding", "batch": "group", "contrast": "sample_id"}]
+        code, result = self.check("short.tsv", "sample_id\tgroup\nS1\tA\nS2\n", checks)
+        self.assertIn("warning", [a["severity"] for a in result["alerts"]])  # missing, not an AttributeError
+
+    def test_invalid_utf8_is_a_gap_not_a_pass(self):
+        code, result = self.check("bytes.tsv", b"sample_id\tgroup\np\xff\tA\np\xfe\tB\n")
+        self.assertEqual(code, 3)
+        self.assertEqual({c["status"] for c in result["checks"]}, {"gap"})
+        self.assertIn("not valid UTF-8", result["alerts"][0]["observed"])
+
+    def test_unterminated_quote_blocks(self):
+        code, result = self.check("quote.csv", 'sample_id,group\nS1,"A\nS2,B\n')
+        self.assertEqual(code, 2)
+        self.assertIn("cannot be parsed", result["alerts"][0]["observed"])
+
+    def test_unsupported_extension_is_a_gap(self):
+        for name in ("table.xlsx", "table.dat", "table"):
+            code, result = self.check(name, "sample_id\tgroup\nS1\tA\nS2\tB\n")
+            self.assertEqual(code, 3, name)
+            self.assertIn("unsupported table format", result["alerts"][0]["observed"])
+
+    def test_valid_tables_pass(self):
+        for name, delimiter in (("t.csv", ","), ("t.tsv", "\t"), ("t.tab", "\t"), ("t.TXT", "\t")):
+            content = "\ufeffsample_id{0}group\n\nS1{0}A\nS2{0}B\n".format(delimiter)  # BOM and a blank line
+            code, result = self.check(name, content)
+            self.assertEqual((code, result["alerts"]), (0, []), name)
+
+    def test_quoted_delimiter_and_newline_are_one_field(self):
+        content = 'sample_id,group\n"S,1","A\nB"\nS2,C\n'
+        code, result = self.check("quoted.csv", content, [{"kind": "cohort", "column": "group", "levels": ["A\nB"]}])
+        self.assertEqual((code, result["alerts"]), (0, []))
+
+    def test_date_like_identifiers_are_not_corruption(self):
+        content = "sample_id\tgroup\n2024-01-05\tA\n01/02/2024\tB\nMar-1\tB\n"
+        checks = [{"kind": "cohort", "column": "group", "levels": ["A", "B"], "rows": 3, "no_missing": ["sample_id"]}]
+        code, result = self.check("dates.tsv", content, checks)
+        self.assertEqual((code, result["alerts"]), (0, []))
+
+    def test_blank_header_fields_are_not_duplicates(self):
+        code, _ = self.check("blank.tsv", "sample_id\tgroup\t\t\nS1\tA\t\t\nS2\tB\t\t\n")
+        self.assertEqual(code, 0)
+
+    def test_h5ad_bytes_decode_strictly(self):
+        spec = importlib.util.spec_from_file_location("data_contract_check_under_test", SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(module.text(b"p1"), "p1")
+        with self.assertRaises(module.TableGap):
+            module.text(b"p\xff")  # a replacement character would merge p\xff and p\xfe
 
 
 class WithoutH5pyTest(unittest.TestCase):
