@@ -9,6 +9,7 @@ Mycelium's hooks do not open the post-action cycle:
     python3 - --plugin-root <root> stale [--json] < verify.py
     python3 - --plugin-root <root> status [--json] < verify.py
     python3 - --plugin-root <root> explore [--session ID | --all] [--json] < verify.py
+    python3 - --plugin-root <root> runs [RESULTS_DIR] [--json] < verify.py
 
 It reuses the approval gate's own parsers (`<root>/hooks/gate.py`), so a plan
 covers here exactly the scripts it let through. `report` only reads. `write`
@@ -25,6 +26,7 @@ import csv
 import datetime
 import decimal
 import glob
+import hashlib
 import io
 import json
 import math
@@ -2362,6 +2364,220 @@ def render_multiplicity(result):
     return "\n".join(lines) + "\n"
 
 
+# ---------------------------------------------------------------- runs
+
+RUN_NAME = re.compile(r"^run_(\d{8})_(.+)$")
+STATE_WORDS = re.compile(r"final|complete|smoke|latest|current|review", re.IGNORECASE)
+RUN_STATUS = ("current", "side", "superseded", "scratch", "failed")
+RUN_KIND = ("model", "data", "seed", "code-fix", "rerun", "sensitivity", "figures-only", "smoke")
+
+
+def parse_label(text):
+    """({key: value}, {key: line}, [(line or None, problem)]) from a run label. The header ends at the first
+    blank line after a key; what follows is free text and is never read. Unknown keys are kept, not flagged."""
+    fields, lines, problems, seen = {}, {}, [], False
+    for number, line in enumerate(text.splitlines(), 1):
+        if line.startswith("#"):
+            continue
+        if not line.strip():
+            if seen:
+                break
+            continue
+        seen = True
+        key, colon, value = line.partition(":")
+        if not colon or not re.match(r"^[a-z_]+$", key.strip()):
+            problems.append((number, "not a `key: value` line"))
+            continue
+        fields[key.strip()] = value.strip()
+        lines[key.strip()] = number
+    for key, allowed in (("status", RUN_STATUS), ("kind", RUN_KIND)):
+        if key in fields and fields[key] not in allowed and fields[key] != "-":
+            problems.append((lines[key], "`{}: {}` is not one of {}".format(key, fields[key], " | ".join(allowed))))
+    if "version" in fields and fields["version"] != "-" and not fields["version"].isdigit():
+        problems.append((lines["version"], "`version` is not a whole number"))
+    if "status" not in fields:
+        problems.append((None, "no `status:` line"))
+    return fields, lines, problems
+
+
+def scan_run(path):
+    """(newest file mtime or 0, 8-hex id) of a run folder. RUN.txt is left out of both, because labelling a run
+    must not change when it was updated or which run it is; the folder's own mtime is never used."""
+    entries, newest = [], 0
+    for folder, dirs, names in os.walk(path):
+        for name in names + [d for d in dirs if os.path.islink(os.path.join(folder, d))]:
+            full = os.path.join(folder, name)
+            rel = os.path.relpath(full, path).replace(os.sep, "/")
+            try:
+                info = os.lstat(full)
+            except OSError:
+                continue
+            if rel != "RUN.txt":
+                entries.append((rel, info.st_size))
+                newest = max(newest, info.st_mtime)
+    text = "\n".join("{}\t{}".format(rel, size) for rel, size in sorted(entries))
+    return newest, hashlib.sha256(text.encode("utf-8", "surrogateescape")).hexdigest()[:8]
+
+
+def label_run(path):
+    """One run folder as a dict: its label (inside RUN.txt, else the sibling `<run>.RUN.txt`), newest mtime, id."""
+    name = os.path.basename(path)
+    inside, sibling = os.path.join(path, "RUN.txt"), path + ".RUN.txt"
+    source = "inside" if os.path.isfile(inside) else "sibling" if os.path.isfile(sibling) else None
+    fields, lines, problems = parse_label(read_text(inside if source == "inside" else sibling)) if source \
+        else ({}, {}, [])
+    if fields.get("run") and fields["run"] != name:
+        problems.append((lines["run"], "the label names `{}`, not this folder".format(fields["run"])))
+    newest, digest = scan_run(path)
+    return {"run": name, "path": path, "label": source, "fields": fields, "problems": problems, "epoch": newest,
+            "updated": when(newest) if newest else "-", "id": digest,
+            "status": fields.get("status") or ("-" if source else "unlabelled")}
+
+
+def run_order(run):
+    """Version, `_vNN` suffix, date: how the user's convention orders two runs of one slug."""
+    version = run["fields"].get("version", "")
+    suffix = re.search(r"_v(\d+)$", run["run"])
+    return (int(version) if version.isdigit() else 0, int(suffix.group(1)) if suffix else 0,
+            RUN_NAME.match(run["run"]).group(1), run["run"])
+
+
+def run_findings(base, results, runs, pointers):
+    found = []
+
+    def add(severity, run, text):
+        found.append({"severity": severity, "run": run, "text": text})
+
+    for run in runs:
+        name, fields = run["run"], run["fields"]
+        if not run["label"]:
+            add("gap", name, "no label: neither `{0}/RUN.txt` nor `{0}.RUN.txt` exists.".format(name))
+        elif run["label"] == "sibling":
+            add("info", name, "labelled by the sibling file `{}.RUN.txt` (a frozen run).".format(name))
+        for number, problem in run["problems"]:
+            add("gap", name, "malformed label{}: {}.".format(" (line {})".format(number) if number else "", problem))
+        if STATE_WORDS.search(name):
+            add("info", name, "the name has a state word ({}); state belongs in the label, not the name.".format(
+                ", ".join(sorted(set(w.lower() for w in STATE_WORDS.findall(name))))))
+        target = fields.get("superseded_by", "-")
+        if target != "-" and not os.path.isdir(os.path.join(results if "/" not in target else base, target)):
+            add("gap", name, "superseded_by `{}` does not exist.".format(target))
+        for entry in [e.strip() for e in fields.get("reads", "-").split(",") if e.strip() not in ("", "-")]:
+            if not any(os.path.isdir(os.path.join(root, entry)) for root in (base, results)):  # labels write both
+                add("gap", name, "reads `{}`, which does not exist.".format(entry))
+    for name, target in pointers:
+        if not os.path.exists(os.path.join(results, name)):
+            add("gap", name, "points to `{}`, which does not exist.".format(target))
+    groups = collections.defaultdict(list)
+    for run in runs:
+        if run["status"] == "current":
+            groups[(re.sub(r"_v\d+$", "", RUN_NAME.match(run["run"]).group(2)), run["fields"].get("kind", "-"))].append(run)
+    for (stem, kind), group in sorted(groups.items()):
+        if len(group) > 1:
+            group.sort(key=run_order)
+            add("suggestion", group[-1]["run"], "{} all say `current` for slug `{}`, kind `{}`; `{}` is the latest, so "
+                "the older ones may be superseded. Only you set a status.".format(
+                    ", ".join("`{}`".format(r["run"]) for r in group), stem, kind, group[-1]["run"]))
+    return found
+
+
+def run_citations(base, analysis, since):
+    """Symlinks under the analysis's data/ and code/ that resolve into a `run_*` folder of another analysis,
+    each with that run's label; a dangling link is a gap. `since` is the newest approval's time, or None."""
+    here, found = os.path.realpath(analysis), []
+
+    def add(severity, link, text, run=None):
+        found.append({"severity": severity, "link": link, "run": run and rel_or_abs(base, run["path"]),
+                      "status": run and run["status"], "id": run and run["id"], "text": text})
+
+    for sub in ("data", "code"):
+        for folder, dirs, names in os.walk(os.path.join(analysis, sub)):
+            dirs.sort()
+            for name in sorted(dirs + names):
+                path = os.path.join(folder, name)
+                if not os.path.islink(path):
+                    continue
+                link = os.path.relpath(path, analysis).replace(os.sep, "/")
+                if not os.path.exists(path):
+                    add("gap", link, "dangling: points to `{}`, which does not exist.".format(os.readlink(path)))
+                    continue
+                parts = os.path.realpath(path).split(os.sep)
+                at = [i for i, part in enumerate(parts) if RUN_NAME.match(part)]
+                if not at or under(os.sep.join(parts[:at[0] + 1]), here):
+                    continue
+                run = label_run(os.sep.join(parts[:at[0] + 1]))
+                fields, status = run["fields"], run["status"]
+                if not run["label"]:
+                    add("gap", link, "the cited run has no label.", run)
+                elif status not in RUN_STATUS:
+                    add("gap", link, "the cited run's label has no usable status.", run)
+                elif status == "superseded":
+                    add("gap", link, "the cited run is superseded (by {}).".format(fields.get("superseded_by", "-")), run)
+                elif status in ("failed", "scratch"):
+                    add("gap", link, "the cited run is {}.".format(status), run)
+                else:
+                    add("info", link, "the cited run is {}.".format(status), run)
+                if since and run["epoch"] > since:
+                    add("info", link, "the cited run changed {}, after the newest approval ({}).".format(
+                        run["updated"], when(since)), run)
+    return found
+
+
+def list_runs(base, gated, path):
+    """The runs in a results folder and the cross-folder citations of its analysis. Read-only."""
+    plans = approved_plans(base) if gated else []
+    if path is None:
+        if not plans:
+            sys.exit("verify: no approval names an analysis folder here; pass the results folder: verify runs PATH")
+        newest = max(plans, key=lambda p: p[0])
+        rel = guess_analysis_dir(newest[2])
+        if not rel:
+            sys.exit("verify: the newest approval ({}) names no analysis folder; pass the results folder: "
+                     "verify runs PATH".format(newest[1]))
+        results = os.path.join(base, rel, "results")
+    else:
+        results = os.path.abspath(path)
+        if not gated:  # labels name other runs from the project root: the repository the results folder is in
+            top = gate.git(results if os.path.isdir(results) else os.path.dirname(results), "rev-parse", "--show-toplevel")
+            base = top.strip() if top else base
+    if not os.path.isdir(results):
+        sys.exit("verify: {} is not a folder; pass the analysis's results folder: verify runs PATH".format(
+            rel_or_abs(base, results)))
+    analysis = os.path.dirname(results)
+    mine = [p[0] for p in plans if guess_analysis_dir(p[2]) == os.path.relpath(analysis, base)]
+    names = sorted(os.listdir(results))
+    pointers = [(n, os.readlink(os.path.join(results, n))) for n in names if os.path.islink(os.path.join(results, n))]
+    found = [label_run(os.path.join(results, n)) for n in names
+             if RUN_NAME.match(n) and not os.path.islink(os.path.join(results, n))
+             and os.path.isdir(os.path.join(results, n))]
+    return {"results": rel_or_abs(base, results), "runs": found, "pointers": pointers,
+            "findings": run_findings(base, results, found, pointers),
+            "citations": run_citations(base, analysis, max(mine) if mine else None)}
+
+
+def render_runs(result):
+    lines = ["# Runs in `{}`".format(result["results"]), ""]
+    if result["runs"]:
+        lines += ["| Run | Version | Kind | Status | Updated | Id | Why |", "|---|---|---|---|---|---|---|"]
+        for r in result["runs"]:
+            f, why = r["fields"], r["fields"].get("why", "-")
+            lines.append("| {} | {} | {} | {} | {} | {} | {} |".format(
+                r["run"], f.get("version", "-"), f.get("kind", "-"), r["status"],
+                r["updated"], r["id"], cell(why if len(why) <= 60 else why[:57] + "...")))
+    else:
+        lines.append("No `run_<YYYYMMDD>_<slug>` folders here.")
+    if result["pointers"]:
+        lines += [""] + ["`{}` -> `{}` (a pointer, not a run)".format(n, t) for n, t in result["pointers"]]
+    lines += ["", "## Findings", ""]
+    lines += ["- {} `{}`: {}".format(f["severity"], f["run"], f["text"]) for f in result["findings"]] or ["None."]
+    lines += ["", "## Citations", ""]
+    lines += ["- {} `{}`{}: {}".format(c["severity"], c["link"], " -> `{}` ({}, id {})".format(
+        c["run"], c["status"], c["id"]) if c["run"] else "", c["text"]) for c in result["citations"]] \
+        or ["No symlink in `data/` or `code/` points into another analysis's run."]
+    lines += ["", "Status is only ever set by you in the label; a suggestion is not a status. Nothing was written."]
+    return "\n".join(lines) + "\n"
+
+
 def main(argv):
     parser = argparse.ArgumentParser(prog="verify")
     parser.add_argument("--plugin-root", required=True)
@@ -2371,7 +2587,7 @@ def main(argv):
     parser.add_argument("--rscript", help="default: the path in tools.json, else `Rscript` on PATH")
     parser.add_argument("--hash-mb", type=float, default=2000)
     parser.add_argument("--seconds", type=float, default=120)
-    parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore", "multiplicity"])
+    parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore", "multiplicity", "runs"])
     parser.add_argument("hash", nargs="?")
     parser.add_argument("new_hash", nargs="?")
     parser.add_argument("--analysis-dir")
@@ -2392,6 +2608,11 @@ def main(argv):
         else:
             rows = status(base, args.hash_mb, args.seconds)
             sys.stdout.write(json.dumps(rows, indent=1) + "\n" if args.json else render_status(rows))
+        return 0
+    if args.action == "runs":  # RESULTS_DIR is the positional after the action; no gate needed when it is given
+        top = gate.git(os.path.abspath(args.repo), "rev-parse", "--show-toplevel")
+        result = list_runs(root or (top.strip() if top else os.path.abspath(args.repo)), bool(root), args.hash)
+        sys.stdout.write(json.dumps(result, indent=1) + "\n" if args.json else render_runs(result))
         return 0
     if root is None:
         sys.exit("verify: the approval gate is not on in this repository (no gate.json found).")

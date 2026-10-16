@@ -1614,12 +1614,150 @@ sys.exit(1 if hits else 0)
                     json.dump(invalid, handle)
                 for action in [("list",), ("status",), ("report", digest),
                                ("write", digest, "--analysis-dir", "analysis/a"),
-                               ("diff", digest, digest), ("multiplicity", digest)]:
+                               ("diff", digest, digest), ("multiplicity", digest), ("runs",)]:
                     error = self.verify(*action, fails=True)
                     self.assertIn("invalid approval state", error)
                     self.assertNotIn("Traceback", error)
                 self.verify("explore", "--all")
                 self.verify("stale")
+
+    # ---- `runs`: run labels and cross-folder citations (read-only)
+
+    def label(self, folder, status, kind="model", version="1", extra="", mtime=None):
+        """A run folder holding one output, and its RUN.txt label."""
+        name = os.path.basename(folder)
+        self.write(folder + "/out.tsv", "x\n" + folder, mtime=mtime or time.time() - 7200)
+        self.write(folder + "/RUN.txt", "# Run label\nrun: {}\nversion: {}\nkind: {}\nstatus: {}\n"
+                   "why: {}\n{}\nNotes\nrun_99999999_prose is only prose.\n".format(
+                       name, version, kind, status, "why " + name, extra))
+
+    def snapshot(self):
+        found = {}
+        for folder, dirs, names in os.walk(self.root):
+            for name in dirs + names:
+                info = os.lstat(os.path.join(folder, name))
+                found[os.path.join(folder, name)] = (info.st_mtime, info.st_size)
+        return found
+
+    def runs_folder(self):
+        res = "analysis/a/results/"
+        self.label(res + "run_20261001_alpha", "current")
+        self.label(res + "run_20261002_alpha_v02", "current", version="2")
+        self.write(res + "run_20261003_nolabel/out.tsv", "x")
+        self.write(res + "run_20261004_frozen/out.tsv", "x")
+        self.write(res + "run_20261004_frozen.RUN.txt", "run: run_20261004_frozen\nstatus: superseded\n"
+                   "kind: rerun\nsuperseded_by: -\n")
+        self.write(res + "run_20261005_bad/out.tsv", "x")
+        self.write(res + "run_20261005_bad/RUN.txt", "# c\nrun: run_20261005_bad\noops\nstatus: weird\n")
+        self.label(res + "run_20261006_gone", "superseded", kind="data",
+                   extra="superseded_by: run_20269999_nowhere\nreads: run_20261001_alpha, run_20260101_missing")
+        self.label(res + "run_20261007_final_smoke", "scratch", kind="smoke")
+        os.symlink("run_20261002_alpha_v02", os.path.join(self.root, res + "current"))
+        self.write(res + "run_20261001_alpha.log", "not a run")
+        return os.path.join(self.root, res)
+
+    def test_runs_lists_labels_findings_and_writes_nothing(self):
+        res = self.runs_folder()
+        newest = time.time() - 5000
+        self.write("analysis/a/results/run_20261001_alpha/late.tsv", "y", mtime=newest)
+        with open(res + "run_20261001_alpha/RUN.txt") as handle:
+            label = handle.read()
+        self.write("analysis/a/results/run_20261001_alpha/RUN.txt", label, mtime=time.time())  # labelling a run later must not move its `updated`
+        before = self.snapshot()
+        out = self.verify("runs", res)
+        self.assertEqual(before, self.snapshot())
+        self.assertIn("| Run | Version | Kind | Status | Updated | Id | Why |", out)
+        row = [l for l in out.splitlines() if l.startswith("| run_20261001_alpha |")][0]
+        self.assertIn("| 1 | model | current | {} | ".format(time.strftime("%Y-%m-%d %H:%M", time.localtime(newest))), row)
+        self.assertRegex(row, r"\| [0-9a-f]{8} \| why run_20261001_alpha \|$")
+        names = [l.split("|")[1].strip() for l in out.splitlines() if l.startswith("| run_")]
+        self.assertEqual(names, sorted(names))
+        self.assertEqual(len(names), 7)  # `current` and the `.log` are not runs; the frozen sibling label is not one
+        self.assertIn("| run_20261003_nolabel | - | - | unlabelled |", out)
+        self.assertIn("| run_20261004_frozen | - | rerun | superseded |", out)
+        self.assertIn("`current` -> `run_20261002_alpha_v02` (a pointer, not a run)", out)
+        for finding in [
+                "- gap `run_20261003_nolabel`: no label",
+                "- info `run_20261004_frozen`: labelled by the sibling file `run_20261004_frozen.RUN.txt`",
+                "- gap `run_20261005_bad`: malformed label (line 3): not a `key: value` line.",
+                "- gap `run_20261005_bad`: malformed label (line 4): `status: weird` is not one of",
+                "- gap `run_20261006_gone`: superseded_by `run_20269999_nowhere` does not exist.",
+                "- gap `run_20261006_gone`: reads `run_20260101_missing`, which does not exist.",
+                "- info `run_20261007_final_smoke`: the name has a state word (final, smoke)",
+                "- suggestion `run_20261002_alpha_v02`: `run_20261001_alpha`, `run_20261002_alpha_v02` all say `current` for slug `alpha`"]:
+            self.assertIn(finding, out)
+        self.assertNotIn("reads `run_20261001_alpha`", out)  # an existing run
+        self.assertNotIn("run_99999999_prose", out)  # prose in the notes is never parsed
+        self.assertNotIn("Traceback", out)
+        self.assertEqual(self.verify("runs", res + "/"), out)  # a trailing slash changes nothing
+        self.assertEqual(json.loads(self.verify("runs", res, "--json"))["runs"][0]["run"], "run_20261001_alpha")
+
+    def test_runs_id_ignores_the_label_and_follows_the_files(self):
+        res = self.runs_folder()
+        first = self.verify("runs", res)
+        self.write("analysis/a/results/run_20261001_alpha/RUN.txt", "run: run_20261001_alpha\nstatus: side\n")
+        again = self.verify("runs", res)
+        pick = lambda out: [l for l in out.splitlines() if l.startswith("| run_20261001_alpha |")][0].split("|")[6]
+        self.assertEqual(pick(first), pick(again))
+        self.write("analysis/a/results/run_20261001_alpha/more.tsv", "z")
+        self.assertNotEqual(pick(first), pick(self.verify("runs", res)))
+
+    def test_runs_default_folder_comes_from_the_newest_approval(self):
+        err = self.verify("runs", fails=True)
+        self.assertIn("pass the results folder", err)
+        self.assertEqual(len(err.strip().splitlines()), 1)
+        self.runs_folder()
+        self.approve(plan("run `{}`".format(FIT)))
+        self.assertIn("# Runs in `analysis/a/results`", self.verify("runs"))
+        err = self.verify("runs", os.path.join(self.root, "analysis/a/nothing"), fails=True)
+        self.assertIn("pass the analysis's results folder", err)
+        self.assertNotIn("Traceback", err)
+        shutil.rmtree(os.path.join(self.root, "analysis/a/results"))
+        self.assertIn("is not a folder", self.verify("runs", fails=True))
+
+    def test_runs_citations_of_other_analyses(self):
+        other = "analysis/b/results/"
+        self.label(other + "run_20261001_ok", "current")
+        self.label(other + "run_20261002_old", "superseded", extra="superseded_by: run_20261003_new")
+        self.label(other + "run_20261003_new", "current", mtime=time.time() + 600)  # changed after the approval
+        self.label(other + "run_20261004_bad", "failed")
+        self.write(other + "run_20261005_nolabel/out.tsv", "x")
+        os.symlink("run_20261001_ok", os.path.join(self.root, other + "current"))
+        os.makedirs(os.path.join(self.root, "analysis/a/data"))
+        os.makedirs(os.path.join(self.root, "analysis/a/code"))
+        here = os.path.join(self.root, "analysis/a/")
+        for link, target in [("data/cur", "../../b/results/current"), ("data/old", "../../b/results/run_20261002_old"),
+                             ("data/new", "../../b/results/run_20261003_new/out.tsv"),
+                             ("data/bad", "../../b/results/run_20261004_bad"),
+                             ("code/nolabel", "../../b/results/run_20261005_nolabel"),
+                             ("data/dangling", "../../b/results/run_20269999_gone"),
+                             ("data/plain", "../../b/results"),  # not a run: ignored
+                             ("data/mine", "../results/run_20261001_own")]:  # this analysis's own run: ignored
+            os.symlink(target, os.path.join(here, link))
+        self.label("analysis/a/results/run_20261001_own", "current")
+        self.approve(plan("run `{}`".format(FIT)))
+        before = self.snapshot()
+        out = self.verify("runs", here + "results")
+        self.assertEqual(before, self.snapshot())
+        cited = out.split("## Citations")[1]
+        for line in [
+                "- info `data/cur` -> `analysis/b/results/run_20261001_ok` (current, id ",
+                "- gap `data/old` -> `analysis/b/results/run_20261002_old` (superseded, id ",
+                "the cited run is superseded (by run_20261003_new).",
+                "- gap `data/bad` -> `analysis/b/results/run_20261004_bad` (failed, id ",
+                "- gap `code/nolabel` -> `analysis/b/results/run_20261005_nolabel` (unlabelled, id ",
+                "the cited run has no label.",
+                "- gap `data/dangling`: dangling: points to `../../b/results/run_20269999_gone`"]:
+            self.assertIn(line, cited)
+        self.assertRegex(cited, r"- info `data/new` -> `analysis/b/results/run_20261003_new` \(current, id [0-9a-f]{8}\): "
+                         r"the cited run is current\.")
+        self.assertRegex(cited, r"- info `data/new` .*: the cited run changed .*, after the newest approval")
+        self.assertNotIn("data/cur` -> `analysis/b/results/run_20261001_ok` (current, id ", out.split("## Citations")[0])
+        self.assertNotIn("data/plain", cited)
+        self.assertNotIn("data/mine", cited)
+        self.assertEqual(cited.count("changed"), 1)
+        self.assertNotIn("Citations", self.verify("status"))  # `check` and `status` never show citations
+        self.assertNotIn("data/old", self.verify("report", self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/o2/"))))
 
 
 if __name__ == "__main__":

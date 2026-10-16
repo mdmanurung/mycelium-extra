@@ -157,3 +157,13 @@ python3 - --plugin-root <skill-dir>/../.. multiplicity <hash> [--json] < <skill-
 ```
 
 A counts line, then one timeline, oldest first: each earlier approved plan that names one of this plan's scripts or `Outputs:` paths (a revision), with its changed Choice cells; each run of those scripts or in the analysis folder, as an explore run, a run under an earlier plan, or a run under this plan, with its command and exit status; and this plan, marked `approved (selected)`. It stops at this plan's last run. A run whose script differs from the version this plan last ran is marked `other code version`. Counts come from receipts and approvals only; a run whose approvals were not read is counted as a gap. Receipts do not record which files a run wrote, and a value changed inside a script shows only as another code version. Show the table as printed and judge nothing: which run is the real one, and whether the tries need a correction, is the user's call. Write nothing.
+
+## Runs
+
+When the user asks which runs a results folder holds, or whether the runs this analysis cites are still good, list them, read-only:
+
+```bash
+python3 - --plugin-root <skill-dir>/../.. runs [RESULTS_DIR] [--json] < <skill-dir>/scripts/verify.py
+```
+
+Without `RESULTS_DIR` it uses `results/` in the newest approval's analysis folder. A run is a `run_<YYYYMMDD>_<slug>` folder (iterations end `_vNN`) with a label `RUN.txt` inside it, or, for a frozen run, a sibling `<run>.RUN.txt`. The table shows run, version, kind, status, updated (the newest file inside, not the folder), id (a content id of the file names and sizes), and why. `results/current` is shown as a pointer. Findings are gaps or info: an unlabelled run, a frozen-label sibling, a malformed label (with its line), `superseded_by` or `reads` naming a run that does not exist, and a state word in a run name (`final`, `complete`, `smoke`, `latest`, `current`, `review`). Several runs of one slug and kind that all say `current` give a suggestion, never a status. A Citations section checks each symlink in the analysis's `data/` and `code/` that points into another analysis's run: a gap when the cited run is unlabelled, superseded, failed or scratch, or the link dangles; info otherwise, and when the cited run changed after this analysis's newest approval. Show it as printed. Only the user sets a status; write nothing, and do not read the notes of a label for run names.

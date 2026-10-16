@@ -76,6 +76,10 @@ No hook runs it.
 
 One limit: an output is tied to a run by time, since receipts do not record which files a run wrote.
 
+## Runs and citations
+
+`verify runs [RESULTS_DIR]` lists the `run_<YYYYMMDD>_<slug>` folders of a results folder with the status each run's label (`RUN.txt`, or a sibling `<run>.RUN.txt` for a frozen run) gives it, plus `updated` (newest file inside) and a content `id`. It also lists gaps in the labels and, in a Citations section, the `data/` and `code/` symlinks that cite a run of another analysis, with that run's status. It never writes, never sets a status, and only suggests a supersession; it is not part of `verify check` or `status`.
+
 ## Recoverable provenance publication
 
 `write` serializes writers per analysis and stages a complete bundle beside the public files. It retains the previous bytes in `provenance/.transactions/`, writes a pending transaction before replacing members, writes `complete-<hash>.json` with member SHA256s, and updates `PROVENANCE.md` last. Keep these internal transaction files until the save and any recovery have been reviewed. Public plan/receipt/output/lint/report filenames are unchanged.
