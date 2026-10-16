@@ -15,10 +15,13 @@ overwrites, and writes nothing outside <dest>. Stdlib-only; runs on Python 3.6+.
 
 import argparse
 import datetime
+import fcntl
 import json
 import os
 import re
 import subprocess
+import shutil
+import tempfile
 import sys
 
 STEP = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*)\.(R|py|ipynb)$")
@@ -157,6 +160,7 @@ def stub_values(step, name, data_links):
                 else "input_path, output_path = sys.argv[1:]")
     return {"FILE": step["file"], "NUM": step["num"], "NAME": name,
             "INPUT": notebook_input if step["kind"] == "ipynb" else source,
+            "INPUT_LITERAL": json.dumps(notebook_input),
             "OUTPUT": step["output"], "USAGE": usage, "NARGS": "1" if first else "2",
             "ARGS_CODE": code}
 
@@ -173,7 +177,7 @@ def rule(step, data_links):
     if step["input"]:
         lines.append('        prev="{}",'.format(step["input"]))
     elif data_links:
-        lines.append("        data=[{}],".format(", ".join('"{}"'.format(l["rel"]) for l in data_links)))
+        lines.append("        data=[{}],".format(", ".join(json.dumps(l["rel"]) for l in data_links)))
     key = "notebook" if step["kind"] == "ipynb" else "script"
     lines.append('        {}="{}",'.format(key, step["file"]))
     todo = "" if step["kind"] == "ipynb" else "  # TODO: name the real outputs"
@@ -275,13 +279,15 @@ def main(argv):
 
     try:
         return scaffold(args)
-    except Refusal as refusal:
+    except (Refusal, OSError) as refusal:
         print("refused: {}".format(refusal))
         return 1
 
 
 def scaffold(args):
-    dest = os.path.realpath(os.path.abspath(args.dest))
+    dest = canonical(args.dest)
+    if os.path.islink(dest):
+        raise Refusal("destination is a symlink; nothing was changed")
     if os.path.exists(dest) and not os.path.isdir(dest):
         raise Refusal("{} exists and is not a folder".format(args.dest))
     if os.path.isdir(dest) and os.listdir(dest):
@@ -306,7 +312,8 @@ def scaffold(args):
         source = read(os.path.join(templates, "stub." + step["kind"]))
         files[step["file"]] = notebook(source, values) if step["kind"] == "ipynb" else fill(source, values)
     files["Snakefile"] = fill(read(os.path.join(templates, "Snakefile")), {
-        "NAME": name, "DEST": dest_rel, "LAST_OUTPUT": steps[-1]["output"],
+        "NAME": json.dumps(name)[1:-1], "DEST": json.dumps(dest_rel)[1:-1],
+        "LAST_OUTPUT": steps[-1]["output"],
         "RULES": "\n\n".join(rule(step, data_links) for step in steps).rstrip("\n")})
     files["run.sh"] = fill(read(os.path.join(templates, "run.sh")), {"NAME": name})
     files[doc_name] = doc_text(read(template_path), name, dest_rel, steps, data_links,
@@ -330,15 +337,42 @@ def scaffold(args):
 
     verb = "would create" if args.dry_run else "created"
     if not args.dry_run:
-        os.makedirs(dest, exist_ok=True)
-        for folder in DIRS:
-            os.mkdir(os.path.join(dest, folder))
-        for path, text in files.items():
-            with open(os.path.join(dest, path), "x", encoding="utf-8", errors="surrogateescape") as handle:
-                handle.write(text)
-        os.chmod(os.path.join(dest, "run.sh"), 0o755)
-        for link in data_links + code_links:
-            os.symlink(link["value"], link["path"])
+        parent = os.path.dirname(dest)
+        os.makedirs(parent, exist_ok=True)
+        lock = os.path.join(parent, "." + name + ".scaffold.lock")
+        fd = os.open(lock, os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            stage = tempfile.mkdtemp(prefix="." + name + ".stage-", dir=parent)
+            try:
+                for folder in DIRS:
+                    os.mkdir(os.path.join(stage, folder))
+                for path, text in files.items():
+                    if "@@" in text:
+                        raise Refusal("unresolved template placeholder in " + path)
+                    if path.endswith(".py"):
+                        compile(text, path, "exec")
+                    elif path.endswith(".ipynb"):
+                        book = json.loads(text)
+                        for cell in book["cells"]:
+                            if cell["cell_type"] == "code":
+                                compile("".join(cell["source"]), path, "exec")
+                    with open(os.path.join(stage, path), "x", encoding="utf-8", errors="surrogateescape") as handle:
+                        handle.write(text)
+                        handle.flush()
+                        os.fsync(handle.fileno())
+                os.chmod(os.path.join(stage, "run.sh"), 0o755)
+                for link in data_links + code_links:
+                    os.symlink(link["value"], os.path.join(stage, link["rel"]))
+                if os.path.lexists(dest):
+                    if os.path.islink(dest) or not os.path.isdir(dest) or os.listdir(dest):
+                        raise Refusal("destination changed or is not empty; nothing was changed")
+                os.rename(stage, dest)  # Atomic replacement also accepts an existing empty folder.
+            finally:
+                if os.path.exists(stage):
+                    shutil.rmtree(stage)
+        finally:
+            os.close(fd)
 
     print("{} {}/ (doc {} from {})".format(verb, dest_rel, doc_name, template_note))
     for path in [s["file"] for s in steps] + ["Snakefile", "run.sh", doc_name, "PLAN.md",

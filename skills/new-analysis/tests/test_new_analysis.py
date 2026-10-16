@@ -127,6 +127,37 @@ class NewAnalysisTest(unittest.TestCase):
         self.scaffold()
         self.assertIn("Snakefile", os.listdir(self.dest))
 
+    def test_concurrent_scaffolds_publish_only_one_complete_tree(self):
+        command = [sys.executable, SCRIPT, "--templates=" + TEMPLATES, "--dest=" + self.dest]
+        jobs = [subprocess.Popen(command, cwd=self.root, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                for i in range(2)]
+        codes = []
+        for job in jobs:
+            job.communicate(timeout=10)
+            codes.append(job.returncode)
+        self.assertEqual(sorted(codes), [0, 1])
+        self.assertTrue(os.path.isfile(os.path.join(self.dest, "Snakefile")))
+        self.assertEqual(len(os.listdir(self.dest)), 13)
+
+    def test_symlink_destination_and_staging_failure_leave_targets_untouched(self):
+        target = os.path.join(self.root, "target")
+        os.mkdir(target)
+        os.symlink(target, self.dest)
+        proc = run(self.root, "--dest=" + self.dest)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(os.listdir(target), [])
+        os.unlink(self.dest)
+        templates = os.path.join(self.root, "templates")
+        shutil.copytree(TEMPLATES, templates)
+        with open(os.path.join(templates, "stub.py"), "w") as handle:
+            handle.write("@@UNRESOLVED@@")
+        os.mkdir(self.dest)
+        proc = run(self.root, "--dest=" + self.dest, "--templates=" + templates,
+                   "--data=data/anndatas/cells.h5ad")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(os.listdir(self.dest), [])
+        self.assertEqual(read(os.path.join(self.root, "data", "anndatas", "cells.h5ad")), "x")
+
     def test_refuses_bad_steps_and_links(self):
         cases = [("--steps=1_a.R", "must look like"),
                  ("--steps=02_a.R,01_b.py", "must increase"),
@@ -154,6 +185,21 @@ class NewAnalysisTest(unittest.TestCase):
         setup = "".join(book["cells"][1]["source"])
         self.assertIn('INPUT = Path("outputs/02_train_model.parquet")', setup)
         self.assertNotIn("assert ", setup)  # scilintr's runtime-assert would fail verify's lint
+
+    def test_quoted_data_names_are_python_literals_in_workflow_and_notebook(self):
+        basename = 'samples "quoted" \\new.tsv'
+        write(os.path.join(self.root, "data", basename), "sample\nA\n")
+        self.scaffold("--steps=01_look.ipynb", "--data=data/" + basename)
+        snakefile = read(os.path.join(self.dest, "Snakefile"))
+        match = re.search(r"        data=(\[.*\]),", snakefile)
+        import ast
+        self.assertEqual(ast.literal_eval(match.group(1)), ["data/" + basename])
+        book = json.loads(read(os.path.join(self.dest, "01_look.ipynb")))
+        setup = "".join(book["cells"][1]["source"])
+        parsed = ast.parse(setup)
+        assignment = next(node for node in parsed.body if isinstance(node, ast.Assign)
+                          and any(getattr(t, "id", None) == "INPUT" for t in node.targets))
+        self.assertEqual(ast.literal_eval(assignment.value.args[0]), "data/" + basename)
 
     def test_r_stub_points_at_scilintr_stage_without_setting_one(self):
         self.scaffold()
