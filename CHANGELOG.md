@@ -2,6 +2,13 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.73] - 2026-10-17
+
+### Added
+
+- Approval latency log (roadmap D10). Every `approve plan <hash>` appends one line to `approvals.jsonl` in the gate state folder: the hash, session, when the plan was shown and approved, the seconds between, the plan's step rows and length. It is only recorded, never shown or acted on, and a failed write does not stop the approval.
+- `"checkpoint_steps": N` in `gate.json` (off by default). For a plan with more than N step rows, `approve plan <hash>` first asks which step number makes one quoted Choice; the answer is `approve plan <hash> <number>`. The question comes from the plan table, not a model; it is the same one each time it is asked, a wrong number re-shows that row and asks again, and nothing is ever denied. A plan with no Choice cells is asked for the step that names its first script or path.
+
 ## [0.9.72] - 2026-10-16
 
 ### Changed
