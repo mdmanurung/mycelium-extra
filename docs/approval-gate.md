@@ -79,6 +79,14 @@ One approval can cover many runs of the same scripts, and after enough re-runs t
 - The approval file is not changed. `verify list` and `verify status` show `(limit N reached (M since approval))` next to the run count, derived from the same receipts.
 - An invalid value is ignored with a notice. Unset means no limit and no change in behaviour.
 
+## Approval latency and comprehension checkpoint
+
+Every `approve plan <hash>` appends one line to `.mycelium-extra/approvals.jsonl`: the hash, session, when the plan was shown and approved (`shown_ts`, `approved_ts`), the seconds between them (`latency_s`), the number of step rows in the plan table (`plan_rows`) and its length in characters (`plan_chars`). It is a log for you to read later: it is never shown in a notice, on the card or by `verify`, it never blocks or slows an approval, a failed write does not stop the approval, and the approval file is unchanged. A plan shown again restarts the clock.
+
+Set `"checkpoint_steps": 8` (a whole number of 1 or more) in `gate.json` and a plan table with more than 8 step rows is not approved at the first `approve plan <hash>`. The reply asks one question made from the table, not by a model: which step number makes a quoted Choice (the row is picked from the hash, so asking again gives the same question). Answer with `approve plan <hash> <number>`. A wrong number shows that row (step, Choice, Source) and asks again; nothing is denied and the pending plan does not change. A right number approves as usual. A plan without Choice cells is asked which step names its first script or path; a plan with neither is approved without a question. Re-approving an unchanged plan asks again. The log line then carries `checkpoint` with `asked`, `passed` and `wrong_attempts`.
+
+- Unset or `0` is off, and then `approve plan <hash> <number>` is not an approval, as before. An invalid value is ignored with a notice.
+
 ## Pinned scripts
 
 An approval also refers to the code you approved. A script that changes after approval cannot run until you re-approve it, so an agent cannot edit an approved script and re-run it unseen.
@@ -161,6 +169,7 @@ Type `hints on` to get a one-line suggestion of the command to run next; `hints 
 | `gated_commands` | `["sbatch", "snakemake", "nextflow"]` | Commands that need an approved plan containing the command word. |
 | `approval_hours` | `24` | How long an approval covers runs. Approvals are never deleted. |
 | `max_runs_per_approval` | unset | A whole number of 1 or more. After that many runs under one approval, the next gated run is denied until you re-approve the plan. See [Run limit](#run-limit). |
+| `checkpoint_steps` | unset | A whole number of 1 or more. A plan with more step rows asks one question about its table before approval. See [Approval latency and comprehension checkpoint](#approval-latency-and-comprehension-checkpoint). |
 | `pin_hash_mb` | `200` | Bytes of pinned inputs (in MB) hashed per hook before falling back to size and mtime. |
 | `pin_seconds` | `5` | Seconds the pin check may take per hook. |
 | `card_lint` | `true` | Lint the planned code when a plan is presented and show the result on the card. `false` turns it off. |

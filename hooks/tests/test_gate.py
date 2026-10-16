@@ -2204,5 +2204,150 @@ class ReviewFixesTest(unittest.TestCase):
         self.assertTrue(self.denied(self.bash("./analysis/time --fast")))
 
 
+# ---------------------------------------------------------------- D10: approval latency and checkpoint
+
+class ApprovalLatencyTest(unittest.TestCase):
+    """GateTest's helpers without its tests, so they are not run twice."""
+    entry = GATE
+    setUp, tearDown, config, hook = GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook
+
+    CHOICES = {"1": "keep all donors", "2": "exact permutation test", "3": "alpha 0.05", "4": "log scale"}
+    LONG = "\n".join([
+        "## Plan", "| # | Step | Choice | Source | Validation |", "|---|---|---|---|---|",
+        "| 1 | Run `analysis/a/01_load.py` | keep all donors | user | 24 rows |",
+        "| 2 | Run `analysis/a/02_fit.py` | exact permutation test | user | 12 donors |",
+        "| 3 | Run `analysis/a/03_sum.py` | alpha 0.05 | default: convention | 1 row |",
+        "| 4 | Run `analysis/a/04_plot.py` | log scale | repo: CLAUDE.md | one png |",
+        "", "Plan status: READY"])
+    NO_CHOICE = "\n".join([
+        "## Plan", "| # | Step | Validation |", "|---|---|---|",
+        "| 1 | Back up the table | md5 equal |",
+        "| 2 | Run `analysis/a/02_fit.py` | 12 donors |",
+        "| 3 | Report the hits | 1 row |",
+        "", "Plan status: READY"])
+
+    def show(self, text):
+        return self.hook("stop", {"last_assistant_message": text})["systemMessage"].split("approve plan ")[1][:8]
+
+    def say(self, digest, answer=None):
+        return self.hook("prompt", {"prompt": "approve plan {}{}".format(digest, "" if answer is None else " " + answer)})
+
+    def approved(self, digest):
+        return os.path.isfile(os.path.join(self.root, ".mycelium-extra", "approvals", digest + ".json"))
+
+    def ledger(self):
+        with open(os.path.join(self.root, ".mycelium-extra", "approvals.jsonl")) as handle:
+            return [json.loads(line) for line in handle]
+
+    def asked(self, digest):
+        """(reply, number that answers it) for the checkpoint question."""
+        reply = self.say(digest)["systemMessage"]
+        text = re.search(r'Choice: "(.*)"\?', reply).group(1)
+        return reply, [n for n, choice in self.CHOICES.items() if choice == text][0]
+
+    def test_an_approval_logs_its_latency_and_size(self):
+        digest = self.show(PLAN)
+        pending = os.path.join(self.root, ".mycelium-extra", "pending", "s1.json")
+        with open(pending) as handle:
+            entries = json.load(handle)
+        entries[0]["ts"] = time.time() - 30
+        with open(pending, "w") as handle:
+            json.dump(entries, handle)
+        reply = self.say(digest)["systemMessage"]
+        self.assertIn("approved", reply)
+        self.assertNotIn("latency", reply.lower())
+        (record,) = self.ledger()
+        self.assertEqual((record["hash"], record["session_id"], record["plan_rows"], record["plan_chars"]),
+                         (digest, "s1", 0, len(PLAN)))  # PLAN has no headed table: no step rows
+        self.assertTrue(29 < record["latency_s"] < 40, record)
+        self.assertAlmostEqual(record["approved_ts"] - record["shown_ts"], record["latency_s"], delta=0.2)
+        self.assertNotIn("checkpoint", record)
+
+    def test_plan_rows_counts_the_step_rows(self):
+        self.say(self.show(self.LONG))
+        self.assertEqual(self.ledger()[0]["plan_rows"], 4)
+
+    def test_the_log_is_appended_across_approvals(self):
+        self.say(self.show(PLAN))
+        self.say(self.show(self.LONG))
+        self.assertEqual([r["plan_rows"] for r in self.ledger()], [0, 4])
+
+    def test_a_failing_log_write_does_not_stop_the_approval(self):
+        os.makedirs(os.path.join(self.root, ".mycelium-extra", "approvals.jsonl"))  # appending to it fails
+        digest = self.show(PLAN)
+        self.assertIn("approved", self.say(digest)["systemMessage"])
+        self.assertTrue(self.approved(digest))
+
+    def test_the_checkpoint_is_off_by_default(self):
+        digest = self.show(self.LONG)
+        self.assertIn("approved", self.say(digest)["systemMessage"])
+        self.assertTrue(self.approved(digest))
+        self.assertNotIn("checkpoint", self.ledger()[0])
+
+    def test_the_checkpoint_asks_one_question_and_a_right_answer_approves(self):
+        self.config({"checkpoint_steps": 3})
+        digest = self.show(self.LONG)
+        reply, right = self.asked(digest)
+        self.assertIn("not approved yet", reply)
+        self.assertIn("approve plan {} <number>".format(digest), reply)
+        self.assertFalse(self.approved(digest))
+        reply2, _ = self.asked(digest)
+        self.assertEqual(reply2, reply, "the same question is asked twice")
+        wrong = str(int(right) % 4 + 1)
+        shown = self.say(digest, wrong)["systemMessage"]
+        self.assertFalse(self.approved(digest), "a wrong answer approves nothing")
+        self.assertIn("Not step {}. Step {}: Run analysis/a/0{}".format(wrong, right, right), shown)
+        self.assertIn("Choice: {} | Source: ".format(self.CHOICES[right]), shown)
+        self.assertIn("approve plan {} <number>".format(digest), shown)
+        self.assertEqual(self.say(digest, "99")["systemMessage"].count("Not step 99"), 1)
+        self.assertFalse(self.approved(digest))
+        self.assertIn("approved", self.say(digest, right)["systemMessage"])
+        self.assertTrue(self.approved(digest))
+        self.assertEqual(self.ledger()[0]["checkpoint"], {"asked": True, "passed": True, "wrong_attempts": 2})
+
+    def test_a_reapproval_asks_again(self):
+        self.config({"checkpoint_steps": 3})
+        digest = self.show(self.LONG)
+        _, right = self.asked(digest)
+        self.say(digest, right)
+        self.assertIn("not approved yet", self.say(digest)["systemMessage"])
+        self.say(digest, right)
+        self.assertEqual([r["checkpoint"]["wrong_attempts"] for r in self.ledger()], [0, 0])
+
+    def test_a_plan_at_or_below_the_threshold_skips_the_checkpoint(self):
+        self.config({"checkpoint_steps": 4})
+        self.assertIn("approved", self.say(self.show(self.LONG))["systemMessage"])
+        self.assertNotIn("checkpoint", self.ledger()[0])
+
+    def test_a_trailing_number_with_the_checkpoint_off_approves_nothing(self):
+        digest = self.show(self.LONG)
+        self.assertIn("nothing approved", self.say(digest, "2")["systemMessage"])
+        self.assertFalse(self.approved(digest))
+
+    def test_an_invalid_value_is_ignored_with_a_notice(self):
+        digest = self.show(self.LONG)
+        for value in ("3", -1, 2.5, True):
+            self.config({"checkpoint_steps": value})
+            reply = self.say(digest)["systemMessage"]
+            self.assertIn("approved", reply, repr(value))
+            self.assertIn('"checkpoint_steps" in gate.json must be a whole number', reply)
+        self.config({"checkpoint_steps": 0})
+        self.assertNotIn("checkpoint_steps", self.say(digest)["systemMessage"])
+
+    def test_a_plan_without_choice_cells_asks_for_the_first_script(self):
+        self.config({"checkpoint_steps": 2})
+        digest = self.show(self.NO_CHOICE)
+        reply = self.say(digest)["systemMessage"]
+        self.assertIn('which step number names "analysis/a/02_fit.py"?', reply)
+        self.assertEqual(self.say(digest, "2")["systemMessage"].count("approved"), 1)
+
+    def test_a_plan_with_nothing_to_ask_skips_the_checkpoint(self):
+        self.config({"checkpoint_steps": 1})
+        plan = "\n".join(["## Plan", "| # | Step | Validation |", "|---|---|---|", "| 1 | Back up | ok |",
+                          "| 2 | Report | ok |", "", "Plan status: READY"])
+        self.assertIn("approved", self.say(self.show(plan))["systemMessage"])
+        self.assertIn("approved", self.say(self.show(PLAN))["systemMessage"])  # no step table at all
+
+
 if __name__ == "__main__":
     unittest.main()

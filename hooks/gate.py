@@ -41,7 +41,7 @@ DEFAULTS = {
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call that never reported back
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
-APPROVE = re.compile(r"^\s*approve plan(?: ([0-9a-f]{8}))?\s*[.!]?\s*$", re.IGNORECASE)
+APPROVE = re.compile(r"^\s*approve plan(?: ([0-9a-f]{8})(?: +(\d{1,4}))?)?\s*[.!]?\s*$", re.IGNORECASE)
 EXPLORE_GRANT = re.compile(r"^\s*(allow|stop) explore\s*[.!]?\s*$", re.IGNORECASE)
 HINTS_TOGGLE = re.compile(r"^\s*hints (on|off)\s*[.!]?\s*$", re.IGNORECASE)
 HANDOFF_TOKENS = 120000  # context size at which the Stop hint suggests a handoff
@@ -1715,6 +1715,93 @@ def run_limit(config):
                   "more; no limit applies.")
 
 
+def checkpoint_steps(config):
+    """(steps, notice) from `checkpoint_steps` in gate.json: a whole number of 1 or more. Unset or 0 is off;
+    any other value is ignored, with a notice."""
+    value = config.get("checkpoint_steps")
+    whole = isinstance(value, int) and not isinstance(value, bool)
+    if value is None or (whole and value == 0):
+        return None, None
+    if whole and value >= 1:
+        return value, None
+    return None, ('mycelium-extra gate: "checkpoint_steps" in gate.json must be a whole number of 1 or '
+                  "more; no comprehension checkpoint applies.")
+
+
+def checkpoint_question(rows, digest):
+    """(row, right, question) for the one comprehension question about a plan table: which step number makes a
+    Choice (the row picked from the hash, so asking twice gives the same question); with no Choice cell, which
+    step number names the first script or path. `right` is the set of step numbers that answer it. None when
+    neither is possible."""
+    numbered = [(int(re.sub(r"\D", "", row["num"])), row) for row in rows if re.sub(r"\D", "", row["num"])]
+    choice = lambda row: "" if clean(row["choice"], 120).lower() in ("-", "\u2014", "n/a", "none") else clean(
+        row["choice"], 120)
+    with_choice = [(n, row) for n, row in numbered if choice(row)]
+    if with_choice:
+        text = choice(with_choice[int(digest, 16) % len(with_choice)][1])
+        row = next(row for n, row in with_choice if choice(row) == text)
+        right = set(n for n, other in with_choice if choice(other) == text)
+        return row, right, 'which step number makes this Choice: "{}"?'.format(text)
+    for _, row in numbered:
+        word = next((w.rstrip(".,;:") for w in clean(row["step"], 200).split()
+                     if SCRIPT_EXT.search(w.rstrip(".,;:"))
+                     or (re.search(r"\w/\w|^\.{0,2}/|/$", w) and not re.match(r"^[A-Za-z]+/[A-Za-z]+$", w))), None)
+        if word:
+            right = set(n for n, other in numbered if word in clean(other["step"], 200))
+            return row, right, 'which step number names "{}"?'.format(word)
+    return None
+
+
+def log_approval(root, event, plan, approved_ts, checkpoint):
+    """One line per approval in approvals.jsonl: when the plan was shown, when it was approved, its size, and
+    the checkpoint result when one ran. Only logged: never shown, and never allowed to fail the approval."""
+    shown = plan.get("ts")
+    record = {"hash": plan["hash"], "session_id": event.get("session_id"), "shown_ts": shown,
+              "approved_ts": approved_ts,
+              "latency_s": round(max(approved_ts - shown, 0), 1) if isinstance(shown, (int, float)) else None,
+              "plan_rows": len(plan_rows(plan["text"]) or []), "plan_chars": len(plan["text"])}
+    if checkpoint:
+        record["checkpoint"] = checkpoint
+    try:
+        append_line(state_path(root, "approvals.jsonl"), record)
+    except OSError:
+        pass
+
+
+def checkpoint_reply(root, session, plan, steps, answer):
+    """(reply, checkpoint): a reply asking the question (again) when the checkpoint holds back this
+    `approve plan`; otherwise None and the checkpoint's result for the log (None when none ran). Wrong attempts
+    are counted in a side file, so the pending plan itself never changes."""
+    rows = plan_rows(plan["text"]) if steps else None
+    asked = checkpoint_question(rows, plan["hash"]) if rows and len(rows) > steps else None
+    if asked is None:
+        return None, None
+    row, right, question = asked
+    path = state_path(root, "pending", session + ".checkpoint")
+    state = read_json(path, {})
+    state = state if isinstance(state, dict) else {}
+    wrong = state.get(plan["hash"], 0)
+    wrong = wrong if isinstance(wrong, int) else 0
+    passed = answer is not None and int(answer) in right
+    shown = ""
+    if passed:
+        state.pop(plan["hash"], None)
+    else:
+        state[plan["hash"]] = wrong + (answer is not None)
+        if answer is not None:
+            shown = "Not step {}. Step {}: {} | Choice: {} | Source: {}. ".format(
+                answer, clean(row["num"], 10), clean(row["step"], 160), clean(row["choice"], 120) or "none",
+                clean(row["source"], 60) or "none")
+    try:
+        write_json(path, state)
+    except OSError:
+        pass
+    if passed:
+        return None, {"asked": True, "passed": True, "wrong_attempts": wrong}
+    return ("mycelium-extra: plan {h} is not approved yet. {shown}One question first: {q} Answer with "
+            "`approve plan {h} <number>`.".format(h=plan["hash"], shown=shown, q=question)), None
+
+
 def limit_changes(root, runs, budget, cache):
     """What differs now from the first run counted under an approval: the commit, and each script's content
     (shown even with `pin_scripts` off). The approval's inputs and pinned scripts already block when they change."""
@@ -2198,6 +2285,9 @@ def on_prompt(event, root, config):
         return {"systemMessage": message,
                 "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
     match = APPROVE.match(prompt)
+    steps, steps_notice = checkpoint_steps(config)
+    if match and match.group(2) and not steps:  # a step number answers a checkpoint question; none is open
+        match = None
     session = safe_session(event.get("session_id"))
     pending = read_json(state_path(root, "pending", session + ".json"), [])
     ask = CARD_ASK.match(prompt)
@@ -2230,11 +2320,16 @@ def on_prompt(event, root, config):
         message = ("mycelium-extra: plan {} was not fully prepared (inputs, scripts or card). Nothing was "
                    "approved. Show the plan again so it is prepared, then approve its hash.".format(wanted))
     else:
+        reply, checkpoint = checkpoint_reply(root, session, plan, steps, match.group(2))
+        if reply:
+            return {"systemMessage": reply,
+                    "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": reply}}
         pins = plan.get("pins") or {}
         scripts = plan.get("scripts") or {}
         record = {"hash": wanted, "approved_at": time.time(), "session_id": event.get("session_id"),
                   "plan": plan["text"], "pins": pins, "scripts": scripts}
         write_json(state_path(root, "approvals", wanted + ".json"), record)
+        log_approval(root, event, plan, record["approved_at"], checkpoint)
         ledger = state_path(root, "script-pins", wanted + ".json")  # approving again re-baselines
         if os.path.isfile(ledger):
             os.remove(ledger)
@@ -2243,6 +2338,8 @@ def on_prompt(event, root, config):
                        wanted, config["approval_hours"],
                        "Pinned inputs: {}.".format(listing(pins)) if pins else "No inputs pinned.",
                        " Pinned scripts: {}.".format(listing(scripts)) if scripts else ""))
+        if steps_notice:
+            message += " " + steps_notice
     return {"systemMessage": message,
             "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
 

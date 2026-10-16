@@ -23,7 +23,7 @@ Every oversight step can turn into a reflex: approve without reading, answer the
 - **Acceptance:** latency is recorded for every approval in the fixture; a long plan triggers one question; a wrong answer re-shows the row; with the checkpoint off, `gate_diff.py` shows no change.
 - **Tests:** gate tests for latency recording, question generation from a fixture plan table, and the off switch.
 - **Effort:** M.
-- **Status:** todo.
+- **Status:** done (0.9.73): every approval appends a line to `approvals.jsonl` (latency, plan rows and length; never shown, never blocking). `checkpoint_steps` in `gate.json` (off by default) asks one question from the plan table when a plan has more step rows; a wrong answer re-shows the row, a right one approves. The D12 dashboard is not built.
 
 ## D11: Approval expiry by reuse count
 
