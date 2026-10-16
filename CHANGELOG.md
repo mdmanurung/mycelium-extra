@@ -2,6 +2,21 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.72] - 2026-10-16
+
+### Changed
+
+- The capacity and diary hook registrations (SessionStart, SubagentStart/Stop, PreCompact, SessionEnd, and the all-tools PreToolUse matcher) are no longer in `hooks/hooks.json` and `hooks/codex.json`, which are as in 0.9.70 again. The feature is an unqualified draft; the registrations are kept in `hooks/capacity-hooks.json` to merge in once native lifecycle checks pass.
+
+### Known limits
+
+Found by the review of the 0.9.71 audit fixes and left open on purpose; none is a regression from 0.9.70.
+
+- `env -C "$PWD/x" python ...`: the folder is a shell expansion, so the call is recognised but not gated, and no coverage gap is shown.
+- `sbatch --wrap='python x.py'` is allowed when one plan names the script and a different plan names `sbatch`; the check at launch does not require one plan to name both, though the receipt does.
+- A pending plan saved by an older version, interrupted before it was prepared, still counts as approvable (entries without the `ready` field are treated as ready).
+- Capacity notes: with capacity on, the gate's state protection denies a Write of capacity's own recovery note (audit finding D-01).
+
 ## [0.9.71] - 2026-10-16
 
 ### Added
