@@ -135,6 +135,7 @@ The report lists what it cannot see:
 - Mycelium's lineage covers finished sessions only.
 - Code run through MCP notebook tools bypasses both the gate and the lineage.
 - A run proves a script ran, not that it implements the plan's choices; the review step checks that.
+- A gate error in the plan's window (`gate-errors.jsonl`, from approval to now, same or unnamed session) is a gap: observation is incomplete there. It does not say which action went unobserved, so do not say one did. An unreadable journal is a gap (observation history unavailable); errors before the approval or from another session are ignored.
 
 Output attribution is a best match by time, so it only ever produces gaps, never blocks.
 

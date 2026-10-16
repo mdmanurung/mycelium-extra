@@ -217,6 +217,54 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("analysis folder `analysis/a`", out)
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
 
+    def conforming_run(self):
+        """A conforming run of FIT. Returns (plan hash, approval time)."""
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        receipt = self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        return digest, gate.read_json(gate.state_path(self.root, "approvals", digest + ".json"), {})["approved_at"]
+
+    def gate_errors(self, *errors, raw=None):
+        self.write(".mycelium-extra/gate-errors.jsonl",
+                   raw if raw is not None else "".join(json.dumps(e) + "\n" for e in errors))
+
+    def test_gate_error_in_window_prevents_clean_observation(self):
+        digest, approved = self.conforming_run()
+        now = int(time.time())
+        self.gate_errors({"ts": now, "event": "tool", "decision": "allow", "session_id": "s1", "error": "boom"})
+        out = self.verify("report", digest)
+        self.assertIn("Gate error at {} (event `tool`, decision allow, session s1)".format(time.strftime(
+            "%Y-%m-%d %H:%M", time.localtime(now))), out)
+        self.assertIn("observation is incomplete there", out)
+        self.assertIn("not a record that any specific action went unobserved", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+
+    def test_gate_error_without_session_is_still_a_gap(self):  # the journal's earlier record shape
+        digest, approved = self.conforming_run()
+        self.gate_errors({"ts": int(time.time()), "event": "post", "error": "x"}, {"ts": "garbage"})
+        out = self.verify("report", digest)
+        self.assertIn("Gate error at", out)
+        self.assertIn("(event `post`)", out)
+        self.assertIn("observation history unavailable", out)  # the malformed line is reported, not skipped
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+
+    def test_gate_error_before_approval_or_other_session_is_ignored(self):
+        digest, approved = self.conforming_run()
+        self.gate_errors({"ts": int(approved) - 100, "event": "tool", "session_id": "s1", "error": "old"},
+                         {"ts": int(time.time()), "event": "post", "session_id": "another-session", "error": "else"})
+        out = self.verify("report", digest)
+        self.assertNotIn("Gate error at", out)
+        self.assertNotIn("observation history", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+
+    def test_corrupt_gate_error_journal_is_a_gap(self):
+        digest, approved = self.conforming_run()
+        self.gate_errors(raw="not json\n")
+        out = self.verify("report", digest)
+        self.assertIn("observation history unavailable", out)
+        self.assertIn("gate-errors.jsonl", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+
     def test_competing_timestamp_writers_are_a_gap(self):
         digest = self.approve(plan("run `{}`".format(FIT)))
         first = self.run_cmd("python " + FIT)

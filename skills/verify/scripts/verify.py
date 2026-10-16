@@ -1197,6 +1197,38 @@ def edit_evidence(root, path, budget, receipts):
     return "This version has not run under any plan, so no approval covers it."
 
 
+def gate_error_gaps(root, report, approved_at, sessions):
+    """Gaps for the gate's own errors (`gate-errors.jsonl`) inside the plan's window, approval to now.
+    A gate that failed open did not check or record what it saw, so observation is incomplete there.
+    An error counts when its session is one of `sessions` (the plan's approval and credited
+    receipts) or is not recorded; one before the approval, or from another session, is not this
+    plan's. The record gives a time and an event, never an action: this is a bounded gap."""
+    path = gate.state_path(root, "gate-errors.jsonl")
+    if not os.path.exists(path):
+        return
+    invalid = []
+    try:
+        errors = read_jsonl(path, invalid)
+    except (OSError, ValueError):
+        errors = []
+        invalid = ["file"]
+    if invalid:
+        report.add("gap", "The gate's error journal `{}` is unreadable or has {} malformed record(s) (lines {}); "
+                   "observation history unavailable, so errors in this plan's window may be missing.".format(
+                       os.path.relpath(path, root), len(invalid), ", ".join(map(str, invalid[:12]))))
+    for error in errors:
+        session = error.get("session_id")
+        if int(approved_at) <= error["ts"] <= time.time() + TOLERANCE \
+                and (not isinstance(session, str) or not session or session in sessions):
+            event, decision = error.get("event"), error.get("decision")
+            report.add("gap", "Gate error at {} (event `{}`{}{}); observation is incomplete there: the gate did "
+                       "not check or record what it saw, so a run in that period may be missing from the "
+                       "receipts. This is not a record that any specific action went unobserved.".format(
+                           when(error["ts"]), str(event)[:40] if event else "unknown",
+                           ", decision {}".format(str(decision)[:20]) if decision else "",
+                           ", session {}".format(session) if isinstance(session, str) and session else ""))
+
+
 def check_receipt(report, r, judge_job=None):
     """A finding for a command receipt no script row judged, in the wording of a script's row. A
     submission that exited 0 and recorded a job is judged by `judge_job(what, r)`, the job's state;
@@ -1305,6 +1337,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     if invalid_receipts:
         report.add("gap", "{} malformed receipt record(s) were skipped (lines {}); the run history "
                    "is incomplete.".format(len(invalid_receipts), ", ".join(map(str, invalid_receipts[:12]))))
+    gate_error_gaps(root, report, approved_at, {approval.get("session_id")} | {r.get("session_id") for r in mine})
     if invalid_metadata:
         report.add("gap", "{} unreadable or malformed Snakemake record(s) were skipped; workflow "
                    "evidence is incomplete.".format(len(invalid_metadata)))
