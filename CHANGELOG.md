@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.67] - 2026-10-16
+
+### Added
+
+- `"lint_before_run": "warn"` or `"block"` in `gate.json`. When a gated run starts (explore runs included), a script it uses that lint-on-write recorded with open findings, and that has not been edited since, is reported to the user and the agent (`warn`) or denies the run (`block`). It reads the records of any session and runs no linter. Off by default; any other value is ignored with a notice.
+
 ## [0.9.66] - 2026-10-15
 
 ### Added
