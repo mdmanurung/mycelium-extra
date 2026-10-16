@@ -1,0 +1,494 @@
+{
+  "3.6": [
+    {
+      "test": "hooks/tests/test_capacity.py",
+      "exit": 0,
+      "tests": 15,
+      "skipped": 0,
+      "seconds": 0.62,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/hooks_tests_test_capacity.py.log"
+    },
+    {
+      "test": "hooks/tests/test_codex_gate.py",
+      "exit": 0,
+      "tests": 6,
+      "skipped": 0,
+      "seconds": 2.12,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/hooks_tests_test_codex_gate.py.log"
+    },
+    {
+      "test": "hooks/tests/test_gate.py",
+      "exit": 0,
+      "tests": 253,
+      "skipped": 2,
+      "seconds": 132.97,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/hooks_tests_test_gate.py.log"
+    },
+    {
+      "test": "skills/data-contract-check/tests/test_data_contract_check.py",
+      "exit": 0,
+      "tests": 32,
+      "skipped": 7,
+      "seconds": 2.92,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/skills_data-contract-check_tests_test_data_contract_check.py.log"
+    },
+    {
+      "test": "skills/decision-status/tests/test_decision_threads.py",
+      "exit": 0,
+      "tests": 10,
+      "skipped": 0,
+      "seconds": 0.62,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/skills_decision-status_tests_test_decision_threads.py.log"
+    },
+    {
+      "test": "skills/grill/tests/test_grill_references.py",
+      "exit": 0,
+      "tests": 10,
+      "skipped": 0,
+      "seconds": 0.11,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/skills_grill_tests_test_grill_references.py.log"
+    },
+    {
+      "test": "skills/init/tests/test_gate_init.py",
+      "exit": 0,
+      "tests": 19,
+      "skipped": 0,
+      "seconds": 2.87,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/skills_init_tests_test_gate_init.py.log"
+    },
+    {
+      "test": "skills/new-analysis/tests/test_new_analysis.py",
+      "exit": 0,
+      "tests": 17,
+      "skipped": 1,
+      "seconds": 2.12,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/skills_new-analysis_tests_test_new_analysis.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_default_reasons.py",
+      "exit": 0,
+      "tests": 9,
+      "skipped": 0,
+      "seconds": 0.32,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/skills_plan-review_tests_test_default_reasons.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_plan_review.py",
+      "exit": 0,
+      "tests": 6,
+      "skipped": 0,
+      "seconds": 0.06,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/skills_plan-review_tests_test_plan_review.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_presend_check.py",
+      "exit": 0,
+      "tests": 11,
+      "skipped": 0,
+      "seconds": 0.42,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/skills_plan-review_tests_test_presend_check.py.log"
+    },
+    {
+      "test": "skills/verify/tests/test_default_reasons.py",
+      "exit": 0,
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 2.42,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/skills_verify_tests_test_default_reasons.py.log"
+    },
+    {
+      "test": "skills/verify/tests/test_verify.py",
+      "exit": 0,
+      "tests": 74,
+      "skipped": 0,
+      "seconds": 64.01,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/skills_verify_tests_test_verify.py.log"
+    },
+    {
+      "test": "tests/test_end_to_end.py",
+      "exit": 0,
+      "tests": 79,
+      "skipped": 2,
+      "seconds": 101.32,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/tests_test_end_to_end.py.log"
+    },
+    {
+      "test": "tests/test_example.py",
+      "exit": 0,
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 0.11,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/tests_test_example.py.log"
+    },
+    {
+      "test": "tests/test_fixture_data.py",
+      "exit": 0,
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 1.27,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/tests_test_fixture_data.py.log"
+    },
+    {
+      "test": "tests/test_verify_frontmatter.py",
+      "exit": 0,
+      "tests": 2,
+      "skipped": 0,
+      "seconds": 0.11,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/tests_test_verify_frontmatter.py.log"
+    },
+    {
+      "test": "tests/test_versions.py",
+      "exit": 0,
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.11,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/tests_test_versions.py.log"
+    },
+    {
+      "test": "ablations",
+      "exit": 0,
+      "seconds": 11.44,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/ablations.log"
+    },
+    {
+      "test": "gate-diff",
+      "exit": 1,
+      "seconds": 43.26,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/gate-diff.log"
+    },
+    {
+      "test": "links",
+      "exit": 0,
+      "seconds": 0.11,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.6/links.log"
+    }
+  ],
+  "3.12": [
+    {
+      "test": "hooks/tests/test_capacity.py",
+      "exit": 0,
+      "tests": 15,
+      "skipped": 0,
+      "seconds": 0.62,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/hooks_tests_test_capacity.py.log"
+    },
+    {
+      "test": "hooks/tests/test_codex_gate.py",
+      "exit": 0,
+      "tests": 6,
+      "skipped": 0,
+      "seconds": 1.87,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/hooks_tests_test_codex_gate.py.log"
+    },
+    {
+      "test": "hooks/tests/test_gate.py",
+      "exit": 0,
+      "tests": 253,
+      "skipped": 2,
+      "seconds": 123.14,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/hooks_tests_test_gate.py.log"
+    },
+    {
+      "test": "skills/data-contract-check/tests/test_data_contract_check.py",
+      "exit": 0,
+      "tests": 32,
+      "skipped": 7,
+      "seconds": 3.17,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/skills_data-contract-check_tests_test_data_contract_check.py.log"
+    },
+    {
+      "test": "skills/decision-status/tests/test_decision_threads.py",
+      "exit": 0,
+      "tests": 10,
+      "skipped": 0,
+      "seconds": 0.67,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/skills_decision-status_tests_test_decision_threads.py.log"
+    },
+    {
+      "test": "skills/grill/tests/test_grill_references.py",
+      "exit": 0,
+      "tests": 10,
+      "skipped": 0,
+      "seconds": 0.11,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/skills_grill_tests_test_grill_references.py.log"
+    },
+    {
+      "test": "skills/init/tests/test_gate_init.py",
+      "exit": 0,
+      "tests": 19,
+      "skipped": 0,
+      "seconds": 2.77,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/skills_init_tests_test_gate_init.py.log"
+    },
+    {
+      "test": "skills/new-analysis/tests/test_new_analysis.py",
+      "exit": 0,
+      "tests": 17,
+      "skipped": 1,
+      "seconds": 2.17,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/skills_new-analysis_tests_test_new_analysis.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_default_reasons.py",
+      "exit": 0,
+      "tests": 9,
+      "skipped": 0,
+      "seconds": 0.31,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/skills_plan-review_tests_test_default_reasons.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_plan_review.py",
+      "exit": 0,
+      "tests": 6,
+      "skipped": 0,
+      "seconds": 0.11,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/skills_plan-review_tests_test_plan_review.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_presend_check.py",
+      "exit": 0,
+      "tests": 11,
+      "skipped": 0,
+      "seconds": 0.47,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/skills_plan-review_tests_test_presend_check.py.log"
+    },
+    {
+      "test": "skills/verify/tests/test_default_reasons.py",
+      "exit": 0,
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 2.42,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/skills_verify_tests_test_default_reasons.py.log"
+    },
+    {
+      "test": "skills/verify/tests/test_verify.py",
+      "exit": 0,
+      "tests": 74,
+      "skipped": 0,
+      "seconds": 62.61,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/skills_verify_tests_test_verify.py.log"
+    },
+    {
+      "test": "tests/test_end_to_end.py",
+      "exit": 0,
+      "tests": 79,
+      "skipped": 2,
+      "seconds": 86.1,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/tests_test_end_to_end.py.log"
+    },
+    {
+      "test": "tests/test_example.py",
+      "exit": 0,
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 0.11,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/tests_test_example.py.log"
+    },
+    {
+      "test": "tests/test_fixture_data.py",
+      "exit": 0,
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 1.12,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/tests_test_fixture_data.py.log"
+    },
+    {
+      "test": "tests/test_verify_frontmatter.py",
+      "exit": 0,
+      "tests": 2,
+      "skipped": 0,
+      "seconds": 0.11,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/tests_test_verify_frontmatter.py.log"
+    },
+    {
+      "test": "tests/test_versions.py",
+      "exit": 0,
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.11,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/tests_test_versions.py.log"
+    },
+    {
+      "test": "ablations",
+      "exit": 0,
+      "seconds": 9.63,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/ablations.log"
+    },
+    {
+      "test": "gate-diff",
+      "exit": 1,
+      "seconds": 44.41,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/gate-diff.log"
+    },
+    {
+      "test": "links",
+      "exit": 0,
+      "seconds": 0.11,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.12/links.log"
+    }
+  ],
+  "3.14": [
+    {
+      "test": "hooks/tests/test_capacity.py",
+      "exit": 0,
+      "tests": 15,
+      "skipped": 0,
+      "seconds": 1.37,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/hooks_tests_test_capacity.py.log"
+    },
+    {
+      "test": "hooks/tests/test_codex_gate.py",
+      "exit": 0,
+      "tests": 6,
+      "skipped": 0,
+      "seconds": 3.57,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/hooks_tests_test_codex_gate.py.log"
+    },
+    {
+      "test": "hooks/tests/test_gate.py",
+      "exit": 0,
+      "tests": 253,
+      "skipped": 2,
+      "seconds": 223.52,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/hooks_tests_test_gate.py.log"
+    },
+    {
+      "test": "skills/data-contract-check/tests/test_data_contract_check.py",
+      "exit": 0,
+      "tests": 32,
+      "skipped": 7,
+      "seconds": 8.78,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/skills_data-contract-check_tests_test_data_contract_check.py.log"
+    },
+    {
+      "test": "skills/decision-status/tests/test_decision_threads.py",
+      "exit": 0,
+      "tests": 10,
+      "skipped": 0,
+      "seconds": 1.82,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/skills_decision-status_tests_test_decision_threads.py.log"
+    },
+    {
+      "test": "skills/grill/tests/test_grill_references.py",
+      "exit": 0,
+      "tests": 10,
+      "skipped": 0,
+      "seconds": 0.22,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/skills_grill_tests_test_grill_references.py.log"
+    },
+    {
+      "test": "skills/init/tests/test_gate_init.py",
+      "exit": 0,
+      "tests": 19,
+      "skipped": 0,
+      "seconds": 7.33,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/skills_init_tests_test_gate_init.py.log"
+    },
+    {
+      "test": "skills/new-analysis/tests/test_new_analysis.py",
+      "exit": 0,
+      "tests": 17,
+      "skipped": 1,
+      "seconds": 4.72,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/skills_new-analysis_tests_test_new_analysis.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_default_reasons.py",
+      "exit": 0,
+      "tests": 9,
+      "skipped": 0,
+      "seconds": 0.82,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/skills_plan-review_tests_test_default_reasons.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_plan_review.py",
+      "exit": 0,
+      "tests": 6,
+      "skipped": 0,
+      "seconds": 0.22,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/skills_plan-review_tests_test_plan_review.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_presend_check.py",
+      "exit": 0,
+      "tests": 11,
+      "skipped": 0,
+      "seconds": 1.22,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/skills_plan-review_tests_test_presend_check.py.log"
+    },
+    {
+      "test": "skills/verify/tests/test_default_reasons.py",
+      "exit": 0,
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 4.27,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/skills_verify_tests_test_default_reasons.py.log"
+    },
+    {
+      "test": "skills/verify/tests/test_verify.py",
+      "exit": 0,
+      "tests": 74,
+      "skipped": 0,
+      "seconds": 115.81,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/skills_verify_tests_test_verify.py.log"
+    },
+    {
+      "test": "tests/test_end_to_end.py",
+      "exit": 0,
+      "tests": 79,
+      "skipped": 2,
+      "seconds": 162.9,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/tests_test_end_to_end.py.log"
+    },
+    {
+      "test": "tests/test_example.py",
+      "exit": 0,
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 0.22,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/tests_test_example.py.log"
+    },
+    {
+      "test": "tests/test_fixture_data.py",
+      "exit": 0,
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 1.62,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/tests_test_fixture_data.py.log"
+    },
+    {
+      "test": "tests/test_verify_frontmatter.py",
+      "exit": 0,
+      "tests": 2,
+      "skipped": 0,
+      "seconds": 0.22,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/tests_test_verify_frontmatter.py.log"
+    },
+    {
+      "test": "tests/test_versions.py",
+      "exit": 0,
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.22,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/tests_test_versions.py.log"
+    },
+    {
+      "test": "ablations",
+      "exit": 0,
+      "seconds": 17.96,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/ablations.log"
+    },
+    {
+      "test": "gate-diff",
+      "exit": 1,
+      "seconds": 70.03,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/gate-diff.log"
+    },
+    {
+      "test": "links",
+      "exit": 0,
+      "seconds": 0.17,
+      "log": "/tmp/mycelium-audit-20261016/root/matrix-3.14/links.log"
+    }
+  ]
+}

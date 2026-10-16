@@ -1,0 +1,23 @@
+[
+  {
+    "version": "3.6",
+    "test": "gate",
+    "exit": 0,
+    "seconds": 146.52,
+    "log": "/tmp/mycelium-audit-20261016/root/final-gate-3.6.log"
+  },
+  {
+    "version": "3.12",
+    "test": "gate",
+    "exit": 0,
+    "seconds": 136.37,
+    "log": "/tmp/mycelium-audit-20261016/root/final-gate-3.12.log"
+  },
+  {
+    "version": "3.14",
+    "test": "gate",
+    "exit": 0,
+    "seconds": 243.02,
+    "log": "/tmp/mycelium-audit-20261016/root/final-gate-3.14.log"
+  }
+]

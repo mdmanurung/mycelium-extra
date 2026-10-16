@@ -1,0 +1,100 @@
+[
+  {
+    "source": "/tmp/mycelium-audit-20261016/skills/REPORT.md",
+    "source_sha256": "730cca2bdc74ea94bf21915c2aa005332e73d5bb94d3a88648f867e6b3ef43e7",
+    "saved": "skills-REPORT.md",
+    "saved_sha256": "3f73715280306727b1a13f8dc711f61446e10e812238ab6bb5efeedc8d1795ee",
+    "historical_only": true
+  },
+  {
+    "source": "/tmp/mycelium-audit-20261016/verify/REPORT.md",
+    "source_sha256": "2fb21135cd516b17a9822e3305cc32f1d1f7133a5a919de0daf876e641f8c183",
+    "saved": "verify-REPORT.md",
+    "saved_sha256": "2fb21135cd516b17a9822e3305cc32f1d1f7133a5a919de0daf876e641f8c183",
+    "historical_only": true
+  },
+  {
+    "source": "/tmp/mycelium-audit-20261016/gate/REPORT.md",
+    "source_sha256": "54891b78b1e300b7911aa64a17983de170fbacadbdffaa75f148639109ff6784",
+    "saved": "gate-REPORT.md",
+    "saved_sha256": "54891b78b1e300b7911aa64a17983de170fbacadbdffaa75f148639109ff6784",
+    "historical_only": true
+  },
+  {
+    "source": "/tmp/mycelium-audit-20261016/root/real-linters-results.json",
+    "source_sha256": "264d2eb0fb929ca93467740868215f7930a77aca7d7443a039f14ad81f327d16",
+    "saved": "root-real-linters-results.json",
+    "saved_sha256": "264d2eb0fb929ca93467740868215f7930a77aca7d7443a039f14ad81f327d16",
+    "historical_only": true
+  },
+  {
+    "source": "/tmp/mycelium-audit-20261016/root/final-gate-results.json",
+    "source_sha256": "39542abbdea12415733773d0bac397743bb7edbd086e0eacf67d75d87ed5d32d",
+    "saved": "root-final-gate-results.json",
+    "saved_sha256": "39542abbdea12415733773d0bac397743bb7edbd086e0eacf67d75d87ed5d32d",
+    "historical_only": true
+  },
+  {
+    "source": "/tmp/mycelium-audit-20261016/root/matrix-results.json",
+    "source_sha256": "b4e1efac2ab71b3f0ba86b123f24a9a47382716a7eb4cdcf7df9e3803496d56b",
+    "saved": "root-matrix-results.json",
+    "saved_sha256": "b4e1efac2ab71b3f0ba86b123f24a9a47382716a7eb4cdcf7df9e3803496d56b",
+    "historical_only": true
+  },
+  {
+    "source": "/tmp/mycelium-audit-20261016/root/final-suite-summary.json",
+    "source_sha256": "4240709b3f2cfe1fa5369914867a16d17a676a78cca09c5dde1a4a04c440c004",
+    "saved": "root-final-suite-summary.json",
+    "saved_sha256": "4240709b3f2cfe1fa5369914867a16d17a676a78cca09c5dde1a4a04c440c004",
+    "historical_only": true
+  },
+  {
+    "source": "/tmp/mycelium-audit-20261016/root/matrix-before-hashes.json",
+    "source_sha256": "0c69c05eee09b1260e0ec07b84d7da94d1998f3475027a2a25f1fdaf959d8881",
+    "saved": "root-matrix-before-hashes.json",
+    "saved_sha256": "0c69c05eee09b1260e0ec07b84d7da94d1998f3475027a2a25f1fdaf959d8881",
+    "historical_only": true
+  },
+  {
+    "source": "/tmp/mycelium-audit-20261016/root/final-runtime-hashes.json",
+    "source_sha256": "b81d40fdfcb11d6774dd41aef1783bf8e7c5f60abc1cee6f74ab91b2d8acba71",
+    "saved": "root-final-runtime-hashes.json",
+    "saved_sha256": "b81d40fdfcb11d6774dd41aef1783bf8e7c5f60abc1cee6f74ab91b2d8acba71",
+    "historical_only": true
+  },
+  {
+    "source": "/tmp/mycelium-audit-20261016/root/candidate-hashes.json",
+    "source_sha256": "47546ce38b4fd8fab0f39a8ffa6f80211cae3975d45c082c58d7489dd4df060e",
+    "saved": "root-candidate-hashes.json",
+    "saved_sha256": "47546ce38b4fd8fab0f39a8ffa6f80211cae3975d45c082c58d7489dd4df060e",
+    "historical_only": true
+  },
+  {
+    "source": "/tmp/mycelium-audit-20261016/root/matrix-source-changes.json",
+    "source_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "saved": "root-matrix-source-changes.json",
+    "saved_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "historical_only": true
+  },
+  {
+    "source": "/tmp/mycelium-audit-20261016/root/final-receipt.json",
+    "source_sha256": "4d689a8b8366bc27999c22b96df64ac9a1e4d48aced1afe2e5069609ba140a5f",
+    "saved": "root-final-receipt.json",
+    "saved_sha256": "4d689a8b8366bc27999c22b96df64ac9a1e4d48aced1afe2e5069609ba140a5f",
+    "historical_only": true
+  },
+  {
+    "source": "/tmp/mycelium-audit-20261016/root/native-final-cache-check.json",
+    "source_sha256": "acba96e16cd64f747f685e27137b0e264ff81a0a0640f60164d9aa6e7a3f4cb9",
+    "saved": "root-native-final-cache-check.json",
+    "saved_sha256": "acba96e16cd64f747f685e27137b0e264ff81a0a0640f60164d9aa6e7a3f4cb9",
+    "historical_only": true
+  },
+  {
+    "source": "/tmp/mycelium-audit-20261016/root/docs-build.log",
+    "source_sha256": "0d4c24a494496097ffd9c53ed92d9b5ef77a9eb2c93ab4fab7667e21f61d0502",
+    "saved": "root-docs-build.log",
+    "saved_sha256": "0d4c24a494496097ffd9c53ed92d9b5ef77a9eb2c93ab4fab7667e21f61d0502",
+    "historical_only": true
+  }
+]

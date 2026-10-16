@@ -1,0 +1,74 @@
+[
+  {
+    "case": "capacity",
+    "phase": "before",
+    "exit": 1,
+    "tests": [
+      "CapacityTest.test_disabled_hooks_and_statusline_write_nothing",
+      "CapacityTest.test_session_start_is_silent_and_stop_text_is_not_completion",
+      "CapacityTest.test_corrupt_pause_state_is_retained"
+    ]
+  },
+  {
+    "case": "capacity",
+    "phase": "after",
+    "exit": 0,
+    "tests": [
+      "CapacityTest.test_disabled_hooks_and_statusline_write_nothing",
+      "CapacityTest.test_session_start_is_silent_and_stop_text_is_not_completion",
+      "CapacityTest.test_corrupt_pause_state_is_retained"
+    ]
+  },
+  {
+    "case": "scaffold",
+    "phase": "before",
+    "exit": 1,
+    "tests": [
+      "NewAnalysisTest.test_symlink_destination_and_staging_failure_leave_targets_untouched"
+    ]
+  },
+  {
+    "case": "scaffold",
+    "phase": "after",
+    "exit": 0,
+    "tests": [
+      "NewAnalysisTest.test_symlink_destination_and_staging_failure_leave_targets_untouched"
+    ]
+  },
+  {
+    "case": "presend",
+    "phase": "before",
+    "exit": 1,
+    "tests": [
+      "PresendCheckTest.test_short_ids_use_exact_token_boundaries",
+      "PresendCheckTest.test_malformed_redactions_cannot_authorize_disclosure",
+      "PresendCheckTest.test_truncated_coverage_blocks_and_diagnostics_mask_paths"
+    ]
+  },
+  {
+    "case": "presend",
+    "phase": "after",
+    "exit": 0,
+    "tests": [
+      "PresendCheckTest.test_short_ids_use_exact_token_boundaries",
+      "PresendCheckTest.test_malformed_redactions_cannot_authorize_disclosure",
+      "PresendCheckTest.test_truncated_coverage_blocks_and_diagnostics_mask_paths"
+    ]
+  },
+  {
+    "case": "attribution",
+    "phase": "before",
+    "exit": 1,
+    "tests": [
+      "VerifyTest.test_competing_timestamp_writers_are_a_gap"
+    ]
+  },
+  {
+    "case": "attribution",
+    "phase": "after",
+    "exit": 0,
+    "tests": [
+      "VerifyTest.test_competing_timestamp_writers_are_a_gap"
+    ]
+  }
+]

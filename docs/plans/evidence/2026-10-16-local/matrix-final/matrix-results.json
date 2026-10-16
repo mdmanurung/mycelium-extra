@@ -1,0 +1,584 @@
+{
+  "3.6": [
+    {
+      "test": "hooks/tests/test_capacity.py",
+      "exit": 0,
+      "tests": 24,
+      "skipped": 0,
+      "seconds": 1.07,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/hooks_tests_test_capacity.py.log"
+    },
+    {
+      "test": "hooks/tests/test_codex_gate.py",
+      "exit": 0,
+      "tests": 6,
+      "skipped": 0,
+      "seconds": 2.13,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/hooks_tests_test_codex_gate.py.log"
+    },
+    {
+      "test": "hooks/tests/test_gate.py",
+      "exit": 0,
+      "tests": 255,
+      "skipped": 2,
+      "seconds": 134.77,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/hooks_tests_test_gate.py.log"
+    },
+    {
+      "test": "hooks/tests/test_gate_diff.py",
+      "exit": 0,
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/hooks_tests_test_gate_diff.py.log"
+    },
+    {
+      "test": "hooks/tests/test_provenance.py",
+      "exit": 0,
+      "tests": 5,
+      "skipped": 0,
+      "seconds": 0.72,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/hooks_tests_test_provenance.py.log"
+    },
+    {
+      "test": "skills/data-contract-check/tests/test_data_contract_check.py",
+      "exit": 0,
+      "tests": 32,
+      "skipped": 7,
+      "seconds": 2.88,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/skills_data-contract-check_tests_test_data_contract_check.py.log"
+    },
+    {
+      "test": "skills/decision-status/tests/test_decision_threads.py",
+      "exit": 0,
+      "tests": 10,
+      "skipped": 0,
+      "seconds": 0.62,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/skills_decision-status_tests_test_decision_threads.py.log"
+    },
+    {
+      "test": "skills/grill/tests/test_grill_references.py",
+      "exit": 0,
+      "tests": 10,
+      "skipped": 0,
+      "seconds": 0.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/skills_grill_tests_test_grill_references.py.log"
+    },
+    {
+      "test": "skills/idea/tests/test_capture.py",
+      "exit": 0,
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 0.77,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/skills_idea_tests_test_capture.py.log"
+    },
+    {
+      "test": "skills/init/tests/test_gate_init.py",
+      "exit": 0,
+      "tests": 19,
+      "skipped": 0,
+      "seconds": 2.88,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/skills_init_tests_test_gate_init.py.log"
+    },
+    {
+      "test": "skills/new-analysis/tests/test_new_analysis.py",
+      "exit": 0,
+      "tests": 19,
+      "skipped": 1,
+      "seconds": 2.78,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/skills_new-analysis_tests_test_new_analysis.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_default_reasons.py",
+      "exit": 0,
+      "tests": 9,
+      "skipped": 0,
+      "seconds": 0.32,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/skills_plan-review_tests_test_default_reasons.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_plan_review.py",
+      "exit": 0,
+      "tests": 6,
+      "skipped": 0,
+      "seconds": 0.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/skills_plan-review_tests_test_plan_review.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_presend_check.py",
+      "exit": 0,
+      "tests": 14,
+      "skipped": 0,
+      "seconds": 0.52,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/skills_plan-review_tests_test_presend_check.py.log"
+    },
+    {
+      "test": "skills/verify/tests/test_default_reasons.py",
+      "exit": 0,
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 2.43,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/skills_verify_tests_test_default_reasons.py.log"
+    },
+    {
+      "test": "skills/verify/tests/test_verify.py",
+      "exit": 0,
+      "tests": 77,
+      "skipped": 0,
+      "seconds": 66.08,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/skills_verify_tests_test_verify.py.log"
+    },
+    {
+      "test": "tests/test_end_to_end.py",
+      "exit": 0,
+      "tests": 79,
+      "skipped": 2,
+      "seconds": 101.51,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/tests_test_end_to_end.py.log"
+    },
+    {
+      "test": "tests/test_example.py",
+      "exit": 0,
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 0.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/tests_test_example.py.log"
+    },
+    {
+      "test": "tests/test_fixture_data.py",
+      "exit": 0,
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 1.27,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/tests_test_fixture_data.py.log"
+    },
+    {
+      "test": "tests/test_verify_frontmatter.py",
+      "exit": 0,
+      "tests": 2,
+      "skipped": 0,
+      "seconds": 0.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/tests_test_verify_frontmatter.py.log"
+    },
+    {
+      "test": "tests/test_versions.py",
+      "exit": 0,
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.13,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/tests_test_versions.py.log"
+    },
+    {
+      "test": "ablations",
+      "exit": 0,
+      "seconds": 11.44,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/ablations.log"
+    },
+    {
+      "test": "gate-diff",
+      "exit": 0,
+      "seconds": 45.66,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/gate-diff.log"
+    },
+    {
+      "test": "gate-self-check",
+      "exit": 0,
+      "seconds": 52.23,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/gate-self-check.log"
+    },
+    {
+      "test": "links",
+      "exit": 0,
+      "seconds": 0.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.6/links.log"
+    }
+  ],
+  "3.12": [
+    {
+      "test": "hooks/tests/test_capacity.py",
+      "exit": 0,
+      "tests": 24,
+      "skipped": 0,
+      "seconds": 1.02,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/hooks_tests_test_capacity.py.log"
+    },
+    {
+      "test": "hooks/tests/test_codex_gate.py",
+      "exit": 0,
+      "tests": 6,
+      "skipped": 0,
+      "seconds": 1.92,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/hooks_tests_test_codex_gate.py.log"
+    },
+    {
+      "test": "hooks/tests/test_gate.py",
+      "exit": 0,
+      "tests": 255,
+      "skipped": 2,
+      "seconds": 125.49,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/hooks_tests_test_gate.py.log"
+    },
+    {
+      "test": "hooks/tests/test_gate_diff.py",
+      "exit": 0,
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/hooks_tests_test_gate_diff.py.log"
+    },
+    {
+      "test": "hooks/tests/test_provenance.py",
+      "exit": 0,
+      "tests": 5,
+      "skipped": 0,
+      "seconds": 0.67,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/hooks_tests_test_provenance.py.log"
+    },
+    {
+      "test": "skills/data-contract-check/tests/test_data_contract_check.py",
+      "exit": 0,
+      "tests": 32,
+      "skipped": 7,
+      "seconds": 3.33,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/skills_data-contract-check_tests_test_data_contract_check.py.log"
+    },
+    {
+      "test": "skills/decision-status/tests/test_decision_threads.py",
+      "exit": 0,
+      "tests": 10,
+      "skipped": 0,
+      "seconds": 0.67,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/skills_decision-status_tests_test_decision_threads.py.log"
+    },
+    {
+      "test": "skills/grill/tests/test_grill_references.py",
+      "exit": 0,
+      "tests": 10,
+      "skipped": 0,
+      "seconds": 0.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/skills_grill_tests_test_grill_references.py.log"
+    },
+    {
+      "test": "skills/idea/tests/test_capture.py",
+      "exit": 0,
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 0.72,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/skills_idea_tests_test_capture.py.log"
+    },
+    {
+      "test": "skills/init/tests/test_gate_init.py",
+      "exit": 0,
+      "tests": 19,
+      "skipped": 0,
+      "seconds": 2.78,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/skills_init_tests_test_gate_init.py.log"
+    },
+    {
+      "test": "skills/new-analysis/tests/test_new_analysis.py",
+      "exit": 0,
+      "tests": 19,
+      "skipped": 1,
+      "seconds": 2.68,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/skills_new-analysis_tests_test_new_analysis.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_default_reasons.py",
+      "exit": 0,
+      "tests": 9,
+      "skipped": 0,
+      "seconds": 0.32,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/skills_plan-review_tests_test_default_reasons.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_plan_review.py",
+      "exit": 0,
+      "tests": 6,
+      "skipped": 0,
+      "seconds": 0.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/skills_plan-review_tests_test_plan_review.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_presend_check.py",
+      "exit": 0,
+      "tests": 14,
+      "skipped": 0,
+      "seconds": 0.53,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/skills_plan-review_tests_test_presend_check.py.log"
+    },
+    {
+      "test": "skills/verify/tests/test_default_reasons.py",
+      "exit": 0,
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 2.48,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/skills_verify_tests_test_default_reasons.py.log"
+    },
+    {
+      "test": "skills/verify/tests/test_verify.py",
+      "exit": 0,
+      "tests": 77,
+      "skipped": 0,
+      "seconds": 64.57,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/skills_verify_tests_test_verify.py.log"
+    },
+    {
+      "test": "tests/test_end_to_end.py",
+      "exit": 0,
+      "tests": 79,
+      "skipped": 2,
+      "seconds": 87.08,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/tests_test_end_to_end.py.log"
+    },
+    {
+      "test": "tests/test_example.py",
+      "exit": 0,
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 0.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/tests_test_example.py.log"
+    },
+    {
+      "test": "tests/test_fixture_data.py",
+      "exit": 0,
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 1.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/tests_test_fixture_data.py.log"
+    },
+    {
+      "test": "tests/test_verify_frontmatter.py",
+      "exit": 0,
+      "tests": 2,
+      "skipped": 0,
+      "seconds": 0.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/tests_test_verify_frontmatter.py.log"
+    },
+    {
+      "test": "tests/test_versions.py",
+      "exit": 0,
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/tests_test_versions.py.log"
+    },
+    {
+      "test": "ablations",
+      "exit": 0,
+      "seconds": 9.69,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/ablations.log"
+    },
+    {
+      "test": "gate-diff",
+      "exit": 0,
+      "seconds": 47.77,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/gate-diff.log"
+    },
+    {
+      "test": "gate-self-check",
+      "exit": 0,
+      "seconds": 54.6,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/gate-self-check.log"
+    },
+    {
+      "test": "links",
+      "exit": 0,
+      "seconds": 0.12,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.12/links.log"
+    }
+  ],
+  "3.14": [
+    {
+      "test": "hooks/tests/test_capacity.py",
+      "exit": 0,
+      "tests": 24,
+      "skipped": 0,
+      "seconds": 2.08,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/hooks_tests_test_capacity.py.log"
+    },
+    {
+      "test": "hooks/tests/test_codex_gate.py",
+      "exit": 0,
+      "tests": 6,
+      "skipped": 0,
+      "seconds": 3.88,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/hooks_tests_test_codex_gate.py.log"
+    },
+    {
+      "test": "hooks/tests/test_gate.py",
+      "exit": 0,
+      "tests": 255,
+      "skipped": 2,
+      "seconds": 237.74,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/hooks_tests_test_gate.py.log"
+    },
+    {
+      "test": "hooks/tests/test_gate_diff.py",
+      "exit": 0,
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.27,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/hooks_tests_test_gate_diff.py.log"
+    },
+    {
+      "test": "hooks/tests/test_provenance.py",
+      "exit": 0,
+      "tests": 5,
+      "skipped": 0,
+      "seconds": 0.87,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/hooks_tests_test_provenance.py.log"
+    },
+    {
+      "test": "skills/data-contract-check/tests/test_data_contract_check.py",
+      "exit": 0,
+      "tests": 32,
+      "skipped": 7,
+      "seconds": 9.5,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/skills_data-contract-check_tests_test_data_contract_check.py.log"
+    },
+    {
+      "test": "skills/decision-status/tests/test_decision_threads.py",
+      "exit": 0,
+      "tests": 10,
+      "skipped": 0,
+      "seconds": 1.92,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/skills_decision-status_tests_test_decision_threads.py.log"
+    },
+    {
+      "test": "skills/grill/tests/test_grill_references.py",
+      "exit": 0,
+      "tests": 10,
+      "skipped": 0,
+      "seconds": 0.22,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/skills_grill_tests_test_grill_references.py.log"
+    },
+    {
+      "test": "skills/idea/tests/test_capture.py",
+      "exit": 0,
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 1.72,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/skills_idea_tests_test_capture.py.log"
+    },
+    {
+      "test": "skills/init/tests/test_gate_init.py",
+      "exit": 0,
+      "tests": 19,
+      "skipped": 0,
+      "seconds": 7.49,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/skills_init_tests_test_gate_init.py.log"
+    },
+    {
+      "test": "skills/new-analysis/tests/test_new_analysis.py",
+      "exit": 0,
+      "tests": 19,
+      "skipped": 1,
+      "seconds": 5.83,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/skills_new-analysis_tests_test_new_analysis.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_default_reasons.py",
+      "exit": 0,
+      "tests": 9,
+      "skipped": 0,
+      "seconds": 0.87,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/skills_plan-review_tests_test_default_reasons.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_plan_review.py",
+      "exit": 0,
+      "tests": 6,
+      "skipped": 0,
+      "seconds": 0.22,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/skills_plan-review_tests_test_plan_review.py.log"
+    },
+    {
+      "test": "skills/plan-review/tests/test_presend_check.py",
+      "exit": 0,
+      "tests": 14,
+      "skipped": 0,
+      "seconds": 1.52,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/skills_plan-review_tests_test_presend_check.py.log"
+    },
+    {
+      "test": "skills/verify/tests/test_default_reasons.py",
+      "exit": 0,
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 4.48,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/skills_verify_tests_test_default_reasons.py.log"
+    },
+    {
+      "test": "skills/verify/tests/test_verify.py",
+      "exit": 0,
+      "tests": 77,
+      "skipped": 0,
+      "seconds": 126.97,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/skills_verify_tests_test_verify.py.log"
+    },
+    {
+      "test": "tests/test_end_to_end.py",
+      "exit": 0,
+      "tests": 79,
+      "skipped": 2,
+      "seconds": 200.95,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/tests_test_end_to_end.py.log"
+    },
+    {
+      "test": "tests/test_example.py",
+      "exit": 0,
+      "tests": 4,
+      "skipped": 0,
+      "seconds": 0.27,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/tests_test_example.py.log"
+    },
+    {
+      "test": "tests/test_fixture_data.py",
+      "exit": 0,
+      "tests": 3,
+      "skipped": 0,
+      "seconds": 1.77,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/tests_test_fixture_data.py.log"
+    },
+    {
+      "test": "tests/test_verify_frontmatter.py",
+      "exit": 0,
+      "tests": 2,
+      "skipped": 0,
+      "seconds": 0.32,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/tests_test_verify_frontmatter.py.log"
+    },
+    {
+      "test": "tests/test_versions.py",
+      "exit": 0,
+      "tests": 1,
+      "skipped": 0,
+      "seconds": 0.27,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/tests_test_versions.py.log"
+    },
+    {
+      "test": "ablations",
+      "exit": 0,
+      "seconds": 21.68,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/ablations.log"
+    },
+    {
+      "test": "gate-diff",
+      "exit": 0,
+      "seconds": 74.5,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/gate-diff.log"
+    },
+    {
+      "test": "gate-self-check",
+      "exit": 0,
+      "seconds": 70.7,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/gate-self-check.log"
+    },
+    {
+      "test": "links",
+      "exit": 0,
+      "seconds": 0.17,
+      "log": "<home>/mycelium-extra/docs/plans/evidence/2026-10-16-local/matrix-final/matrix-3.14/links.log"
+    }
+  ]
+}

@@ -1,0 +1,277 @@
+[
+  {
+    "case": "versions-python",
+    "command": [
+      "/tmp/mx-remediation-tools/bin/python",
+      "-V"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "versions-python.log"
+  },
+  {
+    "case": "versions-snakemake",
+    "command": [
+      "snakemake",
+      "--version"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "versions-snakemake.log"
+  },
+  {
+    "case": "versions-r",
+    "command": [
+      "<archive-home>/conda/envs/R4_51/bin/Rscript",
+      "--version"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "versions-r.log"
+  },
+  {
+    "case": "versions-nextflow",
+    "command": [
+      "<archive-home>/conda/envs/nextflow/bin/nextflow",
+      "-version"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "versions-nextflow.log"
+  },
+  {
+    "case": "kernel",
+    "command": [
+      "/tmp/mx-remediation-tools/bin/python",
+      "-m",
+      "ipykernel",
+      "install",
+      "--user",
+      "--name",
+      "python3"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "kernel.log"
+  },
+  {
+    "case": "git-init",
+    "command": [
+      "git",
+      "init",
+      "-q"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "git-init.log"
+  },
+  {
+    "case": "scaffold-python",
+    "command": [
+      "/tmp/mx-remediation-tools/bin/python",
+      "<home>/mycelium-extra/skills/new-analysis/scripts/new_analysis.py",
+      "--dest=/tmp/mx-real-workflows-625eh5qc/analysis/python",
+      "--steps=01_count.py",
+      "--data=/tmp/mx-real-workflows-625eh5qc/data/counts.tsv"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "scaffold-python.log"
+  },
+  {
+    "case": "stub-fails",
+    "command": [
+      "bash",
+      "run.sh"
+    ],
+    "exit": 1,
+    "expected_success": false,
+    "log": "stub-fails.log"
+  },
+  {
+    "case": "python-success",
+    "command": [
+      "bash",
+      "run.sh"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "python-success.log"
+  },
+  {
+    "case": "python-no-stale-rebuild",
+    "command": [
+      "bash",
+      "run.sh"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "python-no-stale-rebuild.log"
+  },
+  {
+    "case": "python-changed-input",
+    "command": [
+      "bash",
+      "run.sh"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "python-changed-input.log"
+  },
+  {
+    "case": "python-force-stale-output",
+    "command": [
+      "bash",
+      "run.sh",
+      "--forceall"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "python-force-stale-output.log"
+  },
+  {
+    "case": "python-resumed",
+    "command": [
+      "bash",
+      "run.sh",
+      "--rerun-incomplete"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "python-resumed.log"
+  },
+  {
+    "case": "scaffold-r",
+    "command": [
+      "/tmp/mx-remediation-tools/bin/python",
+      "<home>/mycelium-extra/skills/new-analysis/scripts/new_analysis.py",
+      "--dest=/tmp/mx-real-workflows-625eh5qc/analysis/r",
+      "--steps=01_count.R",
+      "--data=/tmp/mx-real-workflows-625eh5qc/data/counts.tsv"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "scaffold-r.log"
+  },
+  {
+    "case": "r-success",
+    "command": [
+      "bash",
+      "run.sh",
+      "--config",
+      "rscript=<archive-home>/conda/envs/R4_51/bin/Rscript"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "r-success.log"
+  },
+  {
+    "case": "r-output-assert",
+    "command": [
+      "<archive-home>/conda/envs/R4_51/bin/Rscript",
+      "-e",
+      "stopifnot(readRDS('outputs/01_count.rds') == 6)"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "r-output-assert.log"
+  },
+  {
+    "case": "scaffold-notebook",
+    "command": [
+      "/tmp/mx-remediation-tools/bin/python",
+      "<home>/mycelium-extra/skills/new-analysis/scripts/new_analysis.py",
+      "--dest=/tmp/mx-real-workflows-625eh5qc/analysis/notebook",
+      "--steps=01_inspect.ipynb",
+      "--data=/tmp/mx-real-workflows-625eh5qc/data/counts.tsv"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "scaffold-notebook.log"
+  },
+  {
+    "case": "notebook-success",
+    "command": [
+      "bash",
+      "run.sh"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "notebook-success.log"
+  },
+  {
+    "case": "notebook-failure",
+    "command": [
+      "bash",
+      "run.sh"
+    ],
+    "exit": 1,
+    "expected_success": false,
+    "log": "notebook-failure.log"
+  },
+  {
+    "case": "nextflow-success",
+    "command": [
+      "<archive-home>/conda/envs/nextflow/bin/nextflow",
+      "run",
+      "main.nf",
+      "-with-trace",
+      "success.tsv"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "nextflow-success.log"
+  },
+  {
+    "case": "nextflow-failure",
+    "command": [
+      "<archive-home>/conda/envs/nextflow/bin/nextflow",
+      "run",
+      "main.nf",
+      "--fail",
+      "true",
+      "-resume",
+      "-with-trace",
+      "failure.tsv"
+    ],
+    "exit": 1,
+    "expected_success": false,
+    "log": "nextflow-failure.log"
+  },
+  {
+    "case": "nextflow-resume",
+    "command": [
+      "<archive-home>/conda/envs/nextflow/bin/nextflow",
+      "run",
+      "main.nf",
+      "-resume",
+      "-with-trace",
+      "resume.tsv"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "nextflow-resume.log"
+  },
+  {
+    "case": "h5ad-contracts",
+    "command": [
+      "/tmp/mx-remediation-tools/bin/python",
+      "<home>/mycelium-extra/skills/data-contract-check/tests/test_data_contract_check.py"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "h5ad-contracts.log"
+  },
+  {
+    "case": "real-linters",
+    "command": [
+      "/tmp/mx-remediation-tools/bin/python",
+      "<home>/mycelium-extra/hooks/tests/test_gate.py",
+      "GateTest.test_write_lint_with_real_scilintr",
+      "LauncherTest.test_write_lint_with_real_scilintr"
+    ],
+    "exit": 0,
+    "expected_success": true,
+    "log": "real-linters.log"
+  }
+]

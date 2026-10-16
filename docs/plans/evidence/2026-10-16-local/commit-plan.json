@@ -1,0 +1,100 @@
+{
+  "candidate": "/tmp/mx-remediation-qualified-candidate",
+  "branch": "codex/audit-remediation-20261016",
+  "groups": [
+    {
+      "message": "fix(gate): constrain execution grants and validate receipt boundaries",
+      "paths": [
+        "hooks/gate.py",
+        "hooks/tests/test_gate.py"
+      ]
+    },
+    {
+      "message": "fix(capacity): retain recovery state and enforce lifecycle pauses",
+      "paths": [
+        "hooks/capacity.py",
+        "hooks/journal.py",
+        "hooks/gate_run.py",
+        "hooks/hooks.json",
+        "hooks/codex.json",
+        "hooks/tests/test_capacity.py"
+      ]
+    },
+    {
+      "message": "fix(data-contract): reject empty and malformed assumptions",
+      "paths": [
+        "skills/data-contract-check"
+      ]
+    },
+    {
+      "message": "fix(decision-status): respect fenced examples and validate regex",
+      "paths": [
+        "skills/decision-status"
+      ]
+    },
+    {
+      "message": "fix(init): refuse malformed state and nonfinite approval windows",
+      "paths": [
+        "skills/init"
+      ]
+    },
+    {
+      "message": "fix(idea): publish exclusive captures with recoverable registry updates",
+      "paths": [
+        "skills/idea",
+        "skills/idea-triage/SKILL.md"
+      ]
+    },
+    {
+      "message": "fix(new-analysis): stage validated scaffolds before publication",
+      "paths": [
+        "skills/new-analysis"
+      ]
+    },
+    {
+      "message": "fix(plan-review): disclose identifiers and incomplete packet coverage",
+      "paths": [
+        "skills/plan-review"
+      ]
+    },
+    {
+      "message": "fix(verify): recover provenance bundles and retain attribution gaps",
+      "paths": [
+        "hooks/provenance.py",
+        "hooks/tests/test_provenance.py",
+        "skills/verify",
+        "tests/e2e/defects.py",
+        "tests/e2e/ablate.py",
+        "tests/test_end_to_end.py"
+      ]
+    },
+    {
+      "message": "test: qualify exact gate differences and real local workflows",
+      "paths": [
+        ".github/workflows/ci.yml",
+        "hooks/tests/gate_diff.py",
+        "hooks/tests/gate_diff_expected.json",
+        "hooks/tests/test_gate_diff.py",
+        "tests/integration_workflows.py"
+      ]
+    },
+    {
+      "message": "docs: preserve audit evidence and track remaining release blockers",
+      "paths": [
+        "docs/approval-gate.md",
+        "docs/verification.md",
+        "docs/design/c1-fixture-project.md",
+        "docs/roadmap/06-anti-gaming.md",
+        "docs/design/2026-10-16-feature-stress-audit.md",
+        "docs/plans"
+      ]
+    }
+  ],
+  "separate_preserved_work": [
+    ".claude-plugin/marketplace.json",
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+    "CHANGELOG.md"
+  ],
+  "remote_actions": "none; publication blocked on live qualification and explicit approval"
+}
