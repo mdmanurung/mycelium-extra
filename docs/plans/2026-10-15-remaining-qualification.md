@@ -55,7 +55,7 @@ Complete the three workstreams approved after grilling: Python 3.6 C-locale qual
 - Evidence: Pending.
 
 ### H1: Native hosts
-- Status: not started.
+- Status: closed 2026-10-16 without a further install. The Codex side was observed natively by the audit remediation (Codex 0.161.0: trusted definitions after restart, denial, card, approval, execution, unknown-exit failure, a fresh thread, and the card rendered in a pseudo-terminal; see [the remediation plan](2026-10-16-audit-remediation.md), A06) and the Claude side by [the lint-on-write record](../design/h1-native-host-lint.md). Still open there, not here: Claude terminal card rendering, real quota, compaction and the capacity worker lifecycle. No change was made to the real `~/.codex` configuration.
 - Outcome: Exact candidate installation, skill discovery, and card denial-reason display observed in disposable host state.
 - Actions: Inspect local host interfaces, validate manifests, install candidate in disposable state, exercise card handling without starting research work; read remote CI results.
 - Dependencies: Final candidate code.

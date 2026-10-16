@@ -27,7 +27,7 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 - **Acceptance:** on a Snakemake fixture with a rule env, the env file hash appears; an unreadable rule env is a gap.
 - **Tests:** a synthetic `.snakemake/conda/<hash>.yaml` and built env folder.
 - **Effort:** M. Return when a `--use-conda` pipeline runs under verify.
-- **Status:** todo.
+- **Status:** parked 2026-10-16 by the user's decision: no real `--use-conda` pipeline exists to check Snakemake's env-folder format against, and a reader built on a synthetic fixture that reports "recorded" is worse than the current `LIMITS` line.
 
 ## E2: Gate false positives on state-folder mentions
 
