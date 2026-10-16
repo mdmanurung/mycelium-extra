@@ -29,6 +29,7 @@ These come from decisions already locked in this repository. A task that would b
 | 4 | Keep LLM output out of the record | D1, D2, D3, D5, D6 |
 | 5 | Shape how researchers use the agent | D4, D7, D8, D9, A6 |
 | 6 | Keep oversight honest | D10, D11, D12 |
+| 7 | Execution fidelity: no false assurance from incomplete evidence | C01–C13 in [07-execution-fidelity.md](07-execution-fidelity.md) |
 
 Phases are a suggested order, not a gate; a task may start once its dependencies are done. B5 is a decision for the maintainer, not a build task, and has no phase.
 
