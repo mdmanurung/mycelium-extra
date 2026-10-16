@@ -3,6 +3,7 @@
 import glob
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -152,6 +153,15 @@ class GateTest(unittest.TestCase):
     def test_absolute_plan_path_outside_the_root_approves_nothing(self):
         self.approve(PLAN.replace("`analysis/x.py`", "`/elsewhere/analysis/x.py`"))
         self.assertTrue(self.denied(self.bash("python analysis/x.py")))
+
+    def test_quoted_script_with_spaces_is_granted_and_pinned_without_fragment_grants(self):
+        self.write("analysis/my script.py", "print(1)\n")
+        for quote in ("`", '"', "'"):
+            self.approve(PLAN.replace("`analysis/x.py`", quote + "analysis/my script.py" + quote))
+            self.assertIsNone(self.bash('python "analysis/my script.py"'))
+            self.assertTrue(self.denied(self.bash("python analysis/my/other.py")))
+        self.write("analysis/my script.py", "print(2)\n")
+        self.assertTrue(self.denied(self.bash('python "analysis/my script.py"')))
 
     CARD_PLAN = "\n".join([
         "> Question (user's words): \"does A beat B?\"",
@@ -534,6 +544,71 @@ class GateTest(unittest.TestCase):
         self.assertIn("1 02_fit.py\n        - choice: exact test  [you]\n        - check: 12 rows\n        - lint: clean", card)
         self.assertIn("- lint: not checked (`/nonexistent/Rscript` not found", card)
 
+    def limited(self, limit, **extra):
+        """analysis/x.py approved with `max_runs_per_approval` set; returns the plan's hash."""
+        self.write_file("analysis/x.py", "print(1)\n")
+        digest, _ = self.approve()
+        self.config(dict({"max_runs_per_approval": limit}, **extra))
+        return digest
+
+    def run_once(self, command="python3 analysis/x.py"):
+        result = self.bash(command)
+        if not self.denied(result):
+            self.post(command, {"stdout": ""})
+        return result
+
+    def test_run_limit_asks_for_reapproval_after_n_runs(self):
+        digest = self.limited(3)
+        for n in range(3):
+            self.assertFalse(self.denied(self.run_once()), "run {}".format(n + 1))
+        path = os.path.join(self.root, ".mycelium-extra", "approvals", digest + ".json")
+        with open(path) as handle:
+            before = handle.read()
+        result = self.bash("python3 analysis/x.py")
+        reason = result["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertTrue(self.denied(result))
+        self.assertIn("plan {} has been used for 3 run(s), its limit".format(digest), reason)
+        self.assertIn("nothing recorded differs", reason)
+        self.assertIn("approve plan {}".format(digest), reason)
+        with open(path) as handle:
+            self.assertEqual(handle.read(), before, "an expired approval stays in the record, unchanged")
+
+    def test_run_limit_lists_what_changed_since_the_first_run(self):
+        self.limited(2, pin_scripts=False)
+        self.run_once()
+        self.write_file("analysis/x.py", "print(2)\n")
+        self.run_once()
+        reason = self.bash("python3 analysis/x.py")["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertIn("analysis/x.py: sha256", reason)
+
+    def test_run_limit_ignores_explore_runs_and_unset_means_no_limit(self):
+        self.limited(2)
+        self.hook("prompt", {"prompt": "allow explore"})
+        for _ in range(3):
+            self.assertFalse(self.denied(self.run_once("MYCELIUM_EXTRA_EXPLORE=1 python3 analysis/x.py")))
+        self.run_once()
+        self.run_once()
+        self.assertTrue(self.denied(self.bash("python3 analysis/x.py")), "two planned runs reach the limit of 2")
+        self.config({})
+        self.assertFalse(self.denied(self.bash("python3 analysis/x.py")), "unset: no limit")
+
+    def test_reapproval_restarts_the_run_count(self):
+        digest = self.limited(1)
+        self.run_once()
+        self.assertTrue(self.denied(self.bash("python3 analysis/x.py")))
+        self.approve()
+        self.assertFalse(self.denied(self.run_once()))
+        self.assertTrue(self.denied(self.bash("python3 analysis/x.py")))
+        self.assertEqual(digest, self.approve()[0])
+
+    def test_run_limit_value_must_be_a_whole_number(self):
+        self.limited(3)
+        for value in ("3", 0, -1, 2.5, True):
+            self.config({"max_runs_per_approval": value})
+            result = self.run_once()
+            self.assertFalse(self.denied(result), repr(value))
+            self.assertIn('"max_runs_per_approval" in gate.json must be a whole number', result["systemMessage"])
+
     def test_card_describes_the_procedure(self):
         os.makedirs(os.path.join(self.root, "analysis", "a"))
         with open(os.path.join(self.root, "analysis", "a", "02_fit.py"), "w") as handle:
@@ -831,7 +906,21 @@ class GateTest(unittest.TestCase):
         self.assertIn("no pending plan", refused["systemMessage"])
         approved = self.hook("prompt", {"prompt": "approve plan " + old}, session="s2")
         self.assertIn("approved", approved["systemMessage"])
-        self.assertIsNone(self.bash("python analysis/x.py"))
+        self.assertTrue(self.denied(self.bash("python analysis/x.py")))
+        self.assertIsNone(self.hook("tool", {"tool_name": "Bash", "tool_input": {"command": "python analysis/x.py"}}, session="s2"))
+
+    def test_fresh_session_cannot_reuse_execution_approval(self):
+        self.approve(PLAN)
+        payload = {"tool_name": "Bash", "tool_input": {"command": "python analysis/x.py"}}
+        self.assertIsNone(self.hook("tool", payload, session="s1"))
+        self.assertTrue(self.denied(self.hook("tool", payload, session="s2")))
+        self.hook("post", dict(payload, tool_response={"exit_code": 0}), session="s2")
+        with open(os.path.join(self.root, ".mycelium-extra", "receipts.jsonl")) as handle:
+            self.assertEqual(json.loads(handle.readlines()[-1])["plans"], [])
+        card = self.hook("stop", {"last_assistant_message": PLAN}, session="s2")["systemMessage"]
+        digest = card.split("approve plan ")[1][:8]
+        self.hook("prompt", {"prompt": "approve plan " + digest}, session="s2")
+        self.assertIsNone(self.hook("tool", payload, session="s2"))
 
     def test_only_step_cells_grant(self):
         plan = ("| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n"
@@ -932,6 +1021,32 @@ class GateTest(unittest.TestCase):
         result = self.hook("prompt", {"prompt": "approve plan deadbeef"})
         self.assertIn("Nothing was approved", result["systemMessage"])
 
+    def test_corrupt_approval_state_never_disables_the_gate(self):
+        self.approve()
+        path = ".mycelium-extra/approvals/broken.json"
+        for content in ("{truncated", "[]", '{"approved_at": "yesterday"}',
+                        '{"hash": "12345678", "approved_at": NaN, "plan": "x"}',
+                        '{"hash": "12345678", "approved_at": 1e300, "plan": "x"}',
+                        '{"hash": "12345678", "approved_at": 253402300800, "plan": "x"}',
+                        '{"hash": "12345678", "approved_at": -1, "plan": "x"}',
+                        '{"hash": "12345678", "approved_at": 1, "plan": "x", "pins": {"data/x": []}}',
+                        '{"hash": "12345678", "approved_at": 1, "plan": "x", "scripts": {"x.py": {}}}'):
+            self.write(path, content)
+            reply = self.bash("python analysis/x.py")
+            self.assertTrue(self.denied(reply), content)
+            self.assertIn("approval state", reply["hookSpecificOutput"]["permissionDecisionReason"])
+        os.remove(os.path.join(self.root, path))
+        self.assertIsNone(self.bash("python analysis/x.py"))
+
+    def test_corrupt_first_run_script_pins_do_not_disable_the_gate(self):
+        digest, _ = self.approve()
+        self.write("analysis/x.py", "print(1)\n")
+        self.assertIsNone(self.bash("python analysis/x.py"))
+        self.write(".mycelium-extra/script-pins/" + digest + ".json", '{"analysis/x.py": "corrupt"}')
+        reply = self.bash("python analysis/x.py")
+        self.assertTrue(self.denied(reply))
+        self.assertIn("approval state", reply["hookSpecificOutput"]["permissionDecisionReason"])
+
     def test_expired_approval_denies(self):
         self.config({"approval_hours": 0})
         self.approve()
@@ -1000,6 +1115,15 @@ class GateTest(unittest.TestCase):
             self.assertIsNone(self.bash(command), command)
         self.assertIsNone(self.hook("tool", {"tool_name": "Write",
                                              "tool_input": {"file_path": "analysis/x.py"}}))
+
+    def test_state_writes_resolve_symlink_aliases(self):
+        os.symlink(os.path.join(self.root, ".mycelium-extra"), os.path.join(self.root, "alias"))
+        for command in ("rm alias/gate.json", "echo '{}' > alias/gate.json",
+                        "bash -c 'rm alias/gate.json'", "ls alias/approvals | xargs rm"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+        for command in ("cat alias/gate.json", "ls alias", "echo x | xargs rm",
+                        'echo "open(\'analysis/x.py\',\'w\')" | python3'):
+            self.assertIsNone(self.bash(command), command)
 
     def test_state_folder_named_only_in_text_passes(self):
         # E2: each allowed command, then a write in the same shape that must still block.
@@ -1165,8 +1289,8 @@ class GateTest(unittest.TestCase):
         folder = os.path.join(self.root, ".mycelium-extra", "approvals")
         for name in os.listdir(folder):
             os.remove(os.path.join(folder, name))
-        with open(os.path.join(folder, "0ld0ld00.json"), "w") as handle:
-            json.dump({"hash": "0ld0ld00", "approved_at": time.time(), "plan": PLAN}, handle)
+        with open(os.path.join(folder, "01d01d00.json"), "w") as handle:
+            json.dump({"hash": "01d01d00", "approved_at": time.time(), "plan": PLAN, "session_id": "s1"}, handle)
         self.assertIsNone(self.bash("python analysis/x.py"))
 
     # ------------------------------------------------------------ pinned scripts
@@ -1388,6 +1512,36 @@ class GateTest(unittest.TestCase):
             self.post("python analysis/x.py", response)
         self.assertEqual([r["exit_status"] for r in self.receipts()], ["unknown", "unknown", "unknown", 3, 0])
         self.assertEqual([r["exit_source"] for r in self.receipts()], [None, None, None, "response", "response"])
+
+    def test_compound_shell_status_does_not_claim_each_script_succeeded(self):
+        for command in ("python analysis/x.py; true", "false && python analysis/x.py",
+                        "python analysis/x.py | cat", "bash -lc 'python analysis/x.py; true'"):
+            self.post(command, {"exit_code": 0})
+            receipt = self.receipts()[-1]
+            self.assertEqual(receipt["exit_status"], "unknown", command)
+            self.assertIsNone(receipt["exit_source"])
+            self.assertEqual(receipt["command_exit_status"], 0)
+            self.assertEqual(receipt["command_exit_source"], "response")
+        self.post("python analysis/x.py && python analysis/y.py", {"exit_code": 7})
+        for receipt in self.receipts()[-2:]:
+            self.assertEqual(receipt["exit_status"], "unknown")
+            self.assertEqual(receipt["command_exit_status"], 7)
+
+    def test_compound_shell_output_does_not_assign_one_job_id_to_two_jobs(self):
+        self.post("sbatch job.sh; sbatch other.sh", {
+            "stdout": "Submitted batch job 41\nSubmitted batch job 42\n", "exit_code": 0})
+        for receipt in self.receipts():
+            self.assertIsNone(receipt["job_id"])
+            self.assertEqual(receipt["exit_status"], "unknown")
+
+    def test_background_shell_launch_is_not_a_finished_script(self):
+        for command in ("python analysis/x.py &", "bash -lc 'python analysis/x.py &'"):
+            self.post(command, {"exit_code": 0})
+            receipt = self.receipts()[-1]
+            self.assertEqual(receipt["exit_status"], "unknown", command)
+            self.assertEqual(receipt["command_exit_status"], 0)
+        self.post("python analysis/x.py '&'", {"exit_code": 0})
+        self.assertEqual(self.receipts()[-1]["exit_status"], 0)
 
     def test_exit_status_from_the_hook_event(self):
         # PostToolUse fires only after success; PostToolUseFailure carries `Exit code N` or a bare message.
@@ -1692,7 +1846,7 @@ class CompatibilityTest(unittest.TestCase):
         with open(os.path.join(repo, "hooks", "codex.json")) as handle:
             hooks = json.load(handle)["hooks"]
         self.assertNotIn("PostToolUseFailure", hooks)
-        self.assertIn("apply_patch", hooks["PreToolUse"][0]["matcher"])
+        self.assertIsNotNone(re.fullmatch(hooks["PreToolUse"][0]["matcher"], "apply_patch"))
         self.assertTrue(os.path.isfile(os.path.join(repo, "hooks", "hooks.json")))
 
     def test_failed_bash_runs_reach_the_post_hook(self):

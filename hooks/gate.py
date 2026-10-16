@@ -21,6 +21,7 @@ import functools
 import glob
 import importlib.util
 import json
+import math
 import os
 import re
 import sys
@@ -320,7 +321,7 @@ def unchanged(pin, now):
 
 # ---------------------------------------------------------------- command parsing
 
-def tokenize(command, bodies=None):
+def tokenize(command, bodies=None, operators=None):
     """Split a shell command into words and operator tokens.
 
     Quote-aware; `$(...)` stays inside its word; heredoc bodies are dropped,
@@ -395,6 +396,8 @@ def tokenize(command, bodies=None):
                 while j < n and (command[j].isdigit() or command[j] == "-"):
                     j += 1
             tokens.append(command[i:j])
+            if operators is not None:
+                operators.append(command[i:j])
             i = j
             if op == "<<":
                 bodies.append("")
@@ -577,6 +580,20 @@ def analyse_command(command, root, cwd, config):
             yield explore, label, paths, " ".join(tokens), tokens, virtual_cwd
 
 
+def single_shell_command(command, root, cwd, config):
+    """Whether the shell's status and output belong to one command, including shell wrappers."""
+    while True:
+        operators = []
+        tokenize(command, operators=operators)
+        parts = list(segments(command))
+        if len(parts) != 1 or "&" in operators:
+            return False
+        _, label, paths = classify(parts[0], root, cwd, config)
+        if label != "recurse":
+            return True
+        command = paths[0]
+
+
 def writes_state(command, root, cwd):
     """True if the command visibly writes into the gate's state folder.
 
@@ -585,8 +602,6 @@ def writes_state(command, root, cwd):
     elsewhere) passes. A runner's code cannot be traced: it counts when it
     gets a path in the folder, or when its code mentions the folder and writes.
     """
-    if STATE_DIR not in command:
-        return False
     state = os.path.realpath(state_path(root))
     bodies = []
     all_tokens = tokenize(command, bodies)
@@ -755,7 +770,8 @@ def segment_writes(tokens, bodies, command, inside, root, cwd):
     if head == "eval":
         return writes_state(" ".join(args), root, cwd)
     if head == "xargs":  # its targets arrive on stdin
-        return any(os.path.basename(t) in WRITE_ALL | WRITE_LAST for t in args)
+        return (any(os.path.basename(t) in WRITE_ALL | WRITE_LAST for t in args)
+                and any(inside(t) for part in segments(command) for t in part))
     if head in WRITE_ALL:
         return any(inside(t) for t in positional)
     if head in WRITE_LAST:
@@ -775,7 +791,7 @@ def segment_writes(tokens, bodies, command, inside, root, cwd):
         if any(inside(t) for t in positional + stdin):
             return True
         if not (code or bodies or positional or stdin):  # code piped in from another segment
-            return WRITE_CODE.search(command) is not None
+            return STATE_DIR in command and WRITE_CODE.search(command) is not None
         return any(names_state(text, root, cwd, head.startswith("python")) and WRITE_CODE.search(text)
                    for text in code + bodies)
     return False
@@ -783,7 +799,61 @@ def segment_writes(tokens, bodies, command, inside, root, cwd):
 
 # ---------------------------------------------------------------- approvals
 
-def active_approvals(root, config):
+class InvalidApproval(ValueError):
+    pass
+
+
+def valid_fingerprint(pin):
+    if not isinstance(pin, dict):
+        return False
+    if pin.get("missing") is True or isinstance(pin.get("skipped"), str):
+        return True
+    if pin.get("folder") is True:
+        return (isinstance(pin.get("files"), int) and pin["files"] >= 0
+                and isinstance(pin.get("listing_sha256"), str)
+                and re.fullmatch(r"[0-9a-f]{64}", pin["listing_sha256"]) is not None)
+    return (isinstance(pin.get("size"), int) and pin["size"] >= 0
+            and isinstance(pin.get("mtime"), (int, float))
+            and (not isinstance(pin["mtime"], float) or math.isfinite(pin["mtime"]))
+            and ("sha256" not in pin or isinstance(pin["sha256"], str)
+                 and re.fullmatch(r"[0-9a-f]{64}", pin["sha256"]) is not None))
+
+
+def valid_pins(pins):
+    return isinstance(pins, dict) and all(valid_fingerprint(pin) for pin in pins.values())
+
+
+def read_approval(path):
+    record = read_json(path, None)
+    if (not isinstance(record, dict) or not isinstance(record.get("hash"), str)
+            or not re.fullmatch(r"[0-9a-f]{8}", record["hash"])
+            or not isinstance(record.get("plan"), str)
+            or not isinstance(record.get("approved_at"), (int, float))
+            or isinstance(record.get("approved_at"), bool)
+            or record["approved_at"] < 0
+            or isinstance(record["approved_at"], float) and not math.isfinite(record["approved_at"])
+            or any(record.get(key) is not None and not valid_pins(record[key]) for key in ("pins", "scripts"))):
+        raise InvalidApproval("mycelium-extra gate: invalid approval state in {}. Restore the record "
+                              "or move it aside before running; do not work around this block.".format(path))
+    try:
+        if not 1 <= time.localtime(record["approved_at"]).tm_year <= 9999:
+            raise ValueError("year outside the supported calendar")
+    except (OverflowError, OSError, ValueError):
+        raise InvalidApproval("mycelium-extra gate: invalid approval state in {}: timestamp outside the "
+                              "supported calendar. Restore the record before running.".format(path))
+    return record
+
+
+def read_script_pins(root, digest):
+    path = state_path(root, "script-pins", digest + ".json")
+    pins = read_json(path, None) if os.path.isfile(path) else {}
+    if not valid_pins(pins):
+        raise InvalidApproval("mycelium-extra gate: invalid approval state in {}. Restore the script pins "
+                              "before running; do not work around this block.".format(path))
+    return pins
+
+
+def active_approvals(root, config, session_id=None):
     """Approvals from the last `approval_hours`, or None if reading them ran out of time.
     Approval files are kept (verify reads old ones), so the folder only grows."""
     folder = state_path(root, "approvals")
@@ -792,10 +862,13 @@ def active_approvals(root, config):
     approvals = []
     if os.path.isdir(folder):
         for name in sorted(os.listdir(folder)):
+            if not name.endswith(".json"):
+                continue
             if time.time() >= deadline:
                 return None
-            record = read_json(os.path.join(folder, name), None)
-            if record and record.get("approved_at", 0) >= horizon:
+            record = read_approval(os.path.join(folder, name))
+            if (record and record.get("approved_at", 0) >= horizon
+                    and (session_id is None or bool(session_id) and record.get("session_id") == session_id)):
                 approvals.append(record)
     return approvals
 
@@ -863,7 +936,18 @@ def plan_paths(table):
 def plan_paths_in(root, table):
     """plan_paths with each path inside the project root made root-relative, the one form the
     gate and verify compare; a path outside the root stays as written."""
-    return frozenset((repo_relative(root, root, p) or p) if os.path.isabs(p) else p for p in plan_paths(table))
+    literals = []
+
+    def quoted(match):
+        path = match.group(2)
+        if any(c.isspace() for c in path) and os.path.exists(os.path.join(root, os.path.expanduser(path))):
+            literals.append(path)
+            return ""  # Its fragments must not accidentally grant a parent folder.
+        return match.group(0)
+
+    table = re.sub(r"([`\"'])([^`\"'\n]+)\1", quoted, table)
+    return frozenset((repo_relative(root, root, p) or p) if os.path.isabs(p) else p
+                     for p in list(plan_paths(table)) + literals)
 
 
 def path_in_plan(root, path, table):
@@ -1148,9 +1232,11 @@ def all_approvals(root):
     deadline = time.time() + SCAN_SECONDS
     found = []
     for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        if not name.endswith(".json"):
+            continue
         if time.time() >= deadline:
             return None
-        record = read_json(os.path.join(folder, name), None)
+        record = read_approval(os.path.join(folder, name))
         if record and record.get("plan"):
             found.append(record)
     return sorted(found, key=lambda record: record.get("approved_at", 0), reverse=True)
@@ -1496,6 +1582,39 @@ def changed_pins(root, pins, budget, cache):
 
 # ---------------------------------------------------------------- pinned scripts
 
+def run_limit(config):
+    """(limit, notice) from `max_runs_per_approval` in gate.json: a whole number of 1 or more. Unset means no
+    limit; any other value is ignored, with a notice."""
+    value = config.get("max_runs_per_approval")
+    if value is None:
+        return None, None
+    if isinstance(value, int) and not isinstance(value, bool) and value >= 1:
+        return value, None
+    return None, ('mycelium-extra gate: "max_runs_per_approval" in gate.json must be a whole number of 1 or '
+                  "more; no limit applies.")
+
+
+def limit_changes(root, runs, budget, cache):
+    """What differs now from the first run counted under an approval: the commit, and each script's content
+    (shown even with `pin_scripts` off). The approval's inputs and pinned scripts already block when they change."""
+    first, lines = runs[0], []
+    now, before = git_state(root), first.get("git")
+    if before and now and before.get("head") != now["head"]:
+        lines.append("HEAD {} -> {}".format(before["head"][:12], now["head"][:12]))
+    elif before and now and not before.get("dirty") and now.get("dirty"):
+        lines.append("uncommitted changes now; the first run was on a clean tree")
+    seen = {}
+    for receipt in runs:
+        record = receipt.get("script") or {}
+        if record.get("in_repo") and record.get("path") and record["path"] not in seen:
+            seen[record["path"]] = record
+    for rel, record in sorted(seen.items()):
+        change, _ = script_change(root, rel, record, budget, cache)
+        if change:
+            lines.append(change)
+    return lines or ["nothing recorded differs: the same commit and scripts"]
+
+
 def script_pinning(config):
     """(on, notice). Scripts are pinned unless gate.json sets `pin_scripts` to false;
     any other non-boolean value is ignored, with a notice."""
@@ -1576,8 +1695,7 @@ def script_change(root, rel, pin, budget, cache):
 def approved_script(root, approvals, rel):
     """The pin of a script in the newest active approval that has one."""
     for record in sorted(approvals or [], key=lambda r: r.get("approved_at", 0), reverse=True):
-        pin = (record.get("scripts") or {}).get(rel) or read_json(
-            state_path(root, "script-pins", record.get("hash", "-") + ".json"), {}).get(rel)
+        pin = (record.get("scripts") or {}).get(rel) or read_script_pins(root, record["hash"]).get(rel)
         if pin:
             return pin
     return None
@@ -1594,7 +1712,7 @@ def script_state(root, scripts, config):
     approvals = active_approvals(root, config)
     now_all = dict(scripts or {})
     for record in approvals or []:  # scripts pinned at a first run, still on disk
-        for rel in read_json(state_path(root, "script-pins", record.get("hash", "-") + ".json"), {}):
+        for rel in read_script_pins(root, record["hash"]):
             if rel not in now_all and os.path.isfile(os.path.join(root, rel)):
                 now_all[rel] = fingerprint(os.path.join(root, rel), hash_budget(config))
     if not now_all:
@@ -1620,7 +1738,7 @@ def note_first_runs(root, firsts, budget):
     """Pin scripts that did not exist when their plan was shown, at the run that first uses them."""
     ledgers = {}
     for digest, rel in firsts:
-        ledger = ledgers.setdefault(digest, read_json(state_path(root, "script-pins", digest + ".json"), {}))
+        ledger = ledgers.setdefault(digest, read_script_pins(root, digest))
         if rel not in ledger:
             ledger[rel] = fingerprint(os.path.join(root, rel), budget)
             keep_snapshot(root, rel, ledger[rel])
@@ -1660,6 +1778,8 @@ def on_tool(event, root, config):
     stale_scripts, firsts = [], []
     scripts_on, notice = script_pinning(config)
     budget, cache = hash_budget(config), {}
+    limit, limit_notice = run_limit(config)
+    capped = []
     granted = explore_granted(root, event.get("session_id"))
     run_scripts = []
     for explore, label, paths, segment, _, _ in analyse_command(command, root, event.get("cwd") or root,
@@ -1673,7 +1793,7 @@ def on_tool(event, root, config):
                         "types `allow explore` in this session, and they have not. Do not work "
                         "around this block; ask the user.")
         if approvals is None:
-            approvals = active_approvals(root, config)
+            approvals = active_approvals(root, config, event.get("session_id") or "")
             if approvals is None:
                 return deny(SCAN_TIMEOUT)
         records = covering(root, label, paths, approvals)
@@ -1692,8 +1812,7 @@ def on_tool(event, root, config):
         for rel in paths if scripts_on else []:
             if not os.path.isfile(os.path.join(root, rel)):
                 continue
-            pin = (newest.get("scripts") or {}).get(rel) or read_json(
-                state_path(root, "script-pins", newest["hash"] + ".json"), {}).get(rel)
+            pin = (newest.get("scripts") or {}).get(rel) or read_script_pins(root, newest["hash"]).get(rel)
             if not pin:
                 firsts.append((newest["hash"], rel))
                 continue
@@ -1704,7 +1823,18 @@ def on_tool(event, root, config):
                 unchecked.append(rel)
         if changed_scripts:
             stale_scripts.append((newest["hash"], changed_scripts))
-    if (stale or stale_scripts) and not blocked:
+        if limit and all(newest["hash"] != h for h, _, _ in capped):
+            try:
+                runs = load_verify().approval_runs(root, config, newest["hash"], newest.get("approved_at", 0),
+                                                   read_receipts(root))
+            except Exception as error:  # fail open on the limit alone, and say so
+                limit_notice = ("mycelium-extra gate: max_runs_per_approval not checked ({}: {})."
+                                .format(type(error).__name__, error))
+                limit = None
+            else:
+                if len(runs) >= limit:
+                    capped.append((newest["hash"], len(runs), limit_changes(root, runs, budget, cache)))
+    if (stale or stale_scripts or capped) and not blocked:
         lines = []
         for digest, changes in stale:
             lines.append("mycelium-extra gate: blocked because inputs pinned by plan {} changed after "
@@ -1721,6 +1851,13 @@ def on_tool(event, root, config):
         if stale_scripts:
             lines.append("The user reviews the change and re-approves: present the plan again, and they "
                          "approve it with `approve plan <hash>`. Do not work around this block.")
+        for digest, used, changes in capped:
+            lines.append("mycelium-extra gate: blocked because plan {} has been used for {} run(s), its limit "
+                         "(`max_runs_per_approval` in gate.json). Changes since its first run:".format(digest, used))
+            lines.extend("  - " + change for change in changes)
+            lines.append("The user reviews this and re-approves: present the plan again, and they approve it "
+                         "with `approve plan {}`, which restarts the count. Do not work around this "
+                         "block.".format(digest))
         return deny("\n".join(lines))
     if not blocked:
         note_first_runs(root, firsts, budget)
@@ -1730,6 +1867,8 @@ def on_tool(event, root, config):
                             "(time limit, `pin_seconds`): {}.".format(listing(unchecked)))
         if notice and approvals is not None:  # a gated run was checked
             messages.append(notice)
+        if limit_notice and approvals is not None:
+            messages.append(limit_notice)
         denied, user_note, agent_note = lint_before_run(root, run_scripts, config)
         if denied:
             return denied
@@ -2246,11 +2385,17 @@ def on_post(event, root, config):
     response = event.get("tool_response")
     output = response_text(response)
     status, source, extra = exit_status(event)
-    approvals = active_approvals(root, config)
+    compound = not single_shell_command(command, root, event.get("cwd") or root, config)
+    if compound:
+        extra.update(command_exit_status=status, command_exit_source=source)
+        status, source, output = "unknown", None, ""
+    approvals = active_approvals(root, config, event.get("session_id") or "")
     budget = hash_budget(config)
     git = git_state(root)
     unread = approvals is None
     notes = ["approvals not read (time limit), so no plan is credited"] if unread else []
+    if compound:
+        notes.append("compound shell command: per-run execution, exit status, and output attribution unknown")
     approvals = approvals or []
     planned = []
     for explore, label, paths, segment, tokens, cwd in runs:
@@ -2580,6 +2725,8 @@ def main(argv, text=None):
         if root is None:
             return 0
         emit(HANDLERS[argv[1]](event, root, load_config(root)))
+    except InvalidApproval as error:
+        emit(deny(str(error)) if argv[1] == "tool" else {"systemMessage": str(error)})
     except Exception as error:  # fail open, but tell the user the gate broke; on_error "deny" blocks
         from gate_run import error_output
         emit(error_output(argv[1], error, cwd))
