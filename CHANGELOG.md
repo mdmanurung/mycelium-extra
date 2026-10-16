@@ -2,6 +2,17 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.69] - 2026-10-16
+
+### Added
+
+- `init` prints one `note:` line when the Mycelium that `.mycelium/plugin-root` points at is not 0.6.0 or 0.7.2 (the versions Extra was checked against), or when its version cannot be read. It says nothing without Mycelium and never writes Mycelium's files. The tested versions are stated in `docs/mycelium-integration.md` (roadmap A5).
+- `docs/example.md`: one real session on the fixture project, from the grill prompt to the verify report. `tests/e2e/make_example.py` regenerates it and `tests/test_example.py` keeps what it quotes in step with the code. It is linked from the README (roadmap A6).
+
+### Fixed
+
+- The approval card no longer shows one language's lint gap on the other language's steps: a missing R linter used to mark Python steps `not checked`.
+
 ## [0.9.68] - 2026-10-16
 
 ### Added
