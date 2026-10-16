@@ -1,0 +1,1223 @@
+{
+  "base": "384e6394b71cdae6ab983f0b10fa8d4f5e65c900",
+  "fuzz": 120,
+  "seed": 1234,
+  "cases": 168,
+  "differences": {
+    "tool approval from another session": {
+      "old": {
+        "rc": 0,
+        "out": "",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"previous-session\"}"
+          ],
+          [
+            ".mycelium-extra/script-pins/00000001.json",
+            "{\n \"analysis/x.py\": {\n  \"size\": 9,\n  \"mtime\": 0,\n  \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\"\n }\n}"
+          ],
+          [
+            ".mycelium-extra/scripts/cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213",
+            "print(1)\n"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"mycelium-extra gate: blocked because no active approved plan covers this run.\\n  - python analysis/x.py\\nActive approved plans (last 24 h): none.\\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"previous-session\"}"
+          ]
+        ]
+      },
+      "rationale": "deny execution grants from a different host session; native-reproduced defect"
+    },
+    "tool state symlink write": {
+      "old": {
+        "rc": 0,
+        "out": "",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"mycelium-extra: this command appears to modify .mycelium-extra/, which holds gate state. Reading it is fine; changing it is the user's call.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ]
+        ]
+      },
+      "rationale": "deny writes through a gate-state alias"
+    },
+    "tool quoted spaced script": {
+      "old": {
+        "rc": 0,
+        "out": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"mycelium-extra gate: blocked because no active approved plan covers this run.\\n  - python analysis/my script.py\\nActive approved plans (last 24 h): 00000001.\\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/my script.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/my script.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/script-pins/00000001.json",
+            "{\n \"analysis/my script.py\": {\n  \"size\": 9,\n  \"mtime\": 0,\n  \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\"\n }\n}"
+          ],
+          [
+            ".mycelium-extra/scripts/cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213",
+            "print(1)\n"
+          ]
+        ]
+      },
+      "rationale": "grant the complete literal spaced path"
+    },
+    "tool spaced script grants no fragment folder": {
+      "old": {
+        "rc": 0,
+        "out": "",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/my script.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"mycelium-extra gate: blocked because no active approved plan covers this run.\\n  - python analysis/my/other.py\\nActive approved plans (last 24 h): 00000001.\\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/my script.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "do not grant a path fragment"
+    },
+    "tool corrupt approval": {
+      "old": {
+        "rc": 0,
+        "out": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"mycelium-extra gate: blocked because no active approved plan covers this run.\\n  - python analysis/x.py\\nActive approved plans (last 24 h): none.\\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/broken.json",
+            "[]"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"mycelium-extra gate: invalid approval state in <ROOT>/.mycelium-extra/approvals/broken.json. Restore the record or move it aside before running; do not work around this block.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/broken.json",
+            "[]"
+          ]
+        ]
+      },
+      "rationale": "deny malformed approval records"
+    },
+    "post sbatch then python": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: sbatch job 4242 (plan 00000001); python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"sbatch -o logs/%j.out job.sh\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": \"4242\", \"kind\": \"sbatch\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"interrupted\", \"stderr\", \"stdout\"], \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"interrupted\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | sbatch job.sh | analysis/x.py | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; sbatch (plan 00000001); python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"sbatch -o logs/%j.out job.sh\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"interrupted\", \"stderr\", \"stdout\"], \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"python analysis/x.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"interrupted\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | sbatch job.sh | analysis/x.py | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "post four runners one call": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001); nextflow (plan 00000001); sbatch job 9 (plan 00000001); snakemake (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": \"response\", \"exit_status\": 0, \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"nextflow run main.nf -params-file params.yaml -resume -with-trace\", \"command_env\": null, \"cwd\": \".\", \"engine\": {\"files\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"params.yaml\", \"sha256\": \"37b128c59f1f5097f73f82691cb519f1f568667faab5ced1b4ab979d36837eae\", \"size\": 5}], \"pipeline\": \"main.nf\", \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": true, \"revision\": null, \"run_name\": \"sick_bell\", \"trace\": true}, \"env_lines\": [], \"exit_source\": \"response\", \"exit_status\": 0, \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"main.nf\", \"sha256\": \"8f129193e86e2857583cfe85a53ae78cf60330f840fd04e6f7e3281980f166e8\", \"size\": 12}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"sbatch job.sh\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": \"response\", \"exit_status\": 0, \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": \"9\", \"kind\": \"sbatch\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"snakemake --configfile config/c.yaml -j 4\", \"command_env\": null, \"cwd\": \".\", \"engine\": {\"configfiles\": [\"config/c.yaml\"], \"files\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"config/c.yaml\", \"sha256\": \"37b128c59f1f5097f73f82691cb519f1f568667faab5ced1b4ab979d36837eae\", \"size\": 5}], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": \"response\", \"exit_status\": 0, \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"snakemake\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | sbatch | nextflow | snakemake | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; python (plan 00000001); nextflow (plan 00000001); sbatch (plan 00000001); snakemake (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"python analysis/x.py\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"nextflow run main.nf -params-file params.yaml -resume -with-trace\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"engine\": {\"files\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"params.yaml\", \"sha256\": \"37b128c59f1f5097f73f82691cb519f1f568667faab5ced1b4ab979d36837eae\", \"size\": 5}], \"pipeline\": \"main.nf\", \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": true, \"revision\": null, \"run_name\": null, \"trace\": true}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"main.nf\", \"sha256\": \"8f129193e86e2857583cfe85a53ae78cf60330f840fd04e6f7e3281980f166e8\", \"size\": 12}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"sbatch job.sh\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"snakemake --configfile config/c.yaml -j 4\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"engine\": {\"configfiles\": [\"config/c.yaml\"], \"files\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"config/c.yaml\", \"sha256\": \"37b128c59f1f5097f73f82691cb519f1f568667faab5ced1b4ab979d36837eae\", \"size\": 5}], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"snakemake\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | sbatch | nextflow | snakemake | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "post exotic response": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: sbatch job 31337 (plan 00000001); python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"sbatch job.sh\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": \"31337\", \"kind\": \"sbatch\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"lst\", \"nested\", \"stdout\"], \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"lst\", \"nested\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | sbatch | analysis/x.py | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; sbatch (plan 00000001); python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"sbatch job.sh\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"lst\", \"nested\", \"stdout\"], \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"python analysis/x.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"lst\", \"nested\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | sbatch | analysis/x.py | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "post dirty git": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001); python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"modified\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\", \"size\": 12}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"python analysis/new.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/new.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/new.py\", \"sha256\": \"a80ac71a28f94cd42123f2e97d4ef92ffbd48849a188edc27f06a04acc06dc8c\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py analysis/new.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; python (plan 00000001); python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"python analysis/x.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"modified\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\", \"size\": 12}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"python analysis/new.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/new.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/new.py\", \"sha256\": \"a80ac71a28f94cd42123f2e97d4ef92ffbd48849a188edc27f06a04acc06dc8c\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py analysis/new.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #3": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: quarto (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"uv run quarto nbs/n.ipynb --configfile sub/../analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": \"response\", \"exit_status\": 1, \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"quarto\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"nbs/n.ipynb\", \"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"nbs/n.ipynb\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n| 6 | a b.py | repo: `repo:` x | ok |\\n| 4 | --wrap=python analysis/x.py | repo: `repo:` x | ok |\\n| 9 | ~ | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; quarto (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"uv run quarto nbs/n.ipynb --configfile sub/../analysis/x.py\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 1, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"quarto\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"nbs/n.ipynb\", \"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"nbs/n.ipynb\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n| 6 | a b.py | repo: `repo:` x | ok |\\n| 4 | --wrap=python analysis/x.py | repo: `repo:` x | ok |\\n| 9 | ~ | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #6": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: nextflow (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"nextflow $HOME $HOME job.sh workflow/Snakefile\", \"command_env\": null, \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000007\", \"00000008\", \"00000001\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 4 | -params-file | repo: `repo:` x | ok |\\n| 6 | nextflow | repo: `repo:` x | ok |\\n| 7 | sbatch | repo: `repo:` x | ok |\\n| 1 | nbs/n.ipynb | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | ../outside.py | repo: `repo:` x | ok |\\n| 3 | sbatch | repo: `repo:` x | ok |\\n| 4 | nbs/n.ipynb | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | --configfile | repo: `repo:` x | ok |\\n| 2 | nbs/n.ipynb | repo: `repo:` x | ok |\\n| 4 | -params-file | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000004.json",
+            "{\"hash\": \"00000004\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | snakemake | repo: `repo:` x | ok |\\n| 3 | 4 | repo: `repo:` x | ok |\\n| 1 | ~ | repo: `repo:` x | ok |\\n| 6 | x.dat | repo: `repo:` x | ok |\\n| 5 | | | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000005.json",
+            "{\"hash\": \"00000005\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 5 | -o | repo: `repo:` x | ok |\\n| 9 | job.sh | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000006.json",
+            "{\"hash\": \"00000006\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 6 | --configfile | repo: `repo:` x | ok |\\n| 6 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n| 6 | -c | repo: `repo:` x | ok |\\n| 3 | ~ | repo: `repo:` x | ok |\\n| 3 | analysis/x.py | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000007.json",
+            "{\"hash\": \"00000007\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | -params-file | repo: `repo:` x | ok |\\n| 8 | -c | repo: `repo:` x | ok |\\n| 3 | a b.py | repo: `repo:` x | ok |\\n| 7 | nextflow | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000008.json",
+            "{\"hash\": \"00000008\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | snakemake | repo: `repo:` x | ok |\\n| 8 | x.dat | repo: `repo:` x | ok |\\n| 2 | nextflow | repo: `repo:` x | ok |\\n| 7 | logs/%j.out | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "1"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; nextflow (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"nextflow $HOME $HOME job.sh workflow/Snakefile\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000007\", \"00000008\", \"00000001\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 4 | -params-file | repo: `repo:` x | ok |\\n| 6 | nextflow | repo: `repo:` x | ok |\\n| 7 | sbatch | repo: `repo:` x | ok |\\n| 1 | nbs/n.ipynb | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | ../outside.py | repo: `repo:` x | ok |\\n| 3 | sbatch | repo: `repo:` x | ok |\\n| 4 | nbs/n.ipynb | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | --configfile | repo: `repo:` x | ok |\\n| 2 | nbs/n.ipynb | repo: `repo:` x | ok |\\n| 4 | -params-file | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000004.json",
+            "{\"hash\": \"00000004\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | snakemake | repo: `repo:` x | ok |\\n| 3 | 4 | repo: `repo:` x | ok |\\n| 1 | ~ | repo: `repo:` x | ok |\\n| 6 | x.dat | repo: `repo:` x | ok |\\n| 5 | | | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000005.json",
+            "{\"hash\": \"00000005\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 5 | -o | repo: `repo:` x | ok |\\n| 9 | job.sh | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000006.json",
+            "{\"hash\": \"00000006\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 6 | --configfile | repo: `repo:` x | ok |\\n| 6 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n| 6 | -c | repo: `repo:` x | ok |\\n| 3 | ~ | repo: `repo:` x | ok |\\n| 3 | analysis/x.py | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000007.json",
+            "{\"hash\": \"00000007\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | -params-file | repo: `repo:` x | ok |\\n| 8 | -c | repo: `repo:` x | ok |\\n| 3 | a b.py | repo: `repo:` x | ok |\\n| 7 | nextflow | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000008.json",
+            "{\"hash\": \"00000008\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | snakemake | repo: `repo:` x | ok |\\n| 8 | x.dat | repo: `repo:` x | ok |\\n| 2 | nextflow | repo: `repo:` x | ok |\\n| 7 | logs/%j.out | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "1"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #22": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: nextflow (plan 00000007).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"nextflow -c\", \"command_env\": null, \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": \"warm_dog\", \"trace\": null}, \"env_lines\": [], \"exit_source\": \"response\", \"exit_status\": 1, \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000007\"], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | | | repo: `repo:` x | ok |\\n| 2 | x.dat | repo: `repo:` x | ok |\\n| 7 | | | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | --wrap=python analysis/x.py | repo: `repo:` x | ok |\\n| 3 | logs/%j.out | repo: `repo:` x | ok |\\n| 7 | 4 | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | | | repo: `repo:` x | ok |\\n| 7 | renv.lock | repo: `repo:` x | ok |\\n| 2 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 5 | main.nf | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000004.json",
+            "{\"hash\": \"00000004\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | python analysis/x.py | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000005.json",
+            "{\"hash\": \"00000005\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | workflow/Snakefile | repo: `repo:` x | ok |\\n| 2 | ../outside.py | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000006.json",
+            "{\"hash\": \"00000006\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | sub/../analysis/x.py | repo: `repo:` x | ok |\\n| 2 | ; | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000007.json",
+            "{\"hash\": \"00000007\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | logs/%j.out | repo: `repo:` x | ok |\\n| 6 | nextflow | repo: `repo:` x | ok |\\n| 9 | nbs/n.ipynb | repo: `repo:` x | ok |\\n| 4 | snakemake | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000008.json",
+            "{\"hash\": \"00000008\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 6 | a b.py | repo: `repo:` x | ok |\\n| 3 | analysis/x.py | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; nextflow (plan 00000007).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"nextflow -c\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 1, \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000007\"], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | | | repo: `repo:` x | ok |\\n| 2 | x.dat | repo: `repo:` x | ok |\\n| 7 | | | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | --wrap=python analysis/x.py | repo: `repo:` x | ok |\\n| 3 | logs/%j.out | repo: `repo:` x | ok |\\n| 7 | 4 | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | | | repo: `repo:` x | ok |\\n| 7 | renv.lock | repo: `repo:` x | ok |\\n| 2 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 5 | main.nf | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000004.json",
+            "{\"hash\": \"00000004\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | python analysis/x.py | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000005.json",
+            "{\"hash\": \"00000005\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | workflow/Snakefile | repo: `repo:` x | ok |\\n| 2 | ../outside.py | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000006.json",
+            "{\"hash\": \"00000006\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | sub/../analysis/x.py | repo: `repo:` x | ok |\\n| 2 | ; | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000007.json",
+            "{\"hash\": \"00000007\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | logs/%j.out | repo: `repo:` x | ok |\\n| 6 | nextflow | repo: `repo:` x | ok |\\n| 9 | nbs/n.ipynb | repo: `repo:` x | ok |\\n| 4 | snakemake | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000008.json",
+            "{\"hash\": \"00000008\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 6 | a b.py | repo: `repo:` x | ok |\\n| 3 | analysis/x.py | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #26": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: nextflow (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"nextflow params.yaml <OUT>/fixture.dat config/c.yaml params.yaml\", \"command_env\": null, \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | | | repo: `repo:` x | ok |\\n| 4 | ; | repo: `repo:` x | ok |\\n| 6 | nbs/n.ipynb | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "2"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; nextflow (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"nextflow params.yaml <OUT>/fixture.dat config/c.yaml params.yaml\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | | | repo: `repo:` x | ok |\\n| 4 | ; | repo: `repo:` x | ok |\\n| 6 | nbs/n.ipynb | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "2"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #32": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000003).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"srun python 4 --wrap=python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000003\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"modified\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\", \"size\": 12}, \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | nbs/n.ipynb | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 6 | a b.py | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n| 2 | x.dat | repo: `repo:` x | ok |\\n| 1 | --parsable | repo: `repo:` x | ok |\\n| 5 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 3 | params.yaml | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; python (plan 00000003).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"srun python 4 --wrap=python analysis/x.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000003\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"modified\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\", \"size\": 12}, \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | nbs/n.ipynb | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 6 | a b.py | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n| 2 | x.dat | repo: `repo:` x | ok |\\n| 1 | --parsable | repo: `repo:` x | ok |\\n| 5 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 3 | params.yaml | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #38": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: nextflow (plan 00000002); sbatch job 41098 (no approved plan); nextflow (plan 00000002).\", \"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"mycelium-extra: that was an exploratory run, not reportable. If you record a learning or finding from it (for example under Mycelium's post-action protocol), label it `Exploratory run (not reportable)`, and do not cite its outputs as results.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"MYCELIUM_EXTRA_EXPLORE=1 nextflow\", \"command_env\": null, \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": true, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000002\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"sbatch params.yaml --parsable a b.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"job_id\": \"41098\", \"kind\": \"sbatch\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"params.yaml\", \"sha256\": \"37b128c59f1f5097f73f82691cb519f1f568667faab5ced1b4ab979d36837eae\", \"size\": 5}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"MYCELIUM_EXTRA_EXPLORE=1 nextflow --configfile -o x.dat -c\", \"command_env\": null, \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": true, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000002\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | job.sh | repo: `repo:` x | ok |\\n| 1 | config/c.yaml | repo: `repo:` x | ok |\\n| 2 | --configfile | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | ../outside.py | repo: `repo:` x | ok |\\n| 2 | nextflow | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | $HOME | repo: `repo:` x | ok |\\n| 1 | ~ | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; nextflow (plan 00000002); sbatch (no approved plan); nextflow (plan 00000002).\", \"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"mycelium-extra: that was an exploratory run, not reportable. If you record a learning or finding from it (for example under Mycelium's post-action protocol), label it `Exploratory run (not reportable)`, and do not cite its outputs as results.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"MYCELIUM_EXTRA_EXPLORE=1 nextflow\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": true, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000002\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"sbatch params.yaml --parsable a b.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"params.yaml\", \"sha256\": \"37b128c59f1f5097f73f82691cb519f1f568667faab5ced1b4ab979d36837eae\", \"size\": 5}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"MYCELIUM_EXTRA_EXPLORE=1 nextflow --configfile -o x.dat -c\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": true, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000002\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | job.sh | repo: `repo:` x | ok |\\n| 1 | config/c.yaml | repo: `repo:` x | ok |\\n| 2 | --configfile | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | ../outside.py | repo: `repo:` x | ok |\\n| 2 | nextflow | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | $HOME | repo: `repo:` x | ok |\\n| 1 | ~ | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #39": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: analysis/x.py,w (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | renv.lock | repo: `repo:` x | ok |\\n| 3 | job.sh | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "3"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; analysis/x.py,w (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | renv.lock | repo: `repo:` x | ok |\\n| 3 | job.sh | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "3"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #57": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: papermill (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"papermill sub/../analysis/x.py -params-file\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": \"response\", \"exit_status\": 0, \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"papermill\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "3"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; papermill (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"papermill sub/../analysis/x.py -params-file\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"papermill\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "3"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #67": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: sbatch (no approved plan); analysis/x.py,w (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"sbatch import sys\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; sbatch (no approved plan); analysis/x.py,w (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"sbatch import sys\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #91": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: nextflow (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"nextflow\", \"command_env\": null, \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; nextflow (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"nextflow\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #100": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: snakemake (no approved plan); analysis/x.py,w (no approved plan); snakemake (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"env snakemake python analysis/x.py renv.lock $HOME import sys\", \"command_env\": null, \"cwd\": \".\", \"engine\": {\"configfiles\": [], \"files\": [], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": \"response\", \"exit_status\": 0, \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"snakemake\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": \"response\", \"exit_status\": 0, \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"snakemake sub/../analysis/x.py params.yaml\", \"command_env\": null, \"cwd\": \".\", \"engine\": {\"configfiles\": [], \"files\": [], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": \"response\", \"exit_status\": 0, \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"snakemake\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 2 | --resume | repo: `repo:` x | ok |\\n| 8 | | | repo: `repo:` x | ok |\\n| 1 | | | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 6 | -params-file | repo: `repo:` x | ok |\\n| 4 | workflow/Snakefile | repo: `repo:` x | ok |\\n| 8 | params.yaml | repo: `repo:` x | ok |\\n| 2 | --configfile | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | 4 | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; snakemake (no approved plan); analysis/x.py,w (no approved plan); snakemake (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"env snakemake python analysis/x.py renv.lock $HOME import sys\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"engine\": {\"configfiles\": [], \"files\": [], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"snakemake\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"snakemake sub/../analysis/x.py params.yaml\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"engine\": {\"configfiles\": [], \"files\": [], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"snakemake\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 2 | --resume | repo: `repo:` x | ok |\\n| 8 | | | repo: `repo:` x | ok |\\n| 1 | | | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 6 | -params-file | repo: `repo:` x | ok |\\n| 4 | workflow/Snakefile | repo: `repo:` x | ok |\\n| 8 | params.yaml | repo: `repo:` x | ok |\\n| 2 | --configfile | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | 4 | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #103": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: sbatch (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"sbatch ~\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | | | repo: `repo:` x | ok |\\n| 3 | main.nf | repo: `repo:` x | ok |\\n| 4 | config/c.yaml | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "1"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; sbatch (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"sbatch ~\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | | | repo: `repo:` x | ok |\\n| 3 | main.nf | repo: `repo:` x | ok |\\n| 4 | config/c.yaml | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "1"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #111": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: analysis/x.py,w (no approved plan); snakemake (plan 00000007).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"ts\": 0}\n{\"command\": \"snakemake --configfile 4 <OUT>/fixture.dat\", \"command_env\": null, \"cwd\": \".\", \"engine\": {\"configfiles\": [\"4\", \"<OUT>/fixture.dat\"], \"files\": [{\"in_repo\": true, \"missing\": true, \"path\": \"4\"}, {\"in_repo\": false, \"mtime\": 0, \"path\": \"<OUT>/fixture.dat\", \"sha256\": \"5039d2f9c0183f5093217361486b04efa6d3c631eab8af3c58d7fba98fc71d8e\", \"size\": 25}], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"snakemake\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000007\"], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | 4 | repo: `repo:` x | ok |\\n| 1 | --wrap=python analysis/x.py | repo: `repo:` x | ok |\\n| 1 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 4 | $HOME | repo: `repo:` x | ok |\\n| 9 | --configfile | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | job.sh | repo: `repo:` x | ok |\\n| 6 | python analysis/x.py | repo: `repo:` x | ok |\\n| 1 | $HOME | repo: `repo:` x | ok |\\n| 7 | python analysis/x.py | repo: `repo:` x | ok |\\n| 3 | config/c.yaml | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | main.nf | repo: `repo:` x | ok |\\n| 5 | sbatch | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000004.json",
+            "{\"hash\": \"00000004\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | params.yaml | repo: `repo:` x | ok |\\n| 7 | ; | repo: `repo:` x | ok |\\n| 1 | ~ | repo: `repo:` x | ok |\\n| 4 | ; | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000005.json",
+            "{\"hash\": \"00000005\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | job.sh | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000006.json",
+            "{\"hash\": \"00000006\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | | | repo: `repo:` x | ok |\\n| 2 | ../outside.py | repo: `repo:` x | ok |\\n| 4 | ; | repo: `repo:` x | ok |\\n| 5 | --wrap=python analysis/x.py | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000007.json",
+            "{\"hash\": \"00000007\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | -j | repo: `repo:` x | ok |\\n| 8 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 1 | sbatch | repo: `repo:` x | ok |\\n| 8 | snakemake | repo: `repo:` x | ok |\\n| 3 | workflow/Snakefile | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000008.json",
+            "{\"hash\": \"00000008\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | - | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; analysis/x.py,w (no approved plan); snakemake (plan 00000007).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"ts\": 0}\n{\"command\": \"snakemake --configfile 4 <OUT>/fixture.dat\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"configfiles\": [\"4\", \"<OUT>/fixture.dat\"], \"files\": [{\"in_repo\": true, \"missing\": true, \"path\": \"4\"}, {\"in_repo\": false, \"mtime\": 0, \"path\": \"<OUT>/fixture.dat\", \"sha256\": \"5039d2f9c0183f5093217361486b04efa6d3c631eab8af3c58d7fba98fc71d8e\", \"size\": 25}], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"snakemake\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000007\"], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | 4 | repo: `repo:` x | ok |\\n| 1 | --wrap=python analysis/x.py | repo: `repo:` x | ok |\\n| 1 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 4 | $HOME | repo: `repo:` x | ok |\\n| 9 | --configfile | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | job.sh | repo: `repo:` x | ok |\\n| 6 | python analysis/x.py | repo: `repo:` x | ok |\\n| 1 | $HOME | repo: `repo:` x | ok |\\n| 7 | python analysis/x.py | repo: `repo:` x | ok |\\n| 3 | config/c.yaml | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | main.nf | repo: `repo:` x | ok |\\n| 5 | sbatch | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000004.json",
+            "{\"hash\": \"00000004\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | params.yaml | repo: `repo:` x | ok |\\n| 7 | ; | repo: `repo:` x | ok |\\n| 1 | ~ | repo: `repo:` x | ok |\\n| 4 | ; | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000005.json",
+            "{\"hash\": \"00000005\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | job.sh | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000006.json",
+            "{\"hash\": \"00000006\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | | | repo: `repo:` x | ok |\\n| 2 | ../outside.py | repo: `repo:` x | ok |\\n| 4 | ; | repo: `repo:` x | ok |\\n| 5 | --wrap=python analysis/x.py | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000007.json",
+            "{\"hash\": \"00000007\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | -j | repo: `repo:` x | ok |\\n| 8 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 1 | sbatch | repo: `repo:` x | ok |\\n| 8 | snakemake | repo: `repo:` x | ok |\\n| 3 | workflow/Snakefile | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000008.json",
+            "{\"hash\": \"00000008\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | - | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    },
+    "fuzz #117": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: analysis/x.py,w (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": \"response\", \"exit_status\": 0, \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n| 5 | snakemake | repo: `repo:` x | ok |\\n| 6 | -o | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | x.dat | repo: `repo:` x | ok |\\n| 1 | config/c.yaml | repo: `repo:` x | ok |\\n| 3 | - | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | main.nf | repo: `repo:` x | ok |\\n| 7 | 4 | repo: `repo:` x | ok |\\n| 4 | -o | repo: `repo:` x | ok |\\n| 3 | config/c.yaml | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; analysis/x.py,w (no approved plan).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n| 5 | snakemake | repo: `repo:` x | ok |\\n| 6 | -o | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | x.dat | repo: `repo:` x | ok |\\n| 1 | config/c.yaml | repo: `repo:` x | ok |\\n| 3 | - | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | main.nf | repo: `repo:` x | ok |\\n| 7 | 4 | repo: `repo:` x | ok |\\n| 4 | -o | repo: `repo:` x | ok |\\n| 3 | config/c.yaml | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ]
+        ]
+      },
+      "rationale": "conservative compound-command per-step receipt attribution"
+    }
+  }
+}

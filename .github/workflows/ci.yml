@@ -19,6 +19,7 @@ jobs:
         # because PEP 538 hides locale bugs from 3.7 on.
         include:
           - {image: "python:3.6-bullseye", locale: C}
+          - {image: "python:3.12-bookworm", locale: C.UTF-8}
           - {image: "python:3.14-bookworm", locale: C.UTF-8}
     container: ${{ matrix.image }}
     env:
@@ -53,4 +54,6 @@ jobs:
           fetch-depth: 0
       - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Gate decisions against the PR base
-        run: python3 hooks/tests/gate_diff.py --base ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 hooks/tests/gate_diff.py --base 384e6394b71cdae6ab983f0b10fa8d4f5e65c900 --expect hooks/tests/gate_diff_expected.json
+          python3 hooks/tests/gate_diff.py --self-check

@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tarfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -42,11 +43,11 @@ BASE_FILES = {"analysis/x.py": "print(1)\n", "nbs/n.ipynb": "{}\n", "renv.lock":
 
 
 def case(name, kind, payload, files=None, approvals=(), git=None, explore=(), seen=None,
-         symlinks=False, outside=False, session="s1"):
+         symlinks=False, outside=False, session="s1", approval_session=None):
     """One hook event plus the repository it runs in, all as plain data."""
     return dict(name=name, kind=kind, payload=payload, files=dict(BASE_FILES, **(files or {})),
                 approvals=list(approvals), git=git, explore=list(explore), seen=seen,
-                symlinks=symlinks, outside=outside, session=session)
+                symlinks=symlinks, outside=outside, session=session, approval_session=approval_session)
 
 
 def write(root, rel, text):
@@ -64,7 +65,8 @@ def build(root, c):
         write(root, rel, text)
     for i, (age, plan, *scripts) in enumerate(c["approvals"]):
         digest = "%08x" % (i + 1)
-        record = {"hash": digest, "approved_at": time.time() - age, "plan": plan}
+        record = {"hash": digest, "approved_at": time.time() - age, "plan": plan,
+                  "session_id": c.get("approval_session") or c["session"]}
         if scripts:  # scripts pinned at approval: {path: the text they had then}
             record["scripts"] = {rel: {"size": len(text.encode()), "mtime": 0,
                                        "sha256": hashlib.sha256(text.encode()).hexdigest()}
@@ -78,6 +80,7 @@ def build(root, c):
         write(root, ".mycelium-extra/pending/s1.explore-seen", str(c["seen"]))
     if c["symlinks"]:
         os.symlink(os.path.join(root, "analysis"), os.path.join(root, "link"))
+        os.symlink(state, os.path.join(root, "alias"))
         os.symlink("/nonexistent/dead", os.path.join(root, "dead"))
     if c["git"]:
         write(root, ".gitignore", ".mycelium-extra/\nlogs/\n*.dat\n")
@@ -97,8 +100,11 @@ def run(gate, c):
     root = tempfile.mkdtemp(prefix="gate-diff-")
     elsewhere = tempfile.mkdtemp(prefix="gate-diff-out-")
     try:
+        # Never fingerprint a host account file: both sides see the same fixed external fixture.
+        c = json.loads(json.dumps(c).replace("/etc/passwd", os.path.join(elsewhere, "fixture.dat")))
         state = build(root, c)
         write(elsewhere, "analysis/y.py", "print(9)\n")
+        write(elsewhere, "fixture.dat", "synthetic external input\n")
         event = dict(c["payload"], session_id=c["session"], cwd=elsewhere if c["outside"] else root)
         proc = subprocess.Popen([sys.executable, gate, c["kind"]], stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -113,6 +119,7 @@ def run(gate, c):
                     files.append((os.path.relpath(full, root), handle.read()))
 
         def norm(text):
+            text = re.sub(r"<GATE>:\d+:", "<GATE>:<LINE>:", text.replace(os.path.abspath(gate), "<GATE>"))
             text = text.replace(root, "<ROOT>").replace(elsewhere, "<OUT>")
             for pattern, repl in VOLATILE:
                 text = pattern.sub(repl, text)
@@ -141,6 +148,8 @@ def scenarios():
     return [
         case("tool gated runs, no plan", "tool", bash("python analysis/x.py; sbatch job.sh; snakemake -j 1")),
         case("tool covered run", "tool", bash("python analysis/x.py"), approvals=approved),
+        case("tool approval from another session", "tool", bash("python analysis/x.py"),
+             approvals=approved, approval_session="previous-session"),
         case("tool script as approved", "tool", bash("python analysis/x.py"),
              approvals=[(0, PLAN, {"analysis/x.py": BASE_FILES["analysis/x.py"]})]),
         case("tool script edited since approval", "tool", bash("python analysis/x.py"),
@@ -156,6 +165,15 @@ def scenarios():
         case("tool big plan many approvals", "tool", bash("sbatch job.sh; python analysis/dir3/mod9.py"),
              approvals=[(i * 60, BIGPLAN) for i in range(12)]),
         case("tool symlinked repo", "tool", bash("python link/x.py; rm dead"), symlinks=True),
+        case("tool state symlink write", "tool", bash("rm alias/gate.json"), symlinks=True),
+        case("tool quoted spaced script", "tool", bash('python "analysis/my script.py"'),
+             files={"analysis/my script.py": "print(1)\n"},
+             approvals=[(0, PLAN.replace("analysis/x.py", "analysis/my script.py"))]),
+        case("tool spaced script grants no fragment folder", "tool", bash("python analysis/my/other.py"),
+             files={"analysis/my script.py": "print(1)\n"},
+             approvals=[(0, PLAN.replace("analysis/x.py", "analysis/my script.py"))]),
+        case("tool corrupt approval", "tool", bash("python analysis/x.py"),
+             files={".mycelium-extra/approvals/broken.json": "[]"}),
         case("tool write into state", "tool",
              bash("rm -rf .mycelium-extra/approvals; echo x > .mycelium-extra/pending/p.json"), approvals=approved),
         case("tool Write into state", "tool",
@@ -285,30 +303,65 @@ def main():
     parser.add_argument("--new", default=os.path.join(REPO, "hooks", "gate.py"), help="the new gate entry point")
     parser.add_argument("--fuzz", type=int, default=120, help="random cases after the fixed ones (default 120)")
     parser.add_argument("--seed", type=int, default=1234)
+    parser.add_argument("--expect", help="reviewed exact old/new observations for intentional differences")
+    parser.add_argument("--self-check", action="store_true", help="compare identical current source; require no differences")
     args = parser.parse_args()
     folder = tempfile.mkdtemp(prefix="gate-diff-base-")
     try:
-        old = os.path.join(folder, "gate.py")
-        with open(old, "wb") as handle:
-            handle.write(subprocess.check_output(["git", "-C", REPO, "show", args.base + ":hooks/gate.py"]))
+        old = os.path.join(folder, "hooks", "gate.py")
+        # Each tree supplies its own complete dependencies; missing siblings can change a verdict.
+        archive = subprocess.Popen(["git", "-C", REPO, "archive", args.base], stdout=subprocess.PIPE)
+        with tarfile.open(fileobj=archive.stdout, mode="r|") as source:
+            source.extractall(folder)
+        archive.stdout.close()
+        if archive.wait():
+            return 1
+        if args.self_check:
+            old = os.path.abspath(args.new)
         cases = scenarios() + fuzz_cases(args.fuzz, args.seed)
-        fails = 0
+        actual = {}
         for c in cases:
             a, b = run(old, c), run(os.path.abspath(args.new), c)
             diffs = [field for field in ("rc", "out", "err", "state") if a[field] != b[field]]
             if diffs:
-                fails += 1
+                actual[c["name"]] = {"old": a, "new": b}
                 print("FAIL  {} ({})".format(c["name"], ", ".join(diffs)))
                 if c["kind"] in ("tool", "post"):
                     print("   command: {!r}".format(c["payload"]["tool_input"]["command"]))
                 for field in diffs:
                     print("   {} old: {!r}\n   {} new: {!r}".format(field, a[field], field, b[field])[:2000])
         print("{} {}: {}/{} identical (base {}, new {})".format(
-            os.path.basename(sys.executable), sys.version.split()[0], len(cases) - fails, len(cases),
+            os.path.basename(sys.executable), sys.version.split()[0], len(cases) - len(actual), len(cases),
             args.base, os.path.relpath(os.path.abspath(args.new), REPO)))
-        return 1 if fails else 0
+        if args.expect and not args.self_check:
+            with open(args.expect, encoding="utf-8") as handle:
+                expected = json.load(handle)
+            base = subprocess.check_output(["git", "-C", REPO, "rev-parse", args.base]).decode().strip()
+            if (expected["base"] != base or expected["fuzz"] != args.fuzz
+                    or expected["seed"] != args.seed or expected["cases"] != len(cases)):
+                print("Expectation metadata does not match this comparison")
+                return 1
+            # JSON normalizes tuple/list representation without suppressing any observed value.
+            problems = expectation_errors(json.loads(json.dumps(actual)), expected["differences"])
+            for problem in problems:
+                print(problem)
+            print("Exact intentional differences: {} checked".format(len(actual)))
+            return 1 if problems else 0
+        return 1 if actual else 0
     finally:
         shutil.rmtree(folder, ignore_errors=True)
+
+
+def expectation_errors(actual, expected):
+    problems = []
+    for name in sorted(set(actual) | set(expected)):
+        if name not in actual:
+            problems.append("Missing expected difference: " + name)
+        elif name not in expected:
+            problems.append("Unexpected difference: " + name)
+        elif actual[name] != {k: expected[name][k] for k in ("old", "new")}:
+            problems.append("Changed expected difference: " + name)
+    return problems
 
 
 if __name__ == "__main__":
