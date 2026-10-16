@@ -27,10 +27,20 @@ def find_root(cwd):  # gate.find_root, copied so the gate need not load; a test 
         path = parent
 
 
-def error_output(name, error, cwd):
+def identity(event, host=None):
+    """Who and which call an error belongs to, as far as the event can be decoded; None for what it cannot."""
+    event = event if isinstance(event, dict) else {}
+    found = {"host": host or event.get("host"), "session_id": event.get("session_id") or event.get("thread_id"),
+             "call_id": event.get("tool_use_id") or event.get("tool_call_id") or event.get("call_id")}
+    return dict((key, value if isinstance(value, (str, int)) and not isinstance(value, bool) else None)
+                for key, value in found.items())
+
+
+def error_output(name, error, cwd, event=None, host=None):
     """The hook's reply when the gate itself broke. It fails open unless gate.json sets
     "on_error": "deny", which blocks every tool call the gate could not check. It reads gate.json on
-    its own, so it works when gate.py cannot even be imported; an unreadable file cannot opt in."""
+    its own, so it works when gate.py cannot even be imported; an unreadable file cannot opt in. The error is
+    logged with the event, decision, host, session and call id when the event could be decoded."""
     note, policy = "", "allow"
     root = None
     try:
@@ -43,25 +53,27 @@ def error_output(name, error, cwd):
             note = ' "on_error" in gate.json must be "allow" or "deny"; allowing.'
     except Exception:
         note = " gate.json is unreadable, so it cannot say what to do on an error; allowing." if root else ""
-    try:  # best-effort record; a failed write never changes the decision
+    try:  # best-effort record; a failed write never changes the decision and leaves no record at all
+        line = json.dumps(dict(identity(event, host), ts=int(time.time()), event=name, error=str(error),
+                               decision="deny" if policy == "deny" and name == "tool" else "allow")) + "\n"
         with open(os.path.join(root, STATE_DIR, "gate-errors.jsonl"), "a", encoding="utf-8") as log:
-            log.write(json.dumps({"ts": int(time.time()), "event": name, "error": str(error),
-                                  "decision": "deny" if policy == "deny" and name == "tool" else "allow"}) + "\n")
+            log.write(line)
     except Exception:
-        pass
+        if root:
+            note += " The error could not be recorded in gate-errors.jsonl."
     message = "mycelium-extra gate error ({}): {}; the gate did not run.".format(name, error)
     if policy == "deny" and name == "tool":
         return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
                 "permissionDecisionReason": message.replace("the gate did not run.",
                 "blocked because gate.json sets on_error to deny. Do not work around this block; "
-                "the user can fix the gate or set on_error to allow.")}}
+                "the user can fix the gate or set on_error to allow.") + note}}
     return {"systemMessage": message + note}
 
 
 def run(argv):
     host = None
     if len(argv) == 4 and argv[1:3] == ["--host", "codex"]:
-        host = "codex"
+        host = EVENT["host"] = "codex"
         argv = [argv[0], argv[3]]
     text = sys.stdin.buffer.read().decode("utf-8", "replace")  # Claude Code sends UTF-8, whatever the locale
     EVENT["text"] = text
@@ -164,10 +176,11 @@ def main(argv):
         return run(argv)
     except Exception as error:  # the gate would not load: still honour on_error
         try:
-            cwd = json.loads(EVENT.get("text", "")).get("cwd")
+            event = json.loads(EVENT.get("text", ""))
+            cwd = event.get("cwd")
         except Exception:
-            cwd = None
-        print(json.dumps(error_output(argv[-1], error, cwd or os.getcwd())))
+            event, cwd = None, None
+        print(json.dumps(error_output(argv[-1], error, cwd or os.getcwd(), event, EVENT.get("host"))))
         return 0
 
 

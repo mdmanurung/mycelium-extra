@@ -3546,7 +3546,7 @@ def main(argv, text=None):
     if len(argv) != 2 or argv[1] not in HANDLERS:
         print("usage: gate.py stop|prompt|tool|post", file=sys.stderr)
         return 0
-    cwd = os.getcwd()
+    cwd, event = os.getcwd(), None
     try:
         event = json.loads(text if text is not None else sys.stdin.buffer.read().decode("utf-8", "replace"))
         cwd = event.get("cwd") or cwd
@@ -3558,7 +3558,7 @@ def main(argv, text=None):
         emit(deny(str(error)) if argv[1] == "tool" else {"systemMessage": str(error)})
     except Exception as error:  # fail open, but tell the user the gate broke; on_error "deny" blocks
         from gate_run import error_output
-        emit(error_output(argv[1], error, cwd))
+        emit(error_output(argv[1], error, cwd, event))
     return 0
 
 

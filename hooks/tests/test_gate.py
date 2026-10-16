@@ -3171,6 +3171,83 @@ class AttemptEvidenceTest(unittest.TestCase):
         for receipt in self.receipts()[1:]:
             self.assertEqual(receipt["outputs_observation"], "skipped: compound shell command")
 
+    # C01: a gate error says which call it was
+
+    def errors(self):
+        path = self.path("gate-errors.jsonl")
+        if not os.path.isfile(path):
+            return []
+        with open(path, encoding="utf-8") as handle:
+            return [json.loads(line) for line in handle]
+
+    def run_entry(self, entry, args, payload):
+        proc = subprocess.Popen([sys.executable, entry] + args, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = proc.communicate(payload.encode("utf-8") if isinstance(payload, str)
+                                    else json.dumps(payload).encode("utf-8"))
+        self.assertEqual(proc.returncode, 0, err)
+        return json.loads(out.decode("utf-8"))
+
+    BROKEN = {"gated_commands": 5, "gated_paths": 5}  # the tool handler raises on a config it cannot read
+
+    def test_a_gate_error_records_event_decision_host_session_and_call(self):
+        for entry in (GATE, LAUNCHER):
+            self.config(self.BROKEN)
+            payload = {"tool_name": "Bash", "tool_input": {"command": "ls"}, "tool_use_id": "t9",
+                       "session_id": "sX", "cwd": self.root}
+            reply = self.run_entry(entry, ["tool"], payload)
+            self.assertFalse(self.denied(reply))
+            self.config(dict(self.BROKEN, on_error="deny"))
+            self.assertTrue(self.denied(self.run_entry(entry, ["tool"], payload)))
+        allowed, denied, allowed_again, denied_again = self.errors()
+        for record, decision in ((allowed, "allow"), (denied, "deny"), (allowed_again, "allow"), (denied_again, "deny")):
+            self.assertEqual((record["event"], record["decision"], record["session_id"], record["call_id"],
+                              record["host"]), ("tool", decision, "sX", "t9", None))
+            self.assertIn("ts", record)
+            self.assertIn("error", record)
+
+    def test_a_codex_gate_error_names_its_host_thread_and_call(self):
+        self.config(self.BROKEN)
+        payload = {"tool_name": "shell", "tool_input": {"command": ["ls"]}, "tool_use_id": "c1",
+                   "thread_id": "th1", "cwd": self.root}
+        self.run_entry(LAUNCHER, ["--host", "codex", "tool"], payload)
+        record, = self.errors()
+        self.assertEqual((record["host"], record["session_id"], record["call_id"]), ("codex", "th1", "c1"))
+
+    def test_an_unreadable_event_records_unknown_identity(self):
+        self.config({})
+        proc = subprocess.Popen([sys.executable, LAUNCHER, "tool"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, cwd=self.root)
+        proc.communicate(b"{not json")
+        record, = self.errors()
+        self.assertEqual((record["event"], record["session_id"], record["call_id"], record["host"]),
+                         ("tool", None, None, None))
+
+    def test_a_gate_that_cannot_load_still_records_identity(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        hooks = os.path.join(folder, "hooks")
+        os.makedirs(hooks)
+        shutil.copy(LAUNCHER, hooks)
+        with open(os.path.join(hooks, "gate.py"), "w") as broken:
+            broken.write("def main(:\n")
+        payload = {"tool_name": "Bash", "tool_input": {"command": "ls"}, "tool_use_id": "t5",
+                   "session_id": "sY", "cwd": self.root}
+        self.run_entry(os.path.join(hooks, "gate_run.py"), ["tool"], payload)
+        self.run_entry(os.path.join(hooks, "gate_run.py"), ["--host", "codex", "tool"], payload)
+        claude, codex = self.errors()
+        self.assertEqual((claude["session_id"], claude["call_id"], claude["host"]), ("sY", "t5", None))
+        self.assertEqual((codex["session_id"], codex["call_id"], codex["host"]), ("sY", "t5", "codex"))
+
+    def test_a_log_that_cannot_be_written_leaves_no_record_and_says_so(self):
+        self.config(self.BROKEN)
+        os.makedirs(self.path("gate-errors.jsonl"))  # a folder cannot be appended to
+        reply = self.run_entry(GATE, ["tool"], {"tool_name": "Bash", "tool_input": {"command": "ls"},
+                                                "session_id": "sX", "cwd": self.root})
+        self.assertFalse(self.denied(reply))
+        self.assertIn("could not be recorded", reply["systemMessage"])
+        self.assertEqual(os.listdir(self.path("gate-errors.jsonl")), [])
+
 
 if __name__ == "__main__":
     unittest.main()
