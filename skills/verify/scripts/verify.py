@@ -2198,9 +2198,20 @@ def render_explore(runs, scope):
     return "\n".join(lines) + "\n"
 
 
+ID_HEADERS = ("#", "id", "no", "no.")
+
+
+def squash(text):
+    """Whitespace collapsed to single spaces: what two plans are compared by, never shortened."""
+    return " ".join(str(text).split())
+
+
 def plan_rows(plan):
-    """The plan table's rows keyed by their first cell, each a {lowercased header: cell} dict."""
-    rows, header = collections.OrderedDict(), None
+    """(rows, unusable, columns) of the plan's tables. rows: the rows keyed by their ID cell (the
+    column headed `#`, `id`, `no` or `no.`, else the first), each a {lowercased header: cell} dict
+    with whitespace collapsed. unusable: {key: reason} for an ID used twice or a row with none (such
+    rows are not in `rows`: they cannot be matched, so they are never compared). columns: the headers."""
+    rows, unusable, columns, header, key_at = collections.OrderedDict(), collections.OrderedDict(), [], None, 0
     lines = plan.splitlines()
     for i, line in enumerate(lines):
         match = gate.TABLE_ROW.match(line)
@@ -2209,13 +2220,22 @@ def plan_rows(plan):
             continue
         if gate.TABLE_RULE.match(line):
             continue
-        cells = [cell.replace("\0", "|").strip() for cell in match.group(1).replace("\\|", "\0").split("|")]
+        cells = [squash(cell.replace("\0", "|")) for cell in match.group(1).replace("\\|", "\0").split("|")]
         following = lines[i + 1] if i + 1 < len(lines) else ""
         if gate.TABLE_ROW.match(following) and gate.TABLE_RULE.match(following):
             header = [cell.lower() for cell in cells]
-        elif header and cells[0]:
-            rows[cells[0]] = dict(zip(header, cells))
-    return rows
+            key_at = next((j for j, name in enumerate(header) if name in ID_HEADERS), 0)
+            columns += [name for name in header if name not in columns]
+        elif header:
+            key = cells[key_at] if key_at < len(cells) else ""
+            if not key:
+                unusable["(no ID)"] = "a row has no ID"
+            elif key in rows or key in unusable:
+                rows.pop(key, None)
+                unusable[key] = "duplicate ID"
+            else:
+                rows[key] = dict(zip(header, cells))
+    return rows, unusable, columns
 
 
 def shown_plan(root, digest):
@@ -2232,11 +2252,19 @@ def shown_plan(root, digest):
 
 
 def plan_changes(old_text, new_text):
-    """(step, column, was, now) for each plan-table cell that differs; column is "removed" or
-    "added" for a whole row, with its cells joined by " / "."""
-    before, after = plan_rows(old_text), plan_rows(new_text)
+    """(step, column, was, now) for each difference between two plans' tables. column is "removed" or
+    "added" for a whole row (its cells joined by " / "), "cannot compare" for an ID that is used
+    twice or missing, "column removed" for a dropped header, "order changed" for the same IDs in a
+    different order, else the header of a changed cell. Cells are compared whole, whitespace aside."""
+    (before, bad_before, columns_before), (after, bad_after, columns_after) = plan_rows(old_text), plan_rows(new_text)
     changes = []
+    for key in list(bad_before) + [k for k in bad_after if k not in bad_before]:
+        sides = " and ".join(name for name, bad in (("old", bad_before), ("new", bad_after)) if key in bad)
+        reason = (bad_before.get(key) or bad_after[key]).replace("a row has no ID", "row without an ID")
+        changes.append((key, "cannot compare", "{} in the {} plan".format(reason, sides), ""))
     for key in list(before) + [k for k in after if k not in before]:
+        if key in bad_before or key in bad_after:
+            continue
         if key not in after:
             changes.append((key, "removed", " / ".join(before[key].values()), ""))
         elif key not in before:
@@ -2244,11 +2272,46 @@ def plan_changes(old_text, new_text):
         else:
             changes += [(key, column, before[key].get(column, ""), now)
                         for column, now in after[key].items() if before[key].get(column, "") != now]
+    changes += [("", "column removed", name, "") for name in columns_before if name not in columns_after]
+    kept_before, kept_after = [k for k in before if k in after], [k for k in after if k in before]
+    if kept_before != kept_after:
+        changes.append(("", "order changed", " ".join(kept_before), " ".join(kept_after)))
     return changes
 
 
+def plan_objective(text):
+    """The plan's objective, whole and whitespace-collapsed ("" if none): the text after an
+    `Objective` marker or under an `## Objective` heading, up to a blank line or the next structure."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        found = gate.OBJECTIVE_LINE.match(line)
+        if found:
+            heading = re.match(r"^\s*#+\s*objective\s*$", line, re.IGNORECASE)
+            text = "" if heading else found.group(1)
+            for more in lines[i + 1:]:
+                if not more.strip():
+                    if text.strip():
+                        break
+                    continue
+                if gate.TABLE_ROW.match(more) or gate.INPUTS_LINE.match(more) or gate.OUTPUTS_LINE.match(more) \
+                        or re.match(r"^\s*#", more):
+                    break
+                text += " " + more
+            return squash(text)
+    return ""
+
+
+def plan_blocks(text, name):
+    """The raw text of each `<!-- name ... -->` comment block, in order. Not parsed: only compared."""
+    return [m.strip() for m in re.findall(r"<!--\s*" + name + r"\b(.*?)-->", text, re.DOTALL)]
+
+
 def diff_plans(root, old, new):
-    """What changed between two approved plans: table rows by step, and the `Inputs:` line."""
+    """What changed between two approved plans: the objective, table rows by step (added, removed,
+    changed, reordered, and dropped columns), the `Inputs:` and `Outputs:` lines, the raw
+    `validation-bindings` and `exact-execution` blocks, and the runs the plan table allows. Plans are
+    compared whole, with whitespace collapsed. This is exact equality of what the plans say, not a
+    judgement that the science is the same."""
     plans = []
     for digest in (old, new):
         record = read_approval(gate.state_path(root, "approvals", digest + ".json"))
@@ -2257,19 +2320,42 @@ def diff_plans(root, old, new):
             sys.exit("verify: no approved or shown plan {} (see `list`).".format(digest))
         plans.append(text)
     lines = ["# Plan diff {} -> {}".format(old, new), ""]
+    was, now = [plan_objective(text) for text in plans]
+    if was != now:
+        lines.append("- Objective changed: `{}` -> `{}`. **Possible scientific change.**".format(was or "none", now or "none"))
     for key, column, was, now in plan_changes(plans[0], plans[1]):
         if column == "removed":
             lines.append("- Step {}: removed (was: {}).".format(key, was))
         elif column == "added":
             lines.append("- Step {}: added: {}.".format(key, now))
+        elif column == "cannot compare":
+            lines.append("- Step {}: cannot compare ({}); its rows are not matched.".format(key, was))
+        elif column == "column removed":
+            lines.append("- Column `{}` removed.".format(was))
+        elif column == "order changed":
+            lines.append("- Step order changed: {} -> {}.".format(was, now))
         else:
             flag = " **Possible scientific change.**" if column == "choice" else ""
             lines.append("- Step {}, {}: `{}` -> `{}`.{}".format(key, column, was, now, flag))
-    was, now = [gate.plan_inputs(text) or [] for text in plans]
-    lines += ["- Inputs: + {}".format(word) for word in now if word not in was]
-    lines += ["- Inputs: - {}".format(word) for word in was if word not in now]
+    for label, words, pattern in (("Inputs", gate.plan_inputs, gate.INPUTS_LINE),
+                                  ("Outputs", gate.output_words, gate.OUTPUTS_LINE)):
+        was, now = [words(text) or [] for text in plans]
+        lines += ["- {}: + {}".format(label, word) for word in now if word not in was]
+        lines += ["- {}: - {}".format(label, word) for word in was if word not in now]
+        raw = [[squash(line) for line in pattern.findall(text)] for text in plans]
+        if raw[0] != raw[1] and was == now:  # the words parse alike (a quoted path, say) but the line differs
+            lines.append("- {}: line text changed: `{}` -> `{}`.".format(label, " ".join(raw[0]), " ".join(raw[1])))
+    for label, name in (("Validation bindings", "validation-bindings"), ("Exact execution", "exact-execution")):
+        was, now = [plan_blocks(text, name) for text in plans]
+        if was != now:
+            lines.append("- {}: {} (raw block text compared, not interpreted).".format(
+                label, "added" if not was else "removed" if not now else "changed"))
+    config = gate.load_config(root)
+    was, now = [sum(gate.plan_grants(root, text, config), []) for text in plans]
+    lines += ["- Scope: + {}".format(word) for word in now if word not in was]
+    lines += ["- Scope: - {}".format(word) for word in was if word not in now]
     if len(lines) == 2:
-        lines.append("No plan-table row or `Inputs:` entry changed.")
+        lines.append("No plan-table row, objective, `Inputs:`, `Outputs:`, binding block or scope changed.")
     return "\n".join(lines) + "\n"
 
 

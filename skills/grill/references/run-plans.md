@@ -12,6 +12,8 @@ A normal grill plan approves intent: Mycelium's analyze skill writes the code af
 
 `verify <plan-B hash>` then checks the run against plan B and freezes it into `provenance/`.
 
+When plan B is presented again after an edit, `verify diff <old> <new>` shows a complete difference summary against the plan it replaces: the objective, every changed, added, removed and reordered row, dropped columns, `Inputs:` and `Outputs:`, validation and exact-execution blocks, and the runs allowed. Show it; do not summarize it from memory. If the scientific question is unchanged (the Objective and every Choice cell are the same), the user needs that summary and a fresh approval, not another full interview: revisit a question only where the summary shows it changed.
+
 ## Which changes need a new plan
 
 A change that alters what the analysis claims needs a new plan, sourced and approved: the model, the contrast, which samples are included, a filter or threshold, a covariate, the unit of analysis, or swapping one tool for another.

@@ -56,6 +56,10 @@ After you confirm, `verify` writes `<analysis>/provenance/`:
 
 Commit it with the analysis. It never writes `PLAN.md`, `TRACKER.md`, or `specification.md`, so the analysis keeps one plan file. It then names the review command, `/mycelium:review <folder> — check the code against the approved plan in <folder>/provenance/plan-<hash>.md`.
 
+## Plan differences
+
+`verify diff <old> <new>` compares two plans whole, with whitespace collapsed and nothing shortened, so a change after a long shared prefix is still seen. It lists a changed objective; changed, added and removed table rows (keyed by the ID column: `#`, `id`, `no`, `no.`, else the first); dropped columns; a changed row order; changed `Inputs:` and `Outputs:` lines; the raw `<!-- validation-bindings -->` and `<!-- exact-execution -->` blocks, compared as text and not interpreted; and the runs the plan table allows. Rows whose ID is duplicated or missing are "cannot compare". The result is exact equality of what the plans say, not a judgement that the science is unchanged, and a formatting-only edit reports no change.
+
 ## Stale plans
 
 `verify stale` sweeps every verified plan. It lists the ones whose scripts, pinned inputs, or outputs changed since their provenance was written. For each, it gives a ready `rg` command that finds the findings resting on it in `.living/findings/`, by session ID or plan hash.

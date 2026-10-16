@@ -815,6 +815,95 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("No plan-table row", self.verify("diff", old, old))
         self.assertIn("needs the old and the new", self.verify("diff", old, fails=True))
 
+    def shown(self, text):
+        """The hash of a plan the gate showed but nobody approved, so `diff` can read it."""
+        return self.hook("stop", {"last_assistant_message": text})["systemMessage"].split("approve plan ")[1][:8]
+
+    def diff_of(self, old, new):
+        return self.verify("diff", self.shown(old), self.shown(new))
+
+    def test_diff_reports_a_change_after_a_long_shared_prefix(self):
+        prefix = "a long shared rationale " * 12  # well past 200 characters
+        base = plan("run `{}`".format(FIT))
+        out = self.diff_of(base.replace("| x |", "| {}alpha |".format(prefix)),
+                           base.replace("| x |", "| {}beta |".format(prefix)))
+        self.assertIn("Step 1, choice: `{}alpha` -> `{}beta`. **Possible scientific change.**".format(prefix, prefix), out)
+
+    def test_diff_reports_removed_row_and_removed_input(self):
+        out = self.diff_of(plan("run `{}`".format(FIT), "run `analysis/a/scripts/02_plot.py`",
+                                inputs="data/a.tsv, data/b.tsv"),
+                           plan("run `{}`".format(FIT), inputs="data/a.tsv"))
+        self.assertIn("- Step 2: removed (was: ", out)
+        self.assertIn("- Inputs: - data/b.tsv", out)
+
+    def test_diff_reports_reordered_steps(self):
+        first, second = "run `{}`".format(FIT), "run `analysis/a/scripts/02_plot.py`"
+        rows = plan(first, second).splitlines()
+        swapped = "\n".join(rows[:-4] + [rows[-3], rows[-4]] + rows[-2:])  # rows keep their IDs, change position
+        self.assertLess(swapped.index("| 2 |"), swapped.index("| 1 |"))
+        out = self.diff_of(plan(first, second), swapped)
+        self.assertIn("Step order changed: 1 2 -> 2 1", out)
+        self.assertNotIn("removed", out)
+        self.assertNotIn("added", out)
+
+    def test_diff_reports_removed_column(self):
+        old = plan("run `{}`".format(FIT))
+        new = old.replace("| # | Step | Choice | Source | Validation |", "| # | Step | Choice | Source |").replace(
+            "|---|---|---|---|---|", "|---|---|---|---|").replace("| x | user | ok |", "| x | user |")
+        self.assertIn("- Column `validation` removed.", self.diff_of(old, new))
+
+    def test_diff_cannot_compare_duplicate_ids(self):
+        old = plan("run `{}`".format(FIT), "run `analysis/a/scripts/02_plot.py`")
+        new = old.replace("| 2 | run `analysis/a/scripts/02_plot.py` | x |", "| 1 | run `analysis/a/scripts/02_plot.py` | y |")
+        out = self.diff_of(old, new)
+        self.assertIn("- Step 1: cannot compare (duplicate ID in the new plan)", out)
+        self.assertIn("- Step 2: removed", out)
+        self.assertNotIn("Step 1, choice", out)  # the overwritten row is not silently compared
+
+    def test_diff_reads_id_headers_in_any_column_and_rows_without_one(self):
+        verify = gate.load_verify()
+        table = "| Step | {} | Choice |\n|---|---|---|\n| run a | 7 | x |\n| run b | 8 | y |\n"
+        for header in ("ID", "id", "No.", "no", "#"):
+            rows, unusable, columns = verify.plan_rows(table.format(header))
+            self.assertEqual(list(rows), ["7", "8"], header)
+            self.assertEqual(rows["8"]["choice"], "y")
+        rows, unusable, columns = verify.plan_rows("| ID | Step |\n|---|---|\n| | run a |\n| 1 | run b |\n")
+        self.assertEqual(list(rows), ["1"])
+        self.assertIn("(no ID)", unusable)
+
+    def test_diff_reports_a_long_changed_objective(self):
+        prefix = "Estimate the effect of treatment on expression, adjusting for batch " * 5
+        base = plan("run `{}`".format(FIT))
+        old = base.replace("Fit the model; see", prefix + "in donors; see")
+        out = self.diff_of(old, old.replace("in donors; see", "in all samples; see"))
+        self.assertIn("- Objective changed: ", out)
+        self.assertIn("in donors; see", out)
+        self.assertIn("in all samples; see", out)
+        self.assertIn("**Possible scientific change.**", out)
+
+    def test_diff_reports_outputs_bindings_exact_execution_and_scope(self):
+        old = plan("run `{}`".format(FIT), outputs="analysis/a/outputs/fit.tsv")
+        new = plan("run `{}`".format(FIT), "run `analysis/a/scripts/02_plot.py`", outputs="analysis/a/outputs/fit2.tsv")
+        bindings = '\n<!-- validation-bindings {"version": 1, "checks": []} -->\n'
+        exact = '\n<!-- exact-execution {"version": 1, "steps": []} -->\n'
+        out = self.diff_of(old, new + bindings + exact)
+        self.assertIn("- Outputs: + analysis/a/outputs/fit2.tsv", out)
+        self.assertIn("- Outputs: - analysis/a/outputs/fit.tsv", out)
+        self.assertIn("- Validation bindings: added", out)
+        self.assertIn("- Exact execution: added", out)
+        self.assertIn("- Scope: + analysis/a/scripts/02_plot.py", out)
+        changed = self.diff_of(new + bindings + exact, new + bindings.replace("[]", '[{"id": "V-1"}]') + exact)
+        self.assertIn("- Validation bindings: changed", changed)
+        self.assertNotIn("Exact execution", changed)
+
+    def test_diff_treats_formatting_only_changes_as_no_change(self):
+        old = plan("run `{}`".format(FIT), inputs="data/a.tsv")
+        new = old.replace("| 1 | run", "|   1   |   run").replace("**Objective.** Fit the model;",
+                                                                  "**Objective.**   Fit  the\tmodel;").replace(
+            "\n\n|", "\n\n\n|") + "\n\n"
+        self.assertIn("No plan-table row, objective, `Inputs:`, `Outputs:`, binding block or scope changed.",
+                      self.diff_of(old, new))
+
     def test_multiplicity_lists_revisions_and_runs_before_the_selected_plan(self):
         def choice(text, value):
             return plan("run `{}`".format(FIT)).replace("| x |", "| {} |".format(value)) + "\n" + text
