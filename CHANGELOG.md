@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.68] - 2026-10-16
+
+### Added
+
+- `"lint_before_stop": true` in `gate.json`. When a turn would end while scripts the agent wrote this session still have open lint-on-write findings, the Stop is blocked once per change with the findings as the reason, so the agent fixes or waives them in the same turn. It never blocks twice in a row (`stop_hook_active`) and needs `lint_on_write`. Off by default.
+
 ## [0.9.67] - 2026-10-16
 
 ### Added
