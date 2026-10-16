@@ -1432,26 +1432,34 @@ def clean(text, limit=CARD_CELL):
     return text if len(text) <= limit else text[:limit - 1].rstrip() + "\u2026"
 
 
+def comparison_text(text):
+    """Plan text as it is compared between plans: control and ANSI characters become spaces and
+    whitespace is collapsed; nothing else is changed and nothing is shortened. clean() is for display."""
+    return " ".join(CONTROL.sub(" ", text).split())
+
+
 def table_cells(line):
     return [cell.replace("\0", "|").strip() for cell in TABLE_ROW.match(line).group(1).replace("\\|", "\0").split("|")]
 
 
 def plan_rows(text):
     """The first plan table with a Step column and a Choice or Validation column, as a list of
-    {num, step, choice, source, check}; None when there is no such table."""
+    {num, step, choice, source, check, id, cells, head}; None when there is no such table. `id` is
+    the cell of a `#`, `no`, `no.` or `ID` column (None without one; `num` then counts the rows);
+    `cells` and `head` are every cell of the row and of the header, for comparing plans."""
     lines = text.splitlines()
     for i, line in enumerate(lines):
         following = lines[i + 1] if i + 1 < len(lines) else ""
         if not TABLE_ROW.match(line) or TABLE_RULE.match(line) or not (
                 TABLE_ROW.match(following) and TABLE_RULE.match(following)):
             continue
-        column = {}
-        for j, cell in enumerate(c.lower() for c in table_cells(line)):
+        column, head = {}, tuple(table_cells(line))
+        for j, cell in enumerate(c.lower() for c in head):
             for key, words in (("step", ("step",)), ("choice", ("choice",)), ("source", ("source",)),
                                ("check", ("validation", "check"))):
                 if key not in column and any(word in cell for word in words):
                     column[key] = j
-            if cell in ("#", "no", "no.") and "num" not in column:
+            if cell in ("#", "no", "no.", "id") and "num" not in column:
                 column["num"] = j
         if "step" not in column or not ("choice" in column or "check" in column):
             continue
@@ -1464,7 +1472,8 @@ def plan_rows(text):
             cells = table_cells(row)
             cell = lambda key: cells[column[key]] if key in column and column[key] < len(cells) else ""
             rows.append({"num": cell("num") or str(len(rows) + 1), "step": cell("step"),
-                         "choice": cell("choice"), "source": cell("source"), "check": cell("check")})
+                         "choice": cell("choice"), "source": cell("source"), "check": cell("check"),
+                         "id": cell("num") if "num" in column else None, "cells": tuple(cells), "head": head})
         return rows
     return None
 
@@ -1496,14 +1505,19 @@ def card_question(text):
     return clean(found.group(1), 200) if found and found.group(1).strip() else "none in the plan"
 
 
-def card_goal(text):
+def objective_text(text):
+    """The plan's objective as written, or None without one."""
     lines = text.splitlines()
     for i, line in enumerate(lines):
         found = OBJECTIVE_LINE.match(line)
         if found:
-            rest = found.group(1).strip() or next((l.strip() for l in lines[i + 1:] if l.strip()), "")
-            return clean(rest, 240)
-    return "none in the plan"
+            return found.group(1).strip() or next((l.strip() for l in lines[i + 1:] if l.strip()), "")
+    return None
+
+
+def card_goal(text):
+    goal = objective_text(text)
+    return "none in the plan" if goal is None else clean(goal, 240)
 
 
 def evidence_flags(text):
@@ -1606,6 +1620,56 @@ def baseline_plan(root, config, digest, text, paths, outputs):
     return None, "no earlier approval names these paths"
 
 
+def row_key(row):
+    """What names a plan row across plans: its ID, else its step text."""
+    return ("ID", comparison_text(row["id"])) if row["id"] else ("step", comparison_text(row["step"]))
+
+
+def compare_rows(old, new):
+    """How the plan table `new` differs from `old`, by whole cells (nothing shortened): a dict of
+    same, changed, added, removed (the old rows' numbers), reordered, columns (the headers differ)
+    and cannot (rows whose ID, else step text, is repeated in either table; they are not compared)."""
+    def index(rows):
+        found, repeated = collections.OrderedDict(), set()
+        for row in rows:
+            repeated.update([row_key(row)] * (row_key(row) in found))
+            found[row_key(row)] = row
+        return found, repeated
+
+    before, twice_before = index(old)
+    after, twice_after = index(new)
+    repeated = twice_before | twice_after
+    cells = lambda row: tuple(comparison_text(cell) for cell in row["cells"])
+    found = {"same": 0, "changed": 0, "added": 0, "removed": [], "cannot": 0, "kind": "step",
+             "columns": [comparison_text(c) for c in old[0]["head"]] != [comparison_text(c) for c in new[0]["head"]]
+             if old and new else False}
+    for row in new:
+        key = row_key(row)
+        if key in repeated:
+            found["cannot"] += 1
+        elif key not in before:
+            found["added"] += 1
+        else:
+            found["same" if cells(row) == cells(before[key]) else "changed"] += 1
+    for row in old:
+        key = row_key(row)
+        if key in repeated:
+            found["cannot"] += key not in after  # a repeated row that is gone cannot be matched either
+        elif key not in after:
+            found["removed"].append(row["num"])
+    found["kind"] = "ID" if any(key[0] == "ID" for key in repeated) else "step"
+    shared = [key for key in before if key in after and key not in repeated]
+    found["reordered"] = shared != [key for key in after if key in before and key not in repeated]
+    return found
+
+
+def plan_blocks(text):
+    """The text of each `<!-- validation-bindings ... -->` and `<!-- exact-execution ... -->` block, compared
+    as text (the blocks are parsed elsewhere)."""
+    return collections.OrderedDict((name, [comparison_text(block) for block in re.findall(
+        r"<!--\s*{}\b(.*?)-->".format(name), text, re.DOTALL)]) for name in ("validation-bindings", "exact-execution"))
+
+
 def baseline_lines(root, config, digest, text, paths, outputs, pins, scripts, rows, short):
     """What is new since the baseline plan, measured by the hook: scripts and inputs by fingerprint,
     the plan by its objective and table rows. Says "no baseline" rather than imply nothing changed."""
@@ -1647,16 +1711,39 @@ def baseline_lines(root, config, digest, text, paths, outputs, pins, scripts, ro
         else:
             pinned["CHANGED"].append(rel)
     parts = ["{}: {}".format(name, names_plain(rels, short)) for name, rels in pinned.items() if rels]
+    gone = sorted(rel for rel in old_pins if rel not in (pins or {}))
+    parts += ["REMOVED: " + names_plain(gone, short)] * bool(gone)
     lines.append("  inputs   " + (", ".join(["{} SAME".format(same)] * bool(same) + parts) if same or parts
                                   else "none pinned"))
     before_rows = plan_rows(record["plan"])
     if before_rows is None:
         lines.append("  plan     the earlier plan has no step table")
     else:
-        keys = set((clean(r["step"]), clean(r["choice"]), clean(r["check"])) for r in before_rows)
-        kept = sum(1 for r in rows if (clean(r["step"]), clean(r["choice"]), clean(r["check"])) in keys)
-        lines.append("  plan     objective {} \u00b7 steps: {} same, {} new or changed".format(
-            "SAME" if card_goal(record["plan"]) == card_goal(text) else "CHANGED", kept, len(rows) - kept))
+        diff = compare_rows(before_rows, rows)
+        gone = diff["removed"]
+        goals = [None if goal is None else comparison_text(goal) for goal in map(objective_text, (record["plan"], text))]
+        lines.append("  plan     objective {} \u00b7 steps: {} same, {} new or changed{}{}{}{}".format(
+            "SAME" if goals[0] == goals[1] else "CHANGED",
+            diff["same"], diff["added"] + diff["changed"],
+            ", {} removed ({})".format(len(gone), ", ".join(gone[:5]) + (", \u2026" if len(gone) > 5 else "")) if gone else "",
+            ", order changed" if diff["reordered"] else "", ", columns changed" if diff["columns"] else "",
+            "; cannot compare: {} rows with a repeated {}".format(diff["cannot"], diff["kind"]) if diff["cannot"] else ""))
+    was, now = output_words(record["plan"]) or [], outputs or []
+    moved = ["{}: {}".format(name, names_plain(items, short)) for name, items in
+             (("NEW", [w for w in now if w not in was]), ("REMOVED", [w for w in was if w not in now])) if items]
+    if moved:
+        lines.append("  outputs  " + " \u00b7 ".join(moved))
+    was, now = (set(a + b) for a, b in (plan_grants(root, record["plan"], config), plan_grants(root, text, config)))
+    moved = ["{}: {}".format(name, names_plain(sorted(items), short)) for name, items in
+             (("NEW", now - was), ("REMOVED", was - now)) if items]
+    if moved:
+        lines.append("  scope    " + " \u00b7 ".join(moved))
+    blocks, earlier = plan_blocks(text), plan_blocks(record["plan"])
+    states = ["{} {}".format(name, "SAME" if earlier[name] == blocks[name] else "ADDED" if not earlier[name]
+                             else "REMOVED" if not blocks[name] else "CHANGED")
+              for name in blocks if earlier[name] or blocks[name]]
+    if states:
+        lines.append("  blocks   " + " \u00b7 ".join(states))
     return lines
 
 

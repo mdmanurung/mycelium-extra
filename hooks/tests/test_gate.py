@@ -2576,6 +2576,79 @@ class PlanComparisonAndPathsTest(unittest.TestCase):
         for name in ("in", "b"):
             self.write_file("data/{}.tsv".format(name), "x\n")
 
+    # C02: what a changed plan reports
+
+    def compared(self, old, new):
+        """The card's `plan` line when `new` is shown after `old` was approved."""
+        self.files()
+        self.approve(old)
+        card = self.card(new)
+        return [line for line in card.splitlines() if line.startswith("  plan ")][0], card
+
+    def test_a_changed_choice_after_a_long_shared_prefix_is_reported(self):
+        shared = "selected specification " + "x" * 230
+        old = self.plan([self.row(choice=shared + " exclude vaccinees")])
+        line, _ = self.compared(old, self.plan([self.row(choice=shared + " include vaccinees")]))
+        self.assertIn("steps: 0 same, 1 new or changed", line)
+        self.assertEqual(self.compared(old, old)[0], "  plan     objective SAME · steps: 1 same, 0 new or changed")
+
+    def test_a_removed_decision_or_validation_row_is_counted(self):
+        decision = self.row("2", "b", "drop the outlier donors", "6 donors left")
+        check = ("3", "Check the result has 60 rows", "", "user", "60 rows")
+        old = self.plan([self.row(), decision, check])
+        line, _ = self.compared(old, self.plan([self.row()]))
+        self.assertIn("steps: 1 same, 0 new or changed, 2 removed", line)
+
+    def test_a_removed_input_and_a_removed_output_are_shown(self):
+        old = self.plan([self.row()], inputs="data/in.tsv, data/b.tsv", outputs="analysis/a/out/a.tsv, analysis/a/out/b.tsv")
+        _, card = self.compared(old, self.plan([self.row()], outputs="analysis/a/out/a.tsv"))
+        self.assertIn("  inputs   1 SAME, REMOVED: data/b.tsv", card)
+        self.assertIn("  outputs  REMOVED: analysis/a/out/b.tsv", card)
+
+    def test_reordered_steps_are_reported(self):
+        first, second = self.row("1"), self.row("2", "b")
+        line, _ = self.compared(self.plan([first, second]), self.plan([second, first]))
+        self.assertIn("steps: 2 same, 0 new or changed, order changed", line)
+
+    def test_a_long_changed_objective_is_reported(self):
+        long = "Compare A with B. " + "y" * 300
+        line, _ = self.compared(self.plan([self.row()], objective=long + " one"), self.plan([self.row()], objective=long + " two"))
+        self.assertIn("objective CHANGED", line)
+
+    def test_duplicate_ids_cannot_be_compared(self):
+        old = self.plan([self.row("1"), self.row("1", "b")])
+        line, _ = self.compared(old, old)
+        self.assertIn("cannot compare: 2 rows with a repeated ID", line)
+        self.assertNotIn("2 same", line)
+
+    def test_an_ID_column_names_the_rows(self):
+        head = ("ID", "Step", "Choice", "Source", "Validation")
+        gate = self.gate()
+        self.assertEqual([r["num"] for r in gate.plan_rows(self.plan([self.row("S1"), self.row("S2", "b")], head=head))],
+                         ["S1", "S2"])
+        # S1 changes its choice and moves: the row is found by its ID, not by its position
+        old = self.plan([self.row("S1"), self.row("S2", "b")], head=head)
+        line, _ = self.compared(old, self.plan([self.row("S2", "b"), self.row("S1", choice="permutation test")], head=head))
+        self.assertIn("steps: 1 same, 1 new or changed, order changed", line)
+
+    def test_a_change_of_whitespace_alone_is_the_same(self):
+        old = self.plan([self.row(choice="exact  test")], objective="Compare A with B.")
+        new = self.plan([self.row(choice=" exact\ttest ")], objective="Compare   A with B.")
+        self.assertEqual(self.compared(old, new)[0], "  plan     objective SAME · steps: 1 same, 0 new or changed")
+
+    def test_a_changed_validation_bindings_block_is_reported(self):
+        block = '<!-- validation-bindings {"version": 1, "checks": []} -->'
+        old = self.plan([self.row()], extra=["", block])
+        _, card = self.compared(old, self.plan([self.row()], extra=["", block.replace("[]", "[1]")]))
+        self.assertIn("  blocks   validation-bindings CHANGED", card)
+        _, card = self.compared(old, self.plan([self.row()]))
+        self.assertIn("  blocks   validation-bindings REMOVED", card)
+
+    def test_comparison_text_keeps_everything_but_control_characters_and_spacing(self):
+        gate = self.gate()
+        long = "x" * 500
+        self.assertEqual(gate.comparison_text("a\x1b[31m  b\t\n`c`  " + long), "a b `c` " + long)
+
     # C03: literal paths
 
     def read(self, line, root=None):
