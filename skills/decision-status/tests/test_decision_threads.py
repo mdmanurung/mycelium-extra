@@ -70,6 +70,27 @@ class DecisionThreadsTest(unittest.TestCase):
         lines = [e["line"] for e in run("--term", "method-b")]
         self.assertIn(24, lines)
 
+    def test_invalid_search_regex_is_a_usage_error(self):
+        with open(SCRIPT) as source:
+            proc = subprocess.run([sys.executable, "-", "--living-dir", LIVING, "--term", "["],
+                                  stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                  universal_newlines=True)
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("invalid --term regex", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_nested_fence_markers_do_not_create_decision_entries(self):
+        living = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, living)
+        with open(os.path.join(living, "decisions.md"), "w", encoding="utf-8") as handle:
+            handle.write("## 2026-10-01 Actual decision\n\n````markdown\n```\n"
+                         "## 2026-10-02 Example, not a decision\n~~~\n"
+                         "## 2026-10-03 Also an example\n````\n"
+                         "## 2026-10-04 Another actual decision\n")
+        entries = run("--living-dir", living)
+        self.assertEqual([entry["title"] for entry in entries],
+                         ["Actual decision", "Another actual decision"])
+
 
 if __name__ == "__main__":
     unittest.main()

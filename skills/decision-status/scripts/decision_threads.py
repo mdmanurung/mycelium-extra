@@ -18,7 +18,7 @@ import re
 import sys
 
 HEADING = re.compile(r"^(#{2,3})\s+(.*\S)\s*$")
-FENCE = re.compile(r"^\s*(```|~~~)")
+FENCE = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")
 DATE = re.compile(r"\[?(\d{4}-\d{2}-\d{2})\]?")
 POSITIONAL_ID = re.compile(r"\b[DLT]-\d+\b")
 # Both **Name**: and **Name:** occur in real logs.
@@ -55,16 +55,20 @@ def split_heading(text):
 
 def parse_entries(path):
     entries = []
-    in_fence = False
+    in_fence = None
     current = None
     with open(path, encoding="utf-8", errors="replace") as handle:
         for number, line in enumerate(handle, start=1):
-            if FENCE.match(line):
-                in_fence = not in_fence
-                continue
+            fence = FENCE.match(line)
             if in_fence:
-                if current is not None:
+                if fence and fence.group(1)[0] == in_fence[0] and \
+                        len(fence.group(1)) >= len(in_fence) and not fence.group(2).strip():
+                    in_fence = None
+                elif current is not None:
                     current["_body"].append(line)
+                continue
+            if fence:
+                in_fence = fence.group(1)
                 continue
             heading = HEADING.match(line)
             if heading:
@@ -140,6 +144,11 @@ def main(argv=None):
     parser.add_argument("--include-learnings", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
+    for term in args.term:
+        try:
+            re.compile(term, re.IGNORECASE)
+        except re.error as error:
+            parser.error("invalid --term regex: {}".format(error))
 
     names = ["decisions.md"] + (["learnings.md"] if args.include_learnings else [])
     entries = []
