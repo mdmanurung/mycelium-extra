@@ -31,7 +31,7 @@ When that card would run past 35 lines, it shows a digest instead: the same Sequ
 
 No card line is longer than 250 characters, except a `CAN RUN` grant and a script-diff line, which are never cut.
 
-Text quoted from the plan has control characters, markup and the phrase "approve plan" removed. The card shows what the gate allows; it does not check the choices or the checks. Any other plan keeps the older card: runs allowed, inputs, scripts, outputs. Type exactly that (a trailing `.` is fine) to record the approval in `.mycelium-extra/approvals/`. A bare `approve plan` lists pending hashes and approves nothing.
+Text quoted from the plan has control characters, markup and the phrase "approve plan" removed. The card shows what the gate allows; it does not check the choices or the checks. Any other plan keeps the older card: runs allowed, inputs, scripts, outputs. Type exactly that (a trailing `.` is fine) to record the approval in `.mycelium-extra/approvals/`. A bare `approve plan` lists pending hashes and approves nothing. The text is saved when the plan is shown, but the hash can be approved only once its pins and card are prepared; if preparation was interrupted the hash is listed as `(preparing)`, approval is refused, and showing the plan again prepares it.
 
 Execution grants are restricted to the approving session. Approvals without a recorded session remain readable historical evidence, but require a new card and approval before execution. Approve in the same session that presented the plan. If you move to a new session, present the plan there first; a pending hash from another session does not grant approval. When the context fills up while a plan waits, `/mycelium-extra:handoff` points `HANDOFF.md` at the plan's stored text, and the new session prints it unchanged. Approve the hash on the new card: it matches the old one when the text is unchanged.
 
@@ -97,7 +97,7 @@ Only the script a command runs is checked. A file it sources or imports, and the
 
 Receipts provide the execution record that `verify` reads later. After a covered shell call completes and its post hook fires, the gate appends one line per run to `.mycelium-extra/receipts.jsonl` (schema `mycelium-extra.receipt.v1`). A receipt holds:
 
-- The approved plans that cover the run and their pins, or none. `pins_checked` is false for explore runs, which skip the pin check.
+- The approved plans that cover the run and their pins, or none. `pins_checked` is false for explore runs, which skip the pin check. The plans are the ones that allowed the launch: the pre-run hook saves them under `.mycelium-extra/launches/` (removed when the call reports back), so an approval that expires or is replaced during the call is still credited. A call with no such record is credited from the approvals active when it reports back.
 - Git HEAD, whether tracked files have uncommitted changes, and whether each recorded file is committed, modified, untracked, or ignored.
 - The script's fingerprint (or the sha256 of an `sbatch --wrap` payload), and its `module load`, `conda activate`, and `#SBATCH` lines.
 - Lockfiles (`renv.lock`, `pixi.lock`, `environment.yml`, and similar) in the repository root, the working directory, and the script's folder.

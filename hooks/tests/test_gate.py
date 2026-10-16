@@ -1503,6 +1503,7 @@ class GateTest(unittest.TestCase):
                    "session_id": "s1", "cwd": self.root}
         config = gate.load_config(self.root)
         self.assertIsNone(gate.on_tool(payload, self.root, config), "covered when the scan finishes")
+        shutil.rmtree(os.path.join(self.root, ".mycelium-extra", "launches"))  # the post below has no launch
         saved, gate.SCAN_SECONDS = gate.SCAN_SECONDS, 0
         try:
             result = gate.on_tool(payload, self.root, config)
@@ -1905,6 +1906,149 @@ class CompatibilityTest(unittest.TestCase):
                  script], stderr=subprocess.PIPE)
             _, err = proc.communicate()
             self.assertEqual(proc.returncode, 0, err.decode("utf-8"))
+
+
+class PreparationAndLaunchTest(unittest.TestCase):
+    """ME-09: a plan is approvable only once prepared. ME-07: a receipt keeps the approval its launch was checked against."""
+    entry = GATE
+    setUp, tearDown, config, hook, bash, denied = (
+        GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook, GateTest.bash, GateTest.denied)
+    PLAN_WITH_INPUT = "Inputs: data/in.tsv\n\n" + PLAN
+
+    def path(self, *parts):
+        return os.path.join(self.root, ".mycelium-extra", *parts)
+
+    def write(self, rel, text):
+        path = os.path.join(self.root, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as handle:
+            handle.write(text)
+
+    def pending(self):
+        with open(self.path("pending", "s1.json")) as handle:
+            return json.load(handle)
+
+    def approval(self, digest):
+        with open(self.path("approvals", digest + ".json")) as handle:
+            return json.load(handle)
+
+    def show(self, text, session="s1"):
+        notice = self.hook("stop", {"last_assistant_message": text}, session=session)
+        return notice["systemMessage"].split("approve plan ")[1][:8]
+
+    def prompt(self, text, session="s1"):
+        return self.hook("prompt", {"prompt": text}, session=session)["systemMessage"]
+
+    def receipts(self):
+        if not os.path.isfile(self.path("receipts.jsonl")):
+            return []
+        with open(self.path("receipts.jsonl")) as handle:
+            return [json.loads(line) for line in handle]
+
+    def tool(self, command="python analysis/x.py", session="s1", **event):
+        return self.hook("tool", dict({"tool_name": "Bash", "tool_input": {"command": command}}, **event),
+                         session=session)
+
+    def post(self, command="python analysis/x.py", session="s1", **event):
+        return self.hook("post", dict({"tool_name": "Bash", "tool_input": {"command": command},
+                                       "tool_response": {"stdout": ""}}, **event), session=session)
+
+    def expire(self, digest):
+        record = self.approval(digest)
+        record["approved_at"] -= 30 * 24 * 3600
+        with open(self.path("approvals", digest + ".json"), "w") as handle:
+            json.dump(record, handle)
+
+    def launches(self):
+        folder = self.path("launches")
+        return sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+
+    def stop_fails(self, name):
+        sys.dont_write_bytecode = True
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        event = {"session_id": "s1", "cwd": self.root, "last_assistant_message": self.PLAN_WITH_INPUT}
+        with mock.patch.object(gate, name, side_effect=OSError("injected")):
+            with self.assertRaises(OSError):
+                gate.on_stop(event, self.root, gate.load_config(self.root))
+
+    def test_a_fully_prepared_plan_is_approvable_on_the_first_prompt(self):
+        self.write("data/in.tsv", "a\n")
+        digest = self.show(self.PLAN_WITH_INPUT)
+        self.assertTrue(self.pending()[0]["ready"])
+        self.assertIn("approved", self.prompt("approve plan " + digest))
+        self.assertIn("data/in.tsv", self.approval(digest)["pins"])
+
+    def test_interrupted_preparation_keeps_the_text_but_refuses_approval(self):
+        self.write("data/in.tsv", "a\n")
+        for name in ("pin_inputs", "pin_scripts", "approval_card"):
+            self.stop_fails(name)
+            entry, = self.pending()
+            self.assertEqual((entry["text"], entry["ready"]), (self.PLAN_WITH_INPUT.strip(), False), name)
+            digest = entry["hash"]
+            self.assertIn(digest + " (preparing)", self.prompt("approve plan"))
+            self.assertIn("not fully prepared", self.prompt("approve plan " + digest))
+            self.assertFalse(os.path.exists(self.path("approvals", digest + ".json")), name)
+        self.assertEqual(self.show(self.PLAN_WITH_INPUT), digest)  # showing the plan again prepares it
+        self.assertTrue(self.pending()[0]["ready"])
+        self.assertIn("approved", self.prompt("approve plan " + digest))
+        self.assertIn("data/in.tsv", self.approval(digest)["pins"])  # one approval, with its pins
+
+    def test_a_pending_entry_from_before_the_ready_field_is_approvable(self):
+        digest = self.show(PLAN)
+        entries = self.pending()
+        del entries[0]["ready"]
+        with open(self.path("pending", "s1.json"), "w") as handle:
+            json.dump(entries, handle)
+        self.assertIn("approved", self.prompt("approve plan " + digest))
+
+    def covered_launch(self, **event):
+        self.write("data/in.tsv", "a\n")
+        digest = self.show(self.PLAN_WITH_INPUT)
+        self.prompt("approve plan " + digest)
+        self.assertIsNone(self.tool(**event))
+        return digest
+
+    def test_a_launch_keeps_its_approval_after_expiry_and_a_new_launch_is_denied(self):
+        digest = self.covered_launch()
+        pins = self.approval(digest)["pins"]
+        self.assertTrue(pins)
+        self.expire(digest)
+        self.post()
+        receipt, = self.receipts()
+        self.assertEqual((receipt["plans"], receipt["pins"], receipt["pins_checked"]), ([digest], pins, True))
+        self.assertEqual(self.launches(), [], "the record goes once its call reports back")
+        self.assertTrue(self.denied(self.bash("python analysis/x.py")))
+
+    def test_a_plan_approved_after_the_launch_is_not_credited_to_it(self):
+        first = self.covered_launch()
+        second = self.show(PLAN + "\nPlan revision: amended assumption.", session="s2")
+        self.prompt("approve plan " + second, session="s2")
+        self.assertNotEqual(first, second)
+        self.post()
+        self.assertEqual(self.receipts()[0]["plans"], [first])
+
+    def test_a_post_without_a_launch_record_is_unattributed_once_the_approval_expires(self):
+        digest = self.show(PLAN)
+        self.prompt("approve plan " + digest)
+        self.expire(digest)
+        notice = self.post()  # no hook saw this launch, and nothing covers it now
+        self.assertIn("no approved plan", notice["systemMessage"])
+        self.assertEqual(self.receipts()[0]["plans"], [])
+
+    def test_launch_records_are_keyed_by_the_call_id_and_stale_ones_pruned(self):
+        digest = self.covered_launch(tool_use_id="t1")
+        self.tool(tool_use_id="t2")
+        old = self.path("launches", "old.json")
+        with open(old, "w") as handle:
+            json.dump({"ts": 1, "runs": {"python analysis/x.py": {"plans": ["deadbeef"], "pins": {}}}}, handle)
+        os.utime(old, (1, 1))
+        self.tool(tool_use_id="t3")
+        self.assertEqual(len(self.launches()), 3, "t1, t2, t3; the stale record is gone")
+        self.post(tool_use_id="t2")
+        self.assertEqual(len(self.launches()), 2)
+        self.post(tool_use_id="t1")
+        self.assertEqual([r["plans"] for r in self.receipts()], [[digest], [digest]])
 
 
 if __name__ == "__main__":

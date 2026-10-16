@@ -39,6 +39,7 @@ DEFAULTS = {
     "lint_before_stop": False,
 }
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
+LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call that never reported back
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
 APPROVE = re.compile(r"^\s*approve plan(?: ([0-9a-f]{8}))?\s*[.!]?\s*$", re.IGNORECASE)
 EXPLORE_GRANT = re.compile(r"^\s*(allow|stop) explore\s*[.!]?\s*$", re.IGNORECASE)
@@ -920,6 +921,37 @@ def active_approvals(root, config, session_id=None):
                     and (session_id is None or bool(session_id) and record.get("session_id") == session_id)):
                 approvals.append(record)
     return approvals
+
+
+def launch_path(root, event):
+    """Where one tool call's launch record lives: keyed by the host's call id, else by session and command."""
+    call = (event.get("tool_use_id") or event.get("tool_call_id") or event.get("call_id")
+            or (event.get("tool_input") or {}).get("command", ""))
+    key = sha256(json.dumps([event.get("session_id"), call]).encode("utf-8")).hexdigest()[:16]
+    # ponytail: with no call id, the same command running twice at once shares one record
+    return state_path(root, "launches", key + ".json")
+
+
+def write_launch(root, event, runs):
+    """Save the approvals that let this call launch, and the pins checked, so its receipt keeps them after expiry."""
+    folder = state_path(root, "launches")
+    if os.path.isdir(folder):  # records of calls that never reported back
+        for name in os.listdir(folder):
+            path = os.path.join(folder, name)
+            if os.path.getmtime(path) < time.time() - LAUNCH_SECONDS:
+                os.remove(path)
+    write_json(launch_path(root, event), {"ts": time.time(), "runs": runs})
+
+
+def take_launch(root, event):
+    """This call's launch record, removed once read: {segment: {plans, pins}}, or {} if there is none."""
+    path = launch_path(root, event)
+    record = read_json(path, {})
+    if os.path.isfile(path):
+        os.remove(path)
+    if record.get("ts", 0) < time.time() - LAUNCH_SECONDS:
+        return {}
+    return record.get("runs") or {}
 
 
 def covering(root, label, paths, approvals):
@@ -1830,7 +1862,7 @@ def on_tool(event, root, config):
     limit, limit_notice = run_limit(config)
     capped = []
     granted = explore_granted(root, event.get("session_id"))
-    run_scripts = []
+    run_scripts, launched = [], {}
     for explore, label, paths, segment, _, _ in analyse_command(command, root, event.get("cwd") or root,
                                                                  config):
         run_scripts += [p for p in paths if p.endswith(LINT_EXT) and p not in run_scripts]
@@ -1852,6 +1884,7 @@ def on_tool(event, root, config):
         # The newest covering plan is the current intent: an older approval that pinned
         # less (or nothing) must not let a run through after the newer plan's pins changed.
         newest = records[-1]
+        launched[segment] = {"plans": [r["hash"] for r in records], "pins": newest.get("pins") or {}}
         changes, skipped = changed_pins(root, newest.get("pins") or {}, budget, cache)
         if changes:
             stale.append((newest["hash"], changes))
@@ -1923,6 +1956,8 @@ def on_tool(event, root, config):
             return denied
         if user_note:
             messages.append(user_note)
+        if launched:
+            write_launch(root, event, launched)
         result = {"systemMessage": "\n".join(messages)} if messages else None
         if agent_note:
             result["hookSpecificOutput"] = {"hookEventName": "PreToolUse", "additionalContext": agent_note}
@@ -2131,7 +2166,7 @@ def on_prompt(event, root, config):
             shown = (plan.get("card") or {}).get(part) or "mycelium-extra: plan {} showed its full card.".format(
                 plan["hash"])
         return {"decision": "block", "reason": shown}
-    known = ", ".join(p["hash"] for p in pending) or "none"
+    known = ", ".join(p["hash"] + ("" if p.get("ready", True) else " (preparing)") for p in pending) or "none"
     if not match:
         if re.search(r"\bapprove plan\b", prompt, re.IGNORECASE) and len(prompt) < 200:
             message = ("mycelium-extra: nothing approved. To approve, send only `approve plan <hash>` "
@@ -2147,6 +2182,9 @@ def on_prompt(event, root, config):
     if plan is None:
         message = ("mycelium-extra: no pending plan {} in this session (pending: {}). "
                    "Nothing was approved.".format(wanted, known))
+    elif not plan.get("ready", True):  # preparation was interrupted; approving would drop the pins
+        message = ("mycelium-extra: plan {} was not fully prepared (inputs, scripts or card). Nothing was "
+                   "approved. Show the plan again so it is prepared, then approve its hash.".format(wanted))
     else:
         pins = plan.get("pins") or {}
         scripts = plan.get("scripts") or {}
@@ -2174,11 +2212,11 @@ def on_stop(event, root, config):
         session = safe_session(event.get("session_id"))
         path = state_path(root, "pending", session + ".json")
         pending = read_json(path, [])
-        previous = next((p for p in pending if p["hash"] == digest), None)
+        previous = next((p for p in pending if p["hash"] == digest and p.get("ready", True)), None)
         pending = [p for p in pending if p["hash"] != digest]
-        entry = {"hash": digest, "ts": time.time(), "text": text, "pins": {}}
+        entry = {"hash": digest, "ts": time.time(), "text": text, "pins": {}, "ready": False}
         pending.append(entry)
-        write_json(path, pending[-10:])  # a timeout while pinning still leaves the plan approvable
+        write_json(path, pending[-10:])  # a timeout while pinning keeps the text, but it is not approvable yet
         pins, outside = pin_inputs(root, text, config)
         entry["pins"] = pins or {}
         scripts_on, notice = script_pinning(config)
@@ -2186,6 +2224,7 @@ def on_stop(event, root, config):
         card, details = approval_card(root, text, config, digest, pins, outside, previous, entry["scripts"])
         if details:
             entry["card"] = details
+        entry["ready"] = True  # pins, scripts and card are done: now the hash can be approved
         write_json(path, pending[-10:])
         notices.append(card)
         if notice:
@@ -2425,6 +2464,7 @@ def on_post(event, root, config):
     runs = list(analyse_command(command, root, event.get("cwd") or root, config))
     if not runs:
         return None
+    launched = take_launch(root, event)  # the approvals this launch was checked against, not today's
     wrapped = set()  # an `sbatch --wrap` payload was submitted, not run here
     for run in runs:
         if run[1] == "sbatch":
@@ -2438,17 +2478,24 @@ def on_post(event, root, config):
     if compound:
         extra.update(command_exit_status=status, command_exit_source=source)
         status, source, output = "unknown", None, ""
-    approvals = active_approvals(root, config, event.get("session_id") or "")
     budget = hash_budget(config)
     git = git_state(root)
-    unread = approvals is None
-    notes = ["approvals not read (time limit), so no plan is credited"] if unread else []
-    if compound:
-        notes.append("compound shell command: per-run execution, exit status, and output attribution unknown")
-    approvals = approvals or []
+    approvals, unread = False, False  # approvals: read only for a run with no launch record
+    notes = ["compound shell command: per-run execution, exit status, and output attribution unknown"] if compound else []
     planned = []
     for explore, label, paths, segment, tokens, cwd in runs:
-        records = covering(root, label, paths, approvals)
+        launch = launched.get(segment)
+        if launch is not None:  # expired or replaced since, the launch's own approvals are credited
+            records = [r for r in (read_json(state_path(root, "approvals", h + ".json"), None)
+                                   for h in launch.get("plans", [])) if r]
+        else:
+            if approvals is False:
+                approvals = active_approvals(root, config, event.get("session_id") or "")
+                unread = approvals is None
+                approvals = approvals or []
+                if unread:
+                    notes.append("approvals not read (time limit), so no plan is credited")
+            records = covering(root, label, paths, approvals)
         wrapped_paths = []  # the gated scripts an `sbatch --wrap` payload runs, from the job's folder
         if label == "sbatch":
             for payload in flag_values(after_word(tokens, "sbatch"), ("--wrap",)):
@@ -2470,7 +2517,7 @@ def on_post(event, root, config):
             "paths": paths,
             "explore": explore,
             "plans": [record["hash"] for record in records],
-            "pins": (records[-1].get("pins") or {}) if records else {},
+            "pins": ((launch or records[-1]).get("pins") or {}) if records else {},
             "pins_checked": bool(records) and not explore,
             "git": git,
             "hook_env": {key: os.environ[key] for key in HOOK_ENV if os.environ.get(key)},
@@ -2482,7 +2529,7 @@ def on_post(event, root, config):
         receipt.update(extra)
         if event.get("host"):
             receipt["host"] = event["host"]
-        if unread:
+        if unread and launch is None:
             receipt["approvals_unread"] = True
         receipt.update(launch_details(root, cwd, label, paths, tokens, output, budget))
         add_git_states(root, receipt, git is not None)
