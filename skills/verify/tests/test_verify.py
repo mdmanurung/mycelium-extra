@@ -1478,6 +1478,44 @@ sys.exit(1 if hits else 0)
         self.assertIn("1 explore-only", out)
         self.assertIn("Verify status: DOES_NOT_CONFORM", out)
 
+    def test_failed_command_receipt_blocks_and_unknown_exit_is_a_gap(self):
+        digest = self.approve(plan("`snakemake -j1`"))
+        self.run_cmd("snakemake -j1", exit_code=7)
+        out = self.verify("report", digest)
+        self.assertIn("`snakemake -j1` failed (exit 7)", out)
+        self.assertIn("Verify status: DOES_NOT_CONFORM", out)
+        self.run_cmd("snakemake -j1")  # a later success supersedes the failed try
+        out = self.verify("report", digest)
+        self.assertNotIn("failed (exit 7)", out)
+        self.assertNotIn("**block**", out)
+        self.hook("post", {"tool_name": "Bash", "tool_input": {"command": "snakemake -j1"},
+                           "tool_response": {"stdout": "", "stderr": "", "interrupted": False}})
+        out = self.verify("report", digest)
+        self.assertIn("`snakemake -j1` ran at", out)
+        self.assertIn("carried no exit status, so the run is not counted as a success", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+
+    def test_folder_plan_with_no_runs_is_a_gap_and_a_run_conforms(self):
+        self.write("analysis/a/outputs/old.tsv", "x\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("run the scripts in `analysis/a/scripts/`"))
+        out = self.verify("report", digest)
+        self.assertIn("grants running the scripts in `analysis/a/scripts/`, but no run in it", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+        receipt = self.run_cmd("python " + FIT)  # old outputs beside a real run do not block
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        out = self.verify("report", digest)
+        self.assertNotIn("grants running", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+        self.run_cmd("python " + FIT, exit_code=3)  # and a failed run of the folder blocks
+        self.assertIn("failed (exit 3)", self.verify("report", digest))
+
+    def test_plan_that_runs_nothing_stays_valid(self):
+        self.write("analysis/a/outputs/old.tsv", "x\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("read the tables in `analysis/a/outputs/`", outputs="none"))
+        out = self.verify("report", digest)
+        self.assertNotIn("grants running", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+
     def test_gate_must_be_on(self):
         os.remove(os.path.join(self.root, ".mycelium-extra", "gate.json"))
         self.assertIn("not on", self.verify("list", fails=True))

@@ -1195,6 +1195,26 @@ def edit_evidence(root, path, budget, receipts):
     return "This version has not run under any plan, so no approval covers it."
 
 
+def check_receipt(report, r):
+    """A finding for a receipt that failed (block) or has no exit status (gap), in the wording of a
+    script's row. A Slurm submission that exited 0 is judged by its job's state, not here."""
+    what, at, code = "`{}`".format(r.get("command", "")[:80]), when(r.get("ts")), r.get("exit_status")
+    if isinstance(code, int) and code != 0:
+        report.add("block", "{} failed (exit {}) at {}.".format(what, code, at))
+    elif code in ("failed", "interrupted"):
+        report.add("block", "{} {} at {}{}.".format(
+            what, "failed without an exit code" if code == "failed" else "was interrupted", at,
+            ": " + r["error_line"] if r.get("error_line") else ""))
+    elif code == 0:
+        return
+    elif r.get("background"):
+        report.add("gap", "{} was started in the background at {}, so its exit status is not known and "
+                          "the run is not counted as a success; check its output or log.".format(what, at))
+    else:
+        report.add("gap", "{} ran at {}, but the tool response carried no exit status, so the run is not "
+                          "counted as a success.".format(what, at))
+
+
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
           rscript="Rscript", claims=()):
     config = gate.load_config(root)
@@ -1268,9 +1288,11 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                            receipt.get("command", ""), code, when(receipt.get("ts"))))
             failed_commands.add(key)
     scripts, shown = [], set()  # shown: the Slurm jobs a planned script's row reports
+    judged = set()  # ids of the receipts a planned script's row already judged
     for path in planned:
         row = {"path": path, "status": "no receipt", "last_run": None, "notes": []}
         direct = [r for r in mine if path in ran_paths(root, r) or submitted(r, path)]
+        judged.update(id(r) for r in direct)
         inside = [m for m in smk if mentions(m["command"], root, path, m["workdir"])]
         if not inside and is_snakefile(path):
             rules = set(SNAKE_RULE.findall(read_text(os.path.join(root, path))))
@@ -1392,14 +1414,28 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         report.add("info", "{} receipt(s) under this plan only passed planned paths to other code "
                            "(`-e`/`-c` code or a program read from stdin) and are not counted as runs."
                    .format(len(handed)))
+    granted = set(gate.plan_grants(root, plan, config)[0])  # the Step column alone grants runs
     for folder in folders:
         runs = [r for r in mine if any(under(p, folder) for p in ran_paths(root, r))]
         report.add("info", "Folder `{}/` is planned as a whole; {} run(s) in it.".format(folder, len(runs)))
+        if not runs and folder in granted and any(
+                gate.SCRIPT_EXT.search(n) or is_snakefile(n)
+                for _, _, names in os.walk(os.path.join(root, folder)) for n in names):
+            report.add("gap", "The plan grants running the scripts in `{}/`, but no run in it under this "
+                              "plan was recorded.".format(folder))
     for command in commands:
         runs = [r for r in mine if r.get("kind") == command]
         if not runs:
             report.add("gap", "The plan names `{}`, but no `{}` run under it was recorded.".format(
                 command, command))
+    # Command and folder runs name no planned script, so no row above judged them: the latest run
+    # of each command line is, once, like a script row (an earlier failed try is superseded).
+    latest = {}
+    for r in mine:
+        if id(r) not in judged:
+            latest[r.get("command", "")] = r
+    for r in sorted(latest.values(), key=lambda r: r["ts"]):
+        check_receipt(report, r)
 
     # Runs in the analysis folder that this plan does not cover, and scripts it does not name.
     unplanned_files = []
