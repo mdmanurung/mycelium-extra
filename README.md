@@ -40,7 +40,7 @@ see [Installation](docs/installation.md#opencode).
 ```text
 /mycelium-extra:init                         # once per repository
 /mycelium-extra:grill <your analysis question>
-approve plan <hash>                          # use the displayed hash
+approve                                      # or approve plan <hash>
 ```
 
 See [a worked example](docs/example.md) for the real output of each step.

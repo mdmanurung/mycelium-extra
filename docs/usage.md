@@ -39,7 +39,7 @@ Add **`init` once per repository**, with plugin hooks enabled.
 
 1. Invoke `/mycelium-extra:init`. Check that it covers your analysis paths.
 2. Invoke `/mycelium-extra:grill <your task>`. Read the plan and `Inputs:` line.
-3. Send the exact displayed `approve plan <hash>` message in the same session.
+3. Send `approve` (or the displayed `approve plan <hash>`) in the same session.
 4. Run the approved steps through your usual workflow. In a Mycelium project,
    use `/mycelium:analyze <name>`.
 
