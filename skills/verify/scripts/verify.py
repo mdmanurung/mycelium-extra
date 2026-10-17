@@ -1624,7 +1624,7 @@ def gate_error_gaps(root, report, approved_at, sessions):
     return counted
 
 
-def instance_findings(report, digest, chosen, current, frozen, history, mine, approved_at, explicit):
+def instance_findings(report, digest, chosen, current, frozen, history, mine, approved_at, explicit, failed=()):
     """What the approval instance means for this check. Runs under another instance, or under none recorded,
     are history: they do not establish the freeze being verified, so none under it is a gap."""
     if chosen is None:
@@ -1634,6 +1634,13 @@ def instance_findings(report, digest, chosen, current, frozen, history, mine, ap
     if frozen is None:
         report.add("gap", "Approval instance {} has no readable record under `approval-instances/{}/`, so the pins "
                           "and preparation it froze cannot be read from it.".format(chosen, digest))
+    if frozen and frozen.get("prepared") not in (None, "complete"):
+        report.add("gap", "Approval instance {} was prepared before readiness was recorded ({}): that its pins and card "
+                          "were complete when approved is not established. Show the plan again and approve it.".format(
+                              chosen, frozen.get("prepared")))
+    for limit in (frozen or {}).get("limitations") or []:
+        if isinstance(limit, str) and not limit.startswith("prepared before readiness"):
+            report.add("info", "Approval instance {}: {}.".format(chosen, limit[:200]))
     if explicit and chosen != current:
         report.add("info", "This check is of approval instance {}, an earlier freeze; the current one is {}. "
                            "Pins, approval time and runs are those of that instance.".format(chosen, current))
@@ -1641,7 +1648,10 @@ def instance_findings(report, digest, chosen, current, frozen, history, mine, ap
         report.add("info", "{} run(s) of this plan ran under other approval instance(s) ({}); they are history "
                            "and do not establish instance {}.".format(
                                sum(history.values()), ", ".join("{}: {}".format(k, v) for k, v in sorted(history.items())),
-                               chosen))
+                               chosen) + (" Of these, {} failed: {}.".format(len(failed), "; ".join(
+                                   "`{}` {} at {} (instance {})".format(r.get("command", "")[:60], text, when(r["ts"]),
+                                                                       r.get("approval_instance") or "not recorded")
+                                   for r, text in failed[:5])) if failed else ""))
         if not mine:
             report.add("gap", "No run is recorded under approval instance {} (approved {}); runs under an earlier "
                               "instance do not establish this freeze.".format(chosen, when(approved_at)))
@@ -1732,7 +1742,8 @@ def step_key(root, r):
 
 CONTRACT_RESULT = "mycelium-extra.contract_result.v1"
 PHRASE = {"failed": "failed", "not run": "was not run", "unsupported": "has unsupported evidence",
-          "changed": "changed since approval", "unattributable": "has unattributable evidence"}
+          "changed": "changed since approval", "unattributable": "has unattributable evidence",
+          "stale": "is stale (outputs changed after it ran)"}
 
 
 def contract_text(check):
@@ -1762,6 +1773,8 @@ def read_result(path, check):
         return status, "the result says {}{}".format(status, " ({})".format(note.strip()[:200])
                                                      if isinstance(note, str) and note.strip() else ""), []
     status, code = data.get("status"), data.get("exit_code")
+    if not isinstance(data.get("checks") or [], list) or not isinstance(data.get("contract") or {}, dict):
+        return "unsupported", "the data-contract result's `checks` or `contract` is malformed", []
     checks = [c for c in data.get("checks") or [] if isinstance(c, dict)]
     pinned = (data.get("contract") or {}).get("sha256")
     if pinned and check["files"] and pinned not in check["files"].values():
@@ -1791,6 +1804,23 @@ def attribution_problem(root, run, path):
         return "`{}` is missing now".format(path)
     if mtime > run["ts"] + TOLERANCE:
         return "`{}` was modified after the attempt ({})".format(path, when(mtime))
+    return None
+
+
+def changed_after(run, mine):
+    """Why a passed check no longer speaks for the outputs, or None: a later attempt under the instance (other than a
+    check's) changed a declared output, or ran without its outputs being observed, after the check's attempt."""
+    for r in sorted(mine, key=lambda r: r.get("ts", 0)):
+        if r.get("ts", 0) <= run.get("ts", 0) or r.get("validation_check"):
+            continue
+        seen = r.get("outputs_changed") or {}
+        paths = sorted(set(p for k in ("created", "changed", "deleted") for p in seen.get(k) or []))
+        if paths:
+            return "`{}` changed in a later attempt (`{}` at {}); run the check again".format(
+                paths[0], r.get("command", "")[:60], when(r["ts"]))
+        if r.get("outputs_observation") != "observed":
+            return "a later attempt (`{}` at {}) ran without its outputs observed, so they may have changed; run the " \
+                   "check again".format(r.get("command", "")[:60], when(r["ts"]))
     return None
 
 
@@ -1847,6 +1877,9 @@ def check_validations(root, report, validation, mine, elsewhere):
     for check in validation["checks"]:
         runs = [r for r in mine if r.get("validation_check") == check["id"] and r.get("launch_match") == "matched"]
         one = judge_check(root, check, runs, edited.get(check["id"]), check["id"] in elsewhere)
+        later = changed_after(runs[-1], mine) if one["outcome"] == "passed" else None
+        if later:
+            one.update(outcome="stale", reason="it passed, but " + later)
         results.append(one)
         who = "Validation `{}` (plan row {}, {}; declared {}, not verified)".format(
             one["id"], one["plan_row"], "required" if one["required"] else "optional", one["defined_by"])
@@ -2054,7 +2087,10 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         report.add("gap", "{} malformed receipt record(s) were skipped (lines {}); the run history "
                    "is incomplete.".format(len(invalid_receipts), ", ".join(map(str, invalid_receipts[:12]))))
     gate_errors = gate_error_gaps(root, report, approved_at, {session} | {r.get("session_id") for r in mine})
-    instance_findings(report, digest, chosen, current, frozen, history, mine, approved_at, bool(instance))
+    failed_before = [(r, attempt_state(r, {})[1]) for r in receipts
+                     if chosen and digest in r.get("plans", []) and not r.get("explore")
+                     and r.get("approval_instance") != chosen and attempt_state(r, {})[0] == "failed"]
+    instance_findings(report, digest, chosen, current, frozen, history, mine, approved_at, bool(instance), failed_before)
     abandoned = abandoned_attempts(root)
     open_attempts = launch_findings(report, mine, abandoned, digest, chosen, approved_at)
     frozen_blocks = frozen if frozen is not None else approval  # the plan's validation and exact-execution blocks, as approved
@@ -2433,7 +2469,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     scope["observation"] = {"gate_errors": gate_errors, "open_attempts": open_attempts, "off_contract": off_contract,
                             "steps": completion_steps(root, scripts, latest, commands, folders, granted, mine, jobs, shared)}
     return {"hash": digest, "approved_at": approved_at, "start": start, "session_id": session,
-            "instance": {"selected": chosen, "current": current, "history": dict(history)}, "scope": scope,
+            "instance": {"selected": chosen, "current": current, "history": dict(history),
+                         "prepared": (frozen or {}).get("prepared")}, "scope": scope,
             "analysis_dir": analysis_dir, "git": gate.git_state(root), "runs": len(mine),
             "scripts": scripts, "folders": folders, "commands": commands, "inputs": inputs,
             "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted, "envs": envs,
@@ -2521,6 +2558,8 @@ ACTIONS = {
     "required validation": "run each required check as a matched attempt that writes its result",
     "claim linkage": "correct the claim, or re-run so each cited output has a supported producer",
     "no blocking finding": "resolve each block finding below; a run that fails verification is never reportable",
+    "no open gap": "close or resolve each gap finding below; a gap is evidence that could not be established, so the "
+                   "run is not reportable while one is open",
 }
 
 
@@ -2547,6 +2586,8 @@ def qualify(root, result):
             ("legacy", "legacy (launch link not recorded)")) if launch[k]]
     if not (result["instance"] or {}).get("selected"):
         problems.append("the approval predates approval instances")
+    if (result["instance"] or {}).get("prepared") not in (None, "complete"):
+        problems.append("the approval instance was prepared before readiness was recorded")
     for key, what in (("gate_errors", "gate error(s) in the observation window"),
                       ("open_attempts", "attempt(s) with no completion record"),
                       ("off_contract", "run(s) outside the declared exact execution")):
@@ -2594,6 +2635,8 @@ def qualify(root, result):
         problems += ["`{}` has {} producer ({})".format(r["path"], r["strength"], r["evidence_method"]) if not r["explore"]
                      else "`{}` was written by an explore run".format(r["path"])
                      for r in rows if r["strength"] != "supported" or r["explore"]]
+        if words and not rows and not problems:
+            problems.append("no file under the declared output(s) was written under this approval")
         add("lineage", problems, "{} of {} declared output(s) have a supported producer (a matched attempt saw each "
                                  "change)".format(len(rows), len(rows)))
 
@@ -2625,16 +2668,20 @@ def qualify(root, result):
             len(claims), "; a registered `numbers.json` value is attributed to the file's producer, not to the key's run"
             if any(c.get("registered") for _, c in claims) else ""))
 
-    levels = collections.Counter(level for level, _ in result["findings"])
     blocks = [text for level, text in result["findings"] if level == "block"]
     add("no blocking finding", ["{} block finding(s): {}".format(len(blocks), cap([b.split(". ")[0] for b in blocks], 2))]
         if blocks else [], "no finding blocks this plan")
 
+    gaps = [text for level, text in result["findings"] if level == "gap"]
+    add("no open gap", ["{} gap finding(s) open, listed under Findings".format(len(gaps))] if gaps else [],
+        "no finding is an open gap")
+
     failing = [d for d in dims if d["state"] == "not established"]
     if failing:
-        limit = "{} not established: {}.".format(failing[0]["dimension"], ACTIONS[failing[0]["dimension"]])
-    elif levels["gap"]:
-        limit = "qualified on these dimensions only; {} gap finding(s) below are still open.".format(levels["gap"])
+        limit = "{} not established: {}.{}{}".format(
+            failing[0]["dimension"], ACTIONS[failing[0]["dimension"]],
+            " {} of {} dimensions are not established.".format(len(failing), len(dims)) if len(failing) > 1 else "",
+            " {} gap finding(s) open.".format(len(gaps)) if gaps else "")
     else:
         limit = "qualification covers evidence linkage, not whether the analysis is scientifically right."
     return {"overall": "not qualified" if failing else "qualified", "dimensions": dims, "limitation": limit}

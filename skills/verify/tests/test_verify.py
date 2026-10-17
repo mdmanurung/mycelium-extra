@@ -2195,6 +2195,34 @@ sys.exit(1 if hits else 0)
         self.assertIn("| `{}` | ran |".format(FIT), out)
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
 
+    def test_a_failure_under_an_earlier_instance_stays_named_after_a_refreeze(self):
+        self.write("data/in.tsv", "a\n", mtime=time.time() - 3600)
+        text = plan("run `{}`".format(FIT), inputs="data/in.tsv", outputs=self.OUT)
+        digest = self.approve(text)
+        self.run_cmd("python " + FIT, exit_code=1)
+        self.rewrite_receipts(lambda r: r.update(ts=r["ts"] - 120))
+        self.write("data/in.tsv", "b changed\n", mtime=time.time() - 3000)
+        self.approve(text)
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        out = self.verify("report", digest)
+        self.assertIn("Of these, 1 failed: `python {}` failed (exit 1)".format(FIT), out)
+
+    def test_an_instance_prepared_before_readiness_is_not_established(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        instance = gate.read_json(gate.state_path(self.root, "approvals", digest + ".json"), {})["instance_id"]
+        path = gate.state_path(self.root, "approval-instances", digest, instance + ".json")
+        self.assertNotIn("prepared before readiness", self.verify("report", digest))  # control: a complete instance
+        record = gate.read_json(path, {})
+        record.update(prepared="legacy-no-ready", limitations=["prepared before readiness was recorded (legacy)"])
+        with open(path, "w") as handle:
+            json.dump(record, handle)
+        result = json.loads(self.verify("report", digest, "--json"))
+        dims = dict((d["dimension"], d) for d in result["qualification"]["dimensions"])
+        self.assertEqual(dims["authorization"]["state"], "not established")
+        self.assertIn("prepared before readiness", dims["authorization"]["reason"])
+        self.assertIn("prepared before readiness was recorded (legacy-no-ready)", self.verify("report", digest))
+
     def test_an_older_instance_can_be_selected_and_is_checked_against_its_own_pins(self):
         digest, first, second = self.reapproved_with_new_input()
         out = self.verify("report", digest, "--instance", first)
@@ -3007,6 +3035,57 @@ class QualificationTest(unittest.TestCase):
         self.assertEqual(dims["no blocking finding"][0], "not established")
         self.assertIn("scilintr finding", dims["no blocking finding"][1])
         self.assertEqual(dims["no blocking finding"][1].count("`") % 2, 0)  # a whole sentence, never cut inside code
+
+    def test_a_recovery_with_a_changed_command_leaves_the_run_unqualified(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python {} --model original".format(FIT), exit_code=1)
+        self.run_cmd("python {} --model alternative".format(FIT), writes={self.OUT: "x\n"})
+        dims, record = self.qual(digest)
+        self.assertEqual(record["overall"], "not qualified")
+        self.assertEqual(dims["no open gap"][0], "not established")
+        self.assertIn("gap finding(s) open", record["limitation"])
+        self.assertIn("no open gap", self.verify("report", digest, "--require-reportable", fails=True))
+
+    def test_an_unplanned_run_or_a_skipped_receipt_leaves_the_run_unqualified(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.assertEqual(self.qual(digest)[1]["overall"], "qualified")  # control
+        with open(gate.state_path(self.root, "receipts.jsonl"), "a") as handle:
+            handle.write("{not json\n")
+        dims, record = self.qual(digest)
+        self.assertEqual((record["overall"], dims["no open gap"][0]), ("not qualified", "not established"))
+
+    def test_a_folder_output_with_nothing_written_is_not_lineage(self):
+        self.write("analysis/a/outputs/old.tsv", "old\n", mtime=time.time() - 7200)
+        digest = self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/outputs/"))
+        self.run_cmd("python " + FIT)
+        dims, record = self.qual(digest)
+        self.assertEqual(dims["lineage"][0], "not established")
+        self.assertIn("no file under the declared output", dims["lineage"][1])
+        self.assertEqual(record["overall"], "not qualified")
+
+    def test_a_check_that_ran_before_the_output_changed_is_stale(self):
+        text = self.bound_plan().replace("Outputs: " + self.EVID, "Outputs: {} {}".format(self.EVID, self.OUT))
+        digest = self.approve(text)
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\ny\n"})
+        self.run_check({"status": "passed"})
+        self.assertEqual(self.qual(digest)[0]["required validation"][0], "established")  # control
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})  # rewritten after the check
+        dims, record = self.qual(digest)
+        self.assertEqual(dims["required validation"][0], "not established")
+        self.assertIn("V1", dims["required validation"][1])
+        self.assertIn("is stale", self.verify("report", digest))
+        self.run_check({"status": "passed"})  # the check run again speaks for the new output
+        self.assertEqual(self.qual(digest)[0]["required validation"][0], "established")
+
+    def test_a_malformed_contract_result_is_unsupported_not_a_crash(self):
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        for bad in ({"contract": 5}, {"checks": 5}):
+            self.run_check(dict({"schema": self.CONTRACT_SCHEMA, "status": "pass", "exit_code": 0}, **bad))
+            dims, record = self.qual(digest)
+            self.assertEqual(dims["required validation"][0], "not established", bad)
+            self.assertIn("unsupported", dims["required validation"][1], bad)
 
     def test_a_required_check_that_never_ran_leaves_the_run_unqualified(self):
         digest = self.approve(self.bound_plan())
