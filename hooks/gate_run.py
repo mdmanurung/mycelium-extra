@@ -70,10 +70,48 @@ def error_output(name, error, cwd, event=None, host=None):
     return {"systemMessage": message + note}
 
 
+def opencode_event(event):
+    """Normalize one OpenCode V2 plugin payload into the gate's hook vocabulary.
+
+    The plugin sends OpenCode's own tool names (`shell`, `edit`, `write`, `patch`) and inputs;
+    the gate handles Bash, Edit, Write and apply_patch. A failed post event becomes
+    PostToolUseFailure with the error's message and metadata, so no exit status is read from a
+    path it does not describe. Like the rest of this file, it stays parseable by Python 3.6.
+    """
+    data = event.get("tool_input") if isinstance(event.get("tool_input"), dict) else {}
+    name = event.get("tool_name", "")
+    if name == "shell":
+        event["tool_name"] = "Bash"
+        command = data.get("command", data.get("cmd", ""))
+        if isinstance(command, list):  # a list argv, quoted like the Codex path
+            import shlex
+            command = " ".join(shlex.quote(word) for word in command)
+        event["tool_input"] = dict(data, command=command)
+        if data.get("background") is True:
+            event["tool_input"]["run_in_background"] = True
+    elif name in ("edit", "write"):
+        event["tool_name"] = "Write" if name == "write" else "Edit"
+        event["tool_input"] = dict(data, file_path=data.get("path", data.get("file_path", "")))
+    elif name == "patch":
+        event["tool_name"] = "apply_patch"
+        event["tool_input"] = dict(data, command=data.get("patchText", data.get("patch", "")))
+    if event.get("hook_event_name") == "PostToolUse" and event.get("status") == "error":
+        event["hook_event_name"] = "PostToolUseFailure"
+        error = event.get("error")
+        if isinstance(error, dict):
+            metadata = error.get("metadata")
+            event["tool_response"] = metadata if isinstance(metadata, dict) else {}
+            event["error"] = error.get("message") if isinstance(error.get("message"), str) else ""
+        elif error is not None:
+            event["error"] = str(error)
+    event.pop("status", None)
+    return event
+
+
 def run(argv):
     host = None
-    if len(argv) == 4 and argv[1:3] == ["--host", "codex"]:
-        host = EVENT["host"] = "codex"
+    if len(argv) == 4 and argv[1] == "--host" and argv[2] in ("codex", "opencode"):
+        host = EVENT["host"] = argv[2]
         argv = [argv[0], argv[3]]
     text = sys.stdin.buffer.read().decode("utf-8", "replace")  # Claude Code sends UTF-8, whatever the locale
     EVENT["text"] = text
@@ -113,6 +151,8 @@ def run(argv):
                         command = " ".join(shlex.quote(word) for word in command)
                     decoded["tool_name"] = "Bash"
                     decoded["tool_input"] = dict(data, command=command)
+            if host == "opencode":
+                decoded = opencode_event(decoded)
             text = json.dumps(decoded)
     except (ValueError, TypeError, AttributeError):
         pass

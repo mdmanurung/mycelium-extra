@@ -1,4 +1,4 @@
-"""mycelium-extra plan-approval gate for Claude Code and Codex hooks.
+"""mycelium-extra plan-approval gate for Claude Code, Codex, and OpenCode hooks.
 
 Usage (from hooks/hooks.json): gate.py stop | prompt | tool | post
 Reads the hook JSON on stdin. Stdlib-only; runs on Python 3.9+.
@@ -3695,20 +3695,22 @@ def exit_status(event):
     """(status, source, extra receipt fields) for a Bash hook event. A missing status is never
     read as success.
 
-    An integer exit code in the tool response wins (source "response"). Otherwise the event
-    decides: PostToolUse runs only after a tool completes successfully, so a foreground run
-    gets 0 (source "event"), but a run started with run_in_background has only started, and an
-    interrupted result was cut off. PostToolUseFailure's `error` starts with `Exit code N` when
-    the command ran and exited (source "error"); with no such line the shell did not start or
-    Claude Code stopped it ("failed"), and is_interrupt marks an abort ("interrupted"). Only
-    the error's first line is kept, never its output. Any other payload (no hook_event_name,
-    an older Claude Code or another host) is "unknown"."""
+    An integer exit code in the tool response wins (source "response"). Codex and OpenCode
+    post events do not carry the exit status, so without a code they are "unknown". Otherwise
+    the event decides: PostToolUse runs only after a tool completes successfully, so a
+    foreground run gets 0 (source "event"), but a run started with run_in_background has only
+    started, and an interrupted result was cut off. PostToolUseFailure's `error` starts with
+    `Exit code N` when the command ran and exited (source "error"); with no such line the
+    shell did not start or Claude Code stopped it ("failed"), and is_interrupt marks an abort
+    ("interrupted"). Only the error's first line is kept, never its output. Any other payload
+    (no hook_event_name, an older Claude Code or another host) is "unknown"."""
     response = event.get("tool_response")
     found = exit_code_in(response)
     if found is not None:
         return found, "response", {}
-    if event.get("host") == "codex":
-        # Codex posts completed shell results, including failures. No code is a gap.
+    if event.get("host") in ("codex", "opencode"):
+        # Codex posts completed shell results, including failures. OpenCode's result metadata
+        # has not been seen to carry a code, so no code is a gap, never an inferred success.
         return "unknown", None, {}
     name = event.get("hook_event_name")
     if name == "PostToolUse":
