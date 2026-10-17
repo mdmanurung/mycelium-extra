@@ -214,10 +214,15 @@ test("the spawn contract drives deny, approve, receipts, and inertness", async (
   assert.match(approved.systemMessage, /approved/)
   assert.equal(await __test__.runGate(PATHS, "tool", bash, 10000), null)
   await __test__.runGate(PATHS, "post", { ...bash, status: "completed", tool_response: { content: "ok" } }, 20000)
+  await __test__.runGate(PATHS, "post", { ...bash, status: "completed",
+    tool_response: { metadata: { status: "completed", exit: 5 }, output: { exit: 5 }, content: [] } }, 20000)
   const receipts = readFileSync(join(repo, ".mycelium-extra", "receipts.jsonl"), "utf8")
     .trim().split("\n").map((line) => JSON.parse(line))
-  assert.equal(receipts.at(-1).host, "opencode")
-  assert.equal(receipts.at(-1).exit_status, "unknown")
+  assert.equal(receipts.length, 2)
+  assert.equal(receipts[0].host, "opencode")
+  assert.equal(receipts[0].exit_status, "unknown") // no code in that result
+  assert.equal(receipts[1].exit_status, 5)        // the shell tool's metadata.exit, mapped
+  assert.equal(receipts[1].exit_source, "response")
   const plain = mkdtempSync(join(tmpdir(), "mx-plain-"))
   assert.equal(await __test__.runGate(PATHS, "tool", { ...bash, cwd: plain }, 10000), null)
 })

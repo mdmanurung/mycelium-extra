@@ -3695,8 +3695,9 @@ def exit_status(event):
     """(status, source, extra receipt fields) for a Bash hook event. A missing status is never
     read as success.
 
-    An integer exit code in the tool response wins (source "response"). Codex and OpenCode
-    post events do not carry the exit status, so without a code they are "unknown". Otherwise
+    An integer exit code in the tool response wins (source "response"); the OpenCode launcher
+    maps the shell result's `metadata.exit` to `exit_code` for this. Otherwise Codex and
+    OpenCode post events can name no exit status, so without a code they are "unknown". Then
     the event decides: PostToolUse runs only after a tool completes successfully, so a
     foreground run gets 0 (source "event"), but a run started with run_in_background has only
     started, and an interrupted result was cut off. PostToolUseFailure's `error` starts with
@@ -3709,8 +3710,8 @@ def exit_status(event):
     if found is not None:
         return found, "response", {}
     if event.get("host") in ("codex", "opencode"):
-        # Codex posts completed shell results, including failures. OpenCode's result metadata
-        # has not been seen to carry a code, so no code is a gap, never an inferred success.
+        # A post event whose response carries no code (a background task, a tool error) is a
+        # gap, never an inferred success. The launcher maps OpenCode's `metadata.exit` in.
         return "unknown", None, {}
     name = event.get("hook_event_name")
     if name == "PostToolUse":

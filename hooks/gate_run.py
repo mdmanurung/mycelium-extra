@@ -14,6 +14,7 @@ import time
 sys.dont_write_bytecode = True  # leave no __pycache__ in the plugin folder
 STATE_DIR = ".mycelium-extra"
 EVENT = {}
+HOOK_EVENT = {"prompt": "UserPromptSubmit", "tool": "PreToolUse", "post": "PostToolUse", "stop": "Stop"}
 
 
 def find_root(cwd):  # gate.find_root, copied so the gate need not load; a test checks they agree
@@ -70,13 +71,31 @@ def error_output(name, error, cwd, event=None, host=None):
     return {"systemMessage": message + note}
 
 
+def opencode_exit_code(response):
+    """The exit code from an OpenCode shell tool result, or None.
+
+    The shell tool reports the outcome `completed` even for a nonzero exit and puts the code
+    in `metadata.exit`, mirrored in `output.exit`; the gate reads `exit_code`/`exitCode` keys.
+    A boolean is not a code. Anything else (a background task, a tool error) is a gap.
+    """
+    if not isinstance(response, dict):
+        return None
+    for holder in (response, response.get("metadata"), response.get("output")):
+        if isinstance(holder, dict):
+            code = holder.get("exit")
+            if isinstance(code, int) and not isinstance(code, bool):
+                return code
+    return None
+
+
 def opencode_event(event):
     """Normalize one OpenCode V2 plugin payload into the gate's hook vocabulary.
 
     The plugin sends OpenCode's own tool names (`shell`, `edit`, `write`, `patch`) and inputs;
     the gate handles Bash, Edit, Write and apply_patch. A failed post event becomes
     PostToolUseFailure with the error's message and metadata, so no exit status is read from a
-    path it does not describe. Like the rest of this file, it stays parseable by Python 3.6.
+    path it does not describe; a shell result's `metadata.exit` becomes `exit_code`. Like the
+    rest of this file, it stays parseable by Python 3.6.
     """
     data = event.get("tool_input") if isinstance(event.get("tool_input"), dict) else {}
     name = event.get("tool_name", "")
@@ -104,6 +123,11 @@ def opencode_event(event):
             event["error"] = error.get("message") if isinstance(error.get("message"), str) else ""
         elif error is not None:
             event["error"] = str(error)
+    if event.get("hook_event_name") in ("PostToolUse", "PostToolUseFailure"):
+        code = opencode_exit_code(event.get("tool_response"))
+        if code is not None:
+            response = event.get("tool_response")
+            event["tool_response"] = dict(response, exit_code=code)
     event.pop("status", None)
     return event
 
@@ -152,6 +176,9 @@ def run(argv):
                     decoded["tool_name"] = "Bash"
                     decoded["tool_input"] = dict(data, command=command)
             if host == "opencode":
+                # The event name decides how a post event is read, and the plugin does not send
+                # it; derive it from the action before normalizing.
+                decoded.setdefault("hook_event_name", HOOK_EVENT.get(argv[-1]))
                 decoded = opencode_event(decoded)
             text = json.dumps(decoded)
     except (ValueError, TypeError, AttributeError):
@@ -160,8 +187,7 @@ def run(argv):
     import capacity
     try:
         event = json.loads(text)
-        event.setdefault("hook_event_name", {"prompt": "UserPromptSubmit", "tool": "PreToolUse",
-                         "post": "PostToolUse", "stop": "Stop"}.get(argv[-1], argv[-1]))
+        event.setdefault("hook_event_name", HOOK_EVENT.get(argv[-1], argv[-1]))
         handled, notice = capacity.handle(event)
         if handled:
             if notice:

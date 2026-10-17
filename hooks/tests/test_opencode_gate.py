@@ -35,6 +35,10 @@ class OpenCodeGateTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout) if result.stdout.strip() else None
 
+    def receipt(self):
+        with open(os.path.join(self.root, ".mycelium-extra", "receipts.jsonl")) as f:
+            return json.loads(f.read().strip().split("\n")[-1])
+
     def test_approval_and_receipts(self):
         bash = dict(tool_name="shell", tool_input={"command": "python analysis/x.py"},
                     tool_use_id="call-1")
@@ -48,13 +52,48 @@ class OpenCodeGateTest(unittest.TestCase):
         self.assertIsNone(self.hook("tool", **bash))
         for payload in ({"status": "completed", "tool_response": {"content": "ok"}},
                         {"status": "completed", "tool_response": {"content": "ok", "exitCode": 7}},
+                        # the real OpenCode shell shape: completed even for a nonzero exit,
+                        # with the code under metadata.exit and output.exit
+                        {"status": "completed", "tool_response": {"metadata": {"status": "completed", "exit": 3},
+                                                                  "output": {"exit": 3}}},
                         {"status": "error", "error": {"message": "Command failed", "metadata": {}}}):
             self.hook("post", hook_event_name="PostToolUse", **dict(bash, **payload))
         with open(os.path.join(self.root, ".mycelium-extra", "receipts.jsonl")) as f:
             receipts = [json.loads(line) for line in f]
-        self.assertEqual([r["exit_status"] for r in receipts], ["unknown", 7, "unknown"])
-        self.assertEqual([r["exit_source"] for r in receipts], [None, "response", None])
+        self.assertEqual([r["exit_status"] for r in receipts], ["unknown", 7, 3, "unknown"])
+        self.assertEqual([r["exit_source"] for r in receipts], [None, "response", "response", None])
         self.assertTrue(all(r["host"] == "opencode" for r in receipts))
+
+    def test_the_post_action_derives_the_event_and_maps_the_exit_code(self):
+        # What the plugin actually sends: no hook_event_name, an OpenCode tool name, and the
+        # shell result. The action supplies PostToolUse, so the exit code must still be read.
+        self.hook("post", tool_name="shell", tool_input={"command": "python analysis/x.py"},
+                  tool_use_id="c9", status="completed",
+                  tool_response={"metadata": {"status": "completed", "exit": 3}, "output": {"exit": 3}})
+        receipt = self.receipt()
+        self.assertEqual((receipt["exit_status"], receipt["exit_source"]), (3, "response"))
+        self.assertEqual(receipt["host"], "opencode")
+        self.hook("post", tool_name="shell", tool_input={"command": "python analysis/x.py"},
+                  tool_use_id="c10", status="error",
+                  error={"message": "Command failed", "metadata": {"exit": 9}})
+        receipt = self.receipt()
+        self.assertEqual((receipt["exit_status"], receipt["exit_source"]), (9, "response"))
+
+    def test_opencode_shell_exit_code_is_mapped(self):
+        for response, expected in (({"metadata": {"exit": 3}, "output": {"exit": 3}}, 3),
+                                   ({"metadata": {"exit": 0}}, 0),
+                                   ({"output": {"exit": 4}}, 4),
+                                   ({"metadata": {"exit": True}}, None),   # a bool is not a code
+                                   ({"metadata": {"exit": "3"}}, None),
+                                   ({"metadata": {"truncated": False}}, None),
+                                   ({}, None),
+                                   ("raw", None)):
+            event = gate_run.opencode_event({"host": "opencode", "hook_event_name": "PostToolUse",
+                                             "tool_name": "shell", "tool_input": {"command": "false"},
+                                             "tool_response": response})
+            status, source = gate.exit_status(event)[0:2]
+            pair = (expected, "response") if expected is not None else ("unknown", None)
+            self.assertEqual((status, source), pair, response)
 
     def test_opencode_missing_status_is_not_success(self):
         # The launcher records no exit code for a completed OpenCode shell result (unless the
@@ -86,6 +125,10 @@ class OpenCodeGateTest(unittest.TestCase):
                                          "tool_input": {"patchText": "*** Begin Patch\n*** Add File: a\n+x\n*** End Patch"}})
         self.assertEqual(event["tool_name"], "apply_patch")
         self.assertIn("*** Add File: a", event["tool_input"]["command"])
+        event = gate_run.opencode_event({"tool_name": "shell", "hook_event_name": "PostToolUse",
+                                         "status": "completed",
+                                         "tool_response": {"metadata": {"exit": 3}, "output": {"exit": 3}}})
+        self.assertEqual(event["tool_response"]["exit_code"], 3)
         event = gate_run.opencode_event({"tool_name": "read", "hook_event_name": "PreToolUse",
                                          "tool_input": {"path": "README.md"}})
         self.assertEqual(event["tool_name"], "read")
