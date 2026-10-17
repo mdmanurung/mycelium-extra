@@ -45,6 +45,7 @@ LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call 
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
 APPROVE = re.compile(r"^\s*approve plan(?: ([0-9a-f]{8})(?: +(\d{1,4}))?)?\s*[.!]?\s*$", re.IGNORECASE)
 EXPLORE_GRANT = re.compile(r"^\s*(allow|stop) explore\s*[.!]?\s*$", re.IGNORECASE)
+SEND_PACKET = re.compile(r"send packet ([0-9a-f]{12,64})")  # no looser than review_packet.py's consent check
 HINTS_TOGGLE = re.compile(r"^\s*hints (on|off)\s*[.!]?\s*$", re.IGNORECASE)
 HANDOFF_TOKENS = 120000  # context size at which the Stop hint suggests a handoff
 # (pattern, command, condition); first match wins. "living": only where .living/ exists;
@@ -2997,8 +2998,34 @@ def plan_ready(entry):
     return "scripts" in entry or entry.get("ts", 0) < SCRIPTS_PINNED_FROM
 
 
+def packet_consent(event, root, prefix):
+    """Record the user's consent to send one prepared review packet (`review-consent/<digest>.json`), the only
+    place consent is written. The prefix must name exactly one prepared packet folder that has its manifest."""
+    folder = state_path(root, "review-packets")
+    digests = [name for name in (os.listdir(folder) if os.path.isdir(folder) else [])
+               if re.fullmatch(r"[0-9a-f]{64}", name) and name.startswith(prefix)
+               and os.path.isfile(os.path.join(folder, name, "manifest.json"))]
+    if not digests:
+        return ("mycelium-extra: no consent recorded: no prepared review packet matches `{}`. Prepare it with "
+                "`review_packet.py prepare` and type the exact line `review_packet.py preview` prints.".format(prefix))
+    if len(digests) > 1:
+        return ("mycelium-extra: no consent recorded: {} prepared packets match `{}`, so nothing was recorded; "
+                "type a longer prefix.".format(len(digests), prefix))
+    digest = digests[0]
+    write_json(state_path(root, "review-consent", digest + ".json"),
+               {"schema": "mycelium-extra.review-consent.v1", "digest": digest,
+                "session_id": event.get("session_id") or "unknown", "ts": time.time(), "prompt": event.get("prompt")})
+    return ("mycelium-extra: consent recorded for review packet {}. Next: run `review_packet.py verify --digest {}` "
+            "immediately before sending, and send exactly the files it lists.".format(digest, digest[:12]))
+
+
 def on_prompt(event, root, config):
     prompt = event.get("prompt") or ""
+    consent = SEND_PACKET.fullmatch(prompt.strip().lower())
+    if consent:
+        message = packet_consent(event, root, consent.group(1))
+        return {"systemMessage": message,
+                "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
     toggle = HINTS_TOGGLE.match(prompt)
     if toggle:
         path = state_path(root, "hints.json")

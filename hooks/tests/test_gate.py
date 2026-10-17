@@ -3587,5 +3587,108 @@ class ExactExecutionTest(unittest.TestCase):
         self.invalid(self.plan(self.step(), shell="bash"), "unknown key shell")
 
 
+class ReviewConsentPromptTest(unittest.TestCase):
+    """C11 gate side: only the user's own prompt `send packet <digest prefix>` records consent to send a prepared
+    review packet, and `review_packet.py verify` accepts that record."""
+    entry = GATE
+    setUp, tearDown, config, hook = GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook
+    path = PreparationAndLaunchTest.path
+    SCRIPT = os.path.join(os.path.dirname(GATE), "..", "skills", "plan-review", "scripts", "review_packet.py")
+
+    def review_packet(self, *args):
+        proc = subprocess.Popen([sys.executable, self.SCRIPT] + list(args) + ["--root", self.root],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = proc.communicate()
+        return proc.returncode, (out + err).decode("utf-8")
+
+    def prepared(self):
+        packet = os.path.join(self.root, "packet-draft.txt")
+        with open(packet, "w") as handle:
+            handle.write('objective: "Test the day 28 change"\nredactions: []\n')
+        code, out = self.review_packet("prepare", "--packet", packet)
+        self.assertEqual(code, 0, out)
+        return re.search(r"^digest: ([0-9a-f]{64})$", out, re.MULTILINE).group(1)
+
+    def consent_files(self):
+        folder = self.path("review-consent")
+        return sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+
+    def send(self, prompt):
+        result = self.hook("prompt", {"prompt": prompt})
+        return (result or {}).get("systemMessage")
+
+    def test_the_exact_prompt_records_consent_that_verify_accepts(self):
+        digest = self.prepared()
+        code, out = self.review_packet("verify", "--digest", digest[:12])
+        self.assertEqual(code, 3, "no consent yet")
+        self.assertIn("no consent record", out)
+        message = self.send("send packet " + digest[:12])
+        self.assertIn(digest, message)
+        self.assertIn("review_packet.py verify", message)
+        self.assertEqual(self.consent_files(), [digest + ".json"])
+        with open(self.path("review-consent", digest + ".json")) as handle:
+            record = json.load(handle)
+        self.assertEqual(record["schema"], "mycelium-extra.review-consent.v1")
+        self.assertEqual((record["digest"], record["session_id"], record["prompt"]),
+                         (digest, "s1", "send packet " + digest[:12]))
+        self.assertIsInstance(record["ts"], float)
+        code, out = self.review_packet("verify", "--digest", digest[:12])
+        self.assertEqual(code, 0, out)
+
+    def test_case_whitespace_and_a_longer_prefix_are_accepted(self):
+        digest = self.prepared()
+        self.assertIn(digest, self.send("  SEND Packet {}\n".format(digest[:20].upper())))
+        self.assertEqual(self.review_packet("verify", "--digest", digest[:12])[0], 0)
+        with open(self.path("review-consent", digest + ".json")) as handle:
+            self.assertEqual(json.load(handle)["prompt"], "  SEND Packet {}\n".format(digest[:20].upper()))
+
+    def test_a_prompt_inside_longer_text_is_not_consent(self):
+        digest = self.prepared()
+        for prompt in ("please send packet {} now".format(digest[:12]), "send packet {}.".format(digest[:12]),
+                       "ok. send packet {}".format(digest[:12]), "send packet {}\nthanks".format(digest[:12]),
+                       "send  packet {}".format(digest[:12]), "send packet {} {}".format(digest[:12], digest[:12])):
+            self.send(prompt)
+            self.assertEqual(self.consent_files(), [], prompt)
+        self.assertEqual(self.review_packet("verify", "--digest", digest[:12])[0], 3)
+
+    def test_a_prefix_that_is_too_short_is_not_a_consent_prompt(self):
+        digest = self.prepared()
+        self.assertIsNone(self.send("send packet " + digest[:11]))
+        self.assertEqual(self.consent_files(), [])
+
+    def test_an_ambiguous_prefix_records_nothing_and_says_why(self):
+        base = self.path("review-packets")
+        for tail in ("a" * 52, "b" * 52):
+            os.makedirs(os.path.join(base, "0123456789ab" + tail))
+            with open(os.path.join(base, "0123456789ab" + tail, "manifest.json"), "w") as handle:
+                handle.write("{}")
+        message = self.send("send packet 0123456789ab")
+        self.assertIn("2 prepared packets", message)
+        self.assertIn("nothing was recorded", message)
+        self.assertEqual(self.consent_files(), [])
+        self.assertIn(("0123456789ab" + "a" * 4), self.send("send packet 0123456789ab" + "a" * 4) or "")  # a longer one is unique
+
+    def test_an_unknown_digest_records_nothing_and_says_why(self):
+        self.prepared()
+        message = self.send("send packet " + "f" * 12)
+        self.assertIn("no prepared review packet", message)
+        self.assertEqual(self.consent_files(), [])
+
+    def test_a_folder_without_a_manifest_is_not_a_packet(self):
+        os.makedirs(self.path("review-packets", "c" * 64))
+        self.assertIn("no prepared review packet", self.send("send packet " + "c" * 12))
+        self.assertEqual(self.consent_files(), [])
+
+    def test_consent_for_one_packet_does_not_cover_another(self):
+        first = self.prepared()
+        with open(os.path.join(self.root, "packet-draft.txt"), "a") as handle:
+            handle.write("# a second packet\n")
+        proc_code, out = self.review_packet("prepare", "--packet", os.path.join(self.root, "packet-draft.txt"))
+        second = re.search(r"^digest: ([0-9a-f]{64})$", out, re.MULTILINE).group(1)
+        self.send("send packet " + first[:12])
+        self.assertEqual(self.review_packet("verify", "--digest", first[:12])[0], 0)
+        self.assertEqual(self.review_packet("verify", "--digest", second[:12])[0], 3)
+
+
 if __name__ == "__main__":
     unittest.main()
