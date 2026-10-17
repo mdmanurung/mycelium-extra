@@ -2659,5 +2659,216 @@ sys.exit(1 if hits else 0)
         self.assertNotIn("## Recovery", self.verify("report", digest))
 
 
+class LineageAndExploreHistoryTest(unittest.TestCase):
+    """C05 lineage join and C09 verify side: Mycelium's lineage is candidate producer evidence only, never
+    `supported`; explore history keeps every attempt, and an explore run never owns an output or validates."""
+    setUp, tearDown, write, fake_sacct, fake_tool, hook, approve, run_cmd, post_only, verify = (
+        VerifyTest.setUp, VerifyTest.tearDown, VerifyTest.write, VerifyTest.fake_sacct, VerifyTest.fake_tool,
+        VerifyTest.hook, VerifyTest.approve, VerifyTest.run_cmd, VerifyTest.post_only, VerifyTest.verify)
+    read_receipts, rewrite_receipts, outputs_of, output_row, ends = (
+        VerifyTest.read_receipts, VerifyTest.rewrite_receipts, VerifyTest.outputs_of, VerifyTest.output_row,
+        VerifyTest.ends)
+    CHECK, EXPECT, EVID, binding, bound_plan, run_check, validation_of = (
+        VerifyTest.CHECK, VerifyTest.EXPECT, VerifyTest.EVID, VerifyTest.binding, VerifyTest.bound_plan,
+        VerifyTest.run_check, VerifyTest.validation_of)
+    OUT = "analysis/a/outputs/fit.tsv"
+    EXPLORE = "MYCELIUM_EXTRA_EXPLORE=1 "
+
+    # ---- lineage as candidate producer evidence
+
+    def sha(self, rel):
+        with open(os.path.join(self.root, rel), "rb") as handle:
+            return hashlib.sha256(handle.read()).hexdigest()
+
+    def iso(self, ts):
+        return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+
+    def lineage(self, *actions, session="s1", warnings=(), raw=None):
+        text = raw if raw is not None else json.dumps({"session_id": session, "actions": list(actions),
+                                                       "extraction_warnings": list(warnings)})
+        self.write(".living/log/data-lineage/{}.json".format(session), text)
+
+    def act(self, receipt, outputs=(), script=FIT, io="static", exit=0, missing=False, sha=None, command=None, **extra):
+        """One lineage action as Mycelium's tracker writes it for `receipt`'s command."""
+        outs = []
+        for rel in outputs:
+            rec = {"path": os.path.join(self.root, rel)}
+            if missing:
+                rec["_missing"] = True
+            else:
+                rec["sha256"] = sha or self.sha(rel)
+            outs.append(rec)
+        action = {"ts": self.iso(receipt["ts"]), "agent_id": None, "agent_type": None,
+                  "bash_cmd": command or receipt["command"], "bash_exit": exit,
+                  "script": os.path.join(self.root, script) if script else None, "script_sha256": "ab" * 32,
+                  "inputs": [], "outputs": outs, "io_detection": io, "lineage_warnings": []}
+        action.update(extra)
+        return action
+
+    def unobserved_run(self, command="python " + FIT):
+        """A matched run whose gate observation of outputs was skipped, so only time and lineage speak for it."""
+        receipt = self.run_cmd(command)
+        self.rewrite_receipts(lambda r: r.get("command") == command and (
+            r.update(outputs_observation="skipped: test") or r.pop("outputs_changed", None)))
+        return receipt
+
+    def candidate_case(self):
+        """A plan whose one matched, unobserved run reported at ts; OUT is written a second before it."""
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        receipt = self.unobserved_run()
+        self.write(self.OUT, "x\n", mtime=receipt["ts"] - 1)
+        return digest, receipt
+
+    def producer(self, digest):
+        entry, = self.outputs_of(digest)
+        return entry
+
+    def test_lineage_alone_is_a_joined_candidate_never_supported(self):
+        digest, receipt = self.candidate_case()
+        self.lineage(self.act(receipt, [self.OUT]))
+        out = self.verify("report", digest)
+        entry = self.producer(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"]), ("lineage-record", "candidate"))
+        self.assertEqual(self.output_row(out, self.OUT).split("|")[3].strip(), "unresolved")  # By is not filled
+        self.assertIn("inferred", entry["reason"])
+        for word in ("session", "command", "script", "static"):
+            self.assertIn(word, entry["reason"])
+        self.assertIn("a candidate, not an established producer", out)
+        self.ends(out, "CONFORMS_WITH_GAPS")
+
+    def test_an_explicit_attempt_id_joins_without_the_session(self):
+        digest, receipt = self.candidate_case()
+        self.lineage(self.act(receipt, [self.OUT], attempt_id=receipt["attempt_id"]), session="2026-10-01-001")
+        entry = self.producer(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"]), ("lineage-record", "candidate"))
+        self.assertIn("explicit", entry["reason"])
+        self.assertNotIn("inferred", entry["reason"])
+
+    def test_a_static_path_the_attempt_did_not_write_is_not_producer_evidence(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        receipt = self.run_cmd("python " + FIT)  # a print-only script: its attempt saw no output change
+        self.write(self.OUT, "x\n", mtime=receipt["ts"] - 1)  # an independent writer
+        self.lineage(self.act(receipt, [self.OUT]))  # the static scan names a path the script never wrote
+        out = self.verify("report", digest)
+        entry = self.producer(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"]), ("timing-only", "candidate"))
+        self.assertIn("Mycelium's lineage lists `{}` as a static output".format(self.OUT), out)
+        self.assertIn("did not see it change", out)
+
+    def test_lineage_that_cannot_be_trusted_or_joined_is_not_used(self):
+        cases = [
+            ("unresolved I/O detection", {"io": "unresolved"}, {}, "io_detection"),
+            ("a nonzero exit", {"exit": 1}, {}, "exit"),
+            ("a path missing when the action was recorded", {"missing": True}, {}, "missing"),
+            ("a hash that is not the file's now", {"sha": "0" * 64}, {}, "hash"),
+            ("another session", {}, {"session": "2026-10-01-001"}, "session"),
+            ("another command", {"command": "python analysis/a/scripts/other.py"}, {}, "command"),
+            ("another script", {"script": "analysis/a/scripts/other.py"}, {}, "script"),
+            ("no script (inline code)", {"script": None}, {}, "script"),
+        ]
+        for label, changes, manifest, word in cases:
+            with self.subTest(label):
+                self.tearDown()
+                self.setUp()
+                digest, receipt = self.candidate_case()
+                self.lineage(self.act(receipt, [self.OUT], **changes), **manifest)
+                out = self.verify("report", digest)
+                entry = self.producer(digest)
+                self.assertEqual((entry["evidence_method"], entry["strength"]), ("timing-only", "candidate"))
+                self.assertIn("lineage", out.lower())
+                self.assertIn(word, json.dumps(entry["lineage"]))
+                self.ends(out, "CONFORMS_WITH_GAPS")
+
+    def test_two_attempts_that_fit_the_lineage_record_are_not_a_join(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        first = self.unobserved_run()
+        second = self.unobserved_run()  # the same command, a moment later
+        self.write(self.OUT, "x\n", mtime=second["ts"] - 1)
+        self.lineage(self.act(second, [self.OUT]))
+        entry = self.producer(digest)
+        self.assertNotEqual(entry["evidence_method"], "lineage-record")
+        self.assertIn("no unique", json.dumps(entry["lineage"]))
+        self.assertNotEqual(entry["strength"], "supported")
+
+    def test_lineage_agreeing_with_an_observed_attempt_is_noted_and_the_producer_stays_supported(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        receipt = self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.lineage(self.act(receipt, [self.OUT]))
+        out = self.verify("report", digest)
+        entry = self.producer(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"], entry["producer_attempt"]),
+                         ("attempt-observed", "supported", receipt["attempt_id"]))
+        self.assertIn("lineage agrees", entry["reason"])
+        self.ends(out, "CONFORMS")
+
+    def test_lineage_without_the_observed_attempt_does_not_lower_the_producer(self):  # control: lineage lists another path
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        receipt = self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.lineage(self.act(receipt, ["analysis/a/outputs/other.tsv"], missing=True))
+        entry = self.producer(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"]), ("attempt-observed", "supported"))
+        self.assertNotIn("lineage agrees", entry["reason"])
+
+    def test_lineage_naming_another_attempt_as_producer_is_a_conflict(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        first = self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        second = self.run_cmd("python {} --again".format(FIT))
+        records = self.read_receipts()
+        mtime = first["ts"] - 1
+        os.utime(os.path.join(self.root, self.OUT), (mtime, mtime))
+        records[1].update(started=first["ts"] + 1, ts=first["ts"] + 2, outputs_observation="skipped: test")
+        records[1].pop("outputs_changed", None)
+        with open(gate.state_path(self.root, "receipts.jsonl"), "w") as handle:
+            handle.write("".join(json.dumps(r) + "\n" for r in records))
+        self.lineage(self.act(dict(second, ts=first["ts"] + 2), [self.OUT]))
+        out = self.verify("report", digest)
+        entry = self.producer(digest)
+        self.assertEqual((entry["strength"], entry["producer_attempt"]), ("unresolved", None))
+        self.assertEqual(self.output_row(out, self.OUT).split("|")[3].strip(), "unresolved")
+        self.assertIn("two producers", out)
+        self.assertEqual(len(entry["candidates"]), 2)
+        self.ends(out, "CONFORMS_WITH_GAPS")
+
+    def test_lineage_warnings_are_shown(self):
+        digest, receipt = self.candidate_case()
+        self.lineage(self.act(receipt, [self.OUT], lineage_warnings=["dynamic path guessed"]),
+                     warnings=[os.path.join(self.root, FIT) + ": the runner moved"])
+        out = self.verify("report", digest)
+        self.assertIn("dynamic path guessed", out)
+        self.assertIn("the runner moved", out)
+        self.assertIn("a hash read from disk is not proof", out)
+
+    def test_absent_lineage_in_an_active_session_leaves_the_timing_candidate(self):  # control
+        digest, receipt = self.candidate_case()
+        out = self.verify("report", digest)  # the manifest is written at Stop, so none exists yet
+        entry = self.producer(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"]), ("timing-only", "candidate"))
+        self.assertEqual(entry["lineage"], [])
+        self.assertNotIn("lineage names", out)
+        self.ends(out, "CONFORMS_WITH_GAPS")
+
+    def test_malformed_lineage_is_a_gap_as_before_and_never_crashes(self):
+        for label, raw in [("not json", "{oops"), ("a list", "[1, 2]"), ("no actions", '{"actions": 3}'),
+                           ("bad actions", json.dumps({"session_id": "s1", "actions": [
+                               "x", 7, {"ts": "never", "outputs": "x"},
+                               {"ts": self.iso(time.time()), "outputs": [3, {"path": 4}, "a"], "bash_exit": "zero",
+                                "io_detection": ["static"], "lineage_warnings": "w"}]}))]:
+            with self.subTest(label):
+                self.tearDown()
+                self.setUp()
+                digest, receipt = self.candidate_case()
+                self.lineage(raw=raw)
+                out = self.verify("report", digest)
+                entry = self.producer(digest)
+                self.assertEqual((entry["evidence_method"], entry["strength"]), ("timing-only", "candidate"))
+                self.ends(out, "CONFORMS_WITH_GAPS")
+
+    def test_lineage_still_finds_unreceipted_scripts(self):  # control: the existing use survives the extension
+        digest, receipt = self.candidate_case()
+        self.lineage(self.act(receipt, [], script="/tmp/scratchpad/smoke.R"), self.act(receipt, [self.OUT]))
+        out = self.verify("report", digest)
+        self.assertIn("lineage saw `/tmp/scratchpad/smoke.R`", out)
+
+
 if __name__ == "__main__":
     unittest.main()

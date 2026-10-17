@@ -291,7 +291,16 @@ def snakemake_records(folders, since, invalid=None):
     return records
 
 
+STATIC_IO = ("static", "static+repository")  # upstream's io_detection values that name literal paths; "unresolved" names none
+LINEAGE_SPLIT = re.compile(r"\s*(?:&&|\|\||[;|\n])\s*")
+
+
 def lineage_actions(root, start, end):
+    """Mycelium's lineage actions in the window, as upstream wrote them plus what verify keeps of each: `epoch`,
+    `session` (Mycelium's own id, which is the host's only when Mycelium fell back to it), `files` (its outputs: root-relative
+    path, sha256, `missing` when the path did not exist when the action was recorded), `exit`, `io` (io_detection),
+    `warnings` (its own and the manifest's extraction warnings for it) and `manifest`. An unreadable manifest, a
+    non-object action or a malformed field is skipped or read as absent, never an error."""
     actions = []
     for path in sorted(glob.glob(os.path.join(root, ".living", "log", "data-lineage", "*.json"))):
         try:
@@ -299,11 +308,158 @@ def lineage_actions(root, start, end):
                 manifest = json.load(handle)
         except (OSError, ValueError):
             continue
-        for action in manifest.get("actions") or []:
+        if not isinstance(manifest, dict) or not isinstance(manifest.get("actions"), list):
+            continue
+        shared = manifest.get("extraction_warnings")
+        shared = [w for w in shared if isinstance(w, str)] if isinstance(shared, list) else []
+        for action in manifest["actions"]:
+            if not isinstance(action, dict):
+                continue
             ts = parse_iso(action.get("ts"))
-            if ts is not None and start - TOLERANCE <= ts <= end + TOLERANCE:
-                actions.append(dict(action, epoch=ts, session=manifest.get("session_id")))
+            if ts is None or not start - TOLERANCE <= ts <= end + TOLERANCE:
+                continue
+            script = action.get("script") if isinstance(action.get("script"), str) and action.get("script") else None
+            files = [{"path": rel_or_abs(root, rec["path"]), "sha256": rec["sha256"] if isinstance(rec.get("sha256"), str) else None,
+                      "missing": bool(rec.get("_missing"))}
+                     for rec in (action.get("outputs") if isinstance(action.get("outputs"), list) else [])
+                     if isinstance(rec, dict) and isinstance(rec.get("path"), str) and rec["path"]]
+            code = action.get("bash_exit")
+            own = action.get("lineage_warnings")
+            warnings = [w for w in own if isinstance(w, str)] if isinstance(own, list) else []
+            command = action.get("bash_cmd") if isinstance(action.get("bash_cmd"), str) else None
+            label = (script or command or "event at {}".format(action.get("ts"))) + ": "  # how upstream prefixes them
+            warnings += [w[len(label):] for w in shared if w.startswith(label) and w[len(label):] not in warnings]
+            actions.append(dict(action, script=script, epoch=ts, session=manifest.get("session_id"),
+                                manifest=os.path.basename(path), files=files, warnings=warnings,
+                                exit=None if isinstance(code, bool) or not isinstance(code, int) else code,
+                                io=action.get("io_detection") if isinstance(action.get("io_detection"), str) else None))
     return actions
+
+
+def lineage_join(root, action, receipts):
+    """(receipt, how, why): the attempt a lineage action belongs to. `explicit` when the action carries the attempt id or
+    call id of exactly one recorded attempt (upstream writes none at this revision). Otherwise `inferred`: a matched
+    attempt with the same session id, the same command (a whole command, or one `&&`/`;`/`|` segment of it), the same
+    script and a launch-to-report window around the action's time, and only when exactly one attempt fits. Anything
+    less is (None, None, why not): no timestamp or output path ever joins an action to an attempt."""
+    for key, field in (("attempt_id", "attempt_id"), ("call_id", "call_id"), ("tool_use_id", "call_id")):
+        want = action.get(key)
+        if isinstance(want, str) and want:
+            found = [r for r in receipts if r.get(field) == want]
+            if len(found) == 1:
+                return found[0], "explicit", None
+            return None, None, "its explicit {} `{}` names {} recorded attempts".format(key, want, len(found))
+    if not action["script"]:
+        return None, None, "it names no script (inline code), so no script identity joins it to an attempt"
+    session, rel = action.get("session"), rel_or_abs(root, action["script"])
+    commands = set(squash(part) for part in LINEAGE_SPLIT.split(action.get("bash_cmd") or "") if part.strip())
+    pool = [r for r in receipts if launch_kind(r) == "matched" and r.get("attempt_id")]
+    for name, ok in (("session", lambda r: bool(session) and r.get("session_id") == session),
+                     ("command", lambda r: squash(r.get("command", "")) in commands),
+                     ("script", lambda r: rel in ran_paths(root, r)),
+                     ("time", lambda r: window(r)[0] - TOLERANCE <= action["epoch"] <= r["ts"] + TOLERANCE)):
+        pool = [r for r in pool if ok(r)]
+        if not pool:
+            return None, None, "no matched attempt shares its {}{}".format(
+                name, " (Mycelium's session id is its own date-counter unless it fell back to the host's)" if name == "session" else "")
+    if len(pool) > 1:
+        return None, None, "no unique attempt fits it: {} attempts share its session, command, script and time".format(len(pool))
+    return pool[0], "inferred", None
+
+
+def fits_attempt(r, mtime):
+    """The file's time falls in the attempt (its report, and its start when recorded), within the clock tolerance."""
+    return r["ts"] >= mtime - TOLERANCE and (started(r) is None or mtime >= started(r) - TOLERANCE)
+
+
+def lineage_for(root, rel, mtime, sha, actions, receipts):
+    """The lineage actions that list `rel` as an output, each judged: (entry, receipt) pairs. `entry.used` is true only
+    for an action joined to one attempt and not contradicted. Static detection is not a write: an unresolved
+    io_detection, a nonzero exit, a path that was missing when it was recorded, a hash that is not the file's now,
+    a file time outside the joined attempt, or an attempt that watched the declared outputs and did not see this one change
+    (upstream fills a missing hash from disk later, so a hash that matches proves nothing either) all leave it unused."""
+    found = []
+    for action in actions:
+        listed = [f for f in action["files"] if f["path"] == rel]
+        if not listed:
+            continue
+        receipt, how, why = lineage_join(root, action, receipts)
+        notes = [] if receipt is not None else ["not joined: " + why]
+        if action["io"] not in STATIC_IO:
+            notes.append("its io_detection is `{}`, not a resolved static detection".format(action["io"]))
+        if action["exit"] not in (None, 0):
+            notes.append("lineage records exit {}".format(action["exit"]))
+        if listed[0]["missing"]:
+            notes.append("the path was missing when the action was recorded")
+        if listed[0]["sha256"] and sha and listed[0]["sha256"] != sha:
+            notes.append("its hash differs from the file now")
+        if receipt is not None:
+            seen = observed_paths(receipt)
+            if not fits_attempt(receipt, mtime):
+                notes.append("the file's time is outside the joined attempt")
+            if seen is not None and rel not in seen and not any(under(rel, folder) for folder in seen):
+                notes.append("the joined attempt observed the declared outputs and did not see it change")
+        found.append(({"ts": action["ts"], "script": action["script"] and rel_or_abs(root, action["script"]),
+                       "io_detection": action["io"], "exit": action["exit"], "manifest": action["manifest"],
+                       "joined": receipt.get("attempt_id") if receipt is not None else None, "how": how,
+                       "warnings": action["warnings"], "notes": notes, "used": not notes}, receipt))
+    return found
+
+
+def lineage_findings(report, rel, found):
+    """One info line per output that lineage lists: what it says, how it was used or why not, and the upstream limits."""
+    for entry, _ in found:
+        report.add("info", "Mycelium's lineage lists `{}` as a static output of `{}` (io_detection {}{}): {}. A path found by static "
+                           "scanning is not proof of a write, and a hash read from disk is not proof that this invocation wrote it.".format(
+                               rel, entry["script"] or "inline code", entry["io_detection"],
+                               "; warnings: " + "; ".join(entry["warnings"]) if entry["warnings"] else "",
+                               "used as a candidate producer only (join: {})".format(entry["how"]) if entry["used"]
+                               else "not used as producer evidence: " + "; ".join(entry["notes"])))
+
+
+def apply_lineage(grade, found, digest, rel):
+    """Fold the judged lineage into `grade`; adds `lineage` (the entries) and, for two producers, `conflict`. Lineage
+    is only ever a candidate (`lineage-record`): it confirms an `attempt-observed` producer ("lineage agrees"), agrees
+    with or supplies a candidate, or names a second producer, which leaves the output unresolved. It never makes
+    an output `supported`."""
+    grade["lineage"] = [entry for entry, _ in found]
+    used = collections.OrderedDict((id(r), r) for entry, r in found if entry["used"])
+    if not used:
+        return grade
+    hows = {e["how"] for e, _ in found if e["used"]}
+    owner = grade["owner"]
+    via = "Mycelium's lineage lists it as a static output of `{}` (io_detection {}); the join to the attempt is {}".format(
+        next(e["script"] for e, _ in found if e["used"]), next(e["io_detection"] for e, _ in found if e["used"]),
+        "explicit (its attempt id)" if hows == {"explicit"} else
+        "inferred (same session, command and script, and exactly one matching attempt)")
+
+    def conflict(others):
+        names = [candidate_text(r, digest) for r in others]
+        grade.update(owner=None, producer_attempt=None, strength="unresolved", conflict=True, candidates=names,
+                     reason="two producers: " + "; ".join(names),
+                     gap="Output `{}` has two producers: {}; neither is established, so the output stays unresolved."
+                     .format(rel, " and ".join(names)))
+        return grade
+
+    named = list(used.values())
+    if len(named) > 1:
+        return conflict(named)
+    receipt = named[0]
+    if owner is not None and (owner is receipt or owner.get("attempt_id") == receipt.get("attempt_id")):
+        if grade["evidence_method"] == "attempt-observed":
+            grade["reason"] += "; lineage agrees ({})".format(via)
+        else:
+            grade.update(evidence_method="lineage-record", reason=via + "; the timing candidate is the same attempt")
+        return grade
+    if owner is not None:
+        return conflict([owner, receipt])
+    if grade["candidates"]:  # an ambiguity that lineage names one party of does not resolve it
+        grade["reason"] += "; lineage names {}, which does not resolve it".format(candidate_text(receipt, digest))
+        return grade
+    grade.update(owner=receipt, evidence_method="lineage-record", strength="candidate",
+                 candidates=[candidate_text(receipt, digest)],
+                 reason=via + "; a detected path and a hash read from disk are not proof that this invocation wrote it")
+    return grade
 
 
 # ---------------------------------------------------------------- the check
@@ -854,8 +1010,8 @@ def grade_output(rel, mtime, file_level, since, mine, digest, jobs, abandoned, w
               "strength": "unresolved", "candidates": [], "reason": "no recorded run", "gap": None}
     mine_ids = {id(r) for r in mine}
 
-    def fits(r):  # the file's time falls in the attempt that saw it change (its report, and its start when recorded)
-        return r["ts"] >= mtime - TOLERANCE and (started(r) is None or mtime >= started(r) - TOLERANCE)
+    def fits(r):  # the file's time falls in the attempt that saw it change
+        return fits_attempt(r, mtime)
 
     listed = [r for r in mine if rel in (observed_paths(r) or ()) and fits(r)]
     if listed:
@@ -2098,6 +2254,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             report.add("gap", "Input `{}` has a metadata-only fingerprint; unchanged content is unverified.".format(rel))
 
     outputs = []
+    lineage = lineage_actions(root, start, time.time())
     attributed = {}  # (candidate run, folder, evidence method) -> (run, [(output, written)]): one finding per group
     words = plan_outputs(plan)
     if words is None:
@@ -2134,20 +2291,23 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                 grade = grade_output(rel, mtime, exact or bool(re.search(r"[*?\[]", word)), since, mine, digest, jobs,
                                      abandoned, wrapper_candidates(since, record) if record else None)
                 owner, via = grade["owner"], "Snakemake rule `{}`".format(record["rule"]) if record else None
+                fingerprint = gate.fingerprint(full, budget)
+                found = lineage_for(root, rel, mtime, fingerprint.get("sha256"), lineage, since)
+                apply_lineage(grade, found, digest, rel)
+                lineage_findings(report, rel, found)
                 if grade["gap"]:
                     report.add("gap", grade["gap"])
-                fingerprint = gate.fingerprint(full, budget)
                 supported = grade["strength"] == "supported"
                 outputs.append({"path": rel, "written": mtime,
                                 "by": describe_run(owner, digest) if supported else "unresolved", "rule": via,
                                 "producer_attempt": grade["producer_attempt"], "evidence_method": grade["evidence_method"],
                                 "strength": grade["strength"], "candidates": grade["candidates"], "reason": grade["reason"],
                                 "fingerprint": gate.describe(fingerprint), "record": fingerprint,
-                                "explore": bool(owner and owner.get("explore"))})
+                                "lineage": grade["lineage"], "explore": bool(owner and owner.get("explore"))})
                 if mtime < start - TOLERANCE:
                     report.add("block", "Output `{}` was written {}, before the plan was approved.".format(
                         rel, when(mtime)))
-                elif not supported and grade["evidence_method"] != "attempt-observed":
+                elif not supported and grade["evidence_method"] != "attempt-observed" and not grade.get("conflict"):
                     key = (None if owner is None else (owner.get("ts"), owner.get("command")),
                            os.path.dirname(rel), grade["evidence_method"])
                     attributed.setdefault(key, (owner, []))[1].append((rel, mtime))
@@ -2155,7 +2315,9 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                 report.add("info", "{} file(s) under `{}` predate this plan, so they are earlier runs' "
                                    "outputs and were not checked.".format(older, word))
     for (_, folder, method), (owner, files) in attributed.items():
-        how = "timing evidence only" if method == "timing-only" else "joined to Snakemake's record by time only"
+        how = {"timing-only": "timing evidence only",
+               "lineage-record": "Mycelium's lineage record, joined to the attempt by inference"}.get(
+                   method, "joined to Snakemake's record by time only")
         if len(files) == 1:
             rel, mtime = files[0]
             if owner is None:
@@ -2181,7 +2343,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     plugins = [os.path.realpath(p) for p in (PLUGIN_ROOT, os.path.expanduser("~/.claude/plugins"),
                                               os.path.expanduser("~/.codex/plugins"))]
     inline = 0
-    for action in lineage_actions(root, start, time.time()):
+    for action in lineage:
         script = action.get("script")
         if not script:
             inline += 1
