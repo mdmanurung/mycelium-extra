@@ -2,6 +2,21 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.10.1] - 2026-10-17
+
+Less bookkeeping, one fewer step to approve, and a gate that survives a stale hook registration.
+
+### Changed
+
+- A bare `approve` approves the one waiting plan shown last. With none or several waiting it approves nothing and names `approve plan <hash>`.
+- A lint threshold in a Choice cell that the approved plan states no longer fails `verify`; it is reported as info.
+- The gate keeps a deny log, `.mycelium-extra/denies.jsonl`, to measure how often it blocks.
+- The capacity and diary drafts are deleted; their helpers moved to `hooks/stateio.py`.
+
+### Fixed
+
+- A hook registration from before 0.9.76 (`python3 gate_run.py`, kept by a directory marketplace until the plugin is updated) ran under `python3` 3.6 and failed open on every call. `gate_run.py` now hands the event to `hooks/py.sh` once instead of reporting an old Python.
+
 ## [0.10.0] - 2026-10-17
 
 OpenCode is a supported host, alongside Claude Code and Codex. Claude Code and
