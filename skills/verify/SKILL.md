@@ -106,7 +106,7 @@ Writing again for the same plan replaces its files and its row. A non-conforming
 ## 5. Hand off
 
 - Mycelium's Stop hook will ask for a `.living/` update. Record the verify status, and the plan's "Decisions to record" from `plan-<hash>.md`, through Mycelium's normal logging. This skill does not write `.living/`.
-- Give the review command, which checks the code against the frozen plan:
+- Give the review command, which checks the code against the frozen plan, when a finding or result is unresolved or the user asks for a deeper review. Do not prescribe it again after an unchanged final run whose code was already reviewed before the freeze; follow the user's instructions and the project's conventions.
 
   ```
   /mycelium:review <folder> — check the code against the approved plan in <folder>/provenance/plan-<hash>.md

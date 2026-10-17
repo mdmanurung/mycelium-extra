@@ -145,3 +145,7 @@ Evidence is the audit's own reproduction, re-run against the merged tree (every 
 4. A10/A11: remote CI and Pages on the final commit, a fresh marketplace installation, and the installed plugin cache (0.9.61 on the author's machine) updated.
 
 None of these is closed by a local pass, and software checks do not establish scientific correctness.
+
+## Execution fidelity (0.9.75)
+
+The source-verified roadmap of 2026-10-16 (C01–C13, F01–F11) is tracked in [07 · Execution fidelity](../roadmap/07-execution-fidelity.md), which holds the current evidence, the changed assertions and the items still blocked. Where this file says "42 exact differences" or "`ablate.py` 4/4", that tracker is current. The release blockers above are unchanged: the roadmap work adds no native, human or reviewer qualification.

@@ -4,6 +4,8 @@ Date: 2026-10-15
 Project: /exports/para-lipg-hpc/mdmanurung/mycelium-extra
 Status: done 2026-10-15 (0.9.66, pushed b312d75); H1 native display not observed
 
+Historical record. H1 was closed as covered by A06 on 2026-10-16; native host qualification of the newer approval and attempt records is still open and listed in [07 · Execution fidelity](../roadmap/07-execution-fidelity.md#blocked-or-deferred-with-return-condition).
+
 ## Objective
 Complete the three workstreams approved after grilling: Python 3.6 C-locale qualification, C2 optional denial on internal errors, and host/interpreter/CI qualification. User approved denying every handled tool call after an internal error when `on_error` is `deny`. Default behavior remains allow. No commits, publication, external review packets, or research jobs are needed.
 
