@@ -73,6 +73,10 @@ Put the brief and the plan table in your final message, and end it with the stat
 
 Then stop. In this turn, do not execute, create analysis folders, or write to `.living/`, manifests, todo, or analysis files. Execution starts only after the user approves or edits the plan, and it follows the repository's normal lifecycle, carrying the approved plan and the decisions to record. Name other skills rather than assuming they can be invoked programmatically.
 
+## Resume, debug, freeze
+
+Use the same skill for all three; there is no second questionnaire. Resuming or debugging an approved plan: restate the user's already stated question and claim (section 0), and ask only about a choice that is consequential and still unresolved; do not re-ask what the approved plan, a decision entry, or the user has settled. Debugging inside the approved scope needs no new plan: the user can type `allow explore <plan hash>` for exploration bounded to that plan's analysis paths. Freezing: when a protected test or expectation, or a frozen step's arguments, must change, or the user wants a reportable run, write the revised run plan (see [references/run-plans.md](references/run-plans.md)) with fresh `Outputs:` paths for approval. Explore outputs are never relabelled as results.
+
 ## Promote explore runs
 
 When the user asks to promote explore runs (make them reportable, plan a re-run of what was explored), list them read-only:

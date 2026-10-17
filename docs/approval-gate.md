@@ -192,6 +192,17 @@ Sometimes you need a quick experiment before you can write the final plan. Explo
 
 Type `allow explore` to let runs prefixed with `MYCELIUM_EXTRA_EXPLORE=1` through for this session; type `stop explore` to end it. Without the grant the prefix is denied, so the agent cannot exempt itself. Each explore run is logged, and the Stop hook lists those runs as not reportable. To make them reportable, say "promote explore runs": grill lists this session's explore runs (`verify explore`, prefix removed, scripts edited since flagged) and drafts a normal plan that re-runs them, for the usual approval. Explore outputs are never promoted to results. After each one, the receipt hook tells the agent the run is not reportable, so a learning or finding it records from the run (for example under Mycelium's post-action protocol) is labeled `Exploratory run (not reportable)`. Output files carry no label.
 
+**Scoped and session-wide grants.** `allow explore` alone is the broader, session-wide development authorization: any gated path may run with the prefix, and nothing is checked beyond the logging above. `allow explore <8-hex plan hash>` is the scoped form. The hash must be an active approval of this session (otherwise the gate replies and grants nothing). The grant stores that approval's instance id, the analysis paths and commands its plan table grants, and the plan's declared protected items: the pinned test and expectation files of its `validation-bindings`, and the steps of its `exact-execution` block. It lasts for the session; `stop explore` removes it, and approval expiry after the grant does not.
+
+What a scoped grant enforces is path-and-declared-file based, and advisory beyond that. The gate does not infer scientific drift from a code change.
+
+- An explore run that touches a gated path (or command) outside the plan's analysis paths is denied, naming the path. The user decides: approve a plan that names it, or type `allow explore` for the session-wide grant.
+- Runs inside the paths need no new approval and no new prompt, however often the code is fixed and re-run.
+- A protected test or expectation file whose hash differs from the approval, an edit of one, an explore run of a check's declared invocation, or an explore run that differs from a frozen exact step is reported to you and the agent, not denied: the protected contract changed, so reportable runs will need re-approval.
+- Receipts and `explore.log` lines under a scoped grant carry `explore_scope` (the approval instance id), the attempt id, and the fingerprints of the scripts the run used, so failed tries stay visible. An explore receipt never has `pins_checked: true` and never records a `validation_check`: exploration does not satisfy validation or own outputs.
+
+Promotion is unchanged and never a relabel. A reportable result needs an approved rerun of the plan (shown again and approved if a protected file or step changed), writing fresh outputs; explore outputs are not renamed or reclassified as results.
+
 ## Lint on write
 
 Mycelium's `analyze` skill tells the agent to run scilintr after every code write. That is an instruction, and nothing checks that it was followed. With a gate on, a PostToolUse hook on `Write`, `Edit`, `MultiEdit` and `NotebookEdit` (Claude Code) and `apply_patch` (Codex) does it for the agent.
@@ -236,7 +247,7 @@ Type `hints on` to get a one-line suggestion of the command to run next; `hints 
 | `pin_scripts` | `true` | Block a run whose script changed since it was approved or first run. `false` turns it off. |
 | `on_error` | `"allow"` | What a PreToolUse hook does when the gate itself breaks. `"deny"` blocks every tool call the gate could not check, including when `gate.py` cannot load; any other value is ignored with a notice. |
 
-Two switches are not keys. `hints on` and `hints off` create and remove `.mycelium-extra/hints.json`. `allow explore` and `stop explore` apply to one session.
+Two switches are not keys. `hints on` and `hints off` create and remove `.mycelium-extra/hints.json`. `allow explore [<plan hash>]` and `stop explore` apply to one session.
 
 ## Limits
 

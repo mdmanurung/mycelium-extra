@@ -187,6 +187,15 @@ execution record with the plan; it does not re-run tests or review the methods.
 See [Approval gate](approval-gate.md#pinned-scripts) and the
 [run-plan reference](../skills/grill/references/run-plans.md).
 
+Debugging inside an approved scope needs no second interview. After the first
+checkpoint, `allow explore <plan hash>` lets the agent fix and re-run code on the
+plan's own analysis paths with the exploration prefix, as often as needed, without
+a new approval; a run outside those paths is denied and you decide. Changing a
+pinned test or expectation, or running a frozen step with other arguments, is
+reported to you, and the reportable run then needs the second checkpoint again.
+Plain `allow explore` stays the broader, session-wide grant. See
+[Exploratory runs](approval-gate.md#exploratory-runs).
+
 `handoff` can be used at any pause. `harden` is for a specific recurring mistake,
 not a mandatory finishing step. See [Skill reference](skills.md) for each tool's
 writes and [Mycelium integration](mycelium-integration.md) for ownership.
