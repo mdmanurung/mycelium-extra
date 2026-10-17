@@ -1676,6 +1676,123 @@ def check_validations(root, report, validation, mine, elsewhere):
     return results
 
 
+# ---------------------------------------------------------------- recovery history and exact execution (C07)
+
+def attempt_state(r, jobs):
+    """(kind, text) of one attempt: ok, failed or unknown, with the outcome in words."""
+    code = r.get("exit_status")
+    if isinstance(code, int) and not isinstance(code, bool):
+        if code != 0:
+            return "failed", "failed (exit {})".format(code)
+        state = (jobs.get(r.get("job_id")) or {}).get("state") if r.get("job_id") else None
+        if state in FAILED_JOB:
+            return "failed", "job {} ended {}".format(r["job_id"], state)
+        return "ok", "submitted job {} (exit 0)".format(r["job_id"]) if r.get("job_id") else "succeeded (exit 0)"
+    if code in ("failed", "interrupted"):
+        return "failed", "failed without an exit code" if code == "failed" else "interrupted"
+    failed = r.get("command_exit_status")
+    if isinstance(failed, int) and failed != 0 or failed in ("failed", "interrupted"):
+        return "failed", "compound command failed (exit {})".format(failed)
+    return "unknown", "exit status not recorded"
+
+
+def run_argv(root, config, r):
+    """(argv from the program on, inline VAR=value words) of one receipt's command."""
+    command = r.get("command", "")
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        tokens = command.split()
+    argv, inline = gate.launch_argv(tokens, root, os.path.join(root, r.get("cwd") or "."), config)
+    return (argv, inline) if argv else (tokens, {})
+
+
+def attempt_changes(root, config, a, b, operational):
+    """(what changed from attempt `a` to the later `b`, whether the argument words differ in more than the
+    operational flags, whether the code, inputs or folder differ). Only what the receipts carry is compared."""
+    argv_a, env_a = run_argv(root, config, a)
+    argv_b, env_b = run_argv(root, config, b)
+    notes, argv_changed, code_changed = [], False, False
+    if argv_a != argv_b or env_a != env_b:
+        gone, new = collections.Counter(argv_a) - collections.Counter(argv_b), collections.Counter(argv_b) - collections.Counter(argv_a)
+        parts = (["removed " + ", ".join("`{}`".format(t) for t in argv_a if t in gone)] if gone else []) + \
+                (["added " + ", ".join("`{}`".format(t) for t in argv_b if t in new)] if new else []) + \
+                ["inline variables {} -> {}".format(env_a, env_b)] * (env_a != env_b)
+        ok, _ = gate.blocks_module().argv_matches(argv_a, argv_b, a.get("cwd") or ".", a.get("cwd") or ".", operational,
+                                                  env_a, env_b)
+        argv_changed = not ok or env_a != env_b
+        notes.append(", ".join(parts) + ("" if argv_changed else " (operational flags only)"))
+    if (a.get("cwd") or ".") != (b.get("cwd") or "."):
+        notes.append("folder {} -> {}".format(a.get("cwd") or ".", b.get("cwd") or "."))
+        code_changed = True
+    sa, sb = a.get("script") or {}, b.get("script") or {}
+    if sa.get("sha256") and sb.get("sha256") and (sa.get("path"), sa["sha256"]) != (sb.get("path"), sb["sha256"]):
+        notes.append("script `{}` content changed".format(sb.get("path")))
+        code_changed = True
+    files = lambda r: dict((f.get("path"), f.get("sha256")) for f in (r.get("engine") or {}).get("files") or []
+                           if isinstance(f, dict))
+    notes += ["`{}` (engine file) changed".format(p) for p in sorted(files(a)) if p in files(b) and files(a)[p] != files(b)[p]]
+    code_changed = code_changed or any("engine file" in n for n in notes)
+    return notes, argv_changed, code_changed
+
+
+def recovery_history(root, config, report, mine, jobs, execution):
+    """One entry per step (as `step_key` groups the runs) that more than one attempt of this instance ran: every
+    attempt in order, with what changed from the one before. The step's outcome stays that of its latest attempt
+    (the findings above); here an earlier failure that a later success follows is named, as an equivalent retry
+    (same command, or only the flags the exact-execution step lists as operational, same code and inputs: no
+    finding but information) or, when anything else changed, as a recovery whose equivalence is not established (a gap)."""
+    groups = collections.OrderedDict()
+    for r in mine:
+        groups.setdefault(step_key(root, r), []).append(r)
+    entries = []
+    for key, runs in groups.items():
+        if len(runs) < 2:
+            continue
+        label = " ".join(key[2]) if len(key) == 3 else "snakemake" if key[0] == "snakemake" else key[1]
+        rows = set(r.get("exact_step") for r in runs if r.get("exact_step"))
+        operational = sorted(set(f for step in (execution or {}).get("steps") or [] if step["row"] in rows
+                                 for f in step["operational"]))
+        attempts = []
+        for i, r in enumerate(runs):
+            kind, text = attempt_state(r, jobs)
+            notes = attempt_changes(root, config, runs[i - 1], r, operational)[0] if i else []
+            attempts.append({"ts": r.get("ts"), "command": r.get("command", ""), "attempt_id": r.get("attempt_id"),
+                             "outcome": kind, "text": text, "changes": notes})
+        verdict, final = None, attempts[-1]
+        failed = [(a, r) for a, r in zip(attempts[:-1], runs[:-1]) if a["outcome"] == "failed"]
+        if final["outcome"] == "ok" and failed:
+            diffs = [attempt_changes(root, config, r, runs[-1], operational) for _, r in failed]
+            verdict = "changed command" if any(d[1] for d in diffs) else \
+                "changed code" if any(d[2] for d in diffs) else "equivalent"
+            earlier = ", ".join("`{}` failed at {}".format(a["command"][:60], when(a["ts"])) for a, _ in failed[:3])
+            if verdict == "equivalent":
+                report.add("info", "Step `{}` recovered: equivalent retry (an earlier attempt: {}; the later success ran the same "
+                                   "command, differing at most in operational flags the plan lists).".format(label, earlier))
+            else:
+                report.add("gap", "Step `{}` recovered {}: equivalence not established (an earlier attempt: {}; the later success "
+                                  "ran `{}`, changes: {}). The earlier failure stays in the history above; the success is "
+                                  "not the approved computation's recovery unless the researcher says it is.".format(
+                                      label, "with a changed command" if verdict == "changed command"
+                                      else "after changed code or inputs", earlier, final["command"][:60],
+                                      "; ".join(n for d in diffs for n in d[0]) or "none recorded"))
+        entries.append({"step": label, "attempts": attempts, "operational": operational, "verdict": verdict})
+    return entries
+
+
+def exact_findings(report, mine, execution):
+    """A gap for each run of an instance that declares exact execution but was not matched to a declared step
+    (a validation check's own run is matched by its invocation instead)."""
+    if not execution:
+        return
+    off = [r for r in mine if r.get("exact_match") is not True and not r.get("validation_check")]
+    if off:
+        report.add("gap", "{} run(s) are outside the exact reportable contract the plan declares (`exact-execution`): no declared step "
+                          "was matched to them, so their command is not frozen: {}.".format(
+                              len(off), "; ".join("`{}` at {}".format(r.get("command", "")[:60], when(r.get("ts"))) for r in off[:3])
+                              + (" and {} more".format(len(off) - 3) if len(off) > 3 else "")))
+
+
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
           rscript="Rscript", claims=(), instance=None):
     config = gate.load_config(root)
@@ -1753,7 +1870,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     abandoned = abandoned_attempts(root)
     launch_findings(report, mine, abandoned, digest, chosen, approved_at)
     frozen_blocks = frozen if frozen is not None else approval  # the plan's validation and exact-execution blocks, as approved
-    binding = frozen_blocks.get("validation")
+    execution, binding = frozen_blocks.get("execution"), frozen_blocks.get("validation")
+    exact_findings(report, mine, execution)
     if invalid_metadata:
         report.add("gap", "{} unreadable or malformed Snakemake record(s) were skipped; workflow "
                    "evidence is incomplete.".format(len(invalid_metadata)))
@@ -1921,6 +2039,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             latest[step_key(root, r)] = r
     for r in sorted(latest.values(), key=lambda r: r["ts"]):
         check_receipt(report, r, judge_job)
+    recovery = recovery_history(root, config, report, mine, jobs, execution)
     for job_id in sorted(set(jobs) - shown):  # jobs whose sbatch line names no planned script
         state = (jobs[job_id] or {}).get("state")
         if state == "COMPLETED" and job_id not in shared:
@@ -2100,7 +2219,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             "analysis_dir": analysis_dir, "git": gate.git_state(root), "runs": len(mine),
             "scripts": scripts, "folders": folders, "commands": commands, "inputs": inputs,
             "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted, "envs": envs,
-            "claims": claimed, "validation": validated, "validation_binding": binding,
+            "claims": claimed, "recovery": recovery, "validation": validated, "validation_binding": binding,
             "status": report.status(), "plan": plan,
             # Kept for the record (a scaffolder call can explain a moved input), marked as not runs.
             "receipts": sorted(mine + [dict(r, not_a_run="only passed planned paths to other code")
@@ -2191,6 +2310,20 @@ def render(result, all_outputs=False):
             lines.append("")
             lines.append("{} more output file(s); `write` records them all.".format(
                 len(result["outputs"]) - len(shown)))
+    if result.get("recovery"):
+        lines += ["", "## Recovery", "", "Steps with more than one attempt under this approval, every attempt in order. The step's "
+                  "outcome above is its latest attempt's; an earlier failure is not erased by a later success.", ""]
+        for entry in result["recovery"]:
+            lines.append("Step `{}`{}".format(cell(entry["step"]), " (operational flags the plan lists: {})".format(
+                ", ".join(entry["operational"])) if entry["operational"] else ""))
+            for a in entry["attempts"]:
+                lines.append("- {} `{}`: {}{}".format(when(a["ts"]), cell(a["command"][:120]), a["text"],
+                                                     "; changed from the previous attempt: " + cell("; ".join(a["changes"]))
+                                                     if a["changes"] else ""))
+            lines.append("  Verdict: " + {"equivalent": "recovered: equivalent retry",
+                                          "changed command": "recovered with a changed command: equivalence not established",
+                                          "changed code": "recovered after changed code or inputs: equivalence not established",
+                                          None: "no failed attempt was followed by a success"}[entry["verdict"]])
     if result.get("validation"):
         lines += ["", "## Validation", "", "Approved acceptance checks (`<!-- validation-bindings -->`), each against its matched "
                   "run's result; `declared` is the plan's own claim and is not verified."]

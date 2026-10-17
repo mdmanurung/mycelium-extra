@@ -1653,8 +1653,10 @@ sys.exit(1 if hits else 0)
         self.assertIn("Verify status: DOES_NOT_CONFORM", out)
         self.run_cmd("snakemake -j1")  # a later success supersedes the failed try
         out = self.verify("report", digest)
-        self.assertNotIn("failed (exit 7)", out)
+        self.assertNotIn("`snakemake -j1` failed (exit 7)", out)  # no longer a finding ...
         self.assertNotIn("**block**", out)
+        self.assertIn("`snakemake -j1`: failed (exit 7)", out.split("## Recovery")[1])  # ... but still in the history
+        self.assertIn("recovered: equivalent retry", out)
         self.hook("post", {"tool_name": "Bash", "tool_input": {"command": "snakemake -j1"},
                            "tool_response": {"stdout": "", "stderr": "", "interrupted": False}})
         out = self.verify("report", digest)
@@ -1734,8 +1736,15 @@ sys.exit(1 if hits else 0)
         self.run_cmd("snakemake -j1 --rerun-incomplete")
         self.run_cmd("sbatch -p cpu jobs/fit.job", stdout="Submitted batch job 4242")
         out = self.verify("report", digest, sacct=done)
-        self.assertNotIn("failed (exit", out)
+        self.assertNotIn("failed (exit", out.split("## Findings")[1])  # the failures are no longer findings ...
         self.assertNotIn("**block**", out)
+        recovery = out.split("## Recovery")[1]  # ... but both stay visible, with the changed command named
+        self.assertIn("`snakemake -j1`: failed (exit 1)", recovery)
+        self.assertIn("`sbatch -p wrong jobs/fit.job`: failed (exit 1)", recovery)
+        self.assertIn("added `--rerun-incomplete`", recovery)
+        self.assertIn("removed `wrong`, added `cpu`", recovery)
+        self.assertEqual(out.count("recovered with a changed command: equivalence not established"), 4)  # two findings, two verdicts
+        self.assertIn("Verify status: CONFORMS_WITH_GAPS", out)  # a changed command is a gap, never a clean recovery
         self.run_cmd("snakemake -j1 --rerun-incomplete", exit_code=4)  # a later failure of the step shows
         self.assertIn("failed (exit 4)", self.verify("report", digest, sacct=done))
 
@@ -2549,6 +2558,105 @@ sys.exit(1 if hits else 0)
         import provenance
         self.assertEqual(provenance.bundle_state(folder, digest), "complete")
         self.assertIn("[validation](validation-{}.json)".format(digest), open(os.path.join(folder, "PROVENANCE.md")).read())
+
+    # C07/F08: every attempt of a step stays visible; a recovery is judged on what changed
+
+    def recovery(self, out):
+        self.assertIn("## Recovery", out)
+        return out.split("## Recovery")[1].split("\n## ")[0]
+
+    def findings(self, out):
+        return out.split("## Findings")[1].split("## Not visible")[0]
+
+    def fit_plan(self):
+        return self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+
+    def test_a_success_after_a_changed_argument_keeps_the_earlier_failure_visible(self):  # F08
+        digest = self.fit_plan()
+        self.run_cmd("python {} --model original".format(FIT), exit_code=1)
+        self.run_cmd("python {} --model alternative".format(FIT), writes={self.OUT: "x\n"})
+        out = self.verify("report", digest)
+        recovery = self.recovery(out)
+        self.assertIn("`python {} --model original`: failed (exit 1)".format(FIT), recovery)
+        self.assertIn("`python {} --model alternative`: succeeded (exit 0); changed from the previous attempt: "
+                      "removed `original`, added `alternative`".format(FIT), recovery)
+        self.assertIn("**gap**: Step `{}` recovered with a changed command: equivalence not established".format(FIT), out)
+        self.assertNotIn("**block**", out)  # a recovery is not a failure
+        self.assertIn("| `{}` | ran |".format(FIT), out)  # the row keeps its latest outcome
+        self.ends(out, "CONFORMS_WITH_GAPS")
+
+    def test_a_retry_of_the_same_command_is_an_equivalent_recovery(self):  # control
+        digest = self.fit_plan()
+        self.run_cmd("python " + FIT, exit_code=1)
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        out = self.verify("report", digest)
+        recovery = self.recovery(out)
+        self.assertIn("`python {}`: failed (exit 1)".format(FIT), recovery)
+        self.assertIn("recovered: equivalent retry", recovery)
+        self.assertIn("**info**: Step `{}` recovered: equivalent retry".format(FIT), out)
+        self.assertNotIn("**block**", out)
+        self.assertNotIn("**gap**", out)
+        self.ends(out, "CONFORMS")
+
+    def exact_plan(self, argv, operational, second=False):
+        step = {"row": "1", "argv": argv, "cwd": ".", "env": {}, "operational": operational}
+        rows = ["run `{}`".format(FIT)] + (["run `analysis/a/scripts/02_plot.py`"] if second else [])
+        block = "<!-- exact-execution {} -->\n\n".format(json.dumps({"version": 1, "steps": [step]}))
+        return plan(*rows, outputs=self.OUT).replace("Plan status: READY", block + "Plan status: READY")
+
+    def test_a_retry_that_differs_only_in_an_operational_flag_is_an_equivalent_recovery(self):
+        digest = self.approve(self.exact_plan(["python", FIT, "--threads", "1"], ["--threads"]))
+        self.run_cmd("python {} --threads 1".format(FIT), exit_code=1)
+        self.run_cmd("python {} --threads 4".format(FIT), writes={self.OUT: "x\n"})
+        out = self.verify("report", digest)
+        self.assertIn("recovered: equivalent retry", self.recovery(out))
+        self.assertNotIn("outside the exact reportable contract", out)
+        self.ends(out, "CONFORMS")
+
+    def test_a_run_no_exact_step_names_is_outside_the_exact_contract(self):
+        self.write("analysis/a/scripts/02_plot.py", "print(2)\n", mtime=time.time() - 3600)
+        digest = self.approve(self.exact_plan(["python", FIT], [], second=True))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})  # the declared step
+        self.run_cmd("python analysis/a/scripts/02_plot.py")  # covered by the table, named by no exact step
+        out = self.verify("report", digest)
+        gap, = [line for line in self.findings(out).splitlines() if "outside the exact reportable contract" in line]
+        self.assertIn("**gap**", gap)
+        self.assertIn("`python analysis/a/scripts/02_plot.py`", gap)
+        self.assertNotIn("`python {}`".format(FIT), gap)  # the matched step is not in it
+        self.ends(out, "CONFORMS_WITH_GAPS")
+
+    def test_a_plan_without_exact_execution_never_reports_exact_match(self):  # control
+        digest = self.fit_plan()
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.assertNotIn("exact reportable contract", self.verify("report", digest))
+
+    def test_the_same_command_after_the_script_changed_is_not_an_equivalent_retry(self):
+        digest = self.fit_plan()
+        self.run_cmd("python " + FIT, exit_code=1)
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        records = self.read_receipts()
+        records[0]["script"] = dict(records[0]["script"], sha256="0" * 64)  # the first attempt ran other code
+        with open(gate.state_path(self.root, "receipts.jsonl"), "w") as handle:
+            handle.write("".join(json.dumps(r) + "\n" for r in records))
+        out = self.verify("report", digest)
+        self.assertIn("script `{}` content changed".format(FIT), self.recovery(out))
+        self.assertIn("**gap**: Step `{}` recovered after changed code or inputs: equivalence not established".format(FIT), out)
+        self.assertNotIn("recovered: equivalent retry", out)
+
+    def test_two_successful_attempts_with_different_arguments_are_listed_without_a_finding(self):
+        other = "analysis/a/outputs/other.tsv"
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT + " " + other))
+        self.run_cmd("python {} --part a".format(FIT), writes={self.OUT: "x\n"})
+        self.run_cmd("python {} --part b".format(FIT), writes={other: "y\n"})
+        out = self.verify("report", digest)
+        self.assertIn("removed `a`, added `b`", self.recovery(out))
+        self.assertNotIn("recovered", self.findings(out))
+        self.ends(out, "CONFORMS")
+
+    def test_a_step_run_once_has_no_recovery_section(self):  # control
+        digest = self.fit_plan()
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.assertNotIn("## Recovery", self.verify("report", digest))
 
 
 if __name__ == "__main__":
