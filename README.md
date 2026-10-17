@@ -3,7 +3,9 @@
 **Plan an analysis. Approve what runs. Check the execution record.**
 
 Mycelium Extra reads your repository, helps you make a sourced plan, and can
-check covered runs against that plan. Works in Claude Code and Codex, alongside
+check covered runs against that plan. Works in Claude Code, Codex, and OpenCode
+(planning skills today; the OpenCode approval-gate adapter is in development),
+alongside
 [Mycelium](https://github.com/arjunrajlaboratory/mycelium) or in an ordinary repository.
 
 ## Start here
@@ -32,7 +34,9 @@ See [Usage tiers](docs/usage.md) for commands and examples, or the
 ## Quick start
 
 Commands below use Claude Code syntax. In Codex, replace `/mycelium-extra:`
-with `$mycelium-extra:` and enable/trust the plugin hooks first.
+with `$mycelium-extra:` and enable/trust the plugin hooks first. In OpenCode,
+mention a skill by name (for example `@grill`); see
+[Installation](docs/installation.md#opencode).
 
 ```text
 /mycelium-extra:init                         # once per repository

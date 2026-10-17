@@ -8,7 +8,7 @@ A plan is useful only if the run still follows it. The approval gate checks cove
 
 For example, a plan might cover `analysis/response/02_model.R` using a particular sample table. Approving it allows that run for the configured window. If a pinned sample table changes, the gate asks for a checked, revised plan before the covered run proceeds.
 
-The gate works through Claude Code and Codex hooks. Turn it on for a repository with `/mycelium-extra:init` (Claude Code) or `$mycelium-extra:init` (Codex). To configure it by hand:
+The gate works through Claude Code and Codex hooks (an OpenCode adapter is in development). Turn it on for a repository with `/mycelium-extra:init` (Claude Code) or `$mycelium-extra:init` (Codex). To configure it by hand:
 
 1. Create `.mycelium-extra/gate.json`. `{}` uses the defaults.
 2. Add `.mycelium-extra/` to `.gitignore`. It holds short-lived execution state, not project knowledge.

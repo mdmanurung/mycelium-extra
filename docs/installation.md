@@ -1,9 +1,10 @@
 # Installation and host compatibility
 
 Install Mycelium Extra once, then choose which projects should use its approval
-gate. The same planning skills are available in Claude Code and Codex. If your
-project already uses Mycelium, the plugin reads its decisions and conventions;
-in an ordinary repository, it starts with your existing documentation and code.
+gate. The same planning skills are available in Claude Code, Codex, and
+OpenCode. If your project already uses Mycelium, the plugin reads its decisions
+and conventions; in an ordinary repository, it starts with your existing
+documentation and code.
 
 You can begin with a question such as:
 
@@ -41,6 +42,42 @@ claude plugin update mycelium-extra@mycelium-extra
 Claude caches plugins by their manifest version. Editing an installed checkout
 without changing its version does not refresh the cached plugin; use
 `--plugin-dir` to test local changes.
+
+## OpenCode
+
+OpenCode V2 discovers skills from configured directories, so point its `skills`
+setting at this checkout. Add to `~/.config/opencode/opencode.json(c)`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": ["/absolute/path/to/mycelium-extra/skills"],
+}
+```
+
+Start a new session and mention a skill by name:
+
+```text
+@grill Plan a paired treatment-response analysis. Read the sample table and existing decisions first.
+```
+
+OpenCode advertises each skill by its name and description; there is no
+`/mycelium-extra:` prefix. Skill discovery was checked against OpenCode 2.0.32.
+
+Keep each skill folder inside the checkout. Skills that run scripts call
+`../../hooks/py.sh` relative to their own folder, so a copied or symlinked
+skill folder elsewhere cannot find the hooks. For a project-local install, add
+a `skills` entry to that project's `opencode.json(c)` instead of linking the
+folders; relative paths resolve from OpenCode's working directory.
+
+Skill IDs are the folder names (`grill`, `init`, and so on). A `skills` entry is
+the highest-precedence source in OpenCode, so these generic IDs shadow
+same-named skills from other sources; see the
+[Skills reference](https://opencode.ai/v2/docs/skills/).
+
+The approval gate adapter for OpenCode is in development. Until it ships,
+`init`, `approve plan`, run receipts, and `verify` are not available in
+OpenCode; cover gated runs with Claude Code or Codex.
 
 ## Codex
 
@@ -93,13 +130,18 @@ Only planning? Start with [Tier 1](usage.md#tier-1-plan); no `init` needed.
 
 ## Host compatibility
 
-| Feature | Claude Code | Codex CLI 0.160.0+ |
-|---|---|---|
-| Planning, data contracts, decision status, scaffolding, handoff, harden | Supported | Supported |
-| Independent plan review | Leads Codex + Biomni synthesis | Engineering critique only |
-| Init, approval gate, pinned inputs, exploration | Supported | Supported with enabled/trusted hooks |
-| Run receipts and verification | Success/failure hook events provide status | Records receipts; absent exit metadata is a verification gap |
-| Gate state protection | Shell commands and file-edit tools | Shell commands and `apply_patch`, including move destinations |
+| Feature | Claude Code | Codex CLI 0.160.0+ | OpenCode V2 |
+|---|---|---|---|
+| Planning, data contracts, decision status, scaffolding, handoff, harden | Supported | Supported | Supported |
+| Independent plan review | Leads Codex + Biomni synthesis | Engineering critique only | Not yet characterized |
+| Init, approval gate, pinned inputs, exploration | Supported | Supported with enabled/trusted hooks | In development |
+| Run receipts and verification | Success/failure hook events provide status | Records receipts; absent exit metadata is a verification gap | In development |
+| Gate state protection | Shell commands and file-edit tools | Shell commands and `apply_patch`, including move destinations | In development |
+
+OpenCode V2 runs the planning skills without a plugin, through the `skills`
+setting above. The approval-gate adapter (init, approvals, receipts, state
+protection, and verification) is in development; until it ships, cover gated
+runs with Claude Code or Codex.
 
 Codex 0.160.0's post hook supplies the command's output without an exit code.
 The gate records `unknown`; it never infers success from that event or parses
@@ -127,4 +169,6 @@ re-running the analysis immediately. See [Skills](skills.md#verify).
 
 The [Claude Code manifest reference](https://code.claude.com/docs/en/plugins-reference)
 describes plugin paths and validation. Codex install commands above were checked
-against `codex-cli 0.160.0`'s local command help.
+against `codex-cli 0.160.0`'s local command help. The OpenCode section follows
+the [OpenCode V2 skills guide](https://opencode.ai/v2/docs/skills/), checked on
+OpenCode 2.0.32.
