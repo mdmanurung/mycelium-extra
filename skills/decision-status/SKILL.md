@@ -14,7 +14,7 @@ Settle which past decision binds the current task. Retrieve only the entries the
 - Run the parser beside this file, from stdin so Mycelium's hooks stay closed:
 
   ```bash
-  python3 - --living-dir .living --tag <tag> --term '<regex>' < <skill-dir>/scripts/decision_threads.py
+  sh <skill-dir>/../../hooks/py.sh - --living-dir .living --tag <tag> --term '<regex>' < <skill-dir>/scripts/decision_threads.py
   ```
 
   `--tag` and `--term` repeat; `--include-learnings` adds `learnings.md`; `--json` gives the raw records. Running the script by path opens Mycelium's post-action cycle, so never do that. If `python3` is missing or fails, fall back to `rg -n '^#{2,3} .*<term>' .living/decisions.md` and read the entries directly.

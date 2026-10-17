@@ -14,7 +14,7 @@ Challenge a proposed plan before approval. This skill is consultation only: do n
 - Check the reason on each default. Run, with the plan table as it stands:
 
   ```bash
-  python3 - --plan <(cat <<'EOF'
+  sh <skill-dir>/../../hooks/py.sh - --plan <(cat <<'EOF'
   <the plan>
   EOF
   ) < <skill-dir>/scripts/default_reasons.py
@@ -25,7 +25,7 @@ Challenge a proposed plan before approval. This skill is consultation only: do n
 - Check the packet before anything leaves the machine. Run, with the packet as it stands and the repository root:
 
   ```bash
-  python3 - --packet <(cat <<'EOF'
+  sh <skill-dir>/../../hooks/py.sh - --packet <(cat <<'EOF'
   <the packet>
   EOF
   ) --repo <repository-root> < <skill-dir>/scripts/presend_check.py
@@ -35,7 +35,7 @@ Challenge a proposed plan before approval. This skill is consultation only: do n
   Quote or backtick an input path containing spaces. Missing, unreadable, or truncated input tables are reported as unchecked identifier coverage; carry those gaps into the packet and report.
 - `presend_check.py --json` (same arguments) prints the result as JSON: the packet's SHA-256, each flag as line, kind and masked value, and each unread or unsupported input as a masked name and reason. A flag never carries its value in full.
 - The packet leaves the machine (Codex to OpenAI, Biomni to Phylo, which also bills credits). Show the user the packet, the check's output, and which reviewers will receive it, and send only after the user agrees. The agreement is bound to the exact bytes, in this order:
-  1. **Prepare.** Save the packet to a file, then run `python3 <skill-dir>/scripts/review_packet.py prepare --packet <file> --attach <repo-relative code or doc file> ...` from the project root. It re-runs the scan and refuses what the scan says not to send. It writes an immutable copy of the packet and of each explicitly selected attachment under `.mycelium-extra/review-packets/<digest>/` with a manifest of their sizes and SHA-256 hashes. The digest is the SHA-256 of that manifest, so it covers the packet's hash. Attach only code and documents the reviewer needs: never `data/`, tables, raw or participant-level files, credentials, or `.env`. The script refuses only `.env` files and types outside its code-and-document list; it does not look inside an allowed type, so a table saved as `.txt` or a `.yaml` holding a token is accepted, and what the scan flags in an attachment is listed, not refused. Read that list before going on.
+  1. **Prepare.** Save the packet to a file, then run `sh <skill-dir>/../../hooks/py.sh <skill-dir>/scripts/review_packet.py prepare --packet <file> --attach <repo-relative code or doc file> ...` from the project root. It re-runs the scan and refuses what the scan says not to send. It writes an immutable copy of the packet and of each explicitly selected attachment under `.mycelium-extra/review-packets/<digest>/` with a manifest of their sizes and SHA-256 hashes. The digest is the SHA-256 of that manifest, so it covers the packet's hash. Attach only code and documents the reviewer needs: never `data/`, tables, raw or participant-level files, credentials, or `.env`. The script refuses only `.env` files and types outside its code-and-document list; it does not look inside an allowed type, so a table saved as `.txt` or a `.yaml` holding a token is accepted, and what the scan flags in an attachment is listed, not refused. Read that list before going on.
   2. **Preview.** Run `review_packet.py preview --digest <digest>` and show the user its output: the digest, the attachment list, the scan counts, and the line the user must type.
   3. **The user types** `send packet <first 12 or more hex characters of the digest>` as a prompt of their own. Do not type it, paraphrase it, or write a consent file: consent is the user's observed prompt. The approval gate records it as `.mycelium-extra/review-consent/<digest>.json` and replies with the digest and the next step. Only that exact prompt counts (nothing around it, a prefix of 12 to 64 hex characters that names one prepared packet); a prompt embedded in longer text, an ambiguous prefix or an unknown digest records nothing. Never create the record yourself to get past `verify`.
   4. **Verify, then send.** Immediately before the send, run `review_packet.py verify --digest <digest>`. It recomputes the hashes, refuses if any byte differs, if the folder holds a file the manifest does not list, if an attachment changed since `prepare`, or if the consent record does not name this digest or is not newer than the packet. On success it prints the one list of files to send. Send exactly those files by the route in the reviewer reference, nothing else. Any change to the packet or an attachment means a new `prepare` and a new `send packet` from the user.

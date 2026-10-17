@@ -13,7 +13,7 @@ Check one approved plan against the gate's record of what ran, and record the re
 - Use the hash the user gives. Otherwise list the approved plans, newest first, and ask which one:
 
   ```bash
-  python3 - --plugin-root <skill-dir>/../.. list < <skill-dir>/scripts/verify.py
+  sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. list < <skill-dir>/scripts/verify.py
   ```
 
 Always run the script from stdin, from inside the repository. Running it by path opens Mycelium's post-action cycle. The script finds the gate's state folder itself, so never put that folder's name on the command line.
@@ -21,12 +21,12 @@ Always run the script from stdin, from inside the repository. Running it by path
 ## 2. Check, read-only
 
 ```bash
-python3 - --plugin-root <skill-dir>/../.. report <hash> [--analysis-dir <folder>] < <skill-dir>/scripts/verify.py
+sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. report <hash> [--analysis-dir <folder>] < <skill-dir>/scripts/verify.py
 ```
 
 The analysis folder is guessed from the plan's scripts; pass `--analysis-dir` when the guess is wrong. `--json` gives the raw result.
 
-It also runs scilintr on the analysis folder's code (outputs, logs, and provenance skipped; the planned scripts when there is no folder): `scilintr` for Python, and for R `Rscript -e` calling `scilintr::lint_project()` on one folder holding a copy of the R code, so its cross-file rules run too, as Mycelium's analyze skill requires. A Jupyter notebook's code cells are extracted (magic and shell lines commented out) and linted with its kernel's language; findings are cited as `<notebook>.ipynb[code cell N]:<line>`, and a notebook whose code does not parse is a gap. The `{r}` and `{python}` chunks of `.qmd` and `.Rmd` files are linted the same way, with prose and other lines blanked so a finding cites the document's own line (`<doc>.qmd:<line>`); display blocks, other engines (an `engine=` option picks the language, so `{r engine="bash"}` is skipped), and inline `` `r x` `` code are not linted, and `eval=FALSE` chunks and documents set to `eval: false` are. A file pulled in with `child=` or `knitr::read_chunk()` is found relative to the document and linted under its own path; one named by a path that is not a quoted string, or not found, is a gap. The `## Lint` section lists remaining findings, every `ANALYSIS_OK` waiver, and each finding a waiver suppressed with its reason (a second run with waivers off); an R waiver with no reason that suppresses a finding blocks. The linters' paths come from `.mycelium-extra/tools.json` when init recorded them, else `PATH`. If a linter is missing, say how to install it (`pip install scilintr`, `install.packages("scilintr")`) or how to record its path (`python3 - --tools --scilintr PATH --rscript PATH < <init skill-dir>/scripts/gate_init.py`); never treat an unchecked language as clean.
+It also runs scilintr on the analysis folder's code (outputs, logs, and provenance skipped; the planned scripts when there is no folder): `scilintr` for Python, and for R `Rscript -e` calling `scilintr::lint_project()` on one folder holding a copy of the R code, so its cross-file rules run too, as Mycelium's analyze skill requires. A Jupyter notebook's code cells are extracted (magic and shell lines commented out) and linted with its kernel's language; findings are cited as `<notebook>.ipynb[code cell N]:<line>`, and a notebook whose code does not parse is a gap. The `{r}` and `{python}` chunks of `.qmd` and `.Rmd` files are linted the same way, with prose and other lines blanked so a finding cites the document's own line (`<doc>.qmd:<line>`); display blocks, other engines (an `engine=` option picks the language, so `{r engine="bash"}` is skipped), and inline `` `r x` `` code are not linted, and `eval=FALSE` chunks and documents set to `eval: false` are. A file pulled in with `child=` or `knitr::read_chunk()` is found relative to the document and linted under its own path; one named by a path that is not a quoted string, or not found, is a gap. The `## Lint` section lists remaining findings, every `ANALYSIS_OK` waiver, and each finding a waiver suppressed with its reason (a second run with waivers off); an R waiver with no reason that suppresses a finding blocks. The linters' paths come from `.mycelium-extra/tools.json` when init recorded them, else `PATH`. If a linter is missing, say how to install it (`pip install scilintr`, `install.packages("scilintr")`) or how to record its path (`sh <skill-dir>/../../hooks/py.sh - --tools --scilintr PATH --rscript PATH < <init skill-dir>/scripts/gate_init.py`); never treat an unchecked language as clean.
 
 It also checks the reason on each `default:` in the frozen plan's Source column, with plan-review's `scripts/default_reasons.py` (loaded from the plugin root). A row with no reason, a reason under three words, or only an empty phrase such as `standard` is an advisory `info` finding that names the row; it does not change the status. If that script is missing or fails, the check is a gap.
 
@@ -87,7 +87,7 @@ Never add, edit, or drop a claims line to make a failing check pass.
 Ask once whether to record this check, naming the analysis folder and the status. Only after an explicit yes:
 
 ```bash
-python3 - --plugin-root <skill-dir>/../.. write <hash> --analysis-dir <folder> < <skill-dir>/scripts/verify.py
+sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. write <hash> --analysis-dir <folder> < <skill-dir>/scripts/verify.py
 ```
 
 It writes `<folder>/provenance/`:
@@ -119,7 +119,7 @@ Writing again for the same plan replaces its files and its row. A non-conforming
 When the user asks what is stale or out of date, sweep every verified plan, read-only:
 
 ```bash
-python3 - --plugin-root <skill-dir>/../.. stale [--content] [--json] < <skill-dir>/scripts/verify.py
+sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. stale [--content] [--json] < <skill-dir>/scripts/verify.py
 ```
 
 It reads the committed `provenance/receipts-<hash>.jsonl` and `outputs-<hash>.tsv` (found through git, so ignored folders are skipped), and needs no gate. For each stale plan it lists scripts edited or deleted since they ran, pinned inputs that changed, and outputs rewritten or deleted since verify recorded them, plus the session IDs of its runs. By default outputs are compared by size and time and the result says `metadata checked`; with `--content` each output is hashed against the SHA256 verify saved, and a file or budget it did not reach is `content not checked`. Say which check was run.
@@ -130,7 +130,7 @@ It reads the committed `provenance/receipts-<hash>.jsonl` and `outputs-<hash>.ts
 When the user asks for status or an overview, show one table, read-only:
 
 ```bash
-python3 - --plugin-root <skill-dir>/../.. status [--json] < <skill-dir>/scripts/verify.py
+sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. status [--json] < <skill-dir>/scripts/verify.py
 ```
 
 One row per plan the gate approved (local, this clone only) or verify recorded (committed `provenance/`): the analysis folder (the provenance folder, else guessed from the plan table), runs, the verify status from `PROVENANCE.md` or `not verified`, `stale` changes, the lint verify recorded (`N finding(s)`, `clean`, `gap: <language> not checked`, or `not run`; scilintr is not re-run), and the folder's entry in any `ANALYSIS_MANIFEST.md`: `listed: <first word of its status>`, `listed`, or `not listed`. A `not listed` analysis skipped Mycelium's manifest step. Show the table as printed, then suggest at most one next step, such as verifying the newest unverified plan. Write nothing.
@@ -154,7 +154,7 @@ Output producers are graded, never just guessed from time. Only `supported` name
 Before the user re-approves a revised plan (for example a run plan presented again after a fix, see grill's `references/run-plans.md`), show what changed since the plan it replaces, read-only:
 
 ```bash
-python3 - --plugin-root <skill-dir>/../.. diff <old-hash> <new-hash> < <skill-dir>/scripts/verify.py
+sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. diff <old-hash> <new-hash> < <skill-dir>/scripts/verify.py
 ```
 
 It reads each plan from the approvals, or, for one shown but not yet approved, from the gate's pending plans, and compares them whole, with whitespace collapsed and nothing shortened: the objective; the table row by row (keyed by the ID column, `#`, `no`, `no.` or the first), reporting changed, added and removed rows, dropped columns and a changed row order; the `Inputs:` and `Outputs:` lines; the raw text of the `<!-- validation-bindings -->` and `<!-- exact-execution -->` blocks (compared, not interpreted); and the runs the table allows (scope). A row whose ID is used twice or missing is reported as "cannot compare", never silently overwritten. A changed objective or Choice cell is flagged as a possible scientific change; whether it is one is the user's call, so name it and let them decide. It reports exact equality of what the plans say, not that the science is unchanged, and a whitespace-only edit is no change. Write nothing; the revision itself belongs in the analysis folder's `TRACKER.md`.
@@ -164,7 +164,7 @@ It reads each plan from the approvals, or, for one shown but not yet approved, f
 When the user asks what was tried before a result (which tests, models, or thresholds, how many runs, how many plan revisions), show the record for one approved plan, read-only:
 
 ```bash
-python3 - --plugin-root <skill-dir>/../.. multiplicity <hash> [--json] < <skill-dir>/scripts/verify.py
+sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. multiplicity <hash> [--json] < <skill-dir>/scripts/verify.py
 ```
 
 A counts line, then one timeline, oldest first: each earlier approved plan that names one of this plan's scripts or `Outputs:` paths (a revision), with its changed Choice cells; each run of those scripts or in the analysis folder, as an explore run, a run under an earlier plan, or a run under this plan, with its command and exit status; and this plan, marked `approved (selected)`. It stops at this plan's last run. A run whose script differs from the version this plan last ran is marked `other code version`. Counts come from receipts and approvals only; a run whose approvals were not read is counted as a gap. Receipts do not record which files a run wrote, and a value changed inside a script shows only as another code version. Show the table as printed and judge nothing: which run is the real one, and whether the tries need a correction, is the user's call. Write nothing.
@@ -174,7 +174,7 @@ A counts line, then one timeline, oldest first: each earlier approved plan that 
 When the user asks which runs a results folder holds, or whether the runs this analysis cites are still good, list them, read-only:
 
 ```bash
-python3 - --plugin-root <skill-dir>/../.. runs [RESULTS_DIR] [--json] < <skill-dir>/scripts/verify.py
+sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. runs [RESULTS_DIR] [--json] < <skill-dir>/scripts/verify.py
 ```
 
 Without `RESULTS_DIR` it uses `results/` in the newest approval's analysis folder. A run is a `run_<YYYYMMDD>_<slug>` folder (iterations end `_vNN`) with a label `RUN.txt` inside it, or, for a frozen run, a sibling `<run>.RUN.txt`. The table shows run, version, kind, status, updated (the newest file inside, not the folder), id (a content id of the file names and sizes), and why. `results/current` is shown as a pointer. Findings are gaps or info: an unlabelled run, a frozen-label sibling, a malformed label (with its line), `superseded_by` or `reads` naming a run that does not exist, and a state word in a run name (`final`, `complete`, `smoke`, `latest`, `current`, `review`). Several runs of one slug and kind that all say `current` give a suggestion, never a status. A Citations section checks each symlink in the analysis's `data/` and `code/` that points into another analysis's run: a gap when the cited run is unlabelled, superseded, failed or scratch, or the link dangles; info otherwise, and when the cited run changed after this analysis's newest approval. Show it as printed. Only the user sets a status; write nothing, and do not read the notes of a label for run names.

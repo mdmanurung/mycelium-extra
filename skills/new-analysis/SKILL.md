@@ -37,7 +37,7 @@ Take these from the user's message. Ask only if the destination is missing.
 Run from the repository root, from stdin:
 
 ```bash
-python3 - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb] [--data=PATH ...] [--code=PATH ...] \
+sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb] [--data=PATH ...] [--code=PATH ...] \
   --templates=<skill-dir>/templates --dry-run < <skill-dir>/scripts/new_analysis.py
 ```
 

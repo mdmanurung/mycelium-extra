@@ -55,7 +55,7 @@ For all three, a pass means only the stated comparison held.
 From the project root, stdin form only, so Mycelium's hooks stay closed:
 
 ```bash
-python3 - --contract <(cat <<'EOF'
+sh <skill-dir>/../../hooks/py.sh - --contract <(cat <<'EOF'
 {"schema": "mycelium-extra.data_contract.v1", "table": "...", "checks": [...]}
 EOF
 ) < <skill-dir>/scripts/data_contract_check.py

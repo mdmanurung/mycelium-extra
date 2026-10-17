@@ -13,7 +13,7 @@ Turn on the approval gate in the current repository. The gate uses this plugin's
 - Run a dry run from stdin, from the repository root, so Mycelium's hooks stay closed:
 
   ```bash
-  python3 - --dry-run < <skill-dir>/scripts/gate_init.py
+  sh <skill-dir>/../../hooks/py.sh - --dry-run < <skill-dir>/scripts/gate_init.py
   ```
 
   Running the script by path opens Mycelium's post-action cycle, so never do that.
@@ -28,18 +28,18 @@ Turn on the approval gate in the current repository. The gate uses this plugin's
 ## 3. Turn it on
 
 ```bash
-python3 - [--paths 'scripts/**' 'workflow/**'] [--commands sbatch snakemake] [--hours 24] < <skill-dir>/scripts/gate_init.py
+sh <skill-dir>/../../hooks/py.sh - [--paths 'scripts/**' 'workflow/**'] [--commands sbatch snakemake] [--hours 24] < <skill-dir>/scripts/gate_init.py
 ```
 
 Pass only the options that differ from the defaults; with none, `gate.json` is `{}`. The script never overwrites an existing `gate.json` and never commits.
 
 ## 3b. Find the linters (optional)
 
-`verify` and the approval card run scilintr, and on a cluster neither `scilintr` nor an `Rscript` whose R has the `scilintr` package is usually on `PATH`. Run, from stdin as above, `python3 - --tools < <skill-dir>/scripts/gate_init.py` (it works on a gate that is already on and leaves `gate.json` alone). It looks at `$MX_SCILINTR`, `$MX_RSCRIPT`, then `PATH`, checks that each tool works, and writes `.mycelium-extra/tools.json`. For one it cannot find, ask the user for its path (a venv's `bin/scilintr`; after `module load R`, `which Rscript`) and rerun with `--scilintr PATH` or `--rscript PATH`. Never install packages without asking.
+`verify` and the approval card run scilintr, and on a cluster neither `scilintr` nor an `Rscript` whose R has the `scilintr` package is usually on `PATH`. Run, from stdin as above, `sh <skill-dir>/../../hooks/py.sh - --tools < <skill-dir>/scripts/gate_init.py` (it works on a gate that is already on and leaves `gate.json` alone). It looks at `$MX_SCILINTR`, `$MX_RSCRIPT`, then `PATH`, checks that each tool works, and writes `.mycelium-extra/tools.json`. For one it cannot find, ask the user for its path (a venv's `bin/scilintr`; after `module load R`, `which Rscript`) and rerun with `--scilintr PATH` or `--rscript PATH`. Never install packages without asking.
 
 ## 3c. Diagnose (optional, read-only)
 
-When the user asks why the gate seems off, or what this install can see, run `python3 - --diagnose < <skill-dir>/scripts/gate_init.py` (add `--plugin-root DIR` if it cannot find the plugin's `hooks/`). It writes nothing and reports the effective config (invalid values flagged), the hook registrations in `hooks/hooks.json` and `hooks/codex.json` (and which held-back capacity registrations are absent), the Mycelium version, which of h5py, scilintr, Rscript and sacct are present, and the newest receipt's host and exit status and the last gate error. Pass its output on as printed, including its closing note: a registration or a `gate.json` does not prove the host has enabled or trusted the hooks. Do not combine it with options that write.
+When the user asks why the gate seems off, or what this install can see, run `sh <skill-dir>/../../hooks/py.sh - --diagnose < <skill-dir>/scripts/gate_init.py` (add `--plugin-root DIR` if it cannot find the plugin's `hooks/`). It writes nothing and reports the effective config (invalid values flagged), the hook registrations in `hooks/hooks.json` and `hooks/codex.json` (and which held-back capacity registrations are absent), the Mycelium version, which of h5py, scilintr, Rscript and sacct are present, and the newest receipt's host and exit status and the last gate error. Pass its output on as printed, including its closing note: a registration or a `gate.json` does not prove the host has enabled or trusted the hooks. Do not combine it with options that write.
 
 ## 4. Report
 

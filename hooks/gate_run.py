@@ -84,6 +84,16 @@ def run(argv):
             text = json.dumps(event)
     except Exception:
         pass  # an unreadable event: gate.py fails open and says so
+    # Everything up to here stays parseable by Python 3.6, so an old interpreter is reported, not a SyntaxError.
+    if sys.version_info < (3, 9):
+        try:
+            cwd = json.loads(text).get("cwd")
+        except Exception:
+            cwd = None
+        if find_root(cwd or os.getcwd()) is None:
+            return 0
+        raise RuntimeError("mycelium-extra needs Python 3.9 or later, but the hook ran {} {}; install python3.9 "
+                           "or later, or set MYCELIUM_EXTRA_PYTHON".format(sys.executable, sys.version.split()[0]))
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     # Host payload decoding belongs at the launcher boundary.
     try:
