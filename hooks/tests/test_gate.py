@@ -659,7 +659,7 @@ class GateTest(unittest.TestCase):
                      "        - check: 12 donors x 2 visits\n  \u2193 3 snakemake\n"
                      "        - choice: dry run only  [repo: CLAUDE.md]",
                      "From Evidence (flagged)\n  - Both placebo fits fail the E-BFMI gate. [derived]",
-                     "CAN RUN (in full)\n  script   analysis/a/02_fit.py  pinned\n  command  snakemake  (any invocation)",
+                     "CAN RUN (in full) \u00b7 broad grant: any arguments\n  script   analysis/a/02_fit.py  pinned\n  command  snakemake  (any invocation)",
                      "Reads 1 pinned: data/in.tsv", "Writes 1: analysis/a/out/res.tsv"):
             self.assertIn(text, card)
         self.assertNotIn("Cohort has 24 rows", card)
@@ -1003,7 +1003,7 @@ class GateTest(unittest.TestCase):
         ])
         notice = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
         self.assertIn("\u25b6 approve plan ", notice)
-        self.assertIn("CAN RUN (in full)\n  script   nbs/cyto/13_vax/code/01_frame.R\n"
+        self.assertIn("CAN RUN (in full) \u00b7 broad grant: any arguments\n  script   nbs/cyto/13_vax/code/01_frame.R\n"
                       "  script   nbs/cyto/13_vax/code/02_fit.R\n  script   nbs/cyto/13_vax/code/03_meta.R\n", notice)
         self.assertIn("Writes none named (no `Outputs:` line)", notice)
         self.hook("prompt", {"prompt": "approve plan " + notice.split("approve plan ")[1][:8]})
@@ -3420,6 +3420,171 @@ class ValidationBindingsTest(unittest.TestCase):
         named = self.show(self.plan(self.check()))
         self.assertNotIn("not named in the plan table", named)
         self.assertNotIn("not gated", named)
+
+
+class ExactExecutionTest(unittest.TestCase):
+    """C07 / F09 gate side: a plan's `exact-execution` block holds a covered run to its declared argv, folder and
+    inline variables, except the flags it lists as operational; plans without the block keep a broad grant."""
+    entry = GATE
+    setUp, tearDown, config, hook, bash, denied = (
+        GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook, GateTest.bash, GateTest.denied)
+    path, write, approval, pending, prompt, receipts, tool, post = (
+        PreparationAndLaunchTest.path, PreparationAndLaunchTest.write, PreparationAndLaunchTest.approval,
+        PreparationAndLaunchTest.pending, PreparationAndLaunchTest.prompt, PreparationAndLaunchTest.receipts,
+        PreparationAndLaunchTest.tool, PreparationAndLaunchTest.post)
+    launch_records = AttemptEvidenceTest.launch_records
+    TABLE = ("## Plan\n| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n"
+             "| 1 | run `analysis/x/fit.py` | model A | user | rows |\n"
+             "| 2 | run `analysis/x/plot.py` | figure | user | renders |\n\n")
+    FIT = ["python", "analysis/x/fit.py", "--model", "original", "--threads", "4"]
+    DECLARED = "python analysis/x/fit.py --model original --threads 4"
+
+    def step(self, **changes):
+        base = {"row": "1", "argv": self.FIT, "cwd": ".", "env": {}, "operational": ["--threads"]}
+        base.update(changes)
+        return base
+
+    def plan(self, *steps, **top):
+        block = "<!-- exact-execution {} -->\n\n".format(json.dumps(dict({"version": 1, "steps": list(steps)}, **top)))
+        return self.TABLE + block + "Plan status: READY"
+
+    def show(self, text):
+        return self.hook("stop", {"last_assistant_message": text})["systemMessage"]
+
+    def approved(self, text):
+        notice = self.show(text)
+        digest = notice.split("approve plan ")[1][:8]
+        self.prompt("approve plan " + digest)
+        return digest, notice
+
+    def reason(self, result):
+        self.assertTrue(self.denied(result), result)
+        return result["hookSpecificOutput"]["permissionDecisionReason"]
+
+    def setUp(self):  # noqa: F811
+        GateTest.setUp(self)
+        for name in ("fit", "plot"):
+            self.write("analysis/x/{}.py".format(name), "pass\n")
+
+    def test_a_changed_analytical_argument_is_denied_for_a_frozen_step(self):  # the roadmap probe, F09
+        self.approved(self.plan(self.step()))
+        reason = self.reason(self.tool(self.DECLARED.replace("original", "alternative")))
+        self.assertIn("declared: " + self.DECLARED, reason)
+        self.assertIn("actual:   python analysis/x/fit.py --model alternative --threads 4", reason)
+        self.assertIn("--threads", reason)  # what an operational retry may change
+        self.assertIn("operational", reason)
+        self.assertIn("researcher", reason)
+
+    def test_the_declared_command_and_its_operational_variants_are_allowed(self):  # control
+        self.approved(self.plan(self.step()))
+        for command in (self.DECLARED, "python analysis/x/fit.py --model original --threads 16",
+                        "python analysis/x/fit.py --model original",
+                        "python analysis/x/fit.py --model original --threads=8",
+                        "python ./analysis/x/fit.py --model original --threads 4",
+                        self.DECLARED + " > fit.log 2>&1",
+                        "conda run -n env1 " + self.DECLARED,
+                        "timeout 600 " + self.DECLARED):
+            self.assertIsNone(self.tool(command), command)
+
+    def test_every_other_change_is_denied(self):
+        self.approved(self.plan(self.step()))
+        for command in ("python analysis/x/fit.py --model original --threads 4 --alpha 0.1",
+                        "python analysis/x/fit.py --threads 4",
+                        "python analysis/x/fit.py --model original --threads 4 extra.tsv",
+                        "python analysis/x/fit.py --model original --verbose extra.tsv",
+                        "python analysis/x/fit.py --model original --threads 4 < other.tsv",
+                        "python3 analysis/x/fit.py --model original --threads 4",
+                        "cd analysis/x && python fit.py --model original --threads 4"):
+            self.assertTrue(self.denied(self.tool(command)), command)
+
+    def test_a_substitution_or_an_unresolved_folder_cannot_satisfy_a_frozen_step(self):
+        self.approved(self.plan(self.step()))
+        self.assertIn("substitution", self.reason(self.tool("python analysis/x/fit.py --model $(cat model.txt)")))
+        self.assertIn("substitution", self.reason(self.tool("python analysis/x/fit.py --model $MODEL")))
+        reason = self.reason(self.tool('env -C "$WORK" ' + self.DECLARED))
+        self.assertIn("unresolved", reason)
+        self.assertIn("$WORK", reason)
+
+    def test_inline_variables_must_be_declared(self):
+        self.approved(self.plan(self.step(env={"SEED": "1"})))
+        self.assertIsNone(self.tool("SEED=1 " + self.DECLARED))
+        self.assertIsNone(self.tool(self.DECLARED))
+        self.assertIn("SEED=2", self.reason(self.tool("SEED=2 " + self.DECLARED)))
+        self.assertTrue(self.denied(self.tool("OTHER=1 " + self.DECLARED)))
+
+    def test_a_step_with_a_declared_folder(self):
+        self.write("analysis/x/run.R", "1\n")
+        text = self.TABLE.replace("analysis/x/plot.py", "analysis/x/run.R")
+        block = {"version": 1, "steps": [{"row": "1", "argv": ["Rscript", "run.R", "--n", "3"], "cwd": "analysis/x"}]}
+        self.approved(text + "<!-- exact-execution {} -->\n\nPlan status: READY".format(json.dumps(block)))
+        self.assertIsNone(self.tool("cd analysis/x && Rscript run.R --n 3"))
+        self.assertIsNone(self.tool("env -C analysis/x Rscript run.R --n 3"))
+        self.assertIn("folder differs", self.reason(self.tool("Rscript analysis/x/run.R --n 3")))
+        self.assertTrue(self.denied(self.tool("cd analysis/x && Rscript run.R --n 4")))
+
+    def test_the_launch_and_the_receipt_record_the_exact_match(self):
+        self.approved(self.plan(self.step()))
+        self.assertIsNone(self.tool(self.DECLARED, tool_use_id="t1"))
+        self.assertIsNone(self.tool("python analysis/x/plot.py --dpi 300", tool_use_id="t2"))  # no step names it
+        launched = dict((r["call_id"], [e for es in r["runs"].values() for e in es][0]) for r in self.launch_records())
+        self.assertEqual((launched["t1"]["exact_match"], launched["t1"]["exact_step"]), (True, "1"))
+        self.assertIs(launched["t2"]["exact_match"], False)
+        self.assertNotIn("exact_step", launched["t2"])
+        self.post(self.DECLARED, tool_use_id="t1")
+        self.post("python analysis/x/plot.py --dpi 300", tool_use_id="t2")
+        one, two = self.receipts()
+        self.assertEqual((one["exact_match"], one["exact_step"]), (True, "1"))
+        self.assertIs(two["exact_match"], False)
+        self.assertNotIn("exact_step", two)
+
+    def test_a_plan_without_the_block_keeps_a_broad_grant_and_says_so(self):  # the probe's plain form
+        digest, card = self.approved(self.TABLE.replace("run `analysis/x/fit.py`",
+                                                         "run `python analysis/x/fit.py --model original`")
+                                     + "Plan status: READY")
+        self.assertIn("broad grant: any arguments", card)
+        self.assertNotIn("exact:", card)
+        self.assertIsNone(self.tool("python analysis/x/fit.py --model alternative", tool_use_id="t1"))
+        self.post("python analysis/x/fit.py --model alternative", tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertNotIn("exact_match", receipt)
+        self.assertNotIn("execution", self.approval(digest))
+
+    def test_the_card_shows_each_declared_step_and_the_rest_as_broad(self):
+        digest, card = self.approved(self.plan(self.step(), self.step(
+            row="2", argv=["python", "analysis/x/plot.py"], env={"SEED": "1"})))
+        self.assertIn("exact: row 1: " + self.DECLARED, card)
+        self.assertIn("exact: row 2: python analysis/x/plot.py", card)
+        self.assertIn("free flags: --threads", card)
+        self.assertIn("SEED=1", card)
+        self.assertIn("exact where listed", card)
+        self.assertIn("broad grant: any arguments", card)
+        record = self.approval(digest)
+        self.assertEqual(record["execution"]["steps"][0]["argv"], self.FIT)
+        instance, = os.listdir(self.path("approval-instances", digest))
+        with open(self.path("approval-instances", digest, instance)) as handle:
+            self.assertEqual(json.load(handle)["execution"], record["execution"])
+
+    def test_an_exact_step_narrows_a_grant_and_never_widens_it(self):
+        self.approved(self.plan(self.step(argv=["python", "analysis/x/other.py"])))
+        self.write("analysis/x/other.py", "pass\n")
+        self.assertTrue(self.denied(self.tool("python analysis/x/other.py")), "the table names only fit.py and plot.py")
+
+    def invalid(self, text, expected):
+        notice = self.show(text)
+        self.assertIn(expected, notice)
+        self.assertNotIn("approve plan ", notice)
+        entry, = self.pending()
+        self.assertFalse(entry["ready"])
+        self.assertIn("Nothing was approved", self.prompt("approve plan " + entry["hash"]))
+
+    def test_an_invalid_exact_block_is_not_approvable(self):
+        self.invalid(self.plan(self.step(row="9")), "unknown plan row 9")
+
+    def test_an_exact_block_with_a_substitution_is_not_approvable(self):
+        self.invalid(self.plan(self.step(argv=["python", "analysis/x/fit.py", "$SEED"])), "substitution")
+
+    def test_an_exact_block_with_an_unknown_key_is_not_approvable(self):
+        self.invalid(self.plan(self.step(), shell="bash"), "unknown key shell")
 
 
 if __name__ == "__main__":

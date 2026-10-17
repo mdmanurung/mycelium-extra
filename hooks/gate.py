@@ -24,6 +24,7 @@ import importlib.util
 import json
 import math
 import os
+import posixpath
 import re
 import sys
 import time
@@ -1297,6 +1298,59 @@ def launch_argv(tokens, root, cwd, config):
     return tokens[head:], inline
 
 
+def step_names_run(step, label, paths):
+    """Whether an exact-execution step is about this run: its argv names one of the run's gated scripts (a
+    path as written in the step's folder, or `-m` module), else, for a command with no script, its program."""
+    argv = step["argv"]
+    named = set()
+    for j, word in enumerate(argv):
+        if j and word.startswith("-"):
+            continue
+        for candidate in [word] + ([word.replace(".", "/") + ".py"] if j and argv[j - 1] == "-m" else []):
+            named.add(posixpath.normpath(posixpath.join(step["cwd"], candidate)))
+    if paths:
+        return any(path in named for path in paths)
+    return os.path.basename(argv[0]) == label
+
+
+def exact_step_check(root, config, record, label, paths, tokens, cwd):
+    """(launch-entry fields, deny lines) for one covered run against its plan's exact-execution steps. A plan
+    without the block: ({}, []), a broad grant. A run no step is about: exact_match False. A run a step is
+    about must equal one declared argv, in its folder, but for the operational flags."""
+    execution = record.get("execution")
+    if not execution:
+        return {}, []
+    steps = [step for step in execution["steps"] if step_names_run(step, label, paths)]
+    if not steps:
+        return {"exact_match": False}, []
+    head = "mycelium-extra gate: blocked because plan {} froze the command of row {} (exact-execution) and this run ".format(
+        record["hash"], steps[0]["row"])
+    if isinstance(cwd, UnknownFolder):
+        return {}, [head + "starts in an unresolved folder (`{}`, a shell expansion the gate cannot resolve), which "
+                    "cannot satisfy an exact step. Write the folder literally (`env -C analysis/x ...`) or `cd` there first.".format(cwd.raw)]
+    argv, inline = launch_argv(tokens, root, cwd, config)
+    module, where, reasons = blocks_module(), cwd_rel(root, cwd), []
+    for step in steps:
+        ok, why = module.argv_matches(step["argv"], argv, where, step["cwd"], step["operational"], step["env"], inline)
+        if ok:
+            return {"exact_match": True, "exact_step": step["row"]}, []
+        reasons.append((step, why))
+    lines = [head + "differs: {}.".format(reasons[0][1])]
+    for step, _ in reasons[:3]:
+        env = "".join(" {}={}".format(k, v) for k, v in sorted(step["env"].items()))
+        lines.append("  declared: {}   (folder {}{})".format(" ".join(step["argv"]), step["cwd"],
+                                                              ", env" + env if env else ""))
+    lines.append("  actual:   {}   (folder {}{})".format(
+        " ".join(argv or tokens), where, ", inline" + "".join(" {}={}".format(k, v) for k, v in sorted(inline.items()))
+        if inline else ""))
+    flags = sorted(set(f for step, _ in reasons for f in step["operational"]))
+    lines.append("An operational retry may differ only in the flags the plan lists as operational ({}). A changed "
+                 "analytical argument (model, contrast, threshold, input, seed) changes the approved computation: "
+                 "go back to the researcher, who approves a revised plan with `approve plan {}`. Do not work "
+                 "around this block.".format(", ".join(flags) or "none", record["hash"]))
+    return {}, lines
+
+
 def invocation_note(root, config, check, plan):
     """Whether a check's invocation would be seen by the gate, and covered by this plan's table."""
     import shlex
@@ -1468,7 +1522,7 @@ def scope_lines(root, plan, config):
     runs = paths + commands
     if not runs:
         return ["  Runs allowed: none (the plan table names no gated script, folder, or command)"]
-    return ["  Runs allowed"] + bullets(runs)
+    return ["  Runs allowed \u00b7 broad grant: any arguments"] + bullets(runs)
 
 
 def expand_braces(word, limit=MAX_OUTPUT_WORDS):
@@ -2182,7 +2236,10 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
         if len(flags) > 3:
             lines.append("  (+{} more flagged in Evidence)".format(len(flags) - 3))
     can_run_at = len(lines) + 1
-    lines += ["", "CAN RUN (in full)"]
+    execution = (blocks or {}).get("execution")
+    lines += ["", "CAN RUN (in full)" + (" \u00b7 " + ("exact where listed below, otherwise broad grant: any arguments"
+                                                  if execution else "broad grant: any arguments")
+                                         if paths or commands else "")]
     for path in paths:
         if os.path.isfile(os.path.join(root, path)) or SCRIPT_EXT.search(path):
             kind, note = ("script" if SCRIPT_EXT.search(path) else "file"), ("  pinned" if path in scripts else "")
@@ -2192,6 +2249,12 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
     lines += ["  {:<9}{}  (any invocation)".format("command", command) for command in commands]
     if not paths and not commands:
         lines.append("  nothing: the plan table names no gated script, folder, or command")
+    for step in (execution or {}).get("steps") or []:
+        lines.append("  " + clean("exact: row {}: {}   (folder {}{}{})".format(
+            step["row"], " ".join(step["argv"]), step["cwd"],
+            ", free flags: " + " ".join(step["operational"]) if step["operational"] else "",
+            "; env " + " ".join("{}={}".format(k, v) for k, v in sorted(step["env"].items())) if step["env"] else ""),
+            1000))
     reads_at = len(lines)
     lines.append("Reads " + ("{} pinned{}".format(len(reads), names(reads, short)) if reads else
                              ("none (no `Inputs:` line)" if pins is None else "none (the `Inputs:` line names no files)")))
@@ -2617,7 +2680,7 @@ def on_tool(event, root, config):
     granted = explore_granted(root, event.get("session_id"))
     run_scripts, launched = [], {}
     unresolved, wrap_blocked = [], []
-    stale_validation = []
+    stale_validation, exact_refused = [], []
     for explore, label, paths, segment, tokens, run_cwd in analyse_command(command, root,
                                                                             event.get("cwd") or root, config):
         run_scripts += [p for p in paths if p.endswith(LINT_EXT) and p not in run_scripts]
@@ -2654,6 +2717,11 @@ def on_tool(event, root, config):
             entry["instance_ids"] = instances
         if isinstance(run_cwd, UnknownFolder):  # allowed by one of its readings, not by a resolved folder
             entry["limitations"] = ["cwd unresolved: " + run_cwd.raw]
+        fields, refused = exact_step_check(root, config, newest, label, paths, tokens, run_cwd)
+        if refused:
+            exact_refused += refused
+            continue
+        entry.update(fields)
         if newest.get("validation"):
             changed = blocks_module().changes(root, newest["validation"])
             if changed and all(newest["hash"] != h for h, _ in stale_validation):
@@ -2697,6 +2765,8 @@ def on_tool(event, root, config):
             else:
                 if len(runs) >= limit:
                     capped.append((newest["hash"], len(runs), limit_changes(root, runs, budget, cache)))
+    if exact_refused:
+        return deny("\n".join(exact_refused))
     if (stale or stale_scripts or capped or stale_validation) and not blocked:
         lines = validation_denial(stale_validation)
         for digest, changes in stale:
@@ -3369,7 +3439,7 @@ def on_post(event, root, config):
         }
         if limitations:
             receipt["limitations"] = limitations
-        for key in ("validation_check",):  # what the launch recorded about the plan's bindings
+        for key in ("validation_check", "exact_match", "exact_step"):  # what the launch recorded about the plan's blocks
             if launch and key in launch:
                 receipt[key] = launch[key]
         if launch_match != "matched":
