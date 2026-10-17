@@ -27,6 +27,7 @@ import os
 import posixpath
 import re
 import sys
+import textwrap
 import time
 
 STATE_DIR = ".mycelium-extra"
@@ -1789,7 +1790,7 @@ CARD_PREFIX = 12   # a shared path prefix is stripped when it is at least this l
 LINT_EXT = (".py", ".R", ".r", ".ipynb", ".qmd", ".Rmd", ".rmd")  # what verify's lint reads
 LINT_SECONDS = 8   # each language's linter gets this long on the card; verify's own check gets longer
 CARD_WIDTH = 250   # no line of the card, except a grant or a diff line, is longer
-CARD_LINES = 35    # a longer card is shown as a digest; `card <hash> checks|diff|full` shows the rest
+CARD_WRAP = 72     # the compact card wraps its question and checks at this width
 CARD_ASK = re.compile(r"^\s*card ([0-9a-f]{8})(?:\s+(checks|diff|full))?\s*[.!]?\s*$", re.IGNORECASE)
 ABS_PATH = re.compile(r"(?<![\w./~-])/[^\s`|'\"]+")
 CONTROL = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|[\x00-\x1f\x7f]")
@@ -2158,7 +2159,8 @@ def lint_gap_applies(gap, names):
 
 def lint_bullets(root, rows, config):
     """{step number: one-line scilintr verdict} for the planned code each step names, by running verify's
-    lint once on all of it: `clean`, `2 open (R002 2)`, or `not checked (...)`. Show only, never blocks;
+    lint once on all of it: `clean`, `2 open (R002 2)`, or `not checked (...)`, each with `; N approved
+    threshold(s)` when a Choice cell the plan approved states the number. Show only, never blocks;
     {} when the plan names no code, `card_lint` is false in gate.json, or the linter cannot be run."""
     if config.get("card_lint", True) is False:
         return {}
@@ -2170,7 +2172,9 @@ def lint_bullets(root, rows, config):
     try:
         verify = load_verify()
         report = verify.Report()
-        found = verify.lint(root, every, report, *lint_tools(root), seconds=LINT_SECONDS)["findings"]
+        linted = verify.lint(root, every, report, *lint_tools(root), seconds=LINT_SECONDS,
+                             choices=[(" ".join((row["step"], row["check"])), row["choice"]) for row in rows])
+        found, approved = linted["findings"], linted.get("approved", [])
     except Exception:  # ANALYSIS_OK[card-best-effort]: the card still shows the plan; verify lints in full later
         return {}
     gaps = [text for level, text in report.findings if level == "gap"]
@@ -2178,16 +2182,20 @@ def lint_bullets(root, rows, config):
     for num, names in files.items():
         if not names:
             continue
-        mine = collections.Counter(f[3] for f in found if re.sub(r"\[code cell \d+\]$", "", f[0]) in names)
+        def of_step(f):
+            return re.sub(r"\[code cell \d+\]$", "", f[0]) in names
+        mine = collections.Counter(f[3] for f in found if of_step(f) and f not in approved)
+        agreed = sum(1 for f in approved if of_step(f))
+        extra = "; {} approved threshold(s)".format(agreed) if agreed else ""
         unchecked = [g for g in gaps if any("`{}`".format(n) in g or "`{}:".format(n) in g for n in names)
                      or (not re.search(r"`[^`]*\.\w+[:`]", g) and lint_gap_applies(g, names))]  # no file named: the language's
         if mine:
-            out[num] = "{} open ({})".format(sum(mine.values()), ", ".join(
-                "{} {}".format(r, n) if n > 1 else r for r, n in mine.most_common(3)))
+            out[num] = "{} open ({}){}".format(sum(mine.values()), ", ".join(
+                "{} {}".format(r, n) if n > 1 else r for r, n in mine.most_common(3)), extra)
         elif unchecked:
-            out[num] = "not checked ({})".format(re.sub(r"^scilintr(?: \(\w+\))? (?:not checked:? ?)?", "", unchecked[0])[:90])
+            out[num] = "not checked ({}){}".format(re.sub(r"^scilintr(?: \(\w+\))? (?:not checked:? ?)?", "", unchecked[0])[:90], extra)
         else:
-            out[num] = "clean"
+            out[num] = "clean" + extra
     return out
 
 
@@ -2215,7 +2223,8 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
     changes = pin_changes(pins, previous) + script_changes
     defaults = [row["num"] for row in rows if row["source"].lower().startswith("default")]
     lines = ["mycelium-extra \u00b7 plan {} ready for approval".format(digest)]
-    lines += baseline_lines(root, config, digest, text, paths, outputs, pins, scripts, rows, short)
+    baseline = baseline_lines(root, config, digest, text, paths, outputs, pins, scripts, rows, short)
+    lines += baseline
     lines += changes
     lines += ["Question   " + card_question(text), "Goal       " + card_goal(text),
               "Defaults to confirm: " + ("step " + ", ".join(defaults) if defaults else "none")]
@@ -2226,7 +2235,6 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
     lint = lint_bullets(root, rows[:CARD_STEPS], config)
     legend = "   (* = a default decided; confirm it)" if defaults else ""
     lines += ["", "Sequence" + legend]
-    brief = list(lines[-2:])
     for row in rows[:CARD_STEPS]:
         cells = " ".join((row["step"], row["choice"], row["check"]))
         done = "  (agent says: done)" if DONE_MARK.search(cells) else ""
@@ -2238,25 +2246,17 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
         why = "assumed: " + quote(re.sub(r"^default\s*:?\s*", "", row["source"], flags=re.IGNORECASE)) if is_default else ""
         who = "  [{}]".format(source_tag(row["source"])) if row["source"].strip() and not is_default else ""
         choice, check = (quote(DONE_MARK.sub("", row[key])) for key in ("choice", "check"))
-        short_choice = quote(first_sentence(clean(DONE_MARK.sub("", row["choice"]), 1000)), 120)
         lines.append(head)
-        brief.append(head)
-        for bucket, text_ in ((lines, choice), (brief, short_choice)):
-            if text_:
-                bucket.append("        - choice: " + text_ + who)
-            if why:
-                bucket.append("        - " + why)
+        if choice:
+            lines.append("        - choice: " + choice + who)
+        if why:
+            lines.append("        - " + why)
         if check:
             lines.append("        - check: " + check)
-            if is_default:
-                brief.append("        - check: " + quote(DONE_MARK.sub("", row["check"]), 120))
         if row["num"] in lint:
             lines.append("        - lint: " + lint[row["num"]])
-            if lint[row["num"]] != "clean":
-                brief.append(lines[-1])
     if len(rows) > CARD_STEPS:
         lines.append("\u2026 and {} more steps in the plan above".format(len(rows) - CARD_STEPS))
-        brief.append(lines[-1])
     steps_end = len(lines)
     flags = evidence_flags(text)
     if flags:
@@ -2303,21 +2303,72 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
     lines.append("\u25b6 approve plan {}".format(digest))
     # A grant line and a diff line are never cut: what the gate allows and what changed are shown whole.
     lines = [line if can_run_at <= i < reads_at or i >= diff_at else fit(line) for i, line in enumerate(lines)]
-    brief = [fit(line) for line in brief]
     full = "\n".join(lines)
-    if len(lines) <= CARD_LINES:
-        return full, None
-    # The digest: the science of each step on one line, checks only where a default decided, Reads and
-    # Writes counted, no diff. Baseline, changed scripts, flagged Evidence and grants stay in full.
-    counts = "Reads {} pinned \u00b7 Writes {}".format(len(reads), len(outputs or []))
-    more = "More: type `card {0} checks`{1} or `card {0} full`".format(
-        digest, ", `card {} diff` ({} lines)".format(digest, len(script_diff_lines)) if script_diff_lines else "")
-    shown = (lines[:procedure_at] + brief + lines[steps_end:reads_at] + [counts] + lines[reads_at + 2:diff_at]
-             + [more, "\u25b6 approve plan {}".format(digest)])
     checks = ["Checks of plan {}".format(digest)] + ["{:>2}  {}".format(row["num"], quote(DONE_MARK.sub(
         "", row["check"]))) for row in rows if row["check"].strip()]
-    return "\n".join(shown), {"full": full, "checks": "\n".join(checks), "diff": "\n".join(
+    details = {"full": full, "checks": "\n".join(checks), "diff": "\n".join(
         ["Diff of changed scripts"] + script_diff_lines) if script_diff_lines else "No script diff on this card."}
+    # The compact card: what a researcher checks first (the question, each choice and who made it, the
+    # checks), then only what could surprise. A grant broader than named scripts, a changed script or
+    # input, flagged Evidence and every warning stay on it; file lists and diffs are behind `card <hash>`.
+    def labelled(label, text_):
+        body = textwrap.wrap(text_, CARD_WRAP) or [""]
+        return [label.ljust(10) + body[0]] + [" " * 10 + more_ for more_ in body[1:]]
+
+    compact = ["mycelium-extra \u00b7 plan {} \u00b7 {} step{} \u00b7 ready for approval".format(
+        digest, len(rows), "" if len(rows) == 1 else "s")]
+    compact += changes
+    asked = QUESTION_LINE.search(text)
+    if asked and asked.group(1).strip():
+        compact += labelled("Question", card_question(text))
+    else:
+        compact += labelled("Goal" if objective_text(text) is not None else "Question", card_goal(text))
+    choices = []
+    for row in rows[:CARD_STEPS]:
+        is_default = row["source"].lower().startswith("default")
+        done = "  (agent says: done)" if DONE_MARK.search(" ".join((row["step"], row["choice"], row["check"]))) else ""
+        said = quote(DONE_MARK.sub("", row["choice"]), 160) or quote(re.sub(
+            r"/?(?:[^\s/]+/)+(?=[\w.-])", "", re.sub(r"^run\s+", "", short_runs(root, DONE_MARK.sub("", row["step"])).replace(
+                "`", ""), flags=re.IGNORECASE)), 70)
+        who = "  [{}]{}".format(source_tag(row["source"]), "*" if is_default else "") if row["source"].strip() else (
+            "*" if is_default else "")
+        choices.append("{} {}{}{}".format(row["num"], said, who, done))
+    if len(rows) > CARD_STEPS:
+        choices.append("\u2026 and {} more steps in the plan above".format(len(rows) - CARD_STEPS))
+    compact += ["Choices".ljust(10) + choices[0]] + [" " * 10 + line for line in choices[1:]]
+    if defaults:
+        compact.append("Defaults to confirm: step " + ", ".join(defaults) + "  (* = a default decided)")
+    written = [quote(DONE_MARK.sub("", row["check"]), 80) for row in rows if row["check"].strip()]
+    compact += labelled("Checks", " \u00b7 ".join(written) if written else "none written in the plan")
+    compact += baseline
+    kinds = collections.Counter(
+        ("script" if SCRIPT_EXT.search(path) else "file") if os.path.isfile(os.path.join(root, path)) or SCRIPT_EXT.search(path)
+        else "folder" for path in paths)
+    broad = bool(kinds["folder"] or commands or execution or not (paths or commands))
+    counts = "{} \u00b7 {}".format(
+        "reads {} pinned".format(len(reads)) if reads else ("reads none (no `Inputs:` line)" if pins is None else "reads none"),
+        "writes {}".format(len(outputs)) if outputs else "writes none named")
+    grant_lines = range(0)  # the grant lines are never cut
+    if broad:
+        grant_lines = range(len(compact), len(compact) + reads_at - can_run_at + 1)
+        compact += lines[can_run_at - 1:reads_at] + ["Runs".ljust(10) + counts]
+    else:
+        grants = ", ".join(filter(None, [
+            "{} script{} ({} pinned)".format(kinds["script"], "" if kinds["script"] == 1 else "s",
+                                             sum(1 for path in paths if path in scripts)) if kinds["script"] else "",
+            "{} file{}".format(kinds["file"], "" if kinds["file"] == 1 else "s") if kinds["file"] else ""]))
+        compact.append("Runs".ljust(10) + grants + " \u00b7 any arguments \u00b7 " + counts)
+    if lint:
+        notes = ["step {}: {}".format(num, value) for num, value in lint.items() if value != "clean"]
+        compact.append(" " * 10 + "lint: " + ("; ".join(notes) if notes else "clean"))
+    compact += lines[steps_end:can_run_at - 1]
+    compact += [line for line in lines[reads_at + 2:diff_at] if broad or not line.startswith("P = ")]
+    if script_diff_lines:
+        compact.append("{} changed-script diff line(s): `card {} diff`".format(len(script_diff_lines), digest))
+    compact.append("More: `card {0} full` (every grant, file and check)".format(digest))
+    compact.append("\u25b6 approve  (or approve plan {})".format(digest))
+    compact = [line if i in grant_lines else fit(line) for i, line in enumerate(compact)]
+    return "\n".join(compact), details
 
 
 # ---------------------------------------------------------------- pinned inputs

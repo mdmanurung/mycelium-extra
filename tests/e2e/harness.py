@@ -287,6 +287,12 @@ class Project(object):
         self.log.append("approved plan {}".format(digest))
         return digest, message, reply
 
+    def full_card(self, digest):
+        """What `card <hash> full` shows; the Stop notice from approve() is the compact card."""
+        reply = self.hook(self.events.get("UserPromptSubmit", "prompt"),
+                          {"prompt": "card {} full".format(digest), "hook_event_name": "UserPromptSubmit"})
+        return (reply or {}).get("reason", "")
+
     def read_jsonl(self, name):
         path = self.path(".mycelium-extra", name)
         if not os.path.isfile(path):

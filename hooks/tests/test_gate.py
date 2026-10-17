@@ -239,6 +239,10 @@ class GateTest(unittest.TestCase):
     def card(self, plan):
         return self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
 
+    def full(self, plan):
+        """The full card (`card <hash> full`) of a plan shown now; self.card is the compact one."""
+        return self.asked(self.card(plan), "full")
+
     def asked(self, card, part=""):
         """What `card <hash> <part>` shows the user; the agent never gets the prompt."""
         digest = card.split("approve plan ")[-1][:8]
@@ -257,13 +261,16 @@ class GateTest(unittest.TestCase):
     def test_card_shows_scilintr_per_step_and_never_blocks(self):
         self.write_file("analysis/a/02_fit.py", "print(1)\n")
         self.fake_linter()
-        self.assertIn("        - check: 12 donors x 2 visits\n        - lint: clean\n  \u2193 3 snakemake", self.card(self.CARD_PLAN))
+        self.assertIn("        - check: 12 donors x 2 visits\n        - lint: clean\n  \u2193 3 snakemake", self.full(self.CARD_PLAN))
+        self.assertIn("          lint: clean", self.card(self.CARD_PLAN))
         self.fake_linter("analysis/a/02_fit.py:1:1: [broad-exception] x", 1)
         card = self.card(self.CARD_PLAN)
-        self.assertIn("        - lint: 1 open (broad-exception)", card)
-        self.assertIn("\u25b6 approve plan ", card.splitlines()[-1])
+        self.assertIn("          lint: step 2: 1 open (broad-exception)", card)
+        self.assertIn("        - lint: 1 open (broad-exception)", self.asked(card, "full"))
+        self.assertIn("approve plan ", card.splitlines()[-1])
         self.write_file(".mycelium-extra/tools.json", json.dumps({"scilintr": "/nonexistent/scilintr"}))
-        self.assertIn("        - lint: not checked (`/nonexistent/scilintr` not found.", self.card(self.CARD_PLAN))
+        self.assertIn("        - lint: not checked (`/nonexistent/scilintr` not found.", self.full(self.CARD_PLAN))
+        self.assertIn("lint: step 2: not checked (`/nonexistent/scilintr` not found.", self.card(self.CARD_PLAN))
         self.write_file(".mycelium-extra/gate.json", json.dumps({"card_lint": False}))
         self.assertNotIn("- lint:", self.card(self.CARD_PLAN))
 
@@ -589,7 +596,7 @@ class GateTest(unittest.TestCase):
                           "| # | Step | Choice | Source | Validation |", "|---|---|---|---|---|",
                           "| 1 | Run `analysis/a/02_fit.py` | exact test | user | 12 rows |",
                           "| 2 | Run `analysis/a/03_sum.R` | hits at 0.05 | user | 1 row |", "", "Plan status: READY"])
-        card = self.card(plan)
+        card = self.full(plan)
         self.assertIn("1 02_fit.py\n        - choice: exact test  [you]\n        - check: 12 rows\n        - lint: clean", card)
         self.assertIn("- lint: not checked (`/nonexistent/Rscript` not found", card)
 
@@ -663,7 +670,7 @@ class GateTest(unittest.TestCase):
         with open(os.path.join(self.root, "analysis", "a", "02_fit.py"), "w") as handle:
             handle.write("print(1)\n")
         self.write_file(".mycelium-extra/gate.json", json.dumps({"card_lint": False}))
-        card = self.card(self.CARD_PLAN)
+        card = self.full(self.CARD_PLAN)
         lines = card.splitlines()
         self.assertTrue(lines[0].startswith("mycelium-extra \u00b7 plan ") and "ready for approval" in lines[0])
         self.assertTrue(lines[-1].startswith("\u25b6 approve plan ") and len(lines[-1].split()[-1]) == 8)
@@ -698,7 +705,7 @@ class GateTest(unittest.TestCase):
     def test_card_reads_output_lists_and_flags_shorthand(self):
         outputs = ("Outputs: analysis/a/out/fit_{hsc,gdt}_k40_{fit,summary}.rds, `analysis/a/out/pairs.csv`, "
                    "`\u2026_meta.csv`, analysis/a/out/scope_<subset>.csv")
-        card = self.card(self.CARD_PLAN.replace("Outputs: analysis/a/out/res.tsv", outputs))
+        card = self.full(self.CARD_PLAN.replace("Outputs: analysis/a/out/res.tsv", outputs))
         self.assertIn("Writes 6 under analysis/a/out/: fit_gdt_k40_fit.rds, fit_gdt_k40_summary.rds, "
                       "fit_hsc_k40_fit.rds, \u2026 and 3 more", card)
         self.assertIn("Shorthand, not read: \u2026_meta.csv; name the full path", card)
@@ -717,7 +724,7 @@ class GateTest(unittest.TestCase):
     def test_card_prints_every_grant_in_full(self):
         rows = "\n".join("| {0} | Run `nbs/cyto/s{0}/code/fit{0}.R` | c | user | v |".format(i) for i in range(12))
         plan = "| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n" + rows + "\n\nPlan status: READY"
-        card = self.card(plan)
+        card = self.full(plan)
         for i in range(12):
             self.assertIn("nbs/cyto/s{0}/code/fit{0}.R".format(i), card)
         self.assertNotIn("more", card.split("CAN RUN")[1].split("Reads")[0])
@@ -755,7 +762,7 @@ class GateTest(unittest.TestCase):
         self.assertNotIn("Step 16", card)
         self.assertIn("\u2026 and 2 more steps in the plan above", card)
 
-    def test_long_card_is_a_digest_with_the_rest_on_request(self):
+    def test_the_card_is_compact_with_the_rest_on_request(self):
         self.write_file("analysis/a/02_fit.py", "".join("a{}\n".format(i) for i in range(40)))
         self.approve(self.card_plan_for())
         self.write_file("analysis/a/02_fit.py", "".join("b{}\n".format(i) for i in range(40)))
@@ -764,23 +771,33 @@ class GateTest(unittest.TestCase):
             .format(self.root), "| 2 | View fig | Print size | default: print rules | labels >= 6 pt |"]))
         card = self.card(plan)
         lines = card.splitlines()
-        self.assertLessEqual(len(lines), 35)
-        self.assertIn("    1 Rscript 02_fit.py", lines)  # no paths
-        self.assertIn("        - choice: Exact test.  [you]", lines)  # first sentence
-        self.assertNotIn("check: 12 donors", card)  # the user decided step 1
-        self.assertIn("  \u2193 2 View fig*\n        - choice: Print size\n        - assumed: print rules\n"
-                      "        - check: labels >= 6 pt", card)
-        self.assertIn("  script   analysis/a/02_fit.py  pinned", card)  # grants stay in full
-        self.assertIn("Reads 1 pinned \u00b7 Writes 0", card)
+        self.assertLessEqual(len(lines), 20)
+        self.assertEqual(lines[3:7], ["Goal      Compare A with B.", "Choices   1 Exact test. Two-sided.  [you]",
+                                      "          2 Print size  [default: print rules]*",
+                                      "Defaults to confirm: step 2  (* = a default decided)"])  # the whole choice
+        self.assertIn("Checks    12 donors \u00b7 labels >= 6 pt", lines)
+        self.assertIn("Runs      1 script (1 pinned) \u00b7 any arguments \u00b7 reads 1 pinned \u00b7 writes none named", lines)
+        self.assertIn("  scripts  CHANGED: analysis/a/02_fit.py", lines)  # a changed script stays on the card
+        self.assertNotIn("CAN RUN", card)  # named scripts only: the list is behind `card <hash> full`
         self.assertNotIn("Diff of changed scripts", card)
-        self.assertTrue(lines[-1].startswith("\u25b6 approve plan "))
-        self.assertIn("`card {} diff` (".format(lines[-1][-8:]), lines[-2])
+        self.assertTrue(lines[-1].startswith("\u25b6 approve  (or approve plan ") and lines[-1].endswith(")"))
+        digest = lines[-1][-9:-1]
+        self.assertEqual(lines[-2], "More: `card {} full` (every grant, file and check)".format(digest))
+        self.assertIn("31 changed-script diff line(s): `card {} diff`".format(digest), lines)
         self.assertIn(" 1  12 donors", self.asked(card, "checks"))
         self.assertIn("\u2026 and 51 more diff lines", self.asked(card, "diff"))
         full = self.asked(card)
         self.assertIn("        - choice: Exact test. Two-sided.  [you]", full)
         self.assertIn("    1 Rscript 02_fit.py", full)  # program name, no directories
+        self.assertIn("  script   analysis/a/02_fit.py  pinned", full)
         self.assertIn("no pending plan", self.hook("prompt", {"prompt": "card 0badf00d"})["reason"])
+
+    def test_a_grant_beyond_named_scripts_stays_on_the_compact_card(self):
+        card = self.card(self.CARD_PLAN)  # it also lets `snakemake` through, with any arguments
+        self.assertIn("CAN RUN (in full) \u00b7 broad grant: any arguments\n  script   analysis/a/02_fit.py\n"
+                      "  command  snakemake  (any invocation)", card)
+        self.assertIn("Runs      reads 1 pinned \u00b7 writes 1", card)
+        self.assertIn("From Evidence (flagged)\n  - Both placebo fits fail the E-BFMI gate. [derived]", card)
 
     def card_plan_for(self, scripts=("analysis/a/02_fit.py",), objective="Compare A with B.", inputs="data/in.tsv"):
         rows = "\n".join("| {} | Run `{}` | exact test | user | 12 donors |".format(i + 1, path)
@@ -833,7 +850,7 @@ class GateTest(unittest.TestCase):
         self.write_file("analysis/a/02_fit.py", "print(1)\n")
         self.approve(self.card_plan_for())
         self.write_file("analysis/a/02_fit.py", "print(2)\n")
-        card = self.card(self.card_plan_for())
+        card = self.full(self.card_plan_for())
         summary = card.index("Scripts changed since last approved\n    \u2022 analysis/a/02_fit.py: sha256")
         diff = card.index("Diff of changed scripts\n      @@ -1 +1 @@\n      -print(1)\n      +print(2)")
         self.assertLess(summary, card.index("Question"))
@@ -861,7 +878,7 @@ class GateTest(unittest.TestCase):
         for plan in (self.card_plan_for(), PLAN):  # the new card and the plain one
             card = self.card(plan)
             self.assertEqual(card.splitlines()[1].split(",")[0], warning)
-            self.assertIn("\u25b6 approve plan ", card)
+            self.assertIn("approve plan ", card)
         self.write_file(".gitignore", ".mycelium-extra/\n")
         self.assertNotIn(warning, self.card(self.card_plan_for()))
         self.assertNotIn(warning, self.card(PLAN))
@@ -984,7 +1001,7 @@ class GateTest(unittest.TestCase):
         plan = ("| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n"
                 "| 1 | run `analysis/a.py` | then `analysis/b.py` via sbatch | user | `analysis/c.py` agrees |\n\n"
                 "Plan status: READY")
-        card = self.card(plan)
+        card = self.full(plan)
         self.approve(plan)
         self.assertIsNone(self.bash("python analysis/a.py"))
         for command in ("python analysis/b.py", "python analysis/c.py", "sbatch job.sh"):
@@ -1027,10 +1044,12 @@ class GateTest(unittest.TestCase):
             "Plan status: READY_WITH_ASSUMPTIONS",
         ])
         notice = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
-        self.assertIn("\u25b6 approve plan ", notice)
+        self.assertIn("approve plan ", notice.splitlines()[-1])
+        full = self.asked(notice, "full")
         self.assertIn("CAN RUN (in full) \u00b7 broad grant: any arguments\n  script   nbs/cyto/13_vax/code/01_frame.R\n"
-                      "  script   nbs/cyto/13_vax/code/02_fit.R\n  script   nbs/cyto/13_vax/code/03_meta.R\n", notice)
-        self.assertIn("Writes none named (no `Outputs:` line)", notice)
+                      "  script   nbs/cyto/13_vax/code/02_fit.R\n  script   nbs/cyto/13_vax/code/03_meta.R\n", full)
+        self.assertIn("3 scripts (0 pinned) \u00b7 any arguments", notice)
+        self.assertIn("Writes none named (no `Outputs:` line)", full)
         self.hook("prompt", {"prompt": "approve plan " + notice.split("approve plan ")[1][:8]})
         for script in ("01_frame.R", "02_fit.R", "03_meta.R"):
             self.assertIsNone(self.bash("Rscript nbs/cyto/13_vax/code/" + script), script)
@@ -1055,7 +1074,7 @@ class GateTest(unittest.TestCase):
             "Plan status: READY",
         ])
         notice = self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
-        self.assertIn("analysis/approved.py", notice)
+        self.assertIn("analysis/approved.py", self.asked(notice, "full"))
         self.assertIn("Outside the Step column, not authorised: analysis/hidden.py", notice)  # cited, so shown, never granted
         self.assertNotIn("script   analysis/hidden.py", notice)
         self.assertNotIn("sbatch", notice)
@@ -2563,6 +2582,7 @@ class PlanComparisonAndPathsTest(unittest.TestCase):
     setUp, tearDown, config, hook, approve, card, asked, write_file = (
         GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook, GateTest.approve,
         GateTest.card, GateTest.asked, GateTest.write_file)
+    full = GateTest.full
     HEAD = ("#", "Step", "Choice", "Source", "Validation")
 
     def gate(self):
@@ -2736,11 +2756,13 @@ class PlanComparisonAndPathsTest(unittest.TestCase):
 
     def test_the_card_names_each_unread_input_and_output_on_one_line(self):
         self.files()
-        card = self.card(self.plan([self.row()], inputs="$DATA/x.tsv, `data/in.tsv, data/b.tsv`, data/*.tsv",
-                                   outputs="$OUT/y.tsv"))
-        lines = [line for line in card.splitlines() if "not read:" in line and "Shorthand" not in line]
-        self.assertEqual(len(lines), 4, card)
-        self.assertEqual([line.split(":")[0] for line in lines], ["Inputs not read"] * 3 + ["Outputs not read"])
+        shown = self.card(self.plan([self.row()], inputs="$DATA/x.tsv, `data/in.tsv, data/b.tsv`, data/*.tsv",
+                                    outputs="$OUT/y.tsv"))
+        card = self.asked(shown, "full")
+        for each in (shown, card):
+            lines = [line for line in each.splitlines() if "not read:" in line and "Shorthand" not in line]
+            self.assertEqual(len(lines), 4, each)
+            self.assertEqual([line.split(":")[0] for line in lines], ["Inputs not read"] * 3 + ["Outputs not read"])
         self.assertIn("Reads 1 pinned: data\n", card)  # the pattern's folder, as before 0.9.75
 
     def test_the_plain_card_names_unread_inputs_too(self):
@@ -3562,7 +3584,7 @@ class ExactExecutionTest(unittest.TestCase):
         digest, card = self.approved(self.TABLE.replace("run `analysis/x/fit.py`",
                                                          "run `python analysis/x/fit.py --model original`")
                                      + "Plan status: READY")
-        self.assertIn("broad grant: any arguments", card)
+        self.assertIn("2 scripts (2 pinned) \u00b7 any arguments", card)  # the compact card still says so
         self.assertNotIn("exact:", card)
         self.assertIsNone(self.tool("python analysis/x/fit.py --model alternative", tool_use_id="t1"))
         self.post("python analysis/x/fit.py --model alternative", tool_use_id="t1")

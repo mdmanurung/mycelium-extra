@@ -1482,7 +1482,7 @@ def f10(p):
     digest, notice, _ = p.approve(harness.plan_text().replace("Inputs: ", "Inputs: `{}` ".format(SPACED)))
     pins = p.approval(digest)["pins"]
     return {"exact_pinned": SPACED in pins, "fragment_pinned": "data/cohort" in pins,
-            "control_pinned": COUNTS in pins, "text": notice}
+            "control_pinned": COUNTS in pins, "text": p.full_card(digest)}  # the file lists are on the full card
 
 
 @defect("F-11", "data", "data-contract-check", ["tool: data-contract-check"],
