@@ -51,7 +51,7 @@ there is none.
 
 | Record | Upstream path | Read by | Used for | When absent |
 |---|---|---|---|---|
-| Data-lineage manifest | `.living/log/data-lineage/<session>.json`, written at Stop by `skills/core/scripts/extract_data_lineage.py` (format: `skills/core/references/data-lineage.md`) | `verify` (`lineage_actions`): each action's `ts` and `script` | A script that lineage saw run in the plan's window, that the gate did not record and the plan does not name, is a gap; script-less (inline) commands are counted and not checked | No lineage gaps and no message; unreadable files are skipped |
+| Data-lineage manifest | `.living/log/data-lineage/<session>.json`, written at Stop by `skills/core/scripts/extract_data_lineage.py` (format: `skills/core/references/data-lineage.md`) | `verify` (`lineage_actions`): each action's `ts`, `script`, `bash_cmd`, `bash_exit`, `io_detection`, `outputs` (path, `sha256`, `_missing`), `lineage_warnings` and the manifest's `extraction_warnings` and session id | A script that lineage saw run in the plan's window, that the gate did not record and the plan does not name, is a gap; script-less (inline) commands are counted and not checked. An action that lists an output is also a `lineage-record` candidate producer for it, only when joined to one matched attempt, never `supported` (see below) | No lineage gaps and no message; unreadable files are skipped |
 | Analysis manifest | `analysis/ANALYSIS_MANIFEST.md` (any `*ANALYSIS_MANIFEST.md` that git lists, else that path) | `verify status`: the entry's status word | A `manifest` column | Shown as `not listed` |
 | Registered values | `analysis/<name>/outputs/numbers.json`, written by `skills/core/scripts/register_value.py` | `verify`, only when a `<!-- claims -->` line names the file | The claimed number is compared with that cell, read as ordinary JSON: dotted keys, and list entries by position (the fragment's `values` list is not looked up by `key`) | The claim is a gap ("unverified"), not a pass |
 | Pointer to the Mycelium install | `.mycelium/plugin-root` | `init` (version notice, `--diagnose`), `new-analysis` | A one-line note when the version is not 0.6.0 or 0.7.2; Mycelium's `skills/core/templates/analysis-readme.md` for the analysis doc | No note; `new-analysis` uses its bundled copy of the 0.7.2 template |
@@ -71,8 +71,13 @@ conventions (`grill`'s instructions do point the agent at the last two).
   a session stops. It covers finished sessions only, and which commands it detects
   depends on the Mycelium version: Extra's post-run reminder assumes the 0.7.2
   detector (python, R, jupyter), while the 0.9.1 lineage reference also lists pipeline
-  runners. Extra reads only the script and the time. A lineage record never sets the
-  producer of an output.
+  runners. A lineage record is candidate producer evidence only: it is used for an
+  output when an explicit id or a unique session, command, script and time match joins it to one
+  matched attempt, the join is stated as inferred, and it is ignored for
+  `unresolved` detection, a nonzero exit, a missing path, a hash that differs from the file,
+  or an attempt that watched the output and did not see it change. Upstream fills missing hashes
+  from disk later, so a hash is not proof. It can confirm an observed producer or add a second
+  one (unresolved); it never sets a `supported` producer.
 - **A tripwire audit describes tests; it does not run them.** In Mycelium's
   `skills/core/references/review/deep-tripwires.md`, *audit* writes a plan of what
   would be tested, *scaffold* proposes the instrumentation, and only *run* executes
