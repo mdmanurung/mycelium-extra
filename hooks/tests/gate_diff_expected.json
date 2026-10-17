@@ -101,7 +101,11 @@
           ],
           [
             ".mycelium-extra/launches/e1ad783140c58c92.json",
-            "{\n \"ts\": 0,\n \"runs\": {\n  \"python analysis/my script.py\": [\n   {\n    \"paths\": [\n     \"analysis/my script.py\"\n    ],\n    \"plans\": [\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000001\": {}\n    }\n   }\n  ]\n }\n}"
+            "{\n \"ts\": 0,\n \"started\": 0,\n \"attempt_id\": \"<ATTEMPT>\",\n \"call_id\": null,\n \"cwd\": \".\",\n \"runs\": {\n  \"python analysis/my script.py\": [\n   {\n    \"paths\": [\n     \"analysis/my script.py\"\n    ],\n    \"plans\": [\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000001\": {}\n    },\n    \"outputs_skipped\": \"no declared outputs\"\n   }\n  ]\n }\n}"
+          ],
+          [
+            ".mycelium-extra/locks/script-pins.lock",
+            ""
           ],
           [
             ".mycelium-extra/script-pins/00000001.json",
@@ -113,7 +117,7 @@
           ]
         ]
       },
-      "rationale": "grant the complete literal spaced path; launch-record file shape (ME-07)"
+      "rationale": "grant the complete literal spaced path; launch-record file shape (ME-07); execution-fidelity C01/C04/C05 state only; files launches/, locks/"
     },
     "tool spaced script grants no fragment folder": {
       "old": {
@@ -212,7 +216,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"sbatch -o logs/%j.out job.sh\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"interrupted\", \"stderr\", \"stdout\"], \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"python analysis/x.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"interrupted\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"sbatch -o logs/%j.out job.sh\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"interrupted\", \"stderr\", \"stdout\"], \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"python analysis/x.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"interrupted\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -220,7 +224,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
     },
     "post four runners one call": {
       "old": {
@@ -253,7 +257,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"python analysis/x.py\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"nextflow run main.nf -params-file params.yaml -resume -with-trace\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"engine\": {\"files\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"params.yaml\", \"sha256\": \"37b128c59f1f5097f73f82691cb519f1f568667faab5ced1b4ab979d36837eae\", \"size\": 5}], \"pipeline\": \"main.nf\", \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": true, \"revision\": null, \"run_name\": null, \"trace\": true}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"main.nf\", \"sha256\": \"8f129193e86e2857583cfe85a53ae78cf60330f840fd04e6f7e3281980f166e8\", \"size\": 12}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"sbatch job.sh\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"snakemake --configfile config/c.yaml -j 4\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"engine\": {\"configfiles\": [\"config/c.yaml\"], \"files\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"config/c.yaml\", \"sha256\": \"37b128c59f1f5097f73f82691cb519f1f568667faab5ced1b4ab979d36837eae\", \"size\": 5}], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"snakemake\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s1\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"python analysis/x.py\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"nextflow run main.nf -params-file params.yaml -resume -with-trace\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"engine\": {\"files\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"params.yaml\", \"sha256\": \"37b128c59f1f5097f73f82691cb519f1f568667faab5ced1b4ab979d36837eae\", \"size\": 5}], \"pipeline\": \"main.nf\", \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": true, \"revision\": null, \"run_name\": null, \"trace\": true}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"nextflow\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"main.nf\", \"sha256\": \"8f129193e86e2857583cfe85a53ae78cf60330f840fd04e6f7e3281980f166e8\", \"size\": 12}, \"session_id\": \"s1\", \"ts\": 0}\n{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"sbatch job.sh\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"snakemake --configfile config/c.yaml -j 4\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"engine\": {\"configfiles\": [\"config/c.yaml\"], \"files\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"config/c.yaml\", \"sha256\": \"37b128c59f1f5097f73f82691cb519f1f568667faab5ced1b4ab979d36837eae\", \"size\": 5}], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"snakemake\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"exit_code\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s1\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -261,7 +265,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
     },
     "post exotic response": {
       "old": {
@@ -294,7 +298,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"sbatch job.sh\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"lst\", \"nested\", \"stdout\"], \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"python analysis/x.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"lst\", \"nested\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"sbatch job.sh\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"lst\", \"nested\", \"stdout\"], \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"python analysis/x.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"lst\", \"nested\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -302,7 +306,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
     },
     "post dirty git": {
       "old": {
@@ -335,7 +339,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"python analysis/x.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"modified\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\", \"size\": 12}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"python analysis/new.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/new.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/new.py\", \"sha256\": \"a80ac71a28f94cd42123f2e97d4ef92ffbd48849a188edc27f06a04acc06dc8c\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"python analysis/x.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"modified\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\", \"size\": 12}, \"session_id\": \"s1\", \"ts\": 0}\n{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"python analysis/new.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/new.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/new.py\", \"sha256\": \"a80ac71a28f94cd42123f2e97d4ef92ffbd48849a188edc27f06a04acc06dc8c\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -343,7 +347,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
     },
     "fuzz #3": {
       "old": {
@@ -384,7 +388,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"uv run quarto nbs/n.ipynb --configfile sub/../analysis/x.py\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 1, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"quarto\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"nbs/n.ipynb\", \"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"nbs/n.ipynb\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}, \"session_id\": \"s1\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"uv run quarto nbs/n.ipynb --configfile sub/../analysis/x.py\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 1, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"quarto\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"nbs/n.ipynb\", \"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"nbs/n.ipynb\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}, \"session_id\": \"s1\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -392,7 +396,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation"
     },
     "fuzz #6": {
       "old": {
@@ -457,7 +461,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"nextflow $HOME $HOME job.sh workflow/Snakefile\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000007\", \"00000008\", \"00000001\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s2\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"nextflow $HOME $HOME job.sh workflow/Snakefile\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000007\", \"00000008\", \"00000001\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s2\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -497,7 +501,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
     },
     "fuzz #22": {
       "old": {
@@ -558,7 +562,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"nextflow -c\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 1, \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000007\"], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"nextflow -c\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 1, \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"nextflow\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000007\"], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -594,7 +598,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
     },
     "fuzz #26": {
       "old": {
@@ -639,7 +643,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"nextflow params.yaml <OUT>/fixture.dat config/c.yaml params.yaml\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s2\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"nextflow params.yaml <OUT>/fixture.dat config/c.yaml params.yaml\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"nextflow\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s2\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -651,7 +655,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation"
     },
     "fuzz #32": {
       "old": {
@@ -692,7 +696,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"srun python 4 --wrap=python analysis/x.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000003\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"modified\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\", \"size\": 12}, \"session_id\": \"s2\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"srun python 4 --wrap=python analysis/x.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000003\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"modified\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\", \"size\": 12}, \"session_id\": \"s2\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -708,7 +712,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
     },
     "fuzz #38": {
       "old": {
@@ -749,7 +753,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"MYCELIUM_EXTRA_EXPLORE=1 nextflow\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": true, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000002\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"sbatch params.yaml --parsable a b.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"params.yaml\", \"sha256\": \"37b128c59f1f5097f73f82691cb519f1f568667faab5ced1b4ab979d36837eae\", \"size\": 5}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"MYCELIUM_EXTRA_EXPLORE=1 nextflow --configfile -o x.dat -c\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": true, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000002\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"MYCELIUM_EXTRA_EXPLORE=1 nextflow\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": true, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000002\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"sbatch params.yaml --parsable a b.py\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"params.yaml\", \"sha256\": \"37b128c59f1f5097f73f82691cb519f1f568667faab5ced1b4ab979d36837eae\", \"size\": 5}, \"session_id\": \"s1\", \"ts\": 0}\n{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"MYCELIUM_EXTRA_EXPLORE=1 nextflow --configfile -o x.dat -c\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": true, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000002\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -765,7 +769,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation"
     },
     "fuzz #39": {
       "old": {
@@ -810,7 +814,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -822,7 +826,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation"
     },
     "fuzz #57": {
       "old": {
@@ -863,7 +867,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"papermill sub/../analysis/x.py -params-file\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"papermill\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"papermill sub/../analysis/x.py -params-file\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"papermill\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/pending/s1.explore-seen",
@@ -871,7 +875,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation"
     },
     "fuzz #67": {
       "old": {
@@ -900,11 +904,11 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"sbatch import sys\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s1\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"sbatch import sys\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s1\", \"ts\": 0}\n"
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation"
     },
     "fuzz #91": {
       "old": {
@@ -933,11 +937,11 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"nextflow\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"nextflow\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"files\": [], \"pipeline\": null, \"profile\": null, \"record\": \".nextflow/history\", \"report\": null, \"resume\": false, \"revision\": null, \"run_name\": null, \"trace\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"nextflow\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation"
     },
     "fuzz #100": {
       "old": {
@@ -986,7 +990,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"env snakemake python analysis/x.py renv.lock $HOME import sys\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"engine\": {\"configfiles\": [], \"files\": [], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"snakemake\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"snakemake sub/../analysis/x.py params.yaml\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"engine\": {\"configfiles\": [], \"files\": [], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"snakemake\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s1\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"env snakemake python analysis/x.py renv.lock $HOME import sys\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"engine\": {\"configfiles\": [], \"files\": [], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"snakemake\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s1\", \"ts\": 0}\n{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s1\", \"ts\": 0}\n{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"snakemake sub/../analysis/x.py params.yaml\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"engine\": {\"configfiles\": [], \"files\": [], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"snakemake\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"untracked\", \"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s1\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -1002,7 +1006,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation"
     },
     "fuzz #103": {
       "old": {
@@ -1047,7 +1051,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"sbatch ~\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"sbatch ~\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -1059,7 +1063,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation"
     },
     "fuzz #111": {
       "old": {
@@ -1120,7 +1124,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"ts\": 0}\n{\"command\": \"snakemake --configfile 4 <OUT>/fixture.dat\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"configfiles\": [\"4\", \"<OUT>/fixture.dat\"], \"files\": [{\"in_repo\": true, \"missing\": true, \"path\": \"4\"}, {\"in_repo\": false, \"mtime\": 0, \"path\": \"<OUT>/fixture.dat\", \"sha256\": \"5039d2f9c0183f5093217361486b04efa6d3c631eab8af3c58d7fba98fc71d8e\", \"size\": 25}], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"snakemake\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000007\"], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s2\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"ts\": 0}\n{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"snakemake --configfile 4 <OUT>/fixture.dat\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"configfiles\": [\"4\", \"<OUT>/fixture.dat\"], \"files\": [{\"in_repo\": true, \"missing\": true, \"path\": \"4\"}, {\"in_repo\": false, \"mtime\": 0, \"path\": \"<OUT>/fixture.dat\", \"sha256\": \"5039d2f9c0183f5093217361486b04efa6d3c631eab8af3c58d7fba98fc71d8e\", \"size\": 25}], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"snakemake\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000007\"], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"workflow/Snakefile\", \"sha256\": \"4208b405b03b36e96e70530b5fe6d72bf118a5d5569cb3cc69a22471efe6e96e\", \"size\": 20}, \"session_id\": \"s2\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -1156,7 +1160,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
     },
     "fuzz #117": {
       "old": {
@@ -1205,7 +1209,7 @@
           ],
           [
             ".mycelium-extra/receipts.jsonl",
-            "{\"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"ts\": 0}\n"
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"ts\": 0}\n"
           ],
           [
             ".mycelium-extra/approvals/00000001.json",
@@ -1221,7 +1225,7 @@
           ]
         ]
       },
-      "rationale": "conservative compound-command per-step receipt attribution"
+      "rationale": "conservative compound-command per-step receipt attribution; execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation"
     },
     "tool covered run": {
       "old": {
@@ -1262,7 +1266,11 @@
           ],
           [
             ".mycelium-extra/launches/0c8293ba3b68b8dc.json",
-            "{\n \"ts\": 0,\n \"runs\": {\n  \"python analysis/x.py\": [\n   {\n    \"paths\": [\n     \"analysis/x.py\"\n    ],\n    \"plans\": [\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000001\": {}\n    }\n   }\n  ]\n }\n}"
+            "{\n \"ts\": 0,\n \"started\": 0,\n \"attempt_id\": \"<ATTEMPT>\",\n \"call_id\": null,\n \"cwd\": \".\",\n \"runs\": {\n  \"python analysis/x.py\": [\n   {\n    \"paths\": [\n     \"analysis/x.py\"\n    ],\n    \"plans\": [\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000001\": {}\n    },\n    \"outputs_skipped\": \"no declared outputs\"\n   }\n  ]\n }\n}"
+          ],
+          [
+            ".mycelium-extra/locks/script-pins.lock",
+            ""
           ],
           [
             ".mycelium-extra/script-pins/00000001.json",
@@ -1274,7 +1282,7 @@
           ]
         ]
       },
-      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09"
+      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09; execution-fidelity C01/C04/C05 state only; files launches/, locks/"
     },
     "tool script as approved": {
       "old": {
@@ -1307,11 +1315,11 @@
           ],
           [
             ".mycelium-extra/launches/0c8293ba3b68b8dc.json",
-            "{\n \"ts\": 0,\n \"runs\": {\n  \"python analysis/x.py\": [\n   {\n    \"paths\": [\n     \"analysis/x.py\"\n    ],\n    \"plans\": [\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000001\": {}\n    }\n   }\n  ]\n }\n}"
+            "{\n \"ts\": 0,\n \"started\": 0,\n \"attempt_id\": \"<ATTEMPT>\",\n \"call_id\": null,\n \"cwd\": \".\",\n \"runs\": {\n  \"python analysis/x.py\": [\n   {\n    \"paths\": [\n     \"analysis/x.py\"\n    ],\n    \"plans\": [\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000001\": {}\n    },\n    \"outputs_skipped\": \"no declared outputs\"\n   }\n  ]\n }\n}"
           ]
         ]
       },
-      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09"
+      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09; execution-fidelity C01/C04/C05 state only; files launches/"
     },
     "tool script edited, newest plan pins it": {
       "old": {
@@ -1352,11 +1360,11 @@
           ],
           [
             ".mycelium-extra/launches/0c8293ba3b68b8dc.json",
-            "{\n \"ts\": 0,\n \"runs\": {\n  \"python analysis/x.py\": [\n   {\n    \"paths\": [\n     \"analysis/x.py\"\n    ],\n    \"plans\": [\n     \"00000001\",\n     \"00000002\"\n    ],\n    \"pins\": {\n     \"00000001\": {},\n     \"00000002\": {}\n    }\n   }\n  ]\n }\n}"
+            "{\n \"ts\": 0,\n \"started\": 0,\n \"attempt_id\": \"<ATTEMPT>\",\n \"call_id\": null,\n \"cwd\": \".\",\n \"runs\": {\n  \"python analysis/x.py\": [\n   {\n    \"paths\": [\n     \"analysis/x.py\"\n    ],\n    \"plans\": [\n     \"00000001\",\n     \"00000002\"\n    ],\n    \"pins\": {\n     \"00000001\": {},\n     \"00000002\": {}\n    },\n    \"outputs_skipped\": \"no declared outputs\"\n   }\n  ]\n }\n}"
           ]
         ]
       },
-      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09"
+      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09; execution-fidelity C01/C04/C05 state only; files launches/"
     },
     "tool 40 approvals one command": {
       "old": {
@@ -1709,7 +1717,11 @@
           ],
           [
             ".mycelium-extra/launches/d6ca9bb1b7a14a14.json",
-            "{\n \"ts\": 0,\n \"runs\": {\n  \"sbatch a.sbatch\": [\n   {\n    \"paths\": [],\n    \"plans\": [\n     \"00000028\",\n     \"00000027\",\n     \"00000026\",\n     \"00000025\",\n     \"00000024\",\n     \"00000023\",\n     \"00000022\",\n     \"00000021\",\n     \"00000020\",\n     \"0000001f\",\n     \"0000001e\",\n     \"0000001d\",\n     \"0000001c\",\n     \"0000001b\",\n     \"0000001a\",\n     \"00000019\",\n     \"00000018\",\n     \"00000017\",\n     \"00000016\",\n     \"00000015\",\n     \"00000014\",\n     \"00000013\",\n     \"00000012\",\n     \"00000011\",\n     \"00000010\",\n     \"0000000f\",\n     \"0000000e\",\n     \"0000000d\",\n     \"0000000c\",\n     \"0000000b\",\n     \"0000000a\",\n     \"00000009\",\n     \"00000008\",\n     \"00000007\",\n     \"00000006\",\n     \"00000005\",\n     \"00000004\",\n     \"00000003\",\n     \"00000002\",\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000028\": {},\n     \"00000027\": {},\n     \"00000026\": {},\n     \"00000025\": {},\n     \"00000024\": {},\n     \"00000023\": {},\n     \"00000022\": {},\n     \"00000021\": {},\n     \"00000020\": {},\n     \"0000001f\": {},\n     \"0000001e\": {},\n     \"0000001d\": {},\n     \"0000001c\": {},\n     \"0000001b\": {},\n     \"0000001a\": {},\n     \"00000019\": {},\n     \"00000018\": {},\n     \"00000017\": {},\n     \"00000016\": {},\n     \"00000015\": {},\n     \"00000014\": {},\n     \"00000013\": {},\n     \"00000012\": {},\n     \"00000011\": {},\n     \"00000010\": {},\n     \"0000000f\": {},\n     \"0000000e\": {},\n     \"0000000d\": {},\n     \"0000000c\": {},\n     \"0000000b\": {},\n     \"0000000a\": {},\n     \"00000009\": {},\n     \"00000008\": {},\n     \"00000007\": {},\n     \"00000006\": {},\n     \"00000005\": {},\n     \"00000004\": {},\n     \"00000003\": {},\n     \"00000002\": {},\n     \"00000001\": {}\n    }\n   }\n  ],\n  \"sbatch b.sbatch\": [\n   {\n    \"paths\": [],\n    \"plans\": [\n     \"00000028\",\n     \"00000027\",\n     \"00000026\",\n     \"00000025\",\n     \"00000024\",\n     \"00000023\",\n     \"00000022\",\n     \"00000021\",\n     \"00000020\",\n     \"0000001f\",\n     \"0000001e\",\n     \"0000001d\",\n     \"0000001c\",\n     \"0000001b\",\n     \"0000001a\",\n     \"00000019\",\n     \"00000018\",\n     \"00000017\",\n     \"00000016\",\n     \"00000015\",\n     \"00000014\",\n     \"00000013\",\n     \"00000012\",\n     \"00000011\",\n     \"00000010\",\n     \"0000000f\",\n     \"0000000e\",\n     \"0000000d\",\n     \"0000000c\",\n     \"0000000b\",\n     \"0000000a\",\n     \"00000009\",\n     \"00000008\",\n     \"00000007\",\n     \"00000006\",\n     \"00000005\",\n     \"00000004\",\n     \"00000003\",\n     \"00000002\",\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000028\": {},\n     \"00000027\": {},\n     \"00000026\": {},\n     \"00000025\": {},\n     \"00000024\": {},\n     \"00000023\": {},\n     \"00000022\": {},\n     \"00000021\": {},\n     \"00000020\": {},\n     \"0000001f\": {},\n     \"0000001e\": {},\n     \"0000001d\": {},\n     \"0000001c\": {},\n     \"0000001b\": {},\n     \"0000001a\": {},\n     \"00000019\": {},\n     \"00000018\": {},\n     \"00000017\": {},\n     \"00000016\": {},\n     \"00000015\": {},\n     \"00000014\": {},\n     \"00000013\": {},\n     \"00000012\": {},\n     \"00000011\": {},\n     \"00000010\": {},\n     \"0000000f\": {},\n     \"0000000e\": {},\n     \"0000000d\": {},\n     \"0000000c\": {},\n     \"0000000b\": {},\n     \"0000000a\": {},\n     \"00000009\": {},\n     \"00000008\": {},\n     \"00000007\": {},\n     \"00000006\": {},\n     \"00000005\": {},\n     \"00000004\": {},\n     \"00000003\": {},\n     \"00000002\": {},\n     \"00000001\": {}\n    }\n   }\n  ],\n  \"snakemake -s c.smk\": [\n   {\n    \"paths\": [],\n    \"plans\": [\n     \"00000028\",\n     \"00000027\",\n     \"00000026\",\n     \"00000025\",\n     \"00000024\",\n     \"00000023\",\n     \"00000022\",\n     \"00000021\",\n     \"00000020\",\n     \"0000001f\",\n     \"0000001e\",\n     \"0000001d\",\n     \"0000001c\",\n     \"0000001b\",\n     \"0000001a\",\n     \"00000019\",\n     \"00000018\",\n     \"00000017\",\n     \"00000016\",\n     \"00000015\",\n     \"00000014\",\n     \"00000013\",\n     \"00000012\",\n     \"00000011\",\n     \"00000010\",\n     \"0000000f\",\n     \"0000000e\",\n     \"0000000d\",\n     \"0000000c\",\n     \"0000000b\",\n     \"0000000a\",\n     \"00000009\",\n     \"00000008\",\n     \"00000007\",\n     \"00000006\",\n     \"00000005\",\n     \"00000004\",\n     \"00000003\",\n     \"00000002\",\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000028\": {},\n     \"00000027\": {},\n     \"00000026\": {},\n     \"00000025\": {},\n     \"00000024\": {},\n     \"00000023\": {},\n     \"00000022\": {},\n     \"00000021\": {},\n     \"00000020\": {},\n     \"0000001f\": {},\n     \"0000001e\": {},\n     \"0000001d\": {},\n     \"0000001c\": {},\n     \"0000001b\": {},\n     \"0000001a\": {},\n     \"00000019\": {},\n     \"00000018\": {},\n     \"00000017\": {},\n     \"00000016\": {},\n     \"00000015\": {},\n     \"00000014\": {},\n     \"00000013\": {},\n     \"00000012\": {},\n     \"00000011\": {},\n     \"00000010\": {},\n     \"0000000f\": {},\n     \"0000000e\": {},\n     \"0000000d\": {},\n     \"0000000c\": {},\n     \"0000000b\": {},\n     \"0000000a\": {},\n     \"00000009\": {},\n     \"00000008\": {},\n     \"00000007\": {},\n     \"00000006\": {},\n     \"00000005\": {},\n     \"00000004\": {},\n     \"00000003\": {},\n     \"00000002\": {},\n     \"00000001\": {}\n    }\n   }\n  ],\n  \"python analysis/x.py\": [\n   {\n    \"paths\": [\n     \"analysis/x.py\"\n    ],\n    \"plans\": [\n     \"00000028\",\n     \"00000027\",\n     \"00000026\",\n     \"00000025\",\n     \"00000024\",\n     \"00000023\",\n     \"00000022\",\n     \"00000021\",\n     \"00000020\",\n     \"0000001f\",\n     \"0000001e\",\n     \"0000001d\",\n     \"0000001c\",\n     \"0000001b\",\n     \"0000001a\",\n     \"00000019\",\n     \"00000018\",\n     \"00000017\",\n     \"00000016\",\n     \"00000015\",\n     \"00000014\",\n     \"00000013\",\n     \"00000012\",\n     \"00000011\",\n     \"00000010\",\n     \"0000000f\",\n     \"0000000e\",\n     \"0000000d\",\n     \"0000000c\",\n     \"0000000b\",\n     \"0000000a\",\n     \"00000009\",\n     \"00000008\",\n     \"00000007\",\n     \"00000006\",\n     \"00000005\",\n     \"00000004\",\n     \"00000003\",\n     \"00000002\",\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000028\": {},\n     \"00000027\": {},\n     \"00000026\": {},\n     \"00000025\": {},\n     \"00000024\": {},\n     \"00000023\": {},\n     \"00000022\": {},\n     \"00000021\": {},\n     \"00000020\": {},\n     \"0000001f\": {},\n     \"0000001e\": {},\n     \"0000001d\": {},\n     \"0000001c\": {},\n     \"0000001b\": {},\n     \"0000001a\": {},\n     \"00000019\": {},\n     \"00000018\": {},\n     \"00000017\": {},\n     \"00000016\": {},\n     \"00000015\": {},\n     \"00000014\": {},\n     \"00000013\": {},\n     \"00000012\": {},\n     \"00000011\": {},\n     \"00000010\": {},\n     \"0000000f\": {},\n     \"0000000e\": {},\n     \"0000000d\": {},\n     \"0000000c\": {},\n     \"0000000b\": {},\n     \"0000000a\": {},\n     \"00000009\": {},\n     \"00000008\": {},\n     \"00000007\": {},\n     \"00000006\": {},\n     \"00000005\": {},\n     \"00000004\": {},\n     \"00000003\": {},\n     \"00000002\": {},\n     \"00000001\": {}\n    }\n   }\n  ]\n }\n}"
+            "{\n \"ts\": 0,\n \"started\": 0,\n \"attempt_id\": \"<ATTEMPT>\",\n \"call_id\": null,\n \"cwd\": \".\",\n \"runs\": {\n  \"sbatch a.sbatch\": [\n   {\n    \"paths\": [],\n    \"plans\": [\n     \"00000028\",\n     \"00000027\",\n     \"00000026\",\n     \"00000025\",\n     \"00000024\",\n     \"00000023\",\n     \"00000022\",\n     \"00000021\",\n     \"00000020\",\n     \"0000001f\",\n     \"0000001e\",\n     \"0000001d\",\n     \"0000001c\",\n     \"0000001b\",\n     \"0000001a\",\n     \"00000019\",\n     \"00000018\",\n     \"00000017\",\n     \"00000016\",\n     \"00000015\",\n     \"00000014\",\n     \"00000013\",\n     \"00000012\",\n     \"00000011\",\n     \"00000010\",\n     \"0000000f\",\n     \"0000000e\",\n     \"0000000d\",\n     \"0000000c\",\n     \"0000000b\",\n     \"0000000a\",\n     \"00000009\",\n     \"00000008\",\n     \"00000007\",\n     \"00000006\",\n     \"00000005\",\n     \"00000004\",\n     \"00000003\",\n     \"00000002\",\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000028\": {},\n     \"00000027\": {},\n     \"00000026\": {},\n     \"00000025\": {},\n     \"00000024\": {},\n     \"00000023\": {},\n     \"00000022\": {},\n     \"00000021\": {},\n     \"00000020\": {},\n     \"0000001f\": {},\n     \"0000001e\": {},\n     \"0000001d\": {},\n     \"0000001c\": {},\n     \"0000001b\": {},\n     \"0000001a\": {},\n     \"00000019\": {},\n     \"00000018\": {},\n     \"00000017\": {},\n     \"00000016\": {},\n     \"00000015\": {},\n     \"00000014\": {},\n     \"00000013\": {},\n     \"00000012\": {},\n     \"00000011\": {},\n     \"00000010\": {},\n     \"0000000f\": {},\n     \"0000000e\": {},\n     \"0000000d\": {},\n     \"0000000c\": {},\n     \"0000000b\": {},\n     \"0000000a\": {},\n     \"00000009\": {},\n     \"00000008\": {},\n     \"00000007\": {},\n     \"00000006\": {},\n     \"00000005\": {},\n     \"00000004\": {},\n     \"00000003\": {},\n     \"00000002\": {},\n     \"00000001\": {}\n    },\n    \"outputs_skipped\": \"no declared outputs\"\n   }\n  ],\n  \"sbatch b.sbatch\": [\n   {\n    \"paths\": [],\n    \"plans\": [\n     \"00000028\",\n     \"00000027\",\n     \"00000026\",\n     \"00000025\",\n     \"00000024\",\n     \"00000023\",\n     \"00000022\",\n     \"00000021\",\n     \"00000020\",\n     \"0000001f\",\n     \"0000001e\",\n     \"0000001d\",\n     \"0000001c\",\n     \"0000001b\",\n     \"0000001a\",\n     \"00000019\",\n     \"00000018\",\n     \"00000017\",\n     \"00000016\",\n     \"00000015\",\n     \"00000014\",\n     \"00000013\",\n     \"00000012\",\n     \"00000011\",\n     \"00000010\",\n     \"0000000f\",\n     \"0000000e\",\n     \"0000000d\",\n     \"0000000c\",\n     \"0000000b\",\n     \"0000000a\",\n     \"00000009\",\n     \"00000008\",\n     \"00000007\",\n     \"00000006\",\n     \"00000005\",\n     \"00000004\",\n     \"00000003\",\n     \"00000002\",\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000028\": {},\n     \"00000027\": {},\n     \"00000026\": {},\n     \"00000025\": {},\n     \"00000024\": {},\n     \"00000023\": {},\n     \"00000022\": {},\n     \"00000021\": {},\n     \"00000020\": {},\n     \"0000001f\": {},\n     \"0000001e\": {},\n     \"0000001d\": {},\n     \"0000001c\": {},\n     \"0000001b\": {},\n     \"0000001a\": {},\n     \"00000019\": {},\n     \"00000018\": {},\n     \"00000017\": {},\n     \"00000016\": {},\n     \"00000015\": {},\n     \"00000014\": {},\n     \"00000013\": {},\n     \"00000012\": {},\n     \"00000011\": {},\n     \"00000010\": {},\n     \"0000000f\": {},\n     \"0000000e\": {},\n     \"0000000d\": {},\n     \"0000000c\": {},\n     \"0000000b\": {},\n     \"0000000a\": {},\n     \"00000009\": {},\n     \"00000008\": {},\n     \"00000007\": {},\n     \"00000006\": {},\n     \"00000005\": {},\n     \"00000004\": {},\n     \"00000003\": {},\n     \"00000002\": {},\n     \"00000001\": {}\n    },\n    \"outputs_skipped\": \"no declared outputs\"\n   }\n  ],\n  \"snakemake -s c.smk\": [\n   {\n    \"paths\": [],\n    \"plans\": [\n     \"00000028\",\n     \"00000027\",\n     \"00000026\",\n     \"00000025\",\n     \"00000024\",\n     \"00000023\",\n     \"00000022\",\n     \"00000021\",\n     \"00000020\",\n     \"0000001f\",\n     \"0000001e\",\n     \"0000001d\",\n     \"0000001c\",\n     \"0000001b\",\n     \"0000001a\",\n     \"00000019\",\n     \"00000018\",\n     \"00000017\",\n     \"00000016\",\n     \"00000015\",\n     \"00000014\",\n     \"00000013\",\n     \"00000012\",\n     \"00000011\",\n     \"00000010\",\n     \"0000000f\",\n     \"0000000e\",\n     \"0000000d\",\n     \"0000000c\",\n     \"0000000b\",\n     \"0000000a\",\n     \"00000009\",\n     \"00000008\",\n     \"00000007\",\n     \"00000006\",\n     \"00000005\",\n     \"00000004\",\n     \"00000003\",\n     \"00000002\",\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000028\": {},\n     \"00000027\": {},\n     \"00000026\": {},\n     \"00000025\": {},\n     \"00000024\": {},\n     \"00000023\": {},\n     \"00000022\": {},\n     \"00000021\": {},\n     \"00000020\": {},\n     \"0000001f\": {},\n     \"0000001e\": {},\n     \"0000001d\": {},\n     \"0000001c\": {},\n     \"0000001b\": {},\n     \"0000001a\": {},\n     \"00000019\": {},\n     \"00000018\": {},\n     \"00000017\": {},\n     \"00000016\": {},\n     \"00000015\": {},\n     \"00000014\": {},\n     \"00000013\": {},\n     \"00000012\": {},\n     \"00000011\": {},\n     \"00000010\": {},\n     \"0000000f\": {},\n     \"0000000e\": {},\n     \"0000000d\": {},\n     \"0000000c\": {},\n     \"0000000b\": {},\n     \"0000000a\": {},\n     \"00000009\": {},\n     \"00000008\": {},\n     \"00000007\": {},\n     \"00000006\": {},\n     \"00000005\": {},\n     \"00000004\": {},\n     \"00000003\": {},\n     \"00000002\": {},\n     \"00000001\": {}\n    },\n    \"outputs_skipped\": \"no declared outputs\"\n   }\n  ],\n  \"python analysis/x.py\": [\n   {\n    \"paths\": [\n     \"analysis/x.py\"\n    ],\n    \"plans\": [\n     \"00000028\",\n     \"00000027\",\n     \"00000026\",\n     \"00000025\",\n     \"00000024\",\n     \"00000023\",\n     \"00000022\",\n     \"00000021\",\n     \"00000020\",\n     \"0000001f\",\n     \"0000001e\",\n     \"0000001d\",\n     \"0000001c\",\n     \"0000001b\",\n     \"0000001a\",\n     \"00000019\",\n     \"00000018\",\n     \"00000017\",\n     \"00000016\",\n     \"00000015\",\n     \"00000014\",\n     \"00000013\",\n     \"00000012\",\n     \"00000011\",\n     \"00000010\",\n     \"0000000f\",\n     \"0000000e\",\n     \"0000000d\",\n     \"0000000c\",\n     \"0000000b\",\n     \"0000000a\",\n     \"00000009\",\n     \"00000008\",\n     \"00000007\",\n     \"00000006\",\n     \"00000005\",\n     \"00000004\",\n     \"00000003\",\n     \"00000002\",\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000028\": {},\n     \"00000027\": {},\n     \"00000026\": {},\n     \"00000025\": {},\n     \"00000024\": {},\n     \"00000023\": {},\n     \"00000022\": {},\n     \"00000021\": {},\n     \"00000020\": {},\n     \"0000001f\": {},\n     \"0000001e\": {},\n     \"0000001d\": {},\n     \"0000001c\": {},\n     \"0000001b\": {},\n     \"0000001a\": {},\n     \"00000019\": {},\n     \"00000018\": {},\n     \"00000017\": {},\n     \"00000016\": {},\n     \"00000015\": {},\n     \"00000014\": {},\n     \"00000013\": {},\n     \"00000012\": {},\n     \"00000011\": {},\n     \"00000010\": {},\n     \"0000000f\": {},\n     \"0000000e\": {},\n     \"0000000d\": {},\n     \"0000000c\": {},\n     \"0000000b\": {},\n     \"0000000a\": {},\n     \"00000009\": {},\n     \"00000008\": {},\n     \"00000007\": {},\n     \"00000006\": {},\n     \"00000005\": {},\n     \"00000004\": {},\n     \"00000003\": {},\n     \"00000002\": {},\n     \"00000001\": {}\n    },\n    \"outputs_skipped\": \"no declared outputs\"\n   }\n  ]\n }\n}"
+          ],
+          [
+            ".mycelium-extra/locks/script-pins.lock",
+            ""
           ],
           [
             ".mycelium-extra/script-pins/00000001.json",
@@ -1721,7 +1733,7 @@
           ]
         ]
       },
-      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09"
+      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09; execution-fidelity C01/C04/C05 state only; files launches/, locks/"
     },
     "stop big plan": {
       "old": {
@@ -1925,7 +1937,11 @@
           ],
           [
             ".mycelium-extra/launches/ff488a60cba11abb.json",
-            "{\n \"ts\": 0,\n \"runs\": {\n  \"env papermill nbs/n.ipynb workflow/Snakefile logs/%j.out\": [\n   {\n    \"paths\": [\n     \"nbs/n.ipynb\"\n    ],\n    \"plans\": [\n     \"00000003\"\n    ],\n    \"pins\": {\n     \"00000003\": {}\n    }\n   }\n  ]\n }\n}"
+            "{\n \"ts\": 0,\n \"started\": 0,\n \"attempt_id\": \"<ATTEMPT>\",\n \"call_id\": null,\n \"cwd\": \".\",\n \"runs\": {\n  \"env papermill nbs/n.ipynb workflow/Snakefile logs/%j.out\": [\n   {\n    \"paths\": [\n     \"nbs/n.ipynb\"\n    ],\n    \"plans\": [\n     \"00000003\"\n    ],\n    \"pins\": {\n     \"00000003\": {}\n    },\n    \"outputs_skipped\": \"no declared outputs\"\n   }\n  ]\n }\n}"
+          ],
+          [
+            ".mycelium-extra/locks/script-pins.lock",
+            ""
           ],
           [
             ".mycelium-extra/script-pins/00000003.json",
@@ -1937,7 +1953,7 @@
           ]
         ]
       },
-      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09"
+      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09; execution-fidelity C01/C04/C05 state only; files launches/, locks/"
     },
     "fuzz #12": {
       "old": {
@@ -2522,7 +2538,11 @@
           ],
           [
             ".mycelium-extra/launches/9269598fcae332bb.json",
-            "{\n \"ts\": 0,\n \"runs\": {\n  \"papermill -params-file analysis/x.py\": [\n   {\n    \"paths\": [\n     \"analysis/x.py\"\n    ],\n    \"plans\": [\n     \"00000002\",\n     \"00000007\",\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000002\": {},\n     \"00000007\": {},\n     \"00000001\": {}\n    }\n   }\n  ]\n }\n}"
+            "{\n \"ts\": 0,\n \"started\": 0,\n \"attempt_id\": \"<ATTEMPT>\",\n \"call_id\": null,\n \"cwd\": \".\",\n \"runs\": {\n  \"papermill -params-file analysis/x.py\": [\n   {\n    \"paths\": [\n     \"analysis/x.py\"\n    ],\n    \"plans\": [\n     \"00000002\",\n     \"00000007\",\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000002\": {},\n     \"00000007\": {},\n     \"00000001\": {}\n    },\n    \"outputs_skipped\": \"no declared outputs\"\n   }\n  ]\n }\n}"
+          ],
+          [
+            ".mycelium-extra/locks/script-pins.lock",
+            ""
           ],
           [
             ".mycelium-extra/script-pins/00000001.json",
@@ -2534,7 +2554,7 @@
           ]
         ]
       },
-      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09"
+      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09; execution-fidelity C01/C04/C05 state only; files launches/, locks/"
     },
     "fuzz #106": {
       "old": {
@@ -2632,11 +2652,559 @@
           ],
           [
             ".mycelium-extra/launches/5e0a001536cf6028.json",
-            "{\n \"ts\": 0,\n \"runs\": {\n  \"sbatch a b.py a b.py\": [\n   {\n    \"paths\": [],\n    \"plans\": [\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000001\": {}\n    }\n   }\n  ]\n }\n}"
+            "{\n \"ts\": 0,\n \"started\": 0,\n \"attempt_id\": \"<ATTEMPT>\",\n \"call_id\": null,\n \"cwd\": \".\",\n \"runs\": {\n  \"sbatch a b.py a b.py\": [\n   {\n    \"paths\": [],\n    \"plans\": [\n     \"00000001\"\n    ],\n    \"pins\": {\n     \"00000001\": {}\n    },\n    \"outputs_skipped\": \"no declared outputs\"\n   }\n  ]\n }\n}"
           ]
         ]
       },
-      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09"
+      "rationale": "records the approvals that let the call launch (launches/ file) and marks a prepared plan ready; ME-07, ME-09; execution-fidelity C01/C04/C05 state only; files launches/"
+    },
+    "post big output": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"nested\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"nested\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
+    },
+    "post parsable str response": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: sbatch job 4243 (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"sbatch --parsable job.sh\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": \"4243\", \"kind\": \"sbatch\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": \"str\", \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | sbatch | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: sbatch job 4243 (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"sbatch --parsable job.sh\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": \"4243\", \"kind\": \"sbatch\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": \"str\", \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | sbatch | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
+    },
+    "post no tool_response": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: sbatch (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"sbatch job.sh\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": \"NoneType\", \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | sbatch | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: sbatch (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"sbatch job.sh\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [\"module load R/4.3\"], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": null, \"kind\": \"sbatch\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": \"NoneType\", \"sbatch_lines\": [\"#SBATCH -p cpu\"], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"job.sh\", \"sha256\": \"43c9657e700c0e4295ae8062d0c514158f3c3d6fc6faae43272131239814f5ef\", \"size\": 66}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | sbatch | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
+    },
+    "post sbatch --wrap": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: sbatch job 5 (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"sbatch --wrap=python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": \"5\", \"kind\": \"sbatch\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0, \"wrap_sha256\": \"def4b08e90b71d74ec42aa156dcd770ec659a69760a7ffddb5472ac5a148604e\"}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | sbatch | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: sbatch job 5 (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"sbatch --wrap=python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"job_id\": \"5\", \"kind\": \"sbatch\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": \"str\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"session_id\": \"s1\", \"ts\": 0, \"wrap_sha256\": \"def4b08e90b71d74ec42aa156dcd770ec659a69760a7ffddb5472ac5a148604e\"}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | sbatch | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
+    },
+    "post clean git": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": false, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": false, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
+    },
+    "post event success": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": \"event\", \"exit_status\": 0, \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": \"event\", \"exit_status\": 0, \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
+    },
+    "post event background": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"background\": true, \"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"backgroundTaskId\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"approval_instance\": null, \"attempt_id\": null, \"background\": true, \"call_id\": null, \"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"backgroundTaskId\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
+    },
+    "post event interrupted": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": \"event\", \"exit_status\": \"interrupted\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": [\"interrupted\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": \"event\", \"exit_status\": \"interrupted\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": [\"interrupted\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
+    },
+    "post event exit code": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"error_line\": \"Exit code 2\", \"exit_source\": \"error\", \"exit_status\": 2, \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": \"NoneType\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"error_line\": \"Exit code 2\", \"exit_source\": \"error\", \"exit_status\": 2, \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": \"NoneType\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
+    },
+    "post event bare failure": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"error_line\": \"Command timed out\", \"exit_source\": \"event\", \"exit_status\": \"failed\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": \"NoneType\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"error_line\": \"Command timed out\", \"exit_source\": \"event\", \"exit_status\": \"failed\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": \"NoneType\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
+    },
+    "post event abort": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": \"event\", \"exit_status\": \"interrupted\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000001\"], \"response_keys\": \"NoneType\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000001).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"python analysis/x.py\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": \"event\", \"exit_status\": \"interrupted\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000001\"], \"response_keys\": \"NoneType\", \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\", \"size\": 9}, \"session_id\": \"s1\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| 1 | run `analysis/x.py` | repo | check |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
+    },
+    "fuzz #50": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000007).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"command\": \"timeout 5 python <OUT>/fixture.dat analysis/x.py renv.lock\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": \"response\", \"exit_status\": 1, \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": true, \"plans\": [\"00000003\", \"00000007\"], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"modified\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\", \"size\": 12}, \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | --resume | repo: `repo:` x | ok |\\n| 7 | main.nf | repo: `repo:` x | ok |\\n| 4 | --parsable | repo: `repo:` x | ok |\\n| 7 | ../outside.py | repo: `repo:` x | ok |\\n| 4 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | logs/%j.out | repo: `repo:` x | ok |\\n| 6 | renv.lock | repo: `repo:` x | ok |\\n| 8 | ; | repo: `repo:` x | ok |\\n| 9 | workflow/Snakefile | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 5 | python analysis/x.py | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000004.json",
+            "{\"hash\": \"00000004\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | nbs/n.ipynb | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000005.json",
+            "{\"hash\": \"00000005\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | ../outside.py | repo: `repo:` x | ok |\\n| 8 | && | repo: `repo:` x | ok |\\n| 2 | --resume | repo: `repo:` x | ok |\\n| 9 | main.nf | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000006.json",
+            "{\"hash\": \"00000006\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | 4 | repo: `repo:` x | ok |\\n| 9 | --resume | repo: `repo:` x | ok |\\n| 2 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 6 | -params-file | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000007.json",
+            "{\"hash\": \"00000007\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | analysis/x.py | repo: `repo:` x | ok |\\n| 3 | main.nf | repo: `repo:` x | ok |\\n| 4 | $HOME | repo: `repo:` x | ok |\\n| 7 | renv.lock | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000008.json",
+            "{\"hash\": \"00000008\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | && | repo: `repo:` x | ok |\\n| 1 | sub/../analysis/x.py | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: python (plan 00000007).\"}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"timeout 5 python <OUT>/fixture.dat analysis/x.py renv.lock\", \"command_env\": null, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": \"response\", \"exit_status\": 1, \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [\"00000003\", \"00000007\"], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"modified\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\", \"size\": 12}, \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | --resume | repo: `repo:` x | ok |\\n| 7 | main.nf | repo: `repo:` x | ok |\\n| 4 | --parsable | repo: `repo:` x | ok |\\n| 7 | ../outside.py | repo: `repo:` x | ok |\\n| 4 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | logs/%j.out | repo: `repo:` x | ok |\\n| 6 | renv.lock | repo: `repo:` x | ok |\\n| 8 | ; | repo: `repo:` x | ok |\\n| 9 | workflow/Snakefile | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 5 | python analysis/x.py | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000004.json",
+            "{\"hash\": \"00000004\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | nbs/n.ipynb | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000005.json",
+            "{\"hash\": \"00000005\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | ../outside.py | repo: `repo:` x | ok |\\n| 8 | && | repo: `repo:` x | ok |\\n| 2 | --resume | repo: `repo:` x | ok |\\n| 9 | main.nf | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000006.json",
+            "{\"hash\": \"00000006\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | 4 | repo: `repo:` x | ok |\\n| 9 | --resume | repo: `repo:` x | ok |\\n| 2 | <OUT>/fixture.dat | repo: `repo:` x | ok |\\n| 6 | -params-file | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000007.json",
+            "{\"hash\": \"00000007\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | analysis/x.py | repo: `repo:` x | ok |\\n| 3 | main.nf | repo: `repo:` x | ok |\\n| 4 | $HOME | repo: `repo:` x | ok |\\n| 7 | renv.lock | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000008.json",
+            "{\"hash\": \"00000008\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | && | repo: `repo:` x | ok |\\n| 1 | sub/../analysis/x.py | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02)"
     }
   }
 }
