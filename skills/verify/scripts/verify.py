@@ -2520,6 +2520,7 @@ ACTIONS = {
                "`Outputs:` line",
     "required validation": "run each required check as a matched attempt that writes its result",
     "claim linkage": "correct the claim, or re-run so each cited output has a supported producer",
+    "no blocking finding": "resolve each block finding below; a run that fails verification is never reportable",
 }
 
 
@@ -2624,13 +2625,16 @@ def qualify(root, result):
             len(claims), "; a registered `numbers.json` value is attributed to the file's producer, not to the key's run"
             if any(c.get("registered") for _, c in claims) else ""))
 
-    failing = [d for d in dims if d["state"] == "not established"]
     levels = collections.Counter(level for level, _ in result["findings"])
+    blocks = [text for level, text in result["findings"] if level == "block"]
+    add("no blocking finding", ["{} block finding(s): {}".format(len(blocks), cap([b[:80] for b in blocks], 2))]
+        if blocks else [], "no finding blocks this plan")
+
+    failing = [d for d in dims if d["state"] == "not established"]
     if failing:
         limit = "{} not established: {}.".format(failing[0]["dimension"], ACTIONS[failing[0]["dimension"]])
-    elif levels["block"] or levels["gap"]:
-        limit = "qualified on these dimensions only; {} block and {} gap finding(s) below are still open.".format(
-            levels["block"], levels["gap"])
+    elif levels["gap"]:
+        limit = "qualified on these dimensions only; {} gap finding(s) below are still open.".format(levels["gap"])
     else:
         limit = "qualification covers evidence linkage, not whether the analysis is scientifically right."
     return {"overall": "not qualified" if failing else "qualified", "dimensions": dims, "limitation": limit}
