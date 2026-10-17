@@ -2998,7 +2998,7 @@ class QualificationTest(unittest.TestCase):
     def test_a_blocking_finding_leaves_an_otherwise_complete_run_unqualified(self):
         digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
         self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
-        dirty = self.fake_tool("bin/scilintr-dirty", FIT + ":3:0: [broad-exception] broad except\\n", 1)
+        dirty = self.fake_tool("bin/scilintr-dirty", FIT + ":3:0: [R002] broad except\\n", 1)
         record = json.loads(self.verify("report", digest, "--json", scilintr=dirty))
         dims = dict((d["dimension"], (d["state"], d["reason"])) for d in record["qualification"]["dimensions"])
         self.assertEqual(record["status"], "DOES_NOT_CONFORM")
@@ -3006,6 +3006,7 @@ class QualificationTest(unittest.TestCase):
         self.established(dims, "authorization", "completion", "code and input identity", "lineage")
         self.assertEqual(dims["no blocking finding"][0], "not established")
         self.assertIn("scilintr finding", dims["no blocking finding"][1])
+        self.assertEqual(dims["no blocking finding"][1].count("`") % 2, 0)  # a whole sentence, never cut inside code
 
     def test_a_required_check_that_never_ran_leaves_the_run_unqualified(self):
         digest = self.approve(self.bound_plan())

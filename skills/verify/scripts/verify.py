@@ -2627,7 +2627,7 @@ def qualify(root, result):
 
     levels = collections.Counter(level for level, _ in result["findings"])
     blocks = [text for level, text in result["findings"] if level == "block"]
-    add("no blocking finding", ["{} block finding(s): {}".format(len(blocks), cap([b[:80] for b in blocks], 2))]
+    add("no blocking finding", ["{} block finding(s): {}".format(len(blocks), cap([b.split(". ")[0] for b in blocks], 2))]
         if blocks else [], "no finding blocks this plan")
 
     failing = [d for d in dims if d["state"] == "not established"]
