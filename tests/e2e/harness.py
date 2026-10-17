@@ -355,6 +355,34 @@ class Project(object):
         return Result(command, pre=pre, code=code, stdout=out, stderr=err, post=post,
                       receipts=self.receipts()[before:], simulated=effect is not None, event=name)
 
+    def post_only(self, command, stdout=""):
+        """A PostToolUse for `command` that no PreToolUse preceded (F02), or a Pre-less duplicate (F05)."""
+        payload = {"tool_name": "Bash", "tool_input": {"command": command}, "hook_event_name": "PostToolUse",
+                   "tool_response": {"stdout": stdout, "stderr": "", "interrupted": False, "isImage": False}}
+        return self.hook(self.events["PostToolUse"], payload)
+
+    def pre_with_id(self, command, call_id):
+        """PreToolUse carrying a host call id (agent_bash sends none, as the hosts' older payloads did)."""
+        return self.hook(self.events["PreToolUse"], {"tool_name": "Bash", "tool_input": {"command": command},
+                                                     "tool_use_id": call_id, "hook_event_name": "PreToolUse"})
+
+    def post_with_id(self, command, call_id):
+        payload = {"tool_name": "Bash", "tool_input": {"command": command}, "tool_use_id": call_id,
+                   "hook_event_name": "PostToolUse",
+                   "tool_response": {"stdout": "", "stderr": "", "interrupted": False, "isImage": False}}
+        return self.hook(self.events["PostToolUse"], payload)
+
+    def gate_crash(self):
+        """A real gate failure: a PreToolUse whose command is not text makes gate.py raise, and gate_run.py logs the
+        error and fails open. Returns the message `hook()` raises for it (hook() refuses to hide a gate error)."""
+        try:
+            self.hook(self.events["PreToolUse"], {"tool_name": "Bash", "tool_input": {"command": 123},
+                                                  "hook_event_name": "PreToolUse"})
+        except HarnessError as error:
+            self.log.append("gate error injected: {}".format(error))
+            return str(error)
+        raise HarnessError("a non-text command did not make the gate fail; the F07 probe no longer injects an error")
+
     def run_step(self, script, prefix=""):
         """One planned step as the agent runs it; 03 is an effect copying expected/summary.tsv without R."""
         if script.endswith(".R"):

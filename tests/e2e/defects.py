@@ -424,7 +424,7 @@ def rowcount_plan():
     return plan(outputs=" ".join(harness.OUTPUTS + [ROWS_EVIDENCE]), change=change)
 
 
-def covered_rowcount(p, rows=None):
+def covered_rowcount(p, rows=None, run_check=True):
     """The approved expectation is committed before the run: the contract's row count comes from the fixture's
     truth (expected/baseline.json), never from the partial output; `rows` makes 02 write that many rows and die
     behind `|| true`, as V-02b does. 02, 03 and the row-count check then run under one plan."""
@@ -443,7 +443,8 @@ def covered_rowcount(p, rows=None):
     digest = p.approve(rowcount_plan())[0]
     results = [p.agent_bash("python3 {} || true".format(PAIRED)) if script == PAIRED and rows is not None
                else p.run_step(script) for script in harness.SCRIPTS]
-    results.append(p.agent_bash("python3 " + ROWS_RUNNER))
+    if run_check:
+        results.append(p.agent_bash("python3 " + ROWS_RUNNER))
     p.space_outputs([(out, r.receipts[0]) for out, r in zip(harness.OUTPUTS + [ROWS_EVIDENCE], results)
                      if r.receipts and os.path.isfile(p.path(out))])
     p.lineage()
@@ -1218,6 +1219,284 @@ def kb06(p):
 
 def base64_name(output):
     return base64.b64encode(output.encode("utf-8")).decode("ascii")
+
+
+# ---------------------------------------------------------------- 8.7 roadmap findings F01 to F11 (C12)
+# Each case reproduces the finding through the harness (the hooks as hooks.json registers them, the verify and
+# data-contract-check skills as documented) and asserts the specific evidence, not a status alone. Its control is a
+# benign run of the same mechanism that must stay quiet; it runs in the same project where the mechanism allows it,
+# else in a second one (`aside`). These are boundary cases, not a score: no exploratory probe lives in the plugin.
+
+def aside(run):
+    """run(project) on a second disposable project, closed afterwards: the control of a case that needs a clean start."""
+    other = harness.Project.fresh()
+    try:
+        return run(other)
+    finally:
+        other.close()
+
+
+def receipt_fields(p, *keys):
+    return [[r.get(k) for k in keys] for r in p.receipts()]
+
+
+def output_row(text, path):
+    found = [line.split("|") for line in text.splitlines() if line.startswith("| `{}` |".format(path))]
+    return found[0] if found else None
+
+
+@defect("F-01", "verify", "verify", ["tool: verify"],
+        {"status": GAPS, "producer": "unresolved", "strength": "candidate", "control_evidence": "attempt-observed, supported",
+         "control_by_step": True,
+         "messages": ["Output `{}` was likely written by".format(SUMMARY), "timing evidence only"]})
+def f01(p):
+    """Timing alone is not a producer: V-32's independent writer one second after step 1 is the roadmap probe (the
+    only candidate, never the producer, and a gap). Control: a matched Pre, write and Post names its own producer."""
+    outcome = v32(p)
+
+    def control(q):
+        digest = q.approve(harness.plan_text())[0]
+        step = q.run_step(harness.SCRIPTS[0])
+        row = output_row(report(q, digest)["text"], harness.OUTPUTS[0])
+        return row[4].strip().split(";")[0], "`{}` at".format(step.command) in row[3]
+    outcome["control_evidence"], outcome["control_by_step"] = aside(control)
+    return outcome
+
+
+@defect("F-02", "verify", "verify", ["tool: verify"],
+        {"status": GAPS, "launch_match": ["matched", "unmatched"], "pins_checked": [True, False],
+         "plans_named": [True, True],
+         "messages": ["1 run(s) credited to this plan have no checked launch: Post without matching Pre "
+                      "[no launch record for this call]: `python3 {}`".format(PAIRED),
+                      "The gate did not check the launch, so the run is not established as started under the approval.",
+                      "launch evidence 1 matched, 1 unmatched, 0 ambiguous"]})
+def f02(p):
+    """A Post event with no Pre records the covering plan as context but no checked pins. Control: step 1 ran with its Pre."""
+    digest = p.approve(harness.plan_text())[0]
+    p.run_step(harness.SCRIPTS[0])
+    command = "python3 " + PAIRED
+    p.shell(command)
+    p.post_only(command)
+    outcome = report(p, digest)
+    outcome["launch_match"] = [r[0] for r in receipt_fields(p, "launch_match")]
+    outcome["pins_checked"] = [r[0] for r in receipt_fields(p, "pins_checked")]
+    outcome["plans_named"] = [r["plans"] == [digest] for r in p.receipts()]
+    return outcome
+
+
+SHARED = "selected specification " + "x" * 230  # longer than the card's 200-character cell
+
+
+def card_steps(notice):
+    found = re.search(r"steps: (\d+) same, (\d+) new or changed", notice)
+    return "{} same, {} new or changed".format(*found.groups()) if found else None
+
+
+@defect("F-03", "gate", "approval gate", ["tool: approval card"],
+        {"changed_card": "2 same, 1 new or changed", "whitespace_card": "3 same, 0 new or changed",
+         "messages": ["plan     objective SAME"]})
+def f03(p):
+    """A choice changed after more than 200 shared characters must show as changed on the approval card. Control: the
+    same plan with only its spacing changed reads as unchanged."""
+    def text(tail):
+        return harness.plan_text().replace("median-of-ratios; exact permutation", SHARED + tail)
+    p.approve(text(" exclude vaccinees"))
+    notice = p.approve(text(" include vaccinees"))[1]
+    outcome = {"changed_card": card_steps(notice), "text": notice}
+    spaced = text(" include vaccinees").replace("| 1 | run", "|  1  |  run")
+    outcome["whitespace_card"] = card_steps(p.approve(spaced)[1])
+    return outcome
+
+
+def instance_files(p, digest):
+    folder = p.path(".mycelium-extra", "approval-instances", digest)
+    return sorted(name[:-5] for name in os.listdir(folder))
+
+
+@defect("F-04", "verify", "verify", ["tool: verify"],
+        {"instances_after_identical_reapproval": 1, "instances_after_new_input": 2, "run_kept_first_instance": True,
+         "default_checks_newest": True, "selected_checks_first": True,
+         "messages": ["runs under an earlier instance do not establish this freeze",
+                      "1 run(s) of this plan under other approval instance(s) are history, not evidence for it.",
+                      "changed since the approval (was sha256", "an earlier freeze; the current one is"]})
+def f04(p):
+    """The same prose approved twice with different inputs makes two instances. A run in flight stays under the first;
+    verify checks the newest by default (no run under it: a gap) and the selected older one on request (its pinned
+    input has changed: a block). Control: an identical reapproval makes no second instance."""
+    text = harness.plan_text()
+    digest = p.approve(text)[0]
+    p.approve(text)
+    outcome = {"instances_after_identical_reapproval": len(instance_files(p, digest))}
+    command = "python3 " + harness.SCRIPTS[0]
+    p.pre_bash(command)
+    p.edit(METADATA, lambda t: t + "D13_day0\tD13\tplacebo\tday0\tR1\tL1\tFALSE\t8.0\n")
+    p.approve(text)
+    p.shell(command)
+    p.post_only(command)
+    both = instance_files(p, digest)
+    outcome["instances_after_new_input"] = len(both)
+    first = [i for i in both if i == p.receipts()[0]["approval_instance"]][0]
+    newest = [i for i in both if i != first][0]
+    outcome["run_kept_first_instance"] = p.receipts()[0]["approval_instance"] == first
+    default = p.verify("report", digest)[1]
+    chosen = p.verify("report", digest, "--instance", first)[1]
+    outcome["default_checks_newest"] = "Checked against approval instance {}: 0 run(s) under it".format(newest) in default
+    outcome["selected_checks_first"] = "Checked against approval instance {} (an earlier freeze".format(first) in chosen
+    outcome["text"] = default + chosen
+    return outcome
+
+
+@defect("F-05", "verify", "verify", ["tool: verify"],
+        {"status": GAPS, "launch_match": ["matched", "matched", "ambiguous", "ambiguous"],
+         "pins_checked": [True, True, False, False], "candidates": 2,
+         "messages": ["2 run(s) credited to this plan have an ambiguous launch (identical launches without a call id) "
+                      "[2 identical launches without a call id]",
+                      "The gate did not check the launch, so the run is not established as started under the approval."]})
+def f05(p):
+    """Two overlapping identical calls with no call id cannot be told apart: both receipts are ambiguous, neither a
+    checked launch. Control: the same overlap with call ids stays matched."""
+    digest = p.approve(harness.plan_text())[0]
+    keyed = "python3 " + harness.SCRIPTS[1]
+    p.pre_with_id(keyed, "t1")
+    p.pre_with_id(keyed, "t2")
+    p.post_with_id(keyed, "t2")
+    p.post_with_id(keyed, "t1")
+    bare = "python3 " + harness.SCRIPTS[0]
+    p.pre_bash(bare)
+    p.pre_bash(bare)
+    p.shell(bare)
+    p.post_only(bare)
+    p.post_only(bare)
+    outcome = report(p, digest)
+    outcome["launch_match"] = [r[0] for r in receipt_fields(p, "launch_match")]
+    outcome["pins_checked"] = [r[0] for r in receipt_fields(p, "pins_checked")]
+    outcome["candidates"] = len(p.receipts()[-1].get("attempt_candidates") or [])
+    return outcome
+
+
+@defect("F-06", "verify", "verify", ["tool: verify"],
+        {"status": GAPS, "de_rows": 10, "truth_rows": 60, "control_status": CONFORMS, "control_check": "passed",
+         "messages": ["Validation `de-rowcount` (plan row 4, required; declared researcher-approved, not verified) ",
+                      "no matched run of `python3 {}` under this approval instance".format(ROWS_RUNNER),
+                      "not established, so the plan's acceptance expectation is not counted as met."]})
+def f06(p):
+    """A required check the plan binds but nobody ran is a gap, not a pass, even though the artifact keeps 10 of 60 rows.
+    (Failed: V-02c; the Validation cell's prose alone is never consulted.) Control: the same plan with the check run."""
+    outcome = covered_rowcount(p, 10, run_check=False)
+    control = aside(lambda q: covered_rowcount(q, None))
+    outcome["control_status"] = control["status"]
+    outcome["control_check"] = "passed" if "- `de-rowcount` (plan row 4, required; declared researcher-approved, " \
+                                           "not verified): passed" in control["text"] else None
+    return outcome
+
+
+def backdate_gate_errors(p, seconds=3600):
+    """Move every logged gate error `seconds` into the past: verify's window opens at the whole second of the approval,
+    so an error injected moments before it would still count."""
+    path = p.path(".mycelium-extra", "gate-errors.jsonl")
+    rows = p.read_jsonl("gate-errors.jsonl")
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("".join(json.dumps(dict(row, ts=row["ts"] - seconds)) + "\n" for row in rows))
+
+
+@defect("F-07", "verify", "verify", ["tool: verify"],
+        {"status": GAPS, "control_status": CONFORMS,
+         "messages": ["Gate error at ", "(event `tool`, decision allow, session e2e-session-1); observation is incomplete there",
+                      "the gate did not check or record what it saw, so a run in that period may be missing from the receipts."]})
+def f07(p):
+    """A gate failure inside the plan's window (the gate fails open and logs it) keeps verify from a clean result.
+    Control: the same failure before the approval is outside the window and changes nothing."""
+    def chain(q, crash_first):
+        if crash_first:
+            q.gate_crash()
+            backdate_gate_errors(q)
+        digest = q.approve(harness.plan_text())[0]
+        if not crash_first:
+            q.gate_crash()
+        results = [q.run_step(script) for script in harness.SCRIPTS]
+        q.space_outputs([(out, r.receipts[0]) for out, r in zip(harness.OUTPUTS, results)])
+        q.lineage()
+        return report(q, digest)
+    outcome = chain(p, False)
+    outcome["control_status"] = aside(lambda q: chain(q, True))["status"]
+    return outcome
+
+
+@defect("F-08", "verify", "verify", ["tool: verify"],
+        {"status": GAPS, "control_status": CONFORMS, "control_recovery": "equivalent retry",
+         "messages": ["`python3 {} --model original`: failed (exit 1)".format(PAIRED),
+                      "Verdict: recovered with a changed command: equivalence not established",
+                      "recovered with a changed command: equivalence not established (an earlier attempt: ",
+                      "changes: removed `original`, added `alternative`",
+                      "The earlier failure stays in the history above"]})
+def f08(p):
+    """A step that failed with `--model original` and then succeeded with `--model alternative` shows both attempts and a
+    gap: the success is not the approved computation's recovery. Control: retrying the same command is an equivalent retry."""
+    def chain(q, retry):
+        digest = q.approve(harness.plan_text())[0]
+        first = q.agent_bash("python3 {} --model original".format(PAIRED))  # fails: step 1's output does not exist yet
+        if first.code == 0:
+            raise harness.HarnessError("02 should fail before 01 has run")
+        results = [q.run_step(harness.SCRIPTS[0]), q.agent_bash("python3 {} --model {}".format(PAIRED, retry)),
+                   q.run_step(harness.SCRIPTS[2])]
+        q.space_outputs([(harness.out_of(s), r.receipts[0]) for s, r in zip(harness.SCRIPTS, results)])
+        q.lineage()
+        return report(q, digest)
+    outcome = chain(p, "alternative")
+    control = aside(lambda q: chain(q, "original"))
+    outcome["control_status"] = control["status"]
+    outcome["control_recovery"] = "equivalent retry" if "recovered: equivalent retry" in control["text"] else None
+    return outcome
+
+
+@defect("F-09", "gate", "approval gate", ["tool: approval exact execution"],
+        {"declared_denied": False, "changed_denied": True,
+         "messages": ["froze the command of row 2 (exact-execution) and this run differs: the arguments differ.",
+                      "declared: python3 {} --model original".format(PAIRED)]})
+def f09(p):
+    """A frozen step with a declared argv refuses `--model alternative`. Control: the declared command itself is allowed."""
+    block = {"version": 1, "steps": [{"row": "2", "argv": ["python3", PAIRED, "--model", "original"], "cwd": ".",
+                                      "env": {}, "operational": []}]}
+    text = harness.plan_text().replace(
+        "| 2 | run `{}` |".format(PAIRED), "| 2 | run `python3 {} --model original` |".format(PAIRED)).replace(
+        "Plan status: READY", "<!-- exact-execution {} -->\n\nPlan status: READY".format(json.dumps(block)))
+    p.approve(text)
+    p.run_step(harness.SCRIPTS[0])
+    declared = p.agent_bash("python3 {} --model original".format(PAIRED))
+    changed = p.agent_bash("python3 {} --model alternative".format(PAIRED))
+    return {"declared_denied": declared.denied, "changed_denied": changed.denied, "text": changed.reason}
+
+
+SPACED = "data/cohort samples.tsv"
+
+
+@defect("F-10", "gate", "approval gate", ["tool: approval pins"],
+        {"exact_pinned": True, "fragment_pinned": False, "control_pinned": True,
+         "messages": ["Reads 3 pinned under data/: cohort samples.tsv, processed/vaccine-cohort/counts.tsv"]})
+def f10(p):
+    """A quoted input with a space is pinned by its exact name, not as the fragment `data/cohort`. Control: the baseline's
+    unquoted input is pinned as before."""
+    for rel, text in ((SPACED, "sample\nA\n"), ("data/cohort", "x\n")):  # `data/cohort` exists: the old split pinned it
+        with open(p.path(rel), "w", encoding="utf-8") as handle:
+            handle.write(text)
+    digest, notice, _ = p.approve(harness.plan_text().replace("Inputs: ", "Inputs: `{}` ".format(SPACED)))
+    pins = p.approval(digest)["pins"]
+    return {"exact_pinned": SPACED in pins, "fragment_pinned": "data/cohort" in pins,
+            "control_pinned": COUNTS in pins, "text": notice}
+
+
+@defect("F-11", "data", "data-contract-check", ["tool: data-contract-check"],
+        {"control_code": 0, "code": 2,
+         "messages": ["BLOCK the table is malformed, so no check on it can be trusted",
+                      "line 2 has more fields than the header (9 > 8), so its values cannot be assigned to columns"]})
+def f11(p):
+    """A row with more fields than the header blocks every check on the table (the schema and the 24-row count passed
+    before). Control: the unmutated table passes the same contract."""
+    control = check(p)
+    p.edit(METADATA, edit_rows(lambda header, rows: rows[0].append("extra")))  # the first data row gets a ninth field
+    outcome = check(p)
+    outcome["control_code"] = control["code"]
+    return outcome
 
 
 def by_id(id):

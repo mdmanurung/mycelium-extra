@@ -286,7 +286,8 @@ def claimed_tool(check):
 
 
 FAMILY = {"DC": {"data-contract-check", "none"}, "G": {"approval gate"}, "V": {"verify", "none"},
-          "S": {"verify"}, "M": {"decision-status"}, "KB": {"approval gate", "verify"}}
+          "S": {"verify"}, "M": {"decision-status"}, "KB": {"approval gate", "verify"},
+          "F": {"approval gate", "verify", "data-contract-check"}}
 NO_FULL_CLAIM = ("none", "partial:", "planned:", "cross-ref:")
 
 
