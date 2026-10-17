@@ -134,6 +134,7 @@ def opencode_event(event):
 
 def run(argv):
     host = None
+    original = list(argv)
     if len(argv) == 4 and argv[1] == "--host" and argv[2] in ("codex", "opencode"):
         host = EVENT["host"] = argv[2]
         argv = [argv[0], argv[3]]
@@ -154,6 +155,17 @@ def run(argv):
             cwd = None
         if find_root(cwd or os.getcwd()) is None:
             return 0
+        # A hooks.json registered before 0.9.76 runs python3 directly, and a directory marketplace keeps that
+        # registration until the plugin is updated: hand the event to py.sh once instead of failing open.
+        if not os.environ.get("MYCELIUM_EXTRA_REEXEC"):
+            import subprocess
+            here = os.path.dirname(os.path.abspath(__file__))
+            child = subprocess.run(["/bin/sh", os.path.join(here, "py.sh"), "--hook", os.path.join(here, "gate_run.py")]
+                                   + original[1:], input=EVENT["text"].encode("utf-8"), stdout=subprocess.PIPE,
+                                   env=dict(os.environ, MYCELIUM_EXTRA_REEXEC="1"))
+            if child.returncode == 0:  # its reply stands, including its own report if py.sh found nothing newer
+                sys.stdout.write(child.stdout.decode("utf-8", "replace"))
+                return 0
         raise RuntimeError("mycelium-extra needs Python 3.9 or later, but the hook ran {} {}; install python3.9 "
                            "or later, or set MYCELIUM_EXTRA_PYTHON".format(sys.executable, sys.version.split()[0]))
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

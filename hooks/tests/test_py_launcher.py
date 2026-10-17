@@ -64,7 +64,8 @@ class OldPythonGateTest(unittest.TestCase):
 
         def hook():
             out = subprocess.run([PYTHON36, GATE_RUN, "tool"], input=event, stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE, universal_newlines=True)
+                                 stderr=subprocess.PIPE, universal_newlines=True,
+                                 env=dict(os.environ, MYCELIUM_EXTRA_REEXEC="1"))  # no hand-off: on_error decides
             self.assertEqual(out.returncode, 0, out.stderr)
             return json.loads(out.stdout) if out.stdout.strip() else None
 
@@ -77,6 +78,25 @@ class OldPythonGateTest(unittest.TestCase):
             text = json.dumps(result)
             self.assertIn("needs Python 3.9 or later", text)
             self.assertEqual(result.get("hookSpecificOutput", {}).get("permissionDecision"), decision)
+
+    @unittest.skipUnless(os.path.exists(PYTHON36), "needs " + PYTHON36)
+    def test_a_registration_that_runs_python3_directly_is_handed_to_py_sh(self):
+        root, bin_dir = tempfile.mkdtemp(), tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        self.addCleanup(shutil.rmtree, bin_dir)
+        os.makedirs(os.path.join(root, ".mycelium-extra"))
+        with open(os.path.join(root, ".mycelium-extra", "gate.json"), "w") as handle:
+            handle.write("{}")
+        with open(os.path.join(bin_dir, "python3.11"), "w") as handle:
+            handle.write("#!/bin/sh\necho \"$@\"\n/bin/cat\n")  # a newer Python that reports what it was given
+        os.chmod(os.path.join(bin_dir, "python3.11"), 0o755)
+        event = json.dumps({"cwd": root, "hook_event_name": "PreToolUse", "tool_name": "Bash",
+                            "tool_input": {"command": "caf\u00e9"}})
+        out = subprocess.run([PYTHON36, GATE_RUN, "tool"], input=event.encode("utf-8"), stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, env={"PATH": bin_dir})
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertEqual(out.stdout.decode("utf-8"), GATE_RUN + " tool\n" + event)
+        self.assertFalse(os.path.exists(os.path.join(root, ".mycelium-extra", "gate-errors.jsonl")))
 
 
 if __name__ == "__main__":
