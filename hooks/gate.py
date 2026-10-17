@@ -2768,8 +2768,10 @@ def on_tool(event, root, config):
                     capped.append((newest["hash"], len(runs), limit_changes(root, runs, budget, cache)))
     if exact_refused:
         return deny("\n".join(exact_refused))
-    if (stale or stale_scripts or capped or stale_validation) and not blocked:
-        lines = validation_denial(stale_validation)
+    if stale_validation and not blocked:  # a pinned test or expectation file changed: checked before the pins below
+        return deny("\n".join(validation_denial(stale_validation)))
+    if (stale or stale_scripts or capped) and not blocked:
+        lines = []
         for digest, changes in stale:
             lines.append("mycelium-extra gate: blocked because inputs pinned by plan {} changed after "
                          "the plan was written:".format(digest))
