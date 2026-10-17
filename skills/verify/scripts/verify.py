@@ -1541,6 +1541,141 @@ def step_key(root, r):
     return (kind, cwd) if kind == "snakemake" else (kind, command)
 
 
+# ---------------------------------------------------------------- approved validation checks (C06)
+
+CONTRACT_RESULT = "mycelium-extra.contract_result.v1"
+PHRASE = {"failed": "failed", "not run": "was not run", "unsupported": "has unsupported evidence",
+          "changed": "changed since approval", "unattributable": "has unattributable evidence"}
+
+
+def contract_text(check):
+    """`id`: message (expected X, observed Y) for one check of a data-contract result."""
+    alerts = [a for a in check.get("alerts") or [] if isinstance(a, dict)]
+    first = alerts[0] if alerts else {}
+    detail = ", ".join("{} {}".format(key, first[key]) for key in ("expected", "observed") if first.get(key) is not None)
+    return "`{}`: {}{}".format(check.get("id"), str(first.get("message") or check.get("message") or check.get("status"))[:120],
+                               " ({})".format(detail) if detail else "")
+
+
+def read_result(path, check):
+    """(outcome, reason, warnings) from an evidence file's content: a JSON object whose `status` is passed or
+    failed, or a data-contract result (`mycelium-extra.contract_result.v1`), which passes only with exit 0 and
+    no block; its warnings are kept. Anything else is unsupported."""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return "unsupported", "the file is not readable JSON", []
+    if not isinstance(data, dict):
+        return "unsupported", "the result is not a JSON object", []
+    if data.get("schema") != CONTRACT_RESULT:
+        status, note = data.get("status"), data.get("message")
+        if status not in ("passed", "failed"):
+            return "unsupported", "the result has no `status` of passed or failed", []
+        return status, "the result says {}{}".format(status, " ({})".format(note.strip()[:200])
+                                                     if isinstance(note, str) and note.strip() else ""), []
+    status, code = data.get("status"), data.get("exit_code")
+    checks = [c for c in data.get("checks") or [] if isinstance(c, dict)]
+    pinned = (data.get("contract") or {}).get("sha256")
+    if pinned and check["files"] and pinned not in check["files"].values():
+        return "changed", "the result was produced from a contract that is not the pinned one", []
+    label = "the data-contract result is {} (exit {})".format(status, code)
+    if code == 0 and status in ("pass", "warn") and not any(c.get("status") == "block" for c in checks):
+        return "passed", label, [contract_text(c) for c in checks if c.get("status") == "warn"]
+    if code == 2 or status == "block":
+        bad = [contract_text(c) for c in checks if c.get("status") == "block"]
+        return "failed", label + ("; " + "; ".join(bad[:3]) if bad else ""), []
+    if code in (1, 3) or status in ("gap", "error"):  # a table could not be read, or the contract was unusable: nothing was judged
+        return "not run", label + "; the contract's checks could not run", []
+    return "unsupported", label, []
+
+
+def attribution_problem(root, run, path):
+    """Why the evidence file at `path` is not tied to the matched attempt `run`, or None: the gate saw the attempt
+    create or change it and nothing touched it afterwards."""
+    if run.get("outputs_observation") != "observed":
+        return "the gate did not observe outputs during the attempt ({})".format(run.get("outputs_observation") or "not recorded")
+    seen = run.get("outputs_changed") or {}
+    if path not in list(seen.get("created") or []) + list(seen.get("changed") or []):
+        return "the matched attempt did not create or change `{}`".format(path)
+    try:
+        mtime = os.stat(os.path.join(root, path)).st_mtime
+    except OSError:
+        return "`{}` is missing now".format(path)
+    if mtime > run["ts"] + TOLERANCE:
+        return "`{}` was modified after the attempt ({})".format(path, when(mtime))
+    return None
+
+
+def judge_check(root, check, runs, edited, elsewhere):
+    """One approved check against the matched runs of its invocation (oldest first): a dict with `outcome`
+    (passed, failed, not run, unsupported, changed or unattributable), `reason`, and the identities kept in the bundle."""
+    module = gate.blocks_module()
+    found = dict((k, check[k]) for k in ("id", "plan_row", "required", "defined_by", "invocation", "evidence_path",
+                                         "definition_sha256", "files"))
+    found.update(outcome=None, reason=None, attempt_id=None, evidence_sha256=None, warnings=[])
+    digest = module.file_sha256(os.path.join(root, check["evidence_path"]))
+    found["evidence_sha256"] = None if digest.startswith("!") else digest
+    if edited:
+        found.update(outcome="changed", reason="; ".join("pinned `{}` is no longer the approved file ({})".format(
+            path, "missing" if state == "missing" else "its content differs") for path, state in edited))
+        return found
+    if not runs:
+        found.update(outcome="not run", reason="no matched run of `{}` under this approval instance{}".format(
+            " ".join(check["invocation"]), "; it ran under another approval instance only" if elsewhere else ""))
+        return found
+    run = runs[-1]
+    found["attempt_id"] = run.get("attempt_id")
+    code = run.get("exit_status")
+    problem = attribution_problem(root, run, check["evidence_path"])
+    if (isinstance(code, int) and code != 0) or code in ("failed", "interrupted"):
+        found.update(outcome="failed", reason="the check command {} at {}".format(
+            "exited {}".format(code) if isinstance(code, int) else "was interrupted" if code == "interrupted"
+            else "failed without an exit code", when(run["ts"])))
+        if problem is None:  # a result the attempt wrote says more than the exit code: "could not run" or "other contract" is not "failed"
+            outcome, reason, _ = read_result(os.path.join(root, check["evidence_path"]), check)
+            if outcome in ("failed", "not run", "changed"):
+                found.update(outcome=outcome, reason=(found["reason"] + "; " + reason) if outcome == "failed"
+                             else reason + "; " + found["reason"])
+    elif code != 0:
+        found.update(outcome="unsupported", reason="the check command's exit status was not recorded, so it is not "
+                                                   "counted as having completed")
+    elif problem:
+        found.update(outcome="unattributable", reason=problem)
+    else:
+        found["outcome"], found["reason"], found["warnings"] = read_result(
+            os.path.join(root, check["evidence_path"]), check)
+    return found
+
+
+def check_validations(root, report, validation, mine, elsewhere):
+    """Reconcile each check of the instance's validation binding with its matched run and result. `elsewhere`:
+    ids of checks that were run under another approval instance. A required check that failed blocks; one not
+    run, unsupported, changed or unattributable is a gap (not established), never a pass; an optional one is only
+    information. `defined_by` is shown as declared and is not verified."""
+    edited = {}
+    for cid, path, state in gate.blocks_module().changes(root, validation):
+        edited.setdefault(cid, []).append((path, state))
+    results = []
+    for check in validation["checks"]:
+        runs = [r for r in mine if r.get("validation_check") == check["id"] and r.get("launch_match") == "matched"]
+        one = judge_check(root, check, runs, edited.get(check["id"]), check["id"] in elsewhere)
+        results.append(one)
+        who = "Validation `{}` (plan row {}, {}; declared {}, not verified)".format(
+            one["id"], one["plan_row"], "required" if one["required"] else "optional", one["defined_by"])
+        if one["outcome"] == "passed":
+            if one["warnings"]:
+                report.add("info", "{} passed with {} warning(s): {}".format(who, len(one["warnings"]), "; ".join(one["warnings"][:5])))
+        elif not one["required"]:
+            report.add("info", "{} {}: {}".format(who, PHRASE[one["outcome"]], one["reason"]))
+        elif one["outcome"] == "failed":
+            report.add("block", "{} failed: {}".format(who, one["reason"]))
+        else:
+            report.add("gap", "{} {}: {}; not established, so the plan's acceptance expectation is not counted as "
+                              "met.".format(who, PHRASE[one["outcome"]], one["reason"]))
+    return results
+
+
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
           rscript="Rscript", claims=(), instance=None):
     config = gate.load_config(root)
@@ -1617,6 +1752,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     instance_findings(report, digest, chosen, current, frozen, history, mine, approved_at, bool(instance))
     abandoned = abandoned_attempts(root)
     launch_findings(report, mine, abandoned, digest, chosen, approved_at)
+    frozen_blocks = frozen if frozen is not None else approval  # the plan's validation and exact-execution blocks, as approved
+    binding = frozen_blocks.get("validation")
     if invalid_metadata:
         report.add("gap", "{} unreadable or malformed Snakemake record(s) were skipped; workflow "
                    "evidence is incomplete.".format(len(invalid_metadata)))
@@ -1949,6 +2086,9 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     envs = conda_snapshots(root, mine, report)
     linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds)
     claimed = check_claims(root, analysis_dir, outputs, claims, report, budget["bytes"])
+    elsewhere = set(r.get("validation_check") for r in receipts if digest in r.get("plans", []) and not r.get("explore")
+                    and chosen and r.get("approval_instance") != chosen)
+    validated = check_validations(root, report, binding, mine, elsewhere) if binding else []
 
     launches = collections.Counter(launch_kind(r) for r in mine)
     strengths = collections.Counter(row["strength"] for row in outputs)
@@ -1960,7 +2100,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             "analysis_dir": analysis_dir, "git": gate.git_state(root), "runs": len(mine),
             "scripts": scripts, "folders": folders, "commands": commands, "inputs": inputs,
             "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted, "envs": envs,
-            "claims": claimed,
+            "claims": claimed, "validation": validated, "validation_binding": binding,
             "status": report.status(), "plan": plan,
             # Kept for the record (a scaffolder call can explain a moved input), marked as not runs.
             "receipts": sorted(mine + [dict(r, not_a_run="only passed planned paths to other code")
@@ -2051,6 +2191,16 @@ def render(result, all_outputs=False):
             lines.append("")
             lines.append("{} more output file(s); `write` records them all.".format(
                 len(result["outputs"]) - len(shown)))
+    if result.get("validation"):
+        lines += ["", "## Validation", "", "Approved acceptance checks (`<!-- validation-bindings -->`), each against its matched "
+                  "run's result; `declared` is the plan's own claim and is not verified."]
+        for one in result["validation"]:
+            lines.append("- `{}` (plan row {}, {}; declared {}, not verified): {}".format(
+                one["id"], one["plan_row"], "required" if one["required"] else "optional", one["defined_by"],
+                "passed with {} warning(s): {}".format(len(one["warnings"]), cell("; ".join(one["warnings"][:5])))
+                if one["outcome"] == "passed" and one["warnings"] else
+                "passed ({})".format(cell(one["reason"])) if one["outcome"] == "passed" else
+                "{} - {}".format(one["outcome"], cell(one["reason"]))))
     lines += ["", "## Lint", ""]
     lint_rows = result["lint"]["findings"]
     lines += ["- `{}:{}` [{}] {}".format(cell(f[0]), f[1], f[3], cell(f[4])) for f in lint_rows[:SHOWN_OUTPUTS]]
@@ -2095,6 +2245,14 @@ def _write_bundle(root, result, folder):
     paths = {"plan": "plan-{}.md".format(digest), "receipts": "receipts-{}.jsonl".format(digest),
              "outputs": "outputs-{}.tsv".format(digest), "report": "verify-{}.md".format(digest),
              "lint": "lint-{}.txt".format(digest)}
+    if result.get("validation_binding"):  # the frozen binding, each check's outcome and the raw evidence's identity
+        paths["validation"] = "validation-{}.json".format(digest)
+        with open(os.path.join(folder, paths["validation"]), "w", encoding="utf-8") as handle:
+            json.dump({"schema": "mycelium-extra.validation-record.v1", "hash": digest,
+                       "instance": (result.get("instance") or {}).get("selected"),
+                       "binding": result["validation_binding"], "results": result["validation"]},
+                      handle, indent=1, sort_keys=True)
+            handle.write("\n")
     if any(env["packages"] for env in result.get("envs") or []):
         paths["env"] = "env-{}.txt".format(digest)
         with open(os.path.join(folder, paths["env"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
@@ -2154,6 +2312,7 @@ def _write_bundle(root, result, folder):
     row = "| {} | {} | {} | {} | [plan]({}) - [receipts]({}) - [outputs]({}) - [lint]({}) - [report]({}){} |".format(
         digest, when(result["approved_at"]), stamp, result["status"], paths["plan"], paths["receipts"],
         paths["outputs"], paths["lint"], paths["report"],
+        (" - [validation]({})".format(paths["validation"]) if "validation" in paths else "") +
         (" - [conda env]({})".format(paths["env"]) if "env" in paths else "") +
         (" - [pip]({})".format(paths["pip"]) if "pip" in paths else ""))
     if os.path.isfile(index):

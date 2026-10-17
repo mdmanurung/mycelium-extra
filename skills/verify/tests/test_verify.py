@@ -2318,6 +2318,238 @@ sys.exit(1 if hits else 0)
                 else:
                     self.assertNotIn("Slurm job 4242", out)
 
+    # C06/F06: an approved validation binding is reconciled with the result of its matched run
+
+    CHECK = "analysis/a/scripts/02_check.py"
+    EXPECT = "analysis/a/tests/expect.json"
+    EVID = "analysis/a/outputs/check.json"
+    CONTRACT_SCHEMA = "mycelium-extra.contract_result.v1"
+
+    def binding(self, **changes):
+        base = {"id": "V1", "plan_row": "2", "required": True, "defined_by": "researcher-approved",
+                "test_paths": [self.EXPECT], "invocation": ["python", self.CHECK], "evidence_path": self.EVID}
+        base.update(changes)
+        return base
+
+    def bound_plan(self, *checks, **kwargs):
+        """FIT and the check script as plan rows 1 and 2, the binding block, and the evidence as the declared output."""
+        self.write(self.CHECK, "print('check')\n", mtime=time.time() - 3600)
+        self.write(self.EXPECT, '{"rows": 60}\n', mtime=time.time() - 3600)
+        text = plan("run `{}`".format(FIT), "run `{}`".format(self.CHECK), outputs=self.EVID,
+                    inputs=kwargs.get("inputs"))
+        block = "<!-- validation-bindings {} -->\n\n".format(json.dumps({"version": 1, "checks": list(checks or [self.binding()])}))
+        return text.replace("Plan status: READY", block + "Plan status: READY")
+
+    def run_check(self, evidence, **kwargs):
+        """The check script run as a matched attempt that writes `evidence` (a dict, or text) as its result."""
+        text = evidence if isinstance(evidence, str) else json.dumps(evidence)
+        return self.run_cmd("python " + self.CHECK, writes={self.EVID: text}, **kwargs)
+
+    def validation_of(self, digest, *args):
+        return dict((v["id"], v) for v in json.loads(self.verify("report", digest, "--json", *args))["validation"])
+
+    def ends(self, out, status):
+        self.assertTrue(out.rstrip().endswith("Verify status: " + status), out)
+
+    def contract_result(self, status, code, checks):
+        return {"schema": self.CONTRACT_SCHEMA, "status": status, "exit_code": code, "runnable": "all_ran", "not_run": [],
+                "contract": {"path": "x", "sha256": None}, "checks": checks}
+
+    def test_a_check_that_exited_zero_with_a_failed_result_blocks(self):  # F06: the 60-row expectation, one row found
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        self.run_check({"status": "failed", "message": "1 row found, 60 expected"})  # the script itself exits 0
+        out = self.verify("report", digest)
+        self.assertIn("**block**: Validation `V1` (plan row 2, required; declared researcher-approved, not verified) "
+                      "failed: the result says failed (1 row found, 60 expected)", out)
+        self.assertIn("Verify status: DOES_NOT_CONFORM", out)
+        self.assertEqual(self.validation_of(digest)["V1"]["outcome"], "failed")
+
+    def test_a_required_check_that_never_ran_is_not_established(self):
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        out = self.verify("report", digest)
+        self.assertIn("**gap**: Validation `V1` (plan row 2, required; declared researcher-approved, not verified) was "
+                      "not run: no matched run of `python {}` under this approval".format(self.CHECK), out)
+        self.assertIn("not established", out)
+        self.assertNotIn("Verify status: CONFORMS\n", out)
+        self.assertEqual(self.validation_of(digest)["V1"]["outcome"], "not run")
+
+    def test_an_approved_expectation_with_a_matched_passing_run_conforms(self):  # control
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        receipt = self.run_check({"status": "passed"})
+        out = self.verify("report", digest)
+        self.assertIn("## Validation", out)
+        self.assertIn("- `V1` (plan row 2, required; declared researcher-approved, not verified): passed", out)
+        self.assertNotIn("Validation `V1`", out.split("## Findings")[1])  # no finding for a pass
+        self.ends(out, "CONFORMS")
+        one = self.validation_of(digest)["V1"]
+        self.assertEqual((one["outcome"], one["attempt_id"]), ("passed", receipt["attempt_id"]))
+        self.assertEqual(one["evidence_sha256"], hashlib.sha256(b'{"status": "passed"}').hexdigest())
+
+    def test_a_pass_written_outside_the_attempt_is_unattributable(self):  # forged or self-asserted
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        self.write(self.EVID, '{"status": "passed"}')  # the agent writes the result itself
+        self.run_cmd("python " + self.CHECK)  # the check runs and writes nothing
+        out = self.verify("report", digest)
+        self.assertIn("**gap**: Validation `V1`", out)
+        self.assertIn("has unattributable evidence: the matched attempt did not create or change `{}`".format(self.EVID), out)
+        self.assertNotIn("Verify status: CONFORMS\n", out)
+        self.assertEqual(self.validation_of(digest)["V1"]["outcome"], "unattributable")
+
+    def test_a_result_rewritten_after_its_attempt_is_unattributable(self):
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        receipt = self.run_check({"status": "failed"})
+        self.write(self.EVID, '{"status": "passed"}', mtime=receipt["ts"] + 600)  # edited afterwards to excuse the run
+        out = self.verify("report", digest)
+        self.assertIn("has unattributable evidence: `{}` was modified after the attempt".format(self.EVID), out)
+        self.assertNotIn("Verify status: DOES_NOT_CONFORM", out)  # the edited pass is not read at all
+
+    def test_a_result_from_an_earlier_approval_instance_is_not_carried_over(self):  # old result, new inputs
+        self.write("data/in.tsv", "a\n", mtime=time.time() - 3600)
+        text = self.bound_plan(inputs="data/in.tsv")
+        digest = self.approve(text)
+        self.run_cmd("python " + FIT)
+        self.run_check({"status": "passed"})
+        self.write("data/in.tsv", "b changed\n", mtime=time.time() - 3000)
+        self.assertEqual(self.approve(text), digest)  # new pins: a second instance of the same plan text
+        out = self.verify("report", digest)
+        self.assertIn("**gap**: Validation `V1`", out)
+        self.assertIn("was not run: no matched run of `python {}` under this approval instance; it ran under another "
+                      "approval instance only".format(self.CHECK), out)
+        self.assertNotIn("Verify status: CONFORMS\n", out)
+
+    def test_an_expectation_edited_after_approval_loses_its_authority(self):
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        self.run_check({"status": "passed"})
+        self.write(self.EXPECT, '{"rows": 10}\n')  # the expected value is edited to excuse the analysis
+        out = self.verify("report", digest)
+        self.assertIn("**gap**: Validation `V1`", out)
+        self.assertIn("changed since approval: pinned `{}` is no longer the approved file".format(self.EXPECT), out)
+        self.assertNotIn("Verify status: CONFORMS\n", out)
+        self.assertEqual(self.validation_of(digest)["V1"]["outcome"], "changed")
+
+    def test_an_unrelated_edit_does_not_change_the_check(self):  # control
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        self.run_check({"status": "passed"})
+        self.write("analysis/a/notes.md", "unrelated\n")
+        self.ends(self.verify("report", digest), "CONFORMS")
+
+    def unsupported(self, text):
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        self.run_check(text)
+        out = self.verify("report", digest)
+        self.assertIn("**gap**: Validation `V1`", out)
+        self.assertIn("has unsupported evidence", out)
+        self.assertNotIn("Verify status: CONFORMS\n", out)
+        self.assertEqual(self.validation_of(digest)["V1"]["outcome"], "unsupported")
+
+    def test_a_result_with_no_status_is_unsupported(self):
+        self.unsupported('{"result": "ok"}')
+
+    def test_a_result_that_is_not_json_is_unsupported(self):
+        self.unsupported("all fine\n")
+
+    def test_a_result_with_an_unknown_status_is_unsupported(self):
+        self.unsupported('{"status": "maybe"}')
+
+    def test_a_result_that_is_not_an_object_is_unsupported(self):
+        self.unsupported("[1, 2]")
+
+    def test_a_contract_result_is_judged_by_its_exit_code_and_blocks(self):
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        blocked = {"id": "de-rowcount", "status": "block", "runnable": "ran", "message": "row count differs from the plan",
+                   "alerts": [{"expected": "60", "observed": "10"}]}
+        self.run_check(self.contract_result("block", 2, [blocked]), exit_code=2)  # a runner that returns the checker's code
+        out = self.verify("report", digest)
+        self.assertIn("failed: the check command exited 2 at ", out)
+        self.assertIn("; the data-contract result is block (exit 2); `de-rowcount`: row count differs from the "
+                      "plan (expected 60, observed 10)", out)
+        self.assertIn("Verify status: DOES_NOT_CONFORM", out)
+
+    def test_a_contract_result_with_warnings_only_passes_and_keeps_them(self):
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        warned = {"id": "balance", "status": "warn", "runnable": "ran", "message": "x",
+                  "alerts": [{"message": "a batch holds more than 70%", "blocking": False}]}
+        self.run_check(self.contract_result("warn", 0, [warned]))
+        out = self.verify("report", digest)
+        self.assertIn("passed with 1 warning(s): `balance`: a batch holds more than 70%", out)
+        self.assertEqual(self.validation_of(digest)["V1"]["outcome"], "passed")
+        self.assertEqual(self.validation_of(digest)["V1"]["warnings"], ["`balance`: a batch holds more than 70%"])
+        self.ends(out, "CONFORMS")
+
+    def test_a_contract_result_that_could_not_run_is_not_run(self):
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        gap = {"id": "c", "status": "gap", "runnable": "table_unreadable", "message": "unreadable", "alerts": []}
+        self.run_check(self.contract_result("gap", 3, [gap]))
+        out = self.verify("report", digest)
+        self.assertIn("**gap**: Validation `V1`", out)
+        self.assertIn("was not run: the data-contract result is gap (exit 3)", out)
+        self.assertEqual(self.validation_of(digest)["V1"]["outcome"], "not run")
+
+    def test_a_contract_that_could_not_run_stays_a_gap_when_the_runner_returns_the_checkers_exit_code(self):
+        for code, status, runnable in ((3, "gap", "table_unreadable"), (1, "error", "contract_error")):
+            with self.subTest(exit_code=code):
+                self.tearDown()
+                self.setUp()
+                digest = self.approve(self.bound_plan())
+                self.run_cmd("python " + FIT)
+                gap = {"id": "c", "status": status, "runnable": runnable, "message": "x", "alerts": []}
+                self.run_check(self.contract_result(status, code, [gap]), exit_code=code)
+                out = self.verify("report", digest)
+                self.assertIn("was not run: the data-contract result is {} (exit {})".format(status, code), out)
+                self.assertNotIn("**block**: Validation", out)  # the validation finding is a gap ...
+                self.assertIn("**block**: `{}` failed (exit {})".format(self.CHECK, code), out)  # ... the failed run blocks as any run does
+                self.assertEqual(self.validation_of(digest)["V1"]["outcome"], "not run")
+
+    def test_a_contract_result_from_another_contract_is_changed(self):
+        self.write("analysis/a/tests/contract.json", "{}\n", mtime=time.time() - 3600)
+        digest = self.approve(self.bound_plan(self.binding(test_paths=["analysis/a/tests/contract.json"])))
+        self.run_cmd("python " + FIT)
+        result = self.contract_result("pass", 0, [])
+        result["contract"]["sha256"] = "0" * 64  # produced from a contract that is not the pinned one
+        self.run_check(result)
+        out = self.verify("report", digest)
+        self.assertIn("changed since approval: the result was produced from a contract that is not the pinned one", out)
+
+    def test_an_optional_check_never_blocks(self):
+        digest = self.approve(self.bound_plan(self.binding(required=False)))
+        self.run_cmd("python " + FIT)
+        self.run_check({"status": "failed"})
+        out = self.verify("report", digest)
+        self.assertIn("**info**: Validation `V1` (plan row 2, optional;", out)
+        self.assertNotIn("**block**", out)
+        self.ends(out, "CONFORMS")
+
+    def test_the_bundle_keeps_the_binding_each_outcome_and_the_raw_evidence_hash(self):
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        receipt = self.run_check({"status": "passed"})
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        folder = os.path.join(self.root, "analysis/a/provenance")
+        with open(os.path.join(folder, "validation-{}.json".format(digest))) as handle:
+            record = json.load(handle)
+        one, = record["binding"]["checks"]
+        self.assertEqual((one["id"], sorted(one["files"]), len(one["definition_sha256"])), ("V1", [self.EXPECT], 64))
+        result, = record["results"]
+        self.assertEqual((result["outcome"], result["attempt_id"], result["evidence_path"]),
+                         ("passed", receipt["attempt_id"], self.EVID))
+        self.assertEqual(result["evidence_sha256"], hashlib.sha256(b'{"status": "passed"}').hexdigest())
+        with open(os.path.join(folder, "complete-{}.json".format(digest))) as handle:
+            self.assertIn("validation-{}.json".format(digest), json.load(handle)["sha256"])
+        import provenance
+        self.assertEqual(provenance.bundle_state(folder, digest), "complete")
+        self.assertIn("[validation](validation-{}.json)".format(digest), open(os.path.join(folder, "PROVENANCE.md")).read())
+
 
 if __name__ == "__main__":
     unittest.main()
