@@ -479,6 +479,7 @@ class Report(object):
 
 LINT_LINE = re.compile(r"^(.+?):(\d+):(\d+): \[([\w-]+)\] (.*)$")
 LINT_LANGUAGES = {".py": "Python", ".R": "R", ".r": "R"}
+CHOICE_NUMBER = re.compile(r"(?<![\w.])\d*\.?\d+(?:[eE][-+]?\d+)?(?![\w.])")
 NOTEBOOK_EXT = (".ipynb", ".qmd", ".Rmd", ".rmd")
 FENCE = re.compile(r"^\s*(`{3,})(.*)$")
 CHUNK = re.compile(r"^\s*\{(r|python)\b", re.I)
@@ -576,7 +577,7 @@ def chunk_code(path):
     return {language: "\n".join(body) for language, body in code.items()}, refs
 
 
-def lint(root, files, report, scilintr, rscript, seconds, deadline=None):
+def lint(root, files, report, scilintr, rscript, seconds, deadline=None, choices=()):
     """Run scilintr on the code; remaining findings block, an unchecked language is a gap.
     The Python CLI skips R files and exits 0 on a missing path, so each language gets
     its own CLI and only existing files are passed. It also exits 0, silent, on code that
@@ -648,8 +649,9 @@ def lint(root, files, report, scilintr, rscript, seconds, deadline=None):
             elif rel.endswith(NOTEBOOK_EXT) and not refs:
                 result["notebooks"].append(rel)
         result["reasons"] = scan_waivers(root, files, result)
+        approved = {float(n) for choice in choices for n in CHOICE_NUMBER.findall(choice)}
         lint_languages(root, by_language, cells, report, result, scilintr, [rscript, "-e", R_LINT, scratch],
-                       seconds, deadline)
+                       seconds, deadline, approved)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     pair_waivers(result, report)
@@ -741,7 +743,22 @@ def unwaived_pass(root, language, paths, cells, result, report, command, seconds
                                               if (f[0], f[1], f[2], f[3]) not in normal)
 
 
-def lint_languages(root, by_language, cells, report, result, scilintr, r_lint, seconds, deadline=None):
+def approved_threshold(root, finding, approved):
+    """Whether a threshold finding's line holds only numbers that the plan's Choice cells approved."""
+    path, line, _, rule, message = finding
+    if not approved or "threshold" not in (rule + " " + message).lower():
+        return False
+    try:
+        with open(os.path.join(root, path), encoding="utf-8", errors="replace") as handle:
+            text = handle.read().splitlines()[int(line) - 1]
+    except (OSError, IndexError, ValueError):
+        return False
+    numbers = {float(n) for n in CHOICE_NUMBER.findall(text.split("#")[0])}
+    return bool(numbers) and numbers <= approved
+
+
+def lint_languages(root, by_language, cells, report, result, scilintr, r_lint, seconds, deadline=None,
+                   approved=frozenset()):
     for language, paths in sorted(by_language.items()):
         command = [scilintr] if language == "Python" else r_lint
         try:
@@ -772,10 +789,16 @@ def lint_languages(root, by_language, cells, report, result, scilintr, r_lint, s
                                                   proc.stdout.rstrip()))
         if proc.returncode == 1 and found:
             result["findings"] += found
-            rules = collections.Counter(f[3] for f in found)
-            report.add("block", "{} scilintr finding(s) remain in {} code ({}). Fix each or add an "
-                       "`ANALYSIS_OK[...]` waiver, then re-verify.".format(
-                           len(found), language, ", ".join("{} {}".format(n, r) for r, n in rules.most_common())))
+            planned = [f for f in found if approved_threshold(root, f, approved)]
+            for f in planned:
+                report.add("info", "`{}:{}` [{}]: its threshold is a Choice the plan approved, so it does not "
+                                   "block.".format(f[0], f[1], f[3]))
+            rules = collections.Counter(f[3] for f in found if f not in planned)
+            if rules:
+                report.add("block", "{} scilintr finding(s) remain in {} code ({}). Fix each or add an "
+                           "`ANALYSIS_OK[...]` waiver, then re-verify.".format(
+                               sum(rules.values()), language,
+                               ", ".join("{} {}".format(n, r) for r, n in rules.most_common())))
         elif proc.returncode == 0 and not found:
             if len(paths) > len(broken):
                 report.add("info", "scilintr: {} {} file(s) clean.".format(len(paths) - len(broken), language))
@@ -2454,7 +2477,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         fact_tags("`{}` Key Findings".format(doc), section_bullets(read_text(os.path.join(root, doc)),
                                                                    "Key Findings"), report)
     envs = conda_snapshots(root, mine, report)
-    linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds)
+    linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds,
+                  choices=[row.get("choice", "") for row in plan_rows(plan)[0].values()])
     claimed = check_claims(root, analysis_dir, outputs, claims, report, budget["bytes"])
     elsewhere = set(r.get("validation_check") for r in receipts if digest in r.get("plans", []) and not r.get("explore")
                     and chosen and r.get("approval_instance") != chosen)

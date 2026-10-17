@@ -1041,6 +1041,18 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("[broad-exception]", text)
         self.assertIn("ANALYSIS_OK waivers (1)", text)
 
+    def test_a_threshold_the_plan_approved_does_not_block(self):
+        self.write(FIT, "keep = p < 0.05\nother = q > 3\n", mtime=time.time() - 7200)
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT).replace("| x |", "| padj < 0.05 |"))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        approved = self.fake_tool("bin/scilintr-approved", FIT + ":1:8: [magic-threshold] magic threshold\\n", 1)
+        out = self.verify("report", digest, scilintr=approved)
+        self.assertIn("`{}:1` [magic-threshold]: its threshold is a Choice the plan approved".format(FIT), out)
+        self.assertNotIn("remain in Python code", out)
+        other = self.fake_tool("bin/scilintr-other", FIT + ":2:8: [magic-threshold] magic threshold\\n", 1)
+        self.assertIn("1 scilintr finding(s) remain in Python code (1 magic-threshold)",
+                      self.verify("report", digest, scilintr=other))  # 3 is not in any Choice cell
+
     def notebook(self, rel, cells, language="python"):
         self.write(rel, json.dumps({
             "metadata": {"kernelspec": {"language": language}},
