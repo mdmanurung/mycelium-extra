@@ -3417,6 +3417,72 @@
         ]
       },
       "rationale": "execution-fidelity state unchanged; plain allow-explore reply names itself the broader session grant (C09)"
+    },
+    "fuzz #28": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: pending plans in this session: none. Nothing was approved.\", \"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"mycelium-extra: pending plans in this session: none. Nothing was approved.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "2"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: nothing approved. `approve` alone needs exactly one waiting plan, the one shown last; send `approve plan <hash>` (pending in this session: none).\", \"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"mycelium-extra: nothing approved. `approve` alone needs exactly one waiting plan, the one shown last; send `approve plan <hash>` (pending in this session: none).\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s1\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "2"
+          ]
+        ]
+      },
+      "rationale": "0.9.77: a bare `approve` is no longer ignored; it approves the one waiting plan shown last, or says nothing was approved and names `approve plan <hash>`."
+    },
+    "prompt bare approve": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: pending plans in this session: none. Nothing was approved.\", \"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"mycelium-extra: pending plans in this session: none. Nothing was approved.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: nothing approved. `approve` alone needs exactly one waiting plan, the one shown last; send `approve plan <hash>` (pending in this session: none).\", \"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"mycelium-extra: nothing approved. `approve` alone needs exactly one waiting plan, the one shown last; send `approve plan <hash>` (pending in this session: none).\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ]
+        ]
+      },
+      "rationale": "0.9.77: a bare `approve` is no longer ignored; it approves the one waiting plan shown last, or says nothing was approved and names `approve plan <hash>`."
     }
   }
 }
