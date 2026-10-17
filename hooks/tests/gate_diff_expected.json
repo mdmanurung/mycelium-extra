@@ -3205,6 +3205,218 @@
         ]
       },
       "rationale": "execution-fidelity C01/C04/C05 state only: keys approval_instance, attempt_id, call_id, launch_match, launch_note, outputs_observation, pins_checked; pins_checked true->false (unmatched; F02); execution-fidelity state only: keys started"
+    },
+    "prompt allow explore": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. `stop explore` ends this.\", \"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. `stop explore` ends this.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/explore-grants/s1.json",
+            "{\n \"granted_at\": 0,\n \"session_id\": \"s1\"\n}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. This is the broader, session-wide development grant (any gated path); `allow explore <plan hash>` limits it to an approved plan. `stop explore` ends this.\", \"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. This is the broader, session-wide development grant (any gated path); `allow explore <plan hash>` limits it to an approved plan. `stop explore` ends this.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/explore-grants/s1.json",
+            "{\n \"granted_at\": 0,\n \"session_id\": \"s1\"\n}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity state unchanged; plain allow-explore reply names itself the broader session grant (C09)"
+    },
+    "fuzz #1": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. `stop explore` ends this.\", \"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. `stop explore` ends this.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | renv.lock | repo: `repo:` x | ok |\\n| 7 | params.yaml | repo: `repo:` x | ok |\\n| 1 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n| 1 | --resume | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | ~ | repo: `repo:` x | ok |\\n| 2 | 4 | repo: `repo:` x | ok |\\n| 2 | ; | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | snakemake | repo: `repo:` x | ok |\\n| 4 | x.dat | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/explore-grants/s2.json",
+            "{\n \"granted_at\": 0,\n \"session_id\": \"s2\"\n}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "1"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. This is the broader, session-wide development grant (any gated path); `allow explore <plan hash>` limits it to an approved plan. `stop explore` ends this.\", \"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. This is the broader, session-wide development grant (any gated path); `allow explore <plan hash>` limits it to an approved plan. `stop explore` ends this.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | renv.lock | repo: `repo:` x | ok |\\n| 7 | params.yaml | repo: `repo:` x | ok |\\n| 1 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n| 1 | --resume | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | ~ | repo: `repo:` x | ok |\\n| 2 | 4 | repo: `repo:` x | ok |\\n| 2 | ; | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | snakemake | repo: `repo:` x | ok |\\n| 4 | x.dat | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/explore-grants/s2.json",
+            "{\n \"granted_at\": 0,\n \"session_id\": \"s2\"\n}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "1"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity state unchanged; plain allow-explore reply names itself the broader session grant (C09)"
+    },
+    "fuzz #65": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. `stop explore` ends this.\", \"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. `stop explore` ends this.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | workflow/Snakefile | repo: `repo:` x | ok |\\n| 3 | 4 | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | job.sh | repo: `repo:` x | ok |\\n| 3 | --configfile | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 6 | $HOME | repo: `repo:` x | ok |\\n| 8 | 4 | repo: `repo:` x | ok |\\n| 4 | ../outside.py | repo: `repo:` x | ok |\\n| 3 | -j | repo: `repo:` x | ok |\\n| 9 | --resume | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/explore-grants/s2.json",
+            "{\n \"granted_at\": 0,\n \"session_id\": \"s2\"\n}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "0"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. This is the broader, session-wide development grant (any gated path); `allow explore <plan hash>` limits it to an approved plan. `stop explore` ends this.\", \"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. This is the broader, session-wide development grant (any gated path); `allow explore <plan hash>` limits it to an approved plan. `stop explore` ends this.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | workflow/Snakefile | repo: `repo:` x | ok |\\n| 3 | 4 | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | job.sh | repo: `repo:` x | ok |\\n| 3 | --configfile | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 6 | $HOME | repo: `repo:` x | ok |\\n| 8 | 4 | repo: `repo:` x | ok |\\n| 4 | ../outside.py | repo: `repo:` x | ok |\\n| 3 | -j | repo: `repo:` x | ok |\\n| 9 | --resume | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/explore-grants/s2.json",
+            "{\n \"granted_at\": 0,\n \"session_id\": \"s2\"\n}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "0"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity state unchanged; plain allow-explore reply names itself the broader session grant (C09)"
+    },
+    "fuzz #115": {
+      "old": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. `stop explore` ends this.\", \"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. `stop explore` ends this.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/explore-grants/s2.json",
+            "{\n \"granted_at\": 0,\n \"session_id\": \"s2\"\n}"
+          ]
+        ]
+      },
+      "new": {
+        "rc": 0,
+        "out": "{\"systemMessage\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. This is the broader, session-wide development grant (any gated path); `allow explore <plan hash>` limits it to an approved plan. `stop explore` ends this.\", \"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"mycelium-extra: exploratory runs allowed for this session. Prefix a gated run with MYCELIUM_EXTRA_EXPLORE=1; each one is logged and listed as not reportable. This is the broader, session-wide development grant (any gated path); `allow explore <plan hash>` limits it to an approved plan. `stop explore` ends this.\"}}\n",
+        "err": "",
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/explore-grants/s2.json",
+            "{\n \"granted_at\": 0,\n \"session_id\": \"s2\"\n}"
+          ]
+        ]
+      },
+      "rationale": "execution-fidelity state unchanged; plain allow-explore reply names itself the broader session grant (C09)"
     }
   }
 }
