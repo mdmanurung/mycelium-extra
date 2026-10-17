@@ -124,6 +124,10 @@ test("server events resolve session id and text from data or the flat shape", ()
   assert.equal(__test__.eventLocation({ location: { directory: "/a" } }), "/a")
   assert.equal(__test__.eventLocation({}), null)
   assert.equal(__test__.samePlace("/a", "/a"), true)
+  assert.equal(__test__.executionEnded({ type: "session.execution.succeeded", data: { sessionID: "s1" } }), "s1")
+  assert.equal(__test__.executionEnded({ type: "session.execution.failed", sessionID: "s2" }), "s2")
+  assert.equal(__test__.executionEnded({ type: "session.execution.started", data: { sessionID: "s1" } }), null)
+  assert.equal(__test__.executionEnded({ type: "session.idle", data: { sessionID: "s1" } }), null)
 })
 
 test("the server-wide event stream is filtered to this location", async (t) => {
@@ -133,13 +137,15 @@ test("the server-wide event stream is filtered to this location", async (t) => {
   const { ctx, calls } = fakeCtx(repo, stream)
   await plugin.setup(ctx)
   const plan = "## Plan\n| 1 | run `analysis/x.py` | repo | check |\n\nPlan status: READY"
+  // A foreign location's turn: its text carries the other location, its end event carries no
+  // location at all (the 2.0.32 shape), and neither may reach the gate.
   stream.push({ type: "session.text.ended", location: { directory: "/somewhere/else" },
     data: { sessionID: "foreign", text: plan } })
-  stream.push({ type: "session.idle", location: { directory: "/somewhere/else" },
-    data: { sessionID: "foreign" } })
+  stream.push({ type: "session.execution.succeeded", data: { sessionID: "foreign" } })
+  // Our session: the text is captured from its location, the location-less end event then stops.
   stream.push({ type: "session.text.ended", location: { directory: repo },
     data: { sessionID: "mine", text: plan } })
-  stream.push({ type: "session.idle", location: { directory: repo }, data: { sessionID: "mine" } })
+  stream.push({ type: "session.execution.succeeded", data: { sessionID: "mine" } })
   assert.equal(await waitFor(() => calls.synthetic.length > 0, 20000), true, "no stop ran for the in-scope session")
   assert.equal(calls.synthetic.every((message) => message.sessionID === "mine"), true,
     "a foreign session produced a notification")

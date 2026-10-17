@@ -14,7 +14,8 @@
  * The adapter is inert unless the repository has `.mycelium-extra/gate.json`; it never runs
  * the gate for repositories without one, so an ungated checkout pays only a directory walk.
  * The server's event stream is service-wide on 2.0.32, so the stop handler keeps only events
- * whose location is this plugin instance's.
+ * whose location is this plugin instance's, and its turn-end boundary is
+ * session.execution.succeeded (2.0.32 emits no session.idle).
  */
 import { spawn } from "node:child_process"
 import { existsSync, realpathSync } from "node:fs"
@@ -155,6 +156,15 @@ function idleSession(event) {
   return data.sessionID || event.sessionID || null
 }
 
+/** The turn-end boundary. 2.0.32 delivers session.execution.succeeded and no session.idle;
+ *  the idle shape stays supported in case a build emits it. */
+function executionEnded(event) {
+  if (!event || typeof event.type !== "string") return null
+  if (!/^session\.execution\.(succeeded|failed|interrupted)$/.test(event.type)) return null
+  const data = eventData(event)
+  return data.sessionID || event.sessionID || null
+}
+
 export default {
   id: "mycelium-extra",
   async setup(ctx) {
@@ -221,7 +231,7 @@ export default {
     })
 
     const lastText = new Map() // session id -> the assistant text the Stop event will read
-    const stopped = new Map()  // session id -> the text already run through stop, so idling twice is one stop
+    const stopped = new Map()  // session id -> the text already run through stop, so a repeated boundary is one stop
     const controller = new AbortController()
     void (async () => {
       try {
@@ -236,12 +246,12 @@ export default {
             if (mine === true) lastText.set(ended.sessionID, ended.text)
             continue
           }
-          const sessionID = idleSession(event)
+          const sessionID = executionEnded(event) || idleSession(event)
           if (!sessionID) continue
           if (mine === false) continue
           if (mine === null && !lastText.has(sessionID)) continue // unknown scope: only sessions first seen here
           const text = lastText.get(sessionID) || ""
-          if (stopped.get(sessionID) === text) continue // idling twice over one turn is one stop
+          if (stopped.get(sessionID) === text) continue // a repeated boundary over one turn is one stop
           stopped.set(sessionID, text)
           await stop(sessionID, text)
         }
@@ -258,8 +268,8 @@ export default {
       const output = hookOutput(reply)
       const notice = reply.systemMessage || output.additionalContext
       if (reply.decision === "block") {
-        // Claude's Stop hook blocks a turn and re-invokes the model with the reason; an idle
-        // session is continued the same way.
+        // Claude's Stop hook blocks a turn and re-invokes the model with the reason; a
+        // finished turn is continued the same way.
         try {
           await ctx.session.prompt({ sessionID, text: reply.reason || notice,
             delivery: "steer" })
@@ -281,6 +291,6 @@ export default {
 
 // Pure helpers, exercised by opencode/tests/gate.test.js under `node --test`.
 export const __test__ = {
-  appendContent, blockedPromptText, contentText, denyReason, eventLocation, findRoot, idleSession,
-  runGate, samePlace, textEnded,
+  appendContent, blockedPromptText, contentText, denyReason, eventLocation, executionEnded, findRoot,
+  idleSession, runGate, samePlace, textEnded,
 }
