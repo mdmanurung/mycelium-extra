@@ -43,7 +43,7 @@ DEFAULTS = {
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call that never reported back
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
-APPROVE = re.compile(r"^\s*approve plan(?: ([0-9a-f]{8})(?: +(\d{1,4}))?)?\s*[.!]?\s*$", re.IGNORECASE)
+APPROVE = re.compile(r"^\s*approve(?: plan)?(?: ([0-9a-f]{8})(?: +(\d{1,4}))?)?\s*[.!]?\s*$", re.IGNORECASE)
 EXPLORE_GRANT = re.compile(r"^\s*(allow|stop) explore(?: ([0-9a-f]{8}))?\s*[.!]?\s*$", re.IGNORECASE)
 SEND_PACKET = re.compile(r"send packet ([0-9a-f]{12,64})")  # no looser than review_packet.py's consent check
 HINTS_TOGGLE = re.compile(r"^\s*hints (on|off)\s*[.!]?\s*$", re.IGNORECASE)
@@ -2460,6 +2460,20 @@ def log_approval(root, event, plan, approved_ts, checkpoint):
         pass
 
 
+def log_deny(root, event, result):
+    """One line per denied tool call in denies.jsonl (time, session, the reason's first sentence), to count the
+    friction the gate adds. Only logged: never shown, and never allowed to change the decision."""
+    specific = (result or {}).get("hookSpecificOutput") or {}
+    if specific.get("permissionDecision") != "deny":
+        return
+    reason = re.split(r"(?<=[.;])\s", str(specific.get("permissionDecisionReason", "")), 1)[0]
+    try:
+        append_line(state_path(root, "denies.jsonl"), {"ts": time.time(), "session_id": event.get("session_id"),
+                                                       "tool": event.get("tool_name"), "reason": clean(reason, 160)})
+    except (OSError, ValueError):
+        pass
+
+
 def checkpoint_reply(root, session, plan, steps, answer):
     """(reply, checkpoint): a reply asking the question (again) when the checkpoint holds back this
     `approve plan`; otherwise None and the checkpoint's result for the log (None when none ran). Wrong attempts
@@ -3227,11 +3241,18 @@ def on_prompt(event, root, config):
                        "(pending in this session: {}).".format(known))
             return {"systemMessage": message}
         return prompt_hint(prompt, root, config)
-    if match.group(1) is None:
-        message = "mycelium-extra: pending plans in this session: {}. Nothing was approved.".format(known)
+    # Without a hash, `approve` takes the newest card of this session if it is the only one still waiting.
+    def approved_since_shown(p):
+        record = read_json(state_path(root, "approvals", p["hash"] + ".json"), {})
+        at = record.get("approved_at") if isinstance(record, dict) else None
+        return isinstance(at, (int, float)) and not isinstance(at, bool) and at >= (p.get("ts") or 0)
+    waiting = [p for p in pending if plan_ready(p) and not p.get("invalid") and not approved_since_shown(p)]
+    if match.group(1) is None and not (len(waiting) == 1 and waiting[0] is pending[-1]):
+        message = ("mycelium-extra: nothing approved. `approve` alone needs exactly one waiting plan, the one shown "
+                   "last; send `approve plan <hash>` (pending in this session: {}).".format(known))
         return {"systemMessage": message,
                 "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
-    wanted = match.group(1).lower()
+    wanted = (match.group(1) or waiting[0]["hash"]).lower()
     plan = next((p for p in pending if p["hash"] == wanted), None)
     if plan is None:
         message = ("mycelium-extra: no pending plan {} in this session (pending: {}). "
@@ -3933,9 +3954,14 @@ def main(argv, text=None):
         root = find_root(cwd)
         if root is None:
             return 0
-        emit(HANDLERS[argv[1]](event, root, load_config(root)))
+        result = HANDLERS[argv[1]](event, root, load_config(root))
+        if argv[1] == "tool":
+            log_deny(root, event, result)
+        emit(result)
     except InvalidApproval as error:
-        emit(deny(str(error)) if argv[1] == "tool" else {"systemMessage": str(error)})
+        result = deny(str(error)) if argv[1] == "tool" else {"systemMessage": str(error)}
+        log_deny(root, event, result)
+        emit(result)
     except Exception as error:  # fail open, but tell the user the gate broke; on_error "deny" blocks
         from gate_run import error_output
         emit(error_output(argv[1], error, cwd, event))

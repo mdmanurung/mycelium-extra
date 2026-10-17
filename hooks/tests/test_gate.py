@@ -108,6 +108,14 @@ class GateTest(unittest.TestCase):
         ]:
             self.assertIsNone(self.bash(command), command)
 
+    def test_each_deny_is_counted_and_an_allow_is_not(self):
+        self.assertTrue(self.denied(self.bash("python analysis/x.py")))
+        self.assertIsNone(self.bash("ls"))
+        with open(os.path.join(self.root, ".mycelium-extra", "denies.jsonl")) as handle:
+            lines = [json.loads(line) for line in handle]
+        self.assertEqual([(l["session_id"], l["tool"]) for l in lines], [("s1", "Bash")])
+        self.assertTrue(lines[0]["reason"])
+
     def test_the_python_launcher_is_read_as_python(self):
         launcher = "sh /plugin/hooks/py.sh "
         for command in ["analysis/x.py", "- < analysis/x.py", '-c "$(cat analysis/x.py)"',
@@ -907,12 +915,21 @@ class GateTest(unittest.TestCase):
         self.assertIn("approved", self.hook("prompt", {"prompt": "Approve plan {}.".format(digest)})["systemMessage"])
         self.assertIsNone(self.bash("python analysis/x.py"))
 
-    def test_bare_approve_lists_pending(self):
-        notice = self.hook("stop", {"last_assistant_message": PLAN})
-        digest = notice["systemMessage"].split("approve plan ")[1][:8]
-        result = self.hook("prompt", {"prompt": "approve plan"})
-        self.assertIn(digest, result["hookSpecificOutput"]["additionalContext"])
+    def test_approve_without_a_hash_takes_the_one_waiting_card_shown_last(self):
+        show = lambda text: self.hook("stop", {"last_assistant_message": text})["systemMessage"].split(
+            "approve plan ")[1][:8]
+        first, second = show(PLAN), show(PLAN.replace("READY", "READY_WITH_ASSUMPTIONS"))
+        result = self.hook("prompt", {"prompt": "approve"})  # two waiting: which one is ambiguous
+        self.assertIn("nothing approved", result["systemMessage"])
+        self.assertIn(first, result["systemMessage"])
         self.assertTrue(self.denied(self.bash("python analysis/x.py")))
+        self.assertIn("approved", self.hook("prompt", {"prompt": "approve plan " + second})["systemMessage"])
+        self.assertIn("nothing approved", self.hook("prompt", {"prompt": "approve"})["systemMessage"])  # first is older
+        third = show(PLAN.replace("READY", "READY_WITH_ASSUMPTIONS").replace("analysis/x.py", "analysis/x.py "))
+        self.assertIn("nothing approved", self.hook("prompt", {"prompt": "Approve plan."})["systemMessage"])
+        self.hook("prompt", {"prompt": "approve plan " + first})
+        self.assertIn("plan {} approved".format(third), self.hook("prompt", {"prompt": "Approve."})["systemMessage"])
+        self.assertIn("nothing approved", self.hook("prompt", {"prompt": "approve"})["systemMessage"])  # none left
 
     def test_parking_an_idea_leaves_a_waiting_plan_approvable(self):
         # the idea skill writes under todo/ and replies in one line while a card waits

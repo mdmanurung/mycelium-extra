@@ -115,6 +115,8 @@ def run(gate, c):
         for folder, dirs, names in os.walk(state):
             dirs.sort()
             for name in sorted(names):
+                if name == "denies.jsonl":  # counts denies the output already shows; not a decision
+                    continue
                 full = os.path.join(folder, name)
                 with open(full, errors="replace") as handle:
                     files.append((os.path.relpath(full, root), handle.read()))
