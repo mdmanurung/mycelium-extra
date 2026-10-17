@@ -3,7 +3,7 @@ Mycelium Extra
 
 **Plan an analysis. Approve what runs. Check the execution record.**
 
-Use it in Claude Code or Codex, alongside
+Use it in Claude Code, Codex or OpenCode, alongside
 `Mycelium <https://github.com/arjunrajlaboratory/mycelium>`_ or in an ordinary repository.
 Start small and add tools when you need them.
 
@@ -34,7 +34,7 @@ Choose your tier
 **Ready to run?** Follow Tier 2 in the usage guide.
 See the `full analysis workflow diagram <docs/usage.html#full-analysis-workflow>`_
 for the path from question to report.
-Claude Code uses ``/mycelium-extra:<skill>``; Codex uses ``$mycelium-extra:<skill>``.
+Claude Code and OpenCode use ``/mycelium-extra:<skill>``; Codex uses ``$mycelium-extra:<skill>``.
 
 .. toctree::
    :maxdepth: 1
@@ -42,6 +42,7 @@ Claude Code uses ``/mycelium-extra:<skill>``; Codex uses ``$mycelium-extra:<skil
 
    docs/installation
    docs/usage
+   docs/example
 
 .. toctree::
    :maxdepth: 1

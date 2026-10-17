@@ -2,7 +2,7 @@
 
 [Back to the usage tiers](usage.md)
 
-One session on the fixture project (`tests/fixtures/mycelium-project`): plan, approve, run, verify. Every output block below is what the hooks and `verify` printed in a real run on 2026-10-17, at version 0.10.1. The two exceptions are the plan, which is written by hand because the model writes it in a real session (the file is `tests/e2e/plans/baseline_plan.md`), and Mycelium's lineage manifest, which the test harness writes where Mycelium's own hook would. Regenerate with `python3 tests/e2e/make_example.py` (see the top of that file for the tools it needs) when an output format changes.
+One session on the fixture project (`tests/fixtures/mycelium-project`): plan, approve, run, verify. Every output block below is what the hooks and `verify` printed in a real run on 2026-10-17, at version 0.10.1. The two exceptions are the plan, which is written by hand because the model writes it in a real session (the file is `tests/e2e/plans/baseline_plan.md`), and Mycelium's lineage manifest, which the test harness writes where Mycelium's own hook would. Regenerate with Python 3.9 or later (for example `python3.12 tests/e2e/make_example.py`; see the top of that file for the tools it needs) when an output format changes.
 
 ## 1. Ask
 
@@ -79,7 +79,7 @@ Writes 3 under analysis/vaccine-response/outputs/: de_results.tsv, samples_used.
 ▶ approve plan 84bb5fce
 ```
 
-Step 3's `lint` bullet shows one open scilintr finding. The card is for your eyes and never blocks; `verify` will, below.
+Step 3's `lint` bullet shows one open scilintr finding. The card is for your eyes and never blocks; `verify` decides below, and here that threshold is an approved Choice.
 
 ## 5. Approval
 
@@ -109,17 +109,17 @@ exit source: "event"
 ```markdown
 # Verify plan 84bb5fce
 
-Approved 2026-10-17 12:19 - analysis folder `analysis/vaccine-response` - 3 run(s) under this plan - HEAD b19559e1de21 (clean)
+Approved 2026-10-17 16:58 - analysis folder `analysis/vaccine-response` - 3 run(s) under this plan - HEAD b19559e1de21 (clean)
 
 ## Scope
 
-- Checked against approval instance 842543534a59d59e: 3 run(s) under it - launch evidence 3 matched, 0 unmatched, 0 ambiguous, 0 legacy (launch link not recorded).
+- Checked against approval instance f5d56f380a4d8adf: 3 run(s) under it - launch evidence 3 matched, 0 unmatched, 0 ambiguous, 0 legacy (launch link not recorded).
 - Producers: 3 of 3 output(s) have a supported producer; 0 candidate, 0 unresolved (only a supported producer is named).
 - Qualification: **qualified**; separate from the verify status below, and not a scientific judgement.
 
 | Evidence | State | Basis |
 |---|---|---|
-| authorization | established | 3 of 3 run(s) are matched launches under approval instance 842543534a59d59e |
+| authorization | established | 3 of 3 run(s) are matched launches under approval instance f5d56f380a4d8adf |
 | completion | established | all 3 planned step(s): the latest attempt of each completed |
 | code and input identity | established | 5 script(s) and input(s) unchanged, compared by content hash |
 | lineage | established | 3 of 3 declared output(s) have a supported producer (a matched attempt saw each change) |
@@ -134,9 +134,9 @@ Approved 2026-10-17 12:19 - analysis folder `analysis/vaccine-response` - 3 run(
 
 | Script | Status | Last run | Notes |
 |---|---|---|---|
-| `analysis/vaccine-response/scripts/01_select_samples.py` | ran (exit 0 from hook event) | 2026-10-17 12:19 |  |
-| `analysis/vaccine-response/scripts/02_paired_test.py` | ran (exit 0 from hook event) | 2026-10-17 12:19 |  |
-| `analysis/vaccine-response/scripts/03_summary.R` | ran (exit 0 from hook event) | 2026-10-17 12:19 |  |
+| `analysis/vaccine-response/scripts/01_select_samples.py` | ran (exit 0 from hook event) | 2026-10-17 16:58 |  |
+| `analysis/vaccine-response/scripts/02_paired_test.py` | ran (exit 0 from hook event) | 2026-10-17 16:58 |  |
+| `analysis/vaccine-response/scripts/03_summary.R` | ran (exit 0 from hook event) | 2026-10-17 16:58 |  |
 
 ## Pinned inputs
 
@@ -149,9 +149,9 @@ Approved 2026-10-17 12:19 - analysis folder `analysis/vaccine-response` - 3 run(
 
 | Output | Written | By | Evidence | Fingerprint |
 |---|---|---|---|---|
-| `analysis/vaccine-response/outputs/samples_used.tsv` | 2026-10-17 12:19 | `python3 analysis/vaccine-response/scripts/01_select_samples.py` at 2026-10-17 12:19 | attempt-observed, supported | sha256 b980761d554c |
-| `analysis/vaccine-response/outputs/de_results.tsv` | 2026-10-17 12:19 | `python3 analysis/vaccine-response/scripts/02_paired_test.py` at 2026-10-17 12:19 | attempt-observed, supported | sha256 67c17edf1d9b |
-| `analysis/vaccine-response/outputs/summary.tsv` | 2026-10-17 12:20 | `Rscript analysis/vaccine-response/scripts/03_summary.R` at 2026-10-17 12:19 | attempt-observed, supported | sha256 409ac0ca64d2 |
+| `analysis/vaccine-response/outputs/samples_used.tsv` | 2026-10-17 16:58 | `python3 analysis/vaccine-response/scripts/01_select_samples.py` at 2026-10-17 16:58 | attempt-observed, supported | sha256 b980761d554c |
+| `analysis/vaccine-response/outputs/de_results.tsv` | 2026-10-17 16:58 | `python3 analysis/vaccine-response/scripts/02_paired_test.py` at 2026-10-17 16:58 | attempt-observed, supported | sha256 67c17edf1d9b |
+| `analysis/vaccine-response/outputs/summary.tsv` | 2026-10-17 16:58 | `Rscript analysis/vaccine-response/scripts/03_summary.R` at 2026-10-17 16:58 | attempt-observed, supported | sha256 409ac0ca64d2 |
 
 ## Lint
 

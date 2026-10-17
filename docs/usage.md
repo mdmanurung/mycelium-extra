@@ -40,6 +40,8 @@ Add **`init` once per repository**, with plugin hooks enabled.
 1. Invoke `/mycelium-extra:init`. Check that it covers your analysis paths.
 2. Invoke `/mycelium-extra:grill <your task>`. Read the plan and `Inputs:` line.
 3. Send `approve` (or the displayed `approve plan <hash>`) in the same session.
+   The bare form works only when the plan shown last is the one waiting; with
+   none or several waiting it approves nothing and lists the hashes.
 4. Run the approved steps through your usual workflow. In a Mycelium project,
    use `/mycelium:analyze <name>`.
 
@@ -102,9 +104,10 @@ all eleven skills for every analysis.
 | Prevent a recurring mistake | `harden` | When a Mycelium learning names a concrete test candidate |
 | Project memory, execution, code review, reports | Mycelium | Use its normal lifecycle around Extra's planning and verification; review the code before the final freeze |
 
-`plan-review` is Claude-led for separate Codex and Biomni reviews. It requires
-consent to send the packet outside the machine; Biomni uses cloud credits.
-In Codex, it provides only the engineering critique. Review never approves a run.
+`plan-review` is led from Claude Code or OpenCode for separate Codex and Biomni
+reviews. It requires consent to send the packet outside the machine (you type
+`send packet <digest>`); Biomni uses cloud credits. In Codex, it provides only
+the engineering critique. Review never approves a run.
 `decision-status` and `harden` use Mycelium's learning/decision records;
 ordinary repositories can still plan, gate, verify, scaffold, and hand off.
 
@@ -153,7 +156,7 @@ flowchart TD
     review -.->|"findings: fix the code and review again"| code
     run --> verify
     verify -.->|"work needs correction: revise the plan and repeat affected steps"| plan
-    plan -.->|"optional, before approval"| independent["plan-review: independent critique<br/>Claude leads Codex + Biomni; review grants no approval"]
+    plan -.->|"optional, before approval"| independent["plan-review: independent critique<br/>Claude Code or OpenCode leads Codex + Biomni; review grants no approval"]
     independent -.->|"recommendations to consider"| plan
     code -.->|"pause at any stage"| handoff["handoff: capture current state and the next action"]
     memory -.->|"a learning has a concrete test candidate"| harden["harden: demonstrate a failing reproduction<br/>and a passing regression test"]
@@ -181,7 +184,7 @@ and the gate checks only part of each.
 |---|---|---|
 | You approve | The question, the choices and their sources, the steps, and the inputs | The finished code and data exactly as they will run |
 | When | After `grill`, before implementation | After implementation, lint, review, and checks, before the reportable run |
-| Checked mechanically today | The approved hash is tied to the plan text; covered commands are denied until it is approved; `Inputs:` files are pinned when the hash is shown; a script is pinned at its first covered run; receipts are recorded | Files listed under `Inputs:` (scripts, Snakefile, `run.sh`, data) are pinned when the hash is shown, and a launch after any of them changes is blocked until the revised plan is approved; receipts are recorded |
+| Checked mechanically today | The approved hash is tied to the plan text; covered commands are denied until it is approved; `Inputs:` files and the existing scripts the plan table names are pinned when the hash is shown, other covered scripts at their first run; receipts are recorded | Files listed under `Inputs:` (scripts, Snakefile, `run.sh`, data) are pinned when the hash is shown, and a launch after any of them changes is blocked until the revised plan is approved; receipts are recorded |
 | Instructional only | That each choice is sourced and the plan complete (`grill`); that independent critique happened (`plan-review`) | That the code is finished and lint-clean, that the principal review and selected checks ran and their findings were fixed, and that the dry run and tool versions are in the plan (`grill`'s run-plan instructions) |
 
 The gate does not check that a review happened or that a test passed, and no test

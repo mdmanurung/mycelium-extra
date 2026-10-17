@@ -24,7 +24,7 @@ HEAD = """# A worked example
 
 [Back to the usage tiers](usage.md)
 
-One session on the fixture project (`tests/fixtures/mycelium-project`): plan, approve, run, verify. Every output block below is what the hooks and `verify` printed in a real run on {date}, at version {version}. The two exceptions are the plan, which is written by hand because the model writes it in a real session (the file is `tests/e2e/plans/baseline_plan.md`), and Mycelium's lineage manifest, which the test harness writes where Mycelium's own hook would. Regenerate with `python3 tests/e2e/make_example.py` (see the top of that file for the tools it needs) when an output format changes.
+One session on the fixture project (`tests/fixtures/mycelium-project`): plan, approve, run, verify. Every output block below is what the hooks and `verify` printed in a real run on {date}, at version {version}. The two exceptions are the plan, which is written by hand because the model writes it in a real session (the file is `tests/e2e/plans/baseline_plan.md`), and Mycelium's lineage manifest, which the test harness writes where Mycelium's own hook would. Regenerate with Python 3.9 or later (for example `python3.12 tests/e2e/make_example.py`; see the top of that file for the tools it needs) when an output format changes.
 
 """
 
@@ -79,7 +79,7 @@ def main(out_path):
         doc += "## 4. The approval card\n\nWhen the reply ends with `Plan status: READY`, the Stop hook shows this " \
                "card. You check the science on it, then type the last line.\n\n" + block(scrub(card)) + \
                "Step 3's `lint` bullet shows one open scilintr finding. The card is for your eyes and never blocks; " \
-               "`verify` will, below.\n\n"
+               "`verify` decides below, and here that threshold is an approved Choice.\n\n"
         doc += "## 5. Approval\n\n" + block("> approve plan {}\n\n{}".format(digest, scrub(reply["systemMessage"])))
         doc += "## 6. The gated runs and their receipts\n\nThe three steps run with no hook speaking. Each leaves a " \
                "receipt (here the first, trimmed to its main fields).\n\n"

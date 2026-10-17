@@ -8,7 +8,7 @@ release = json.loads((Path(__file__).resolve().parents[1] /
 extensions = ["myst_parser", "sphinxcontrib.mermaid", "sphinx.ext.githubpages"]
 source_suffix = {".md": "markdown", ".rst": "restructuredtext"}
 root_doc = "index"
-include_patterns = ["index.rst", "docs/installation.md", "docs/usage.md",
+include_patterns = ["index.rst", "docs/installation.md", "docs/usage.md", "docs/example.md",
                     "docs/skills.md", "docs/approval-gate.md", "docs/verification.md",
                     "docs/mycelium-integration.md", "skills/grill/references/run-plans.md"]
 exclude_patterns = ["docs/_build"]

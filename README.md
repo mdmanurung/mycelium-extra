@@ -43,14 +43,17 @@ see [Installation](docs/installation.md#opencode).
 approve                                      # or approve plan <hash>
 ```
 
+Bare `approve` works when the plan shown last is the only one waiting; otherwise
+it approves nothing and lists the hashes.
+
 See [a worked example](docs/example.md) for the real output of each step.
 
 Run the approved steps through your normal workflow, then invoke
 `/mycelium-extra:verify <hash>`. For reportable or HPC work, freeze the finished
 code in a [run plan](skills/grill/references/run-plans.md) before the final run.
 Codex CLI 0.160.0 receipts lack exit metadata; verification reports that gap.
-Independent Codex + Biomni review is Claude-led; in Codex, `plan-review`
-provides the engineering critique only.
+Independent Codex + Biomni review is led from Claude Code or OpenCode; in
+Codex, `plan-review` provides the engineering critique only.
 
 ## Documentation
 
