@@ -42,6 +42,16 @@ Two comment blocks in the plan text bind the run more tightly than a path in the
 
 **Exploratory agent tests versus approved acceptance expectations.** While developing, write and run any test you like; it is exploratory, not an approved expectation, and nothing about it is frozen. Bind a check only when the user approves a specific expectation (a row count from fixture truth, an expected contrast sign) as a condition on the result. Never loosen a bound expectation to make a result pass: the change blocks the run and goes back to the user.
 
+## Can the frozen entry point rerun without you?
+
+Name the entry point (`run.sh` or the Snakefile) in a Step cell and under `Inputs:`, and say in the plan whether the researcher can rerun it alone: its environment, its inputs, and how long it takes. `verify` then reports three separate facts and never launches anything:
+
+- **entry point declared**: the plan names it. This says nothing about whether it works.
+- **rerun attempted**: a matched run of it began after `verify write` saved the outputs table. The run before that save is the original run.
+- **rerun reproduced specified artifacts**: that rerun exited 0, its attempt saw each saved output rewritten, and the content hashes equal the ones saved before it. Anything less is "reproduction not established", with the reason.
+
+Do not start a costly rerun to improve this line. Offer the command, say what it costs, and let the researcher decide. A rerun that was never attempted is stated as such, not as "not reproducible".
+
 ## Which changes need a new plan
 
 A change that alters what the analysis claims needs a new plan, sourced and approved: the model, the contrast, which samples are included, a filter or threshold, a covariate, the unit of analysis, or swapping one tool for another.

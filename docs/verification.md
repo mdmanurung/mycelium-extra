@@ -15,7 +15,7 @@ individual outcomes remain gaps, while a failed aggregate command blocks.
 Claim tables with duplicate column headers or no data rows are unverified;
 unrepresentable numeric values are also gaps, never verified by accident.
 
-**In this section:** [What the report shows](#what-the-report-shows) · [Validation](#validation) · [Recovery](#recovery) · [Status](#status) · [What it writes](#what-it-writes) · [Stale plans](#stale-plans) · [Overview of all plans](#overview-of-all-plans)
+**In this section:** [What the report shows](#what-the-report-shows) · [Validation](#validation) · [Recovery](#recovery) · [Status](#status) · [Qualification](#qualification) · [Rerun evidence](#rerun-evidence) · [What it writes](#what-it-writes) · [Stale plans](#stale-plans) · [Overview of all plans](#overview-of-all-plans)
 
 ## What the report shows
 
@@ -38,7 +38,8 @@ unrepresentable numeric values are also gaps, never verified by accident.
   - Python goes through the scilintr CLI. R goes through `scilintr::lint_project()` on a copy of the R code, since scilintr 0.1.1's `main()` lints only its first argument and always exits 0.
   - Jupyter notebooks' code cells are linted too, with magics commented out. A finding is cited as `<notebook>.ipynb[code cell N]:<line>`.
   - The `{r}` and `{python}` chunks of `.qmd` and `.Rmd` files are linted as well, cited by the document's own line.
-- **Claims:** each `<!-- claims -->` block in the analysis doc, a Markdown output, or a `--claims` document names a value and the output cell it came from (`8 | outputs/summary.tsv n_hits`, `0.0162 | outputs/de_results.tsv padj SIGLEC1`). A value is checked against its cell after rounding. A non-finite cell, such as NaN or infinity, is an unverified gap with its value and location. A table with more than one row needs a row label, so a common value cannot match some row by chance. Other numbers near the block are listed, not checked.
+- **Claims:** each `<!-- claims -->` block in the analysis doc, a Markdown output, or a `--claims` document names a value and the output cell it came from (`8 | outputs/summary.tsv n_hits`, `0.0162 | outputs/de_results.tsv padj SIGLEC1`). A value is checked against its cell after rounding. A non-finite cell, such as NaN or infinity, is an unverified gap with its value and location. A table with more than one row needs a row label, so a common value cannot match some row by chance. Other numbers near the block are listed, not checked. Under the counts a `Coverage` line gives the blocks found, the claim lines (and how many did not parse), the cells actually read and compared, how many matched, mismatched or stayed unverified, and the prose numbers listed but not checked: a prose number is never counted as checked. A claim that cites a Mycelium `numbers.json` fragment is still compared with its cell, but `register_value` upserts across runs, so a match shows the file's current content, not which run wrote that key; an info line says so. Run attribution comes from the file's producer in the Outputs table, not from the number.
+- **Prose Validation cells, as info:** when the plan table has a Validation column, each row whose cell holds prose and that no `validation-bindings` check covers is counted in one line (`N Validation cells are prose only; nothing checks them`). It is not a gap: the plan never asked for a check, and the line does not say the prose is wrong.
 - **Fact tags, as info:** per tag, how many facts in the frozen plan's Evidence and in the analysis doc's Key Findings carry `[human-stated]`, `[agent-derived: <path>]`, or `[agent-asserted: <source>]`. It flags an untagged fact, an `agent-derived` one without its path, and an `agent-asserted` one without a source. A list with no tag at all (a plan from before 0.9.35) gets one line. The status does not change.
 
 ## Output producers
@@ -92,6 +93,33 @@ It ends with `Verify status: CONFORMS`, `CONFORMS_WITH_GAPS`, or `DOES_NOT_CONFO
 - **Blocks:** a failed run, a required validation check that failed, an edited script, a changed input, an output older than the approval, an incomplete Snakemake job, a scilintr finding neither fixed nor waived, a claim its cell contradicts, or a claim read from an explore run's output.
 - **Gaps:** things the records cannot show. A required validation check that is not run, changed, unattributable or unsupported is a gap (not established). A success after a failed attempt with a changed command, script, engine config file or folder is a gap (equivalence not established). These include code scilintr could not check: scilintr not installed, timed out, or with unreadable output, or a script or notebook whose code does not parse, under the Python verify runs on or under R (which scilintr would silently pass). An output whose producer is not `supported` (timing only, a candidate, competing or overlapping writers) is a gap, and so is a run with no checked launch or an attempt that never reported back. An output written before the approval, or by an explore run, is the block it always was.
 
+## Qualification
+
+Separate from the three status names, `report` computes whether this approval instance's records are complete enough to report from. It is not a scientific judgement and not a score: each dimension is `established`, `not established` (with its reason) or `not applicable`, and the run is `qualified` only when every applicable dimension is established. It is under `qualification` in `--json`, and as a short table and one limitation line in the report's Scope block.
+
+| Dimension | Established when | Not applicable when |
+|---|---|---|
+| authorization | at least one run, every run credited to this instance is a matched launch (none unmatched, ambiguous or legacy), the approval has an instance id, and there is no gate error in the window, attempt without a completion record, or run outside a declared exact execution | never |
+| completion | every planned step's latest attempt completed: an integer exit 0, and for a Slurm submission a job that `sacct` shows `COMPLETED` (a job only submitted, running or pending, or a background start, is not a completion) | never |
+| code and input identity | every script that ran and every pinned input is unchanged and was compared by content hash. A fingerprint that is size and time only reads `metadata only` and is not counted as strong | never |
+| lineage | every declared output exists and has a `supported` producer (a matched attempt saw it change, and no overlapping attempt could have written it) | `Outputs: none` |
+| required validation | every check marked `required` passed | the plan binds no check, or none is required |
+| claim linkage | each claim cell matched and the output it cites has a supported producer | no claims block |
+
+A matching number with an unresolved producer shows both facts: the claim is `verified` against its cell, and claim linkage and lineage are `not established`. A qualified run can still carry open findings; the limitation line then says how many, so a `qualified` is never read as `CONFORMS`.
+
+`--require-reportable` (on `report` and `write`) exits 3 and names each dimension that is not established, on stderr, when the run is not qualified. Without it nothing changes: the exit code and the three status names are as before, so ordinary `report` stays useful during development. `write` saves the record first and exits 3 afterwards, so a failed or gapped run is recorded as it is; saving provenance does not change its status. `status` reads the saved report back into a `Reportable` column (`qualified`, `not qualified`, `not recorded` for an older bundle).
+
+## Rerun evidence
+
+When the plan table names an entry point (a `run.sh` or a Snakefile), the report keeps three facts apart and never launches a run:
+
+- **entry point declared**: the plan names it.
+- **rerun attempted**: a matched run of it that began after verify saved the outputs table (`provenance/outputs-<hash>.tsv`). A run before the first `write` is the original run, not a rerun.
+- **rerun reproduced specified artifacts**: the rerun exited 0, its attempt saw every output named with a saved SHA256 created or rewritten, and each file's content hash now equals the hash saved before the attempt. Anything less is "reproduction not established" with the reason. A table written after the rerun cannot show reproduction, and a re-saved table loses the earlier baseline.
+
+Whether a frozen entry point can be rerun without the agent is the researcher's to try. Verify only reads what a rerun left behind.
+
 ## What it writes
 
 After you confirm, `verify` writes `<analysis>/provenance/`:
@@ -117,13 +145,14 @@ Commit it with the analysis. It never writes `PLAN.md`, `TRACKER.md`, or `specif
 
 After a planned run in a Mycelium repository, the gate suggests writing the finding's Evidence Ledger Run/Session cell as `<session-id>; plan <hash>`, and ending its Result cell with `[agent-derived: <output path>]`. Mycelium reads only the ledger's date cell.
 
-`verify stale` reads only committed provenance, so it works without the gate on any clone. Outputs are compared by size and time, not hashed.
+`verify stale` reads only committed provenance, so it works without the gate on any clone. By default outputs are compared by size and time, and the result says `metadata checked`: a same-size file with its old modification time looks unchanged. `verify stale --content` instead hashes each output and compares it with the SHA256 verify saved (in `outputs-<hash>.tsv`), so such a change is caught and a file merely touched is not reported. A file with no saved SHA256, or one the `--hash-mb` or `--seconds` budget did not reach, is `content not checked` and keeps the size and time check; the summary counts both. A notebook output is hashed as the raw file (its executed results), not as its code cells, which are the right identity for the code that ran. Bundles written before this change recorded a notebook's code-cell hash, so those entries can read as changed until the next `write`.
 
 ## Overview of all plans
 
 `verify status` is an on-request overview, with one row per approved or verified plan. Each row shows:
 
-- its analysis folder, runs, verify status, and staleness;
+- its analysis folder, runs, verify status, and staleness (size and time only; use `stale --content` for content);
+- whether the saved report was `qualified` for reporting (the `Reportable` column);
 - the lint verify recorded (a missing or unreadable linter shows as a gap, never `clean`);
 - the folder's `ANALYSIS_MANIFEST.md` entry: `listed: <first status word>`, `listed`, or `not listed`. It reads Mycelium's YAML `status:`, `**Status**:` lines, and a table's Status cell.
 - with `max_runs_per_approval` set in `gate.json`, whether a plan has reached it: the run count then reads `N (limit L reached (M since approval))`.
