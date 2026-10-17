@@ -14,8 +14,38 @@ A normal grill plan approves intent: Mycelium's analyze skill writes the code af
 
 When plan B is presented again after an edit, `verify diff <old> <new>` shows a complete difference summary against the plan it replaces: the objective, every changed, added, removed and reordered row, dropped columns, `Inputs:` and `Outputs:`, validation and exact-execution blocks, and the runs allowed. Show it; do not summarize it from memory. If the scientific question is unchanged (the Objective and every Choice cell are the same), the user needs that summary and a fresh approval, not another full interview: revisit a question only where the summary shows it changed.
 
+## Optional blocks for a reportable run
+
+Two comment blocks in the plan text bind the run more tightly than a path in the table does. Both are optional; add one only where a reportable result depends on it, not for every sentence of the plan. The gate checks them before it will offer `approve plan <hash>`: an invalid block is shown as errors and the plan cannot be approved until it is fixed.
+
+**Exact execution** freezes the command of a step. Without it a path in the Step column is a broad grant (any arguments), so a changed `--model` or threshold runs under the same approval. Declare the commands whose arguments are part of the science:
+
+```text
+<!-- exact-execution {"version": 1, "steps": [
+  {"row": "2", "argv": ["python", "analysis/x/fit.py", "--model", "mixed", "--threads", "4"],
+   "cwd": ".", "env": {}, "operational": ["--threads"]}]} -->
+```
+
+`row` is the table's ID (or position); `argv` starts at the program (no `conda run`, `srun` or `VAR=` words); `operational` lists the flags that may differ in value or be added or removed (cores, memory, queue). Spell out every analytical argument in `argv`; do not put one in `operational`. Use literal values: a `$VAR` or `$(...)` cannot be frozen. The script must still be named in the Step cell.
+
+**Validation bindings** tie an acceptance check to a result:
+
+```text
+<!-- validation-bindings {"version": 1, "checks": [
+  {"id": "V1", "plan_row": "3", "required": true, "defined_by": "researcher-approved",
+   "test_paths": ["analysis/x/tests/expected_rows.tsv"],
+   "invocation": ["python", "analysis/x/tests/check_rows.py"],
+   "evidence_path": "analysis/x/outputs/check_rows.json"}]} -->
+```
+
+`test_paths` are the test, its fixtures and its expected values; the gate pins their bytes, so editing one after approval blocks the next run until the user approves the plan again. `invocation` is the command that runs the check from the repository root, and `evidence_path` is where it writes its result. Put the check under a gated path (such as `analysis/x/tests/`) and name its script in a Step cell, or the gate does not see the run and cannot record it; a test under `tests/` is not gated unless the user adds it to `gated_paths`. `defined_by` says who wrote the expectation: `researcher-approved` or `independent` only when that is true, otherwise `agent-proposed`; the gate records it and cannot verify it.
+
+**Exploratory agent tests versus approved acceptance expectations.** While developing, write and run any test you like; it is exploratory, not an approved expectation, and nothing about it is frozen. Bind a check only when the user approves a specific expectation (a row count from fixture truth, an expected contrast sign) as a condition on the result. Never loosen a bound expectation to make a result pass: the change blocks the run and goes back to the user.
+
 ## Which changes need a new plan
 
 A change that alters what the analysis claims needs a new plan, sourced and approved: the model, the contrast, which samples are included, a filter or threshold, a covariate, the unit of analysis, or swapping one tool for another.
 
 A change that only alters how the same commands run does not, as long as the frozen files stay unchanged: cores, memory, time, or queue; a retry of the same command; installing a missing tool at the version the plan recorded. If such a change edits a frozen file (for example a resource line in the Snakefile), the gate blocks the launch, and plan B is re-approved with the change named in `TRACKER.md`.
+
+With an exact-execution block the three cases are different actions. An **operational retry** (a listed flag with another value, a log redirect) is allowed as is and is recorded. A **re-freeze** (a pinned script or a bound test file changed) needs the plan shown and approved again with the change named. A **changed scientific intent** (another model, filter, contrast, threshold, seed or input, or a loosened expectation) goes back to the user, who approves a revised plan; the gate denies the run and says so, so do not work around it.
