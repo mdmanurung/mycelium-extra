@@ -397,6 +397,72 @@ def v02b(p):
     return outcome
 
 
+CHECKS = A + "/checks"
+ROWS_CONTRACT, ROWS_RUNNER, ROWS_EVIDENCE = CHECKS + "/de_rows_contract.json", CHECKS + "/check_de_rows.py", A + "/outputs/de_rows_check.json"
+CHECKER = os.path.join(harness.SKILLS, "data-contract-check", "scripts", "data_contract_check.py")
+RUNNER = """import subprocess
+import sys
+
+sys.exit(subprocess.call([sys.executable, {checker!r}, "--contract", {contract!r}, "--root", ".",
+                          "--result-json", {evidence!r}], stdout=subprocess.DEVNULL))
+"""
+
+
+def rowcount_plan():
+    """The baseline plan with a fourth row, the approved row-count check, and its binding block."""
+    binding = {"version": 1, "checks": [{
+        "id": "de-rowcount", "plan_row": "4", "required": True, "defined_by": "researcher-approved",
+        "test_paths": [ROWS_CONTRACT], "invocation": ["python3", ROWS_RUNNER], "evidence_path": ROWS_EVIDENCE}]}
+
+    def change(text):
+        lines = text.rstrip("\n").split("\n")
+        at = max(i for i, line in enumerate(lines) if line.startswith("| 3 "))
+        lines.insert(at + 1, row(4, ROWS_RUNNER, "row count of de_results.tsv from the fixture's 60 genes", validation="60 rows"))
+        text = "\n".join(lines) + "\n"
+        return text.replace("Plan status: READY", "<!-- validation-bindings {} -->\n\nPlan status: READY".format(json.dumps(binding)))
+    return plan(outputs=" ".join(harness.OUTPUTS + [ROWS_EVIDENCE]), change=change)
+
+
+def covered_rowcount(p, rows=None):
+    """The approved expectation is committed before the run: the contract's row count comes from the fixture's
+    truth (expected/baseline.json), never from the partial output; `rows` makes 02 write that many rows and die
+    behind `|| true`, as V-02b does. 02, 03 and the row-count check then run under one plan."""
+    truth = harness.expected("baseline.json")["outputs"]["de_results.tsv"]["rows"]
+    contract_text = harness.contract_text("rowcount")
+    if json.loads(contract_text)["checks"][0]["rows"] != truth:
+        raise harness.HarnessError("plans/rowcount_contract.json does not state the fixture's {} rows".format(truth))
+    if rows is not None:
+        p.edit(PAIRED, crash_after(rows))
+    os.makedirs(p.path(CHECKS))
+    for rel, text in ((ROWS_CONTRACT, contract_text),
+                      (ROWS_RUNNER, RUNNER.format(checker=CHECKER, contract=ROWS_CONTRACT, evidence=ROWS_EVIDENCE))):
+        with open(p.path(rel), "w", encoding="utf-8") as handle:
+            handle.write(text)
+    p.commit("approved row-count expectation")
+    digest = p.approve(rowcount_plan())[0]
+    results = [p.agent_bash("python3 {} || true".format(PAIRED)) if script == PAIRED and rows is not None
+               else p.run_step(script) for script in harness.SCRIPTS]
+    results.append(p.agent_bash("python3 " + ROWS_RUNNER))
+    p.space_outputs([(out, r.receipts[0]) for out, r in zip(harness.OUTPUTS + [ROWS_EVIDENCE], results)
+                     if r.receipts and os.path.isfile(p.path(out))])
+    p.lineage()
+    outcome = report(p, digest)
+    with open(p.path(DE), encoding="utf-8") as handle:
+        outcome["de_rows"] = len(handle.readlines()) - 1
+    outcome["truth_rows"] = truth
+    return outcome
+
+
+@defect("V-02c", "verify", "verify", ["Swallowed errors"],
+        {"status": BLOCKED, "de_rows": 10, "truth_rows": 60,
+         "messages": ["Validation `de-rowcount` (plan row 4, required; declared researcher-approved, not verified) failed",
+                      "`de-rowcount`: row count differs from the plan (expected 60, observed 10)"]})
+def v02c(p):
+    """V-02b with the expectation declared: the masked failure leaves 10 of 60 rows, and the approved row-count check
+    that ran under the plan names the shortfall. The uninstrumented V-02b above stays a known miss."""
+    return covered_rowcount(p, 10)
+
+
 @defect("V-03", "verify", "verify", ["Stale evidence as current"],
         {"status": BLOCKED, "messages": ["`{}` was edited after its run".format(PAIRED)]})
 def v03(p):

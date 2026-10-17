@@ -207,6 +207,20 @@ for _defect in defects.DEFECTS:
     setattr(Defects, "test_" + _defect.id.replace("-", "_"), defect_case(_defect))
 
 
+@unittest.skipUnless(harness.git_available(), "git is not installed")
+class CoveredRowCount(unittest.TestCase):
+    """The approved row-count check of the covered V-02b variant (V-02c), on the unmutated baseline."""
+
+    def test_the_declared_row_count_passes_when_02_completes(self):  # control for V-02c
+        project = harness.Project.fresh()
+        self.addCleanup(project.close)
+        outcome = defects.covered_rowcount(project, None)
+        self.assertEqual((outcome["de_rows"], outcome["truth_rows"]), (60, 60), "\n".join(project.log))
+        self.assertIn("- `de-rowcount` (plan row 4, required; declared researcher-approved, not verified): passed",
+                      outcome["text"])
+        self.assertEqual(outcome["status"], defects.CONFORMS, outcome["text"])
+
+
 def checklist():
     """{row name: Check cell} of llm-failure-modes.md, plus analysis-decisions.md rows mapped to None:
     that file has no Check column, so its rows make no claim that a tool catches them."""

@@ -1,0 +1,7 @@
+{
+  "schema": "mycelium-extra.data_contract.v1",
+  "table": "analysis/vaccine-response/outputs/de_results.tsv",
+  "checks": [
+    {"id": "de-rowcount", "kind": "cohort", "rows": 60, "label": "one result row per tested gene (the fixture's 60 genes)"}
+  ]
+}
