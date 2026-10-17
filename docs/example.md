@@ -109,23 +109,24 @@ exit source: "event"
 ```markdown
 # Verify plan 84bb5fce
 
-Approved 2026-10-17 07:09 - analysis folder `analysis/vaccine-response` - 3 run(s) under this plan - HEAD b19559e1de21 (clean)
+Approved 2026-10-17 08:17 - analysis folder `analysis/vaccine-response` - 3 run(s) under this plan - HEAD b19559e1de21 (clean)
 
 ## Scope
 
-- Checked against approval instance 9cf75de39383c71d: 3 run(s) under it - launch evidence 3 matched, 0 unmatched, 0 ambiguous, 0 legacy (launch link not recorded).
+- Checked against approval instance a33870f7a688c50c: 3 run(s) under it - launch evidence 3 matched, 0 unmatched, 0 ambiguous, 0 legacy (launch link not recorded).
 - Producers: 3 of 3 output(s) have a supported producer; 0 candidate, 0 unresolved (only a supported producer is named).
 - Qualification: **not qualified** (not established: no blocking finding); separate from the verify status below, and not a scientific judgement.
 
 | Evidence | State | Basis |
 |---|---|---|
-| authorization | established | 3 of 3 run(s) are matched launches under approval instance 9cf75de39383c71d |
+| authorization | established | 3 of 3 run(s) are matched launches under approval instance a33870f7a688c50c |
 | completion | established | all 3 planned step(s): the latest attempt of each completed |
 | code and input identity | established | 5 script(s) and input(s) unchanged, compared by content hash |
 | lineage | established | 3 of 3 declared output(s) have a supported producer (a matched attempt saw each change) |
 | required validation | not applicable | the plan binds no check (its Validation cells are prose) |
 | claim linkage | established | 8 claim cell(s) matched and their outputs have supported producers |
 | no blocking finding | not established | 1 block finding(s): 2 scilintr finding(s) remain in R code (2 R002) |
+| no open gap | established | no finding is an open gap |
 
 - Limitation: no blocking finding not established: resolve each block finding below; a run that fails verification is never reportable.
 
@@ -133,9 +134,9 @@ Approved 2026-10-17 07:09 - analysis folder `analysis/vaccine-response` - 3 run(
 
 | Script | Status | Last run | Notes |
 |---|---|---|---|
-| `analysis/vaccine-response/scripts/01_select_samples.py` | ran (exit 0 from hook event) | 2026-10-17 07:09 |  |
-| `analysis/vaccine-response/scripts/02_paired_test.py` | ran (exit 0 from hook event) | 2026-10-17 07:09 |  |
-| `analysis/vaccine-response/scripts/03_summary.R` | ran (exit 0 from hook event) | 2026-10-17 07:09 |  |
+| `analysis/vaccine-response/scripts/01_select_samples.py` | ran (exit 0 from hook event) | 2026-10-17 08:17 |  |
+| `analysis/vaccine-response/scripts/02_paired_test.py` | ran (exit 0 from hook event) | 2026-10-17 08:17 |  |
+| `analysis/vaccine-response/scripts/03_summary.R` | ran (exit 0 from hook event) | 2026-10-17 08:17 |  |
 
 ## Pinned inputs
 
@@ -148,9 +149,9 @@ Approved 2026-10-17 07:09 - analysis folder `analysis/vaccine-response` - 3 run(
 
 | Output | Written | By | Evidence | Fingerprint |
 |---|---|---|---|---|
-| `analysis/vaccine-response/outputs/samples_used.tsv` | 2026-10-17 07:09 | `python3 analysis/vaccine-response/scripts/01_select_samples.py` at 2026-10-17 07:09 | attempt-observed, supported | sha256 b980761d554c |
-| `analysis/vaccine-response/outputs/de_results.tsv` | 2026-10-17 07:09 | `python3 analysis/vaccine-response/scripts/02_paired_test.py` at 2026-10-17 07:09 | attempt-observed, supported | sha256 67c17edf1d9b |
-| `analysis/vaccine-response/outputs/summary.tsv` | 2026-10-17 07:09 | `Rscript analysis/vaccine-response/scripts/03_summary.R` at 2026-10-17 07:09 | attempt-observed, supported | sha256 409ac0ca64d2 |
+| `analysis/vaccine-response/outputs/samples_used.tsv` | 2026-10-17 08:17 | `python3 analysis/vaccine-response/scripts/01_select_samples.py` at 2026-10-17 08:17 | attempt-observed, supported | sha256 b980761d554c |
+| `analysis/vaccine-response/outputs/de_results.tsv` | 2026-10-17 08:17 | `python3 analysis/vaccine-response/scripts/02_paired_test.py` at 2026-10-17 08:17 | attempt-observed, supported | sha256 67c17edf1d9b |
+| `analysis/vaccine-response/outputs/summary.tsv` | 2026-10-17 08:17 | `Rscript analysis/vaccine-response/scripts/03_summary.R` at 2026-10-17 08:17 | attempt-observed, supported | sha256 409ac0ca64d2 |
 
 ## Lint
 
