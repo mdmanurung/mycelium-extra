@@ -126,6 +126,30 @@ had no warnings; Markdown links and generated HTML paths had no broken targets.
 These checks validate the local candidate, not a published installation or a
 GitHub Pages deployment.
 
+### Validated on 2026-10-17 (OpenCode V2 2.0.32)
+
+The OpenCode adapter was qualified with OpenCode 2.0.32 and
+`opencode-go/deepseek-v4-pro` in a disposable repository. The plugin loaded from
+a `plugins` entry naming the `opencode/` directory, and the skills loaded from
+the `skills` entry. An unapproved `python analysis/x.py` was denied and the
+model quoted the gate's reason word for word. The plan pinned at the turn's
+`session.execution.succeeded` event — 2.0.32 delivers no `session.idle` — the
+approval card arrived as a synthetic message, a `approve plan c260d4cc` user
+prompt registered the approval (a quote-wrapped `"approve plan c260d4cc"` was
+refused with "nothing approved"), and the approved `python3 analysis/x.py` ran
+and wrote a receipt with `host: opencode`, the plan credited, and
+`launch_match: matched`. A `write` into `.mycelium-extra/` was denied and left
+no file. Both a failed run (`python` missing, exit 127) and the successful run
+recorded `exit_status: unknown` with `response_keys: content, metadata, output`:
+the shell result carries no exit code, so the OpenCode receipt gap mirrors
+Codex. Notices delivered as synthetic messages persist in the transcript and
+are visible to the model as well as the user, and the model may proceed to run
+an approved plan immediately after the approval. `python3.12
+hooks/tests/test_opencode_gate.py` (6 tests), `node --test
+opencode/tests/gate.test.js` (8 tests), the 421-test gate suite, `gate_diff`
+168/168, and the 103-test end-to-end suite passed. These checks validate the
+local candidate, not a published installation.
+
 ## Documentation website
 
 The website and repository use the same Markdown pages. You can improve a
