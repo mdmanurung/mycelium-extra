@@ -479,7 +479,7 @@ class Report(object):
 
 LINT_LINE = re.compile(r"^(.+?):(\d+):(\d+): \[([\w-]+)\] (.*)$")
 LINT_LANGUAGES = {".py": "Python", ".R": "R", ".r": "R"}
-CHOICE_NUMBER = re.compile(r"(?<![\w.])\d*\.?\d+(?:[eE][-+]?\d+)?(?![\w.])")
+CHOICE_NUMBER = re.compile(r"(?<![\w.])-?\d*\.?\d+(?:[eE][-+]?\d+)?(?![\w.])")
 NOTEBOOK_EXT = (".ipynb", ".qmd", ".Rmd", ".rmd")
 FENCE = re.compile(r"^\s*(`{3,})(.*)$")
 CHUNK = re.compile(r"^\s*\{(r|python)\b", re.I)
@@ -583,8 +583,10 @@ def lint(root, files, report, scilintr, rscript, seconds, deadline=None, choices
     its own CLI and only existing files are passed. It also exits 0, silent, on code that
     does not parse, so Python code is parsed first and an unparseable file is a gap. R code
     is copied to one folder, which `lint_project()` lints with its cross-file rules; a script
-    keeps its repository path there, so a `source()` between copied scripts still resolves."""
-    result = {"findings": [], "waivers": [], "output": [], "notebooks": []}
+    keeps its repository path there, so a `source()` between copied scripts still resolves.
+    `choices` is (row text, Choice cell) for each plan row; a threshold finding whose numbers a Choice
+    of a row naming that script states is info."""
+    result = {"findings": [], "waivers": [], "output": [], "notebooks": [], "approved": []}
     by_language = collections.defaultdict(list)
     scratch = os.path.realpath(tempfile.mkdtemp(prefix="mycelium-extra-lint-"))  # R prints real paths
     cells = {}  # extracted notebook code path -> (notebook, first line of each code cell)
@@ -649,7 +651,11 @@ def lint(root, files, report, scilintr, rscript, seconds, deadline=None, choices
             elif rel.endswith(NOTEBOOK_EXT) and not refs:
                 result["notebooks"].append(rel)
         result["reasons"] = scan_waivers(root, files, result)
-        approved = {float(n) for choice in choices for n in CHOICE_NUMBER.findall(choice)}
+        def approved(rel):
+            """The numbers a script's own plan rows approved; a script no row names keeps every Choice."""
+            mine = [choice for text, choice in choices if rel in text] or [choice for _, choice in choices]
+            return {float(n) for choice in mine for n in CHOICE_NUMBER.findall(choice)}
+
         lint_languages(root, by_language, cells, report, result, scilintr, [rscript, "-e", R_LINT, scratch],
                        seconds, deadline, approved)
     finally:
@@ -743,10 +749,16 @@ def unwaived_pass(root, language, paths, cells, result, report, command, seconds
                                               if (f[0], f[1], f[2], f[3]) not in normal)
 
 
-def approved_threshold(root, finding, approved):
-    """Whether a threshold finding's line holds only numbers that the plan's Choice cells approved."""
+def approved_threshold(root, finding, approved, cells=()):
+    """Whether a threshold finding's line holds only numbers that the plan rows' Choice cells approved.
+    `finding` is as scilintr printed it: for a notebook that is the extracted code file, whose line is the
+    one linted. `approved(rel)` gives the numbers for the script `rel`; a signed number must match its sign,
+    and text after `#` is not read."""
     path, line, _, rule, message = finding
-    if not approved or "threshold" not in (rule + " " + message).lower():
+    if "threshold" not in (rule + " " + message).lower():
+        return False
+    numbers_ok = approved(cells[path][0] if path in cells else path)
+    if not numbers_ok:
         return False
     try:
         with open(os.path.join(root, path), encoding="utf-8", errors="replace") as handle:
@@ -754,11 +766,11 @@ def approved_threshold(root, finding, approved):
     except (OSError, IndexError, ValueError):
         return False
     numbers = {float(n) for n in CHOICE_NUMBER.findall(text.split("#")[0])}
-    return bool(numbers) and numbers <= approved
+    return bool(numbers) and numbers <= numbers_ok
 
 
 def lint_languages(root, by_language, cells, report, result, scilintr, r_lint, seconds, deadline=None,
-                   approved=frozenset()):
+                   approved=lambda rel: frozenset()):
     for language, paths in sorted(by_language.items()):
         command = [scilintr] if language == "Python" else r_lint
         try:
@@ -770,26 +782,35 @@ def lint_languages(root, by_language, cells, report, result, scilintr, r_lint, s
                 report.add("gap", "scilintr ({}) not checked: timed out after {:.0f} s.".format(language, timeout))
             else:
                 report.add("gap", "scilintr ({}) not checked: `{}` not found. Install it (`{}`) and re-verify, or "
-                           "record its path (`gate_init.py --tools {} PATH`).".format(
+                           "record its path with the init skill (`--tools {} PATH`).".format(
                                language, command[0], "pip install scilintr" if language == "Python"
                                else 'install.packages("scilintr")',
                                "--scilintr" if language == "Python" else "--rscript"))
             continue
-        proc.stdout = "\n".join(cell_line(line, cells) for line in proc.stdout.splitlines())
-        for path, (rel, _) in cells.items():
-            proc.stdout = proc.stdout.replace(path, rel)
+        raw_lines, shown_lines = proc.stdout.splitlines(), []
+        for line in raw_lines:
+            line = cell_line(line, cells)
+            for path, (rel, _) in cells.items():
+                line = line.replace(path, rel)
+            shown_lines.append(line)
+        proc.stdout = "\n".join(shown_lines)
         broken = [line[len("unparseable: "):].partition(": ") for line in proc.stdout.splitlines()
                   if line.startswith("unparseable: ")]
         for rel, _, error in broken:
             report.add("gap", "scilintr (R) not checked: `{}` does not parse ({}).".format(
                 rel, cell(re.sub(r"^.*?:\d+:\d+: ", "", error))[:120]))
         found = [m.groups() for m in map(LINT_LINE.match, proc.stdout.splitlines()) if m]
+        raw = {}  # the finding as shown -> as printed, where the file and line can be read
+        for printed, line in zip(raw_lines, shown_lines):
+            if LINT_LINE.match(printed) and LINT_LINE.match(line):
+                raw[LINT_LINE.match(line).groups()] = LINT_LINE.match(printed).groups()
         shown = command[:1] if language == "Python" else [command[0], "-e", "'scilintr::lint_project()'"]
         result["output"].append("$ {}\n{}".format(" ".join(shown + ["<{} files>".format(len(paths))]),
                                                   proc.stdout.rstrip()))
         if proc.returncode == 1 and found:
             result["findings"] += found
-            planned = [f for f in found if approved_threshold(root, f, approved)]
+            planned = [f for f in found if approved_threshold(root, raw.get(f, f), approved, cells)]
+            result.setdefault("approved", []).extend(planned)
             for f in planned:
                 report.add("info", "`{}:{}` [{}]: its threshold is a Choice the plan approved, so it does not "
                                    "block.".format(f[0], f[1], f[3]))
@@ -2478,7 +2499,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                                                                    "Key Findings"), report)
     envs = conda_snapshots(root, mine, report)
     linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds,
-                  choices=[row.get("choice", "") for row in plan_rows(plan)[0].values()])
+                  choices=[(" ".join(row.values()), row.get("choice", "")) for row in plan_rows(plan)[0].values()])
     claimed = check_claims(root, analysis_dir, outputs, claims, report, budget["bytes"])
     elsewhere = set(r.get("validation_check") for r in receipts if digest in r.get("plans", []) and not r.get("explore")
                     and chosen and r.get("approval_instance") != chosen)
@@ -3022,6 +3043,8 @@ def _write_bundle(root, result, folder):
         handle.write("\n# Waived findings ({})\n".format(len(lint.get("waived", []))))
         handle.writelines("{}:{} [{}] <- {}\n".format(w[0], w[1], w[2], waiver_note(w).replace("`", ""))
                           for w in lint.get("waived", []))
+        handle.write("\n# Approved thresholds ({})\n".format(len(lint.get("approved", []))))
+        handle.writelines("{}:{} [{}]\n".format(f[0], f[1], f[3]) for f in lint.get("approved", []))
     with open(os.path.join(folder, paths["report"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
         handle.write("Written {} by mycelium-extra verify.\n\n".format(stamp))
         handle.write(render(result, all_outputs=True))
@@ -3332,12 +3355,15 @@ def recorded_lint(folder, digest):
     text = read_text(os.path.join(folder, "lint-{}.txt".format(digest)))
     if not text:
         return "not recorded"
+    approved = re.search(r"^# Approved thresholds \((\d+)\)$", text, re.M)
+    approved = int(approved.group(1)) if approved else 0
     text = text.split("# ANALYSIS_OK waivers")[0]
-    found = sum(1 for line in text.splitlines() if LINT_LINE.match(line))
+    found = max(sum(1 for line in text.splitlines() if LINT_LINE.match(line)) - approved, 0)
     # A missing, timed-out or unreadable linter leaves no finding in the lint file; the report names it.
     gaps = sorted(set(re.findall(r"scilintr \((\w+)\) not checked",
                                  read_text(os.path.join(folder, "verify-{}.md".format(digest))))))
     states = (["{} finding(s)".format(found)] if found else []) + (
+        ["{} approved threshold(s)".format(approved)] if approved else []) + (
         ["gap: {} not checked".format(", ".join(gaps))] if gaps else [])
     if states:
         return "; ".join(states)

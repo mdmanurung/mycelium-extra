@@ -1031,7 +1031,7 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("Verify status: DOES_NOT_CONFORM", out)
         missing = self.verify("report", digest, scilintr=os.path.join(self.root, "no-scilintr"))
         self.assertIn("scilintr (Python) not checked", missing)
-        self.assertIn("gate_init.py --tools --scilintr PATH", missing)
+        self.assertIn("with the init skill (`--tools --scilintr PATH`)", missing)
         self.assertIn("Verify status: CONFORMS_WITH_GAPS", missing)
         broken = self.fake_tool("bin/Rscript-broken", "there is no package called scilintr", 1)
         self.assertIn("scilintr (R) not checked: exit 1", self.verify("report", digest, rscript=broken))
@@ -1052,6 +1052,33 @@ class VerifyTest(unittest.TestCase):
         other = self.fake_tool("bin/scilintr-other", FIT + ":2:8: [magic-threshold] magic threshold\\n", 1)
         self.assertIn("1 scilintr finding(s) remain in Python code (1 magic-threshold)",
                       self.verify("report", digest, scilintr=other))  # 3 is not in any Choice cell
+
+    def test_an_approved_threshold_reads_signs_rows_and_notebooks(self):
+        other = "analysis/a/scripts/02_other.py"
+        self.write(FIT, "keep = p < 0.05\nlfc = x > -1\nother = q > 3\n", mtime=time.time() - 7200)
+        text = plan("run `{}`".format(FIT), "run `{}`".format(other), outputs=self.OUT)
+        digest = self.approve(text.replace("| x |", "| padj < 0.05; \\|lfc\\| > 1 |", 1).replace("| x |", "| q > 3 |", 1))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        flag = lambda n: self.fake_tool("bin/scilintr-%d" % n, FIT + ":%d:8: [magic-threshold] magic threshold\\n" % n, 1)
+        self.assertIn("its threshold is a Choice the plan approved", self.verify("report", digest, scilintr=flag(1)))
+        self.assertIn("1 scilintr finding(s) remain in Python code",
+                      self.verify("report", digest, scilintr=flag(2)))  # -1 is not 1
+        self.assertIn("1 scilintr finding(s) remain in Python code",
+                      self.verify("report", digest, scilintr=flag(3)))  # 3 is another script's Choice
+
+        flagger = self.write("bin/flagger", "#!{}\nimport os, sys\nfor path in sys.argv[1:]:\n"
+                             "    if os.path.isfile(path):\n        for n, line in enumerate(open(path), 1):\n"
+                             "            if 'FLAG' in line:\n                print('{{}}:{{}}:0: [magic-threshold] flagged'.format(path, n))\n"
+                             "                sys.exit(1)\n".format(sys.executable))
+        os.chmod(flagger, os.stat(flagger).st_mode | stat.S_IEXEC)
+        self.notebook("analysis/a/03_explore.ipynb", [("code", "x = 1\nkeep = p < 0.05  # FLAG")])
+        out = self.verify("report", digest, scilintr=flagger)
+        self.assertIn("`analysis/a/03_explore.ipynb[code cell 1]:2` [magic-threshold]: its threshold is a Choice "
+                      "the plan approved", out)
+        self.assertNotIn("remain in Python code", out)
+        self.verify("write", digest, "--analysis-dir", "analysis/a", scilintr=flagger)
+        rows = {r["hash"]: r for r in json.loads(self.verify("status", "--json"))}
+        self.assertEqual(rows[digest]["lint"], "1 approved threshold(s)")
 
     def notebook(self, rel, cells, language="python"):
         self.write(rel, json.dumps({
