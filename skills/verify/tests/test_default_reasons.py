@@ -85,9 +85,10 @@ class VerifyDefaultReasonsTest(unittest.TestCase):
         notice = self.hook("stop", {"last_assistant_message": text})["systemMessage"]
         digest = notice.split("approve plan ")[1][:8]
         self.hook("prompt", {"prompt": "approve plan " + digest})
-        self.hook("post", {"tool_name": "Bash", "tool_input": {"command": "python " + FIT},
-                           "tool_response": {"stdout": "", "exit_code": 0}})
+        command = {"tool_name": "Bash", "tool_input": {"command": "python " + FIT}, "tool_use_id": "toolu_fit"}
+        self.hook("tool", command)  # Pre, so the attempt is matched and its outputs are observed
         self.write("analysis/a/outputs/fit.tsv", "x\n")
+        self.hook("post", dict(command, tool_response={"stdout": "", "exit_code": 0}))
         return digest
 
     def verify(self, digest, plugin=PLUGIN, json_out=False):

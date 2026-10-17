@@ -3726,5 +3726,72 @@ class ReceiptStartTimeTest(unittest.TestCase):
         self.assertEqual([r["started"] for r in receipts], [None, None, None])
 
 
+class FolderOutputsTest(unittest.TestCase):
+    """C05: a declared `Outputs:` folder is observed as the files inside it, within the glob cap."""
+    entry = GATE
+    setUp, tearDown, config, hook, bash, denied = (
+        GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook, GateTest.bash, GateTest.denied)
+    path, write, prompt, receipts, tool, post = (
+        PreparationAndLaunchTest.path, PreparationAndLaunchTest.write, PreparationAndLaunchTest.prompt,
+        PreparationAndLaunchTest.receipts, PreparationAndLaunchTest.tool, PreparationAndLaunchTest.post)
+    show = PreparationAndLaunchTest.show
+    launch_records = AttemptEvidenceTest.launch_records
+    PLAN = "Outputs: analysis/a/outputs/\n\n" + PLAN
+
+    def run_attempt(self, during):
+        self.write("analysis/a.py", "pass\n")
+        self.prompt("approve plan " + self.show(self.PLAN.replace("analysis/x.py", "analysis/a.py")))
+        command = "python analysis/a.py"
+        self.assertIsNone(self.tool(command, tool_use_id="t1"))
+        during()
+        self.post(command, tool_use_id="t1")
+        receipt, = self.receipts()
+        return receipt
+
+    def test_a_file_created_in_a_declared_folder_is_listed_and_an_untouched_one_is_not(self):
+        self.write("analysis/a/outputs/old.tsv", "old\n")
+        self.write("analysis/a/outputs/sub/older.tsv", "older\n")
+        receipt = self.run_attempt(lambda: self.write("analysis/a/outputs/sub/new.tsv", "new\n"))
+        self.assertEqual(receipt["outputs_observation"], "observed")
+        self.assertEqual(receipt["outputs_changed"], {"created": ["analysis/a/outputs/sub/new.tsv"],
+                                                      "changed": [], "deleted": []})
+
+    def test_the_launch_records_the_files_inside_the_folder_not_the_folder(self):
+        self.write("analysis/a/outputs/old.tsv", "old\n")
+        self.write("analysis/a.py", "pass\n")
+        self.prompt("approve plan " + self.show(self.PLAN.replace("analysis/x.py", "analysis/a.py")))
+        self.tool("python analysis/a.py", tool_use_id="t1")
+        entry, = [e for r in self.launch_records() for es in r["runs"].values() for e in es]
+        self.assertEqual(sorted(entry["outputs_before"]), ["analysis/a/outputs/old.tsv"])
+
+    def test_a_folder_that_does_not_exist_yet_lists_only_the_files_created(self):
+        receipt = self.run_attempt(lambda: self.write("analysis/a/outputs/fit.tsv", "x\n"))
+        self.assertEqual(receipt["outputs_changed"]["created"], ["analysis/a/outputs/fit.tsv"])
+
+    def test_an_edited_and_a_deleted_file_in_the_folder_are_listed(self):
+        self.write("analysis/a/outputs/a.tsv", "1\n")
+        self.write("analysis/a/outputs/b.tsv", "2\n")
+        def during():
+            self.write("analysis/a/outputs/a.tsv", "11111\n")
+            os.remove(os.path.join(self.root, "analysis/a/outputs/b.tsv"))
+        changed = self.run_attempt(during)["outputs_changed"]
+        self.assertEqual((changed["changed"], changed["deleted"], changed["created"]),
+                         (["analysis/a/outputs/a.tsv"], ["analysis/a/outputs/b.tsv"], []))
+
+    def test_a_folder_over_the_cap_is_skipped_never_listed_partially(self):
+        for number in range(201):
+            self.write("analysis/a/outputs/f{}.tsv".format(number), "x\n")
+        receipt = self.run_attempt(lambda: self.write("analysis/a/outputs/new.tsv", "x\n"))
+        self.assertTrue(receipt["outputs_observation"].startswith("skipped: cap reached"), receipt["outputs_observation"])
+        self.assertNotIn("outputs_changed", receipt)
+
+    def test_a_folder_at_the_cap_is_observed(self):  # control
+        for number in range(200):
+            self.write("analysis/a/outputs/f{}.tsv".format(number), "x\n")
+        receipt = self.run_attempt(lambda: None)
+        self.assertEqual(receipt["outputs_observation"], "observed")
+        self.assertEqual(receipt["outputs_changed"], {"created": [], "changed": [], "deleted": []})
+
+
 if __name__ == "__main__":
     unittest.main()

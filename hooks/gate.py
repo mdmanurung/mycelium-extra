@@ -1144,10 +1144,24 @@ def stat_pair(path):
     return [info.st_size, info.st_mtime_ns]
 
 
+def folder_files(folder, room, deadline):
+    """(files under `folder`, recursively, None), or (None, reason) when there are more than `room` or time ran out."""
+    files = []
+    for here, dirs, names in os.walk(folder):
+        dirs.sort()
+        files += [os.path.join(here, name) for name in sorted(names)]
+        if len(files) > room:
+            return None, "cap reached ({} files)".format(MAX_OBSERVED_OUTPUTS)
+        if time.time() >= deadline:
+            return None, "time limit"
+    return files, None
+
+
 def expand_outputs(root, words, deadline):
     """(paths, None) for the declared output paths of a plan, repo-relative where they are inside it, or
     (None, reason) when they cannot be watched: a `**` pattern, more than MAX_OBSERVED_OUTPUTS files, or time
-    ran out. Literal paths and one-level globs only; a data tree is never scanned."""
+    ran out. Literal paths and one-level globs; a declared folder (or a glob hit that is one) stands for the
+    files inside it, recursively, within the same cap, so nothing is ever listed partially."""
     paths = []
     for word in words:
         word = os.path.expanduser(word)
@@ -1165,10 +1179,16 @@ def expand_outputs(root, words, deadline):
                 if time.time() >= deadline:
                     return None, "time limit"
         for hit in hits:
-            rel = os.path.relpath(hit, root)
-            rel = hit if rel == ".." or rel.startswith(".." + os.sep) else rel
-            if rel not in paths:
-                paths.append(rel)
+            found = [hit]
+            if os.path.isdir(hit):
+                found, reason = folder_files(hit, MAX_OBSERVED_OUTPUTS - len(paths), deadline)
+                if reason:
+                    return None, reason
+            for item in found:
+                rel = os.path.relpath(item, root)
+                rel = item if rel == ".." or rel.startswith(".." + os.sep) else rel
+                if rel not in paths:
+                    paths.append(rel)
         if len(paths) > MAX_OBSERVED_OUTPUTS:
             return None, "cap reached ({} files)".format(MAX_OBSERVED_OUTPUTS)
     return paths, None
@@ -1195,11 +1215,12 @@ def observe_outputs(root, launch, budget):
     paths, reason = expand_outputs(root, launch.get("outputs_declared") or [], budget["deadline"])
     if reason:
         return None, "skipped: {} when the run ended".format(reason)
-    now = dict((p, stat_pair(os.path.join(root, p))) for p in set(paths) | set(before))
+    now = dict((p, stat_pair(os.path.join(root, p))) for p in set(paths) | set(before)
+               if not os.path.isdir(os.path.join(root, p)))  # a folder stands for its files
     return {"created": sorted(p for p in now if before.get(p) is None and now[p] is not None),
-            "changed": sorted(p for p in before if before[p] is not None and now[p] is not None
+            "changed": sorted(p for p in before if before[p] is not None and now.get(p) is not None
                               and list(before[p]) != now[p]),
-            "deleted": sorted(p for p in before if before[p] is not None and now[p] is None)}, "observed"
+            "deleted": sorted(p for p in before if before[p] is not None and now.get(p) is None)}, "observed"
 
 
 def pin_limitations(pins, what):
