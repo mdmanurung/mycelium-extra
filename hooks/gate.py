@@ -3455,6 +3455,7 @@ def on_post(event, root, config):
             "pins_checked": launch_match == "matched" and bool(records) and not explore,
             "launch_match": launch_match,
             "attempt_id": attempt["attempt_id"] if launch_match == "matched" else None,
+            "started": attempt.get("started") if launch_match == "matched" else None,  # when the launch began
             "call_id": call_id(event),
             # the freeze this launch was checked against, not the approval file as it reads now
             "approval_instance": (None if not records else (launch.get("instance_ids") or {}).get(

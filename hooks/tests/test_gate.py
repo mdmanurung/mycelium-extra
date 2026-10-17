@@ -3690,5 +3690,41 @@ class ReviewConsentPromptTest(unittest.TestCase):
         self.assertEqual(self.review_packet("verify", "--digest", second[:12])[0], 3)
 
 
+class ReceiptStartTimeTest(unittest.TestCase):
+    """A receipt carries the start time of the launch it matched, so verify can detect overlapping attempts."""
+    entry = GATE
+    setUp, tearDown, config, hook, bash, denied = (
+        GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook, GateTest.bash, GateTest.denied)
+    path, write, prompt, receipts, tool, post = (
+        PreparationAndLaunchTest.path, PreparationAndLaunchTest.write, PreparationAndLaunchTest.prompt,
+        PreparationAndLaunchTest.receipts, PreparationAndLaunchTest.tool, PreparationAndLaunchTest.post)
+    show = PreparationAndLaunchTest.show
+    launch_records = AttemptEvidenceTest.launch_records
+
+    def approve(self):
+        self.prompt("approve plan " + self.show(PLAN))
+
+    def test_a_matched_receipt_carries_the_launch_start_time(self):
+        self.approve()
+        before = time.time()
+        self.tool(tool_use_id="t1")
+        record, = self.launch_records()
+        self.post(tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual((receipt["launch_match"], receipt["started"]), ("matched", record["started"]))
+        self.assertTrue(before <= receipt["started"] <= receipt["ts"])
+
+    def test_unmatched_and_ambiguous_receipts_have_no_start_time(self):
+        self.approve()
+        self.post(tool_use_id="nobody")  # no launch record
+        self.tool()
+        self.tool()  # identical launches without a call id
+        self.post()
+        self.post()
+        receipts = self.receipts()
+        self.assertEqual([r["launch_match"] for r in receipts], ["unmatched", "ambiguous", "ambiguous"])
+        self.assertEqual([r["started"] for r in receipts], [None, None, None])
+
+
 if __name__ == "__main__":
     unittest.main()
