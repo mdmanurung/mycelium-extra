@@ -6,6 +6,7 @@ receipt format the gate actually writes.
 
 import base64
 import glob
+import hashlib
 import json
 import os
 import pickle
@@ -541,14 +542,13 @@ class VerifyTest(unittest.TestCase):
 
     def test_earlier_runs_files_in_an_output_folder_are_not_blocking(self):
         self.write("analysis/a/results/run_0930/old.tsv", "x\n", mtime=time.time() - 3600)
-        digest = self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/results/run_*/"))
-        receipt = self.run_cmd("python " + FIT)
-        self.write("analysis/a/results/run_1001/new.tsv", "x\n", mtime=receipt["ts"] - 1)
+        digest = self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/results/run_*/*.tsv"))
+        self.run_cmd("python " + FIT, writes={"analysis/a/results/run_1001/new.tsv": "x\n"})
         out = self.verify("report", digest)
-        self.assertIn("1 file(s) under `analysis/a/results/run_*/` predate this plan", out)
+        self.assertIn("1 file(s) under `analysis/a/results/run_*/*.tsv` predate this plan", out)
         self.assertNotIn("run_0930/old.tsv`", out)
         self.assertIn("| `analysis/a/results/run_1001/new.tsv` |", out)
-        self.assertIn("Verify status: CONFORMS", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
 
     def test_reapproving_the_same_plan_keeps_its_earlier_runs(self):
         text = plan("run `{}`".format(FIT), outputs=self.OUT)
@@ -645,23 +645,23 @@ class VerifyTest(unittest.TestCase):
         step, notebook = "analysis/a/01_step.R", "analysis/a/02_plot.ipynb"
         for path in (step, notebook, "analysis/a/run.sh"):
             self.write(path, "x\n", mtime=time.time() - 60)
-        digest = self.approve(plan("`analysis/a/run.sh`", "`{}`".format(step), "`{}`".format(notebook)))
+        digest = self.approve(plan("`analysis/a/run.sh`", "`{}`".format(step), "`{}`".format(notebook),
+                                   outputs="analysis/a/outputs/01_table.tsv analysis/a/outputs/02_plot.pdf"))
         start = time.time()
-        self.write("analysis/a/outputs/01_table.tsv", "x\n", mtime=start + 1)
-        self.write("analysis/a/outputs/02_plot.pdf", "x\n", mtime=start + 1)
         self.snakemake_record("outputs/01_table.tsv", "s01_step", start, ["01_step.R", "data/in.tsv"],
                               "Rscript 01_step.R data/in.tsv outputs/01_table.tsv > logs/01_step.log 2>&1")
         self.snakemake_record("outputs/02_plot.pdf", "s02_plot", start, ["02_plot.ipynb", "outputs/01_table.tsv"],
                               "jupyter nbconvert --to notebook --execute 02_plot.ipynb --output-dir logs "
                               "--output 02_plot.ipynb")
-        self.run_cmd("bash analysis/a/run.sh")
+        self.run_cmd("bash analysis/a/run.sh", writes={"analysis/a/outputs/01_table.tsv": "x\n",
+                                                       "analysis/a/outputs/02_plot.pdf": "x\n"})
         out = self.verify("report", digest)
         self.assertIn("| `{}` | ran in Snakemake rule `s01_step` |".format(step), out)
         self.assertIn("| `{}` | ran in Snakemake rule `s02_plot` |".format(notebook), out)
         self.assertIn("wrapper: 2 Snakemake job(s) ran inside", out)
         self.assertIn("via Snakemake rule `s01_step`", out)
         self.assertIn("via Snakemake rule `s02_plot`", out)
-        self.assertIn("Verify status: CONFORMS", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
 
     def test_snakemake_records_beside_a_planned_script(self):
         # run.sh `cd`s into its own folder, so Snakemake writes its records there, below the
@@ -2192,6 +2192,8 @@ sys.exit(1 if hits else 0)
         self.assertIn("Input `data/in.tsv` changed since the approval", out)  # the file moved on since that freeze
         self.assertNotIn("No run is recorded under approval instance", out)
         self.assertIn("no approval instance", self.verify("report", digest, "--instance", "0" * 16, fails=True))
+        self.assertIn("`write` records the current approval instance ({})".format(second), self.verify(
+            "write", digest, "--analysis-dir", "analysis/a", "--instance", first, fails=True))  # one bundle per hash
 
     def test_reapproving_an_unchanged_freeze_keeps_one_instance(self):  # control
         text = plan("run `{}`".format(FIT), outputs=self.OUT)
@@ -2228,6 +2230,48 @@ sys.exit(1 if hits else 0)
         self.assertEqual(header[:6], ["path", "written", "size", "sha256", "fingerprint", "written_by"])
         self.assertEqual(header[6:], ["producer_attempt", "evidence_method", "strength", "approval_instance"])
         self.assertEqual(row[6:], [receipt["attempt_id"], "attempt-observed", "supported", instance])
+
+    def test_a_reapproval_while_a_run_is_in_flight_leaves_that_run_under_the_old_instance(self):  # F04 probe shape
+        self.write("data/in.tsv", "a\n", mtime=time.time() - 3600)
+        text = plan("run `{}`".format(FIT), inputs="data/in.tsv", outputs=self.OUT)
+        digest = self.approve(text)
+        approvals = gate.state_path(self.root, "approvals", digest + ".json")
+        first = gate.read_json(approvals, {})["instance_id"]
+        command = {"command": "python " + FIT}
+        self.hook("tool", {"tool_name": "Bash", "tool_input": command, "tool_use_id": "long"})  # still running
+        self.write("data/in.tsv", "b changed\n", mtime=time.time() - 3000)
+        self.assertEqual(self.approve(text), digest)
+        second = gate.read_json(approvals, {})["instance_id"]
+        self.write(self.OUT, "x\n")
+        self.post_only("python " + FIT, call_id="long")
+        receipt = self.read_receipts()[-1]
+        self.assertEqual((receipt["approval_instance"], receipt["launch_match"]), (first, "matched"))
+        out = self.verify("report", digest)
+        self.assertIn("No run is recorded under approval instance {}".format(second), out)
+        self.assertIn("1 run(s) of this plan ran under other approval instance(s) ({}: 1)".format(first), out)
+        entry, = self.outputs_of(digest)
+        self.assertNotEqual(entry["strength"], "supported")  # a run of the old freeze names no producer for the new one
+
+    def test_an_older_bundle_without_evidence_columns_is_labelled_legacy(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        row, = json.loads(self.verify("status", "--json"))
+        self.assertEqual(row["verified"], "CONFORMS (complete)")  # a new bundle needs no label
+        folder = os.path.join(self.root, "analysis/a/provenance")
+        table = os.path.join(folder, "outputs-{}.tsv".format(digest))
+        with open(table) as handle:  # the table as the verify before this change wrote it: six columns
+            old = "".join("\t".join(line.rstrip("\n").split("\t")[:6]) + "\n" for line in handle)
+        with open(table, "w") as handle:
+            handle.write(old)
+        marker = os.path.join(folder, "complete-{}.json".format(digest))
+        with open(marker) as handle:  # still a checksummed, complete bundle
+            record = json.load(handle)
+        record["sha256"]["outputs-{}.tsv".format(digest)] = hashlib.sha256(old.encode("utf-8")).hexdigest()
+        with open(marker, "w") as handle:
+            json.dump(record, handle)
+        row, = json.loads(self.verify("status", "--json"))
+        self.assertEqual(row["verified"], "CONFORMS (complete, legacy producers)")
 
     # C05: a Slurm submission is not a completion
 

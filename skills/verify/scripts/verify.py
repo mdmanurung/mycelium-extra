@@ -2298,10 +2298,13 @@ def _stale_plan(root, rel, budget):
         if not gate.unchanged(pin, now):
             changes.append("input `{}` changed (was {}, now {})".format(path, gate.describe(pin), gate.describe(now)))
     table = os.path.join(root, folder, "outputs-{}.tsv".format(digest))
-    rows = []
+    rows, producers = [], None
     if os.path.isfile(table):
         with open(table, encoding="utf-8") as handle:
-            rows = [line.rstrip("\n").split("\t") for line in handle][1:]
+            lines = [line.rstrip("\n").split("\t") for line in handle]
+        rows = lines[1:]
+        # a table without the evidence columns is from a verify that chose the producer by time alone
+        producers = "graded" if lines and "evidence_method" in lines[0] else "legacy"
     for row in rows:
         if len(row) < 3:
             continue
@@ -2319,7 +2322,7 @@ def _stale_plan(root, rel, budget):
             changes.append("output `{}` rewritten {} (provenance out of date)".format(path, when(info.st_mtime)))
     sessions = sorted({r["session_id"] for r in runs if r.get("session_id")})
     return {"hash": digest, "analysis_dir": os.path.dirname(folder) or ".", "changes": changes,
-            "sessions": sessions}
+            "sessions": sessions, "producers": producers}
 
 
 def stale(root, hash_mb, seconds):
@@ -2441,7 +2444,8 @@ def status(root, hash_mb, seconds):
         approved, verified = plan["recorded_approved"], plan["recorded_verified"]
         runs = sum(1 for r in read_jsonl(os.path.join(root, rel)) if not r.get("explore") and not r.get("not_a_run"))
         row = rows.setdefault(plan["hash"], {"hash": plan["hash"], "approved": approved, "epoch": 0, "runs": runs})
-        row.update(analysis_dir=plan["analysis_dir"], verified=verified + " (" + plan["bundle"] + ")", lint=plan["recorded_lint"],
+        row.update(analysis_dir=plan["analysis_dir"], lint=plan["recorded_lint"],
+                   verified=verified + " (" + plan["bundle"] + (", legacy producers" if plan.get("producers") == "legacy" else "") + ")",
                    stale="{} change(s)".format(len(plan["changes"])) if plan["changes"] else "no",
                    changes=plan["changes"])
     for row in rows.values():
@@ -3087,6 +3091,10 @@ def main(argv):
     result = check(root, args.hash, args.analysis_dir, args.sacct, args.hash_mb, args.seconds,
                    args.scilintr or recorded[0], args.rscript or recorded[1], args.claims, args.instance)
     if args.action == "write":
+        if result["instance"]["selected"] != result["instance"]["current"]:
+            sys.exit("verify: `write` records the current approval instance ({}); a bundle is keyed by the plan hash, "
+                     "so writing an earlier instance would replace it. Use `report --instance` to read an earlier "
+                     "freeze.".format(result["instance"]["current"]))
         written = write(root, result)
         for path in written:
             print("wrote " + path)
