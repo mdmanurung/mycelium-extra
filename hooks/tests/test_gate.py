@@ -2700,11 +2700,23 @@ class PlanComparisonAndPathsTest(unittest.TestCase):
         self.write_file("data/cohort", "x\n")
         self.write_file("DATA/x.tsv", "x\n")
         gate = self.gate()
-        for line in ["$DATA/x.tsv", "`$(ls data)/x.tsv`", "${DATA}/x.tsv", "data/*.tsv", "data/{x,y}.tsv", "`data/cohort samples.tsv",
-                     '"data/cohort samples.tsv', "` `", "data/cohort\\ samples.tsv", "`data/x.tsv, data/y.tsv`"]:
+        for line in ["$DATA/x.tsv", "`$(ls data)/x.tsv`", "${DATA}/x.tsv", "`data/cohort samples.tsv",
+                     '"data/cohort samples.tsv', "` `", "data/cohort\\ samples.tsv", "`data/x.tsv, data/y.tsv`", "*.tsv"]:
             pins, outside = gate.pin_inputs(self.root, "Inputs: " + line, gate.load_config(self.root))
             self.assertEqual((pins, outside), ({}, []), line)
             self.assertTrue(self.read(line, self.root)[1], line)
+
+    def test_a_wildcard_or_brace_input_pins_its_folder_as_before(self):
+        self.write_file("data/raw/a.csv", "x\n")
+        gate = self.gate()
+        for line in ["data/raw/*.csv", "data/raw/{a,b}.csv", "./data/raw/s*/x.csv"]:
+            pins, outside = gate.pin_inputs(self.root, "Inputs: " + line, gate.load_config(self.root))
+            self.assertEqual((sorted(pins), outside), (["data/raw"], []), line)
+            self.assertIn("its folder `", self.read(line)[1][0], line)
+        before = gate.pin_inputs(self.root, "Inputs: data/raw/*.csv", gate.load_config(self.root))[0]
+        self.write_file("data/raw/a.csv", "changed\n")
+        self.assertFalse(gate.unchanged(before["data/raw"], gate.pin_inputs(
+            self.root, "Inputs: data/raw/*.csv", gate.load_config(self.root))[0]["data/raw"]))
 
     def test_a_quoted_name_that_looks_like_a_pattern_is_read_when_the_file_exists(self):
         self.write_file("data/s{1} a,b.tsv", "x\n")
@@ -2720,7 +2732,7 @@ class PlanComparisonAndPathsTest(unittest.TestCase):
         lines = [line for line in card.splitlines() if "not read:" in line and "Shorthand" not in line]
         self.assertEqual(len(lines), 4, card)
         self.assertEqual([line.split(":")[0] for line in lines], ["Inputs not read"] * 3 + ["Outputs not read"])
-        self.assertIn("Reads none (the `Inputs:` line names no files)", card)
+        self.assertIn("Reads 1 pinned: data\n", card)  # the pattern's folder, as before 0.9.75
 
     def test_the_plain_card_names_unread_inputs_too(self):
         card = self.card(PLAN + "\nInputs: $DATA/x.tsv\n")

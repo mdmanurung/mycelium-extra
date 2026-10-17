@@ -1658,7 +1658,10 @@ def read_inputs(text, root=None):
                     notes.append(path_note(core, "ends in a backslash; quote a path that has a space"))
                     skip = True  # the rest of the name is the next word
                 elif PATTERN.search(core) and ("/" in core or re.search(r"\.\w", core)):
-                    notes.append(path_note(core, "is a pattern, not a path; name each file"))
+                    folder = core[:PATTERN.search(core).start()].rpartition("/")[0]
+                    notes.append(path_note(core, "is a pattern, not a path; name each file" + (
+                        " (its folder `{}` is pinned instead)".format(folder) if folder else "")))
+                    add(folder[2:] if folder.startswith("./") else folder)
                 else:
                     for word in PATHLIKE.findall(token):
                         word = word.rstrip(".,;:")
