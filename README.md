@@ -60,6 +60,8 @@ Codex, `plan-review` provides the engineering critique only.
 - [Installation](docs/installation.md) and [usage tiers](docs/usage.md): begin here.
 - [Skill reference](docs/skills.md), [approval gate](docs/approval-gate.md),
   and [verification](docs/verification.md): look up details when needed.
+- [Advanced features](docs/advanced.md): optional settings and subcommands
+  that Tiers 1 to 3 do not need.
 - [Mycelium integration](docs/mycelium-integration.md): credits and boundaries.
 - [Development](docs/development.md): tests, changelog, roadmap, and design notes.
 

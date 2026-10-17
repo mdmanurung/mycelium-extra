@@ -2,7 +2,7 @@
 
 [Choose a usage tier](usage.md)
 
-**On this page:** [Approving a plan](#approving-a-plan) · [Approval instances](#approval-instances) · [What is gated](#what-is-gated) · [Pinned inputs](#pinned-inputs) · [Run limit](#run-limit) · [Approval latency and comprehension checkpoint](#approval-latency-and-comprehension-checkpoint) · [Pinned scripts](#pinned-scripts) · [Validation bindings](#validation-bindings) · [Exact execution](#exact-execution) · [Review consent](#review-consent) · [Run receipts](#run-receipts) · [Mycelium's post-action protocol](#myceliums-post-action-protocol) · [Exploratory runs](#exploratory-runs) · [Lint on write](#lint-on-write) · [Command hints](#command-hints) · [Settings](#settings) · [Limits](#limits)
+**On this page:** [Approving a plan](#approving-a-plan) · [What is gated](#what-is-gated) · [Pinned inputs](#pinned-inputs) · [Optional features](#optional-features) · [Pinned scripts](#pinned-scripts) · [Run receipts](#run-receipts) · [Mycelium's post-action protocol](#myceliums-post-action-protocol) · [Exploratory runs](#exploratory-runs) · [Lint on write](#lint-on-write) · [Command hints](#command-hints) · [Settings](#settings) · [Limits](#limits)
 
 A plan is useful only if the run still follows it. The approval gate checks covered analysis commands before execution, so an agent cannot start a new run just because a previous conversation discussed it. You decide what is approved, and the gate keeps a record of the runs that follow.
 
@@ -35,10 +35,6 @@ No card line is longer than 250 characters, except a `CAN RUN` grant and a scrip
 Text quoted from the plan has control characters and markup removed, and the phrase "approve plan" written as `approve-plan`. The card shows what the gate allows; it does not check the choices or the checks. Any other plan keeps the older card: runs allowed, inputs, scripts, outputs. Type exactly that (a trailing `.` is fine) to record the approval in `.mycelium-extra/approvals/`. The text is saved when the plan is shown, but the hash can be approved only once its pins and card are prepared; if preparation was interrupted the hash is listed as `(preparing)`, approval is refused, and showing the plan again prepares it. A pending plan saved by 0.9.44 to 0.9.70 has no such field and counts as prepared only if it holds its `scripts` record, which those versions wrote last; an older one stays approvable.
 
 Execution grants are restricted to the approving session. Approvals without a recorded session remain readable historical evidence, but require a new card and approval before execution. Approve in the same session that presented the plan. If you move to a new session, present the plan there first; a pending hash from another session does not grant approval. When the context fills up while a plan waits, `/mycelium-extra:handoff` points `HANDOFF.md` at the plan's stored text, and the new session prints it unchanged. Approve the hash on the new card: it matches the old one when the text is unchanged.
-
-### Approval instances
-
-Approving writes an immutable record, `.mycelium-extra/approval-instances/<hash>/<instance_id>.json` (schema `mycelium-extra.approval-instance.v1`): the plan's full sha256, the pins and script pins, whether preparation finished (`prepared`: `complete`, or `legacy-no-ready` for a pending entry from before the `ready` field), and a list of `limitations` (a legacy preparation, inputs pinned only by size and time, a folder pinned by listing). When the plan has them, the instance also holds `validation` and `execution` (the checked blocks, with each check's pinned files and definition hash), and the approval file carries the same two keys; a plan without the blocks writes neither, so its instance id is unchanged. `approvals/<hash>.json` stays the file the gate reads and gains `instance_id`. The id hashes the frozen content, not the time or session, so approving the same freeze again reuses the same instance, and approving the same prose with different pins writes a second instance and keeps the first. A launch records the instance it ran under, so a run that started before a reapproval keeps naming the older freeze. Approvals without `instance_id` are legacy: one implicit instance, history before it unknown.
 
 ## What is gated
 
@@ -78,23 +74,9 @@ Paths are read as written, never evaluated: a path in backticks or single or dou
 
 Approving copies the pins into the approval. Before a covered run, the gate fingerprints the pins of the newest approval that covers it. An older plan that pinned less therefore cannot let a run through after a newer plan's pins changed. The gate blocks the run if one changed, naming the file with its old and new fingerprint. Re-check the input (for example, re-run the data-contract check), show the plan again, and approve it. Explore runs skip this check.
 
-## Run limit
+## Optional features
 
-One approval can cover many runs of the same scripts, and after enough re-runs the plan you approved may no longer describe what runs. Set `"max_runs_per_approval": 3` (any whole number of 1 or more) in `gate.json`, and the fourth gated run is denied with the number of runs so far and what differs from the first of them: the commit, uncommitted changes, and each script's content (shown even with `pin_scripts` off). Present the plan again; approving it (`approve` or `approve plan <hash>`) restarts the count.
-
-- The count comes from the run receipts since the approval, so it matches `verify`: explore runs do not count, a `command -v` lookup is not a run, a failed run is, and a denied run leaves no receipt. A run is counted when its receipt arrives, so runs still in flight, or two runs in one command, can overshoot by that many. A Slurm job counts when it is submitted.
-- The approval file is not changed. `verify list` and `verify status` show `(limit N reached (M since approval))` next to the run count, derived from the same receipts.
-- An invalid value is ignored with a notice. Unset means no limit and no change in behaviour.
-
-## Approval latency and comprehension checkpoint
-
-Every approval (`approve` or `approve plan <hash>`) appends one line to `.mycelium-extra/approvals.jsonl`: the hash, session, when the plan was shown and approved (`shown_ts`, `approved_ts`), the seconds between them (`latency_s`), the number of step rows in the plan table (`plan_rows`) and its length in characters (`plan_chars`). It is a log for you to read later: it is never shown in a notice, on the card or by `verify`, it never blocks or slows an approval, a failed write does not stop the approval, and the approval file is unchanged. A plan shown again restarts the clock.
-
-Every tool call the gate denies after checking it appends one line to `.mycelium-extra/denies.jsonl`: `ts`, `session_id`, `tool` (the name as the gate sees it: `Bash`, `Edit`, `Write`, `apply_patch`) and `reason`, the first sentence of the denial cut at 160 characters. A `deny` from `on_error` (a broken gate, or an old Python) is not logged here; it goes to `gate-errors.jsonl`. Like `approvals.jsonl`, nothing reads it back: not a notice, the card or `verify`. Count how often the gate stopped work yourself, for example `jq -r .reason .mycelium-extra/denies.jsonl | sort | uniq -c`.
-
-Set `"checkpoint_steps": 8` (a whole number of 1 or more) in `gate.json` and a plan table with more than 8 step rows is not approved at the first `approve plan <hash>` (a bare `approve` gets the same question). The reply asks one question made from the table, not by a model: which step number makes a quoted Choice (the row is picked from the hash, so asking again gives the same question). Answer with `approve plan <hash> <number>`; the answer needs the hash. A wrong number shows that row (step, Choice, Source) and asks again; nothing is denied and the pending plan does not change. A right number approves as usual. A plan without Choice cells is asked which step names its first script or path; a plan with neither is approved without a question. Re-approving an unchanged plan asks again. The log line then carries `checkpoint` with `asked`, `passed` and `wrong_attempts`.
-
-- Unset or `0` is off, and then `approve plan <hash> <number>` is not an approval, as before. An invalid value is ignored with a notice.
+These are supported and tested, but most researchers never need them, so they live on the [Advanced features](advanced.md) page: [approval instances](advanced.md#approval-instances) (the immutable record each approval writes), the [run limit](advanced.md#run-limit), the [approval latency log, deny log and comprehension checkpoint](advanced.md#approval-latency-and-comprehension-checkpoint), [validation bindings](advanced.md#validation-bindings), [exact execution](advanced.md#exact-execution), and [review packets and consent](advanced.md#plan-review-packets-and-consent).
 
 ## Pinned scripts
 
@@ -112,48 +94,11 @@ Only the script a command runs is checked. A file it sources or imports, and the
 
 ## Validation bindings
 
-An optional comment block in the plan text names the acceptance checks the researcher approves, so that a result can later be tied to the check that produced it and a changed expectation cannot keep the authority of the approved one:
-
-```text
-<!-- validation-bindings {"version": 1, "checks": [
-  {"id": "V1", "plan_row": "3", "required": true, "defined_by": "researcher-approved",
-   "test_paths": ["analysis/x/tests/expected_rows.tsv"],
-   "invocation": ["python", "analysis/x/tests/check_rows.py"],
-   "evidence_path": "analysis/x/outputs/check_rows.json"}]} -->
-```
-
-The block is optional; a plan without it is approved and run as before. The gate reads it in the Stop hook, before the plan can become ready:
-
-- Every field except `required` (default `true`) must be present, and unknown keys, an unknown `version`, duplicate ids, a `plan_row` that is not a row of the plan table (or repeats there), an unsafe path (absolute outside the repository, `..` escaping it, a symlink out, `~`, a `$` substitution, the gate's own state folder), a `test_paths` file that does not exist, and malformed JSON are errors. The card then lists the errors and the plan is not approvable: `approve plan <hash>` replies that nothing was approved and to fix the block. Showing the corrected plan (a new hash) prepares it again.
-- `test_paths` are the files that define the check: the test, its fixtures and its expected values. Each is pinned by sha256 in the prepared plan, the approval record and the approval instance (`validation`: per check its fields, `files` `{path: sha256}` and a `definition_sha256` over them), so approving the plan freezes the expectation, not just the check's name. `invocation` is the command (an argv list, or a string split like a shell would) that runs it, from the repository root. `evidence_path` is where the run writes its result; it must be a safe path but need not exist yet, and it is never pinned, since the check rewrites it.
-- `defined_by` (`agent-proposed`, `researcher-approved` or `independent`) is recorded and shown as "declared by"; the gate cannot verify who wrote the check.
-- While an approval with bindings covers a run, the gate denies the run when any pinned file has changed or is missing, naming the check and the file. A changed expectation invalidates the old acceptance evidence: the plan must be shown and approved again, which pins the new bytes. Editing any other file, or the evidence file, changes nothing.
-- A launch whose command equals a check's `invocation` (same argv, run from the repository root) records `validation_check` with the check id in its launch entry and receipt, so `verify` can tie a result to the check that produced it. The gate does not run the check, and a pass file that merely exists proves nothing.
-
-The check's command has to be seen by the gate to be recorded. A test under `tests/` is outside the default gated paths (`analysis/**`, `nbs/**`), so a run of it is not gated, has no launch record and no `validation_check`. Either keep the test under a gated path (for example `analysis/x/tests/`), where the plan table must also name it, or add its folder to `gated_paths` in `gate.json` yourself; the gate never widens its own scope. The card says which case applies to each check: `not gated`, `gated but not named in the plan table`, or `gated, named in the plan table`.
+Optional, and moved to [Advanced features](advanced.md#validation-bindings).
 
 ## Exact execution
 
-By default a path or command in the plan table is a broad grant: any arguments pass. For a reportable step that is too loose, since a changed `--model`, contrast or threshold is a different computation under the same approval. An optional block freezes the command of chosen steps:
-
-```text
-<!-- exact-execution {"version": 1, "steps": [
-  {"row": "2", "argv": ["python", "analysis/x/fit.py", "--model", "mixed", "--threads", "4"],
-   "cwd": ".", "env": {}, "operational": ["--threads"]}]} -->
-```
-
-- `row` is a row of the plan table, `argv` the command from the program on (wrappers such as `conda run`, `srun` or `timeout` and leading `VAR=value` words are not part of it), `cwd` the repository-relative folder (default `.`), `env` the inline variables it may carry, `operational` the flags that may differ. A `$` or backtick in `argv`, an unknown key or version, an unknown row and an unsafe path are errors, as for bindings. The block narrows a grant and never widens one: the step's script must still be named in the table.
-- A step is about a run when its argv names a script the run launches (or, for a gated command such as `snakemake`, its program). Such a run must equal a declared argv in the declared folder: same program name, same arguments in the same order (`./` ignored), except the operational flags, whose value may differ and which may be added or removed. `> file` redirections are ignored; `< file` is not. Otherwise the run is denied with the declared and the actual command.
-- A flag listed as operational is read as taking a separate value only when the step writes it with one (`--threads 4`) or with `=`; to add one the step does not show, write `--flag=value`, so that a boolean flag cannot swallow a positional argument.
-- A shell substitution (`$X`, `$(...)`, backticks) in the launched command, or a folder that is an unresolved expansion (`env -C "$WORK"`), cannot satisfy an exact step and is denied. Inline variables must be declared in `env` with the same value; variables set elsewhere in the shell are not visible to the gate.
-- The three kinds of change are different actions. An **operational retry** (cores, memory, queue, a log path) may differ only in the listed flags and needs nothing. A **frozen-code re-freeze** (the script changed) is the existing pinned-script path: the plan is shown and approved again. A **changed analytical argument or intent** (another model, filter, contrast, threshold, seed or input) goes back to the researcher, who approves a revised plan.
-- A run no step is about keeps its broad grant (`exact_match: false` in its launch entry and receipt). A run held to a step records `exact_match: true` and `exact_step` (the row). A mismatch is denied, so no launch entry exists for it.
-
-The match is on the launched words, not on what the script does with them: it does not read a params file named in the arguments (pin it under `Inputs:`), and it cannot see wrappers' own options (`command_env` records a `conda run` environment). It is a freeze of the command line for the runs the gate can see, not of the science.
-
-## Review consent
-
-`review_packet.py` (see [plan-review](https://github.com/mdmanurung/mycelium-extra/blob/main/skills/plan-review/SKILL.md)) prepares an immutable review packet and, before anything is sent, checks that the user consented to exactly those bytes. Only the gate writes that consent: when the user's prompt is exactly `send packet <12 to 64 hex characters of the digest>` (case and surrounding whitespace ignored; nothing before, after or around it), the prompt hook finds the one prepared packet folder under `.mycelium-extra/review-packets/` whose digest starts with that prefix and which has its manifest, writes `.mycelium-extra/review-consent/<digest>.json` (schema `mycelium-extra.review-consent.v1`: `digest`, `session_id`, `ts` and the literal `prompt`), and answers with the digest and the next step, `review_packet.py verify`. An ambiguous prefix, an unknown digest or a prompt embedded in longer text records nothing (the first two answer why; the last is an ordinary prompt). An agent cannot make the user type it, and `review_packet.py` never writes consent. This is a cooperative control, not a sandbox: an agent with unrestricted shell access can still send other bytes.
+Optional, and moved to [Advanced features](advanced.md#exact-execution).
 
 ## Run receipts
 
@@ -163,7 +108,7 @@ Receipts provide the execution record that `verify` reads later. After a covered
 - Output observation. At launch the gate records, for the credited plan's declared `Outputs:`, each literal path and each one-level glob match, with a declared folder (or a matching folder) expanded to the files inside it, recursively (at most 200 files in all, and over that the observation is skipped, never listed partially; `**` patterns and directory trees are never scanned) as `outputs_before` `{path: [size, mtime_ns]}` in the launch entry (`null` for a path that does not exist yet). The receipt then carries `outputs_observation` and, when observed, `outputs_changed` `{created, changed, deleted}` (a changed size or mtime counts as changed; an untouched file is not listed). `outputs_observation` is `observed`, or `skipped: <reason>`: no declared outputs, cap reached, a `**` pattern, an unmatched or ambiguous launch, a compound shell call, or a job submission (the job writes after the call returns). A change between launch and report is an observation, not proof that this run wrote the file: a concurrent writer is indistinguishable.
 - `validation_check`, `exact_match`, `exact_step`, when the launch recorded them: the id of the [validation binding](#validation-bindings) whose invocation this command is, and whether an [exact-execution](#exact-execution) step held it (`true` with the matched row, `false` when no step was about it; absent when the plan has no block).
 - `started`: the launch's start time for a matched launch (`null` when unmatched, ambiguous or legacy), so overlapping attempts can be detected.
-- `approval_instance`: the id of the approval instance the credited plan had when the run launched (see [Approval instances](#approval-instances)), `null` for an approval from before instances.
+- `approval_instance`: the id of the approval instance the credited plan had when the run launched (see [Approval instances](advanced.md#approval-instances)), `null` for an approval from before instances.
 - `limitations`, when present: a run allowed although its folder could not be resolved (a wrapper option such as `env -C "$X"`) carries `cwd unresolved: <expression>`, in its launch entry and its receipt, and the post message adds one coverage line. The run was matched by reading the folder as the outer folder or the repo root.
 - Git HEAD, whether tracked files have uncommitted changes, and whether each recorded file is committed, modified, untracked, or ignored.
 - The script's fingerprint (or the sha256 of an `sbatch --wrap` payload), and its `module load`, `conda activate`, and `#SBATCH` lines.
@@ -240,16 +185,9 @@ Type `hints on` to get a one-line suggestion of the command to run next; `hints 
 | `gated_paths` | `["analysis/**", "nbs/**"]` | Scripts under these globs need an approved plan naming them. |
 | `gated_commands` | `["sbatch", "snakemake", "nextflow"]` | Commands that need an approved plan containing the command word. |
 | `approval_hours` | `24` | How long an approval covers runs. Approvals are never deleted. |
-| `max_runs_per_approval` | unset | A whole number of 1 or more. After that many runs under one approval, the next gated run is denied until you re-approve the plan. See [Run limit](#run-limit). |
-| `checkpoint_steps` | unset | A whole number of 1 or more. A plan with more step rows asks one question about its table before approval. See [Approval latency and comprehension checkpoint](#approval-latency-and-comprehension-checkpoint). |
-| `pin_hash_mb` | `200` | Bytes of pinned inputs (in MB) hashed per hook before falling back to size and mtime. |
-| `pin_seconds` | `5` | Seconds the pin check may take per hook. |
-| `card_lint` | `true` | Lint the planned code when a plan is presented and show the result on the card. `false` turns it off. |
-| `lint_on_write` | `true` | Lint each gated script as it is written and tell the agent the open findings; the user sees what is left when the turn ends. `false` turns it off. |
-| `lint_before_run` | `false` | `"warn"` or `"block"`: before a gated run, tell about or deny a script whose findings lint-on-write recorded and that has not been edited since. See [Lint on write](#lint-on-write). |
-| `lint_before_stop` | `false` | `true` blocks the Stop once per change while scripts written this session have open findings. See [Lint on write](#lint-on-write). |
-| `pin_scripts` | `true` | Block a run whose script changed since it was approved or first run. `false` turns it off. |
 | `on_error` | `"allow"` | What a PreToolUse hook does when the gate itself breaks. `"deny"` blocks every tool call the gate could not check, including when `gate.py` cannot load; any other value is ignored with a notice. |
+
+The optional keys (`max_runs_per_approval`, `checkpoint_steps`, `pin_hash_mb`, `pin_seconds`, `card_lint`, `lint_on_write`, `lint_before_run`, `lint_before_stop` and `pin_scripts`) are listed under [Other `gate.json` settings](advanced.md#other-gatejson-settings).
 
 Two switches are not keys. `hints on` and `hints off` create and remove `.mycelium-extra/hints.json`. `allow explore [<plan hash>]` and `stop explore` apply to one session.
 
@@ -260,7 +198,7 @@ Everything is gitignored and local to the clone. The `.jsonl` logs and `explore.
 | Path | Holds |
 |---|---|
 | `gate.json` | The settings above. |
-| `approvals/<hash>.json`, `approval-instances/<hash>/` | The approved plans and their frozen content ([Approval instances](#approval-instances)). Never deleted. |
+| `approvals/<hash>.json`, `approval-instances/<hash>/` | The approved plans and their frozen content ([Approval instances](advanced.md#approval-instances)). Never deleted. |
 | `pending/` | Plans shown, per session (text, pins, card), and the lint records of scripts written. |
 | `script-pins/`, `scripts/` | First-run script pins and the stored copies used for diffs. |
 | `launches/` | One record per gated launch until its call reports back; `launches/abandoned/` keeps those never taken. |

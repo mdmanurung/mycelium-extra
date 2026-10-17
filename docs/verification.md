@@ -15,7 +15,9 @@ individual outcomes remain gaps, while a failed aggregate command blocks.
 Claim tables with duplicate column headers or no data rows are unverified;
 unrepresentable numeric values are also gaps, never verified by accident.
 
-**In this section:** [What the report shows](#what-the-report-shows) · [Output producers](#output-producers) · [Validation](#validation) · [Recovery](#recovery) · [Status](#status) · [Qualification](#qualification) · [Rerun evidence](#rerun-evidence) · [What it writes](#what-it-writes) · [Plan differences](#plan-differences) · [Stale plans](#stale-plans) · [Overview of all plans](#overview-of-all-plans) · [Runs and citations](#runs-and-citations) · [Recoverable provenance publication](#recoverable-provenance-publication)
+**In this section:** [What the report shows](#what-the-report-shows) · [Output producers](#output-producers) · [Recovery](#recovery) · [Status](#status) · [Qualification](#qualification) · [Rerun evidence](#rerun-evidence) · [What it writes](#what-it-writes) · [Recoverable provenance publication](#recoverable-provenance-publication) · [Advanced features](advanced.md#verify-features)
+
+Validation bindings in the report, `verify diff`, `verify stale`, `verify status` and `verify runs` are described under [Advanced features](advanced.md#verify-features).
 
 ## What the report shows
 
@@ -27,7 +29,7 @@ unrepresentable numeric values are also gaps, never verified by accident.
 - **Outputs:** the files on the plan's `Outputs:` line, when each was written, and how well the records name the run that wrote it ([Output producers](#output-producers)): only a `supported` producer fills the By column; otherwise it reads `unresolved` with its candidates beside it. A `{a,b}` list is expanded, and a `<name>` placeholder or a comma-less `{name}` (a Snakemake wildcard) is read as `*`; a word starting with `…` names no path and is a gap (the approval card flags it too). A file named exactly that was written before the approval blocks. Older files inside a named folder or glob are earlier runs' outputs, so they are counted, not checked.
 - **Launch evidence:** a run is a *checked launch* only when the gate saw both its Pre and its Post and matched them (`launch_match: matched`). Runs credited to the plan whose Post had no matching Pre are a gap (`no checked launch: Post without matching Pre`), grouped by reason; identical launches without a call id are a gap too (`ambiguous launch`). Receipts written before launch matching (no `launch_match`) are read as before and counted in one info line, never as matched. An attempt that started and never reported back (the gate moves it to `launches/abandoned/`) is a gap naming its start time: what it ran or wrote is not known. A late Post for an expired launch shows both as an unmatched receipt and as an abandoned attempt.
 - **Approval instances:** each approval of a plan writes an immutable instance (`approval-instances/<hash>/<id>.json`: the plan hash, pins, scripts, preparation and limitations), and `approvals/<hash>.json` points to the newest. `report` checks that instance by default; `--instance <id or unique prefix>` checks an earlier one against its own pins and approval time (`report` only: a saved bundle is keyed by the plan hash, so `write` records the current instance). Runs launched under another instance (or one that records none) are shown as history and cannot establish the freeze being checked; none under it is a gap. Approving the same plan with the same pins reuses its instance. An approval with no instance id is legacy: read as one freeze, with an info line.
-- **Validation:** the plan's approved acceptance checks (`<!-- validation-bindings -->`), each reconciled with the result of its matched run ([Validation](#validation)).
+- **Validation:** the plan's approved acceptance checks (`<!-- validation-bindings -->`), each reconciled with the result of its matched run ([Validation](advanced.md#validation-in-the-report)).
 - **Recovery:** a step with more than one attempt under this approval lists every attempt, and a success that follows a failure is judged as an equivalent retry or as unestablished ([Recovery](#recovery)).
 - **Exact execution:** when the approved plan declares `<!-- exact-execution -->`, a run of that approval the gate did not match to a declared step is a gap: it is outside the exact reportable contract, so its command was not frozen.
 - **Unreceipted runs:** scripts that Mycelium's lineage saw run in the window but the gate did not, such as scratchpad scripts.
@@ -58,24 +60,6 @@ Each output row carries `producer_attempt`, `evidence_method`, `strength`, `cand
 Extraction warnings (the action's `lineage_warnings` and the manifest's `extraction_warnings` for it) are shown beside the lineage line. Mycelium's session id is its own date-counter unless it fell back to the host's, so an inferred join is usually possible only in the fallback case; a manifest is written at Stop, so during an active session there is none and nothing changes. A malformed manifest or action is skipped, as before.
 
 What this does not prove: an observed change shows the file changed during that run, not that the run's code wrote it; an unrelated process writing in the same seconds is seen only as an overlapping attempt when it was itself recorded. A folder on the `Outputs:` line is watched as a folder (the gate sees it change, not which file), so name files or a one-level glob to get `supported`. A receipt records when the run ended, and when the gate recorded it, when it started; without a start, a run that overlapped it is seen only if it ended within the clock tolerance.
-
-## Validation
-
-A plan may declare acceptance checks in a `<!-- validation-bindings -->` block: per check an `id`, the `plan_row`, whether it is `required`, who defined it (`defined_by`), the pinned `test_paths` (a test or expectation file), the `invocation` that runs it and the `evidence_path` it writes. Approval freezes the block and pins the files. `verify` runs nothing; it reads the instance's record, the receipts and the evidence file, and gives each check one outcome:
-
-| Outcome | What it means | Required check | Optional check |
-|---|---|---|---|
-| passed | A matched run of the invocation under this approval instance created or changed the evidence file, nothing touched it afterwards, the pinned files are still as approved, and the file says it passed. A data-contract result (`mycelium-extra.contract_result.v1`) passes with exit 0 and no block; its warnings are kept and shown (`passed with N warning(s)`). | no finding | no finding |
-| failed | The check command exited nonzero, or the result says failed (a data-contract result with exit 2, naming the blocking checks with their expected and observed values). | **block** | info |
-| not run | No matched run of the invocation under this instance (a run under an earlier instance does not carry over; the line says so), or a data-contract result whose checks could not run (exit 3, or exit 1 for an unusable contract), even when the runner passed the checker's nonzero exit code on. | gap | info |
-| changed | A pinned test or expectation file differs from approval or is missing, or a data-contract result was produced from a contract that is not a pinned file. An expectation edited after approval does not keep its authority. | gap | info |
-| unattributable | The evidence file is not tied to the matched attempt: the gate did not observe outputs, the attempt did not create or change the file (it was written by the agent outside the run), or it was modified after the attempt. A result written by hand, or a stale one, cannot pass. | gap | info |
-| stale | The check passed, but a later attempt under the instance (not a check's) changed a declared output, or ran without its outputs being observed, so the result no longer speaks for the outputs. Run the check again. | gap | info |
-| unsupported | The file is not JSON or has no `status` of passed or failed, a data-contract result's `checks` or `contract` is malformed, or the exit status was not recorded. | gap | info |
-
-A check command that exits nonzero is a failed run and blocks like any failed run, whatever its result says; a runner that should leave the judgement to the result file exits 0. **Not established** is the gap wording for a required check: the plan's expectation is not counted as met, and a report with such a gap is never `CONFORMS`. It is not a failure; it says the records cannot show the check passed. `defined_by` (`agent-proposed`, `researcher-approved`, `independent`) is shown as the plan declared it, with "not verified": a label is not proof of who wrote the check, and approval binds the named expectation, not its scientific truth. The evidence file must be one of the plan's declared outputs (or inside a declared output folder) for the gate to observe it being written.
-
-`write` adds `validation-<hash>.json` to the bundle: the frozen binding (with each file's sha256 and the definition's sha256), every check's outcome, reason and attempt, and the evidence file's path and sha256. A bundle without it is from a plan with no binding, or from an older verify, and reads as before.
 
 ## Recovery
 
@@ -140,37 +124,6 @@ After you confirm, `verify` writes `<analysis>/provenance/`:
 - the report, and a `PROVENANCE.md` index.
 
 Commit it with the analysis. It never writes `PLAN.md`, `TRACKER.md`, or `specification.md`, so the analysis keeps one plan file. It then names the review command, `/mycelium:review <folder> — check the code against the approved plan in <folder>/provenance/plan-<hash>.md`.
-
-## Plan differences
-
-`verify diff <old> <new>` compares two plans whole, with whitespace collapsed and nothing shortened, so a change after a long shared prefix is still seen. It lists a changed objective; changed, added and removed table rows (keyed by the ID column: `#`, `id`, `no`, `no.`, else the first); dropped columns; a changed row order; changed `Inputs:` and `Outputs:` lines; the raw `<!-- validation-bindings -->` and `<!-- exact-execution -->` blocks, compared as text and not interpreted; and the runs the plan table allows. Rows whose ID is duplicated or missing are "cannot compare". The result is exact equality of what the plans say, not a judgement that the science is unchanged, and a formatting-only edit reports no change.
-
-## Stale plans
-
-`verify stale` sweeps every verified plan. It lists the ones whose scripts, pinned inputs, or outputs changed since their provenance was written. For each, it gives a ready `rg` command that finds the findings resting on it in `.living/findings/`, by session ID or plan hash.
-
-After a planned run in a Mycelium repository, the gate suggests writing the finding's Evidence Ledger Run/Session cell as `<session-id>; plan <hash>`, and ending its Result cell with `[agent-derived: <output path>]`. Mycelium reads only the ledger's date cell.
-
-`verify stale` reads only committed provenance, so it works without the gate on any clone. By default outputs are compared by size and time, and the result says `metadata checked`: a same-size file with its old modification time looks unchanged. `verify stale --content` instead hashes each output and compares it with the SHA256 verify saved (in `outputs-<hash>.tsv`), so such a change is caught and a file merely touched is not reported. A file with no saved SHA256, or one the `--hash-mb` or `--seconds` budget did not reach, is `content not checked` and keeps the size and time check; the summary counts both. A notebook output is hashed as the raw file (its executed results), not as its code cells, which are the right identity for the code that ran. Bundles written before this change recorded a notebook's code-cell hash, so those entries can read as changed until the next `write`.
-
-## Overview of all plans
-
-`verify status` is an on-request overview, with one row per approved or verified plan. Each row shows:
-
-- its analysis folder, runs, verify status, and staleness (size and time only; use `stale --content` for content);
-- whether the saved report was `qualified` for reporting (the `Reportable` column);
-- the lint verify recorded (`N finding(s)`, `M approved threshold(s)` for threshold findings the plan approved, `clean`, `not run`, `not recorded`; a missing or unreadable linter shows as a gap, never `clean`);
-- the verify status from `PROVENANCE.md` with the bundle's state appended (`CONFORMS (complete)`; `legacy producers` for a table from an older verify);
-- the folder's `ANALYSIS_MANIFEST.md` entry: `listed: <first status word>`, `listed`, or `not listed`. It reads Mycelium's YAML `status:`, `**Status**:` lines, and a table's Status cell.
-- with `max_runs_per_approval` set in `gate.json`, whether a plan has reached it: the run count then reads `N (limit L reached (M since approval))`.
-
-No hook runs it.
-
-One limit: only a run the gate saw from Pre to Post, with the output named by file or one-level glob, can be observed writing it; any other output is tied to a run by time alone and stays a gap.
-
-## Runs and citations
-
-`verify runs [RESULTS_DIR]` lists the `run_<YYYYMMDD>_<slug>` folders of a results folder with the status each run's label (`RUN.txt`, or a sibling `<run>.RUN.txt` for a frozen run) gives it, plus `updated` (newest file inside) and a content `id`. It also lists gaps in the labels and, in a Citations section, the `data/` and `code/` symlinks that cite a run of another analysis, with that run's status. It never writes, never sets a status, and only suggests a supersession; it is not part of `verify report` or `status`.
 
 ## Recoverable provenance publication
 

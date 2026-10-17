@@ -46,7 +46,8 @@ explicit claims. It never re-runs the analysis. Requires the approval gate
 for a current plan's report; `verify stale`, `status` and `runs` can read saved
 provenance without it. Other subcommands (`list`, `diff`, `multiplicity`,
 `explore`, and `--require-reportable`) are described in
-[Verification reference](verification.md).
+[Verification reference](verification.md); `stale`, `status`, `diff` and `runs` are in
+[Advanced features](advanced.md#verify-features).
 
 ### What the report shows
 
@@ -66,16 +67,6 @@ After confirmation, saves the frozen plan, receipts, output inventory, lint,
 environment records where available, and report under `<analysis>/provenance/`.
 See [Provenance files](verification.md#what-it-writes).
 
-### Stale plans
-
-`verify stale` lists saved plans whose scripts, inputs, or outputs changed.
-See [Staleness checks](verification.md#stale-plans).
-
-### Overview of all plans
-
-`verify status` shows planned, run, and verified work, with staleness and lint
-coverage. See [Overview details](verification.md#overview-of-all-plans).
-
 ## new-analysis
 
 Creates a new folder with numbered step stubs, a Snakefile, `run.sh`, an analysis
@@ -90,14 +81,7 @@ See [Full project workflow](usage.md#tier-4-full-project-workflow).
 
 Challenges a grill draft before approval. In Claude Code or OpenCode, the host
 assembles a minimal packet for separate Codex engineering and Biomni biomedical critiques.
-It first runs a pattern-based pre-send check for secrets, contact details, home paths and
-the participant IDs in the plan's input tables, then shows the packet and the check's output
-and asks before sending it outside the machine; Biomni uses cloud credits. Flags with an
-empty `redactions:` mean do not send. Nothing is sent until you type
-`send packet <first 12 hex characters of the digest>` yourself: that prompt, not the
-agent, records consent for the exact packet bytes. A clean check is not a clearance. Codex can read the
-repository beyond the packet, so for participant-level data it runs on a data-free copy.
-Missing reviewers are reported unavailable.
+Before anything leaves the machine it runs a pre-send check and asks you to type `send packet <digest>`; Biomni uses cloud credits. The check and the consent mechanics are in [Advanced features](advanced.md#plan-review-packets-and-consent). Missing reviewers are reported unavailable.
 
 Writes nothing and approves nothing (apart from the prepared packet folder the send
 route needs). Material revisions need a new approval.

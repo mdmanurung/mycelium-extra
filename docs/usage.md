@@ -52,7 +52,8 @@ Default gated paths are `analysis/**` and `nbs/**`; default gated commands
 include `snakemake`, `sbatch`, and `nextflow`.
 
 For setup problems, see [Installation](installation.md#troubleshooting).
-For coverage, exploration, or custom settings, see [Approval gate](approval-gate.md).
+For coverage, exploration, or custom settings, see [Approval gate](approval-gate.md); for optional
+features, see [Advanced features](advanced.md).
 
 ## Tier 3: Verify reportable work
 
