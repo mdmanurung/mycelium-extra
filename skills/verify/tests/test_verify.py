@@ -1924,6 +1924,51 @@ sys.exit(1 if hits else 0)
         self.assertNotIn("Citations", self.verify("status"))  # `check` and `status` never show citations
         self.assertNotIn("data/old", self.verify("report", self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/o2/"))))
 
+    OUT = "analysis/a/outputs/fit.tsv"
+
+    # C05: a Slurm submission is not a completion
+
+    def sbatch_plan(self):
+        self.write("jobs/fit.job", "#!/bin/bash\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("`sbatch jobs/fit.job`", outputs=self.OUT))
+        self.run_cmd("sbatch jobs/fit.job", stdout="Submitted batch job 4242")
+        return digest
+
+    def test_slurm_job_states_and_exit_codes_are_judged_not_assumed(self):
+        digest = self.sbatch_plan()
+        line = "4242|{}|{}|2026-09-30T10:00:00|2026-09-30T10:05:00"
+        for state, code, level, text in [
+                ("PENDING", "0:0", "gap", "Slurm job 4242 is PENDING"),  # submitted
+                ("RUNNING", "0:0", "gap", "Slurm job 4242 is RUNNING"),
+                ("FAILED", "1:0", "block", "Slurm job 4242 ended FAILED"),
+                ("COMPLETED", "1:0", "block", "Slurm job 4242 reports COMPLETED but its ExitCode is 1:0"),
+                ("COMPLETED", "0:9", "block", "Slurm job 4242 reports COMPLETED but its ExitCode is 0:9"),  # killed by a signal
+                ("COMPLETED", "garbage", "gap", "Slurm job 4242 reports COMPLETED but its ExitCode `garbage` is not readable"),
+                ("NOT_FOUND", "", "gap", "Slurm job 4242 is NOT_FOUND")]:
+            with self.subTest(state=state, code=code):
+                out = self.verify("report", digest, sacct=self.fake_sacct(line.format(state, code)
+                                                                          if state != "NOT_FOUND" else ""))
+                self.assertIn("**{}**: `sbatch jobs/fit.job`: {}".format(level, text), out)
+        out = self.verify("report", digest, sacct=self.fake_sacct(line.format("COMPLETED", "0:0")))  # control
+        self.assertNotIn("Slurm job 4242", out)
+        out = self.verify("report", digest, sacct=os.path.join(self.root, "no-sacct"))
+        self.assertIn("**gap**: `sbatch jobs/fit.job`: Slurm job 4242 is of unknown state", out)
+
+    def test_a_slurm_array_with_an_unfinished_or_failed_task_is_not_complete(self):
+        digest = self.sbatch_plan()
+        rows = "4242_1|COMPLETED|0:0|||\n4242_2|{}|{}|||"
+        for state, code, level, text in [
+                ("RUNNING", "0:0", "gap", "Slurm job 4242 is RUNNING"),
+                ("PENDING", "0:0", "gap", "Slurm job 4242 is PENDING"),
+                ("COMPLETED", "2:0", "block", "Slurm job 4242 reports COMPLETED but its ExitCode is 2:0"),
+                ("COMPLETED", "0:0", None, None)]:  # control: every task finished cleanly
+            with self.subTest(state=state, code=code):
+                out = self.verify("report", digest, sacct=self.fake_sacct(rows.format(state, code)))
+                if level:
+                    self.assertIn("**{}**: `sbatch jobs/fit.job`: {}".format(level, text), out)
+                else:
+                    self.assertNotIn("Slurm job 4242", out)
+
 
 if __name__ == "__main__":
     unittest.main()

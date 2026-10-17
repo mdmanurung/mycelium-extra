@@ -45,8 +45,10 @@ PLUGIN_ROOT = None
 
 STEP_FOLDERS = {"code", "scripts", "src", "R", "py", "python", "workflow", "notebooks", "steps", "bin"}
 SKIP_FOLDERS = {"provenance", "logs", "outputs", "results", "_archive", "archive", "__pycache__"}
+EXIT_CONFLICT = "COMPLETED_NONZERO_EXIT"  # sacct's State says COMPLETED but its ExitCode is not 0:0
+EXIT_UNREADABLE = "COMPLETED_UNREADABLE_EXIT"  # State COMPLETED, ExitCode present but not `N:M`
 FAILED_JOB = {"FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_MEMORY", "NODE_FAIL", "PREEMPTED", "BOOT_FAIL",
-              "DEADLINE"}
+              "DEADLINE", EXIT_CONFLICT}
 LOOKUP = re.compile(r"^command\s+-[vV]\b")  # older receipts recorded these as runs
 SNAKE_RULE = re.compile(r"^\s*rule\s+(\w+)\s*:", re.MULTILINE)
 TOLERANCE = 5  # seconds of clock skew between the hook and the filesystem
@@ -157,6 +159,18 @@ def under(path, folder):
 
 # ---------------------------------------------------------------- outside records
 
+def exit_conflict(state, code):
+    """`state`, or EXIT_CONFLICT / EXIT_UNREADABLE when sacct says COMPLETED but the job's ExitCode (`N:M`: exit
+    status, signal) is not `0:0` or cannot be read. A blank ExitCode (a sacct that gave none) leaves the state
+    as it was; completion is the state and a clean exit, not the state alone."""
+    if state != "COMPLETED" or not code.strip():
+        return state
+    match = re.match(r"^(\d+):(\d+)$", code.strip())
+    if not match:
+        return EXIT_UNREADABLE
+    return state if match.group(1) == match.group(2) == "0" else EXIT_CONFLICT
+
+
 def sacct_state(sacct, job_id, since):
     """The job's final state from sacct, or None when sacct cannot be run. `submit` is the job's
     sbatch line as Slurm expanded it (`$dir` resolved), read from `workdir`; a Slurm older than
@@ -180,6 +194,7 @@ def sacct_state(sacct, job_id, since):
         parts = line.split("|", 6)  # SubmitLine is last, so a `|` inside it stays whole
         if len(parts) >= 5 and re.split(r"[._]", parts[0])[0] == str(job_id):  # `N_2`: an array task
             state = parts[1].split()[0] if parts[1] else "UNKNOWN"
+            state = exit_conflict(state, parts[2])
             end = parts[4] if re.match(r"^\d{4}-", parts[4]) else None
             try:
                 end = time.mktime(time.strptime(end, "%Y-%m-%dT%H:%M:%S")) if end else None
@@ -1364,8 +1379,15 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                                   what, job_id, len({r["command"] for r in mine if r.get("job_id") == job_id}),
                                   job_id))
             return "job {} (state not attributable)".format(job_id)
-        state = (jobs.get(job_id) or {}).get("state")
-        if state in FAILED_JOB:
+        job = jobs.get(job_id) or {}
+        state = job.get("state")
+        if state == EXIT_CONFLICT:  # sacct's State and ExitCode disagree: the exit code is not ignored
+            report.add("block", "{}: Slurm job {} reports COMPLETED but its ExitCode is {}; a completion needs "
+                                "a clean exit, so it is treated as failed.".format(what, job_id, job.get("exit")))
+        elif state == EXIT_UNREADABLE:
+            report.add("gap", "{}: Slurm job {} reports COMPLETED but its ExitCode `{}` is not readable; check "
+                              "`sacct -j {}`.".format(what, job_id, job.get("exit"), job_id))
+        elif state in FAILED_JOB:
             report.add("block", "{}: Slurm job {} ended {}.".format(what, job_id, state))
         elif state != "COMPLETED":
             report.add("gap", "{}: Slurm job {} is {}; check `sacct -j {}`.".format(
@@ -1505,7 +1527,9 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         run = next(r for r in mine if r.get("job_id") == job_id)
         report.add("gap", "Slurm job {} ({}) {}, and it names no planned script; check `sacct -j {}`."
                    .format(job_id, describe_run(run, digest), "is recorded for several sbatch commands, so its state is "
-                           "not attributable" if job_id in shared else "is " + (state or "of unknown state"),
+                           "not attributable" if job_id in shared else "is " + (
+                               "COMPLETED with an ExitCode of {}".format((jobs[job_id] or {}).get("exit"))
+                               if state in (EXIT_CONFLICT, EXIT_UNREADABLE) else state or "of unknown state"),
                            job_id))
 
     # Runs in the analysis folder that this plan does not cover, and scripts it does not name.
