@@ -559,7 +559,8 @@ def classify(tokens, root, cwd, config):
     return (result[0] or other[0], found[0][0], found[0][1], UnknownFolder(folder, folder.raw, found[1:]))
 
 
-def _classify(tokens, root, cwd, config):
+def _classify(tokens, root, cwd, config, info=None):
+    """`info`, if given, gets "head": the index of the program in `tokens` once wrappers and assignments are skipped."""
     explore = False
     i = 0
     while i < len(tokens) and is_assignment(tokens[i]):
@@ -615,6 +616,8 @@ def _classify(tokens, root, cwd, config):
     if i >= len(tokens):
         return explore, None, [], cwd
     head, rest = tokens[i], tokens[i + 1:]
+    if info is not None:
+        info["head"] = i
     word = os.path.basename(head)
     paths = []
     def script_rel(token, direct=False):
@@ -1227,12 +1230,112 @@ def write_instance(root, record, complete):
             "plan_sha256": sha256(record["plan"].encode("utf-8")).hexdigest(),
             "pins": record.get("pins") or {}, "scripts": record.get("scripts") or {},
             "limitations": limitations, "prepared": "complete" if complete else "legacy-no-ready"}
+    for key in ("validation", "execution"):  # only when declared, so a plan without the blocks keeps its id
+        if record.get(key):
+            body[key] = record[key]
     instance_id = sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()[:16]
     path = state_path(root, "approval-instances", record["hash"], instance_id + ".json")
     if not os.path.isfile(path):
         write_json(path, dict(body, instance_id=instance_id, approved_at=record["approved_at"],
                               session_id=record.get("session_id")))
     return instance_id
+
+
+def blocks_module():
+    """hooks/validation.py (the plan's two optional comment blocks), imported only when a plan has one."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import validation
+    return validation
+
+
+BLOCK_START = re.compile(r"<!--\s*(validation-bindings|exact-execution)\b")
+
+
+def prepare_blocks(root, text):
+    """({"validation": ..., "execution": ...}, errors) for a plan: only the blocks it has, each checked and, for
+    bindings, with its test files pinned. Without a block: ({}, [])."""
+    if not BLOCK_START.search(text):
+        return {}, []
+    module = blocks_module()
+    rows = [row["num"] for row in plan_rows(text) or []]
+    found, errors = {}, []
+    for key, read in (("validation", module.read_bindings), ("execution", module.read_exact)):
+        value, problems = read(text, rows, root)
+        errors += problems
+        if value:
+            found[key] = value
+    return ({}, errors) if errors else (found, [])
+
+
+def invalid_card(digest, errors):
+    """The card of a plan whose blocks are invalid: the problems, and no offer to approve."""
+    lines = ["mycelium-extra \u00b7 plan {} cannot be approved: its validation-bindings or exact-execution "
+             "block is invalid".format(digest)]
+    lines += ["  - " + clean(error, 300) for error in errors[:12]]
+    lines += ["  \u2026 and {} more".format(len(errors) - 12)] * (len(errors) > 12)
+    lines.append("Fix the block and show the plan again; nothing here can be approved as written.")
+    return "\n".join(lines)
+
+
+def cwd_rel(root, cwd):
+    """The folder a run starts in, repo-relative ("." for the root); outside the repository it stays absolute."""
+    rel = os.path.relpath(os.path.realpath(cwd), os.path.realpath(root))
+    return "." if rel == "." else str(cwd) if rel.startswith("..") else rel.replace(os.sep, "/")
+
+
+def launch_argv(tokens, root, cwd, config):
+    """(argv, inline variables) of one run: the words from the program on (wrappers such as `conda run`, `srun`
+    or `timeout` and leading `VAR=value` words are not part of it) and the `VAR=value` words before it."""
+    info = {}
+    _classify(tokens, root, cwd, config, info)
+    head = info.get("head")
+    if head is None:
+        return None, {}
+    inline = dict(t.split("=", 1) for t in tokens[:head] if is_assignment(t) and not t.startswith(EXPLORE_VAR + "="))
+    return tokens[head:], inline
+
+
+def invocation_note(root, config, check, plan):
+    """Whether a check's invocation would be seen by the gate, and covered by this plan's table."""
+    import shlex
+    command = " ".join(shlex.quote(word) for word in check["invocation"])
+    runs = list(analyse_command(command, root, root, config))
+    if not runs:
+        return ("not gated, so its runs are not recorded: put the test under a gated path or add its folder to "
+                "`gated_paths` in gate.json")
+    if all(covering(root, run[1], run[2], [{"plan": plan}]) for run in runs):
+        return "gated, named in the plan table"
+    return "gated but not named in the plan table, so a run would be denied"
+
+
+def validation_lines(root, config, plan, validation):
+    """The card's lines for a plan's validation bindings: one per check."""
+    if not validation:
+        return []
+    lines = ["Validation bindings (the gate pins the files; `declared by` is the plan's own claim, not verified)"]
+    for check in validation["checks"]:
+        lines.append("  " + clean("{} \u00b7 row {} \u00b7 {} \u00b7 declared by {} \u00b7 {} test file{} pinned \u00b7 runs "
+                           "`{}`: {}".format(
+                               check["id"], check["plan_row"], "required" if check["required"] else "optional",
+                               check["defined_by"], len(check["files"]), "" if len(check["files"]) == 1 else "s",
+                               " ".join(check["invocation"]), invocation_note(root, config, check, plan)), CARD_WIDTH - 2))
+    return lines
+
+
+def validation_denial(stale):
+    """The deny text for pinned validation files that changed: [(plan hash, [(check id, path, state)])]."""
+    lines = []
+    for digest, changes in stale:
+        lines.append("mycelium-extra gate: blocked because a validation file pinned by plan {} is no longer as "
+                     "approved:".format(digest))
+        lines.extend("  - check {}: {} {}".format(check, path, state) for check, path, state in changes)
+        lines.append("An approved acceptance expectation is frozen with the plan, and a changed expectation does "
+                     "not carry the old acceptance evidence. The plan must be shown and approved again: present "
+                     "it, and the user approves the new files with `approve plan {}`. Do not work around this "
+                     "block.".format(digest))
+    return lines
 
 
 def covering_any(root, label, paths, cwd, approvals):
@@ -1574,9 +1677,9 @@ def state_unignored(root):
     return git(root, "check-ignore", "-q", STATE_DIR + "/gate.json") is None
 
 
-def approval_card(root, text, config, digest, pins, outside, previous, scripts=None):
+def approval_card(root, text, config, digest, pins, outside, previous, scripts=None, blocks=None):
     """(the card to show, the parts `card <hash> checks|diff|full` shows on request)."""
-    card, details = procedure_card(root, text, config, digest, pins, outside, previous, scripts or {})
+    card, details = procedure_card(root, text, config, digest, pins, outside, previous, scripts or {}, blocks or {})
     if not card:
         card = "\n".join(["mycelium-extra \u00b7 plan ready for approval",
                           "  \u25b6 approve plan {}".format(digest), ""]
@@ -2006,7 +2109,7 @@ def lint_bullets(root, rows, config):
     return out
 
 
-def procedure_card(root, text, config, digest, pins, outside, previous, scripts):
+def procedure_card(root, text, config, digest, pins, outside, previous, scripts, blocks=None):
     """The card for a plan whose table has Step and Choice or Validation columns, else None."""
     rows = plan_rows(text)
     if not rows:
@@ -2102,6 +2205,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts)
         lines.append("P = " + prefix)
     if outside_prose:
         lines.append("Outside the Step column, not authorised" + names(outside_prose, short))
+    lines += validation_lines(root, config, text, (blocks or {}).get("validation"))
     diff_at = len(lines)
     if script_diff_lines:
         lines += ["Diff of changed scripts"] + script_diff_lines
@@ -2513,6 +2617,7 @@ def on_tool(event, root, config):
     granted = explore_granted(root, event.get("session_id"))
     run_scripts, launched = [], {}
     unresolved, wrap_blocked = [], []
+    stale_validation = []
     for explore, label, paths, segment, tokens, run_cwd in analyse_command(command, root,
                                                                             event.get("cwd") or root, config):
         run_scripts += [p for p in paths if p.endswith(LINT_EXT) and p not in run_scripts]
@@ -2549,6 +2654,15 @@ def on_tool(event, root, config):
             entry["instance_ids"] = instances
         if isinstance(run_cwd, UnknownFolder):  # allowed by one of its readings, not by a resolved folder
             entry["limitations"] = ["cwd unresolved: " + run_cwd.raw]
+        if newest.get("validation"):
+            changed = blocks_module().changes(root, newest["validation"])
+            if changed and all(newest["hash"] != h for h, _ in stale_validation):
+                stale_validation.append((newest["hash"], changed))
+            argv, inline = launch_argv(tokens, root, run_cwd, config) if not isinstance(run_cwd, UnknownFolder) else (None, {})
+            for check in newest["validation"]["checks"]:  # the check this very command is, by exact argv
+                if argv and blocks_module().argv_matches(check["invocation"], argv, cwd_rel(root, run_cwd), ".",
+                                                         actual_env=inline)[0]:
+                    entry["validation_check"] = check["id"]
         if not any(all(e.get(key) == value for key, value in entry.items()) for e in launched.setdefault(segment, [])):
             entry.update(snapshot_outputs(root, newest.get("plan", ""), budget))
             launched[segment].append(entry)
@@ -2583,8 +2697,8 @@ def on_tool(event, root, config):
             else:
                 if len(runs) >= limit:
                     capped.append((newest["hash"], len(runs), limit_changes(root, runs, budget, cache)))
-    if (stale or stale_scripts or capped) and not blocked:
-        lines = []
+    if (stale or stale_scripts or capped or stale_validation) and not blocked:
+        lines = validation_denial(stale_validation)
         for digest, changes in stale:
             lines.append("mycelium-extra gate: blocked because inputs pinned by plan {} changed after "
                          "the plan was written:".format(digest))
@@ -2858,7 +2972,8 @@ def on_prompt(event, root, config):
             shown = (plan.get("card") or {}).get(part) or "mycelium-extra: plan {} showed its full card.".format(
                 plan["hash"])
         return {"decision": "block", "reason": shown}
-    known = ", ".join(p["hash"] + ("" if plan_ready(p) else " (preparing)") for p in pending) or "none"
+    known = ", ".join(p["hash"] + ("" if plan_ready(p) else " (invalid block)" if p.get("invalid") else " (preparing)")
+                      for p in pending) or "none"
     if not match:
         if re.search(r"\bapprove plan\b", prompt, re.IGNORECASE) and len(prompt) < 200:
             message = ("mycelium-extra: nothing approved. To approve, send only `approve plan <hash>` "
@@ -2874,6 +2989,10 @@ def on_prompt(event, root, config):
     if plan is None:
         message = ("mycelium-extra: no pending plan {} in this session (pending: {}). "
                    "Nothing was approved.".format(wanted, known))
+    elif plan.get("invalid"):  # its validation-bindings or exact-execution block did not pass
+        message = ("mycelium-extra: plan {} has an invalid validation-bindings or exact-execution block ({}). "
+                   "Nothing was approved. Fix the block and show the plan again.".format(
+                       wanted, clean(plan["invalid"][0], 160)))
     elif not plan_ready(plan):  # preparation was interrupted; approving would drop the pins
         message = ("mycelium-extra: plan {} was not fully prepared (inputs, scripts or card). Nothing was "
                    "approved. Show the plan again so it is prepared, then approve its hash.".format(wanted))
@@ -2886,6 +3005,7 @@ def on_prompt(event, root, config):
         scripts = plan.get("scripts") or {}
         record = {"hash": wanted, "approved_at": time.time(), "session_id": event.get("session_id"),
                   "plan": plan["text"], "pins": pins, "scripts": scripts}
+        record.update((key, plan[key]) for key in ("validation", "execution") if plan.get(key))
         record["instance_id"] = write_instance(root, record, bool(plan.get("ready")))
         write_json(state_path(root, "approvals", wanted + ".json"), record)
         log_approval(root, event, plan, record["approved_at"], checkpoint)
@@ -2921,10 +3041,16 @@ def on_stop(event, root, config):
         entry["pins"] = pins or {}
         scripts_on, notice = script_pinning(config)
         entry["scripts"] = pin_scripts(root, text, config) if scripts_on else {}
-        card, details = approval_card(root, text, config, digest, pins, outside, previous, entry["scripts"])
+        blocks, errors = prepare_blocks(root, text)
+        if errors:  # an invalid block is shown, never offered for approval; `ready` stays False
+            entry["invalid"] = errors
+            card, details = invalid_card(digest, errors), None
+        else:
+            entry.update(blocks)
+            card, details = approval_card(root, text, config, digest, pins, outside, previous, entry["scripts"], blocks)
         if details:
             entry["card"] = details
-        entry["ready"] = True  # pins, scripts and card are done: now the hash can be approved
+        entry["ready"] = not errors  # pins, scripts and card are done: now the hash can be approved
         write_json(path, pending[-10:])
         notices.append(card)
         if notice:
@@ -3243,6 +3369,9 @@ def on_post(event, root, config):
         }
         if limitations:
             receipt["limitations"] = limitations
+        for key in ("validation_check",):  # what the launch recorded about the plan's bindings
+            if launch and key in launch:
+                receipt[key] = launch[key]
         if launch_match != "matched":
             receipt["outputs_observation"] = "skipped: {} launch".format(launch_match)
         elif compound:

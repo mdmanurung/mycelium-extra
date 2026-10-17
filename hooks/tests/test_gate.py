@@ -2640,7 +2640,10 @@ class PlanComparisonAndPathsTest(unittest.TestCase):
     def test_a_changed_validation_bindings_block_is_reported(self):
         block = '<!-- validation-bindings {"version": 1, "checks": []} -->'
         old = self.plan([self.row()], extra=["", block])
-        _, card = self.compared(old, self.plan([self.row()], extra=["", block.replace("[]", "[1]")]))
+        changed = ('<!-- validation-bindings {"version": 1, "checks": [{"id": "V1", "plan_row": "1", "required": true, '
+                   '"defined_by": "agent-proposed", "test_paths": ["data/in.tsv"], "invocation": ["python", '
+                   '"analysis/a/fit.py"], "evidence_path": "analysis/a/out.json"}]} -->')  # a valid block: the gate now parses it
+        _, card = self.compared(old, self.plan([self.row()], extra=["", changed]))
         self.assertIn("  blocks   validation-bindings CHANGED", card)
         _, card = self.compared(old, self.plan([self.row()]))
         self.assertIn("  blocks   validation-bindings REMOVED", card)
@@ -3247,6 +3250,176 @@ class AttemptEvidenceTest(unittest.TestCase):
         self.assertFalse(self.denied(reply))
         self.assertIn("could not be recorded", reply["systemMessage"])
         self.assertEqual(os.listdir(self.path("gate-errors.jsonl")), [])
+
+
+class ValidationBindingsTest(unittest.TestCase):
+    """C06 gate side: `validation-bindings` are validated before a plan is approvable, their files pinned and
+    shown, a changed expectation denies a covered run, and a matching invocation is recorded in the launch."""
+    entry = GATE
+    setUp, tearDown, config, hook, bash, denied = (
+        GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook, GateTest.bash, GateTest.denied)
+    path, write, approval, pending, prompt, receipts, tool, post = (
+        PreparationAndLaunchTest.path, PreparationAndLaunchTest.write, PreparationAndLaunchTest.approval,
+        PreparationAndLaunchTest.pending, PreparationAndLaunchTest.prompt, PreparationAndLaunchTest.receipts,
+        PreparationAndLaunchTest.tool, PreparationAndLaunchTest.post)
+    launch_records = AttemptEvidenceTest.launch_records
+    TABLE = ("## Plan\n| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n"
+             "| 1 | run `analysis/x/fit.py` | model A | user | rows |\n"
+             "| 2 | run `analysis/x/tests/check.py` | acceptance check | user | passes |\n\n")
+    EXPECT = "analysis/x/tests/expect.tsv"
+
+    def check(self, **changes):
+        base = {"id": "V1", "plan_row": "2", "required": True, "defined_by": "researcher-approved",
+                "test_paths": [self.EXPECT], "invocation": ["python", "analysis/x/tests/check.py"],
+                "evidence_path": "analysis/x/outputs/check.json"}
+        base.update(changes)
+        return dict((k, v) for k, v in base.items() if v is not None)
+
+    def plan(self, *checks, **top):
+        block = "<!-- validation-bindings {} -->\n\n".format(json.dumps(dict({"version": 1, "checks": list(checks)}, **top)))
+        return self.TABLE + block + "Plan status: READY"
+
+    def setup_files(self):
+        self.write(self.EXPECT, "rows\n24\n")
+        self.write("analysis/x/fit.py", "pass\n")
+        self.write("analysis/x/tests/check.py", "pass\n")
+
+    def show(self, text):
+        notice = self.hook("stop", {"last_assistant_message": text})["systemMessage"]
+        return notice
+
+    def approved(self, text):
+        notice = self.show(text)
+        digest = notice.split("approve plan ")[1][:8]
+        self.prompt("approve plan " + digest)
+        return digest, notice
+
+    def test_a_valid_block_is_pinned_shown_and_frozen_into_the_instance(self):
+        self.setup_files()
+        digest, card = self.approved(self.plan(self.check()))
+        self.assertIn("V1", card)
+        self.assertIn("row 2", card)
+        self.assertIn("required", card)
+        self.assertIn("declared by researcher-approved", card)
+        self.assertIn("1 test file pinned", card)
+        record = self.approval(digest)
+        one, = record["validation"]["checks"]
+        self.assertEqual(sorted(one["files"]), [self.EXPECT])
+        self.assertEqual(len(one["definition_sha256"]), 64)
+        instance, = os.listdir(self.path("approval-instances", digest))
+        with open(self.path("approval-instances", digest, instance)) as handle:
+            frozen = json.load(handle)
+        self.assertEqual(frozen["validation"], record["validation"])
+        self.assertEqual(frozen["instance_id"], record["instance_id"])
+
+    def test_a_plan_without_the_block_is_unchanged(self):  # control
+        self.setup_files()
+        digest, card = self.approved(self.TABLE + "Plan status: READY")
+        self.assertNotIn("Validation bindings", card)
+        self.assertNotIn("validation", self.approval(digest))
+        instance, = os.listdir(self.path("approval-instances", digest))
+        with open(self.path("approval-instances", digest, instance)) as handle:
+            self.assertNotIn("validation", json.load(handle))
+
+    def invalid(self, text, expected):
+        self.setup_files()
+        notice = self.show(text)
+        self.assertNotIn("approve plan ", notice)
+        self.assertIn(expected, notice)
+        entry, = self.pending()
+        self.assertFalse(entry["ready"])
+        self.assertTrue(entry["invalid"])
+        reply = self.prompt("approve plan " + entry["hash"])
+        self.assertIn("Nothing was approved", reply)
+        self.assertIn("Fix the block", reply)
+        self.assertFalse(os.path.exists(self.path("approvals", entry["hash"] + ".json")))
+        self.assertTrue(self.denied(self.bash("python analysis/x/fit.py")))
+
+    def test_an_invalid_block_is_not_approvable(self):
+        self.invalid(self.plan(self.check(plan_row="9")), "unknown plan row 9")
+
+    def test_a_missing_test_file_is_not_approvable(self):
+        self.invalid(self.plan(self.check(test_paths=["analysis/x/tests/nope.tsv"])), "cannot be pinned")
+
+    def test_an_unsafe_path_is_not_approvable(self):
+        self.invalid(self.plan(self.check(test_paths=["../outside.tsv"])), "leaves the repository")
+
+    def test_an_unsupported_version_is_not_approvable(self):
+        self.invalid(self.plan(self.check(), version=2), "unsupported version")
+
+    def test_a_duplicate_check_id_is_not_approvable(self):
+        self.invalid(self.plan(self.check(), self.check(plan_row="1")), "duplicate check id")
+
+    def test_malformed_json_is_not_approvable(self):
+        self.invalid(self.TABLE + "<!-- validation-bindings {oops} -->\n\nPlan status: READY", "not valid JSON")
+
+    def test_a_corrected_block_is_approvable_again(self):
+        self.setup_files()
+        self.show(self.plan(self.check(plan_row="9")))
+        digest, _ = self.approved(self.plan(self.check()))
+        self.assertTrue(os.path.isfile(self.path("approvals", digest + ".json")))
+
+    def test_a_changed_pinned_expectation_denies_a_covered_run_until_the_plan_is_approved_again(self):
+        self.setup_files()
+        digest, _ = self.approved(self.plan(self.check()))
+        self.assertIsNone(self.tool("python analysis/x/fit.py"))
+        self.write(self.EXPECT, "rows\n7\n")  # the expectation is edited to excuse the analysis
+        result = self.tool("python analysis/x/fit.py")
+        self.assertTrue(self.denied(result))
+        reason = result["hookSpecificOutput"]["permissionDecisionReason"]
+        for text in ("V1", self.EXPECT, "changed", digest, "shown and approved again"):
+            self.assertIn(text, reason)
+        self.assertTrue(self.denied(self.tool("python analysis/x/tests/check.py")))
+        digest2, _ = self.approved(self.plan(self.check()))  # shown again: the new bytes are pinned
+        self.assertEqual(digest2, digest)
+        self.assertIsNone(self.tool("python analysis/x/fit.py"))
+
+    def test_a_deleted_pinned_expectation_denies_too(self):
+        self.setup_files()
+        self.approved(self.plan(self.check()))
+        os.remove(os.path.join(self.root, self.EXPECT))
+        reason = self.tool("python analysis/x/fit.py")["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertIn("missing", reason)
+
+    def test_the_evidence_file_and_unrelated_files_may_change_between_runs(self):  # control
+        self.setup_files()
+        self.approved(self.plan(self.check()))
+        self.assertIsNone(self.tool("python analysis/x/tests/check.py", tool_use_id="t1"))
+        self.write("analysis/x/outputs/check.json", '{"rows": 24}')  # what the check writes
+        self.write("analysis/x/notes.md", "unrelated edit\n")
+        self.assertIsNone(self.tool("python analysis/x/tests/check.py", tool_use_id="t2"))
+        self.write("analysis/x/outputs/check.json", '{"rows": 25}')
+        self.assertIsNone(self.tool("python analysis/x/fit.py", tool_use_id="t3"))
+
+    def test_a_run_of_the_checks_invocation_records_the_check_in_its_launch_and_receipt(self):
+        self.setup_files()
+        self.approved(self.plan(self.check()))
+        self.assertIsNone(self.tool("python analysis/x/tests/check.py", tool_use_id="t1"))
+        self.assertIsNone(self.tool("python analysis/x/fit.py", tool_use_id="t2"))
+        self.assertIsNone(self.tool("python analysis/x/tests/check.py --extra", tool_use_id="t3"))
+        launched = dict((r["call_id"], [e for es in r["runs"].values() for e in es][0]) for r in self.launch_records())
+        self.assertEqual(launched["t1"]["validation_check"], "V1")
+        self.assertNotIn("validation_check", launched["t2"])
+        self.assertNotIn("validation_check", launched["t3"], "another argv is not the declared invocation")
+        self.post("python analysis/x/tests/check.py", tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertEqual((receipt["validation_check"], receipt["launch_match"]), ("V1", "matched"))
+
+    def test_an_invocation_under_an_ungated_folder_is_flagged_on_the_card(self):
+        self.setup_files()
+        self.write("tests/check.py", "pass\n")
+        card = self.show(self.plan(self.check(invocation=["python", "tests/check.py"])))
+        self.assertIn("not gated", card)
+        self.assertIn("gated_paths", card)
+
+    def test_an_invocation_the_plan_table_does_not_name_is_flagged_on_the_card(self):
+        self.setup_files()
+        self.write("analysis/x/tests/other.py", "pass\n")
+        card = self.show(self.plan(self.check(invocation=["python", "analysis/x/tests/other.py"])))
+        self.assertIn("not named in the plan table", card)
+        named = self.show(self.plan(self.check()))
+        self.assertNotIn("not named in the plan table", named)
+        self.assertNotIn("not gated", named)
 
 
 if __name__ == "__main__":
