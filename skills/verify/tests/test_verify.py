@@ -237,6 +237,54 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("analysis folder `analysis/a`", out)
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
 
+    @staticmethod
+    def summary(out):
+        """The header line and the five summary rows that open a report, by label."""
+        lines = out.splitlines()
+        return lines[0], {line[:16].strip(): line[16:].strip() for line in lines[2:7]}
+
+    def test_the_report_opens_with_a_five_row_summary(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        out = self.verify("report", digest)
+        head, rows = self.summary(out)
+        self.assertEqual(head, "# Verify plan {}: CONFORMS".format(digest))
+        self.assertEqual(list(rows), ["Ran as planned", "Numbers match", "Code checks", "Not checked", "Next"])
+        self.assertEqual(rows["Ran as planned"], "yes: 1 of 1 steps ran, 1 run(s), all completed")
+        self.assertTrue(rows["Numbers match"].startswith("n/a: no `<!-- claims -->`"), rows)
+        self.assertTrue(rows["Code checks"].startswith("lint clean"), rows)
+        self.assertTrue(rows["Not checked"].endswith("whether the code implements the choices (that is review)"), rows)
+        self.assertEqual(rows["Next"], "confirm saving provenance to analysis/a/provenance/")
+        self.assertLess(out.index("Next  "), out.index("Approved "))  # the facts line follows the summary
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        with open(os.path.join(self.root, "analysis/a/provenance/verify-{}.md".format(digest))) as handle:
+            self.assertIn("provenance is saved beside this report", handle.read())
+
+    def test_the_summary_says_no_for_a_failed_run_and_names_the_blocker(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, exit_code=1)
+        head, rows = self.summary(self.verify("report", digest))
+        self.assertTrue(head.endswith(": DOES_NOT_CONFORM"), head)
+        self.assertTrue(rows["Ran as planned"].startswith("no: 0 of 1 steps ran to completion; not completed: "), rows)
+        self.assertIn("failed (exit 1)", rows["Ran as planned"])
+        self.assertTrue(rows["Next"].startswith("fix the first blocker: "), rows)
+
+    def test_the_summary_leads_a_gap_to_its_fix_and_never_says_yes_to_a_mismatch(self):
+        digest, _ = self.conforming_run()
+        self.gate_errors({"ts": int(time.time()), "event": "tool", "decision": "allow", "session_id": "s1",
+                          "error": "boom"})
+        head, rows = self.summary(self.verify("report", digest))
+        self.assertTrue(head.endswith(": CONFORMS_WITH_GAPS"), head)
+        self.assertTrue(rows["Next"].startswith("close the first gap: Gate error"), rows)
+        self.assertIn("1 open gap(s), first: Gate error", rows["Not checked"])
+        digest, _ = self.claims_run("- 1.235 | outputs/de.tsv log2fc IL7R\n- 99 | outputs/numbers.json qc.n")
+        _, rows = self.summary(self.verify("report", digest))
+        self.assertEqual(rows["Numbers match"], "no: 1 of 2 claimed cells match; 1 mismatch")
+        digest, _ = self.claims_run("- 1.235 | outputs/de.tsv log2fc IL7R\n- 48 | outputs/numbers.json qc.n")
+        _, rows = self.summary(self.verify("report", digest))
+        self.assertEqual(rows["Numbers match"], "yes: 2 of 2 claimed cells match")
+
     def conforming_run(self):
         """A conforming run of FIT. Returns (plan hash, approval time)."""
         digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
@@ -1060,7 +1108,9 @@ class VerifyTest(unittest.TestCase):
         digest = self.approve(text.replace("| x |", "| padj < 0.05; \\|lfc\\| > 1 |", 1).replace("| x |", "| q > 3 |", 1))
         self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
         flag = lambda n: self.fake_tool("bin/scilintr-%d" % n, FIT + ":%d:8: [magic-threshold] magic threshold\\n" % n, 1)
-        self.assertIn("its threshold is a Choice the plan approved", self.verify("report", digest, scilintr=flag(1)))
+        first = self.verify("report", digest, scilintr=flag(1))
+        self.assertIn("its threshold is a Choice the plan approved", first)
+        self.assertIn("lint clean; 1 threshold finding(s) is a Choice you approved", self.summary(first)[1]["Code checks"])
         self.assertIn("1 scilintr finding(s) remain in Python code",
                       self.verify("report", digest, scilintr=flag(2)))  # -1 is not 1
         self.assertIn("1 scilintr finding(s) remain in Python code",
@@ -1782,7 +1832,7 @@ sys.exit(1 if hits else 0)
         self.assertIn("`sbatch -p wrong jobs/fit.job`: failed (exit 1)", recovery)
         self.assertIn("added `--rerun-incomplete`", recovery)
         self.assertIn("removed `wrong`, added `cpu`", recovery)
-        self.assertEqual(out.count("recovered with a changed command: equivalence not established"), 4)  # two findings, two verdicts
+        self.assertEqual(out.count("recovered with a changed command: equivalence not established"), 5)  # two findings, two verdicts, the summary's Next
         self.assertIn("Verify status: CONFORMS_WITH_GAPS", out)  # a changed command is a gap, never a clean recovery
         self.run_cmd("snakemake -j1 --rerun-incomplete", exit_code=4)  # a later failure of the step shows
         self.assertIn("failed (exit 4)", self.verify("report", digest, sacct=done))

@@ -32,6 +32,8 @@ It also checks the reason on each `default:` in the frozen plan's Source column,
 
 It also checks claims: each `<!-- claims -->` block in the analysis doc (`<NAME>.md`, Mycelium's analysis doc), in a Markdown file on the `Outputs:` line, or in a document passed with `--claims <path>` (repeatable). Each block line names a value and the output cell it came from, `value | file column [row]`, with the file relative to the analysis folder or the repository. `row` is the first-column label; a table with more than one row needs it, so a common value such as `0.05` never verifies against some row of a column. `rows` as the column is the table's data-row count, and a JSON output takes a dotted path (`qc.n`, `qc.kept.1`). A value may start with `<`, `>`, `<=` or `>=`, and end with `%` (also tried against a fraction, reported as via transform). A value agrees when the cell, rounded half-up, half-even, or truncated to the value's last digit, equals it. The `## Claims` section counts each document's verdicts. A claim the cell contradicts, or one read from an output an explore run wrote, blocks; a claim whose file, column or row cannot be found, a file over `--hash-mb`, or a block line that does not parse is a gap. Numbers in the block's section (heading to heading) that no claim covers are listed as `info`: the block, not the prose, is the checked record.
 
+The report opens with `# Verify plan <hash>: <status>` and five rows: `Ran as planned`, `Numbers match`, `Code checks`, `Not checked` and `Next`. Each starts `yes`, `no` or `partly` with its reason, or `n/a` when the plan gave the check nothing to judge (for example no `<!-- claims -->` block), so a row is never `yes` while a problem is open. Quote these five rows to the user first, as printed, then the details below them. In the file `write` saves, `Next` says the provenance is saved.
+
 The report ends with `Verify status:` and one of these values:
 - `CONFORMS`
 - `CONFORMS_WITH_GAPS`: something the records cannot show, such as a required validation check not established or a recovery whose equivalence is not established, a run with no receipt, an unrecorded exit status, an output not tied to a run, or code scilintr could not check.
@@ -60,7 +62,7 @@ A compound shell command's overall exit status cannot establish that each named 
 
 ## 3. Report to the user
 
-- Give the status, the planned-scripts table, and each `block` and `gap` finding with what it means for the results. Keep the `info` lines short.
+- Start with the five summary rows. Give the status, the planned-scripts table, and each `block` and `gap` finding with what it means for the results. Keep the `info` lines short.
 - Never paste the plan, or its `Plan status:` line, into the reply. The gate would offer the reply as a new plan to approve.
 - For each `block`, name the fix and leave the choice to the user. Typical fixes:
   - re-run the step under the plan

@@ -2852,12 +2852,103 @@ def render_scope(result):
     return lines + [""]
 
 
-def render(result, all_outputs=False):
+def cut(text, limit=120):
+    text = squash(text)
+    return text if len(text) <= limit else text[:limit - 1].rstrip() + "\u2026"
+
+
+def render_summary(result, saved=False):
+    """The five rows that open the report, each derived from what the check already computed: whether the plan
+    ran, whether the claimed numbers match, what the code checks found, what nobody checked, and the next step.
+    A row never says `yes` while a problem is open; `n/a` means the plan gave the check nothing to judge."""
+    scope = result.get("scope") or {}
+    q = dict((d["dimension"], d) for d in (result.get("qualification") or {}).get("dimensions", []))
+    problem = lambda name: q[name]["reason"] if name in q and q[name]["state"] == "not established" else ""
+    steps = (scope.get("observation") or {}).get("steps") or []
+    undone = ["{} ({})".format(s["step"].strip("`"), s["why"]) for s in steps if not s["complete"]]
+    runs = result["runs"]
+    if not runs:
+        ran = "no: no run is recorded under this approval"
+    elif undone:
+        ran = "no: {} of {} steps ran to completion; not completed: {}{}".format(
+            len(steps) - len(undone), len(steps), "; ".join(undone[:2]), " and {} more".format(len(undone) - 2)
+            if len(undone) > 2 else "")
+    elif not steps:
+        ran = "n/a: the plan table names no script, command or folder step"
+    elif problem("authorization"):
+        ran = "partly: all {} steps completed, but {}".format(len(steps), problem("authorization"))
+    else:
+        ran = "yes: {0} of {0} steps ran, {1} run(s), all completed".format(len(steps), runs)
+    history = sum(((result.get("instance") or {}).get("history") or {}).values())
+    if history and runs:
+        ran += "; {} run(s) under an earlier approval are history".format(history)
+
+    claims = [c for d in result.get("claims") or [] for c in d["claims"]]
+    matched = sum(1 for c in claims if c["verdict"].startswith("verified"))
+    if not claims:
+        numbers = "n/a: no `<!-- claims -->` block names an output cell"
+    elif matched < len(claims):
+        wrong = collections.Counter(c["verdict"] for c in claims if not c["verdict"].startswith("verified"))
+        numbers = "no: {} of {} claimed cells match; {}".format(matched, len(claims), ", ".join(
+            "{} {}".format(n, v) for v, n in sorted(wrong.items())))
+    elif problem("claim linkage"):
+        numbers = "partly: {0} of {0} claimed cells match, but {1}".format(len(claims), problem("claim linkage"))
+    else:
+        numbers = "yes: {0} of {0} claimed cells match".format(len(claims))
+
+    lint, texts = result["lint"], [text for _, text in result["findings"]]
+    approved = len(lint.get("approved", []))
+    open_ = collections.Counter(f[3] for f in lint["findings"] if f not in lint.get("approved", []))
+    skipped = sorted(set(re.findall(r"scilintr \((\w+)\) not checked", " ".join(texts))))
+    parts = ["lint " + ("{} open ({})".format(sum(open_.values()), ", ".join(
+        "{} {}".format(r, n) if n > 1 else r for r, n in open_.most_common(3))) if open_ else "clean")]
+    if approved:
+        parts.append("{} threshold finding(s) {} you approved".format(
+            approved, "is a Choice" if approved == 1 else "are Choices"))
+    if lint.get("waived"):
+        parts.append("{} waived".format(len(lint["waived"])))
+    if skipped:
+        parts.append("not checked: " + ", ".join(skipped))
+    if not lint["output"] and not skipped:
+        parts = ["n/a: no code was linted"]
+    if problem("code and input identity"):
+        parts.append(problem("code and input identity").split("; ")[0])
+    code = "; ".join(parts)
+
+    unchecked = []
+    prose = [re.match(r"(\d+) Validation cell", t_) for t_ in texts]
+    prose = [m for m in prose if m]
+    if prose:
+        unchecked.append("{} Validation cell(s) are prose".format(prose[0].group(1)))
+    gaps = [t_ for level, t_ in result["findings"] if level == "gap"]
+    if gaps:
+        unchecked.append("{} open gap(s), first: {}".format(len(gaps), cut(gaps[0], 60)))
+    unchecked.append("whether the code implements the choices (that is review)")
+
+    blocks = [t_ for level, t_ in result["findings"] if level == "block"]
+    if result["status"] == "DOES_NOT_CONFORM":
+        nxt = "fix the first blocker: " + (cut(blocks[0].split(". ")[0], 100) if blocks else "see Findings")
+    elif result["status"] == "CONFORMS_WITH_GAPS":
+        nxt = "close the first gap: " + (cut(gaps[0], 100) if gaps else "see Findings")
+    elif saved:
+        nxt = "provenance is saved beside this report; commit it with the analysis"
+    elif result["analysis_dir"]:
+        nxt = "confirm saving provenance to {}/provenance/".format(result["analysis_dir"].rstrip("/"))
+    else:
+        nxt = "to save provenance, rerun as `write {} --analysis-dir DIR` once you confirm DIR".format(result["hash"])
+    rows = (("Ran as planned", ran), ("Numbers match", numbers), ("Code checks", code),
+            ("Not checked", "; ".join(unchecked)), ("Next", nxt))
+    return ["{:<16}{}  ".format(label, cut(value)) for label, value in rows]
+
+
+def render(result, all_outputs=False, saved=False):
     git = result["git"]
     head = "HEAD {} ({})".format(git["head"][:12], "uncommitted changes" if git.get("dirty") else "clean") \
         if git else "not a git repository"
     lines = [
-        "# Verify plan {}".format(result["hash"]),
+        "# Verify plan {}: {}".format(result["hash"], result["status"]),
+        "",
+    ] + render_summary(result, saved) + [
         "",
         "Approved {}{} - analysis folder `{}` - {} run(s) under this plan - {}".format(
             when(result["approved_at"]),
@@ -3049,7 +3140,7 @@ def _write_bundle(root, result, folder):
         handle.writelines("{}:{} [{}]\n".format(f[0], f[1], f[3]) for f in lint.get("approved", []))
     with open(os.path.join(folder, paths["report"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
         handle.write("Written {} by mycelium-extra verify.\n\n".format(stamp))
-        handle.write(render(result, all_outputs=True))
+        handle.write(render(result, all_outputs=True, saved=True))
     index = os.path.join(folder, "PROVENANCE.md")
     row = "| {} | {} | {} | {} | [plan]({}) - [receipts]({}) - [outputs]({}) - [lint]({}) - [report]({}){} |".format(
         digest, when(result["approved_at"]), stamp, result["status"], paths["plan"], paths["receipts"],
