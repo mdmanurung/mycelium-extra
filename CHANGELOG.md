@@ -2,6 +2,21 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.10.2] - 2026-10-17
+
+Second step of the researcher-first redesign: the two things you read most, the approval card and the verify report, now lead with the science and the answer.
+
+### Changed
+
+- The approval card is compact. It shows the question (or the goal), each choice with who made it, the checks, what ran before, and one `Runs` line (scripts, pinned, `any arguments`, reads, writes), then `More: card <hash> full` and `▶ approve  (or approve plan <hash>)`. A grant broader than named scripts (a folder, a command, an exact-execution block), a changed script or input, flagged Evidence and every warning stay on it. The previous full card is `card <hash> full`; `card <hash> checks` and `card <hash> diff` are unchanged. The 35-line digest is gone, since every card is now short.
+- The card's lint line counts a threshold that an approved Choice states apart from open findings (`lint: step 3: clean; 1 approved threshold(s)`).
+- `verify` opens its report with the status and five rows: ran as planned, numbers match, code checks, not checked, next. Everything below is the evidence behind them; `--json` and the last line `Verify status: ...` are unchanged.
+
+### Docs
+
+- New "Advanced features" page: approval instances, run limit, approval latency and checkpoint, validation bindings, exact execution, review consent, the optional `gate.json` keys, and the verify subcommands for plan differences, stale plans, overview and runs moved there. Nothing was removed from the code.
+- New "A day with Mycelium Extra" page.
+
 ## [0.10.1] - 2026-10-17
 
 Less bookkeeping, one fewer step to approve, and a gate that survives a stale hook registration.
