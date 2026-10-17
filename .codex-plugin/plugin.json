@@ -12,7 +12,7 @@
   "interface": {
     "displayName": "Mycelium Extra",
     "shortDescription": "Challenge plans using repository evidence",
-    "longDescription": "Search project memory and code before asking, challenge consequential assumptions, and return a sourced plan. Challenge a draft before approval with independent Codex engineering and Biomni biomedical reviews in Claude Code; Codex-host invocation provides engineering critique only. Settle past Mycelium decisions, check sample-table assumptions, and create a new analysis folder. Approval hooks and execution verification work in Claude Code and Codex; missing exit status remains a verification gap.",
+    "longDescription": "Search project memory and code before asking, challenge consequential assumptions, and return a sourced plan. Challenge a draft before approval with independent Codex engineering and Biomni biomedical reviews in Claude Code or OpenCode; Codex-host invocation provides engineering critique only. Settle past Mycelium decisions, check sample-table assumptions, and create a new analysis folder. Approval hooks and execution verification work in Claude Code, Codex, and OpenCode; missing exit status remains a verification gap.",
     "developerName": "Mikhael Manurung",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],

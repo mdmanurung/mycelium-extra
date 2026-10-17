@@ -5,7 +5,7 @@
 Mycelium Extra sits between a plan and its execution. A small change to command
 recognition or a hook payload can change which runs are allowed, so development
 starts with the behavior you intend to change and the checks that demonstrate
-it. The shared gate should keep the same meaning in Claude Code and Codex.
+it. The shared gate should keep the same meaning in Claude Code, Codex, and OpenCode.
 
 ## Testing a change
 
@@ -15,6 +15,11 @@ Run the affected skill's tests and the gate tests first:
 python3 skills/<skill>/tests/test_<name>.py
 python3 hooks/tests/test_gate.py
 ```
+
+For the OpenCode adapter (`opencode/index.js`), run `python3 hooks/tests/test_opencode_gate.py` and
+`node --test opencode/tests/gate.test.js` (CI uses Node 22; `package.json` has no `test` script). The
+adapter spawns `hooks/py.sh`, so the Node tests need Python 3.9 or later on `PATH` or in
+`MYCELIUM_EXTRA_PYTHON`, and their spawn cases skip without it.
 
 Then run `python3 tests/test_end_to_end.py` on the fixture project (about two
 minutes) and `python3 tests/test_fixture_data.py`. The ablations in
@@ -33,11 +38,11 @@ changed difference.
 
 `docs/example.md` is generated: with a real `scilintr` and an `Rscript` whose R has it, run
 `MX_E2E_SCILINTR=<path> MX_E2E_RSCRIPT=<path> python3 tests/e2e/make_example.py` when an output format
-changes. `python3 tests/test_example.py` checks that what it quotes still exists in the code.
+changes (the gate it runs needs Python 3.9 or later: on RHEL 8, use `python3.11`). `python3 tests/test_example.py` checks that what it quotes still exists in the code.
 
-`python3 tests/test_versions.py` checks that the three manifests and the newest `CHANGELOG.md` heading name the same version, and `python3 tests/check_links.py $(git ls-files '*.md')` that every relative link and anchor resolves.
+`python3 tests/test_versions.py` checks that the four manifests (the Claude Code and Codex plugin manifests, the marketplace entry, and `opencode/package.json`) and the newest `CHANGELOG.md` heading name the same version, and `python3 tests/check_links.py $(git ls-files '*.md')` that every relative link and anchor resolves.
 
-CI (`.github/workflows/ci.yml`) runs on every push to `main`, every pull request, and manual dispatch. It has two jobs.
+CI (`.github/workflows/ci.yml`) runs on every push to `main`, every pull request, and manual dispatch. It has three jobs.
 
 **`tests`** runs in three official, non-slim Python images (the slim images have no `git`, so the git tests would skip instead of fail), with `fail-fast` off:
 
@@ -47,7 +52,7 @@ CI (`.github/workflows/ci.yml`) runs on every push to `main`, every pull request
 | `python:3.12-bookworm` | `C.UTF-8` |
 | `python:3.14-bookworm` | `C.UTF-8` |
 
-Each leg then runs, in order: every `hooks/tests/test_*.py`, `skills/*/tests/test_*.py`, and `tests/test_*.py` file with `python3` (a failure is reported and the loop goes on, then the step fails); `python3 tests/e2e/ablate.py`; and `tests/check_links.py` over the tracked Markdown files (leaving out the historical `mycelium-extra-improvements/` snapshot folder). Files outside those patterns, such as `tests/integration_workflows.py`, are not run by CI. The Sphinx build is a separate workflow, `docs.yml`.
+Each leg then runs, in order: every `hooks/tests/test_*.py`, `skills/*/tests/test_*.py`, and `tests/test_*.py` file with `python3` (a failure is reported and the loop goes on, then the step fails); `python3 tests/e2e/ablate.py`; and `tests/check_links.py` over the tracked Markdown files Files outside those patterns, such as `tests/integration_workflows.py`, are not run by CI. The Sphinx build is a separate workflow, `docs.yml`.
 
 **`gate-diff`** runs only on pull requests, in `python:3.14-bookworm` with full history. It compares the working tree's gate against the **fixed** base `384e6394b71cdae6ab983f0b10fa8d4f5e65c900`, not the pull request's base commit:
 
@@ -58,6 +63,10 @@ python3 hooks/tests/gate_diff.py --self-check
 
 The first command fails unless every difference from that base matches `hooks/tests/gate_diff_expected.json` exactly (the old and new exit status, output, and state for each case), the base, fuzz count, seed, and case count match, and no case differs that is not listed. The second compares the current source with itself and requires no differences. Because the base is fixed, the listed differences are expected on every pull request, and any other change in a decision turns the check red until the oracle is updated and reviewed.
 
+The comparison skips `denies.jsonl` (the deny log records no decision), so a new line there is never a difference.
+
+**`opencode-plugin`** runs `node --test opencode/tests/gate.test.js` on Node 22 (`actions/setup-node`). The runner's `python3` is recorded in `MYCELIUM_EXTRA_PYTHON` by the test, so the gate runs even where the default `python3` is too old.
+
 Before changing `hooks/gate.py`, also run `python3 hooks/tests/gate_diff.py`: with no options it compares the committed gate (`HEAD`) with the working tree and must report every case identical, except the decisions you meant to change. To reproduce the CI result locally, run the two commands above.
 
 ### Changing the gate's behaviour on purpose
@@ -66,7 +75,7 @@ An intended gate behaviour change needs a named regression test that fails befor
 
 ## Python compatibility and versions
 
-The plugin needs Python 3.9 or later. Hooks and skill commands run through `hooks/py.sh`, which uses `MYCELIUM_EXTRA_PYTHON` if set, else `python3` when it is 3.9 or later (hooks skip this probe), else the newest `python3.N` on `PATH`; on RHEL 8, bare `python3` is 3.6. `hooks/gate_run.py` up to its version check stays parseable by Python 3.6, so an old interpreter is reported through `on_error` instead of failing with a SyntaxError; `hooks/tests/test_py_launcher.py` runs it under `/usr/bin/python3.6` when that exists.
+The plugin needs Python 3.9 or later. Hooks and skill commands run through `hooks/py.sh`, which uses `MYCELIUM_EXTRA_PYTHON` if set, else `python3` when it is 3.9 or later (hooks skip this probe), else the newest `python3.N` on `PATH`; on RHEL 8, bare `python3` is 3.6. `hooks/gate_run.py` up to its version check stays parseable by Python 3.6, so an old interpreter is not a SyntaxError: a hook registration from before 0.9.76 (`python3 gate_run.py`, which a directory marketplace keeps until the plugin is updated) first hands the event to `py.sh --hook` once (guarded by `MYCELIUM_EXTRA_REEXEC`), and only if that also lands on an old Python is it reported through `on_error`; `hooks/tests/test_py_launcher.py` runs it under `/usr/bin/python3.6` when that exists.
 
 Bump `version` in `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `opencode/package.json` together, so `claude plugin update` picks up the change and every host reports the same version. The same commit adds a [CHANGELOG.md](../CHANGELOG.md) entry for the new version.
 

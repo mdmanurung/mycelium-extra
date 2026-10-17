@@ -81,6 +81,11 @@ from its own location the same way; if you copy the plugin directory, pass
 For a project-local install, add the same two entries to that project's
 `opencode.json(c)`; relative paths resolve from OpenCode's working directory.
 
+To update, pull or replace the checkout and start a new OpenCode session; the
+`plugins` and `skills` entries point at the folder, so there is no cache to refresh.
+OpenCode needs the same Python 3.9 or later as the other hosts (see
+[Requirements](#requirements)), because the plugin runs `hooks/py.sh`.
+
 Skill IDs are the folder names (`grill`, `init`, and so on). A `skills` entry is
 the highest-precedence source in OpenCode, so these generic IDs shadow
 same-named skills from other sources; see the
@@ -102,9 +107,11 @@ codex plugin add mycelium-extra@mycelium-extra
 
 This installs the shared skills under the `mycelium-extra` namespace.
 For local development, replace the marketplace source with
-`/absolute/path/to/mycelium-extra`. Open `/hooks` in the Codex CLI, trust all
-four Mycelium Extra hooks, fully exit Codex, and start a new task. Then invoke
-`$mycelium-extra:grill <task>`. The same skill folders are used by both hosts.
+`/absolute/path/to/mycelium-extra`. Open `/hooks` in the Codex CLI, trust every
+Mycelium Extra hook (five entries on four events: prompt, pre-tool, post-tool for
+shell and for `apply_patch`, and stop), fully exit Codex, and start a new task.
+Then invoke `$mycelium-extra:grill <task>`. The same skill folders are used by all
+three hosts.
 
 `/hooks` is a CLI command. The desktop app does not provide this trust step.
 
@@ -128,23 +135,27 @@ Only planning? Start with [Tier 1](usage.md#tier-1-plan); no `init` needed.
 
 ## Requirements
 
-- The approval gate and helper scripts need Python 3.9 or later. They run through `hooks/py.sh`, which picks
-  `python3` if it is new enough, else the newest `python3.N` on `PATH` (on RHEL 8, `python3` is 3.6 but
-  `python3.11` or `python3.12` usually exist). Set `MYCELIUM_EXTRA_PYTHON` to choose one yourself. With only
-  an older Python, the gate reports it on every hook and follows `on_error` in `gate.json`.
+- The approval gate and helper scripts need Python 3.9 or later, on every host. They run through `hooks/py.sh`.
+  Skill commands use `python3` if it is new enough, else the newest `python3.N` on `PATH`; hooks try the newest
+  `python3.N` first and fall back to `python3`. On RHEL 8, `python3` is 3.6 but `python3.11` or `python3.12`
+  usually exist. Set `MYCELIUM_EXTRA_PYTHON` to choose one yourself. A hook registration from before 0.9.76 that
+  still runs `python3` directly on an old Python hands the event to `py.sh` once. With only an older Python
+  left, a repository with `gate.json` gets the error on every hook and follows `on_error`; a repository without
+  it stays silent.
 - Scientific checks need the tools for the files you use: R and R scilintr,
   Python scilintr, or h5py for H5AD inspection. A missing tool is reported as
-  a gap rather than a successful check. Neither is usually on `PATH` on a cluster; record where they are
-  with `gate_init.py --tools` (see [Verification](verification.md)).
+  a gap rather than a successful check. On a cluster, scilintr and an `Rscript` whose R has scilintr are
+  usually not on `PATH`; record where they are with `gate_init.py --tools` (see [Verification](verification.md)).
 - Independent plan review needs a Codex CLI and a connected Biomni MCP in the
-  Claude Code session. Missing reviewers are reported unavailable. Review
-  packets leave the machine only after the user agrees.
+  Claude Code or OpenCode session; from Codex it gives the engineering critique
+  only. Missing reviewers are reported unavailable. Review packets leave the
+  machine only after the user agrees.
 
 ## Host compatibility
 
 | Feature | Claude Code | Codex CLI 0.160.0+ | OpenCode V2 |
 |---|---|---|---|
-| Planning, data contracts, decision status, scaffolding, handoff, harden | Supported | Supported | Supported |
+| All skills: planning, data contracts, decision status, scaffolding, handoff, harden, ideas and triage, verify | Supported | Supported | Supported |
 | Independent plan review | Leads Codex + Biomni synthesis | Engineering critique only | Leads Codex + Biomni when both are available |
 | Init, approval gate, pinned inputs, exploration | Supported | Supported with enabled/trusted hooks | Supported (qualified on 2.0.32) |
 | Run receipts and verification | Success/failure hook events provide status | Records receipts; absent exit metadata is a verification gap | Records receipts; exit status from the shell result's exit code |
@@ -153,8 +164,7 @@ Only planning? Start with [Tier 1](usage.md#tier-1-plan); no `init` needed.
 OpenCode V2 runs the planning skills through the `skills` setting and the
 approval gate through the `plugins` setting, both above. The adapter is
 qualified against OpenCode 2.0.32 (see the development notes for the record).
-Its receipts record `host: opencode`; a shell result without an exit code
-records `unknown`, and verification reports a gap.
+Its receipts and exit-code handling are described in the OpenCode section.
 
 Codex 0.160.0's post hook supplies the command's output without an exit code.
 The gate records `unknown`; it never infers success from that event or parses

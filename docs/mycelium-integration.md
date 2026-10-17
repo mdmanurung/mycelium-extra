@@ -43,8 +43,12 @@ status through Mycelium's normal memory updates.
 
 This is everything the shipped code reads, plus what its skills tell the agent to
 read. Upstream paths are in [Mycelium](https://github.com/arjunrajlaboratory/mycelium)
-(checked at commit `8f8b167`, plugin version 0.9.1). Extra never imports Mycelium's
-code; the one test that does,
+(checked at commit `8f8b167`, plugin version 0.9.1; the versions in this guide are
+three different checks: 0.6.0 and 0.7.2 are the releases Extra's hooks were tested
+against, 0.9.1 is the upstream the lineage format and this table were read from, and
+the fixture project follows 0.8.1). Extra never imports Mycelium's code, and the one
+place it runs any is `idea`, which calls Mycelium's `upsert_table_row.py` as a
+subprocess; the one test that imports it,
 `tests/test_contract_compatibility.py`, loads upstream's `data_contract_check.py`
 read-only from the checkout named by `MYCELIUM_UPSTREAM` and skips that half when
 there is none.
@@ -54,8 +58,9 @@ there is none.
 | Data-lineage manifest | `.living/log/data-lineage/<session>.json`, written at Stop by `skills/core/scripts/extract_data_lineage.py` (format: `skills/core/references/data-lineage.md`) | `verify` (`lineage_actions`): each action's `ts`, `script`, `bash_cmd`, `bash_exit`, `io_detection`, `outputs` (path, `sha256`, `_missing`), `lineage_warnings` and the manifest's `extraction_warnings` and session id | A script that lineage saw run in the plan's window, that the gate did not record and the plan does not name, is a gap; script-less (inline) commands are counted and not checked. An action that lists an output is also a `lineage-record` candidate producer for it, only when joined to one matched attempt, never `supported` (see below) | No lineage gaps and no message; unreadable files are skipped |
 | Analysis manifest | `analysis/ANALYSIS_MANIFEST.md` (any `*ANALYSIS_MANIFEST.md` that git lists, else that path) | `verify status`: the entry's status word | A `manifest` column | Shown as `not listed` |
 | Registered values | `analysis/<name>/outputs/numbers.json`, written by `skills/core/scripts/register_value.py` | `verify`, only when a `<!-- claims -->` line names the file | The claimed number is compared with that cell, read as ordinary JSON: dotted keys, and list entries by position (the fragment's `values` list is not looked up by `key`) | The claim is a gap ("unverified"), not a pass |
-| Pointer to the Mycelium install | `.mycelium/plugin-root` | `init` (version notice, `--diagnose`), `new-analysis` | A one-line note when the version is not 0.6.0 or 0.7.2; Mycelium's `skills/core/templates/analysis-readme.md` for the analysis doc | No note; `new-analysis` uses its bundled copy of the 0.7.2 template |
+| Pointer to the Mycelium install | `.mycelium/plugin-root` | `init` (version notice, `--diagnose`), `new-analysis`, `idea` (to find the helper) | A one-line note when the version is not 0.6.0 or 0.7.2; Mycelium's `skills/core/templates/analysis-readme.md` for the analysis doc | No note; `new-analysis` uses its bundled copy of the 0.7.2 template |
 | `.living/` folder | `.living/` | `gate`, `new-analysis` | Whether the repository is a Mycelium project: the unignored-state warning, post-run reminders to follow Mycelium's post-action protocol, the `UPPER_SNAKE_CASE.md` analysis-doc name | Treated as an ordinary repository |
+| Todo registry | `todo/TODO_REGISTRY.md` and `todo/<slug>.md`, rows written with Mycelium's `skills/core/scripts/upsert_table_row.py` (found through `.mycelium/plugin-root`, else `~/.claude/plugins/installed_plugins.json`) | `idea` (writes), `idea-triage` (reads, annotates, sets a picked item's Status) | A parked idea in Mycelium's own todo format; the next idea to work on | `idea` creates `todo/` and the registry; `idea-triage` says there is nothing to triage |
 | Decisions and learnings | `.living/decisions.md`, `.living/learnings.md` | `decision-status` script (`learnings.md` only with `--include-learnings`); `harden` (instructions) | Which decision still binds; the learning to harden | The skill says so and stops |
 | Project memory for planning | `MYCELIUM.md` or the Mycelium block in `CLAUDE.md`/`AGENTS.md`, `.living/INDEX.md`, the manifests, `.living/findings/`, conventions, `.living/outputs/reviews/`, `.living/log/LOG_REGISTRY.md`, `~/.mycelium/knowledge/` | `grill` and `plan-review` (instructions in [`references/mycelium.md`](https://github.com/mdmanurung/mycelium-extra/blob/main/skills/grill/references/mycelium.md)); no code parses these | The plan's sources | Missing manifests, index or findings are treated as normal partial states |
 
@@ -100,7 +105,9 @@ contribution; it is future collaboration, not a current integration.
 Extra's planning and data checks are read-only. Scaffolding writes only the new
 analysis folder; verification writes only its `provenance/` after confirmation.
 `decision-status` appends a confirmed resolution; `harden` updates one confirmed
-learning after demonstrating its test. Extra does not replace Mycelium's memory
+learning after demonstrating its test. `idea` writes under `todo/` only (one item
+file and one registry row, with no questions asked), and `idea-triage` annotates
+those items and sets a picked item's Status. Extra does not replace Mycelium's memory
 or code review. Independent plan review advises; only your approval authorizes runs.
 
 The gate keeps its state in `.mycelium-extra/`, apart from Mycelium's `.mycelium/`

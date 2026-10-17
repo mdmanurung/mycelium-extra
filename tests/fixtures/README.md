@@ -20,7 +20,7 @@ is in `tests/e2e/expected/truth.json`, outside the project, so no analysis step 
     python3 tests/fixtures/make_fixture_data.py --check    # compare, write nothing
 
 The generator writes the two TSVs, the Key Findings block of `VACCINE_RESPONSE.md`, and
-`tests/e2e/expected/{truth.json,baseline.json,summary.tsv}`. It refuses a seed unless
+`tests/e2e/expected/{truth.json,baseline.json,summary.tsv,claims.json}`. It refuses a seed unless
 median-of-ratios recovers exactly the 8 true genes at padj < 0.05 and total-count CPM gives at
 least 3 false positives; seeds 0, 1, 5, 16 and 25 pass. `tests/test_fixture_data.py` runs
 `--check`, so a hand edit to the data fails the suite. Change the data through the generator only.

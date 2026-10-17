@@ -9,13 +9,14 @@ Less bookkeeping, one fewer step to approve, and a gate that survives a stale ho
 ### Changed
 
 - A bare `approve` approves the one waiting plan shown last. With none or several waiting it approves nothing and names `approve plan <hash>`.
-- A lint threshold in a Choice cell that the approved plan states no longer fails `verify`; it is reported as info.
+- A lint threshold in a Choice cell that the approved plan states no longer fails `verify`; it is reported as info. The match is on the number with its sign (`-1` is not `1`), against the Choice cells of the plan rows that name the script (every row when none does), and it covers notebook code cells. Text after `#` on the line is not read. `status` shows these as `N approved threshold(s)`, apart from open findings.
 - The gate keeps a deny log, `.mycelium-extra/denies.jsonl`, to measure how often it blocks.
 - The capacity and diary drafts are deleted; their helpers moved to `hooks/stateio.py`.
 
 ### Fixed
 
-- A hook registration from before 0.9.76 (`python3 gate_run.py`, kept by a directory marketplace until the plugin is updated) ran under `python3` 3.6 and failed open on every call. `gate_run.py` now hands the event to `hooks/py.sh` once instead of reporting an old Python.
+- A hook registration from before 0.9.76 (`python3 gate_run.py`, kept by a directory marketplace until the plugin is updated) ran under `python3` 3.6 and failed open on every call. `gate_run.py` now hands the event to `hooks/py.sh` once before reporting an old Python.
+- Docs brought in line with the code: bare `approve` and `approve plan`, OpenCode as a third host, the approved-threshold exception, `py.sh` and Python 3.9 in the skill commands, the CI jobs, and the state files the gate writes.
 
 ## [0.10.0] - 2026-10-17
 
