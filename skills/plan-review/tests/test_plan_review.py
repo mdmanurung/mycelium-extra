@@ -61,7 +61,7 @@ class PlanReviewContractTest(unittest.TestCase):
         synthesis = read("references/synthesis.md")
         self.assertTrue(os.path.isfile(os.path.join(SKILL, "scripts", "presend_check.py")))
         self.assertIn("scripts/presend_check.py", skill)
-        self.assertIn("Exit 3 means flags with empty/malformed `redactions:`", skill)
+        self.assertIn("Exit 3 means flags with an empty or malformed `redactions:`", skill)
         self.assertIn("Never write the removed value there", contract)
         self.assertIn("`[]` means nothing was removed, and is acceptable only after the check", contract)
         for item in ("home-directory paths", "contact details", "ID columns", "free-text clinical notes"):

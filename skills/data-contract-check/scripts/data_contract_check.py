@@ -1,9 +1,9 @@
 """Check a plan's data assumptions against a sample-level table, read-only.
 
-Stdlib-only; runs on Python 3.6+. Run it from stdin so Mycelium's hooks do
+Stdlib-only; runs on Python 3.9+. Run it from stdin so Mycelium's hooks do
 not open the post-action cycle:
 
-    python3 - --contract /tmp/contract.json < data_contract_check.py
+    sh <plugin>/hooks/py.sh - --contract /tmp/contract.json < data_contract_check.py
 
 The contract states what the plan assumes; this script decides what blocks.
 Every failed check of a coverage-list kind blocks, and the contract cannot

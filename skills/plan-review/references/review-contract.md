@@ -40,10 +40,10 @@ Before the packet is shown to the user for consent, run `scripts/presend_check.p
 
 | Exit | Meaning | Do |
 |---|---|---|
-| 0 | nothing flagged | Say the check is pattern-based and a clean result is not evidence that nothing sensitive remains. |
+| 0 | nothing flagged, and exactly one well-formed `redactions:` line | Say the check is pattern-based and a clean result is not evidence that nothing sensitive remains. |
 | 2 | flagged, and `redactions:` lists what was removed | Show the flags and the redactions to the user, who decides whether to send. |
-| 3 | flagged with empty/malformed redactions, or missing/truncated input coverage | Do not send. Remove or replace each flagged value and record it, or tell the user why it must stay. |
-| 1, or a failed run | the check did not run | Say so. Never report it as clean. |
+| 3 | flagged with empty/malformed redactions; no single `redactions:` line (even with nothing flagged, so write `redactions: []`); or missing/truncated input coverage | Do not send. Remove or replace each flagged value and record it, or tell the user why it must stay. |
+| 1, or a failed run | the check did not run (exit 1 with `mycelium-extra needs Python 3.9 or later` on stderr is `py.sh` finding no suitable Python: set `MYCELIUM_EXTRA_PYTHON`) | Say so. Never report it as clean. |
 
 The check reads the packet, and the tables named under `Inputs:` when given `--repo`, and prints each flag with its line, kind and a masked value. Its patterns are listed at the top of the script, and so are the things it cannot catch (a secret with no recognisable shape, a name or a diagnosis in free text, an identifier in a table the plan does not name). It does not stop a reviewer from reading files outside the packet; for Codex see [codex-review.md](codex-review.md).
 
@@ -59,7 +59,7 @@ The digest is the SHA-256 of `manifest.json`, which records the packet's hash an
 
 ## Common reviewer response
 
-Paste this format into the message each reviewer receives: neither reviewer can read this file (Codex runs rooted in the target repository; Biomni runs remotely). The two role-specific forms may include extra sections, but normalize each issue to:
+Paste this format into the message each reviewer receives: neither reviewer can read this file (Codex runs rooted in the data-free workspace copy; Biomni runs remotely). The two role-specific forms may include extra sections, but normalize each issue to:
 
 ```yaml
 reviewer: codex             # or biomni

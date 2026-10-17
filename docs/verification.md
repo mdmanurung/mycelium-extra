@@ -15,7 +15,7 @@ individual outcomes remain gaps, while a failed aggregate command blocks.
 Claim tables with duplicate column headers or no data rows are unverified;
 unrepresentable numeric values are also gaps, never verified by accident.
 
-**In this section:** [What the report shows](#what-the-report-shows) · [Validation](#validation) · [Recovery](#recovery) · [Status](#status) · [Qualification](#qualification) · [Rerun evidence](#rerun-evidence) · [What it writes](#what-it-writes) · [Stale plans](#stale-plans) · [Overview of all plans](#overview-of-all-plans)
+**In this section:** [What the report shows](#what-the-report-shows) · [Output producers](#output-producers) · [Validation](#validation) · [Recovery](#recovery) · [Status](#status) · [Qualification](#qualification) · [Rerun evidence](#rerun-evidence) · [What it writes](#what-it-writes) · [Plan differences](#plan-differences) · [Stale plans](#stale-plans) · [Overview of all plans](#overview-of-all-plans) · [Runs and citations](#runs-and-citations) · [Recoverable provenance publication](#recoverable-provenance-publication)
 
 ## What the report shows
 
@@ -33,8 +33,8 @@ unrepresentable numeric values are also gaps, never verified by accident.
 - **Unreceipted runs:** scripts that Mycelium's lineage saw run in the window but the gate did not, such as scratchpad scripts.
 - **Gate errors:** a hook that failed open (`gate-errors.jsonl`) did not check or record what it saw. An error between the approval and the verification, from a session that approved or ran the plan or from one the record does not name, is a gap naming its time and event: observation is incomplete there. It is a bounded statement, not a claim that a particular action went unobserved. An error before the approval, or from a different session, is ignored. A journal that cannot be read, or has a malformed line, is a gap too: observation history unavailable.
 - **Lint:** scilintr on the analysis folder's code, as Mycelium's analyze skill requires, with every `ANALYSIS_OK` waiver listed and tied to the finding it suppressed.
-  - Where the linters are: `sh hooks/py.sh - --tools [--scilintr PATH] [--rscript PATH] < skills/init/scripts/gate_init.py` checks each one works (the Python CLI on an empty file, `packageVersion("scilintr")` through the Rscript) and records the paths in `.mycelium-extra/tools.json`, which `verify` and the approval card read. It works on a gate that is already on and leaves `gate.json` alone. Without it, `scilintr` and `Rscript` are looked up on PATH, and a missing one is a gap; `--scilintr` and `--rscript` on `verify` override the record.
-  - A threshold finding (`R002`, `magic-threshold`) is info, not a block, when every number on its line appears in a Choice cell of the approved plan: you approved that value. Any other number on the line keeps it a block.
+  - Where the linters are: `sh <plugin-root>/hooks/py.sh - --tools [--scilintr PATH] [--rscript PATH] < <plugin-root>/skills/init/scripts/gate_init.py` checks each one works (the Python CLI on an empty file, `packageVersion("scilintr")` through the Rscript) and records the paths in `.mycelium-extra/tools.json`, which `verify` and the approval card read. On a gate that is already on it leaves `gate.json` alone; in a repository with no gate it also creates `gate.json` and the `.gitignore` line, so run init first (add `--dry-run` to only look). Without it, `scilintr` and `Rscript` are looked up on PATH, and a missing one is a gap; `--scilintr` and `--rscript` on `verify` override the record.
+  - A threshold finding (any rule or message containing "threshold", such as `R002` or `magic-threshold`) is info, not a block, when every number on its line appears in a Choice cell of the approved plan: you approved that value. The cells are those of the plan rows that name the script (any row's Choice when none names it). A sign must match (`-1` is not `1`), text after `#` is not read, and a notebook's code cell counts like a script. Any other number on the line keeps it a block. `lint-<hash>.txt` keeps the raw findings and lists the approved ones under `# Approved thresholds (N)`.
   - Waivers: a second run with waivers off lists each finding a waiver suppressed, with the waiver's `file:line` and reason, in the report and under `# Waived findings` in `lint-<hash>.txt`. R's scilintr accepts `ANALYSIS_OK[x]:` with nothing after it (Python's needs a reason), so an R waiver with no reason, on the line or the next comment line, that suppresses a finding blocks. If the second run fails, the report says the waived findings were not listed; the status does not change.
   - Python goes through the scilintr CLI. R goes through `scilintr::lint_project()` on a copy of the R code, since scilintr 0.1.1's `main()` lints only its first argument and always exits 0.
   - Jupyter notebooks' code cells are linted too, with magics commented out. A finding is cited as `<notebook>.ipynb[code cell N]:<line>`.
@@ -92,8 +92,10 @@ An instance that declares `exact-execution` also reports each run the gate did n
 
 It ends with `Verify status: CONFORMS`, `CONFORMS_WITH_GAPS`, or `DOES_NOT_CONFORM`.
 
-- **Blocks:** a failed run, a required validation check that failed, an edited script, a changed input, an output older than the approval, an incomplete Snakemake job, a scilintr finding neither fixed nor waived, a claim its cell contradicts, or a claim read from an explore run's output.
+- **Blocks:** a failed run, a required validation check that failed, an edited script, a changed input, an output older than the approval, an incomplete Snakemake job, a scilintr finding neither fixed nor waived (a threshold finding the plan approved is info), a claim its cell contradicts, or a claim read from an explore run's output.
 - **Gaps:** things the records cannot show. A required validation check that is not run, changed, unattributable or unsupported is a gap (not established). A success after a failed attempt with a changed command, script, engine config file or folder is a gap (equivalence not established). These include code scilintr could not check: scilintr not installed, timed out, or with unreadable output, or a script or notebook whose code does not parse, under the Python verify runs on or under R (which scilintr would silently pass). An output whose producer is not `supported` (timing only, a candidate, competing or overlapping writers) is a gap, and so is a run with no checked launch or an attempt that never reported back. An output written before the approval, or by an explore run, is the block it always was.
+
+Exit codes and options: `report` and `write` exit 0 whatever the status; `--require-reportable` is the only way to exit 3 (see [Qualification](#qualification)), and a `verify:` error, or `py.sh` finding no Python 3.9 or later, exits 1. `write` ignores `--json` and prints a `Qualification:` line after `Verify status:`. The budgets are `--hash-mb` (default 2000) and `--seconds` (default 120); `--repo`, `--sacct`, `--scilintr` and `--rscript` say where to look. `list`, `report`, `write`, `diff`, `multiplicity` and `explore` need the gate; `stale`, `status` and `runs` read committed provenance. `explore` takes `--session ID` (default `$CLAUDE_CODE_SESSION_ID`; with neither it shows every session of the last 7 days) or `--all`.
 
 ## Qualification
 
@@ -132,7 +134,7 @@ After you confirm, `verify` writes `<analysis>/provenance/`:
 - its receipts (ones that only passed a planned path to other code are kept, marked `not_a_run`);
 - an outputs table with each file's size, full sha256, the run named (only when its producer is `supported`), and the evidence behind it: `producer_attempt`, `evidence_method`, `strength` and the approval instance checked (`legacy` for an approval with no instance). A table without those last four columns is from an older verify, when the producer was chosen by time alone: read it as legacy. The receipts file keeps each run's `attempt_id`, `launch_match` and `approval_instance`;
 - when the plan has a validation binding, `validation-<hash>.json` (the frozen binding, each check's outcome and the raw evidence's path and sha256);
-- the scilintr output and waivers (`lint-<hash>.txt`);
+- the scilintr output, waivers, waived findings and approved thresholds (`lint-<hash>.txt`);
 - the package list of any conda env a run used that no `conda-lock.yml` pins (`env-<hash>.txt`, read from the env's `conda-meta`; an env changed since the run is a gap);
 - the pip packages in such an env that conda did not install, locked or not (`pip-<hash>.txt`, in requirements format);
 - the report, and a `PROVENANCE.md` index.
@@ -157,7 +159,8 @@ After a planned run in a Mycelium repository, the gate suggests writing the find
 
 - its analysis folder, runs, verify status, and staleness (size and time only; use `stale --content` for content);
 - whether the saved report was `qualified` for reporting (the `Reportable` column);
-- the lint verify recorded (a missing or unreadable linter shows as a gap, never `clean`);
+- the lint verify recorded (`N finding(s)`, `M approved threshold(s)` for threshold findings the plan approved, `clean`, `not run`, `not recorded`; a missing or unreadable linter shows as a gap, never `clean`);
+- the verify status from `PROVENANCE.md` with the bundle's state appended (`CONFORMS (complete)`; `legacy producers` for a table from an older verify);
 - the folder's `ANALYSIS_MANIFEST.md` entry: `listed: <first status word>`, `listed`, or `not listed`. It reads Mycelium's YAML `status:`, `**Status**:` lines, and a table's Status cell.
 - with `max_runs_per_approval` set in `gate.json`, whether a plan has reached it: the run count then reads `N (limit L reached (M since approval))`.
 
@@ -167,7 +170,7 @@ One limit: only a run the gate saw from Pre to Post, with the output named by fi
 
 ## Runs and citations
 
-`verify runs [RESULTS_DIR]` lists the `run_<YYYYMMDD>_<slug>` folders of a results folder with the status each run's label (`RUN.txt`, or a sibling `<run>.RUN.txt` for a frozen run) gives it, plus `updated` (newest file inside) and a content `id`. It also lists gaps in the labels and, in a Citations section, the `data/` and `code/` symlinks that cite a run of another analysis, with that run's status. It never writes, never sets a status, and only suggests a supersession; it is not part of `verify check` or `status`.
+`verify runs [RESULTS_DIR]` lists the `run_<YYYYMMDD>_<slug>` folders of a results folder with the status each run's label (`RUN.txt`, or a sibling `<run>.RUN.txt` for a frozen run) gives it, plus `updated` (newest file inside) and a content `id`. It also lists gaps in the labels and, in a Citations section, the `data/` and `code/` symlinks that cite a run of another analysis, with that run's status. It never writes, never sets a status, and only suggests a supersession; it is not part of `verify report` or `status`.
 
 ## Recoverable provenance publication
 

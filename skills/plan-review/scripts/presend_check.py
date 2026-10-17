@@ -5,7 +5,7 @@ like a secret, a contact detail, a home-directory path, or a participant identif
 input tables. It is conservative and pattern-based: a clean result is not evidence that nothing sensitive
 remains. It reports, the user decides, and it never prints a matched value in full.
 
-    python3 - --packet <(cat <<'EOF'
+    sh <plugin>/hooks/py.sh - --packet <(cat <<'EOF'
     <the packet>
     EOF
     ) [--repo <repository root>] < presend_check.py
@@ -17,7 +17,9 @@ SHA-256 is of the exact bytes read, so `scripts/review_packet.py` can bind conse
 
 Exit 0: nothing flagged. 1: the packet cannot be read. 2: something flagged and the packet's
 `redactions:` lists what was removed, so the user decides. 3: something flagged and `redactions:` is
-empty or missing, so do not send. Plain text on stdout.
+empty or missing, or the packet has no single well-formed `redactions:` line even with nothing flagged
+(`redactions: []` is the clean form), or an input table could not be fully read: do not send. Plain text
+on stdout.
 
 What is and is not caught is the PATTERNS table below. Not caught, by design: a secret with no recognisable
 shape or keyword, a name or an identifier in free text, a value in a table the plan does not name under

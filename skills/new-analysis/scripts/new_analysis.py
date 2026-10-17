@@ -2,7 +2,7 @@
 
 Run from stdin so Mycelium's hooks stay closed, with every option in --flag=value form
 (the approval gate reads a bare analysis/... argument as a script to run):
-    python3 - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb]
+    sh <plugin>/hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb]
               [--data=PATH ...] [--code=PATH ...] [--doc-template=PATH]
               --templates=<skill-dir>/templates [--dry-run] < new_analysis.py
 
@@ -10,7 +10,7 @@ Creates <dest>/ with numbered step stubs at its root, a Snakefile that runs them
 order, run.sh, the analysis doc (Mycelium's analysis-readme template: <NAME>.md in a
 Mycelium repository, README.md elsewhere), PLAN.md, TRACKER.md, and data/ code/ outputs/
 logs/ reports/. data/ and code/ hold symlinks. Refuses a non-empty <dest>, never
-overwrites, and writes nothing outside <dest>. Stdlib-only; runs on Python 3.6+.
+overwrites, and writes nothing outside <dest>. Stdlib-only; runs on Python 3.9+.
 """
 
 import argparse

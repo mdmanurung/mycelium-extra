@@ -1,9 +1,9 @@
 """List the Mycelium decision entries a task touches, oldest first.
 
-Read-only and stdlib-only; runs on Python 3.6+. Run it from stdin so
+Read-only and stdlib-only; runs on Python 3.9+. Run it from stdin so
 Mycelium's hooks do not open the post-action cycle:
 
-    python3 - --living-dir .living --tag cycombine --term cytovi < decision_threads.py
+    sh <plugin>/hooks/py.sh - --living-dir .living --tag cycombine --term cytovi < decision_threads.py
 
 The script extracts; it does not judge. It never infers that an entry is
 current or superseded. `status`, `supersedes`, `scope` and `revisit` are raw

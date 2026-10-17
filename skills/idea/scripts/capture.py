@@ -1,6 +1,6 @@
 """Capture ideas exclusively; registry errors leave an idempotent recovery record.
 
-Run from stdin with --plugin-root, --root, --helper, --python and --text-file.
+Run from stdin through `sh <plugin>/hooks/py.sh -` with --plugin-root, --root, --helper, --python and --text-file.
 Use --recover instead of --text-file to retry pending captures, never plain-edit a registry.
 """
 

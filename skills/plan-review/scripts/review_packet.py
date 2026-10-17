@@ -1,8 +1,8 @@
 """Bind a plan-review packet to the exact bytes the user consented to send (roadmap C11).
 
-    review_packet.py prepare --packet <file> [--attach <repo-relative file> ...] [--root <project root>]
-    review_packet.py preview --digest <hex, at least 12>
-    review_packet.py verify  --digest <hex, at least 12>
+    sh <plugin>/hooks/py.sh <plugin>/skills/plan-review/scripts/review_packet.py prepare --packet <file> [--attach <repo-relative file> ...] [--root <project root>]
+    sh <plugin>/hooks/py.sh <plugin>/skills/plan-review/scripts/review_packet.py preview --digest <hex, at least 12>
+    sh <plugin>/hooks/py.sh <plugin>/skills/plan-review/scripts/review_packet.py verify --digest <hex, at least 12>
 
 `prepare` runs the pre-send scan (`presend_check.py`) and refuses what it says not to send. It then writes, under
 `<root>/.mycelium-extra/review-packets/<digest>/`, `packet.txt` (the packet's bytes), `workspace/<path>` (a copy
@@ -24,7 +24,7 @@ THIS SCRIPT NEVER WRITES ONE: a consent an agent could write by assertion would 
 This is a cooperative mechanism, not a sandbox. It does not send anything, and it cannot stop an agent with
 unrestricted shell access from sending other bytes or writing a consent record itself. It shows that the files
 named by `verify` are the ones the user approved. Exit 0: ok. 1: could not run. 3: refused, do not send.
-Python 3.6 compatible, standard library only.
+Run it by path (it loads `presend_check.py` from its own folder), not from stdin. Standard library only; Python 3.9+.
 """
 
 import argparse

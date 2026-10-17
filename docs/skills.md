@@ -43,7 +43,10 @@ See [Gate settings](approval-gate.md#settings) to change coverage.
 
 Checks an approved plan against receipts, pinned inputs, outputs, lint, and
 explicit claims. It never re-runs the analysis. Requires the approval gate
-for a current plan's report; `verify stale` can read saved provenance without it.
+for a current plan's report; `verify stale`, `status` and `runs` can read saved
+provenance without it. Other subcommands (`list`, `diff`, `multiplicity`,
+`explore`, and `--require-reportable`) are described in
+[Verification reference](verification.md).
 
 ### What the report shows
 
@@ -85,16 +88,19 @@ See [Full project workflow](usage.md#tier-4-full-project-workflow).
 
 ## plan-review
 
-Challenges a grill draft before approval. In Claude Code, Claude assembles a
-minimal packet for separate Codex engineering and Biomni biomedical critiques.
+Challenges a grill draft before approval. In Claude Code or OpenCode, the host
+assembles a minimal packet for separate Codex engineering and Biomni biomedical critiques.
 It first runs a pattern-based pre-send check for secrets, contact details, home paths and
 the participant IDs in the plan's input tables, then shows the packet and the check's output
 and asks before sending it outside the machine; Biomni uses cloud credits. Flags with an
-empty `redactions:` mean do not send. A clean check is not a clearance. Codex can read the
+empty `redactions:` mean do not send. Nothing is sent until you type
+`send packet <first 12 hex characters of the digest>` yourself: that prompt, not the
+agent, records consent for the exact packet bytes. A clean check is not a clearance. Codex can read the
 repository beyond the packet, so for participant-level data it runs on a data-free copy.
 Missing reviewers are reported unavailable.
 
-Writes nothing and approves nothing. Material revisions need a new approval.
+Writes nothing and approves nothing (apart from the prepared packet folder the send
+route needs). Material revisions need a new approval.
 In Codex, this skill supplies the engineering critique only.
 See [Host compatibility](installation.md#host-compatibility) for reviewer requirements.
 

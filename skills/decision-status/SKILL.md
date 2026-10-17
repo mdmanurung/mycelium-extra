@@ -17,7 +17,7 @@ Settle which past decision binds the current task. Retrieve only the entries the
   sh <skill-dir>/../../hooks/py.sh - --living-dir .living --tag <tag> --term '<regex>' < <skill-dir>/scripts/decision_threads.py
   ```
 
-  `--tag` and `--term` repeat; `--include-learnings` adds `learnings.md`; `--json` gives the raw records. Running the script by path opens Mycelium's post-action cycle, so never do that. If `python3` is missing or fails, fall back to `rg -n '^#{2,3} .*<term>' .living/decisions.md` and read the entries directly.
+  `--tag` and `--term` repeat; `--include-learnings` adds `learnings.md`; `--json` gives the raw records. Running the script by path opens Mycelium's post-action cycle, so never do that. If the command fails (for example `py.sh` finds no Python 3.9 or later), fall back to `rg -n '^#{2,3} .*<term>' .living/decisions.md` and read the entries directly.
 - The output is extraction only. `status`, `supersedes`, `scope`, and `revisit` are raw field text (both `**Field**:` and `**Field:**` are read); `hints` are status words found in the heading. None of them is a verdict.
 - Read the body of every listed entry that could bind the task before resolving anything. A heading word such as "held" may be qualified in the body.
 

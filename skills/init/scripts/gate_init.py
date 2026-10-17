@@ -1,9 +1,9 @@
 """Turn on the mycelium-extra approval gate in a repository.
 
 Run from stdin so Mycelium's hooks stay closed:
-    python3 - [--root DIR] [--paths GLOB ...] [--commands CMD ...] [--hours N] [--dry-run]
+    sh <plugin>/hooks/py.sh - [--root DIR] [--paths GLOB ...] [--commands CMD ...] [--hours N] [--dry-run]
         [--tools [--scilintr PATH] [--rscript PATH]] < gate_init.py
-    python3 - --diagnose [--root DIR] [--plugin-root DIR] < gate_init.py
+    sh <plugin>/hooks/py.sh - --diagnose [--root DIR] [--plugin-root DIR] < gate_init.py
 
 
 Creates .mycelium-extra/gate.json and ignores .mycelium-extra/ in .gitignore.
@@ -11,7 +11,7 @@ Never changes an existing gate.json: after init, the gate's settings are the
 user's to edit by hand. `--tools` also records where the scilintr linters are in
 .mycelium-extra/tools.json (separate from gate.json, so it works on a gate that is
 already on). `--diagnose` only reads and reports (effective config, hook registrations, Mycelium version,
-available tools, last observed receipt and gate error); it writes nothing. Stdlib-only; runs on Python 3.6+.
+available tools, last observed receipt and gate error); it writes nothing. Stdlib-only; runs on Python 3.9+.
 """
 
 import argparse

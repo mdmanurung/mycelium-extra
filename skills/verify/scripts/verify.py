@@ -1,15 +1,17 @@
 """Check an approved grill plan against what ran, and write its provenance.
 
-Stdlib-only; runs on Python 3.6+. Run it from stdin, inside the repository, so
+Stdlib-only; runs on Python 3.9+. Run it from stdin, inside the repository, so
 Mycelium's hooks do not open the post-action cycle:
 
-    python3 - --plugin-root <root> list < verify.py
-    python3 - --plugin-root <root> report <hash> [--analysis-dir DIR] [--claims DOC] [--instance ID] [--require-reportable] [--json] < verify.py
-    python3 - --plugin-root <root> write <hash> --analysis-dir DIR [--claims DOC] [--instance ID] [--require-reportable] < verify.py
-    python3 - --plugin-root <root> stale [--content] [--json] < verify.py
-    python3 - --plugin-root <root> status [--json] < verify.py
-    python3 - --plugin-root <root> explore [--session ID | --all] [--json] < verify.py
-    python3 - --plugin-root <root> runs [RESULTS_DIR] [--json] < verify.py
+    sh <root>/hooks/py.sh - --plugin-root <root> list < verify.py
+    sh <root>/hooks/py.sh - --plugin-root <root> report <hash> [--analysis-dir DIR] [--claims DOC] [--instance ID] [--require-reportable] [--json] < verify.py
+    sh <root>/hooks/py.sh - --plugin-root <root> write <hash> --analysis-dir DIR [--claims DOC] [--require-reportable] < verify.py
+    sh <root>/hooks/py.sh - --plugin-root <root> stale [--content] [--json] < verify.py
+    sh <root>/hooks/py.sh - --plugin-root <root> status [--json] < verify.py
+    sh <root>/hooks/py.sh - --plugin-root <root> explore [--session ID | --all] [--json] < verify.py
+    sh <root>/hooks/py.sh - --plugin-root <root> runs [RESULTS_DIR] [--json] < verify.py
+    sh <root>/hooks/py.sh - --plugin-root <root> diff <old-hash> <new-hash> < verify.py
+    sh <root>/hooks/py.sh - --plugin-root <root> multiplicity <hash> [--json] < verify.py
 
 It reuses the approval gate's own parsers (`<root>/hooks/gate.py`), so a plan
 covers here exactly the scripts it let through. `report` only reads. `write`

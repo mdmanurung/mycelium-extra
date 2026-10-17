@@ -6,7 +6,7 @@ under MIN_WORDS words, or a reason that is only one of EMPTY_PHRASES. It is
 advisory: it reports, it never blocks, and it does not judge whether a reason
 is correct.
 
-    python3 - --plan <(cat <<'EOF'
+    sh <plugin>/hooks/py.sh - --plan <(cat <<'EOF'
     <the plan>
     EOF
     ) < default_reasons.py
