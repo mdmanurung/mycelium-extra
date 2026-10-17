@@ -264,28 +264,6 @@ class DiagnoseTest(unittest.TestCase):
         self.assertIn("sacct: not on PATH", out)
         self.assertIn("Rscript: not on PATH", out)
 
-    def test_held_back_capacity_registrations_are_not_registered(self):
-        out = self.diagnose()
-        self.assertIn("hooks.json capacity registrations (capacity-hooks.json, held back by design): "
-                      "5 of 5 not registered", out)
-        self.assertIn("codex.json capacity registrations (capacity-hooks.json, held back by design): "
-                      "5 of 5 not registered", out)
-
-    def test_a_registered_capacity_hook_is_seen(self):
-        plugin = os.path.join(self.root, "plugin")
-        shutil.copytree(os.path.join(PLUGIN, "hooks"), os.path.join(plugin, "hooks"),
-                        ignore=shutil.ignore_patterns("tests", "__pycache__"))
-        path = os.path.join(plugin, "hooks", "hooks.json")
-        held = json.loads(read(os.path.join(plugin, "hooks", "capacity-hooks.json")))["hooks.json"]
-        data = json.loads(read(path))
-        data["hooks"]["SessionStart"] = held["SessionStart"]
-        with open(path, "w") as handle:
-            json.dump(data, handle)
-        with open(SCRIPT) as source:
-            out = subprocess.check_output([sys.executable, "-", "--root", self.root, "--diagnose",
-                                           "--plugin-root", plugin], stdin=source, universal_newlines=True)
-        self.assertIn("4 of 5 not registered", out)
-
     def test_works_without_mycelium_and_with_one(self):
         self.assertIn("mycelium: none found here", self.diagnose())
         plugin = tempfile.mkdtemp()

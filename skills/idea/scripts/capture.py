@@ -73,7 +73,7 @@ def main(argv):
     parser.add_argument("--context", default="")
     args = parser.parse_args(argv)
     sys.path.insert(0, os.path.join(args.plugin_root, "hooks"))
-    from capacity import atomic, locked, write, command
+    from stateio import atomic, locked, write, command
     todo = os.path.join(os.path.realpath(args.root), "todo")
     try:
         if os.path.realpath(todo) != todo:

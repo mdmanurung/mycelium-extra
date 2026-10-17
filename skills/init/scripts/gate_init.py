@@ -234,7 +234,6 @@ CONFIG_RULES = {
     "max_runs_per_approval": ("a whole number of 1 or more (or unset)", lambda v: _whole(v, 1)),
     "checkpoint_steps": ("a whole number of 1 or more, or 0 for off (or unset)", lambda v: _whole(v, 0)),
 }
-CAPACITY_FILE = "capacity-hooks.json"
 
 
 def last_json_line(path):
@@ -304,20 +303,6 @@ def diagnose_hooks(plugin, out):
         registered[name] = hook_commands(data.get("hooks") if isinstance(data, dict) else None)
         out.append("  {}: {} events registered: {}".format(
             name, len(registered[name]), ", ".join(sorted(registered[name])) or "none"))
-    held, error = load_json(os.path.join(plugin, "hooks", CAPACITY_FILE))
-    if error:
-        out.append("  {}: unreadable: {}".format(CAPACITY_FILE, error))
-        return
-    for name in ("hooks.json", "codex.json"):
-        wanted = hook_commands(held.get(name) if isinstance(held, dict) else None)
-        have = registered.get(name)
-        if have is None:
-            continue
-        missing = sorted(event for event, commands in wanted.items() if not commands & have.get(event, set()))
-        out.append("  {} capacity registrations ({}, held back by design): {}".format(
-            name, CAPACITY_FILE,
-            "{} of {} not registered: {}".format(len(missing), len(wanted), ", ".join(missing))
-            if missing else "all {} registered".format(len(wanted))))
 
 
 def diagnose(root, plugin_root):

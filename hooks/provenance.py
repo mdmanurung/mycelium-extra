@@ -6,7 +6,7 @@ import os
 import re
 import tempfile
 
-from capacity import atomic, locked
+from stateio import atomic, locked
 
 
 def sha(path):

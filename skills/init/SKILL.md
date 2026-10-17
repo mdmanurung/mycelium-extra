@@ -39,7 +39,7 @@ Pass only the options that differ from the defaults; with none, `gate.json` is `
 
 ## 3c. Diagnose (optional, read-only)
 
-When the user asks why the gate seems off, or what this install can see, run `sh <skill-dir>/../../hooks/py.sh - --diagnose < <skill-dir>/scripts/gate_init.py` (add `--plugin-root DIR` if it cannot find the plugin's `hooks/`). It writes nothing and reports the effective config (invalid values flagged), the hook registrations in `hooks/hooks.json` and `hooks/codex.json` (and which held-back capacity registrations are absent), the Mycelium version, which of h5py, scilintr, Rscript and sacct are present, and the newest receipt's host and exit status and the last gate error. Pass its output on as printed, including its closing note: a registration or a `gate.json` does not prove the host has enabled or trusted the hooks. Do not combine it with options that write.
+When the user asks why the gate seems off, or what this install can see, run `sh <skill-dir>/../../hooks/py.sh - --diagnose < <skill-dir>/scripts/gate_init.py` (add `--plugin-root DIR` if it cannot find the plugin's `hooks/`). It writes nothing and reports the effective config (invalid values flagged), the hook registrations in `hooks/hooks.json` and `hooks/codex.json`, the Mycelium version, which of h5py, scilintr, Rscript and sacct are present, and the newest receipt's host and exit status and the last gate error. Pass its output on as printed, including its closing note: a registration or a `gate.json` does not prove the host has enabled or trusted the hooks. Do not combine it with options that write.
 
 ## 4. Report
 

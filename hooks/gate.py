@@ -2638,12 +2638,12 @@ def script_state(root, scripts, config):
 @contextlib.contextmanager
 def state_lock(root, name):
     """Serialize a read-modify-write of one state file across parallel hooks, with the repository's existing
-    flock helper (capacity.locked). Best effort: where it cannot lock (no fcntl, a symlinked path, 2 s busy) the
+    flock helper (stateio.locked). Best effort: where it cannot lock (no fcntl, a symlinked path, 2 s busy) the
     update goes ahead unlocked, as it always did. Never hold it while hashing or running a tool."""
     guard = None
     try:
-        import capacity
-        guard = capacity.locked(state_path(root, "locks", name + ".lock"))
+        import stateio
+        guard = stateio.locked(state_path(root, "locks", name + ".lock"))
         guard.__enter__()
     except Exception:
         guard = None

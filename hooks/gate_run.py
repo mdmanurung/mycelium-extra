@@ -183,67 +183,14 @@ def run(argv):
             text = json.dumps(decoded)
     except (ValueError, TypeError, AttributeError):
         pass
-    # Capacity is independent of plan approval; closeout must run before gate hints.
-    import capacity
     try:
-        event = json.loads(text)
-        event.setdefault("hook_event_name", HOOK_EVENT.get(argv[-1], argv[-1]))
-        handled, notice = capacity.handle(event)
-        if handled:
-            if notice:
-                print(json.dumps(notice))
-            return 0
-    except Exception as error:
-        # Capacity opted in: unreadable state never turns a missing quota into permission.
-        decoded = locals().get("event")
-        decoded = decoded if isinstance(decoded, dict) else {}
-        root = capacity.project(decoded.get("cwd") or os.getcwd())
-        config = capacity.read(os.path.join(root, STATE_DIR, "capacity.json")) if root else None
-        if root and not (isinstance(config, dict) and config.get("enabled") is False):
-            name = decoded.get("hook_event_name", argv[-1])
-            reason = "Capacity unavailable: {}; save notes and stop.".format(error)
-            try:
-                capacity.write(os.path.join(root, STATE_DIR, "capacity-errors", "{}-{}.json".format(int(time.time() * 1000000), os.getpid())),
-                               {"event": name, "gap": reason})
-            except Exception:
-                pass
-            if name == "SessionStart":
-                return 0  # Startup is silent; the next tool still fails closed.
-            notice = (capacity.deny(reason) if name == "PreToolUse" else
-                      {"continue": False, "stopReason": reason, "systemMessage": reason})
-            print(json.dumps(notice))
-            return 0
-        notice = None
-    try:
-        if len(argv) == 2 and find_root(event.get("cwd") or os.getcwd()) is None:
-            if notice:
-                print(json.dumps(notice))
+        if len(argv) == 2 and find_root(json.loads(text).get("cwd") or os.getcwd()) is None:
             return 0
     except Exception:
         pass
     if len(argv) == 2 and argv[1] not in ("prompt", "tool", "post", "stop"):
         return 0
     import gate
-    if notice:
-        # Wind-down context and approval denial must coexist in a single JSON response.
-        import io
-        saved = sys.stdout
-        output = io.StringIO()
-        try:
-            sys.stdout = output
-            result = gate.main(argv, text)
-        finally:
-            sys.stdout = saved
-        payload = json.loads(output.getvalue()) if output.getvalue().strip() else {}
-        extra = notice.get("hookSpecificOutput", {})
-        specific = payload.setdefault("hookSpecificOutput", {})
-        for key, value in extra.items():
-            if key == "additionalContext" and specific.get(key):
-                specific[key] += "\n" + value
-            else:
-                specific[key] = value
-        print(json.dumps(payload))
-        return result
     return gate.main(argv, text)
 
 
