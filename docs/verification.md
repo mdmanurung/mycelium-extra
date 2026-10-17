@@ -23,7 +23,9 @@ unrepresentable numeric values are also gaps, never verified by accident.
 - **Command and folder runs:** a run credited to the plan that no script row covers (an approved `snakemake` or `sbatch` command, a script run through a granted folder) is checked the same way: a failed run blocks, one with no exit status is a gap, a compound command (`cd x && snakemake`) is a gap whose own failure blocks, and a Slurm submission that exited 0 is judged by its job's state in `sacct`, as a script row is. A later run of the same step supersedes an earlier one, where a step is the command's kind, working folder and the script, Snakefile or job script it names, so a retry with other options counts (a Snakemake run naming none is the Snakefile in its folder; any other command with none is keyed by its command line). A folder whose scripts the plan table grants is a gap when neither a run of a script in it nor a command run from it was recorded.
 - **Other runs:** explore runs, runs under another plan, and scripts in the analysis folder that ran but are not in the plan table.
 - **Pinned inputs** that changed since the approval.
-- **Outputs:** the files on the plan's `Outputs:` line, when each was written, and which run likely wrote it. A `{a,b}` list is expanded, and a `<name>` placeholder or a comma-less `{name}` (a Snakemake wildcard) is read as `*`; a word starting with `…` names no path and is a gap (the approval card flags it too). A file named exactly that was written before the approval blocks. Older files inside a named folder or glob are earlier runs' outputs, so they are counted, not checked.
+- **Outputs:** the files on the plan's `Outputs:` line, when each was written, and how well the records name the run that wrote it ([Output producers](#output-producers)): only a `supported` producer fills the By column; otherwise it reads `unresolved` with its candidates beside it. A `{a,b}` list is expanded, and a `<name>` placeholder or a comma-less `{name}` (a Snakemake wildcard) is read as `*`; a word starting with `…` names no path and is a gap (the approval card flags it too). A file named exactly that was written before the approval blocks. Older files inside a named folder or glob are earlier runs' outputs, so they are counted, not checked.
+- **Launch evidence:** a run is a *checked launch* only when the gate saw both its Pre and its Post and matched them (`launch_match: matched`). Runs credited to the plan whose Post had no matching Pre are a gap (`no checked launch: Post without matching Pre`), grouped by reason; identical launches without a call id are a gap too (`ambiguous launch`). Receipts written before launch matching (no `launch_match`) are read as before and counted in one info line, never as matched. An attempt that started and never reported back (the gate moves it to `launches/abandoned/`) is a gap naming its start time: what it ran or wrote is not known. A late Post for an expired launch shows both as an unmatched receipt and as an abandoned attempt.
+- **Approval instances:** each approval of a plan writes an immutable instance (`approval-instances/<hash>/<id>.json`: the plan hash, pins, scripts, preparation and limitations), and `approvals/<hash>.json` points to the newest. `report` checks that instance by default; `--instance <id or unique prefix>` checks an earlier one against its own pins and approval time. Runs launched under another instance (or one that records none) are shown as history and cannot establish the freeze being checked; none under it is a gap. Approving the same plan with the same pins reuses its instance. An approval with no instance id is legacy: read as one freeze, with an info line.
 - **Unreceipted runs:** scripts that Mycelium's lineage saw run in the window but the gate did not, such as scratchpad scripts.
 - **Gate errors:** a hook that failed open (`gate-errors.jsonl`) did not check or record what it saw. An error between the approval and the verification, from a session that approved or ran the plan or from one the record does not name, is a gap naming its time and event: observation is incomplete there. It is a bounded statement, not a claim that a particular action went unobserved. An error before the approval, or from a different session, is ignored. A journal that cannot be read, or has a malformed line, is a gap too: observation history unavailable.
 - **Lint:** scilintr on the analysis folder's code, as Mycelium's analyze skill requires, with every `ANALYSIS_OK` waiver listed and tied to the finding it suppressed.
@@ -35,12 +37,25 @@ unrepresentable numeric values are also gaps, never verified by accident.
 - **Claims:** each `<!-- claims -->` block in the analysis doc, a Markdown output, or a `--claims` document names a value and the output cell it came from (`8 | outputs/summary.tsv n_hits`, `0.0162 | outputs/de_results.tsv padj SIGLEC1`). A value is checked against its cell after rounding. A non-finite cell, such as NaN or infinity, is an unverified gap with its value and location. A table with more than one row needs a row label, so a common value cannot match some row by chance. Other numbers near the block are listed, not checked.
 - **Fact tags, as info:** per tag, how many facts in the frozen plan's Evidence and in the analysis doc's Key Findings carry `[human-stated]`, `[agent-derived: <path>]`, or `[agent-asserted: <source>]`. It flags an untagged fact, an `agent-derived` one without its path, and an `agent-asserted` one without a source. A list with no tag at all (a plan from before 0.9.35) gets one line. The status does not change.
 
+## Output producers
+
+Each output row carries `producer_attempt`, `evidence_method`, `strength`, `candidates` and `reason` (all in `report --json`; the table shows method, strength and candidates beside the By column).
+
+| Method | What it rests on | Strength |
+|---|---|---|
+| `attempt-observed` | A matched receipt of this plan whose `outputs_changed` lists the output: the gate saw the file created or changed between the run's Pre and Post. No other attempt that overlaps it in time (any plan, explore runs, running Slurm jobs, launches that never reported back) could have written it. A sibling run of the same plan that watched this very path and did not see it change does not count as a rival. | `supported`; `unresolved` with every overlapping attempt listed when one exists |
+| `workflow-record` | Snakemake's per-output record names the rule, and a wrapper run that fits the record in time is the join. | `candidate`; `unresolved` when two wrapper runs fit |
+| `timing-only` | The file's time against the receipts' times: no observation (a receipt from an older gate, a run whose Post had no Pre, or an output the run's attempt did not see change). | at most `candidate`, and always a gap, even when a single run is within five seconds; `unresolved` for competing writers |
+| `none` | No recorded run. | `unresolved` |
+
+What this does not prove: an observed change shows the file changed during that run, not that the run's code wrote it; an unrelated process writing in the same seconds is seen only as an overlapping attempt when it was itself recorded. A folder on the `Outputs:` line is watched as a folder (the gate sees it change, not which file), so name files or a one-level glob to get `supported`. A receipt records when the run ended, and when the gate recorded it, when it started; without a start, a run that overlapped it is seen only if it ended within the clock tolerance.
+
 ## Status
 
 It ends with `Verify status: CONFORMS`, `CONFORMS_WITH_GAPS`, or `DOES_NOT_CONFORM`.
 
 - **Blocks:** a failed run, an edited script, a changed input, an output older than the approval, an incomplete Snakemake job, a scilintr finding neither fixed nor waived, a claim its cell contradicts, or a claim read from an explore run's output.
-- **Gaps:** things the records cannot show. These include code scilintr could not check: scilintr not installed, timed out, or with unreadable output, or a script or notebook whose code does not parse, under the Python verify runs on or under R (which scilintr would silently pass). An output is tied to a run by time alone, so attribution only ever produces gaps.
+- **Gaps:** things the records cannot show. These include code scilintr could not check: scilintr not installed, timed out, or with unreadable output, or a script or notebook whose code does not parse, under the Python verify runs on or under R (which scilintr would silently pass). An output whose producer is not `supported` (timing only, a candidate, competing or overlapping writers) is a gap, and so is a run with no checked launch or an attempt that never reported back. An output written before the approval, or by an explore run, is the block it always was.
 
 ## What it writes
 
@@ -48,7 +63,7 @@ After you confirm, `verify` writes `<analysis>/provenance/`:
 
 - the frozen plan;
 - its receipts (ones that only passed a planned path to other code are kept, marked `not_a_run`);
-- an outputs table with each file's size, full sha256, and likely run;
+- an outputs table with each file's size, full sha256, the run named (only when its producer is `supported`), and the evidence behind it: `producer_attempt`, `evidence_method`, `strength` and the approval instance checked (`legacy` for an approval with no instance). A table without those last four columns is from an older verify, when the producer was chosen by time alone: read it as legacy. The receipts file keeps each run's `attempt_id`, `launch_match` and `approval_instance`;
 - the scilintr output and waivers (`lint-<hash>.txt`);
 - the package list of any conda env a run used that no `conda-lock.yml` pins (`env-<hash>.txt`, read from the env's `conda-meta`; an env changed since the run is a gap);
 - the pip packages in such an env that conda did not install, locked or not (`pip-<hash>.txt`, in requirements format);
@@ -79,7 +94,7 @@ After a planned run in a Mycelium repository, the gate suggests writing the find
 
 No hook runs it.
 
-One limit: an output is tied to a run by time, since receipts do not record which files a run wrote.
+One limit: only a run the gate saw from Pre to Post, with the output named by file or one-level glob, can be observed writing it; any other output is tied to a run by time alone and stays a gap.
 
 ## Runs and citations
 
@@ -91,4 +106,4 @@ One limit: an output is tied to a run by time, since receipts do not record whic
 
 Under the same lock, the next `write` finalizes a fully matching publication or restores the previous snapshot before saving again. An unexpected edit or damaged backup stops recovery and retains evidence. Do not remove a pending marker to make a report look complete. `report`, `stale`, and `status` distinguish complete, legacy (no checksummed record), and interrupted/damaged bundles. Legacy files are read without automatic rewriting; the next confirmed save retains their prior bytes.
 
-Timestamp-compatible outputs with competing writers remain attribution gaps. A metadata-only input or script fingerprint does not verify content. Shell/wrapper and notebook-tool visibility remains bounded by the recorded receipts.
+Timestamp-compatible outputs with competing writers, and outputs with an overlapping attempt, remain attribution gaps. A Slurm job is judged by its state and its exit code: `COMPLETED` with an `ExitCode` other than `0:0` blocks, an unreadable code is a gap, and a pending, running, unknown or partly finished array job is a gap. A metadata-only input or script fingerprint does not verify content. Shell/wrapper and notebook-tool visibility remains bounded by the recorded receipts.

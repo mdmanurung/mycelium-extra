@@ -35,7 +35,7 @@ It also checks claims: each `<!-- claims -->` block in the analysis doc (`<NAME>
 The report ends with `Verify status:` and one of these values:
 - `CONFORMS`
 - `CONFORMS_WITH_GAPS`: something the records cannot show, such as a run with no receipt, an unrecorded exit status, an output not tied to a run, or code scilintr could not check.
-  The gate takes a run's exit status from Claude Code's hook event: `PostToolUse` fires only after a command succeeds, so its receipt records exit 0 (`"exit_source": "event"`; the row reads `ran (exit 0 from hook event)`), and `PostToolUseFailure` gives the code from the `Exit code N` line, or `failed` or `interrupted` when there is none. A receipt with exit status `unknown` (a run started in the background, a payload without an event name) or null (from an older gate) is a gap, never a success, so a plan whose only evidence is such a run gets `CONFORMS_WITH_GAPS`. An `sbatch` receipt's exit status is the submit's; the job's state comes from `sacct`.
+  The gate takes a run's exit status from Claude Code's hook event: `PostToolUse` fires only after a command succeeds, so its receipt records exit 0 (`"exit_source": "event"`; the row reads `ran (exit 0 from hook event)`), and `PostToolUseFailure` gives the code from the `Exit code N` line, or `failed` or `interrupted` when there is none. A receipt with exit status `unknown` (a run started in the background, a payload without an event name) or null (from an older gate) is a gap, never a success, so a plan whose only evidence is such a run gets `CONFORMS_WITH_GAPS`. An `sbatch` receipt's exit status is the submit's; the job's state and `ExitCode` come from `sacct` (a submission is not a completion): `COMPLETED` with a nonzero `ExitCode` blocks, and a pending, running, unknown or partly finished array job is a gap.
 - `DOES_NOT_CONFORM`: at least one of:
   - a failed run (a nonzero exit, a failure with no exit code, or an interrupted run) or Slurm job
   - a planned script edited after its run. The finding adds whether an approval covers the current version: a plan pinned it, it ran under a plan approved after the file was last modified (by file time), it ran only under a plan approved before that, or it has not run under any plan. The status stays `DOES_NOT_CONFORM` in every case; name the plan to check instead when one covers it
@@ -45,7 +45,9 @@ The report ends with `Verify status:` and one of these values:
   - an incomplete Snakemake job
   - a claims-block value that the output cell it names contradicts, or that an explore run's output holds
 
-A plan re-approved under the same hash keeps its earlier runs; the report says so.
+A plan re-approved with the same text and the same pins keeps one approval instance and its earlier runs; the report says so. Re-approved with other pins, it is a new instance: `report` checks the newest one by default (`--instance <id>` picks an earlier one), runs under another instance are listed as history and do not establish the freeze, and no run under the checked instance is a gap.
+
+Before the tables the report has a `## Scope` block: which approval instance was checked, how many runs had a matched, unmatched, ambiguous or legacy launch, and how many outputs have a supported producer. Runs credited to the plan with no checked launch (Post without a matching Pre), ambiguous launches and attempts that never reported back are gaps; receipts from before launch matching are one info line.
 
 A compound shell command's overall exit status cannot establish that each named step executed. Such receipts keep the overall status separately: an overall failure blocks, while each step's unknown execution is a gap. Malformed receipt or Snakemake records are skipped and reported as gaps, so damaged history cannot establish conformity. Header-only tables and duplicate column labels leave claims unverified; claims or percentage transforms outside the supported numeric range also leave explicit gaps.
 
@@ -84,7 +86,7 @@ python3 - --plugin-root <skill-dir>/../.. write <hash> --analysis-dir <folder> <
 It writes `<folder>/provenance/`:
 - `plan-<hash>.md`: the frozen plan as approved.
 - `receipts-<hash>.jsonl`: the receipts of this plan's runs.
-- `outputs-<hash>.tsv`: each output's path, write time, size, full sha256 (or size and mtime past the hash budget), and likely run.
+- `outputs-<hash>.tsv`: each output's path, write time, size, full sha256 (or size and mtime past the hash budget), the run named when its producer is `supported`, and the evidence: `producer_attempt`, `evidence_method`, `strength`, `approval_instance`. A table without those four columns is a legacy bundle.
 - `verify-<hash>.md`: this report, with its claims counts.
 - `lint-<hash>.txt`: the scilintr output, every `ANALYSIS_OK` waiver, and the findings each suppressed.
 - `env-<hash>.txt`, only when a run used a conda env (`conda run -n|-p`, `conda activate` in its job script, an interpreter under `<env>/bin/`, or the session's `CONDA_PREFIX`) and no `conda-lock.yml` was found: the env's packages in `conda list --explicit --md5` form, read from its `conda-meta` so conda need not be on PATH. An env changed after its last run (`conda-meta/history` is newer) or not found is a gap.
@@ -137,7 +139,7 @@ The report lists what it cannot see:
 - A run proves a script ran, not that it implements the plan's choices; the review step checks that.
 - A gate error in the plan's window (`gate-errors.jsonl`, from approval to now, same or unnamed session) is a gap: observation is incomplete there. It does not say which action went unobserved, so do not say one did. An unreadable journal is a gap (observation history unavailable); errors before the approval or from another session are ignored.
 
-Output attribution is a best match by time, so it only ever produces gaps, never blocks.
+Output producers are graded, never just guessed from time. Only `supported` names a producer: a matched run of this plan whose Pre and Post bracketed the output's change, with no overlapping attempt that could have written it (`attempt-observed`). Snakemake's per-output record joined to a wrapper run by time is a `workflow-record` candidate (two wrappers: unresolved). Time alone (`timing-only`, including receipts from before launch matching) is at most a `candidate` and always a gap, even for one run within five seconds; the By column then reads `unresolved` and the candidates are listed beside it. Say so: a candidate is a lead, not a producer. An output written before the approval, or by an explore run (a claim read from it blocks), is a block; the rest are gaps. An observed change shows the file changed during that run, not that its code wrote it, and a folder on `Outputs:` is watched as a folder, so ask for files or a one-level glob when the producer matters.
 
 ## Plan diff
 
