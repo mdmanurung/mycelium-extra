@@ -3792,6 +3792,189 @@ class FolderOutputsTest(unittest.TestCase):
         self.assertEqual(receipt["outputs_observation"], "observed")
         self.assertEqual(receipt["outputs_changed"], {"created": [], "changed": [], "deleted": []})
 
+class ScopedExploreTest(unittest.TestCase):
+    """C09 gate side: `allow explore <hash>` bounds exploration to an active plan's analysis paths and declares its
+    protected test and exact-execution files; `allow explore` alone is the unchanged session-wide grant."""
+    entry = GATE
+    setUp, tearDown, config, hook, bash, denied = (
+        GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook, GateTest.bash, GateTest.denied)
+    path, write, approval, pending, prompt, receipts, tool, post = (
+        PreparationAndLaunchTest.path, PreparationAndLaunchTest.write, PreparationAndLaunchTest.approval,
+        PreparationAndLaunchTest.pending, PreparationAndLaunchTest.prompt, PreparationAndLaunchTest.receipts,
+        PreparationAndLaunchTest.tool, PreparationAndLaunchTest.post)
+    launch_records = AttemptEvidenceTest.launch_records
+    EXPECT = "analysis/x/tests/expect.tsv"
+    TABLE = ValidationBindingsTest.TABLE
+    EXPLORE = "MYCELIUM_EXTRA_EXPLORE=1 "
+    CHECK = {"id": "V1", "plan_row": "2", "required": True, "defined_by": "researcher-approved",
+             "test_paths": [EXPECT], "invocation": ["python", "analysis/x/tests/check.py"],
+             "evidence_path": "analysis/x/outputs/check.json"}
+    FIT = ["python", "analysis/x/fit.py", "--model", "original", "--threads", "4"]
+
+    def setUp(self):  # noqa: F811
+        GateTest.setUp(self)
+        self.write(self.EXPECT, "rows\n24\n")
+        for name in ("x/fit.py", "x/tests/check.py", "y/other.py"):
+            self.write("analysis/" + name, "pass\n")
+
+    def plan(self, exact=False):
+        block = ("<!-- exact-execution {} -->\n\n".format(json.dumps({"version": 1, "steps": [
+            {"row": "1", "argv": self.FIT, "cwd": ".", "env": {}, "operational": ["--threads"]}]}))
+                 if exact else
+                 "<!-- validation-bindings {} -->\n\n".format(json.dumps({"version": 1, "checks": [self.CHECK]})))
+        return self.TABLE + block + "Plan status: READY"
+
+    def approved(self, exact=False, session="s1"):
+        digest = self.hook("stop", {"last_assistant_message": self.plan(exact)}, session=session)[
+            "systemMessage"].split("approve plan ")[1][:8]
+        self.hook("prompt", {"prompt": "approve plan " + digest}, session=session)
+        return digest
+
+    def scoped(self, exact=False):
+        digest = self.approved(exact)
+        reply = self.prompt("allow explore " + digest)
+        return digest, reply
+
+    def grant(self):
+        with open(self.path("explore-grants", "s1.json")) as handle:
+            return json.load(handle)
+
+    def explore(self, command, **event):
+        return self.tool(self.EXPLORE + command, **event)
+
+    def reason(self, result):
+        self.assertTrue(self.denied(result), result)
+        return result["hookSpecificOutput"]["permissionDecisionReason"]
+
+    def notice(self, result):
+        self.assertFalse(self.denied(result), result)
+        return json.dumps(result)
+
+    def test_a_scoped_grant_names_the_instance_the_paths_and_the_protected_files(self):
+        digest, reply = self.scoped()
+        for text in (digest, "scoped", "analysis/x", "path and declared-file based", "advisory"):
+            self.assertIn(text, reply)
+        scope = self.grant()["scope"]
+        self.assertEqual((scope["hash"], scope["instance_id"]), (digest, self.approval(digest)["instance_id"]))
+        self.assertIn("analysis/x/fit.py", scope["analysis_paths"])
+        self.assertEqual(sorted(scope["validation"]["checks"][0]["files"]), [self.EXPECT])
+
+    def test_a_hash_that_is_not_an_active_approval_of_this_session_is_refused(self):
+        self.approved()
+        for wanted in ("deadbeef", self.hook("stop", {"last_assistant_message": "## Other\nPlan status: READY"})[
+                "systemMessage"].split("approve plan ")[1][:8]):  # unknown, and shown but not approved
+            self.assertIn("no active approved plan", self.prompt("allow explore " + wanted))
+            self.assertFalse(os.path.exists(self.path("explore-grants", "s1.json")))
+        other = self.approved(session="s2")  # approved, but in another session
+        self.assertIn("no active approved plan", self.prompt("allow explore " + other))
+        self.assertTrue(self.denied(self.explore("python analysis/x/fit.py")))
+
+    def test_an_expired_approval_is_refused(self):
+        digest = self.approved()
+        PreparationAndLaunchTest.expire(self, digest)
+        self.assertIn("no active approved plan", self.prompt("allow explore " + digest))
+
+    def test_repeated_in_scope_runs_need_no_new_approval_and_no_prompt(self):
+        self.scoped()
+        for number, command in enumerate(["python analysis/x/fit.py", "python analysis/x/fit.py --model b",
+                                          "python -u analysis/x/fit.py --threads 1", "python analysis/x/fit.py"]):
+            self.assertIsNone(self.explore(command, tool_use_id="t{}".format(number)), command)
+
+    def test_an_out_of_scope_path_is_denied_under_a_scoped_grant_but_not_under_a_plain_one(self):
+        digest, _ = self.scoped()
+        reason = self.reason(self.explore("python analysis/y/other.py"))
+        for text in ("analysis/y/other.py", digest, "widen", "allow explore", "user"):
+            self.assertIn(text, reason)
+        self.assertTrue(self.denied(self.explore("python analysis/x/fit.py && python analysis/y/other.py")))
+        self.hook("prompt", {"prompt": "stop explore"})
+        self.prompt("allow explore")  # control: the broader session grant, unchanged
+        self.assertIsNone(self.explore("python analysis/y/other.py"))
+        self.assertIsNone(self.explore("python analysis/x/fit.py"))
+
+    def test_the_scope_does_not_loosen_ordinary_gating(self):
+        self.scoped()
+        self.assertTrue(self.denied(self.tool("python analysis/y/other.py")))  # no explore prefix, no plan
+        self.assertIsNone(self.tool("python analysis/x/fit.py"))  # the approved plan, as before
+
+    def test_a_changed_protected_file_is_surfaced_not_denied(self):
+        self.scoped()
+        self.assertIsNone(self.explore("python analysis/x/fit.py"))
+        self.write(self.EXPECT, "rows\n7\n")
+        said = self.notice(self.explore("python analysis/x/fit.py"))
+        for text in (self.EXPECT, "protected", "re-approval"):
+            self.assertIn(text, said)
+
+    def test_a_run_of_a_checks_invocation_and_a_write_to_its_file_are_surfaced(self):
+        self.scoped()
+        said = self.notice(self.explore("python analysis/x/tests/check.py"))
+        for text in ("V1", "protected", "re-approval"):
+            self.assertIn(text, said)
+        edit = self.hook("tool", {"tool_name": "Edit", "tool_input": {"file_path": self.EXPECT}})
+        self.assertIn("protected", self.notice(edit))
+        self.assertIsNone(self.hook("tool", {"tool_name": "Edit", "tool_input": {"file_path": "analysis/x/fit.py"}}))
+
+    def test_a_run_that_differs_from_a_frozen_exact_step_is_surfaced_not_denied(self):
+        self.scoped(exact=True)
+        self.assertIsNone(self.explore("python analysis/x/fit.py --model original --threads 8"))
+        said = self.notice(self.explore("python analysis/x/fit.py --model alternative"))
+        for text in ("exact-execution", "row 1", "re-approval"):
+            self.assertIn(text, said)
+
+    def test_stop_explore_revokes_a_scoped_grant(self):
+        self.scoped()
+        self.assertIsNone(self.explore("python analysis/x/fit.py"))
+        self.assertIn("no longer allowed", self.prompt("stop explore"))
+        self.assertTrue(self.denied(self.explore("python analysis/x/fit.py")))
+        self.assertFalse(os.path.exists(self.path("explore-grants", "s1.json")))
+
+    def test_the_scoped_grant_belongs_to_its_session(self):
+        self.scoped()
+        self.assertTrue(self.denied(self.hook("tool", {"tool_name": "Bash", "tool_input": {
+            "command": self.EXPLORE + "python analysis/x/fit.py"}}, session="s2")))
+
+    def test_explore_receipts_carry_scope_and_attempt_but_never_pins_checked_or_a_validation_check(self):
+        digest, _ = self.scoped()
+        instance = self.approval(digest)["instance_id"]
+        command = "python analysis/x/tests/check.py"  # the declared invocation of check V1, run as exploration
+        self.explore(command, tool_use_id="t1")
+        self.explore("python analysis/x/fit.py", tool_use_id="t2")
+        entries = [e for r in self.launch_records() for es in r["runs"].values() for e in es]
+        self.assertTrue(all("validation_check" not in e and e["explore_scope"] == instance for e in entries), entries)
+        self.post(self.EXPLORE + command, tool_use_id="t1")
+        self.post(self.EXPLORE + "python analysis/x/fit.py", tool_use_id="t2")
+        first, second = self.receipts()
+        for receipt in (first, second):
+            self.assertTrue(receipt["explore"])
+            self.assertIs(receipt["pins_checked"], False)
+            self.assertNotIn("validation_check", receipt)
+            self.assertEqual(receipt["explore_scope"], instance)
+            self.assertEqual(receipt["plans"], [digest])
+            self.assertTrue(receipt["attempt_id"])
+            self.assertIn("analysis/x/fit.py" if "fit" in receipt["command"] else "analysis/x/tests/check.py",
+                          receipt["explore_script_pins"])
+        self.assertNotEqual(first["attempt_id"], second["attempt_id"])
+
+    def test_explore_log_lines_carry_the_scope_and_the_attempt(self):
+        digest, _ = self.scoped()
+        self.explore("python analysis/x/fit.py", tool_use_id="t1")
+        with open(self.path("explore.log")) as handle:
+            line, = [json.loads(row) for row in handle]
+        self.assertEqual(line["explore_scope"], self.approval(digest)["instance_id"])
+        self.assertTrue(line["attempt_id"])
+
+    def test_a_plain_grant_leaves_receipts_and_log_as_before(self):  # control
+        self.approved()
+        self.assertIn("allowed for this session", self.prompt("allow explore"))
+        self.assertNotIn("scope", self.grant())
+        self.explore("python analysis/x/fit.py", tool_use_id="t1")
+        self.post(self.EXPLORE + "python analysis/x/fit.py", tool_use_id="t1")
+        receipt, = self.receipts()
+        self.assertTrue(receipt["explore"])
+        self.assertIs(receipt["pins_checked"], False)
+        self.assertNotIn("explore_scope", receipt)
+        with open(self.path("explore.log")) as handle:
+            self.assertNotIn("explore_scope", handle.read())
+
 
 if __name__ == "__main__":
     unittest.main()

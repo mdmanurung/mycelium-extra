@@ -44,7 +44,7 @@ SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call that never reported back
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
 APPROVE = re.compile(r"^\s*approve plan(?: ([0-9a-f]{8})(?: +(\d{1,4}))?)?\s*[.!]?\s*$", re.IGNORECASE)
-EXPLORE_GRANT = re.compile(r"^\s*(allow|stop) explore\s*[.!]?\s*$", re.IGNORECASE)
+EXPLORE_GRANT = re.compile(r"^\s*(allow|stop) explore(?: ([0-9a-f]{8}))?\s*[.!]?\s*$", re.IGNORECASE)
 SEND_PACKET = re.compile(r"send packet ([0-9a-f]{12,64})")  # no looser than review_packet.py's consent check
 HINTS_TOGGLE = re.compile(r"^\s*hints (on|off)\s*[.!]?\s*$", re.IGNORECASE)
 HANDOFF_TOKENS = 120000  # context size at which the Stop hint suggests a handoff
@@ -1044,7 +1044,7 @@ def create_exclusive(path, data):
             pass
 
 
-def write_launch(root, event, runs):
+def write_launch(root, event, runs, attempt_id=None):
     """Save this call's attempt: the approvals that let it launch and the pins checked, so its receipt keeps them
     after expiry. Without a call id, a second identical launch while the first record exists makes the key
     ambiguous: both attempts are stored and no Post is matched to either."""
@@ -1058,7 +1058,7 @@ def write_launch(root, event, runs):
             except OSError:  # a parallel call's hook got there first
                 pass
     now = time.time()
-    attempt = {"ts": now, "started": now, "attempt_id": os.urandom(8).hex(), "call_id": call_id(event),
+    attempt = {"ts": now, "started": now, "attempt_id": attempt_id or os.urandom(8).hex(), "call_id": call_id(event),
                "cwd": repo_relative(root, root, event.get("cwd") or root) or ".", "runs": runs}
     path = launch_path(root, event)
     # ponytail: three simultaneous identical launches can lose one attempt from the ambiguous list
@@ -2685,7 +2685,7 @@ def on_tool(event, root, config):
             return deny("mycelium-extra: {} is gate state. Only the user's approval "
                         "(typing `approve plan <hash>`) and the gate's hooks write there.".format(
                             os.path.relpath(target, root)))
-        return None
+        return protected_write_notice(root, event, target)
     if tool != "Bash":
         return None
     command = tool_input.get("command", "")
@@ -2700,6 +2700,8 @@ def on_tool(event, root, config):
     limit, limit_notice = run_limit(config)
     capped = []
     granted = explore_granted(root, event.get("session_id"))
+    scope = explore_scope_of(root, event.get("session_id")) if granted else None
+    attempt_id, scope_notes = os.urandom(8).hex(), []
     run_scripts, launched = [], {}
     unresolved, wrap_blocked = [], []
     stale_validation, exact_refused = [], []
@@ -2707,7 +2709,20 @@ def on_tool(event, root, config):
                                                                             event.get("cwd") or root, config):
         run_scripts += [p for p in paths if p.endswith(LINT_EXT) and p not in run_scripts]
         if explore and granted:
-            log_explore(root, event, segment, paths)
+            extra = {}
+            if scope:  # bounded exploration: the plan's analysis paths, and its declared protected files
+                reason, notes = scoped_explore(root, config, scope, label, paths, tokens, run_cwd)
+                if reason:
+                    return deny(reason)
+                scope_notes += [n for n in notes if n not in scope_notes]
+                extra = {"explore_scope": scope.get("instance_id") or scope["hash"], "attempt_id": attempt_id}
+                pins = dict((rel, fingerprint(os.path.join(root, rel), budget)) for rel in paths
+                            if not rel.startswith("wrap:") and os.path.isfile(os.path.join(root, rel)))
+                extra["explore_script_pins"] = pins
+                # one launch entry, so the receipt names the attempt; no plan pins are checked, no output snapshot
+                launched.setdefault(segment, []).append(dict(
+                    extra, paths=paths, plans=[scope["hash"]], pins={}, outputs_skipped="exploratory run"))
+            log_explore(root, event, segment, paths, extra)
             continue
         if explore:
             return deny("mycelium-extra gate: the exploratory-run prefix works only after the user "
@@ -2831,10 +2846,14 @@ def on_tool(event, root, config):
             return denied
         if user_note:
             messages.append(user_note)
+        if scope_notes:
+            messages += scope_notes
+            agent_note = "\n".join([agent_note] * bool(agent_note) + scope_notes)
         if launched:
-            write_launch(root, event, launched)
+            write_launch(root, event, launched, attempt_id)
         result = {"systemMessage": "\n".join(messages)} if messages else None
         if agent_note:
+            result = result or {}
             result["hookSpecificOutput"] = {"hookEventName": "PreToolUse", "additionalContext": agent_note}
         return result
     hashes = ", ".join(r["hash"] for r in approvals) or "none"
@@ -2925,9 +2944,94 @@ def explore_granted(root, session_id):
     return os.path.isfile(grant_path(root, session_id))
 
 
-def log_explore(root, event, segment, paths):
-    append_line(state_path(root, "explore.log"), {"ts": time.time(), "session_id": event.get("session_id"),
-                                                  "command": segment, "paths": paths})
+def log_explore(root, event, segment, paths, extra=None):
+    append_line(state_path(root, "explore.log"), dict(extra or {}, ts=time.time(), session_id=event.get("session_id"),
+                                                      command=segment, paths=paths))
+
+
+def explore_scope_of(root, session_id):
+    """The scope of this session's grant (`allow explore <hash>`), or None for a plain session grant."""
+    scope = (read_json(grant_path(root, session_id), {}) or {}).get("scope")
+    return scope if isinstance(scope, dict) and scope.get("hash") else None
+
+
+def make_explore_scope(root, config, session_id, digest):
+    """(scope, None) from an active approval of this session, else (None, why not). The scope keeps that approval's
+    instance, the analysis paths and commands its plan grants, and its declared protected files and steps."""
+    approvals = active_approvals(root, config, session_id or "")
+    if approvals is None:
+        return None, SCAN_TIMEOUT
+    record = next((r for r in approvals if r["hash"] == digest), None)
+    if record is None:
+        return None, ("mycelium-extra: no active approved plan {} in this session (active: {}), so no scoped "
+                      "exploration was allowed. Approve it first (`approve plan {}`), or type `allow explore` "
+                      "alone for the broader session-wide development grant.".format(
+                          digest, ", ".join(r["hash"] for r in approvals) or "none", digest))
+    paths, commands = plan_grants(root, record.get("plan", ""), config)
+    scope = {"hash": digest, "instance_id": record.get("instance_id"), "analysis_paths": paths,
+             "commands": commands}
+    scope.update((key, record[key]) for key in ("validation", "execution") if record.get(key))
+    return scope, None
+
+
+def scoped_explore(root, config, scope, label, paths, tokens, cwd):
+    """(deny reason or None, notices) for one explore-prefixed run under a scoped grant. Denied only for a gated
+    path (or command) outside the scope's analysis paths. A protected test or expectation file that changed, a run of
+    a protected check's invocation, or a run that differs from a frozen exact step is surfaced, not denied. This
+    is path-and-declared-file based; nothing here judges the science of a change."""
+    def outside(label, paths):
+        paths = [p for p in paths if not p.startswith("wrap:")]
+        if label == "sbatch":
+            paths += wrapped_gated_paths(root, config, tokens, cwd, paths)
+        if not paths:
+            return [] if label in scope.get("commands", []) else [label]
+        return [p for p in paths if not any(p == g or p.startswith(g.rstrip("/") + "/")
+                                            for g in scope.get("analysis_paths", []))]
+    found = outside(label, paths)
+    for other_label, other_paths in getattr(cwd, "readings", ()) if found else ():
+        found = found and outside(other_label, other_paths)  # an unresolved folder counts if any reading is in scope
+    if found:
+        return ("mycelium-extra gate: blocked because exploration is scoped to approved plan {} and this run touches "
+                "{}, outside the analysis paths that plan grants ({}). The user decides: they can approve a plan "
+                "that names it (widening the scope), or type `allow explore` for the broader session-wide grant. Do "
+                "not work around this block.".format(scope["hash"], ", ".join(found),
+                                                     ", ".join(scope.get("analysis_paths") or []) or "none"), [])
+    notes, blocks = [], blocks_module() if scope.get("validation") or scope.get("execution") else None
+    if scope.get("validation"):
+        notes += ["protected file {} ({}, check {}) is not as approved".format(path, state, check)
+                  for check, path, state in blocks.changes(root, scope["validation"])]
+        argv, inline = launch_argv(tokens, root, cwd, config) if not isinstance(cwd, UnknownFolder) else (None, {})
+        notes += ["this run is the declared invocation of protected check {}; run under explore it is not validation "
+                  "evidence".format(check["id"]) for check in scope["validation"]["checks"]
+                  if argv and blocks.argv_matches(check["invocation"], argv, cwd_rel(root, cwd), ".", actual_env=inline)[0]]
+    if scope.get("execution"):
+        steps = [step for step in scope["execution"]["steps"] if step_names_run(step, label, paths)]
+        refused = exact_step_check(root, config, {"hash": scope["hash"], "execution": scope["execution"]},
+                                           label, paths, tokens, cwd)[1]
+        if refused and steps:
+            notes.append("this run differs from the frozen exact-execution command of row {}".format(steps[0]["row"]))
+    if not notes:
+        return None, []
+    return None, ["mycelium-extra: exploration under plan {} (scoped): {}. Exploration continues, but reportable "
+                  "runs will need re-approval: the plan is shown and approved again with `approve plan {}`, then "
+                  "re-run with fresh outputs. Exploratory runs never count as validation or as a reportable run; "
+                  "this check is path-and-declared-file based, advisory beyond that.".format(
+                      scope["hash"], "; ".join(notes), scope["hash"])]
+
+
+def protected_write_notice(root, event, target):
+    """A PreToolUse notice when a scoped grant is active and `target` is a protected test or expectation file."""
+    scope = explore_scope_of(root, event.get("session_id"))
+    rel = os.path.relpath(target, os.path.realpath(root)).replace(os.sep, "/")
+    files = [path for check in ((scope or {}).get("validation") or {}).get("checks") or []
+             for path in check.get("files") or {}]
+    if rel not in files:
+        return None
+    message = ("mycelium-extra: {} is a protected test or expectation file of plan {} (the scoped exploration "
+               "grant). Editing it changes the approved contract: reportable runs will need re-approval "
+               "(`approve plan {}`).".format(rel, scope["hash"], scope["hash"]))
+    return {"systemMessage": message,
+            "hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": message}}
 
 
 def hints_on(root):
@@ -3066,10 +3170,27 @@ def on_prompt(event, root, config):
     if grant:
         path = grant_path(root, event.get("session_id"))
         if grant.group(1).lower() == "allow":
-            write_json(path, {"granted_at": time.time(), "session_id": event.get("session_id")})
-            message = ("mycelium-extra: exploratory runs allowed for this session. Prefix a gated run "
-                       "with {}=1; each one is logged and listed as not reportable. "
-                       "`stop explore` ends this.".format(EXPLORE_VAR))
+            scope, problem = (None, None) if not grant.group(2) else make_explore_scope(
+                root, config, event.get("session_id"), grant.group(2).lower())
+            record = {"granted_at": time.time(), "session_id": event.get("session_id")}
+            if problem:
+                message = problem
+            elif scope:
+                write_json(path, dict(record, scope=scope))
+                message = ("mycelium-extra: exploratory runs allowed for this session, scoped to approved plan {} "
+                           "(approval instance {}). Prefix a gated run with {}=1; runs on {} need no further "
+                           "approval, a run outside them is denied, and a change to the plan's protected test or "
+                           "exact-execution files is reported (reportable runs then need re-approval). Scope "
+                           "checks are path and declared-file based, advisory beyond that. Each run is logged and "
+                           "never counts as validation. `stop explore` ends this.".format(
+                               scope["hash"], scope.get("instance_id") or "unknown", EXPLORE_VAR,
+                               ", ".join(scope["analysis_paths"]) or "no gated path"))
+            else:
+                write_json(path, record)
+                message = ("mycelium-extra: exploratory runs allowed for this session. Prefix a gated run "
+                           "with {}=1; each one is logged and listed as not reportable. This is the broader, "
+                           "session-wide development grant (any gated path); `allow explore <plan hash>` "
+                           "limits it to an approved plan. `stop explore` ends this.".format(EXPLORE_VAR))
         else:
             if os.path.isfile(path):
                 os.remove(path)
@@ -3490,8 +3611,8 @@ def on_post(event, root, config):
         }
         if limitations:
             receipt["limitations"] = limitations
-        for key in ("validation_check", "exact_match", "exact_step"):  # what the launch recorded about the plan's blocks
-            if launch and key in launch:
+        for key in ("validation_check", "exact_match", "exact_step", "explore_scope", "explore_script_pins"):
+            if launch and key in launch:  # what the launch recorded about the plan's blocks, or a scoped explore
                 receipt[key] = launch[key]
         if launch_match != "matched":
             receipt["outputs_observation"] = "skipped: {} launch".format(launch_match)
