@@ -105,8 +105,9 @@ Separate from the three status names, `report` computes whether this approval in
 | lineage | every declared output exists and has a `supported` producer (a matched attempt saw it change, and no overlapping attempt could have written it) | `Outputs: none` |
 | required validation | every check marked `required` passed | the plan binds no check, or none is required |
 | claim linkage | each claim cell matched and the output it cites has a supported producer | no claims block |
+| no blocking finding | no finding in the report is a `block` (a failed run, an open scilintr finding, a contradicted claim, a changed pinned input and so on): a run that fails verification is never reportable | never |
 
-A matching number with an unresolved producer shows both facts: the claim is `verified` against its cell, and claim linkage and lineage are `not established`. A qualified run can still carry open findings; the limitation line then says how many, so a `qualified` is never read as `CONFORMS`.
+A matching number with an unresolved producer shows both facts: the claim is `verified` against its cell, and claim linkage and lineage are `not established`. A qualified run can still carry open gaps; the limitation line then says how many, so a `qualified` is never read as `CONFORMS`.
 
 `--require-reportable` (on `report` and `write`) exits 3 and names each dimension that is not established, on stderr, when the run is not qualified. Without it nothing changes: the exit code and the three status names are as before, so ordinary `report` stays useful during development. `write` saves the record first and exits 3 afterwards, so a failed or gapped run is recorded as it is; saving provenance does not change its status. `status` reads the saved report back into a `Reportable` column (`qualified`, `not qualified`, `not recorded` for an older bundle).
 
