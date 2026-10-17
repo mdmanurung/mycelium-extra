@@ -1,7 +1,7 @@
 """mycelium-extra plan-approval gate for Claude Code and Codex hooks.
 
 Usage (from hooks/hooks.json): gate.py stop | prompt | tool | post
-Reads the hook JSON on stdin. Stdlib-only; runs on Python 3.6+.
+Reads the hook JSON on stdin. Stdlib-only; runs on Python 3.9+.
 
 Active only in a repository with .mycelium-extra/gate.json. It never emits
 "allow": a command passes by the hook staying silent, so the user's own
@@ -627,6 +627,9 @@ def _classify(tokens, root, cwd, config, info=None):
             return gated_rel(root, cwd, token, config)
         # in an unknown folder any script counts, not only one under a gated path: the folder may be one
         return repo_relative(root, cwd, token) if direct or SCRIPT_EXT.search(token) else None
+    # the plugin's launcher (`sh <plugin>/hooks/py.sh [--hook] ARGS`) runs `python3 ARGS`; a gated py.sh stays a script
+    if word in SHELLS and rest and os.path.basename(rest[0]) == "py.sh" and not script_rel(rest[0], True):
+        word, rest = "python3", rest[2:] if rest[1:2] == ["--hook"] else rest[1:]
     for j, token in enumerate(rest):
         if token == "<" and j + 1 < len(rest):
             rel = gated_rel(root, cwd, rest[j + 1], config)

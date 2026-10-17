@@ -1,6 +1,5 @@
 """Run: python3 hooks/tests/test_gate.py"""
 
-import glob
 import json
 import os
 import re
@@ -108,6 +107,15 @@ class GateTest(unittest.TestCase):
             "python3 -c \"import os; print(os.listdir('nbs/sub'))\"",
         ]:
             self.assertIsNone(self.bash(command), command)
+
+    def test_the_python_launcher_is_read_as_python(self):
+        launcher = "sh /plugin/hooks/py.sh "
+        for command in ["analysis/x.py", "- < analysis/x.py", '-c "$(cat analysis/x.py)"',
+                        "--hook analysis/x.py", "- --dest analysis/demo < /plugin/new_analysis.py"]:
+            self.assertTrue(self.denied(self.bash(launcher + command)), command)
+            self.assertTrue(self.denied(self.bash("python3 " + command.replace("--hook ", ""))), command)
+        self.assertIsNone(self.bash(launcher + "- --contract /tmp/c.json < /plugin/check.py"))
+        self.assertTrue(self.denied(self.bash("sh analysis/py.sh")))  # a gated py.sh is a script, not the launcher
 
     # wrapper options: a known option's value is skipped, not read as the command (ME-04)
     def test_wrapper_option_values_do_not_hide_gated_runs(self):
@@ -1892,22 +1900,6 @@ class CompatibilityTest(unittest.TestCase):
         self.assertEqual(hooks["PostToolUse"][0]["matcher"], "Bash")
         self.assertEqual(hooks["PostToolUse"][1]["matcher"], "Write|Edit|MultiEdit|NotebookEdit")  # lint on write
         self.assertIn('gate_run.py" post;', hooks["PostToolUse"][0]["hooks"][0]["command"])
-
-    def test_scripts_compile_on_python_36(self):
-        # Hooks call bare `python3`, which is 3.6 on some HPC systems. A SyntaxError there
-        # happens before gate.py can fail open and say so, so the gate silently switches off.
-        python36 = shutil.which("python3.6")
-        if not python36:
-            self.skipTest("python3.6 is not installed")
-        repo = os.path.join(os.path.dirname(GATE), "..")
-        for script in glob.glob(os.path.join(repo, "hooks", "*.py")) + glob.glob(
-                os.path.join(repo, "skills", "*", "scripts", "*.py")):
-            proc = subprocess.Popen(
-                [python36, "-c", "import sys; compile(open(sys.argv[1], 'rb').read(), sys.argv[1], 'exec')",
-                 script], stderr=subprocess.PIPE)
-            _, err = proc.communicate()
-            self.assertEqual(proc.returncode, 0, err.decode("utf-8"))
-
 
 class PreparationAndLaunchTest(unittest.TestCase):
     """ME-09: a plan is approvable only once prepared. ME-07: a receipt keeps the approval its launch was checked against."""
