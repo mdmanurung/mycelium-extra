@@ -91,12 +91,11 @@ def main(out_path):
         doc += block("\n".join("{}: {}".format(k, json.dumps(v)) for k, v in shown if v not in (None, "")))
         doc += "## 7. Verify\n\n`verify report` checks what ran against the approved plan and prints the result.\n\n"
         doc += block(scrub(report), "markdown")
-        doc += ("`Verify status: DOES_NOT_CONFORM` is the point of the exercise. Every planned script ran under the "
-                "approved plan and the inputs are unchanged, but scilintr found a magic threshold (`padj < 0.05`) "
-                "in the R code, and `verify` blocks on a finding that is neither fixed nor waived. Name the "
-                "constant, or waive it with `ANALYSIS_OK[R002]: <what is done, why it is valid, where it is "
-                "checked>`; that edits a pinned script, so present the plan again, approve it, and re-run. "
-                "`verify write <hash>` then records the plan, receipts and report under `provenance/`.\n")
+        doc += ("`Verify status: CONFORMS`: every planned script ran under the approved plan, the inputs are "
+                "unchanged, and the claimed numbers match their output cells. scilintr flagged `padj < 0.05` as a "
+                "magic threshold, but that value is the Choice approved in step 3, so it is listed as info; a "
+                "threshold the plan does not name would block. `verify write <hash>` then records the plan, "
+                "receipts and report under `provenance/`.\n")
         with open(out_path, "w", encoding="utf-8") as handle:
             handle.write(doc)
         print("wrote " + out_path)

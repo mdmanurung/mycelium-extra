@@ -2,7 +2,7 @@
 
 [Back to the usage tiers](usage.md)
 
-One session on the fixture project (`tests/fixtures/mycelium-project`): plan, approve, run, verify. Every output block below is what the hooks and `verify` printed in a real run on 2026-10-17, at version 0.9.75. The two exceptions are the plan, which is written by hand because the model writes it in a real session (the file is `tests/e2e/plans/baseline_plan.md`), and Mycelium's lineage manifest, which the test harness writes where Mycelium's own hook would. Regenerate with `python3 tests/e2e/make_example.py` (see the top of that file for the tools it needs) when an output format changes.
+One session on the fixture project (`tests/fixtures/mycelium-project`): plan, approve, run, verify. Every output block below is what the hooks and `verify` printed in a real run on 2026-10-17, at version 0.9.76. The two exceptions are the plan, which is written by hand because the model writes it in a real session (the file is `tests/e2e/plans/baseline_plan.md`), and Mycelium's lineage manifest, which the test harness writes where Mycelium's own hook would. Regenerate with `python3 tests/e2e/make_example.py` (see the top of that file for the tools it needs) when an output format changes.
 
 ## 1. Ask
 
@@ -109,34 +109,34 @@ exit source: "event"
 ```markdown
 # Verify plan 84bb5fce
 
-Approved 2026-10-17 08:17 - analysis folder `analysis/vaccine-response` - 3 run(s) under this plan - HEAD b19559e1de21 (clean)
+Approved 2026-10-17 12:19 - analysis folder `analysis/vaccine-response` - 3 run(s) under this plan - HEAD b19559e1de21 (clean)
 
 ## Scope
 
-- Checked against approval instance a33870f7a688c50c: 3 run(s) under it - launch evidence 3 matched, 0 unmatched, 0 ambiguous, 0 legacy (launch link not recorded).
+- Checked against approval instance 842543534a59d59e: 3 run(s) under it - launch evidence 3 matched, 0 unmatched, 0 ambiguous, 0 legacy (launch link not recorded).
 - Producers: 3 of 3 output(s) have a supported producer; 0 candidate, 0 unresolved (only a supported producer is named).
-- Qualification: **not qualified** (not established: no blocking finding); separate from the verify status below, and not a scientific judgement.
+- Qualification: **qualified**; separate from the verify status below, and not a scientific judgement.
 
 | Evidence | State | Basis |
 |---|---|---|
-| authorization | established | 3 of 3 run(s) are matched launches under approval instance a33870f7a688c50c |
+| authorization | established | 3 of 3 run(s) are matched launches under approval instance 842543534a59d59e |
 | completion | established | all 3 planned step(s): the latest attempt of each completed |
 | code and input identity | established | 5 script(s) and input(s) unchanged, compared by content hash |
 | lineage | established | 3 of 3 declared output(s) have a supported producer (a matched attempt saw each change) |
 | required validation | not applicable | the plan binds no check (its Validation cells are prose) |
 | claim linkage | established | 8 claim cell(s) matched and their outputs have supported producers |
-| no blocking finding | not established | 1 block finding(s): 2 scilintr finding(s) remain in R code (2 R002) |
+| no blocking finding | established | no finding blocks this plan |
 | no open gap | established | no finding is an open gap |
 
-- Limitation: no blocking finding not established: resolve each block finding below; a run that fails verification is never reportable.
+- Limitation: qualification covers evidence linkage, not whether the analysis is scientifically right.
 
 ## Planned scripts
 
 | Script | Status | Last run | Notes |
 |---|---|---|---|
-| `analysis/vaccine-response/scripts/01_select_samples.py` | ran (exit 0 from hook event) | 2026-10-17 08:17 |  |
-| `analysis/vaccine-response/scripts/02_paired_test.py` | ran (exit 0 from hook event) | 2026-10-17 08:17 |  |
-| `analysis/vaccine-response/scripts/03_summary.R` | ran (exit 0 from hook event) | 2026-10-17 08:17 |  |
+| `analysis/vaccine-response/scripts/01_select_samples.py` | ran (exit 0 from hook event) | 2026-10-17 12:19 |  |
+| `analysis/vaccine-response/scripts/02_paired_test.py` | ran (exit 0 from hook event) | 2026-10-17 12:19 |  |
+| `analysis/vaccine-response/scripts/03_summary.R` | ran (exit 0 from hook event) | 2026-10-17 12:19 |  |
 
 ## Pinned inputs
 
@@ -149,9 +149,9 @@ Approved 2026-10-17 08:17 - analysis folder `analysis/vaccine-response` - 3 run(
 
 | Output | Written | By | Evidence | Fingerprint |
 |---|---|---|---|---|
-| `analysis/vaccine-response/outputs/samples_used.tsv` | 2026-10-17 08:17 | `python3 analysis/vaccine-response/scripts/01_select_samples.py` at 2026-10-17 08:17 | attempt-observed, supported | sha256 b980761d554c |
-| `analysis/vaccine-response/outputs/de_results.tsv` | 2026-10-17 08:17 | `python3 analysis/vaccine-response/scripts/02_paired_test.py` at 2026-10-17 08:17 | attempt-observed, supported | sha256 67c17edf1d9b |
-| `analysis/vaccine-response/outputs/summary.tsv` | 2026-10-17 08:17 | `Rscript analysis/vaccine-response/scripts/03_summary.R` at 2026-10-17 08:17 | attempt-observed, supported | sha256 409ac0ca64d2 |
+| `analysis/vaccine-response/outputs/samples_used.tsv` | 2026-10-17 12:19 | `python3 analysis/vaccine-response/scripts/01_select_samples.py` at 2026-10-17 12:19 | attempt-observed, supported | sha256 b980761d554c |
+| `analysis/vaccine-response/outputs/de_results.tsv` | 2026-10-17 12:19 | `python3 analysis/vaccine-response/scripts/02_paired_test.py` at 2026-10-17 12:19 | attempt-observed, supported | sha256 67c17edf1d9b |
+| `analysis/vaccine-response/outputs/summary.tsv` | 2026-10-17 12:20 | `Rscript analysis/vaccine-response/scripts/03_summary.R` at 2026-10-17 12:19 | attempt-observed, supported | sha256 409ac0ca64d2 |
 
 ## Lint
 
@@ -166,10 +166,11 @@ Approved 2026-10-17 08:17 - analysis folder `analysis/vaccine-response` - 3 run(
 
 ## Findings
 
-- **block**: 2 scilintr finding(s) remain in R code (2 R002). Fix each or add an `ANALYSIS_OK[...]` waiver, then re-verify.
 - **info**: 4 other script(s) in the analysis folder are not in the plan, and no run of them since the approval was recorded.
 - **info**: Fact tags in `analysis/vaccine-response/VACCINE_RESPONSE.md` Key Findings: 5 agent-derived.
 - **info**: scilintr: 3 Python file(s) clean.
+- **info**: `analysis/vaccine-response/reports/report.Rmd:10` [R002]: its threshold is a Choice the plan approved, so it does not block.
+- **info**: `analysis/vaccine-response/scripts/03_summary.R:8` [R002]: its threshold is a Choice the plan approved, so it does not block.
 - **info**: 8 number(s) in `analysis/vaccine-response/VACCINE_RESPONSE.md` near its claims block are not claims, so not checked: L21 `0.05`, L21 `28`, L21 `0`, L24 `2`, L24 `924`, L25 `12`, L25 `6`, L25 `6`.
 - **info**: 3 Validation cells are prose only; nothing checks them.
 
@@ -183,7 +184,7 @@ Approved 2026-10-17 08:17 - analysis folder `analysis/vaccine-response` - 3 run(
 - With `snakemake --use-conda`, rules run in their own envs under `.snakemake/conda/`; the conda env recorded is the one Snakemake ran in, not the rules' envs.
 - Pip packages are read from the conda env's site-packages: one uninstalled after the run is not seen, and `pip install --user` packages under `~/.local` are not read.
 
-Verify status: DOES_NOT_CONFORM
+Verify status: CONFORMS
 ```
 
-`Verify status: DOES_NOT_CONFORM` is the point of the exercise. Every planned script ran under the approved plan and the inputs are unchanged, but scilintr found a magic threshold (`padj < 0.05`) in the R code, and `verify` blocks on a finding that is neither fixed nor waived. Name the constant, or waive it with `ANALYSIS_OK[R002]: <what is done, why it is valid, where it is checked>`; that edits a pinned script, so present the plan again, approve it, and re-run. `verify write <hash>` then records the plan, receipts and report under `provenance/`.
+`Verify status: CONFORMS`: every planned script ran under the approved plan, the inputs are unchanged, and the claimed numbers match their output cells. scilintr flagged `padj < 0.05` as a magic threshold, but that value is the Choice approved in step 3, so it is listed as info; a threshold the plan does not name would block. `verify write <hash>` then records the plan, receipts and report under `provenance/`.
