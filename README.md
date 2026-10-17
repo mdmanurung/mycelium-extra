@@ -34,8 +34,8 @@ See [Usage tiers](docs/usage.md) for commands and examples, or the
 
 Commands below use Claude Code syntax. In Codex, replace `/mycelium-extra:`
 with `$mycelium-extra:` and enable/trust the plugin hooks first. In OpenCode,
-mention a skill by name (for example `@grill`); see
-[Installation](docs/installation.md#opencode).
+run the same `/mycelium-extra:grill` commands (mentioning `@grill` also works);
+see [Installation](docs/installation.md#opencode).
 
 ```text
 /mycelium-extra:init                         # once per repository

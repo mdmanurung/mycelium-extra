@@ -12,9 +12,10 @@ or pricing levels. Install the [plugin for your host](installation.md) first.
 | 4. Full project workflow | You need structure, independent review, and continuity | `new-analysis`, `plan-review`, `handoff`, `idea`, `idea-triage`, `harden`; Mycelium integration |
 
 Examples use Claude Code's `/mycelium-extra:` prefix. In Codex, use
-`$mycelium-extra:` instead. In OpenCode, mention a skill by name (for example
-`@grill`), and send the same `approve plan <hash>` message; the plugin adapter
-drives the gate (see [Host compatibility](installation.md#host-compatibility)).
+`$mycelium-extra:` instead. In OpenCode, use the same `/mycelium-extra:`
+commands (`@grill` also works), and send the same `approve plan <hash>` message;
+the plugin adapter drives the gate (see
+[Host compatibility](installation.md#host-compatibility)).
 
 ## Tier 1: Plan
 

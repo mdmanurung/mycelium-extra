@@ -1,6 +1,6 @@
 # Codex engineering review
 
-In Claude Code, invoke a fresh Codex task rooted in the verified workspace and the canonical packet on stdin, after `review_packet.py verify` has printed the file list (see `SKILL.md` and the payload boundary in [review-contract.md](review-contract.md)). Use the installed CLI's read-only sandbox and ephemeral session, for example:
+In Claude Code or OpenCode, invoke a fresh Codex task rooted in the verified workspace and the canonical packet on stdin, after `review_packet.py verify` has printed the file list (see `SKILL.md` and the payload boundary in [review-contract.md](review-contract.md)). Use the installed CLI's read-only sandbox and ephemeral session, for example:
 
 ```bash
 codex exec --sandbox read-only --ephemeral --ignore-user-config -C <packet-folder>/workspace - < <packet-folder>/packet.txt
@@ -16,4 +16,4 @@ Give Codex the packet and this role:
 
 > Review implementation feasibility, repository compatibility, dependency order, available APIs, data flow and leakage, reproducibility, testability, failure handling, validation, and plan-to-code divergence. Do not redesign the scientific question, edit files, run project scripts, or approve the plan. Cite concrete paths and packet fields. Reply in the response format included in this message, with `reviewer: codex`; keep uncertainty visible. A proposed execution step is a recommendation only.
 
-Read-only sandboxing constrains project file writes. It does not turn the review into an approval-gated analysis run or prove that a model's critique is correct. Claude must inspect the response and the actual repository state. If plan review is invoked directly in Codex, return this critique only; Claude remains responsible for synthesis.
+Read-only sandboxing constrains project file writes. It does not turn the review into an approval-gated analysis run or prove that a model's critique is correct. The lead host must inspect the response and the actual repository state. If plan review is invoked directly in Codex, return this critique only; the lead host (Claude Code or OpenCode) remains responsible for synthesis.

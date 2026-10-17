@@ -1,4 +1,4 @@
-# Claude synthesis
+# Lead-host synthesis
 
 Use this section order. The order and issue IDs are fixed; deciding which recommendation to accept requires evidence and judgment, not a vote.
 

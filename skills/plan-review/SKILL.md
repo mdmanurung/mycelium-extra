@@ -1,6 +1,6 @@
 ---
 name: plan-review
-description: Read-only, pre-approval challenge of a sourced Mycelium Extra grill plan by independent Codex engineering and Biomni biomedical reviewers. Claude assembles one evidence packet, preserves disagreement, and recommends amendments without editing or approving the plan. Use after grill and before plan approval when the user requests independent review. In Codex, act only as the engineering reviewer; do not claim a Claude-led dual review.
+description: Read-only, pre-approval challenge of a sourced Mycelium Extra grill plan by independent Codex engineering and Biomni biomedical reviewers. The lead host assembles one evidence packet, preserves disagreement, and recommends amendments without editing or approving the plan. Use after grill and before plan approval when the user requests independent review. In Codex, act only as the engineering reviewer; do not claim a dual review. In OpenCode, lead the dual review when the Codex CLI and the Biomni MCP are available, and say which reviewers actually ran.
 ---
 
 # Mycelium Extra: Plan review
@@ -44,13 +44,14 @@ Challenge a proposed plan before approval. This skill is consultation only: do n
 ## 2. Route by host
 
 - **Claude Code lead:** request the independent Codex review using [codex-review.md](references/codex-review.md). Request the Biomni review as one consult-only Biomni task following [biomni-review.md](references/biomni-review.md). Send the same factual packet; add only role-specific questions. Reviewers may work in parallel if both are read-only.
+- **OpenCode lead:** lead the same review. Request the Codex engineering review with the CLI route in [codex-review.md](references/codex-review.md), and the Biomni review through the connected Phylo MCP following [biomni-review.md](references/biomni-review.md); then synthesize with [synthesis.md](references/synthesis.md). A missing CLI, an unconnected or unauthenticated MCP, or withheld consent leaves that reviewer `unavailable`; say which reviewers actually ran and never claim the missing half ran.
 - **Codex host:** this invocation can supply the Codex engineering critique, but it cannot impersonate an independent second Codex reviewer or Claude adjudicator. Return the structured Codex critique to the user/Claude. Label Biomni and Claude synthesis unavailable here unless those separate actors actually ran.
 - A reviewer that was not run, failed, timed out, or was refused by `verify` is `unavailable`; one whose output is malformed is `invalid`; one still running (for example Biomni after its bounded polling) is `pending`. None of these is a clean review, and none is an empty completed review: only `status: complete` with an empty `issues` list means the reviewer found nothing. Never fabricate a missing review or claim that two independent reviewers agreed when only one responded.
 
 ## 3. Normalize and adjudicate
 
 - Normalize responses to the common issue schema in [review-contract.md](references/review-contract.md). Keep each reviewer's original ID, evidence, uncertainty, and recommendation. Verify cited scientific sources before using them for material plan changes.
-- Use [synthesis.md](references/synthesis.md) in Claude Code. Record agreement, single-reviewer concerns, conflicts, accepted and rejected recommendations, and user-owned choices. Consensus is not required.
+- Use [synthesis.md](references/synthesis.md) on the lead host (Claude Code or OpenCode). Record agreement, single-reviewer concerns, conflicts, accepted and rejected recommendations, and user-owned choices. Consensus is not required.
 - Give proposed amendments separately from the plan. Do not rewrite the plan, its Source column, or `.living/` during this skill. If the user later requests a revised plan, source accepted reviewer choices as `user (accepted review: codex)` or `user (accepted review: biomni; PMID ...)` with the underlying evidence, then present the entire revised plan for normal approval. A prior approval does not cover a changed plan.
 
 ## 4. Report

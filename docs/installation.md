@@ -57,17 +57,18 @@ configured plugin directories, so point both settings at this checkout. Add to
 }
 ```
 
-Start a new session and mention a skill by name:
+Start a new session and run a skill as a command:
 
 ```text
-@grill Plan a paired treatment-response analysis. Read the sample table and existing decisions first.
+/mycelium-extra:grill Plan a paired treatment-response analysis. Read the sample table and existing decisions first.
 ```
 
-OpenCode advertises each skill by its name and description; there is no
-`/mycelium-extra:` prefix. Plugin loading, the adapter's event and payload
-shapes, and its tool/prompt/stop behavior were checked against OpenCode 2.0.32,
-and an end-to-end qualification (a denied run, approval card, approval, receipt,
-and a state-protection denial) is recorded in the
+The plugin registers one `/mycelium-extra:<skill>` command per skill folder, the
+same name Claude Code uses; mentioning a skill (`@grill`) also works. Plugin
+loading, the adapter's event and payload shapes, and its tool/prompt/stop
+behavior were checked against OpenCode 2.0.32, and an end-to-end qualification
+(a denied run, approval card, approval, receipt, and a state-protection denial)
+is recorded in the
 [development notes](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/development.md).
 The plugin is the gate's host adapter: it runs the shared
 Python gate and is inert in repositories without `.mycelium-extra/gate.json`.
@@ -144,7 +145,7 @@ Only planning? Start with [Tier 1](usage.md#tier-1-plan); no `init` needed.
 | Feature | Claude Code | Codex CLI 0.160.0+ | OpenCode V2 |
 |---|---|---|---|
 | Planning, data contracts, decision status, scaffolding, handoff, harden | Supported | Supported | Supported |
-| Independent plan review | Leads Codex + Biomni synthesis | Engineering critique only | Not yet characterized |
+| Independent plan review | Leads Codex + Biomni synthesis | Engineering critique only | Leads Codex + Biomni when both are available |
 | Init, approval gate, pinned inputs, exploration | Supported | Supported with enabled/trusted hooks | Supported (qualified on 2.0.32) |
 | Run receipts and verification | Success/failure hook events provide status | Records receipts; absent exit metadata is a verification gap | Records receipts; exit status from the shell result's exit code |
 | Gate state protection | Shell commands and file-edit tools | Shell commands and `apply_patch`, including move destinations | `shell`, `edit`, `write`, and `patch` tools |
