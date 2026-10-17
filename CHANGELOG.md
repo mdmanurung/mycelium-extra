@@ -2,6 +2,43 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.75] - 2026-10-17
+
+Execution fidelity: the source-verified roadmap of 2026-10-16 (change sets C01–C13, findings F01–F11). Tracker and evidence: [docs/roadmap/07-execution-fidelity.md](docs/roadmap/07-execution-fidelity.md).
+
+### Added
+
+- Immutable approval instances (`approval-instances/<hash>/<instance_id>.json`); `approvals/<hash>.json` stays the newest instance's view and gains `instance_id`. Same-prose reapproval with new pins makes a second instance instead of overwriting the first (F04). `verify --instance` checks one instance; runs under an older one are history.
+- Launch attempts: `attempt_id`, `call_id`, `started`, `cwd` and a before snapshot of declared outputs. Two identical launches without a call id are `ambiguous` (F05); launches never taken are kept in `launches/abandoned/`. Receipts carry `launch_match`, `approval_instance`, `outputs_changed` and `outputs_observation`.
+- Two optional plan blocks, frozen by approval: `<!-- validation-bindings -->` (approved checks; their files are pinned; a changed expectation denies the launch) and `<!-- exact-execution -->` (argv and cwd of reportable steps; `operational` flags may vary; a changed analytical argument is denied, F09). Plans without them keep the broad grant, and the card says so (`CAN RUN (in full) · broad grant: any arguments`).
+- verify: a Validation section judges each bound check passed, failed, not run, unsupported, changed or unattributable (F06); a Recovery section shows every attempt of a step, so an earlier failure stays visible after a changed retry (F08); a Scope block and a qualification table (authorization, completion, code and input identity, lineage, required validation, claim linkage, no blocking finding) with `--require-reportable` (exit 3 when not qualified); claim coverage counts; `stale --content`; rerun evidence (declared, attempted, reproduced; nothing is launched).
+- Output producers are graded: `evidence_method` (`attempt-observed`, `workflow-record`, `lineage-record`, `timing-only`, `none`) and `strength`; only `supported` names a producer. Mycelium lineage can confirm or contest a producer, never establish one alone. The bundle TSV gains the two columns (older bundles read as legacy).
+- verify reads `gate-errors.jsonl` inside the plan's window: an error there is a gap (F07). Gate errors now record `host`, `session_id` and `call_id`.
+- data-contract-check: `sample_alignment`, `identifiers` and `h5ad_layer` kinds, `--result-json`, and a strict CSV/TSV reader backported from Mycelium: a ragged row or an unterminated quote blocks (F11).
+- Scoped exploration: `allow explore <plan hash>` limits the development grant to an active approval of the session; out-of-scope gated paths are denied and protected-file changes are surfaced; `stop explore`. Explore attempts are kept with their code version and never satisfy a check or own an output.
+- Review consent bound to packet bytes: `review_packet.py prepare|preview|verify`, and the gate records consent only when the user types `send packet <digest>`.
+- `gate_init.py --diagnose` (read-only), an evaluation scaffold in `tests/eval/` (scorer only on saved adjudications), and e2e cases F-01 to F-11, V-DC08 to V-DC11 and V-02c with controls; ablations A-5 to A-7.
+
+### Changed
+
+- `pins_checked` is true only for a receipt matched to its launch; a Post without a Pre no longer claims checked pins (F02).
+- Approval differences compare whole cells, removed and reordered rows and the two plan blocks before the card truncates anything (F03).
+- A quoted input path with spaces is pinned whole (F10).
+- A single timestamp candidate is a gap, not a producer (F01, timing-only case). Tests that credited outputs by timing now use a matched Pre, write and Post.
+
+### Migration
+
+New fields are additive. An approval without `instance_id`, a receipt without `launch_match` and a bundle without the producer columns are read as legacy with the weaker meaning ("launch link not recorded"), never upgraded. No state needs converting.
+
+### Known limits
+
+- An unobserved process that writes a declared output between a matched Pre and Post is still graded `attempt-observed`; the report says the output changed during the attempt, not that the script wrote it.
+- The `note_first_runs` lock falls back to the old unlocked update on a symlinked state folder.
+- A scoped explore grant outlives its approval's expiry (it is never broader than the plain grant).
+- `--diagnose` mirrors the gate's config rules rather than importing them.
+- Mycelium's manifest session id seldom joins with a gate attempt, so lineage often stays unused.
+- Not qualified here: native Claude/Codex hosts, real model journeys, human adjudication, external reviewer calls and the Python 3.14 leg.
+
 ## [0.9.74] - 2026-10-17
 
 ### Added
