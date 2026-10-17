@@ -56,3 +56,16 @@ jobs:
         run: |
           python3 hooks/tests/gate_diff.py --base 384e6394b71cdae6ab983f0b10fa8d4f5e65c900 --expect hooks/tests/gate_diff_expected.json
           python3 hooks/tests/gate_diff.py --self-check
+
+  opencode-plugin:
+    name: OpenCode adapter (node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Adapter tests
+        # The adapter spawns hooks/py.sh; the runner's python3 (3.12) is recorded through
+        # MYCELIUM_EXTRA_PYTHON by the test, so a 3.6-only machine still exercises the gate.
+        run: node --test opencode/tests/gate.test.js

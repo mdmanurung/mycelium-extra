@@ -8,7 +8,7 @@ A plan is useful only if the run still follows it. The approval gate checks cove
 
 For example, a plan might cover `analysis/response/02_model.R` using a particular sample table. Approving it allows that run for the configured window. If a pinned sample table changes, the gate asks for a checked, revised plan before the covered run proceeds.
 
-The gate works through Claude Code and Codex hooks (an OpenCode adapter is in development). Turn it on for a repository with `/mycelium-extra:init` (Claude Code) or `$mycelium-extra:init` (Codex). To configure it by hand:
+The gate works through Claude Code and Codex hooks, or the OpenCode plugin adapter (live qualification pending). Turn it on for a repository with `/mycelium-extra:init` (Claude Code) or `$mycelium-extra:init` (Codex). To configure it by hand:
 
 1. Create `.mycelium-extra/gate.json`. `{}` uses the defaults.
 2. Add `.mycelium-extra/` to `.gitignore`. It holds short-lived execution state, not project knowledge.
@@ -182,6 +182,8 @@ Run steps in separate shell calls when each needs its own attributable receipt.
 
 Codex uses its own post hook and marks receipts with `host: codex`. In CLI 0.160.0, the hook provides command output without exit metadata. Its receipt therefore records `unknown`, and verification reports a gap. The gate never treats a line printed by the command as proof of its exit status.
 
+OpenCode uses the plugin adapter under `opencode/`, configured through the `plugins` setting ([Installation](installation.md#opencode)). Receipts are marked `host: opencode`; a shell result without an exit code records `unknown`, and verification reports a gap. The 2.0.32 server event stream is service-wide, so the adapter keeps only its own location's events for the stop check. Live qualification is pending.
+
 ## Mycelium's post-action protocol
 
 Mycelium's own hooks detect only python, R, and jupyter runs. In a repository with `.living/`, a receipted run can be one Mycelium does not detect: `bash run.sh`, snakemake, sbatch, nextflow, and other runners. After such a run, the receipt hook tells the agent once that the protocol did not fire. It asks the agent to follow it (learnings, decisions, findings, manifest, analysis doc) when the run finishes. It is a reminder; Mycelium's Stop hook still does not see these runs.
@@ -265,6 +267,7 @@ The gate catches execution mistakes; it is not a security boundary or a judgment
 - The exit status is inferred from which hook event fired, not read from the command. `verify` reports a nonzero, `failed`, or `interrupted` run as a failure, and an `unknown` status (or an empty one in older receipts) as a gap.
 - `verify` credits a script to a Snakemake rule only when the rule runs it: the expanded `shell:` command, or the `script:`/`notebook:` path in the rule's `code` record. A rule input is not a run. The `script:` path is matched against Snakemake's working directory, so a Snakefile in another folder (`-s other/Snakefile`) is not matched, and Snakemake 9 releases that record only `shell:` commands leave a `script:` rule's script with `no receipt`.
 - Codex needs enabled/trusted hooks and CLI 0.160.0 or later. Its 0.160.0 post hook omits exit metadata, so run status is `unknown` and verification reports a gap. A hook that never dispatches leaves no receipt. See [Host compatibility](installation.md#host-compatibility).
+- OpenCode needs the plugin directory in `plugins`; the adapter is inert without `.mycelium-extra/gate.json`. Live qualification is pending. See [Host compatibility](installation.md#host-compatibility).
 
 ## Capacity and diary candidate (not yet release qualified)
 

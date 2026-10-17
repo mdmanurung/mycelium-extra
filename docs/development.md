@@ -94,6 +94,20 @@ For Codex, install the checkout in a disposable `CODEX_HOME`, check the cached
 files against the source, and test discovery. Real host tests need trusted,
 enabled hooks; invoking the Python launcher alone does not prove dispatch.
 
+OpenCode V2 loads the adapter from `opencode/` as a plugin directory; on 2.0.32
+a `plugins` entry naming a `.js` file draws a `configured plugin path must be a
+directory` warning, so ship and test the directory form. `node --test
+opencode/tests/gate.test.js` checks payload mapping, handler wiring, the event
+envelope (`data.sessionID`, `data.text`), location filtering, and the spawn
+contract against the real `gate_run.py`; `hooks/tests/test_opencode_gate.py`
+checks the launcher's mapping, approvals, receipts, and state protection; CI
+runs the first as the `opencode-plugin` job. The 2.0.32 server event stream is
+service-wide — a plugin instance receives every location's session events — so
+the adapter filters to its own location, and a test covers that. A passing
+suite does not show the plugin loaded or dispatched: install it in a disposable
+location, confirm it appears in the host's plugin list, and run the denied-run
+→ card → approval → receipt journey before claiming OpenCode support.
+
 ### Validated on 2026-10-06
 
 Version 0.9.43 was checked with Claude Code 2.1.291 and Codex CLI 0.160.0.

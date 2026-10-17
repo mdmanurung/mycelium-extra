@@ -13,9 +13,8 @@ or pricing levels. Install the [plugin for your host](installation.md) first.
 
 Examples use Claude Code's `/mycelium-extra:` prefix. In Codex, use
 `$mycelium-extra:` instead. In OpenCode, mention a skill by name (for example
-`@grill`); the approval gate is not yet available there (see
-[Host compatibility](installation.md#host-compatibility)). `approve plan <hash>`
-is the same in Claude Code and Codex.
+`@grill`), and send the same `approve plan <hash>` message; the plugin adapter
+drives the gate (see [Host compatibility](installation.md#host-compatibility)).
 
 ## Tier 1: Plan
 

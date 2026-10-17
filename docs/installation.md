@@ -45,13 +45,15 @@ without changing its version does not refresh the cached plugin; use
 
 ## OpenCode
 
-OpenCode V2 discovers skills from configured directories, so point its `skills`
-setting at this checkout. Add to `~/.config/opencode/opencode.json(c)`:
+OpenCode V2 discovers skills from configured directories and loads plugins from
+configured plugin directories, so point both settings at this checkout. Add to
+`~/.config/opencode/opencode.json(c)`:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "skills": ["/absolute/path/to/mycelium-extra/skills"],
+  "plugins": ["/absolute/path/to/mycelium-extra/opencode"],
+  "skills": ["/absolute/path/to/mycelium-extra/skills"]
 }
 ```
 
@@ -62,22 +64,28 @@ Start a new session and mention a skill by name:
 ```
 
 OpenCode advertises each skill by its name and description; there is no
-`/mycelium-extra:` prefix. Skill discovery was checked against OpenCode 2.0.32.
+`/mycelium-extra:` prefix. Plugin loading, the adapter's event and payload
+shapes, and its tool/prompt/stop behavior were checked against OpenCode 2.0.32;
+a live end-to-end qualification (a real denied run, approval card, and receipt)
+is still to do. The plugin is the gate's host adapter: it runs the shared
+Python gate and is inert in repositories without `.mycelium-extra/gate.json`.
 
 Keep each skill folder inside the checkout. Skills that run scripts call
 `../../hooks/py.sh` relative to their own folder, so a copied or symlinked
-skill folder elsewhere cannot find the hooks. For a project-local install, add
-a `skills` entry to that project's `opencode.json(c)` instead of linking the
-folders; relative paths resolve from OpenCode's working directory.
+skill folder elsewhere cannot find the hooks. The plugin resolves the checkout
+from its own location the same way; if you copy the plugin directory, pass
+`{ "package": ".../opencode", "options": { "root": "/path/to/mycelium-extra" } }`.
+For a project-local install, add the same two entries to that project's
+`opencode.json(c)`; relative paths resolve from OpenCode's working directory.
 
 Skill IDs are the folder names (`grill`, `init`, and so on). A `skills` entry is
 the highest-precedence source in OpenCode, so these generic IDs shadow
 same-named skills from other sources; see the
 [Skills reference](https://opencode.ai/v2/docs/skills/).
 
-The approval gate adapter for OpenCode is in development. Until it ships,
-`init`, `approve plan`, run receipts, and `verify` are not available in
-OpenCode; cover gated runs with Claude Code or Codex.
+OpenCode receipts record `host: opencode`. A shell result without an exit code
+records `unknown`, and verification reports a gap; the gate never infers
+success from a finished command.
 
 ## Codex
 
@@ -134,13 +142,13 @@ Only planning? Start with [Tier 1](usage.md#tier-1-plan); no `init` needed.
 |---|---|---|---|
 | Planning, data contracts, decision status, scaffolding, handoff, harden | Supported | Supported | Supported |
 | Independent plan review | Leads Codex + Biomni synthesis | Engineering critique only | Not yet characterized |
-| Init, approval gate, pinned inputs, exploration | Supported | Supported with enabled/trusted hooks | In development |
-| Run receipts and verification | Success/failure hook events provide status | Records receipts; absent exit metadata is a verification gap | In development |
-| Gate state protection | Shell commands and file-edit tools | Shell commands and `apply_patch`, including move destinations | In development |
+| Init, approval gate, pinned inputs, exploration | Supported | Supported with enabled/trusted hooks | Supported (adapter; live qualification pending) |
+| Run receipts and verification | Success/failure hook events provide status | Records receipts; absent exit metadata is a verification gap | Records receipts; exit status unknown without a result code |
+| Gate state protection | Shell commands and file-edit tools | Shell commands and `apply_patch`, including move destinations | `shell`, `edit`, `write`, and `patch` tools |
 
-OpenCode V2 runs the planning skills without a plugin, through the `skills`
-setting above. The approval-gate adapter (init, approvals, receipts, state
-protection, and verification) is in development; until it ships, cover gated
+OpenCode V2 runs the planning skills through the `skills` setting and the
+approval gate through the `plugins` setting, both above. Live qualification of
+the adapter on OpenCode 2.0.32 is pending; until it passes, cover reportable
 runs with Claude Code or Codex.
 
 Codex 0.160.0's post hook supplies the command's output without an exit code.

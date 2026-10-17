@@ -3,8 +3,7 @@
 **Plan an analysis. Approve what runs. Check the execution record.**
 
 Mycelium Extra reads your repository, helps you make a sourced plan, and can
-check covered runs against that plan. Works in Claude Code, Codex, and OpenCode
-(planning skills today; the OpenCode approval-gate adapter is in development),
+check covered runs against that plan. Works in Claude Code, Codex, and OpenCode,
 alongside
 [Mycelium](https://github.com/arjunrajlaboratory/mycelium) or in an ordinary repository.
 

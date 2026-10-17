@@ -5,8 +5,8 @@ for individual tools; you do not need to learn them all.
 
 Commands below use Claude Code syntax. In Codex, replace `/mycelium-extra:`
 with `$mycelium-extra:`. In OpenCode, mention a skill by name (for example
-`@grill`); the approval gate is not yet available there. See
-[Host compatibility](installation.md#host-compatibility).
+`@grill`) and send `approve plan <hash>` the same way; the plugin adapter
+handles it. See [Host compatibility](installation.md#host-compatibility).
 
 ## Common prompts
 
