@@ -34,16 +34,21 @@ It also checks claims: each `<!-- claims -->` block in the analysis doc (`<NAME>
 
 The report ends with `Verify status:` and one of these values:
 - `CONFORMS`
-- `CONFORMS_WITH_GAPS`: something the records cannot show, such as a run with no receipt, an unrecorded exit status, an output not tied to a run, or code scilintr could not check.
+- `CONFORMS_WITH_GAPS`: something the records cannot show, such as a required validation check not established or a recovery whose equivalence is not established, a run with no receipt, an unrecorded exit status, an output not tied to a run, or code scilintr could not check.
   The gate takes a run's exit status from Claude Code's hook event: `PostToolUse` fires only after a command succeeds, so its receipt records exit 0 (`"exit_source": "event"`; the row reads `ran (exit 0 from hook event)`), and `PostToolUseFailure` gives the code from the `Exit code N` line, or `failed` or `interrupted` when there is none. A receipt with exit status `unknown` (a run started in the background, a payload without an event name) or null (from an older gate) is a gap, never a success, so a plan whose only evidence is such a run gets `CONFORMS_WITH_GAPS`. An `sbatch` receipt's exit status is the submit's; the job's state and `ExitCode` come from `sacct` (a submission is not a completion): `COMPLETED` with a nonzero `ExitCode` blocks, and a pending, running, unknown or partly finished array job is a gap.
 - `DOES_NOT_CONFORM`: at least one of:
   - a failed run (a nonzero exit, a failure with no exit code, or an interrupted run) or Slurm job
   - a planned script edited after its run. The finding adds whether an approval covers the current version: a plan pinned it, it ran under a plan approved after the file was last modified (by file time), it ran only under a plan approved before that, or it has not run under any plan. The status stays `DOES_NOT_CONFORM` in every case; name the plan to check instead when one covers it
+  - a required validation check whose result says it failed
   - a pinned input that changed since the approval
   - a scilintr finding that is neither fixed nor waived, or an R waiver with no reason that suppresses one
   - a file named exactly on the `Outputs:` line that was written before the approval (older files inside a named folder or glob are earlier runs' outputs, so they are only counted)
   - an incomplete Snakemake job
   - a claims-block value that the output cell it names contradicts, or that an explore run's output holds
+
+The report also has a `## Validation` section when the approved plan declares `<!-- validation-bindings -->`, and a `## Recovery` section when a step has more than one attempt. Read both as evidence about the plan's own checks and the run history, not as a judgement of the science:
+- Each check gets one outcome. `passed` needs a matched run of the check's invocation that created or changed its evidence file, pinned test files still as approved, and a result that says passed (a data-contract result passes with exit 0 and no block; warnings are kept). `failed` on a required check blocks; `not run`, `changed` (a pinned expectation edited or missing after approval), `unattributable` (a result the gate did not see the attempt write, or one modified afterwards) and `unsupported` (not a result `verify` can read) on a required check are gaps worded "not established": the expectation is not counted as met, and the plan is never `CONFORMS`. An optional check is an info line. `defined_by` is shown as the plan declared it, "not verified".
+- Recovery lists every attempt of a step in order with what changed. A failed attempt followed by an equivalent retry (same command, or only flags the plan's `exact-execution` step calls operational) is info. A success after a changed command, script, engine config file or folder is a gap, "equivalence not established", and the earlier failure stays in the history. Do not describe it as recovered; say what changed and leave the choice to the user. A run of an instance with `exact-execution` that matched no declared step is a gap, "outside the exact reportable contract".
 
 A plan re-approved with the same text and the same pins keeps one approval instance and its earlier runs; the report says so. Re-approved with other pins, it is a new instance: `report` checks the newest one by default (`--instance <id>` picks an earlier one), runs under another instance are listed as history and do not establish the freeze, and no run under the checked instance is a gap.
 
@@ -87,6 +92,7 @@ It writes `<folder>/provenance/`:
 - `plan-<hash>.md`: the frozen plan as approved.
 - `receipts-<hash>.jsonl`: the receipts of this plan's runs.
 - `outputs-<hash>.tsv`: each output's path, write time, size, full sha256 (or size and mtime past the hash budget), the run named when its producer is `supported`, and the evidence: `producer_attempt`, `evidence_method`, `strength`, `approval_instance`. A table without those four columns is a legacy bundle.
+- `validation-<hash>.json`, only when the plan has a validation binding: the frozen binding, each check's outcome and reason, and the raw evidence's path and sha256.
 - `verify-<hash>.md`: this report, with its claims counts.
 - `lint-<hash>.txt`: the scilintr output, every `ANALYSIS_OK` waiver, and the findings each suppressed.
 - `env-<hash>.txt`, only when a run used a conda env (`conda run -n|-p`, `conda activate` in its job script, an interpreter under `<env>/bin/`, or the session's `CONDA_PREFIX`) and no `conda-lock.yml` was found: the env's packages in `conda list --explicit --md5` form, read from its `conda-meta` so conda need not be on PATH. An env changed after its last run (`conda-meta/history` is newer) or not found is a gap.

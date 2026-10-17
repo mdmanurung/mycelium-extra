@@ -13,3 +13,7 @@ To update an item, change its status here and add one line to the log.
 ## Log
 
 - @@DATE@@: folder created with mycelium-extra new-analysis.
+
+<!-- Example, only when a run needed more than a rerun (not a log of every command), linked to the attempts in verify's
+Recovery section: - YYYY-MM-DD: item 2 failed (exit 1) as `--model original`, then ran as `--model alternative` (plan <hash>,
+verify Recovery). The model changed, so the researcher approves or revises the plan before the result is reported. -->
