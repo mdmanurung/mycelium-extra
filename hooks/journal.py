@@ -1,4 +1,4 @@
-"""Editable AI drafts and append-only, explicitly reviewed diary saves. Python 3.6+."""
+"""Editable AI drafts and append-only, explicitly reviewed diary saves. Python 3.9+."""
 
 import hashlib
 import json

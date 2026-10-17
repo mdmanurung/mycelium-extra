@@ -13,12 +13,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Hosted runners no longer ship 3.6, so both legs run in the official python
-        # images. Not -slim: those have no git, and the git tests would skip, not fail.
-        # The images set LANG=C.UTF-8; the 3.6 leg runs under C, as bare HPC shells do,
-        # because PEP 538 hides locale bugs from 3.7 on.
+        # The legs run in the official python images. Not -slim: those have no git, and the
+        # git tests would skip, not fail. The images set LANG=C.UTF-8; the 3.9 leg (the oldest
+        # supported) runs under C, as bare HPC shells do.
         include:
-          - {image: "python:3.6-bullseye", locale: C}
+          - {image: "python:3.9-bookworm", locale: C}
           - {image: "python:3.12-bookworm", locale: C.UTF-8}
           - {image: "python:3.14-bookworm", locale: C.UTF-8}
     container: ${{ matrix.image }}

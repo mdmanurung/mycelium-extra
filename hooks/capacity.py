@@ -1,4 +1,4 @@
-"""Opt-in account allowance guard and durable recovery records. Python 3.6+."""
+"""Opt-in account allowance guard and durable recovery records. Python 3.9+."""
 
 import argparse
 import contextlib

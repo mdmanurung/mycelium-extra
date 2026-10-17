@@ -39,11 +39,11 @@ changes. `python3 tests/test_example.py` checks that what it quotes still exists
 
 CI (`.github/workflows/ci.yml`) runs on every push to `main`, every pull request, and manual dispatch. It has two jobs.
 
-**`tests`** runs in three official, non-slim Python images (hosted runners no longer ship 3.6, and the slim images have no `git`, so the git tests would skip instead of fail), with `fail-fast` off:
+**`tests`** runs in three official, non-slim Python images (the slim images have no `git`, so the git tests would skip instead of fail), with `fail-fast` off:
 
 | Image | `LC_ALL` |
 |---|---|
-| `python:3.6-bullseye` | `C` (as on a bare HPC shell; from Python 3.7 on, PEP 538 hides locale bugs) |
+| `python:3.9-bookworm` | `C` (as on a bare HPC shell; PEP 538 switches Python to UTF-8 there, as it does for users) |
 | `python:3.12-bookworm` | `C.UTF-8` |
 | `python:3.14-bookworm` | `C.UTF-8` |
 
@@ -66,7 +66,7 @@ An intended gate behaviour change needs a named regression test that fails befor
 
 ## Python compatibility and versions
 
-Hooks call bare `python3`, which is 3.6 on some HPC systems, so keep every script 3.6-compatible; the gate tests compile them all under `python3.6` when it is installed.
+The plugin needs Python 3.9 or later. Hooks and skill commands run through `hooks/py.sh`, which uses `MYCELIUM_EXTRA_PYTHON` if set, else `python3` when it is 3.9 or later (hooks skip this probe), else the newest `python3.N` on `PATH`; on RHEL 8, bare `python3` is 3.6. `hooks/gate_run.py` up to its version check stays parseable by Python 3.6, so an old interpreter is reported through `on_error` instead of failing with a SyntaxError; `hooks/tests/test_py_launcher.py` runs it under `/usr/bin/python3.6` when that exists.
 
 Bump `version` in `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, and `.claude-plugin/marketplace.json` together, so `claude plugin update` picks up the change. The same commit adds a [CHANGELOG.md](../CHANGELOG.md) entry for the new version.
 
@@ -118,7 +118,7 @@ The website and repository use the same Markdown pages. You can improve a
 guide without maintaining a second copy, and Sphinx checks the links when it
 builds the site.
 
-Use Python 3.12 for the website tooling; the plugin still supports Python 3.6.
+Use Python 3.12 for the website tooling.
 
 ```bash
 python3.12 -m venv /tmp/mycelium-extra-docs

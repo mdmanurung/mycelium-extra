@@ -79,7 +79,10 @@ Only planning? Start with [Tier 1](usage.md#tier-1-plan); no `init` needed.
 
 ## Requirements
 
-- The approval gate and helper scripts use Python 3.6 or later.
+- The approval gate and helper scripts need Python 3.9 or later. They run through `hooks/py.sh`, which picks
+  `python3` if it is new enough, else the newest `python3.N` on `PATH` (on RHEL 8, `python3` is 3.6 but
+  `python3.11` or `python3.12` usually exist). Set `MYCELIUM_EXTRA_PYTHON` to choose one yourself. With only
+  an older Python, the gate reports it on every hook and follows `on_error` in `gate.json`.
 - Scientific checks need the tools for the files you use: R and R scilintr,
   Python scilintr, or h5py for H5AD inspection. A missing tool is reported as
   a gap rather than a successful check. Neither is usually on `PATH` on a cluster; record where they are

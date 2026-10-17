@@ -9,7 +9,7 @@ Each case builds the same throwaway repository twice, sends the same hook event 
 gate (`git show REF:hooks/gate.py`, default HEAD) and the new one (default hooks/gate.py),
 and compares exit status, stdout, stderr, and every file the gate leaves in its state
 folder. Timestamps and the temp root are normalized. Run it under each interpreter
-(python3.6, 3.11, 3.12) by changing the python that runs this file.
+(python3.9, 3.11, 3.12) by changing the python that runs this file.
 """
 
 import argparse
