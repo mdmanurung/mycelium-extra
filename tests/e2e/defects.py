@@ -15,6 +15,7 @@ import os
 import re
 import time
 
+import checks
 import harness
 
 A = harness.ANALYSIS
@@ -461,6 +462,215 @@ def v02c(p):
     """V-02b with the expectation declared: the masked failure leaves 10 of 60 rows, and the approved row-count check
     that ran under the plan names the shortfall. The uninstrumented V-02b above stays a known miss."""
     return covered_rowcount(p, 10)
+
+
+# ---- declared-check variants of DC-08 to DC-11 (roadmap C08). The originals stay known misses: a plan that
+# declares nothing gets no finding. Here the plan declares five checks (approved with it, pinned by it, run through
+# the gate, their result files tied to the matched run), and each defect must fail its own check and no other.
+# Forbidden covariate: not applicable to this fixture. Step 02 is a permutation test on per-donor differences; it fits
+# no model, so there is no design matrix to inspect after fitting, and none is invented here. DC-11 has no H5AD or
+# layer path in this fixture (and no h5py): `h5ad_layer` could only show a layer's name and value range, never which
+# normalization produced the values, so the declared check is a known-answer run of the real step.
+
+NAMESPACE = "data/reference/gene_symbols.txt"
+ALIGN_CONTRACT, IDENT_CONTRACT = CHECKS + "/sample_alignment_contract.json", CHECKS + "/gene_identifiers_contract.json"
+SCHEMA = "mycelium-extra.data_contract.v1"
+
+
+def gene_symbols():
+    """The lab's gene-symbol namespace: the simulated truth's 60 HGNC symbols, from test code, not from counts.tsv."""
+    truth = harness.expected("truth.json")
+    names = truth["true_genes"] + truth["null_genes"]
+    if len(names) != 60:
+        raise harness.HarnessError("expected/truth.json lists {} genes, not 60".format(len(names)))
+    return names
+
+
+def alignment_contract():
+    """Every sample_metadata.tsv library is a counts column and the reverse (25 ids each, rerun included)."""
+    return json.dumps({"schema": SCHEMA, "table": METADATA, "checks": [{
+        "id": "sample-alignment", "kind": "sample_alignment", "key": "sample_id",
+        "reference": {"path": COUNTS, "header": True, "exclude": ["gene"]}}]}, indent=1)
+
+
+def identifiers_contract(namespace=True):
+    check = {"id": "gene-identifiers", "kind": "identifiers", "column": "gene"}
+    if namespace:
+        check["namespace"] = {"path": NAMESPACE, "lines": True}
+    return json.dumps({"schema": SCHEMA, "table": COUNTS, "checks": [check]}, indent=1)
+
+
+def declared_specs(symbols):
+    """The five approved checks: id, script, file texts, pinned test paths and result file of each."""
+    known = lambda name, text: {"script": CHECKS + "/check_{}.py".format(name), "text": text,
+                                "evidence": A + "/outputs/{}_check.json".format(name), "files": {}, "extra": []}
+    specs = [dict(known("contrast_direction", checks.CONTRAST_DIRECTION), id="contrast-direction",
+                  choice="positive log2fc means higher in vaccine than placebo (the Objective's reference: placebo)",
+                  validation="known-answer run of step 02: UP positive, DOWN negative"),
+             dict(known("normalization", checks.NORMALIZATION), id="normalization-known-answer",
+                  choice="median-of-ratios size factors (step 2)", validation="known-answer run: unchanged genes stay at 0"),
+             dict(known("shuffle", checks.SHUFFLE), id="shuffle-invariance",
+                  choice="samples are joined to counts by sample_id, never by position",
+                  validation="metadata rows reordered: step 02 gives the same log2fc")]
+    for spec in specs:
+        spec["tests"] = [spec["script"]]
+    for name, id, contract, extra, choice, validation in [
+            ("sample_alignment", "sample-alignment", (ALIGN_CONTRACT, alignment_contract()), {},
+             "metadata and counts hold the same sample ids", "ids equal on both sides"),
+            ("gene_identifiers", "gene-identifiers", (IDENT_CONTRACT, identifiers_contract()), {NAMESPACE: "\n".join(symbols) + "\n"},
+             "gene symbols are the lab's HGNC namespace", "every counts symbol is in the namespace")]:
+        evidence = A + "/outputs/{}_check.json".format(name)
+        script = CHECKS + "/check_{}.py".format(name)
+        specs.append({"id": id, "script": script, "evidence": evidence, "choice": choice, "validation": validation,
+                      "text": checks.CONTRACT_RUNNER.format(checker=CHECKER, contract=contract[0], evidence=evidence),
+                      "files": dict([contract] + sorted(extra.items())), "tests": [contract[0]] + sorted(extra)})
+    return specs
+
+
+def declared_plan(specs):
+    binding = {"version": 1, "checks": [{
+        "id": s["id"], "plan_row": str(4 + i), "required": True, "defined_by": "researcher-approved",
+        "test_paths": s["tests"], "invocation": ["python3", s["script"]], "evidence_path": s["evidence"]}
+        for i, s in enumerate(specs)]}
+
+    def change(text):
+        lines = text.rstrip("\n").split("\n")
+        at = max(i for i, line in enumerate(lines) if line.startswith("| 3 "))
+        lines[at + 1:at + 1] = [row(4 + i, s["script"], s["choice"], source="user", validation=s["validation"])
+                                for i, s in enumerate(specs)]
+        text = "\n".join(lines) + "\n"
+        return text.replace("Plan status: READY", "<!-- validation-bindings {} -->\n\nPlan status: READY".format(json.dumps(binding)))
+    return plan(outputs=" ".join(harness.OUTPUTS + [s["evidence"] for s in specs]), change=change)
+
+
+VALIDATION = re.compile(r"^- `([^`]+)` \(plan row \d+, [^)]*\): (passed|failed|not run|unsupported|changed|unattributable)",
+                        re.M)
+
+
+def declared_chain(p, mutate=None, symbols=None, skip=()):
+    """The approved expectations are written and committed with the mutation, before the plan is approved; then steps
+    1-3 run plainly (no `|| true`), then each declared check except those in `skip`. Key Findings' claims are dropped
+    as in `whole_chain`: an agent would write them from the mutated outputs, and they would agree."""
+    specs = declared_specs(symbols or gene_symbols())
+    if mutate:
+        mutate(p)
+    p.edit(DOC, lambda text: CLAIMS.sub("", text))
+    for rel, text in [(s["script"], s["text"]) for s in specs] + [f for s in specs for f in sorted(s["files"].items())]:
+        os.makedirs(os.path.dirname(p.path(rel)), exist_ok=True)
+        with open(p.path(rel), "w", encoding="utf-8") as handle:
+            handle.write(text)
+    p.commit("approved declared checks")
+    digest = p.approve(declared_plan(specs))[0]
+    runs = [(out, p.run_step(script)) for out, script in zip(harness.OUTPUTS, harness.SCRIPTS)]
+    runs += [(s["evidence"], p.agent_bash("python3 " + s["script"])) for s in specs if s["id"] not in skip]
+    p.space_outputs([(out, r.receipts[0]) for out, r in runs if r.receipts and os.path.isfile(p.path(out))])
+    p.lineage()
+    outcome = report(p, digest)
+    found = VALIDATION.findall(outcome["text"])
+    outcome["failed"] = sorted(i for i, o in found if o == "failed")
+    outcome["passed"] = sorted(i for i, o in found if o == "passed")
+    outcome["other"] = sorted(i for i, o in found if o not in ("failed", "passed"))
+    return outcome
+
+
+ALL_CHECKS = sorted(["contrast-direction", "normalization-known-answer", "shuffle-invariance", "sample-alignment",
+                     "gene-identifiers"])
+
+
+def only_failing(*ids):
+    return {"status": BLOCKED, "failed": sorted(ids), "passed": sorted(set(ALL_CHECKS) - set(ids)), "other": []}
+
+
+def swap_gene_names(p):
+    """DC-10's planted corruption: spreadsheet-style date symbols for MARCHF1 and SEPTIN7."""
+    p.edit(COUNTS, lambda text: text.replace("\nMARCHF1\t", "\n1-Mar\t").replace("\nSEPTIN7\t", "\n7-Sep\t"))
+
+
+V_DC08 = dict(only_failing("contrast-direction"), messages=[
+    "Validation `contrast-direction` (plan row 4, required; declared researcher-approved, not verified) failed",
+    "the result says failed (contrast direction: UP (higher in vaccine at day 28) has log2fc -2.43 and DOWN +1.50; "
+    "positive must mean higher in vaccine than placebo)"])
+
+
+@defect("V-DC08", "verify", "verify", ["Reversed contrast"], V_DC08)
+def v_dc08(p):
+    """DC-08's flipped contrast with the direction declared: the approved known-answer test runs the real step 02 on a
+    tiny dataset whose answer is known and finds the sign reversed. A label or a comment is not consulted."""
+    return declared_chain(p, lambda q: q.edit(PAIRED, replace(
+        "observed = sum(diff[:n_v]) / n_v - sum(diff[n_v:]) / n_p",
+        "observed = sum(diff[n_v:]) / n_p - sum(diff[:n_v]) / n_v")))
+
+
+@defect("V-DC09", "verify", "verify", ["Sample label swap"],
+        dict(only_failing("shuffle-invariance"), messages=[
+            "Validation `shuffle-invariance` (plan row 6, required; declared researcher-approved, not verified) failed",
+            "the result says failed (shuffle invariance: reordering the metadata rows changed log2fc of 2 of 7 genes (DOWN, UP))"]))
+def v_dc09(p):
+    """DC-09's positional join with the shuffle test declared. The `sample-alignment` check, which compares the id sets
+    of metadata and counts, passes on this very mutation (it is in `passed`): equal ids do not show a keyed join."""
+    return declared_chain(p, lambda q: q.edit(PAIRED, replace(
+        "column = {name: i for i, name in enumerate(count_header)}",
+        "column = {name: i + 1 for i, name in enumerate(r[0] for r in rows)}")))
+
+
+@defect("V-DC10", "verify", "verify", ["Gene symbol corruption"],
+        dict(only_failing("gene-identifiers"), flagged=["1-Mar", "7-Sep"], messages=[
+            "Validation `gene-identifiers` (plan row 8, required; declared researcher-approved, not verified) failed",
+            "`gene-identifiers`: identifiers that are not in the declared namespace", "observed 2 identifiers"]))
+def v_dc10(p):
+    """DC-10's date-like symbols with the lab's namespace declared: the `identifiers` check blocks both replacements
+    (the result file names them; the verify line only counts them)."""
+    outcome = declared_chain(p, swap_gene_names)
+    with open(p.path(A, "outputs", "gene_identifiers_check.json"), encoding="utf-8") as handle:
+        evidence = handle.read()
+    outcome["flagged"] = [name for name in ("1-Mar", "7-Sep", "MARCHF1", "SEPTIN7") if "'" + name + "'" in evidence]
+    return outcome
+
+
+@defect("V-DC11", "verify", "verify", ["Normalization and transformation"],
+        dict(only_failing("normalization-known-answer"), messages=[
+            "Validation `normalization-known-answer` (plan row 5, required; declared researcher-approved, not verified) failed",
+            "the result says failed (normalization: unchanged genes reach |log2fc| 0.66, expected 0 under median-of-ratios size factors)"]))
+def v_dc11(p):
+    """DC-11's total-count scaling with the known-answer transformation test declared. Layer metadata could not tell
+    this algorithm from the planned one; the known answer, run through the real step, can."""
+    return declared_chain(p, lambda q: q.edit(PAIRED, replace(
+        "    sf = size_factors(counts, samples, genes)\n",
+        "    sf = {s: sum(counts[g][s] for g in genes) / 1e6 for s in samples}\n")))
+
+
+@defect("DC-09b", "data", "data-contract-check", ["Identifier mismatch"],
+        {"control_code": 0, "code": 2, "messages": ["sample_alignment", "D03_day28_rerun"]})
+def dc09b(p):
+    """The declared sample_alignment check on its own: one counts column renamed, so its key is on one side only."""
+    before = check(p, alignment_contract())
+    p.edit(COUNTS, replace("D03_day28_rerun", "D03_day28_rerun2"))
+    outcome = check(p, alignment_contract())
+    outcome["control_code"] = before["code"]
+    return outcome
+
+
+@defect("DC-10b", "data", "data-contract-check", ["Gene symbol corruption"],
+        {"control_code": 0, "code": 2, "legit_code": 0, "no_namespace_code": 3,
+         "messages": ["identifiers that are not in the declared namespace", "'1-Mar'", "'7-Sep'"]})
+def dc10b(p):
+    """The declared identifiers check on its own. Control: the pristine symbols pass. Mechanism control: the same
+    date-like ids pass when the namespace lists them (a legitimate symbol is not flagged). Without a namespace the check
+    only suspects them and is a gap (3), never a pass."""
+    os.makedirs(p.path("data", "reference"))
+
+    def namespace(names):
+        with open(p.path(NAMESPACE), "w", encoding="utf-8") as handle:
+            handle.write("\n".join(names) + "\n")
+    namespace(gene_symbols())
+    control = check(p, identifiers_contract())
+    swap_gene_names(p)
+    outcome = check(p, identifiers_contract())
+    outcome["no_namespace_code"] = check(p, identifiers_contract(namespace=False))["code"]
+    namespace(["1-Mar" if n == "MARCHF1" else "7-Sep" if n == "SEPTIN7" else n for n in gene_symbols()])
+    outcome["legit_code"] = check(p, identifiers_contract())["code"]
+    outcome["control_code"] = control["code"]
+    return outcome
 
 
 @defect("V-03", "verify", "verify", ["Stale evidence as current"],

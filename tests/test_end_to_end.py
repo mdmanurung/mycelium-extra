@@ -221,6 +221,42 @@ class CoveredRowCount(unittest.TestCase):
         self.assertEqual(outcome["status"], defects.CONFORMS, outcome["text"])
 
 
+@unittest.skipUnless(harness.git_available(), "git is not installed")
+class DeclaredChecks(unittest.TestCase):
+    """Controls for the declared-check variants V-DC08 to V-DC11 (roadmap C08)."""
+    maxDiff = None
+
+    def run_chain(self, **kwargs):
+        project = harness.Project.fresh()
+        self.addCleanup(project.close)
+        outcome = defects.declared_chain(project, **kwargs)
+        return outcome, "\n".join(project.log)
+
+    def test_the_unmutated_baseline_passes_every_declared_check(self):  # control for all four
+        outcome, log = self.run_chain()
+        self.assertEqual((outcome["status"], outcome["failed"], outcome["other"], outcome["passed"]),
+                         (defects.CONFORMS, [], [], defects.ALL_CHECKS), outcome["text"] + log)
+
+    def test_a_date_like_id_declared_in_the_namespace_is_not_flagged(self):  # control for V-DC10
+        names = ["1-Mar" if n == "MARCHF1" else "7-Sep" if n == "SEPTIN7" else n for n in defects.gene_symbols()]
+        outcome, log = self.run_chain(mutate=defects.swap_gene_names, symbols=names)
+        self.assertEqual((outcome["status"], outcome["failed"], outcome["other"], outcome["passed"]),
+                         (defects.CONFORMS, [], [], defects.ALL_CHECKS), outcome["text"] + log)
+
+    def test_a_declared_check_that_is_not_run_is_a_gap_not_a_pass(self):  # the same plan, one check skipped
+        outcome, log = self.run_chain(skip=("shuffle-invariance",))
+        self.assertEqual((outcome["status"], outcome["failed"], outcome["other"]),
+                         (defects.GAPS, [], ["shuffle-invariance"]), outcome["text"] + log)
+        self.assertIn("Validation `shuffle-invariance` (plan row 6, required; declared researcher-approved, not "
+                      "verified) ", outcome["text"])
+        self.assertIn("no matched run of `python3 {}/checks/check_shuffle.py` under this approval instance"
+                      .format(A), outcome["text"])
+
+    def test_the_uninstrumented_originals_stay_known_misses(self):
+        for id in ("DC-08", "DC-09", "DC-10", "DC-11"):
+            self.assertTrue(defects.by_id(id).known_miss and defects.by_id(id).caught_by == "none", id)
+
+
 def checklist():
     """{row name: Check cell} of llm-failure-modes.md, plus analysis-decisions.md rows mapped to None:
     that file has no Check column, so its rows make no claim that a tool catches them."""
