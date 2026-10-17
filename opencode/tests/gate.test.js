@@ -40,7 +40,7 @@ function gatedRepo() {
 }
 
 function fakeCtx(location, stream) {
-  const handlers = { before: [], after: [], prompt: [] }
+  const handlers = { before: [], after: [], prompt: [], commands: [] }
   const calls = { prompt: [], synthetic: [] }
   const noop = async () => {}
   const ctx = {
@@ -48,6 +48,9 @@ function fakeCtx(location, stream) {
     location: { directory: location },
     tool: { hook: async (name, callback) => {
       ;(name === "execute.before" ? handlers.before : handlers.after).push(callback)
+    } },
+    command: { transform: async (callback) => {
+      callback({ add: (definition) => handlers.commands.push(definition) })
     } },
     session: {
       hook: async (name, callback) => { if (name === "prompt") handlers.prompt.push(callback) },
@@ -163,6 +166,33 @@ test("gateCwd prefers a cwd under a gate and falls back to the location", () => 
   assert.equal(__test__.gateCwd(plain, repo), repo)
   assert.equal(__test__.gateCwd(plain, plain), null)
   assert.equal(__test__.gateCwd("", repo), repo)
+})
+
+test("skill commands come from the skills folder", () => {
+  const skills = __test__.skillCommands(ROOT)
+  assert.equal(skills.length, 11)
+  const ids = skills.map((skill) => skill.id)
+  for (const id of ["grill", "init", "verify", "handoff", "plan-review"]) assert.ok(ids.includes(id), id)
+  assert.match(skills.find((skill) => skill.id === "grill").description, /planning/i)
+  assert.equal(__test__.skillCommands("/nonexistent").length, 0)
+  assert.match(__test__.commandText(ROOT, "verify", "status"), /skills\/verify/)
+  assert.match(__test__.commandText(ROOT, "verify", "status"), /status/)
+})
+
+test("command entry points submit the skill with the user's request", async () => {
+  const { ctx, handlers, calls } = fakeCtx(mkdtempSync(join(tmpdir(), "mx-plain-")))
+  await plugin.setup(ctx)
+  const names = handlers.commands.map((command) => command.name)
+  assert.ok(names.includes("mycelium-extra:grill"), "names: " + names.slice(0, 3).join(", "))
+  assert.ok(names.includes("mycelium-extra:verify"))
+  const grill = handlers.commands.find((command) => command.name === "mycelium-extra:grill")
+  assert.match(grill.description, /planning/i)
+  await grill.execute({ sessionID: "s1", prompt: { text: "plan a QC redo" }, delivery: "steer" })
+  assert.equal(calls.prompt.length, 1)
+  assert.match(calls.prompt[0].text, /skill tool/)
+  assert.match(calls.prompt[0].text, /`grill`/)
+  assert.match(calls.prompt[0].text, /plan a QC redo/)
+  assert.equal(calls.prompt[0].sessionID, "s1")
 })
 
 test("handlers block covered runs and leave other tools alone", async (t) => {

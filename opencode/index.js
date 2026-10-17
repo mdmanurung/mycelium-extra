@@ -18,7 +18,7 @@
  * session.execution.succeeded (2.0.32 emits no session.idle).
  */
 import { spawn } from "node:child_process"
-import { existsSync, realpathSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -135,6 +135,39 @@ function gateCwd(cwd, place) {
   return null
 }
 
+/** One command per skill folder, mirroring `/mycelium-extra:<skill>` in Claude Code. The
+ *  description is the skill's own first sentence, so the command list reads like the skills. */
+function skillCommands(root) {
+  const dir = join(root, "skills")
+  let entries = []
+  try {
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+  return entries
+    .filter((entry) => entry.isDirectory() && existsSync(join(dir, entry.name, "SKILL.md")))
+    .map((entry) => {
+      let description = "Run the mycelium-extra " + entry.name + " skill"
+      try {
+        const match = /^description:[ \t]*(.+)$/m.exec(readFileSync(join(dir, entry.name, "SKILL.md"), "utf8"))
+        if (match) {
+          const first = match[1].trim().replace(/^["']|["']$/g, "").split(". ")[0]
+          if (first) description = first.slice(0, 150)
+        }
+      } catch {
+        // the folder stays listed with the fallback description
+      }
+      return { id: entry.name, description }
+    })
+    .sort((a, b) => a.id.localeCompare(b.id))
+}
+
+function commandText(root, id, arguments_) {
+  return "Load the mycelium-extra skill `" + id + "` with the skill tool (its folder is " +
+    join(root, "skills", id) + "), then carry it out for this request:\n\n" + (arguments_ || "")
+}
+
 /** V2 server events carry their payload under `data`; older shapes were flat. */
 function eventData(event) {
   return event && event.data && typeof event.data === "object" ? event.data : {}
@@ -193,6 +226,25 @@ export default {
 
     function gated(cwd) {
       return findRoot(cwd || place) !== null
+    }
+
+    // Command entry points: `/mycelium-extra:<skill>` here, as `/mycelium-extra:<skill>` in
+    // Claude Code and `$mycelium-extra:<skill>` in Codex. Each submits the skill's name and
+    // folder, so the command works whether or not the checkout is also a `skills` source.
+    const skills = skillCommands(root)
+    if (skills.length && ctx.command && typeof ctx.command.transform === "function") {
+      await ctx.command.transform((editor) => {
+        for (const skill of skills) {
+          editor.add({
+            name: "mycelium-extra:" + skill.id,
+            description: skill.description,
+            execute: async ({ sessionID, prompt, delivery }) => {
+              await ctx.session.prompt(
+                { ...prompt, sessionID, text: commandText(root, skill.id, prompt && prompt.text), delivery })
+            },
+          })
+        }
+      })
     }
 
     await ctx.tool.hook("execute.before", async (event) => {
@@ -314,6 +366,6 @@ export default {
 
 // Pure helpers, exercised by opencode/tests/gate.test.js under `node --test`.
 export const __test__ = {
-  appendContent, blockedPromptText, contentText, denyReason, eventLocation, executionEnded, findRoot,
-  gateCwd, idleSession, runGate, samePlace, textEnded,
+  appendContent, blockedPromptText, commandText, contentText, denyReason, eventLocation,
+  executionEnded, findRoot, gateCwd, idleSession, runGate, samePlace, skillCommands, textEnded,
 }
