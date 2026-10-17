@@ -5,3 +5,7 @@ docs/_build/
 
 # local session handoff (written by the handoff skill)
 HANDOFF.md
+
+# local evidence logs and planning scratch (not part of the plugin)
+docs/plans/evidence/
+/plans/
