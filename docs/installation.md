@@ -85,9 +85,10 @@ the highest-precedence source in OpenCode, so these generic IDs shadow
 same-named skills from other sources; see the
 [Skills reference](https://opencode.ai/v2/docs/skills/).
 
-OpenCode receipts record `host: opencode`. A shell result without an exit code
-records `unknown`, and verification reports a gap; the gate never infers
-success from a finished command.
+OpenCode receipts record `host: opencode` and the shell tool's exit code
+(`exit_source: response`). A result without one — a background task, or a tool
+error — records `unknown`, and verification reports that as a gap; the gate
+never infers success from a finished command.
 
 ## Codex
 
@@ -145,7 +146,7 @@ Only planning? Start with [Tier 1](usage.md#tier-1-plan); no `init` needed.
 | Planning, data contracts, decision status, scaffolding, handoff, harden | Supported | Supported | Supported |
 | Independent plan review | Leads Codex + Biomni synthesis | Engineering critique only | Not yet characterized |
 | Init, approval gate, pinned inputs, exploration | Supported | Supported with enabled/trusted hooks | Supported (qualified on 2.0.32) |
-| Run receipts and verification | Success/failure hook events provide status | Records receipts; absent exit metadata is a verification gap | Records receipts; exit status unknown without a result code |
+| Run receipts and verification | Success/failure hook events provide status | Records receipts; absent exit metadata is a verification gap | Records receipts; exit status from the shell result's exit code |
 | Gate state protection | Shell commands and file-edit tools | Shell commands and `apply_patch`, including move destinations | `shell`, `edit`, `write`, and `patch` tools |
 
 OpenCode V2 runs the planning skills through the `skills` setting and the

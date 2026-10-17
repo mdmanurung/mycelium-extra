@@ -182,7 +182,7 @@ Run steps in separate shell calls when each needs its own attributable receipt.
 
 Codex uses its own post hook and marks receipts with `host: codex`. In CLI 0.160.0, the hook provides command output without exit metadata. Its receipt therefore records `unknown`, and verification reports a gap. The gate never treats a line printed by the command as proof of its exit status.
 
-OpenCode uses the plugin adapter under `opencode/`, configured through the `plugins` setting ([Installation](installation.md#opencode)). Receipts are marked `host: opencode`; a shell result without an exit code records `unknown`, and verification reports a gap. The 2.0.32 server event stream is service-wide, so the adapter keeps only its own location's events for the stop check. Qualified on 2.0.32; see the [development notes](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/development.md).
+OpenCode uses the plugin adapter under `opencode/`, configured through the `plugins` setting ([Installation](installation.md#opencode)). Receipts are marked `host: opencode` and carry the shell tool's exit code (the adapter maps the result's `metadata.exit`); a result without one records `unknown`, and verification reports a gap. The 2.0.32 server event stream is service-wide, so the adapter keeps only its own location's events for the stop check. Qualified on 2.0.32; see the [development notes](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/development.md).
 
 ## Mycelium's post-action protocol
 

@@ -139,14 +139,18 @@ prompt registered the approval (a quote-wrapped `"approve plan c260d4cc"` was
 refused with "nothing approved"), and the approved `python3 analysis/x.py` ran
 and wrote a receipt with `host: opencode`, the plan credited, and
 `launch_match: matched`. A `write` into `.mycelium-extra/` was denied and left
-no file. Both a failed run (`python` missing, exit 127) and the successful run
-recorded `exit_status: unknown` with `response_keys: content, metadata, output`:
-the shell result carries no exit code, so the OpenCode receipt gap mirrors
-Codex. Notices delivered as synthetic messages persist in the transcript and
+no file. The first attempt recorded `exit_status: unknown` for both a failed run
+(`python` missing) and the successful run; a review pass then found the code in
+the shell result's `metadata.exit` (mirrored in `output.exit`), a launcher
+mapping gap rather than a host gap, and the adapter maps it to `exit_code`.
+Re-running recorded `exit_status: 127` and `exit_status: 0`, both
+`exit_source: response`. The shell tool reports the outcome `completed` even for
+a nonzero exit, so no status is ever inferred from that word. Notices delivered
+as synthetic messages persist in the transcript and
 are visible to the model as well as the user, and the model may proceed to run
 an approved plan immediately after the approval. `python3.12
-hooks/tests/test_opencode_gate.py` (6 tests), `node --test
-opencode/tests/gate.test.js` (8 tests), the 421-test gate suite, `gate_diff`
+hooks/tests/test_opencode_gate.py` (8 tests), `node --test
+opencode/tests/gate.test.js` (9 tests), the 421-test gate suite, `gate_diff`
 168/168, and the 103-test end-to-end suite passed. These checks validate the
 local candidate, not a published installation.
 

@@ -6,7 +6,7 @@ For the everyday workflow, start with [Usage tiers](usage.md#tier-3-verify-repor
 
 A finished job is only the beginning of checking an analysis. Did every planned step run? Did an input change? Does the number in the write-up match the saved table? After execution, `verify <hash>` compares the approved plan with the records that can answer those questions.
 
-It uses the gate's own table parser, so the scripts covered by verification are the same ones covered by approval. It reads the record without re-running the analysis. In Codex 0.160.0, missing hook exit metadata remains a gap even when the command appeared to finish successfully; an OpenCode receipt with no exit code in the shell result is the same gap.
+It uses the gate's own table parser, so the scripts covered by verification are the same ones covered by approval. It reads the record without re-running the analysis. In Codex 0.160.0, missing hook exit metadata remains a gap even when the command appeared to finish successfully; an OpenCode receipt whose shell result carries no exit code (a background task, or a tool error) is the same gap.
 
 Damaged receipt lines or workflow metadata are reported as evidence gaps, rather
 than silently discarded as a complete history. Malformed approval records produce
