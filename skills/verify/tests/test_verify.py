@@ -2961,5 +2961,331 @@ class LineageAndExploreHistoryTest(unittest.TestCase):
         self.assertNotIn("Verify status: CONFORMS\n", out)
 
 
+class QualificationTest(unittest.TestCase):
+    """C10: reportable qualification, content staleness, claim coverage, prose validation, rerun evidence.
+    Borrows VerifyTest's helpers rather than subclassing it, so the 155 tests above do not run again."""
+
+    for _name in ("setUp", "tearDown", "write", "fake_sacct", "fake_tool", "hook", "approve", "run_cmd", "post_only",
+                  "verify", "ends", "read_receipts", "rewrite_receipts", "bound_plan", "binding", "run_check",
+                  "sbatch_plan", "OUT", "CHECK", "EXPECT", "EVID", "CONTRACT_SCHEMA"):
+        locals()[_name] = VerifyTest.__dict__[_name]
+    del _name
+
+    def qual(self, digest, *args):
+        """{dimension: (state, reason)} and the whole record, from `report --json`."""
+        record = json.loads(self.verify("report", digest, "--json", *args))["qualification"]
+        return dict((d["dimension"], (d["state"], d["reason"])) for d in record["dimensions"]), record
+
+    def established(self, dims, *names):
+        for name in names:
+            self.assertEqual(dims[name][0], "established", (name, dims[name]))
+
+    # ---- qualification
+
+    def test_a_fully_matched_run_qualifies_without_extra_prompts(self):  # positive control
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        dims, record = self.qual(digest)
+        self.assertEqual(record["overall"], "qualified")
+        self.established(dims, "authorization", "completion", "code and input identity", "lineage")
+        self.assertEqual(dims["required validation"][0], "not applicable")
+        self.assertEqual(dims["claim linkage"][0], "not applicable")
+        out = self.verify("report", digest, "--require-reportable")  # exits 0
+        self.assertIn("Qualification: **qualified**", out)
+        self.assertNotIn("score", out.lower().split("## planned scripts")[0])  # no composite score
+        self.ends(out, "CONFORMS")  # the legacy status is separate and unchanged
+
+    def test_a_required_check_that_never_ran_leaves_the_run_unqualified(self):
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        dims, record = self.qual(digest)
+        self.assertEqual(record["overall"], "not qualified")
+        self.assertEqual(dims["required validation"][0], "not established")
+        self.assertIn("V1", dims["required validation"][1])
+        out = self.verify("report", digest)  # without the flag: same exit, same three status names
+        self.assertIn("Qualification: **not qualified**", out)
+        self.assertIn("Limitation:", out.split("## Planned scripts")[0])
+        self.ends(out, "CONFORMS_WITH_GAPS")
+        err = self.verify("report", digest, "--require-reportable", fails=True)
+        self.assertIn("required validation", err)
+
+    def test_a_passed_required_check_is_established(self):  # control
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        self.run_check({"status": "passed"})
+        dims, record = self.qual(digest)
+        self.assertEqual(dims["required validation"][0], "established")
+
+    def test_a_run_only_submitted_to_slurm_is_not_complete(self):
+        digest = self.sbatch_plan()
+        pending = self.fake_sacct("4242|PENDING|0:0|2026-09-30T10:00:00|2026-09-30T10:05:00")
+        record = json.loads(self.verify("report", digest, "--json", sacct=pending))["qualification"]
+        dims = dict((d["dimension"], (d["state"], d["reason"])) for d in record["dimensions"])
+        self.assertEqual(dims["completion"][0], "not established")
+        self.assertIn("PENDING", dims["completion"][1])
+        done = self.fake_sacct("4242|COMPLETED|0:0|2026-09-30T10:00:00|2026-09-30T10:05:00")  # control
+        record = json.loads(self.verify("report", digest, "--json", sacct=done))["qualification"]
+        self.assertEqual([d["state"] for d in record["dimensions"] if d["dimension"] == "completion"], ["established"])
+
+    def test_an_unmatched_run_is_not_an_authorized_one(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.write(self.OUT, "x\n")
+        self.post_only("python " + FIT)  # a Post with no Pre
+        dims, _ = self.qual(digest)
+        self.assertEqual(dims["authorization"][0], "not established")
+        self.assertIn("unmatched", dims["authorization"][1])
+
+    def test_an_unresolved_producer_leaves_lineage_unestablished(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        receipt = self.run_cmd("python " + FIT)  # print-only
+        self.write(self.OUT, "x\n", mtime=receipt["ts"] - 1)  # an independent writer
+        dims, record = self.qual(digest)
+        self.established(dims, "authorization", "completion")
+        self.assertEqual(dims["lineage"][0], "not established")
+        self.assertIn(self.OUT, dims["lineage"][1])
+        self.assertIn("candidate producer (timing-only)", dims["lineage"][1])
+        self.assertEqual(record["overall"], "not qualified")
+
+    def test_a_declared_output_that_does_not_exist_leaves_lineage_unestablished(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT + " analysis/a/outputs/missing.tsv"))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        dims, _ = self.qual(digest)
+        self.assertEqual(dims["lineage"][0], "not established")
+        self.assertIn("missing.tsv", dims["lineage"][1])
+
+    def test_outputs_none_makes_lineage_not_applicable(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs="none"))
+        self.run_cmd("python " + FIT)
+        dims, _ = self.qual(digest)
+        self.assertEqual(dims["lineage"][0], "not applicable")
+
+    def claim_plan(self, written_in_run):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/outputs/de.tsv"))
+        table = "gene\tlog2fc\nIL7R\t1.235\n"
+        receipt = self.run_cmd("python " + FIT, writes={"analysis/a/outputs/de.tsv": table} if written_in_run else None)
+        if not written_in_run:
+            self.write("analysis/a/outputs/de.tsv", table, mtime=receipt["ts"] - 1)
+        self.write("analysis/a/A.md", "# a\n\n<!--\nclaims\n- 1.235 | outputs/de.tsv log2fc IL7R\n-->\n".replace("<!--\nclaims", "<!-- claims"))
+        return digest
+
+    def test_a_matched_claim_cell_with_an_unresolved_producer_shows_both_facts(self):
+        digest = self.claim_plan(written_in_run=False)
+        dims, record = self.qual(digest)
+        reason = dims["claim linkage"][1]
+        self.assertEqual(dims["claim linkage"][0], "not established")
+        self.assertIn("matched", reason)
+        self.assertIn("not supported", reason)
+        self.assertIn("(candidate)", reason)  # a timing-only candidate is not an established producer
+        self.assertEqual(dims["lineage"][0], "not established")
+        out = self.verify("report", digest)
+        self.assertIn("1 verified", out)  # the cell match itself is still reported
+
+    def test_a_matched_claim_cell_with_a_supported_producer_is_linked(self):  # control
+        digest = self.claim_plan(written_in_run=True)
+        dims, record = self.qual(digest)
+        self.assertEqual(dims["claim linkage"][0], "established", dims["claim linkage"])
+        self.assertEqual(record["overall"], "qualified")
+
+    def test_a_metadata_only_pin_is_not_counted_as_strong(self):
+        self.write("data/in.tsv", "a\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT, inputs="data/in.tsv"))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        dims, _ = self.qual(digest)
+        self.established(dims, "code and input identity")  # control: a hashed pin
+        path = gate.state_path(self.root, "approvals", digest + ".json")
+        record = gate.read_json(path, {})
+        record["pins"]["data/in.tsv"].pop("sha256")
+        with open(path, "w") as handle:
+            json.dump(record, handle)
+        dims, overall = self.qual(digest)
+        self.assertEqual(dims["code and input identity"][0], "not established")
+        self.assertIn("metadata only", dims["code and input identity"][1])
+        self.assertEqual(overall["overall"], "not qualified")
+
+    def test_a_changed_input_is_not_established(self):
+        self.write("data/in.tsv", "a\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT, inputs="data/in.tsv"))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.write("data/in.tsv", "bb\n")
+        dims, _ = self.qual(digest)
+        self.assertEqual(dims["code and input identity"][0], "not established")
+
+    def test_write_saves_an_honest_record_even_when_reportable_is_required(self):
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        err = self.verify("write", digest, "--analysis-dir", "analysis/a", "--require-reportable", fails=True)
+        self.assertIn("required validation", err)
+        self.assertTrue(os.path.isfile(os.path.join(self.root, "analysis/a/provenance/verify-{}.md".format(digest))))
+        row, = json.loads(self.verify("status", "--json"))
+        self.assertEqual(row["verified"], "CONFORMS_WITH_GAPS (complete)")
+        self.assertEqual(row["reportable"], "not qualified")
+        self.assertIn("| not qualified |", self.verify("status"))
+
+    def test_status_reads_a_qualified_record_back(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        row, = json.loads(self.verify("status", "--json"))
+        self.assertEqual(row["reportable"], "qualified")
+
+    # ---- stale --content
+
+    def verified_output(self, name="fit.tsv", text="x\n"):
+        rel = "analysis/a/outputs/" + name
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=rel))
+        self.run_cmd("python " + FIT, writes={rel: text})
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        return digest, rel
+
+    def mutate_in_place(self, rel, text):
+        path = os.path.join(self.root, rel)
+        info = os.stat(path)
+        with open(path, "w") as handle:
+            handle.write(text)
+        os.utime(path, (info.st_atime, info.st_mtime))
+
+    def test_content_checking_catches_a_same_size_same_mtime_mutation(self):
+        digest, rel = self.verified_output()
+        self.mutate_in_place(rel, "y\n")
+        out = self.verify("stale")
+        self.assertTrue(out.startswith("0 of 1 verified plans stale"), out)  # metadata cannot see it
+        self.assertIn("metadata checked", out)
+        content = self.verify("stale", "--content")
+        self.assertIn("output `{}` content differs from the SHA256 verify saved".format(rel), content)
+        self.assertTrue(content.strip().endswith("1 of 1 verified plans stale."), content)
+        data = json.loads(self.verify("stale", "--content", "--json"))
+        self.assertEqual(data["mode"], "content")
+        self.assertEqual(data["stale"][0]["content_checked"], 1)
+
+    def test_an_unchanged_output_passes_content_checking(self):  # control
+        digest, rel = self.verified_output()
+        out = self.verify("stale", "--content")
+        self.assertTrue(out.startswith("0 of 1 verified plans stale"), out)
+        self.assertIn("content checked", out)
+        self.assertNotIn("content not checked", out)
+
+    def test_default_stale_is_labelled_metadata_checked(self):
+        digest, rel = self.verified_output()
+        self.assertEqual(json.loads(self.verify("stale", "--json"))["mode"], "metadata")
+        self.assertIn("metadata checked", self.verify("stale"))
+
+    def test_an_exhausted_budget_says_content_not_checked(self):
+        digest, rel = self.verified_output()
+        self.mutate_in_place(rel, "y\n")
+        out = self.verify("stale", "--content", "--hash-mb", "0")
+        self.assertIn("content not checked", out)
+        self.assertNotIn("content differs", out)
+        self.assertNotIn("content checked for", out)
+
+    def test_a_notebook_output_is_identified_by_its_raw_bytes(self):
+        def notebook(value):
+            return json.dumps({"cells": [{"cell_type": "code", "source": ["print(1)"], "metadata": {}, "execution_count": 1,
+                                          "outputs": [{"output_type": "stream", "name": "stdout", "text": [value]}]}],
+                               "metadata": {}, "nbformat": 4, "nbformat_minor": 5})
+        digest, rel = self.verified_output("nb.ipynb", notebook("AAAA"))
+        out = self.verify("stale")  # the code cells' length is not the file's size: this was "rewritten" before
+        self.assertTrue(out.startswith("0 of 1 verified plans stale"), out)
+        self.mutate_in_place(rel, notebook("BBBB"))  # same code cells, same size, same mtime, different result
+        self.assertIn("1 of 1 verified plans stale", self.verify("stale", "--content"))
+
+    # ---- claim coverage
+
+    def claim_doc(self, block, prose=""):
+        digest = self.approve(plan("run `{}`".format(FIT),
+                                   outputs="analysis/a/outputs/de.tsv analysis/a/outputs/numbers.json"))
+        self.run_cmd("python " + FIT, writes={
+            "analysis/a/outputs/de.tsv": "gene\tlog2fc\nIL7R\t1.23456\n",
+            "analysis/a/outputs/numbers.json": '{"qc": {"n": 48}}'})
+        self.write("analysis/a/A.md", "# a\n\n## Key Findings\n\n{}\n<!-- claims\n{}\n-->\n".format(prose, block))
+        return digest
+
+    def test_claim_coverage_counts_and_the_registered_value_caveat(self):
+        digest = self.claim_doc("- 1.235 | outputs/de.tsv log2fc IL7R\n- 9 | outputs/de.tsv log2fc IL7R\n"
+                                "- 48 | outputs/numbers.json qc.n\n- 7 | outputs/missing.tsv x\nnot a claim line",
+                                prose="IL7R rose by 1.235 in 48 donors, n = 12.")
+        doc, = json.loads(self.verify("report", digest, "--json"))["claims"]
+        self.assertEqual(doc["coverage"], {"blocks": 1, "claim_lines": 5, "unparsed_lines": 1, "cells_checked": 3,
+                                           "matched": 2, "mismatched": 1, "unverified": 1, "registered": 1,
+                                           "prose_numbers_listed": 1})
+        out = self.verify("report", digest)
+        self.assertIn("Coverage: 1 block(s), 5 claim line(s) (1 unparsed); 3 cell(s) checked, 2 matched, 1 mismatched, "
+                      "1 unverified; 1 prose number(s) listed, not checked", out)
+        self.assertIn("registered `numbers.json` value", out)
+        self.assertIn("not which run wrote it", out)
+        self.assertIn("**info**: 1 claim(s) cite a registered", out)
+
+    def test_no_registered_value_means_no_caveat(self):  # control
+        digest = self.claim_doc("- 1.235 | outputs/de.tsv log2fc IL7R")
+        self.assertNotIn("registered", self.verify("report", digest))
+
+    # ---- prose Validation cells (F06 residual)
+
+    def test_prose_validation_cells_are_counted_as_info(self):
+        digest = self.approve(plan("run `{}`".format(FIT), "run `{}`".format(FIT), outputs=self.OUT))
+        out = self.verify("report", digest)
+        self.assertIn("**info**: 2 Validation cells are prose only; nothing checks them", out)
+        self.assertNotIn("**gap**: 2 Validation", out)
+
+    def test_a_validation_binding_covers_its_row(self):  # control
+        digest = self.approve(self.bound_plan())  # row 2 is bound, row 1 is not
+        out = self.verify("report", digest)
+        self.assertIn("**info**: 1 Validation cell is prose only; nothing checks it", out)
+
+    def test_empty_validation_cells_are_not_prose(self):  # control
+        text = plan("run `{}`".format(FIT), outputs=self.OUT).replace("| user | ok |", "| user | - |")
+        out = self.verify("report", self.approve(text))
+        self.assertNotIn("prose only", out)
+
+    # ---- rerun evidence
+
+    RUN = "analysis/a/run.sh"
+
+    def entry_plan(self):
+        self.write(self.RUN, "echo hi\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("run `{}`".format(self.RUN), outputs=self.OUT))
+        self.run_cmd("bash " + self.RUN, writes={self.OUT: "x\n"})
+        return digest
+
+    def rerun_of(self, digest):
+        return json.loads(self.verify("report", digest, "--json"))["rerun"]
+
+    def test_an_entry_point_that_was_declared_but_not_rerun(self):
+        digest = self.entry_plan()
+        entry, = self.rerun_of(digest)
+        self.assertEqual((entry["path"], entry["state"]), (self.RUN, "declared"))
+        self.assertIn("entry point declared", self.verify("report", digest))
+
+    def test_a_plan_with_no_entry_point_has_no_rerun_section(self):  # control
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.assertEqual(self.rerun_of(digest), [])
+        self.assertNotIn("## Rerun", self.verify("report", digest))
+
+    def saved_then_rerun(self, text):
+        digest = self.entry_plan()
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        time.sleep(1.1)
+        self.run_cmd("bash " + self.RUN, writes={self.OUT: text})
+        return digest
+
+    def test_a_rerun_with_different_content_is_attempted_not_reproduced(self):
+        entry, = self.rerun_of(self.saved_then_rerun("different\n"))
+        self.assertEqual(entry["state"], "rerun attempted")
+        self.assertIn(self.OUT, entry["reason"])
+
+    def test_a_rerun_with_equal_content_reproduced_the_saved_artifacts(self):
+        digest = self.saved_then_rerun("x\n")
+        entry, = self.rerun_of(digest)
+        self.assertEqual(entry["state"], "rerun reproduced specified artifacts")
+        self.assertIn("rerun reproduced specified artifacts", self.verify("report", digest))
+
+    def test_a_rerun_before_any_saved_record_cannot_be_compared(self):
+        digest = self.entry_plan()
+        self.run_cmd("bash " + self.RUN, writes={self.OUT: "x\n"})
+        entry, = self.rerun_of(digest)
+        self.assertEqual(entry["state"], "declared")
+        self.assertIn("no saved", entry["reason"])
+
+
 if __name__ == "__main__":
     unittest.main()

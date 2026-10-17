@@ -4,9 +4,9 @@ Stdlib-only; runs on Python 3.6+. Run it from stdin, inside the repository, so
 Mycelium's hooks do not open the post-action cycle:
 
     python3 - --plugin-root <root> list < verify.py
-    python3 - --plugin-root <root> report <hash> [--analysis-dir DIR] [--claims DOC] [--instance ID] [--json] < verify.py
-    python3 - --plugin-root <root> write <hash> --analysis-dir DIR [--claims DOC] [--instance ID] < verify.py
-    python3 - --plugin-root <root> stale [--json] < verify.py
+    python3 - --plugin-root <root> report <hash> [--analysis-dir DIR] [--claims DOC] [--instance ID] [--require-reportable] [--json] < verify.py
+    python3 - --plugin-root <root> write <hash> --analysis-dir DIR [--claims DOC] [--instance ID] [--require-reportable] < verify.py
+    python3 - --plugin-root <root> stale [--content] [--json] < verify.py
     python3 - --plugin-root <root> status [--json] < verify.py
     python3 - --plugin-root <root> explore [--session ID | --all] [--json] < verify.py
     python3 - --plugin-root <root> runs [RESULTS_DIR] [--json] < verify.py
@@ -1249,6 +1249,18 @@ def conda_snapshots(root, runs, report):
     return snapshots
 
 
+def prose_validation(plan, binding, report):
+    """F06 residual, info: Validation cells that hold prose while no validation binding covers their row. The
+    cell is not executed or reconciled, so this says so; it is not a gap (the plan did not ask for a check)."""
+    rows = plan_rows(plan)[0]
+    covered = set(str(c.get("plan_row")) for c in (binding or {}).get("checks") or [])
+    prose = [key for key, row in rows.items() if key not in covered
+             and row.get("validation", "").strip(" -\u2013\u2014*_").lower() not in ("", "none", "n/a", "na")]
+    if prose:
+        report.add("info", "{} Validation cell{} prose only; nothing checks {}.".format(
+            len(prose), " is" if len(prose) == 1 else "s are", "it" if len(prose) == 1 else "them"))
+
+
 def default_reasons(plan, report):
     """D9, advisory: each plan row whose `default:` gives no usable reason is an info finding, so the
     status does not change. The check lives in plan-review's scripts and is imported from the plugin
@@ -1411,7 +1423,7 @@ def check_claims(root, analysis_dir, outputs, extra, report, max_bytes):
                 report.add("gap", "Claims not checked in `{}`: {}.".format(
                     doc, "it does not exist" if text is None else "it has no `<!-- claims -->` block"))
             continue
-        claims, values = [], []
+        claims, values, unparsed = [], [], 0
         for block in blocks:
             line_no = text.count("\n", 0, block.start(1)) + 1
             for offset, line in enumerate(block.group(1).split("\n")):
@@ -1421,6 +1433,7 @@ def check_claims(root, analysis_dir, outputs, extra, report, max_bytes):
                 match = CLAIM_LINE.match(line)
                 words = match.group(4).split(None, 2) if match else []
                 if len(words) < 2:
+                    unparsed += 1
                     report.add("gap", "{}: claims line does not parse (want `value | file column [row]`): "
                                       "`{}`.".format(where, cell(line.strip())[:80]))
                     continue
@@ -1432,7 +1445,7 @@ def check_claims(root, analysis_dir, outputs, extra, report, max_bytes):
                     path = os.path.normpath(words[0])
                 entry = {"doc": doc, "line": line_no + offset, "claim": (qualifier or "") + raw + percent,
                          "file": path, "column": words[1], "row": words[2] if len(words) > 2 else None,
-                         "observed": None}
+                         "observed": None, "registered": os.path.basename(path) == "numbers.json"}
                 claims.append(entry)
                 coordinate = "`{}` {}{}".format(path, words[1], " row " + entry["row"] if entry["row"] else "")
                 if claim is None:
@@ -1488,7 +1501,19 @@ def check_claims(root, analysis_dir, outputs, extra, report, max_bytes):
                                "{}{}.".format(len(loose), doc, ", ".join(shown[:12]),
                                               " and {} more".format(len(shown) - 12) if len(shown) > 12 else ""))
         counts = collections.Counter(c["verdict"] for c in claims)
-        checked.append({"doc": doc, "claims": claims, "counts": dict(counts), "not_claims": len(loose)})
+        matched = counts["verified"] + counts["verified-transform"]
+        compared = matched + counts["mismatch"] + counts["explore-only"]  # a cell was read and compared
+        coverage = {"blocks": len(blocks), "claim_lines": len(claims) + unparsed, "unparsed_lines": unparsed,
+                    "cells_checked": compared, "matched": matched, "mismatched": counts["mismatch"],
+                    "unverified": counts["unverified"], "registered": sum(1 for c in claims if c["registered"]),
+                    "prose_numbers_listed": len(loose)}
+        checked.append({"doc": doc, "claims": claims, "counts": dict(counts), "not_claims": len(loose),
+                        "coverage": coverage})
+    registered = sum(c["coverage"]["registered"] for c in checked)
+    if registered:
+        report.add("info", "{} claim(s) cite a registered `numbers.json` value: Mycelium's `register_value` upserts, so a "
+                           "matching value shows the file's current content, not which run wrote it. Run attribution needs "
+                           "the output's producer (artifact and run identity) above, not the number.".format(registered))
     return checked
 
 
@@ -1572,7 +1597,7 @@ def gate_error_gaps(root, report, approved_at, sessions):
     plan's. The record gives a time and an event, never an action: this is a bounded gap."""
     path = gate.state_path(root, "gate-errors.jsonl")
     if not os.path.exists(path):
-        return
+        return 0
     invalid = []
     try:
         errors = read_jsonl(path, invalid)
@@ -1583,10 +1608,12 @@ def gate_error_gaps(root, report, approved_at, sessions):
         report.add("gap", "The gate's error journal `{}` is unreadable or has {} malformed record(s) (lines {}); "
                    "observation history unavailable, so errors in this plan's window may be missing.".format(
                        os.path.relpath(path, root), len(invalid), ", ".join(map(str, invalid[:12]))))
+    counted = 0
     for error in errors:
         session = error.get("session_id")
         if int(approved_at) <= error["ts"] <= time.time() + TOLERANCE \
                 and (not isinstance(session, str) or not session or session in sessions):
+            counted += 1
             event, decision = error.get("event"), error.get("decision")
             report.add("gap", "Gate error at {} (event `{}`{}{}); observation is incomplete there: the gate did "
                        "not check or record what it saw, so a run in that period may be missing from the "
@@ -1594,6 +1621,7 @@ def gate_error_gaps(root, report, approved_at, sessions):
                            when(error["ts"]), str(event)[:40] if event else "unknown",
                            ", decision {}".format(str(decision)[:20]) if decision else "",
                            ", session {}".format(session) if isinstance(session, str) and session else ""))
+    return counted
 
 
 def instance_findings(report, digest, chosen, current, frozen, history, mine, approved_at, explicit):
@@ -1638,14 +1666,17 @@ def launch_findings(report, mine, abandoned, digest, chosen, approved_at):
     if legacy:
         report.add("info", "{} receipt(s) predate launch matching (launch link not recorded); they are read as before "
                            "and never as matched launches.".format(legacy))
+    open_attempts = 0
     for attempt in abandoned:
         if digest not in attempt["plans"]:
             continue
         instance = attempt["instances"].get(digest)
         if (instance != chosen) if instance and chosen else attempt["started"] < approved_at - TOLERANCE:
             continue  # another freeze of this plan, or (no instance recorded) an attempt before the approval
+        open_attempts += 1
         report.add("gap", "Attempt started at {} (`{}`) has no completion record: the call never reported back, so "
                           "what it ran or wrote is not known.".format(when(attempt["started"]), attempt["command"][:60]))
+    return open_attempts
 
 
 def check_receipt(report, r, judge_job=None):
@@ -1940,13 +1971,14 @@ def exact_findings(report, mine, execution):
     """A gap for each run of an instance that declares exact execution but was not matched to a declared step
     (a validation check's own run is matched by its invocation instead)."""
     if not execution:
-        return
+        return 0
     off = [r for r in mine if r.get("exact_match") is not True and not r.get("validation_check")]
     if off:
         report.add("gap", "{} run(s) are outside the exact reportable contract the plan declares (`exact-execution`): no declared step "
                           "was matched to them, so their command is not frozen: {}.".format(
                               len(off), "; ".join("`{}` at {}".format(r.get("command", "")[:60], when(r.get("ts"))) for r in off[:3])
                               + (" and {} more".format(len(off) - 3) if len(off) > 3 else "")))
+    return len(off)
 
 
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
@@ -2021,13 +2053,13 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     if invalid_receipts:
         report.add("gap", "{} malformed receipt record(s) were skipped (lines {}); the run history "
                    "is incomplete.".format(len(invalid_receipts), ", ".join(map(str, invalid_receipts[:12]))))
-    gate_error_gaps(root, report, approved_at, {session} | {r.get("session_id") for r in mine})
+    gate_errors = gate_error_gaps(root, report, approved_at, {session} | {r.get("session_id") for r in mine})
     instance_findings(report, digest, chosen, current, frozen, history, mine, approved_at, bool(instance))
     abandoned = abandoned_attempts(root)
-    launch_findings(report, mine, abandoned, digest, chosen, approved_at)
+    open_attempts = launch_findings(report, mine, abandoned, digest, chosen, approved_at)
     frozen_blocks = frozen if frozen is not None else approval  # the plan's validation and exact-execution blocks, as approved
     execution, binding = frozen_blocks.get("execution"), frozen_blocks.get("validation")
-    exact_findings(report, mine, execution)
+    off_contract = exact_findings(report, mine, execution)
     if invalid_metadata:
         report.add("gap", "{} unreadable or malformed Snakemake record(s) were skipped; workflow "
                    "evidence is incomplete.".format(len(invalid_metadata)))
@@ -2070,7 +2102,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         return "job {} {}".format(job_id, state or "state unknown (no sacct)")
 
     for path in planned:
-        row = {"path": path, "status": "no receipt", "last_run": None, "notes": []}
+        row = {"path": path, "status": "no receipt", "last_run": None, "notes": [], "complete": False, "identity": None}
         direct = [r for r in mine if path in ran_paths(root, r) or submitted(r, path)]
         judged.update(id(r) for r in direct)
         inside = [m for m in smk if mentions(m["command"], root, path, m["workdir"])]
@@ -2080,6 +2112,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             inside = [m for m in smk if m["rule"] in rules and os.path.normpath(m["workdir"]) == folder]
         if direct:
             last = direct[-1]
+            row["complete"] = completed(last, jobs, shared)[0]
             shown.add(last.get("job_id"))
             row["last_run"] = last["ts"]
             code = last.get("exit_status")
@@ -2113,6 +2146,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             recorded = last.get("script") or {}
             if recorded.get("path") == path and not recorded.get("missing"):
                 now = gate.fingerprint(os.path.join(root, path), budget, pin=recorded)
+                row["identity"] = script_identity(recorded, now)
                 if now.get("missing"):
                     row["notes"].append("deleted since it ran")
                     report.add("block", "`{}` was deleted after its run at {}, so its outputs cannot be "
@@ -2132,6 +2166,9 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         elif inside:
             last = max(inside, key=lambda m: m["end"])
             owner = wrapper_receipt(since, last)
+            row["identity"] = "metadata only"  # only the file's time is compared with the rule's start
+            row["complete"] = not last["incomplete"] and bool(owner) and not owner.get("explore") \
+                and digest in owner.get("plans", [])
             row["last_run"] = last["end"]
             row["status"] = "ran in Snakemake rule `{}`".format(last["rule"])
             row["notes"].append("inside " + describe_run(owner, digest))
@@ -2142,10 +2179,12 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                     path, last["rule"], describe_run(owner, digest)))
             try:
                 if os.stat(os.path.join(root, path)).st_mtime > last["start"] + TOLERANCE:
+                    row["identity"] = "edited"
                     row["notes"].append("edited since it ran")
                     report.add("block", "`{}` was edited after its Snakemake run at {}.".format(
                         path, when(last["end"])))
             except OSError:
+                row["identity"] = "deleted"
                 row["notes"].append("deleted since it ran")
                 report.add("block", "`{}` was deleted after its Snakemake run at {}, so its outputs cannot "
                                     "be checked against the code.".format(path, when(last["end"])))
@@ -2244,7 +2283,9 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         now = gate.fingerprint(os.path.join(root, rel), budget, pin=pin)
         changed = not gate.unchanged(pin, now)
         inputs.append({"path": rel, "pinned": gate.describe(pin), "now": gate.describe(now),
-                       "changed": changed})
+                       "changed": changed,
+                       "evidence": "not re-checked" if now.get("skipped") else
+                       "content" if pin.get("sha256") and now.get("sha256") else "metadata only"})
         if changed:
             report.add("block", "Input `{}` changed since the approval (was {}, now {}).".format(
                 rel, gate.describe(pin), gate.describe(now)))
@@ -2291,7 +2332,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                 grade = grade_output(rel, mtime, exact or bool(re.search(r"[*?\[]", word)), since, mine, digest, jobs,
                                      abandoned, wrapper_candidates(since, record) if record else None)
                 owner, via = grade["owner"], "Snakemake rule `{}`".format(record["rule"]) if record else None
-                fingerprint = gate.fingerprint(full, budget)
+                fingerprint = output_fingerprint(full, budget)
                 found = lineage_for(root, rel, mtime, fingerprint.get("sha256"), lineage, since)
                 apply_lineage(grade, found, digest, rel)
                 lineage_findings(report, rel, found)
@@ -2382,12 +2423,15 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     elsewhere = set(r.get("validation_check") for r in receipts if digest in r.get("plans", []) and not r.get("explore")
                     and chosen and r.get("approval_instance") != chosen)
     validated = check_validations(root, report, binding, mine, elsewhere) if binding else []
+    prose_validation(plan, binding, report)
 
     launches = collections.Counter(launch_kind(r) for r in mine)
     strengths = collections.Counter(row["strength"] for row in outputs)
     scope = {"runs": len(mine), "launch": {k: launches.get(k, 0) for k in ("matched", "unmatched", "ambiguous", "legacy")},
              "outputs": len(outputs), "supported": strengths.get("supported", 0),
              "candidate": strengths.get("candidate", 0), "unresolved": strengths.get("unresolved", 0)}
+    scope["observation"] = {"gate_errors": gate_errors, "open_attempts": open_attempts, "off_contract": off_contract,
+                            "steps": completion_steps(root, scripts, latest, commands, folders, granted, mine, jobs, shared)}
     return {"hash": digest, "approved_at": approved_at, "start": start, "session_id": session,
             "instance": {"selected": chosen, "current": current, "history": dict(history)}, "scope": scope,
             "analysis_dir": analysis_dir, "git": gate.git_state(root), "runs": len(mine),
@@ -2398,6 +2442,271 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             # Kept for the record (a scaffolder call can explain a moved input), marked as not runs.
             "receipts": sorted(mine + [dict(r, not_a_run="only passed planned paths to other code")
                                        for r in handed], key=lambda r: r.get("ts", 0))}
+
+
+# ---------------------------------------------------------------- reportable qualification (C10)
+
+def completed(r, jobs, shared):
+    """(whether this attempt completed, why not). A completion needs an integer exit 0; a background start, a compound
+    command whose step is not attributable, or a Slurm submission (exit 0 of `sbatch`) is not one until sacct says the
+    job COMPLETED, and a job id shared by several sbatch commands says nothing about this one."""
+    code = r.get("exit_status")
+    if isinstance(code, bool) or not isinstance(code, int):
+        why = "started in the background (exit status unknown)" if r.get("background") else \
+            "compound command, step outcome not attributable" if "command_exit_status" in r else \
+            "failed without an exit code" if code == "failed" else "interrupted" if code == "interrupted" else \
+            "exit status not recorded"
+        return False, why
+    if code != 0:
+        return False, "failed (exit {})".format(code)
+    job = r.get("job_id")
+    if job:
+        state = (jobs.get(job) or {}).get("state")
+        if job in shared:
+            return False, "submitted as job {}; its state is not attributable".format(job)
+        if state != "COMPLETED":
+            return False, "submitted to Slurm as job {}; its state is {}".format(job, state or "unknown")
+    return True, "exit 0"
+
+
+def script_identity(recorded, now):
+    """How the script's current bytes compare with the ones that ran: deleted, edited, metadata only (a size and time
+    comparison, no content hash on one side), or unchanged (content hashes agree)."""
+    if now.get("missing"):
+        return "deleted"
+    if not gate.unchanged(recorded, now):
+        return "edited"
+    return "unchanged" if recorded.get("sha256") and now.get("sha256") else "metadata only"
+
+
+def completion_steps(root, scripts, latest, commands, folders, granted, mine, jobs, shared):
+    """Every planned step with its latest attempt's completion: script rows, the latest unjudged command or folder
+    run of each step, a named command with no run, and a granted folder with no run in it."""
+    steps = [{"step": "`{}`".format(r["path"]), "complete": r["complete"], "why": r["status"]} for r in scripts]
+    for r in sorted(latest.values(), key=lambda r: r.get("ts", 0)):
+        done, why = completed(r, jobs, shared)
+        steps.append({"step": "`{}`".format(r.get("command", "")[:60]), "complete": done, "why": why})
+    for command in commands:
+        if not any(r.get("kind") == command for r in mine):
+            steps.append({"step": "`{}`".format(command), "complete": False, "why": "no run recorded"})
+    for folder in folders:
+        if folder in granted and not any(any(under(p, folder) for p in ran_paths(root, r))
+                                         or under(r.get("cwd") or ".", folder) for r in mine):
+            steps.append({"step": "`{}/`".format(folder), "complete": False, "why": "no run recorded"})
+    return steps
+
+
+def missing_outputs(root, words, analysis_dir):
+    """The `Outputs:` words that name no existing file, found as the check finds them (a bare name may be read
+    inside the analysis folder; code in a named folder is not an output)."""
+    missing = []
+    for word, (files, exact) in expand_outputs(root, words).items():
+        local = os.path.join(analysis_dir, word) if analysis_dir else None
+        if not files and local and expand_outputs(root, [local])[local][0]:
+            files, exact = expand_outputs(root, [local])[local]
+        if not exact:
+            files = [f for f in files if not (gate.SCRIPT_EXT.search(f) or is_snakefile(f))]
+        if not files:
+            missing.append(word)
+    return missing
+
+
+ACTIONS = {
+    "authorization": "run the planned steps again under this approval so the gate records matched launches, or approve "
+                     "a plan for what actually ran",
+    "completion": "let each planned step finish with exit 0 (a submitted batch job must reach COMPLETED), then report again",
+    "code and input identity": "restore or re-approve the changed code or input, or pin it with a content hash",
+    "lineage": "re-run so the gate sees each declared output change during a matched attempt, or correct the "
+               "`Outputs:` line",
+    "required validation": "run each required check as a matched attempt that writes its result",
+    "claim linkage": "correct the claim, or re-run so each cited output has a supported producer",
+}
+
+
+def qualify(root, result):
+    """Whether this approval instance's evidence is complete enough to report from, one answer per dimension:
+    established, not established (with the reason) or not applicable. It is computed from the check's structured
+    records, is separate from the legacy aggregate status, and is not a scientific judgement or a score: the run is
+    `qualified` only when every applicable dimension is established."""
+    scope, found = result["scope"], result["scope"].get("observation") or {}
+    dims = []
+
+    def add(name, problems, ok, applicable=True):
+        dims.append({"dimension": name, "state": "not applicable" if not applicable else
+                     "not established" if problems else "established",
+                     "reason": "; ".join(problems) if problems else ok})
+
+    def cap(items, n=3):
+        return ", ".join(items[:n]) + (" and {} more".format(len(items) - n) if len(items) > n else "")
+
+    launch, runs = scope["launch"], scope["runs"]
+    problems = ["no run is recorded under this approval instance"] if not runs else \
+        ["{} run(s) {}".format(launch[k], what) for k, what in (
+            ("unmatched", "unmatched (a Post with no checked launch)"), ("ambiguous", "ambiguous (identical launches)"),
+            ("legacy", "legacy (launch link not recorded)")) if launch[k]]
+    if not (result["instance"] or {}).get("selected"):
+        problems.append("the approval predates approval instances")
+    for key, what in (("gate_errors", "gate error(s) in the observation window"),
+                      ("open_attempts", "attempt(s) with no completion record"),
+                      ("off_contract", "run(s) outside the declared exact execution")):
+        if found.get(key):
+            problems.append("{} {}".format(found[key], what))
+    add("authorization", problems, "{} of {} run(s) are matched launches under approval instance {}".format(
+        launch["matched"], runs, result["instance"]["selected"]))
+
+    steps = found.get("steps") or []
+    undone = ["{} ({})".format(s["step"], s["why"]) for s in steps if not s["complete"]]
+    add("completion", undone or ([] if steps else ["no planned step is named in the plan table"]),
+        "all {} planned step(s): the latest attempt of each completed".format(len(steps)))
+
+    problems, strong = [], 0
+    for row in result["scripts"]:
+        if row["last_run"] is None:
+            continue
+        state = row["identity"] or "not recorded"
+        if state == "unchanged":
+            strong += 1
+        else:
+            problems.append("script `{}` {}".format(row["path"], {
+                "edited": "was edited after it ran", "deleted": "was deleted after it ran",
+                "metadata only": "was compared by metadata only", "not recorded": "has no fingerprint in its receipt"}[state]))
+    for row in result["inputs"]:
+        if row["changed"]:
+            problems.append("input `{}` changed".format(row["path"]))
+        elif row["evidence"] == "content":
+            strong += 1
+        else:
+            problems.append("input `{}` is {}".format(row["path"], "metadata only (no content hash)"
+                                                      if row["evidence"] == "metadata only" else "not re-checked"))
+    if not strong and not problems:
+        problems.append("no script or input fingerprint is recorded")
+    add("code and input identity", problems, "{} script(s) and input(s) unchanged, compared by content hash".format(strong))
+
+    words = result["outputs_named"]
+    if words is not None and not words:
+        add("lineage", [], "", applicable=False)
+        dims[-1]["reason"] = "the plan declares no output (`Outputs: none`)"
+    else:
+        rows = result["outputs"]
+        problems = ["the plan has no `Outputs:` line"] if words is None else \
+            ["declared output `{}` does not exist".format(w) for w in missing_outputs(root, words, result["analysis_dir"])]
+        problems += ["`{}` has {} producer ({})".format(r["path"], r["strength"], r["evidence_method"]) if not r["explore"]
+                     else "`{}` was written by an explore run".format(r["path"])
+                     for r in rows if r["strength"] != "supported" or r["explore"]]
+        add("lineage", problems, "{} of {} declared output(s) have a supported producer (a matched attempt saw each "
+                                 "change)".format(len(rows), len(rows)))
+
+    binding = [v for v in result.get("validation") or [] if v["required"]]
+    if not binding:
+        add("required validation", [], "", applicable=False)
+        dims[-1]["reason"] = ("no check is marked required" if result.get("validation") else
+                              "the plan binds no check (its Validation cells are prose)")
+    else:
+        add("required validation", ["`{}` {}".format(v["id"], v["outcome"]) for v in binding if v["outcome"] != "passed"],
+            "{} required check(s) passed".format(len(binding)))
+
+    strength = dict((r["path"], r["strength"]) for r in result["outputs"])
+    claims = [(d["doc"], c) for d in result.get("claims") or [] for c in d["claims"]]
+    if not claims:
+        add("claim linkage", [], "", applicable=False)
+        dims[-1]["reason"] = "no checked claim"
+    else:
+        not_matched = ["`{}:{}` {}".format(doc, c["line"], c["verdict"]) for doc, c in claims
+                       if not c["verdict"].startswith("verified")]
+        unlinked = sorted(set("`{}` ({})".format(c["file"], strength[c["file"]]) for _, c in claims
+                              if c["verdict"].startswith("verified") and strength.get(c["file"]) != "supported"
+                              and c["file"] in strength))
+        count = sum(1 for _, c in claims if c["verdict"].startswith("verified") and strength.get(c["file"]) != "supported")
+        problems = (["{} claim(s) not matched: {}".format(len(not_matched), cap(not_matched))] if not_matched else []) + \
+            (["{} claim cell(s) matched but their output's producer is not supported: {}".format(count, cap(unlinked))]
+             if count else [])
+        add("claim linkage", problems, "{} claim cell(s) matched and their outputs have supported producers{}".format(
+            len(claims), "; a registered `numbers.json` value is attributed to the file's producer, not to the key's run"
+            if any(c.get("registered") for _, c in claims) else ""))
+
+    failing = [d for d in dims if d["state"] == "not established"]
+    levels = collections.Counter(level for level, _ in result["findings"])
+    if failing:
+        limit = "{} not established: {}.".format(failing[0]["dimension"], ACTIONS[failing[0]["dimension"]])
+    elif levels["block"] or levels["gap"]:
+        limit = "qualified on these dimensions only; {} block and {} gap finding(s) below are still open.".format(
+            levels["block"], levels["gap"])
+    else:
+        limit = "qualification covers evidence linkage, not whether the analysis is scientifically right."
+    return {"overall": "not qualified" if failing else "qualified", "dimensions": dims, "limitation": limit}
+
+
+def reportable_error(result):
+    """The message for `--require-reportable`, or None when the run is qualified."""
+    q = result["qualification"]
+    if q["overall"] == "qualified":
+        return None
+    return "verify: --require-reportable: not qualified. " + " ".join(
+        "{}: {}.".format(d["dimension"], d["reason"]) for d in q["dimensions"] if d["state"] == "not established")
+
+
+def rerun_evidence(root, result):
+    """For each entry point the plan names (a `run.sh` or a Snakefile), three separate facts and never a launch: the
+    entry point is `declared`; a `rerun attempted` is a matched run of it that began after verify saved its outputs
+    table; it `reproduced specified artifacts` only when that rerun exited 0, saw each saved output rewritten, and the
+    file's content hash now equals the saved one. A comparison needs hashes saved before the attempt."""
+    entries = [row["path"] for row in result["scripts"]
+               if os.path.basename(row["path"]) == "run.sh" or is_snakefile(row["path"])]
+    table = os.path.join(root, result["analysis_dir"] or ".", "provenance", "outputs-{}.tsv".format(result["hash"]))
+    saved, saved_at = {}, None
+    if entries and os.path.isfile(table):
+        saved_at = os.stat(table).st_mtime
+        with open(table, encoding="utf-8") as handle:
+            for line in list(handle)[1:]:
+                row = line.rstrip("\n").split("\t")
+                if len(row) > 3 and row[3]:
+                    saved[row[0]] = row[3]
+    budget = {"bytes": 2000.0 * 1024 * 1024, "deadline": time.time() + 120}
+    found = []
+    for path in entries:
+        entry = {"path": path, "state": "declared", "reason": ""}
+        found.append(entry)
+        if saved_at is None:
+            entry["reason"] = "no saved provenance outputs table, so a rerun has nothing earlier to be compared with"
+            continue
+        reruns = sorted((r for r in result["receipts"] if not r.get("not_a_run") and launch_kind(r) == "matched"
+                         and path in ran_paths(root, r) and (started(r) or r["ts"]) > saved_at), key=lambda r: r["ts"])
+        if not reruns:
+            entry["reason"] = "no matched run of it since provenance was saved ({})".format(when(saved_at))
+            continue
+        last, bad = reruns[-1], []
+        entry["state"] = "rerun attempted"
+        changed = list((last.get("outputs_changed") or {}).get("created") or []) + \
+            list((last.get("outputs_changed") or {}).get("changed") or [])
+        if last.get("exit_status") != 0 or isinstance(last.get("exit_status"), bool):
+            bad.append("the rerun did not exit 0")
+        elif last.get("outputs_observation") != "observed":
+            bad.append("outputs were not observed during the rerun ({})".format(last.get("outputs_observation") or "not recorded"))
+        elif not saved:
+            bad.append("the saved table holds no SHA256")
+        else:
+            for out, sha in sorted(saved.items()):
+                now = output_fingerprint(os.path.join(root, out), budget).get("sha256")
+                if out not in changed:
+                    bad.append("`{}` was not rewritten by the rerun".format(out))
+                elif now != sha:
+                    bad.append("`{}` content differs from the saved SHA256".format(out) if now else
+                               "`{}` could not be hashed".format(out))
+        if bad:
+            entry["reason"] = "reproduction not established: " + "; ".join(bad[:3])
+        else:
+            entry.update(state="rerun reproduced specified artifacts", reason="{} output(s) rewritten by the rerun have "
+                         "the SHA256 saved before it".format(len(saved)))
+    return found
+
+
+QUALIFICATION_LINE = re.compile(r"^- Qualification: \*\*(not qualified|qualified)\*\*", re.M)
+
+
+def recorded_qualification(folder, digest):
+    """`qualified` or `not qualified` from the saved report, `not recorded` for a bundle written before it."""
+    found = QUALIFICATION_LINE.search(read_text(os.path.join(folder, "verify-{}.md".format(digest))))
+    return found.group(1) if found else "not recorded"
 
 
 # ---------------------------------------------------------------- output
@@ -2433,6 +2742,15 @@ def render_scope(result):
         lines.append("- Producers: {} of {} output(s) have a supported producer; {} candidate, {} unresolved "
                      "(only a supported producer is named).".format(
                          scope["supported"], scope["outputs"], scope["candidate"], scope["unresolved"]))
+    q = result.get("qualification")
+    if q:
+        lines += ["- Qualification: **{}**{}; separate from the verify status below, and not a scientific judgement."
+                  .format(q["overall"], " (not established: {})".format(", ".join(
+                      d["dimension"] for d in q["dimensions"] if d["state"] == "not established"))
+                      if q["overall"] != "qualified" else ""),
+                  "", "| Evidence | State | Basis |", "|---|---|---|"]
+        lines += ["| {} | {} | {} |".format(d["dimension"], d["state"], cell(d["reason"])) for d in q["dimensions"]]
+        lines += ["", "- Limitation: " + cell(q["limitation"])]
     return lines + [""]
 
 
@@ -2508,6 +2826,13 @@ def render(result, all_outputs=False):
                 if one["outcome"] == "passed" and one["warnings"] else
                 "passed ({})".format(cell(one["reason"])) if one["outcome"] == "passed" else
                 "{} - {}".format(one["outcome"], cell(one["reason"]))))
+    if result.get("rerun"):
+        lines += ["", "## Rerun evidence", "", "Entry points the plan names, never launched by verify: `declared`, `rerun attempted` "
+                  "(a matched run after the outputs were saved) and `rerun reproduced specified artifacts` (equal content hashes) "
+                  "are different facts."]
+        for entry in result["rerun"]:
+            lines.append("- `{}`: {}{}".format(cell(entry["path"]), "entry point declared" if entry["state"] == "declared"
+                                               else entry["state"], "; " + cell(entry["reason"]) if entry["reason"] else ""))
     lines += ["", "## Lint", ""]
     lint_rows = result["lint"]["findings"]
     lines += ["- `{}:{}` [{}] {}".format(cell(f[0]), f[1], f[3], cell(f[4])) for f in lint_rows[:SHOWN_OUTPUTS]]
@@ -2530,6 +2855,16 @@ def render(result, all_outputs=False):
                          cell(doc["doc"]), counts.get("verified", 0) + counts.get("verified-transform", 0),
                          counts.get("verified-transform", 0), counts.get("mismatch", 0),
                          counts.get("unverified", 0), counts.get("explore-only", 0), doc["not_claims"]))
+        cov = doc.get("coverage")
+        if cov:
+            lines.append("  - Coverage: {} block(s), {} claim line(s){}; {} cell(s) checked, {} matched, {} mismatched, "
+                         "{} unverified; {} prose number(s) listed, not checked.".format(
+                             cov["blocks"], cov["claim_lines"], " ({} unparsed)".format(cov["unparsed_lines"])
+                             if cov["unparsed_lines"] else "", cov["cells_checked"], cov["matched"], cov["mismatched"],
+                             cov["unverified"], cov["prose_numbers_listed"]))
+            if cov["registered"]:
+                lines.append("  - {} claim(s) cite a registered `numbers.json` value: it shows the file's current content, "
+                             "not which run wrote it.".format(cov["registered"]))
     if not result.get("claims"):
         lines.append("No document with a `<!-- claims -->` block.")
     lines += ["", "## Findings", ""]
@@ -2726,14 +3061,34 @@ def provenance_receipts(root):
     return sorted(found)
 
 
-def stale_plan(root, rel, budget):
+def output_fingerprint(path, budget):
+    """An output is identified by its bytes. The gate reads a notebook as its code cells (right for the code that
+    ran, wrong for results: executing it rewrites its outputs and its recorded size is the code's length), so an
+    `.ipynb` output is hashed raw here."""
+    try:
+        info = os.stat(path)
+    except OSError:
+        return {"missing": True}
+    if not path.endswith(".ipynb") or os.path.isdir(path):
+        return gate.fingerprint(path, budget)
+    record = {"size": info.st_size, "mtime": int(info.st_mtime)}
+    if info.st_size <= budget["bytes"] and time.time() < budget["deadline"]:
+        digest = gate.sha256_file(path, budget["deadline"])
+        if digest:
+            record["sha256"] = digest
+            budget["bytes"] -= info.st_size
+    return record
+
+
+def stale_plan(root, rel, budget, content=False):
     import provenance
     folder = os.path.join(root, os.path.dirname(rel))
     with provenance.locked(os.path.join(folder, ".publish.lock")):
         digest = os.path.basename(rel)[len("receipts-"):-len(".jsonl")]
         state = provenance.bundle_state(folder, digest)
         result = ({"hash": digest, "analysis_dir": os.path.dirname(os.path.dirname(rel)) or ".",
-                   "changes": [], "sessions": []} if state == "interrupted" else _stale_plan(root, rel, budget))
+                   "changes": [], "sessions": [], "content_checked": 0, "content_unchecked": 0}
+                  if state == "interrupted" else _stale_plan(root, rel, budget, content))
         result["bundle"] = state
         result["recorded_approved"], result["recorded_verified"] = recorded_verify(folder, digest)
         result["recorded_lint"] = recorded_lint(folder, digest) if state != "interrupted" else "unchecked"
@@ -2742,8 +3097,10 @@ def stale_plan(root, rel, budget):
         return result
 
 
-def _stale_plan(root, rel, budget):
-    """What no longer matches one plan's provenance: scripts, pinned inputs, outputs."""
+def _stale_plan(root, rel, budget, content=False):
+    """What no longer matches one plan's provenance: scripts, pinned inputs, outputs. Outputs are checked by size and
+    time, or with `content` by the SHA256 verify saved; a file that cannot be hashed (no saved SHA256, or the byte or
+    time budget is spent) keeps the metadata check and is counted as `content_unchecked`."""
     folder = os.path.dirname(rel)
     digest = os.path.basename(rel)[len("receipts-"):-len(".jsonl")]
     runs = [r for r in read_jsonl(os.path.join(root, rel)) if not r.get("explore") and not r.get("not_a_run")]
@@ -2771,6 +3128,7 @@ def _stale_plan(root, rel, budget):
         rows = lines[1:]
         # a table without the evidence columns is from a verify that chose the producer by time alone
         producers = "graded" if lines and "evidence_method" in lines[0] else "legacy"
+    hashed = unchecked = 0
     for row in rows:
         if len(row) < 3:
             continue
@@ -2780,6 +3138,16 @@ def _stale_plan(root, rel, budget):
         except OSError:
             changes.append("output `{}` deleted since verify recorded it".format(path))
             continue
+        if content:
+            saved = row[3] if len(row) > 3 else ""
+            now = output_fingerprint(os.path.join(root, path), budget) if saved else {}
+            if now.get("sha256"):
+                hashed += 1
+                if now["sha256"] != saved:
+                    changes.append("output `{}` content differs from the SHA256 verify saved (rewritten {})".format(
+                        path, when(info.st_mtime)))
+                continue  # the content decides; a touched file with the same bytes is not a change
+            unchecked += 1
         try:
             then = datetime.datetime.strptime(written, "%Y-%m-%dT%H:%M:%S%z").timestamp()
         except ValueError:
@@ -2788,13 +3156,26 @@ def _stale_plan(root, rel, budget):
             changes.append("output `{}` rewritten {} (provenance out of date)".format(path, when(info.st_mtime)))
     sessions = sorted({r["session_id"] for r in runs if r.get("session_id")})
     return {"hash": digest, "analysis_dir": os.path.dirname(folder) or ".", "changes": changes,
-            "sessions": sessions, "producers": producers}
+            "sessions": sessions, "producers": producers, "content_checked": hashed, "content_unchecked": unchecked}
 
 
-def stale(root, hash_mb, seconds):
+def stale(root, hash_mb, seconds, content=False):
     budget = {"bytes": float(hash_mb) * 1024 * 1024, "deadline": time.time() + seconds}
-    plans = [stale_plan(root, rel, budget) for rel in provenance_receipts(root)]
-    return {"plans": len(plans), "stale": [p for p in plans if p["changes"]]}
+    plans = [stale_plan(root, rel, budget, content) for rel in provenance_receipts(root)]
+    return {"plans": len(plans), "mode": "content" if content else "metadata",
+            "content_checked": sum(p["content_checked"] for p in plans),
+            "content_unchecked": sum(p["content_unchecked"] for p in plans),
+            "stale": [p for p in plans if p["changes"]]}
+
+
+def stale_note(result):
+    """How the outputs were checked: by size and time (metadata checked), or by saved SHA256 with what was not."""
+    if result.get("mode") != "content":
+        return "Outputs: metadata checked (size and modification time), not content; `stale --content` compares the saved SHA256."
+    return "Outputs: {} file(s) content checked against the saved SHA256{}.".format(
+        result["content_checked"], "; content not checked for {} (no saved SHA256, or the --hash-mb/--seconds budget "
+                                   "ran out), which keep the size and time check".format(result["content_unchecked"])
+        if result["content_unchecked"] else "")
 
 
 def render_stale(result):
@@ -2805,8 +3186,14 @@ def render_stale(result):
         lines += ["- sessions: " + (", ".join(plan["sessions"]) or "none recorded"),
                   "- findings: `rg -n '{}' .living/findings/`".format(
                       "|".join(plan["sessions"] + ["plan " + plan["hash"]])), ""]
-    lines.append("{} of {} verified plans stale.".format(len(result["stale"]), result["plans"])
-                 if result["plans"] else "No verified plans: no provenance/receipts-<hash>.jsonl found.")
+    summary = ("{} of {} verified plans stale.".format(len(result["stale"]), result["plans"])
+               if result["plans"] else "No verified plans: no provenance/receipts-<hash>.jsonl found.")
+    if not result["plans"]:
+        return summary + "\n"
+    # the summary leads a clean result and ends a stale one; the label goes at the other end
+    lines = lines + [summary] if result["stale"] else [summary, stale_note(result)]
+    if result["stale"]:
+        lines.insert(0, stale_note(result) + "\n")
     return "\n".join(lines) + "\n"
 
 
@@ -2901,7 +3288,7 @@ def status(root, hash_mb, seconds):
         for approved, digest, scripts, count in plans:
             rows[digest] = {"hash": digest, "approved": when(approved), "epoch": approved, "runs": count,
                             "analysis_dir": guess_analysis_dir(scripts) or "?", "verified": "not verified",
-                            "stale": "-", "lint": "-"}
+                            "stale": "-", "lint": "-", "reportable": "-"}
             if digest in marks:
                 rows[digest]["expired"] = marks[digest]
     for rel in provenance_receipts(root):
@@ -2911,6 +3298,7 @@ def status(root, hash_mb, seconds):
         runs = sum(1 for r in read_jsonl(os.path.join(root, rel)) if not r.get("explore") and not r.get("not_a_run"))
         row = rows.setdefault(plan["hash"], {"hash": plan["hash"], "approved": approved, "epoch": 0, "runs": runs})
         row.update(analysis_dir=plan["analysis_dir"], lint=plan["recorded_lint"],
+                   reportable=recorded_qualification(folder, plan["hash"]),
                    verified=verified + " (" + plan["bundle"] + (", legacy producers" if plan.get("producers") == "legacy" else "") + ")",
                    stale="{} change(s)".format(len(plan["changes"])) if plan["changes"] else "no",
                    changes=plan["changes"])
@@ -2922,11 +3310,11 @@ def status(root, hash_mb, seconds):
 def render_status(rows):
     if not rows:
         return "No plans: nothing approved here and no provenance/receipts-<hash>.jsonl found.\n"
-    lines = ["| Plan | Analysis | Approved | Runs | Verified | Stale | Lint | Manifest |",
-             "|---|---|---|---|---|---|---|---|"]
+    lines = ["| Plan | Analysis | Approved | Runs | Verified | Stale | Lint | Manifest | Reportable |",
+             "|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
         lines.append("| {hash} | `{analysis_dir}` | {approved} | {runs}{expired} | {verified} | {stale} | {lint} | "
-                     "{manifest} |".format(**dict(r, expired=" ({})".format(r["expired"]) if r.get("expired") else "")))
+                     "{manifest} | {reportable} |".format(**dict(r, expired=" ({})".format(r["expired"]) if r.get("expired") else "")))
     return "\n".join(lines) + "\n"
 
 
@@ -3547,6 +3935,10 @@ def main(argv):
                         help="report/write: also check this document's claims block (repeatable)")
     parser.add_argument("--session", help="explore: this session's runs (default: $CLAUDE_CODE_SESSION_ID)")
     parser.add_argument("--all", action="store_true", help="explore: every session's runs, last 7 days")
+    parser.add_argument("--content", action="store_true",
+                        help="stale: compare each output's content with the SHA256 verify saved (default: size and time)")
+    parser.add_argument("--require-reportable", action="store_true",
+                        help="report/write: exit 3 and name the dimension unless the run is qualified for reporting")
     args = parser.parse_args(argv)
     load_gate(args.plugin_root)
     root = gate.find_root(os.path.abspath(args.repo))
@@ -3554,7 +3946,7 @@ def main(argv):
         top = gate.git(os.path.abspath(args.repo), "rev-parse", "--show-toplevel")
         base = root or (top.strip() if top else os.path.abspath(args.repo))
         if args.action == "stale":
-            result = stale(base, args.hash_mb, args.seconds)
+            result = stale(base, args.hash_mb, args.seconds, args.content)
             sys.stdout.write(json.dumps(result, indent=1) + "\n" if args.json else render_stale(result))
         else:
             rows = status(base, args.hash_mb, args.seconds)
@@ -3593,6 +3985,9 @@ def main(argv):
     recorded = gate.lint_tools(root)
     result = check(root, args.hash, args.analysis_dir, args.sacct, args.hash_mb, args.seconds,
                    args.scilintr or recorded[0], args.rscript or recorded[1], args.claims, args.instance)
+    result["qualification"] = qualify(root, result)
+    result["rerun"] = rerun_evidence(root, result)
+    refusal = reportable_error(result) if args.require_reportable else None
     if args.action == "write":
         if result["instance"]["selected"] != result["instance"]["current"]:
             sys.exit("verify: `write` records the current approval instance ({}); a bundle is keyed by the plan hash, "
@@ -3605,12 +4000,19 @@ def main(argv):
             print("warning: git ignores {}, so these files will not be committed with the analysis."
                   .format(os.path.dirname(written[0])))
         print("Verify status: " + result["status"])
+        print("Qualification: " + result["qualification"]["overall"])
+        if refusal:  # the record is saved either way: it says what was and was not established
+            sys.stderr.write(refusal + "\n")
+            return 3
         return 0
     if args.json:
         shown = dict(result, plan=None, receipts=len(result["receipts"]))
         sys.stdout.write(json.dumps(shown, indent=1, sort_keys=True) + "\n")
     else:
         sys.stdout.write(render(result))
+    if refusal:
+        sys.stderr.write(refusal + "\n")
+        return 3
     return 0
 
 
