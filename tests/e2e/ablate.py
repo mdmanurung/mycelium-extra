@@ -38,7 +38,7 @@ ABLATIONS = [
 
 def case_passes(defect_id):
     test = test_end_to_end.Defects("test_" + defect_id.replace("-", "_"))
-    with open(os.devnull, "w") as quiet:
+    with open(os.devnull, "w", encoding="utf-8") as quiet:
         return unittest.TextTestRunner(stream=quiet, verbosity=0).run(test).wasSuccessful()
 
 
