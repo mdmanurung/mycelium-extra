@@ -3,6 +3,7 @@
 **Start with Tier 1 if you only need a plan. Use Tier 2 for your first run.**
 Each tier adds to the previous one. These are workflow choices, not settings
 or pricing levels. Install the [plugin for your host](installation.md) first.
+For the whole thing in order, read [a day with Mycelium Extra](day.md).
 
 | Tier | Use it when | Add these tools |
 |---|---|---|

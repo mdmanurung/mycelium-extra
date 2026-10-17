@@ -42,6 +42,7 @@ Claude Code and OpenCode use ``/mycelium-extra:<skill>``; Codex uses ``$mycelium
 
    docs/installation
    docs/usage
+   docs/day
    docs/example
 
 .. toctree::

@@ -46,7 +46,7 @@ approve                                      # or approve plan <hash>
 Bare `approve` works when the plan shown last is the only one waiting; otherwise
 it approves nothing and lists the hashes.
 
-See [a worked example](docs/example.md) for the real output of each step.
+See [a worked example](docs/example.md) for the real output of each step. [A day with Mycelium Extra](docs/day.md) walks through a full working day.
 
 Run the approved steps through your normal workflow, then invoke
 `/mycelium-extra:verify <hash>`. For reportable or HPC work, freeze the finished
