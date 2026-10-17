@@ -68,7 +68,7 @@ An intended gate behaviour change needs a named regression test that fails befor
 
 The plugin needs Python 3.9 or later. Hooks and skill commands run through `hooks/py.sh`, which uses `MYCELIUM_EXTRA_PYTHON` if set, else `python3` when it is 3.9 or later (hooks skip this probe), else the newest `python3.N` on `PATH`; on RHEL 8, bare `python3` is 3.6. `hooks/gate_run.py` up to its version check stays parseable by Python 3.6, so an old interpreter is reported through `on_error` instead of failing with a SyntaxError; `hooks/tests/test_py_launcher.py` runs it under `/usr/bin/python3.6` when that exists.
 
-Bump `version` in `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, and `.claude-plugin/marketplace.json` together, so `claude plugin update` picks up the change. The same commit adds a [CHANGELOG.md](../CHANGELOG.md) entry for the new version.
+Bump `version` in `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `opencode/package.json` together, so `claude plugin update` picks up the change and every host reports the same version. The same commit adds a [CHANGELOG.md](../CHANGELOG.md) entry for the new version.
 
 ## Cross-host checks
 
@@ -98,8 +98,9 @@ OpenCode V2 loads the adapter from `opencode/` as a plugin directory; on 2.0.32
 a `plugins` entry naming a `.js` file draws a `configured plugin path must be a
 directory` warning, so ship and test the directory form. `node --test
 opencode/tests/gate.test.js` checks payload mapping, handler wiring, the event
-envelope (`data.sessionID`, `data.text`), location filtering, and the spawn
-contract against the real `gate_run.py`; `hooks/tests/test_opencode_gate.py`
+envelope (`data.sessionID`, `data.text`), location filtering, the
+`/mycelium-extra:<skill>` commands, and the spawn contract against the real
+`gate_run.py`; `hooks/tests/test_opencode_gate.py`
 checks the launcher's mapping, approvals, receipts, and state protection; CI
 runs the first as the `opencode-plugin` job. The 2.0.32 server event stream is
 service-wide — a plugin instance receives every location's session events — so
@@ -144,13 +145,20 @@ no file. The first attempt recorded `exit_status: unknown` for both a failed run
 the shell result's `metadata.exit` (mirrored in `output.exit`), a launcher
 mapping gap rather than a host gap, and the adapter maps it to `exit_code`.
 Re-running recorded `exit_status: 127` and `exit_status: 0`, both
-`exit_source: response`. The shell tool reports the outcome `completed` even for
+`exit_source: response`. The plugin's `/mycelium-extra:<skill>` commands
+registered and listed, the same names Claude Code uses, and invoking
+`/mycelium-extra:verify status` submitted the skill-loading prompt for that
+skill. The shell tool reports the outcome `completed` even for
 a nonzero exit, so no status is ever inferred from that word. Notices delivered
 as synthetic messages persist in the transcript and
 are visible to the model as well as the user, and the model may proceed to run
-an approved plan immediately after the approval. `python3.12
+an approved plan immediately after the approval. The `plan-review` OpenCode
+route (Codex CLI for the engineering review, Biomni MCP for the biomedical one)
+is implemented but was not exercised here: both legs send material off the
+machine and need the user's consent, so qualifying them is the user's call.
+`python3.12
 hooks/tests/test_opencode_gate.py` (8 tests), `node --test
-opencode/tests/gate.test.js` (9 tests), the 421-test gate suite, `gate_diff`
+opencode/tests/gate.test.js` (11 tests), the 421-test gate suite, `gate_diff`
 168/168, and the 103-test end-to-end suite passed. These checks validate the
 local candidate, not a published installation.
 

@@ -1,6 +1,23 @@
 # Changelog
 
-All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
+All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
+
+## [0.10.0] - 2026-10-17
+
+OpenCode is a supported host, alongside Claude Code and Codex. Claude Code and
+Codex behavior is unchanged: `gate_diff` reports every existing case identical.
+
+### Added
+
+- OpenCode V2 support. The shared skills load through OpenCode's `skills` setting, and `opencode/` is a plugin directory that registers one `/mycelium-extra:<skill>` command per skill folder — the same command names Claude Code uses — and runs the approval gate. The adapter maps OpenCode's prompt, tool (`shell`, `edit`, `write`, `patch`), and turn-end (`session.execution.succeeded`) events onto the shared Python gate: a deny throws, gate text is appended to tool results, and approval cards and notices arrive as synthetic messages. It is inert in repositories without `.mycelium-extra/gate.json`.
+- `hooks/gate_run.py --host opencode` payload decoding, `hooks/tests/test_opencode_gate.py`, adapter tests in `opencode/tests/` under `node --test`, and the `opencode-plugin` CI job.
+- OpenCode receipts carry the shell tool's exit code, read from the result's `metadata.exit` (`exit_source: response`); a result without one records `unknown` as a verification gap.
+- `plan-review` gains an OpenCode lead route: the Codex CLI supplies the engineering review and the Biomni MCP the biomedical one, under the same user consent and byte-bound send rules.
+
+### Changed
+
+- `gate_run.py` derives an OpenCode post event's hook event name from the launcher action before normalizing, so a failed post is read as `PostToolUseFailure`.
+- `tests/test_versions.py` covers `opencode/package.json` as a fourth manifest, and the OpenCode adapter's reply buffer is decoded once so a multi-byte card glyph split across chunks cannot corrupt a card.
 
 ## [0.9.76] - 2026-10-17
 

@@ -1,6 +1,6 @@
 """Run: python3 tests/test_versions.py
 
-The three plugin manifests carry the same version, and the newest released heading in
+The four plugin manifests carry the same version, and the newest released heading in
 CHANGELOG.md names it, so a bump that misses a file fails here.
 """
 
@@ -24,6 +24,7 @@ class VersionsTest(unittest.TestCase):
             ".codex-plugin/plugin.json": json.loads(read(".codex-plugin/plugin.json"))["version"],
             ".claude-plugin/marketplace.json":
                 json.loads(read(".claude-plugin/marketplace.json"))["metadata"]["version"],
+            "opencode/package.json": json.loads(read("opencode/package.json"))["version"],
             "CHANGELOG.md": re.search(r"^## \[(\d[^\]]*)\]", read("CHANGELOG.md"), re.M).group(1),
         }
         self.assertEqual(len(set(versions.values())), 1, versions)
