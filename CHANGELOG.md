@@ -2,6 +2,22 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the three plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.9.76] - 2026-10-17
+
+Python 3.9 is now the minimum; 3.6 is no longer supported.
+
+### Changed
+
+- Hooks and skill commands run through `hooks/py.sh`, which uses `MYCELIUM_EXTRA_PYTHON` if set (as is), else `python3` when it is 3.9 or later (skill commands only, so an activated environment keeps its packages such as h5py), else the newest `python3.N` on `PATH` (3.14 down to 3.9). On RHEL 8, where `python3` is 3.6, this finds `python3.11` or `python3.12` without setup. A skill command with no Python 3.9 or later stops with one line naming the Python found.
+- With only an older Python, `hooks/gate_run.py` says so on every hook in a repository with `gate.json` and follows its `on_error`: by default the call goes through with the message, `deny` blocks every tool call. Repositories without `gate.json` stay silent.
+- The gate reads `sh <plugin>/hooks/py.sh [--hook] ARGS` as `python3 ARGS`, so the launcher is no way around it (a `py.sh` under a gated path stays a gated script).
+- CI: the 3.6 leg is replaced by `python:3.9-bookworm` under `LC_ALL=C`. The test that compiled every script on Python 3.6 is replaced by one that runs `gate_run.py` under `/usr/bin/python3.6` when it exists.
+
+### Fixed
+
+- The Sphinx build failed on two links to pages outside the site; they now point to GitHub.
+- `tests/e2e/ablate.py` crashed under the C locale on Python 3.6 while reporting a failing case.
+
 ## [0.9.75] - 2026-10-17
 
 Execution fidelity: the source-verified roadmap of 2026-10-16 (change sets C01–C13, findings F01–F11). Tracker and evidence: [docs/roadmap/07-execution-fidelity.md](docs/roadmap/07-execution-fidelity.md).
