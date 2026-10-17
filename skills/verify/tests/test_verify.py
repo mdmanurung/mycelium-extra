@@ -922,7 +922,10 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("- Validation bindings: added", out)
         self.assertIn("- Exact execution: added", out)
         self.assertIn("- Scope: + analysis/a/scripts/02_plot.py", out)
-        changed = self.diff_of(new + bindings + exact, new + bindings.replace("[]", '[{"id": "V-1"}]') + exact)
+        changed = self.diff_of(new + bindings + exact, new + bindings.replace("[]", '[{"id": "V-1", "plan_row": "1", "required": true, '
+                                '"defined_by": "agent-proposed", "test_paths": ["analysis/a/scripts/01_fit.py"], '
+                                '"invocation": ["python", "analysis/a/scripts/01_fit.py"], '
+                                '"evidence_path": "analysis/a/outputs/v1.json"}]') + exact)
         self.assertIn("- Validation bindings: changed", changed)
         self.assertNotIn("Exact execution", changed)
 
@@ -2037,12 +2040,11 @@ sys.exit(1 if hits else 0)
                          [(self.OUT, "supported"), (other, "supported")])
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
 
-    def test_a_folder_declaration_never_supports_a_file_inside_it(self):
+    def test_a_file_inside_a_declared_folder_is_observed_during_its_attempt(self):
         digest = self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/outputs/"))
-        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})  # the gate saw the folder change, not the file
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})  # the gate lists the files in the declared folder
         entry, = self.outputs_of(digest)
-        self.assertEqual((entry["evidence_method"], entry["strength"]), ("timing-only", "candidate"))
-        self.assertIn("names no file", entry["reason"])
+        self.assertEqual((entry["evidence_method"], entry["strength"]), ("attempt-observed", "supported"))
 
     def test_a_snakemake_record_with_one_wrapper_is_only_a_candidate(self):
         step = "analysis/a/01_step.R"

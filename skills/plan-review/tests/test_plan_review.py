@@ -95,15 +95,16 @@ class PlanReviewContractTest(unittest.TestCase):
         self.assertIn("It is advisory: it never blocks", skill)
         self.assertIn("never report it as clean", skill)
 
-    def test_byte_bound_send_sequence_is_documented_with_its_pending_part(self):
+    def test_byte_bound_send_sequence_is_documented_and_consent_comes_from_the_gate(self):
         skill = read("SKILL.md")
         contract = read("references/review-contract.md")
         script = read("scripts/review_packet.py")
         for step in ("review_packet.py prepare", "review_packet.py preview", "send packet <first 12",
                      "review_packet.py verify"):
             self.assertIn(step, skill)
-        self.assertIn("**Pending:**", skill)
-        self.assertIn("**Pending:**", contract)
+        for text in (skill, contract):  # the gate's `send packet` prompt now writes the record
+            self.assertNotIn("**Pending:**", text)
+            self.assertIn("The approval gate records it as `.mycelium-extra/review-consent/<digest>.json`", text)
         self.assertIn("cooperative, not a sandbox", skill)
         self.assertIn("pending | unavailable | invalid", contract)
         self.assertIn("THIS SCRIPT NEVER WRITES ONE", script)
