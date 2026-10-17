@@ -4,8 +4,8 @@ Stdlib-only; runs on Python 3.6+. Run it from stdin, inside the repository, so
 Mycelium's hooks do not open the post-action cycle:
 
     python3 - --plugin-root <root> list < verify.py
-    python3 - --plugin-root <root> report <hash> [--analysis-dir DIR] [--claims DOC] [--json] < verify.py
-    python3 - --plugin-root <root> write <hash> --analysis-dir DIR [--claims DOC] < verify.py
+    python3 - --plugin-root <root> report <hash> [--analysis-dir DIR] [--claims DOC] [--instance ID] [--json] < verify.py
+    python3 - --plugin-root <root> write <hash> --analysis-dir DIR [--claims DOC] [--instance ID] < verify.py
     python3 - --plugin-root <root> stale [--json] < verify.py
     python3 - --plugin-root <root> status [--json] < verify.py
     python3 - --plugin-root <root> explore [--session ID | --all] [--json] < verify.py
@@ -748,14 +748,178 @@ def is_wrapper(receipt):
         p.endswith((".sh", "Snakefile", ".smk")) for p in receipt.get("paths", []))
 
 
-def wrapper_receipt(receipts, record):
-    """The first recorded wrapper run that ended after a Snakemake job finished: the run it was in."""
+def wrapper_candidates(receipts, record):
+    """The recorded wrapper runs that fit a Snakemake job in time: the first that ended after the job
+    finished, and any other that ended within the clock tolerance of it. The join is by time, so
+    every one of them could be the run the job was in."""
     later = [r for r in receipts if r.get("ts", 0) >= record["end"] - TOLERANCE and is_wrapper(r)]
     if not later:
-        return None
+        return []
     earliest = min(r["ts"] for r in later)
-    possible = [r for r in later if r["ts"] <= earliest + 2 * TOLERANCE]
+    return [r for r in later if r["ts"] <= earliest + 2 * TOLERANCE]
+
+
+def wrapper_receipt(receipts, record):
+    """The wrapper run a Snakemake job was in, when exactly one fits; None when none or several do."""
+    possible = wrapper_candidates(receipts, record)
     return possible[0] if len(possible) == 1 else None
+
+
+def launch_kind(receipt):
+    """matched, unmatched or ambiguous as the gate recorded it; `legacy` for a receipt written before launch matching."""
+    kind = receipt.get("launch_match")
+    return kind if kind in ("matched", "unmatched", "ambiguous") else "legacy"
+
+
+def started(receipt):
+    """The launch time the gate recorded in a receipt (`started`), or None for a receipt that has none."""
+    start = receipt.get("started")
+    if isinstance(start, bool) or not isinstance(start, (int, float)) or not math.isfinite(start) \
+            or start > receipt["ts"]:
+        return None
+    return start
+
+
+def window(receipt):
+    """(start, end) of a receipt's attempt: its launch to its report. A receipt with no start is a point at its
+    report, so a run that began before another ended and was reported after it is seen only when it records a start."""
+    start = started(receipt)
+    return (receipt["ts"] if start is None else start), receipt["ts"]
+
+
+def observed_paths(receipt):
+    """The declared output paths a matched attempt saw created or changed between its Pre and Post, or None
+    when it observed nothing (a legacy, unmatched or ambiguous receipt, or an observation that was skipped)."""
+    seen = receipt.get("outputs_changed")
+    if launch_kind(receipt) != "matched" or not receipt.get("attempt_id") \
+            or receipt.get("outputs_observation") != "observed" or not isinstance(seen, dict):
+        return None
+    return {p for key in ("created", "changed") for p in (seen.get(key) if isinstance(seen.get(key), list) else [])
+            if isinstance(p, str)}
+
+
+def candidate_text(receipt, digest):
+    """A run in words for a candidate list; no backticks, since the By column's first backticked token reads as its producer."""
+    return describe_run(receipt, digest).replace("`", "")
+
+
+def not_observed(receipt, rel):
+    """Why a receipt's attempt gives no attempt-observed evidence for `rel`."""
+    kind = launch_kind(receipt)
+    if kind == "legacy":
+        return "launch link not recorded (the receipt predates launch matching)"
+    if kind != "matched":
+        return "its launch was {}{}".format(kind, " ({})".format(receipt["launch_note"]) if receipt.get("launch_note") else "")
+    seen = observed_paths(receipt)
+    if seen is None:
+        return "its attempt observed no outputs ({})".format(receipt.get("outputs_observation") or "no observation recorded")
+    if any(under(rel, folder) for folder in seen):
+        return "its attempt saw the declared folder change, which names no file"
+    return "its attempt observed the declared outputs and did not see this one change"
+
+
+def abandoned_attempts(root):
+    """The launches that never reported back (the gate moves them to launches/abandoned/), one dict per attempt:
+    started, attempt_id, the plans and approval instances it launched under, its command."""
+    folder = gate.state_path(root, "launches", "abandoned")
+    found = []
+    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        record = gate.read_json(os.path.join(folder, name), None)
+        if not isinstance(record, dict):
+            continue
+        for attempt in (record.get("attempts") if record.get("ambiguous") else [record]) or []:
+            started = attempt.get("started", attempt.get("ts")) if isinstance(attempt, dict) else None
+            if isinstance(started, bool) or not isinstance(started, (int, float)):
+                continue
+            runs = attempt.get("runs") if isinstance(attempt.get("runs"), dict) else {}
+            entries = [e for group in runs.values() if isinstance(group, list) for e in group if isinstance(e, dict)]
+            found.append({"started": started, "attempt_id": attempt.get("attempt_id"),
+                          "plans": sorted({p for e in entries for p in e.get("plans") or [] if isinstance(p, str)}),
+                          "instances": dict(i for e in entries for i in (e.get("instance_ids") or {}).items()),
+                          "command": next(iter(runs), "")})
+    return found
+
+
+def grade_output(rel, mtime, file_level, since, mine, digest, jobs, abandoned, wrappers):
+    """How well the evidence names the producer of output `rel` (written at `mtime`):
+    attempt-observed: a matched attempt of this plan saw the declared output change, and no other attempt
+      (any plan, explore included, or a job that was running) overlaps it and could have written it;
+    workflow-record: Snakemake's record names the rule, joined to a wrapper run by time (`wrappers` lists those);
+    timing-only: only the time of the file against the receipts, which is at most a candidate;
+    none: no recorded run.
+    Returns owner (the one run to name, or None), producer_attempt, evidence_method, strength
+    (`supported` only for a clean attempt-observed; else `candidate` or `unresolved`), candidates, reason and gap
+    (a finding for an ambiguity, or None)."""
+    result = {"owner": None, "producer_attempt": None, "evidence_method": "none",
+              "strength": "unresolved", "candidates": [], "reason": "no recorded run", "gap": None}
+    mine_ids = {id(r) for r in mine}
+
+    def fits(r):  # the file's time falls in the attempt that saw it change (its report, and its start when recorded)
+        return r["ts"] >= mtime - TOLERANCE and (started(r) is None or mtime >= started(r) - TOLERANCE)
+
+    listed = [r for r in mine if rel in (observed_paths(r) or ()) and fits(r)]
+    if listed:
+        owner = min(listed, key=lambda r: r["ts"])
+        # another attempt could have written it if it ran while the owner did; with no recorded start, from a
+        # clock tolerance before the file's time (a run that began earlier and ended later goes unseen)
+        low = started(owner) if started(owner) is not None else min(mtime, owner["ts"]) - TOLERANCE
+        high = owner["ts"]
+        rivals = []
+        for r in since:
+            if r is owner or r.get("attempt_id") == owner.get("attempt_id"):
+                continue
+            start, end = window(r)
+            if r.get("job_id"):  # a job runs on after its submission is reported
+                start, end = r["ts"], (jobs.get(r["job_id"]) or {}).get("end") or time.time()
+            if start > high or end < low:
+                continue
+            seen = observed_paths(r)
+            if file_level and seen is not None and id(r) in mine_ids and rel not in seen:
+                continue  # an attempt of this plan that watched this very path and did not see it change
+            rivals.append(r)
+        open_attempts = [a for a in abandoned if low - gate.LAUNCH_SECONDS <= a["started"] <= high]
+        result.update(evidence_method="attempt-observed")
+        if not rivals and not open_attempts:
+            result.update(owner=owner, producer_attempt=owner["attempt_id"], strength="supported", reason=
+                          "a matched attempt saw this declared output change, and no overlapping attempt could have written it")
+            return result
+        names = [candidate_text(r, digest) for r in [owner] + rivals] + [
+            "attempt started at {} with no completion record".format(when(a["started"])) for a in open_attempts]
+        result.update(candidates=names, reason="an overlapping attempt could also have written it",
+                      gap="Output `{}` was observed written by an attempt of this plan, but an overlapping attempt "
+                          "could also have written it ({}); attribution is ambiguous.".format(rel, "; ".join(names[1:])))
+        return result
+    if wrappers is not None:  # Snakemake's record names the rule that wrote it
+        result.update(evidence_method="workflow-record",
+                      candidates=[candidate_text(r, digest) for r in wrappers])
+        if len(wrappers) == 1:
+            result.update(owner=wrappers[0], strength="candidate", reason=
+                          "Snakemake's record names the rule; the wrapper run is joined to it by time only (" +
+                          not_observed(wrappers[0], rel) + ")")
+        elif wrappers:
+            result.update(reason="{} wrapper runs fit Snakemake's record in time".format(len(wrappers)),
+                          gap="Output `{}` was written in a Snakemake job that {} wrapper runs fit in time; "
+                              "attribution is ambiguous.".format(rel, len(wrappers)))
+        else:
+            result.update(reason="Snakemake's record names the rule, but no wrapper run is recorded")
+        return result
+    later = [r for r in since if r.get("ts", 0) >= mtime - TOLERANCE and not r.get("job_id")]
+    batch = [r for r in since if r.get("job_id") and r["ts"] <= mtime + TOLERANCE
+             and ((jobs.get(r["job_id"]) or {}).get("end") or time.time()) >= mtime - TOLERANCE]
+    earliest = min((r["ts"] for r in later), default=None)
+    possible = ([r for r in later if r["ts"] <= earliest + 2 * TOLERANCE] if later else []) + batch
+    if possible:
+        result.update(evidence_method="timing-only", candidates=[candidate_text(r, digest) for r in possible])
+    if len(possible) > 1:
+        result.update(reason="competing timestamp-compatible writers",
+                      gap="Output `{}` has competing timestamp-compatible writers; attribution is ambiguous.".format(rel))
+    elif possible:
+        owner = possible[0]
+        result.update(owner=owner, strength="candidate", reason="only timing evidence: " + not_observed(owner, rel))
+        if abs(owner["ts"] - mtime) > TOLERANCE:
+            result.update(reason=result["reason"] + "; only distant timestamp evidence",
+                          gap="Output `{}` has only distant timestamp evidence; its producer is unverified.".format(rel))
+    return result
 
 
 def describe_run(receipt, digest):
@@ -1172,13 +1336,45 @@ def check_claims(root, analysis_dir, outputs, extra, report, max_bytes):
     return checked
 
 
-def plan_runs(receipts, digest, approved_at):
+def plan_runs(receipts, digest, approved_at, instance=None):
     """(the plan's runs, oldest first; when its window opens). Re-approving the same plan text
     rewrites approved_at, so the runs are every non-explore receipt naming it, and the window
-    opens at the earliest of them."""
-    mine = sorted((r for r in receipts if digest in r.get("plans", []) and not r.get("explore")),
+    opens at the earliest of them. With an approval `instance`, only the runs that were launched
+    under that instance count: a receipt of another instance, or one that records none (written before
+    instances), is history and cannot establish this freeze."""
+    mine = sorted((r for r in receipts if digest in r.get("plans", []) and not r.get("explore")
+                   and (instance is None or r.get("approval_instance") == instance)),
                   key=lambda r: r["ts"])
     return mine, min([approved_at] + [r["ts"] for r in mine])
+
+
+def load_instance(root, digest, instance_id):
+    """The approval instance record `approval-instances/<digest>/<instance_id>.json` if it is there and well formed, else None."""
+    path = gate.state_path(root, "approval-instances", digest, instance_id + ".json")
+    record = gate.read_json(path, None) if os.path.isfile(path) else None
+    approved = record.get("approved_at") if isinstance(record, dict) else None
+    if not isinstance(record, dict) or record.get("hash") != digest or record.get("instance_id") != instance_id \
+            or isinstance(approved, bool) or not isinstance(approved, (int, float)) \
+            or any(record.get(key) is not None and not gate.valid_pins(record[key]) for key in ("pins", "scripts")):
+        return None
+    return record
+
+
+def pick_instance(root, digest, plan, wanted):
+    """(instance id, record) for `--instance`: an exact id or a unique prefix of this plan's instances.
+    The record must hold this plan's text (by its sha256), pins that parse, and the id it is filed under."""
+    folder = gate.state_path(root, "approval-instances", digest)
+    names = [n[:-5] for n in sorted(os.listdir(folder)) if n.endswith(".json")] if os.path.isdir(folder) else []
+    found = [n for n in names if n == wanted] or [n for n in names if wanted and n.startswith(wanted)]
+    if len(found) != 1:
+        sys.exit("verify: {} for plan {}. Known instances: {}.".format(
+            "no approval instance " + wanted if not found else "approval instance prefix {} is ambiguous".format(wanted),
+            digest, ", ".join(names) or "none"))
+    record = load_instance(root, digest, found[0])
+    if record is None or record.get("plan_sha256") != hashlib.sha256(plan.encode("utf-8")).hexdigest():
+        sys.exit("verify: approval instance {} of plan {} is invalid or does not hold this plan's text; "
+                 "restore it from the record before verifying.".format(found[0], digest))
+    return found[0], record
 
 
 def edit_evidence(root, path, budget, receipts):
@@ -1244,6 +1440,58 @@ def gate_error_gaps(root, report, approved_at, sessions):
                            ", session {}".format(session) if isinstance(session, str) and session else ""))
 
 
+def instance_findings(report, digest, chosen, current, frozen, history, mine, approved_at, explicit):
+    """What the approval instance means for this check. Runs under another instance, or under none recorded,
+    are history: they do not establish the freeze being verified, so none under it is a gap."""
+    if chosen is None:
+        report.add("info", "Approval {} predates approval instances (no instance id): it is read as one freeze, "
+                           "and any earlier approval of the same text is not distinguished.".format(digest))
+        return
+    if frozen is None:
+        report.add("gap", "Approval instance {} has no readable record under `approval-instances/{}/`, so the pins "
+                          "and preparation it froze cannot be read from it.".format(chosen, digest))
+    if explicit and chosen != current:
+        report.add("info", "This check is of approval instance {}, an earlier freeze; the current one is {}. "
+                           "Pins, approval time and runs are those of that instance.".format(chosen, current))
+    if history:
+        report.add("info", "{} run(s) of this plan ran under other approval instance(s) ({}); they are history "
+                           "and do not establish instance {}.".format(
+                               sum(history.values()), ", ".join("{}: {}".format(k, v) for k, v in sorted(history.items())),
+                               chosen))
+        if not mine:
+            report.add("gap", "No run is recorded under approval instance {} (approved {}); runs under an earlier "
+                              "instance do not establish this freeze.".format(chosen, when(approved_at)))
+
+
+def launch_findings(report, mine, abandoned, digest, chosen, approved_at):
+    """Gaps for runs credited to the plan that no checked launch backs, and for attempts that never reported
+    back; one info line for receipts written before launch matching, which are read as before."""
+    for kind, what in (("unmatched", "no checked launch: Post without matching Pre"),
+                       ("ambiguous", "an ambiguous launch (identical launches without a call id)")):
+        groups = collections.OrderedDict()
+        for r in mine:
+            if launch_kind(r) == kind:
+                groups.setdefault(r.get("launch_note") or "", []).append(r)
+        for note, runs in groups.items():
+            report.add("gap", "{} run(s) credited to this plan have {}{}: {}. The gate did not check the launch, so the "
+                              "run is not established as started under the approval.".format(
+                                  len(runs), what, " [{}]".format(note) if note else "",
+                                  "; ".join("`{}` at {}".format(r.get("command", "")[:60], when(r.get("ts")))
+                                            for r in runs[:3]) + (" and {} more".format(len(runs) - 3) if len(runs) > 3 else "")))
+    legacy = sum(1 for r in mine if launch_kind(r) == "legacy")
+    if legacy:
+        report.add("info", "{} receipt(s) predate launch matching (launch link not recorded); they are read as before "
+                           "and never as matched launches.".format(legacy))
+    for attempt in abandoned:
+        if digest not in attempt["plans"]:
+            continue
+        instance = attempt["instances"].get(digest)
+        if (instance != chosen) if instance and chosen else attempt["started"] < approved_at - TOLERANCE:
+            continue  # another freeze of this plan, or (no instance recorded) an attempt before the approval
+        report.add("gap", "Attempt started at {} (`{}`) has no completion record: the call never reported back, so "
+                          "what it ran or wrote is not known.".format(when(attempt["started"]), attempt["command"][:60]))
+
+
 def check_receipt(report, r, judge_job=None):
     """A finding for a command receipt no script row judged, in the wording of a script's row. A
     submission that exited 0 and recorded a job is judged by `judge_job(what, r)`, the job's state;
@@ -1294,12 +1542,22 @@ def step_key(root, r):
 
 
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
-          rscript="Rscript", claims=()):
+          rscript="Rscript", claims=(), instance=None):
     config = gate.load_config(root)
     approval = read_approval(gate.state_path(root, "approvals", digest + ".json"))
     if approval is None:
         sys.exit("verify: no approved plan {}. Run `list` to see approved plans.".format(digest))
     plan, approved_at = approval.get("plan", ""), approval.get("approved_at", 0)
+    # The approval instance this check is about: the one in approvals/<hash>.json (the newest), or the one
+    # picked with `instance`. An approval with no instance id is legacy: one implicit freeze, history unknown.
+    current = approval.get("instance_id") if isinstance(approval.get("instance_id"), str) else None
+    chosen, frozen, pins, session = current, None, approval.get("pins"), approval.get("session_id")
+    if instance:
+        chosen, frozen = pick_instance(root, digest, plan, instance)
+        if chosen != current:  # an earlier freeze: its own approval time, pins and session
+            approved_at, pins, session = frozen["approved_at"], frozen.get("pins"), frozen.get("session_id")
+    elif current:
+        frozen = load_instance(root, digest, current)
     table = gate.plan_table(plan, every_cell=True)
     named = sorted(p for p in gate.plan_paths_in(root, table) if gate.gated_rel(root, root, p, config))
     planned = [p for p in named if is_script(root, p)]
@@ -1315,7 +1573,10 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         elif not LOOKUP.match(r.get("command", "")):
             handed.append(r)
     handed = [r for r in handed if digest in r.get("plans", []) and not r.get("explore")]
-    mine, start = plan_runs(receipts, digest, approved_at)
+    mine, start = plan_runs(receipts, digest, approved_at, chosen)
+    history = collections.Counter(
+        r.get("approval_instance") or "not recorded" for r in receipts
+        if chosen and digest in r.get("plans", []) and not r.get("explore") and r.get("approval_instance") != chosen)
     since = sorted((r for r in receipts if r.get("ts", 0) >= start - TOLERANCE), key=lambda r: r["ts"])
     jobs = {}
     for r in mine:
@@ -1352,7 +1613,10 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     if invalid_receipts:
         report.add("gap", "{} malformed receipt record(s) were skipped (lines {}); the run history "
                    "is incomplete.".format(len(invalid_receipts), ", ".join(map(str, invalid_receipts[:12]))))
-    gate_error_gaps(root, report, approved_at, {approval.get("session_id")} | {r.get("session_id") for r in mine})
+    gate_error_gaps(root, report, approved_at, {session} | {r.get("session_id") for r in mine})
+    instance_findings(report, digest, chosen, current, frozen, history, mine, approved_at, bool(instance))
+    abandoned = abandoned_attempts(root)
+    launch_findings(report, mine, abandoned, digest, chosen, approved_at)
     if invalid_metadata:
         report.add("gap", "{} unreadable or malformed Snakemake record(s) were skipped; workflow "
                    "evidence is incomplete.".format(len(invalid_metadata)))
@@ -1536,7 +1800,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     unplanned_files = []
     if analysis_dir:
         for r in since:
-            if r in mine or not any(under(p, analysis_dir) for p in ran_paths(root, r)):
+            if r in mine or not any(under(p, analysis_dir) for p in ran_paths(root, r)) \
+                    or (digest in r.get("plans", []) and not r.get("explore")):  # history of this plan's other instances
                 continue
             if r.get("explore"):
                 report.add("gap", "Explore run in the analysis folder: {}.".format(describe_run(r, digest)))
@@ -1563,7 +1828,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                                "run of them since the approval was recorded.".format(idle))
 
     inputs = []
-    for rel, pin in sorted((approval.get("pins") or {}).items()):
+    for rel, pin in sorted((pins or {}).items()):
         now = gate.fingerprint(os.path.join(root, rel), budget, pin=pin)
         changed = not gate.unchanged(pin, now)
         inputs.append({"path": rel, "pinned": gate.describe(pin), "now": gate.describe(now),
@@ -1577,7 +1842,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             report.add("gap", "Input `{}` has a metadata-only fingerprint; unchanged content is unverified.".format(rel))
 
     outputs = []
-    attributed = {}  # (producing run, folder) -> (run, [(output, written)]): one finding per group
+    attributed = {}  # (candidate run, folder, evidence method) -> (run, [(output, written)]): one finding per group
     words = plan_outputs(plan)
     if words is None:
         report.add("gap", "The plan has no `Outputs:` line, so its results cannot be tied to its runs.")
@@ -1610,37 +1875,31 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                     continue
                 listed.add(rel)
                 record = next((m for m in smk if m["path"] == os.path.normpath(full)), None)
-                if record:
-                    owner = wrapper_receipt(since, record)
-                    via = "Snakemake rule `{}`".format(record["rule"])
-                else:
-                    later = [r for r in since if r.get("ts", 0) >= mtime - TOLERANCE and not r.get("job_id")]
-                    batch = [r for r in since if r.get("job_id") and r["ts"] <= mtime + TOLERANCE
-                             and ((jobs.get(r["job_id"]) or {}).get("end") or time.time()) >= mtime - TOLERANCE]
-                    earliest = min((r["ts"] for r in later), default=None)
-                    possible = ([r for r in later if r["ts"] <= earliest + 2 * TOLERANCE]
-                                if later else []) + batch
-                    owner = possible[0] if len(possible) == 1 else None
-                    via = None
-                    if len(possible) > 1:
-                        report.add("gap", "Output `{}` has competing timestamp-compatible writers; attribution is ambiguous.".format(rel))
-                    elif owner and abs(owner["ts"] - mtime) > TOLERANCE:
-                        report.add("gap", "Output `{}` has only distant timestamp evidence; its producer is unverified.".format(rel))
+                grade = grade_output(rel, mtime, exact or bool(re.search(r"[*?\[]", word)), since, mine, digest, jobs,
+                                     abandoned, wrapper_candidates(since, record) if record else None)
+                owner, via = grade["owner"], "Snakemake rule `{}`".format(record["rule"]) if record else None
+                if grade["gap"]:
+                    report.add("gap", grade["gap"])
                 fingerprint = gate.fingerprint(full, budget)
-                outputs.append({"path": rel, "written": mtime, "by": describe_run(owner, digest), "rule": via,
+                supported = grade["strength"] == "supported"
+                outputs.append({"path": rel, "written": mtime,
+                                "by": describe_run(owner, digest) if supported else "unresolved", "rule": via,
+                                "producer_attempt": grade["producer_attempt"], "evidence_method": grade["evidence_method"],
+                                "strength": grade["strength"], "candidates": grade["candidates"], "reason": grade["reason"],
                                 "fingerprint": gate.describe(fingerprint), "record": fingerprint,
                                 "explore": bool(owner and owner.get("explore"))})
                 if mtime < start - TOLERANCE:
                     report.add("block", "Output `{}` was written {}, before the plan was approved.".format(
                         rel, when(mtime)))
-                elif owner is None or owner.get("explore") or digest not in owner.get("plans", []):
+                elif not supported and grade["evidence_method"] != "attempt-observed":
                     key = (None if owner is None else (owner.get("ts"), owner.get("command")),
-                           os.path.dirname(rel))
+                           os.path.dirname(rel), grade["evidence_method"])
                     attributed.setdefault(key, (owner, []))[1].append((rel, mtime))
             if older:
                 report.add("info", "{} file(s) under `{}` predate this plan, so they are earlier runs' "
                                    "outputs and were not checked.".format(older, word))
-    for (_, folder), (owner, files) in attributed.items():
+    for (_, folder, method), (owner, files) in attributed.items():
+        how = "timing evidence only" if method == "timing-only" else "joined to Snakemake's record by time only"
         if len(files) == 1:
             rel, mtime = files[0]
             if owner is None:
@@ -1648,7 +1907,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                                   "moved to the background, or computation the gate did not see."
                            .format(rel, when(mtime)))
             else:
-                report.add("gap", "Output `{}` was likely written by {}.".format(rel, describe_run(owner, digest)))
+                report.add("gap", "Output `{}` was likely written by {} ({}: a candidate, not an established "
+                                  "producer).".format(rel, describe_run(owner, digest), how))
             continue
         where = "{} files in `{}`".format(len(files), folder + "/" if folder else ".")
         if owner is None:
@@ -1658,8 +1918,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         else:
             names = ["`{}`".format(os.path.basename(rel)) for rel, _ in files[:3]]
             more = " and {} more".format(len(files) - 3) if len(files) > 3 else ""
-            report.add("gap", "{} were likely written by {}: {}{}.".format(
-                where, describe_run(owner, digest), ", ".join(names), more))
+            report.add("gap", "{} were likely written by {}: {}{} ({}: candidates, not established producers)."
+                       .format(where, describe_run(owner, digest), ", ".join(names), more, how))
 
     seen = {p for r in since for p in ran_paths(root, r)}
     plugins = [os.path.realpath(p) for p in (PLUGIN_ROOT, os.path.expanduser("~/.claude/plugins"),
@@ -1690,7 +1950,13 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds)
     claimed = check_claims(root, analysis_dir, outputs, claims, report, budget["bytes"])
 
-    return {"hash": digest, "approved_at": approved_at, "start": start, "session_id": approval.get("session_id"),
+    launches = collections.Counter(launch_kind(r) for r in mine)
+    strengths = collections.Counter(row["strength"] for row in outputs)
+    scope = {"runs": len(mine), "launch": {k: launches.get(k, 0) for k in ("matched", "unmatched", "ambiguous", "legacy")},
+             "outputs": len(outputs), "supported": strengths.get("supported", 0),
+             "candidate": strengths.get("candidate", 0), "unresolved": strengths.get("unresolved", 0)}
+    return {"hash": digest, "approved_at": approved_at, "start": start, "session_id": session,
+            "instance": {"selected": chosen, "current": current, "history": dict(history)}, "scope": scope,
             "analysis_dir": analysis_dir, "git": gate.git_state(root), "runs": len(mine),
             "scripts": scripts, "folders": folders, "commands": commands, "inputs": inputs,
             "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted, "envs": envs,
@@ -1713,6 +1979,30 @@ def waiver_note(w):
     return "{}: {}".format(where, cell(w[6]) if w[6] else "no reason given")
 
 
+def render_scope(result):
+    """The lines that say, before the tables, what the check covered and what it could not establish."""
+    scope, instance = result.get("scope"), result.get("instance") or {}
+    if not scope:
+        return []
+    launch = scope["launch"]
+    chosen = instance.get("selected")
+    which = "a legacy approval (no instance id)" if not chosen else "approval instance {}{}".format(
+        chosen, " (an earlier freeze; the current one is {})".format(instance["current"])
+        if chosen != instance.get("current") else "")
+    lines = ["## Scope", "",
+             "- Checked against {}: {} run(s) under it - launch evidence {} matched, {} unmatched, {} ambiguous, "
+             "{} legacy (launch link not recorded).".format(
+                 which, scope["runs"], launch["matched"], launch["unmatched"], launch["ambiguous"], launch["legacy"])]
+    if instance.get("history"):
+        lines.append("- {} run(s) of this plan under other approval instance(s) are history, not evidence for it.".format(
+            sum(instance["history"].values())))
+    if scope["outputs"]:
+        lines.append("- Producers: {} of {} output(s) have a supported producer; {} candidate, {} unresolved "
+                     "(only a supported producer is named).".format(
+                         scope["supported"], scope["outputs"], scope["candidate"], scope["unresolved"]))
+    return lines + [""]
+
+
 def render(result, all_outputs=False):
     git = result["git"]
     head = "HEAD {} ({})".format(git["head"][:12], "uncommitted changes" if git.get("dirty") else "clean") \
@@ -1726,6 +2016,7 @@ def render(result, all_outputs=False):
             if result["start"] < result["approved_at"] - TOLERANCE else "",
             result["analysis_dir"] or "?", result["runs"], head),
         "",
+    ] + render_scope(result) + [
         "## Planned scripts",
         "",
         "| Script | Status | Last run | Notes |",
@@ -1748,11 +2039,14 @@ def render(result, all_outputs=False):
         lines.append("No output files found for: {}.".format(", ".join(result["outputs_named"]) or "none"))
     else:
         shown = result["outputs"] if all_outputs else result["outputs"][:SHOWN_OUTPUTS]
-        lines += ["| Output | Written | By | Fingerprint |", "|---|---|---|---|"]
+        lines += ["| Output | Written | By | Evidence | Fingerprint |", "|---|---|---|---|---|"]
         for row in shown:
             by = row["by"] + (" via " + row["rule"] if row["rule"] else "")
-            lines.append("| `{}` | {} | {} | {} |".format(cell(row["path"]), when(row["written"]), cell(by),
-                                                          row["fingerprint"]))
+            evidence = "{}, {}".format(row["evidence_method"], row["strength"]) + (
+                "; candidates: " + "; ".join(row["candidates"][:3]) if row["strength"] != "supported" and row["candidates"]
+                else "")
+            lines.append("| `{}` | {} | {} | {} | {} |".format(cell(row["path"]), when(row["written"]), cell(by),
+                                                                cell(evidence), row["fingerprint"]))
         if len(shown) < len(result["outputs"]):
             lines.append("")
             lines.append("{} more output file(s); `write` records them all.".format(
@@ -1833,13 +2127,18 @@ def _write_bundle(root, result, folder):
         for receipt in result["receipts"]:
             handle.write(json.dumps(receipt, sort_keys=True) + "\n")
     with open(os.path.join(folder, paths["outputs"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
-        handle.write("path\twritten\tsize\tsha256\tfingerprint\twritten_by\n")
+        # The first six columns are the older format (stale reads only the first three); a table without
+        # the last four is a legacy bundle: its producers were chosen by timing, with no grade.
+        handle.write("path\twritten\tsize\tsha256\tfingerprint\twritten_by\tproducer_attempt\tevidence_method"
+                     "\tstrength\tapproval_instance\n")
         for row in result["outputs"]:
             record = row["record"]
             handle.write("\t".join(str(v) for v in [
                 row["path"], time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(row["written"])),
                 record.get("size", ""), record.get("sha256", ""), gate.method(record),
-                row["by"] + (" via " + row["rule"] if row["rule"] else "")]) + "\n")
+                row["by"] + (" via " + row["rule"] if row["rule"] else ""),
+                row["producer_attempt"] or "", row["evidence_method"], row["strength"],
+                (result.get("instance") or {}).get("selected") or "legacy"]) + "\n")
     with open(os.path.join(folder, paths["lint"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
         lint = result["lint"]
         handle.write("\n\n".join(lint["output"]) or "scilintr did not run.")
@@ -2734,6 +3033,8 @@ def main(argv):
     parser.add_argument("hash", nargs="?")
     parser.add_argument("new_hash", nargs="?")
     parser.add_argument("--analysis-dir")
+    parser.add_argument("--instance", help="report/write: check this approval instance (16 hex, or a unique prefix) "
+                        "instead of the newest one in approvals/<hash>.json; see `report` for the instances of its runs")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--claims", action="append", default=[],
                         help="report/write: also check this document's claims block (repeatable)")
@@ -2784,7 +3085,7 @@ def main(argv):
         sys.exit("verify: `write` needs --analysis-dir, confirmed by the user.")
     recorded = gate.lint_tools(root)
     result = check(root, args.hash, args.analysis_dir, args.sacct, args.hash_mb, args.seconds,
-                   args.scilintr or recorded[0], args.rscript or recorded[1], args.claims)
+                   args.scilintr or recorded[0], args.rscript or recorded[1], args.claims, args.instance)
     if args.action == "write":
         written = write(root, result)
         for path in written:

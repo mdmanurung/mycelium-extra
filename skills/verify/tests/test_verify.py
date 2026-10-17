@@ -119,15 +119,19 @@ class VerifyTest(unittest.TestCase):
         self.hook("prompt", {"prompt": "approve plan " + digest})
         return digest
 
-    def run_cmd(self, command, exit_code=0, stdout=""):
+    def run_cmd(self, command, exit_code=0, stdout="", writes=None):
         """A run the gate saw from start to end: its Pre callback, which must allow it, then its
-        Post with the same tool_use_id (as Claude Code and Codex send them). Returns the receipt."""
+        Post with the same tool_use_id (as Claude Code and Codex send them). `writes` ({path: text})
+        are files the run itself writes, between its Pre and its Post, so the gate sees them change.
+        Returns the receipt."""
         self.calls = getattr(self, "calls", 0) + 1
         call_id = "toolu_test_{}".format(self.calls)
         reply = self.hook("tool", {"tool_name": "Bash", "tool_input": {"command": command}, "tool_use_id": call_id})
         decision = ((reply or {}).get("hookSpecificOutput") or {}).get("permissionDecision")
         self.assertNotEqual(decision, "deny", "the gate denied `{}`; use post_only for a run it blocks: {}".format(
             command, reply))
+        for rel, text in sorted((writes or {}).items()):
+            self.write(rel, text)
         return self.post_only(command, exit_code, stdout, call_id=call_id)
 
     def post_only(self, command, exit_code=0, stdout="", call_id=None):
@@ -224,9 +228,8 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("no approval covers it", out)
 
     def test_conforming_run(self):
-        digest = self.approve(plan("run `{}`".format(FIT)))
-        receipt = self.run_cmd("python " + FIT)
-        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})  # the run writes its declared output between Pre and Post
         out = self.verify("report", digest)
         self.assertIn("| `{}` | ran |".format(FIT), out)
         self.assertIn("`python {}`".format(FIT), out)
@@ -235,9 +238,8 @@ class VerifyTest(unittest.TestCase):
 
     def conforming_run(self):
         """A conforming run of FIT. Returns (plan hash, approval time)."""
-        digest = self.approve(plan("run `{}`".format(FIT)))
-        receipt = self.run_cmd("python " + FIT)
-        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
         return digest, gate.read_json(gate.state_path(self.root, "approvals", digest + ".json"), {})["approved_at"]
 
     def gate_errors(self, *errors, raw=None):
@@ -386,12 +388,13 @@ class VerifyTest(unittest.TestCase):
 
     def test_exit_status_from_the_hook_event(self):
         # PostToolUse fires only after success: an event-inferred 0 conforms.
-        digest = self.approve(plan("run `{}`".format(FIT)))
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
         command = {"command": "python " + FIT}
         ok = {"stdout": "", "stderr": "", "interrupted": False}
+        self.hook("tool", {"tool_name": "Bash", "tool_input": command, "tool_use_id": "t1"})  # the launch is checked
+        self.write(self.OUT, "x\n")
         self.hook("post", {"hook_event_name": "PostToolUse", "tool_name": "Bash", "tool_input": command,
-                           "tool_response": ok})
-        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=time.time())
+                           "tool_response": ok, "tool_use_id": "t1"})
         out = self.verify("report", digest)
         self.assertIn("| `{}` | ran (exit 0 from hook event) |".format(FIT), out)
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
@@ -548,10 +551,9 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("Verify status: CONFORMS", out)
 
     def test_reapproving_the_same_plan_keeps_its_earlier_runs(self):
-        text = plan("run `{}`".format(FIT))
+        text = plan("run `{}`".format(FIT), outputs=self.OUT)
         digest = self.approve(text)
-        receipt = self.run_cmd("python " + FIT)
-        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        receipt = self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
         path = gate.state_path(self.root, "approvals", digest + ".json")
         record = gate.read_json(path, None)
         record["approved_at"] = receipt["ts"] + 86400  # approved again a day later
@@ -1002,9 +1004,8 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("No verified plans", self.verify("stale"))
 
     def test_scilintr_findings_block_and_missing_linter_is_a_gap(self):
-        digest = self.approve(plan("run `{}`".format(FIT)))
-        receipt = self.run_cmd("python " + FIT)
-        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
         self.write("analysis/a/scripts/02_plot.R", "x <- 1  # ANALYSIS_OK[magic-threshold]: fixed by design\n",
                    mtime=time.time() - 3600)
         self.write("analysis/a/outputs/junk.py", "pass\n")  # outputs are not linted
@@ -1326,9 +1327,8 @@ sys.exit(1 if hits else 0)
 
     def test_pip_packages_are_recorded_beside_conda_ones(self):
         self.pip_env()
-        digest = self.approve(plan("run `{}`".format(FIT)))
-        receipt = self.run_cmd("conda run -n fakeenv python " + FIT)
-        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("conda run -n fakeenv python " + FIT, writes={self.OUT: "x\n"})
         out = self.verify("report", digest)
         self.assertIn("Conda env `fakeenv` (`conda run`): 5 packages recorded; 5 pip packages "
                       "(2 also in conda-meta).", out)
@@ -1466,12 +1466,12 @@ sys.exit(1 if hits else 0)
 
     def claims_run(self, block, prose=""):
         """One planned run writing two outputs, and the analysis doc carrying `block`."""
-        digest = self.approve(plan("run `{}`".format(FIT)))
-        receipt = self.run_cmd("python " + FIT)
-        self.write("analysis/a/outputs/de.tsv", "gene\tlog2fc\tpadj\tshare\nIL7R\t1.23456\t0.0412\t0.344\n"
-                   "CD3E\t-0.5\t0.05\t0.1\nCD3E\t2\t0.9\t0.2\n", mtime=receipt["ts"] - 1)
-        self.write("analysis/a/outputs/numbers.json", '{"qc": {"n": 48, "kept": [40, 8]}}',
-                   mtime=receipt["ts"] - 1)
+        digest = self.approve(plan("run `{}`".format(FIT),
+                                   outputs="analysis/a/outputs/de.tsv analysis/a/outputs/numbers.json"))
+        receipt = self.run_cmd("python " + FIT, writes={
+            "analysis/a/outputs/de.tsv": "gene\tlog2fc\tpadj\tshare\nIL7R\t1.23456\t0.0412\t0.344\n"
+                                         "CD3E\t-0.5\t0.05\t0.1\nCD3E\t2\t0.9\t0.2\n",
+            "analysis/a/outputs/numbers.json": '{"qc": {"n": 48, "kept": [40, 8]}}'})
         self.write("analysis/a/A.md", "# a\n\n## Key Findings\n\n{}\n<!-- claims\n{}\n-->\n\n## Next\n\n"
                                       "Run 5 more.\n".format(prose, block))
         return digest, receipt
@@ -1661,12 +1661,11 @@ sys.exit(1 if hits else 0)
 
     def test_folder_plan_with_no_runs_is_a_gap_and_a_run_conforms(self):
         self.write("analysis/a/outputs/old.tsv", "x\n", mtime=time.time() - 3600)
-        digest = self.approve(plan("run the scripts in `analysis/a/scripts/`"))
+        digest = self.approve(plan("run the scripts in `analysis/a/scripts/`", outputs="analysis/a/outputs/*.tsv"))
         out = self.verify("report", digest)
         self.assertIn("grants running the scripts in `analysis/a/scripts/`, but no run in it", out)
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
-        receipt = self.run_cmd("python " + FIT)  # old outputs beside a real run do not block
-        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})  # old outputs beside a real run do not block
         out = self.verify("report", digest)
         self.assertNotIn("grants running", out)
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
@@ -1924,7 +1923,311 @@ sys.exit(1 if hits else 0)
         self.assertNotIn("Citations", self.verify("status"))  # `check` and `status` never show citations
         self.assertNotIn("data/old", self.verify("report", self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/o2/"))))
 
+    # F01/C05: a producer is named only from qualified evidence, never from timing alone
+
     OUT = "analysis/a/outputs/fit.tsv"
+    LAUNCH_FIELDS = ("launch_match", "attempt_id", "approval_instance", "outputs_observation", "outputs_changed",
+                     "launch_note", "attempt_candidates")
+
+    def read_receipts(self):
+        with open(gate.state_path(self.root, "receipts.jsonl")) as handle:
+            return [json.loads(line) for line in handle]
+
+    def rewrite_receipts(self, change):
+        records = self.read_receipts()
+        for record in records:
+            change(record)
+        with open(gate.state_path(self.root, "receipts.jsonl"), "w") as handle:
+            handle.write("".join(json.dumps(record) + "\n" for record in records))
+
+    def make_legacy(self, digest):
+        """What an older gate wrote: receipts with no launch link, attempt, instance or output observation, and an
+        approval with no instance id."""
+        self.rewrite_receipts(lambda r: [r.pop(key, None) for key in self.LAUNCH_FIELDS])
+        path = gate.state_path(self.root, "approvals", digest + ".json")
+        record = gate.read_json(path, {})
+        record.pop("instance_id", None)
+        with open(path, "w") as handle:
+            json.dump(record, handle)
+
+    def outputs_of(self, digest, *args):
+        return json.loads(self.verify("report", digest, "--json", *args))["outputs"]
+
+    def output_row(self, out, path):
+        return [line for line in out.splitlines() if line.startswith("| `{}` |".format(path))][0]
+
+    def test_single_timestamp_candidate_is_not_a_producer(self):  # F01
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        receipt = self.run_cmd("python " + FIT)  # a print-only script: its attempt saw no output change
+        self.write(self.OUT, "x\n", mtime=receipt["ts"] - 1)  # an independent writer, one second before its report
+        out = self.verify("report", digest)
+        by = self.output_row(out, self.OUT).split("|")[3].strip()
+        self.assertEqual(by, "unresolved")
+        self.assertIn("timing evidence only", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+        entry, = self.outputs_of(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"], entry["producer_attempt"]),
+                         ("timing-only", "candidate", None))
+        self.assertEqual(len(entry["candidates"]), 1)
+        self.assertIn("did not see this one change", entry["reason"])
+
+    def test_a_matched_run_that_writes_the_declared_output_is_supported(self):  # control
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        receipt = self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.assertEqual(receipt["outputs_changed"]["created"], [self.OUT])  # the gate saw it appear
+        out = self.verify("report", digest)
+        entry, = self.outputs_of(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"], entry["producer_attempt"]),
+                         ("attempt-observed", "supported", receipt["attempt_id"]))
+        self.assertIn("`python " + FIT, self.output_row(out, self.OUT).split("|")[3])
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+
+    def test_legacy_receipts_never_support_a_producer(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.make_legacy(digest)
+        out = self.verify("report", digest)
+        entry, = self.outputs_of(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"]), ("timing-only", "candidate"))
+        self.assertIn("launch link not recorded", entry["reason"])
+        self.assertIn("1 receipt(s) predate launch matching", out)
+        self.assertNotIn("no checked launch", out)  # not a gap of its own: only the producer stays a gap
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+
+    def rival(self, receipt, start_offset, end_offset, **changes):
+        """An exploratory run whose attempt lasted from receipt ts + start_offset to + end_offset."""
+        rival = dict(receipt, command="python analysis/a/scratch.py", paths=["analysis/a/scratch.py"],
+                     explore=True, plans=[], attempt_id="ee" * 8, call_id=None, ts=receipt["ts"] + end_offset,
+                     started=receipt["ts"] + start_offset, outputs_observation="skipped: no declared outputs")
+        rival.pop("outputs_changed", None)
+        rival.update(changes)
+        with open(gate.state_path(self.root, "receipts.jsonl"), "a") as handle:
+            handle.write(json.dumps(rival) + "\n")
+
+    def test_an_overlapping_attempt_makes_the_observed_producer_unresolved(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        receipt = self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.rewrite_receipts(lambda r: r.update(started=r["ts"] - 3))
+        self.rival(receipt, -2, 1)  # an exploratory run in the same seconds could have written it too
+        out = self.verify("report", digest)
+        entry, = self.outputs_of(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"], entry["producer_attempt"]),
+                         ("attempt-observed", "unresolved", None))
+        self.assertEqual(len(entry["candidates"]), 2)
+        self.assertTrue(any("scratch.py" in c for c in entry["candidates"]), entry)
+        self.assertEqual(self.output_row(out, self.OUT).split("|")[3].strip(), "unresolved")
+        self.assertIn("an overlapping attempt could also have written it", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+
+    def test_a_later_attempt_does_not_make_an_observed_producer_unresolved(self):  # control
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        receipt = self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.rewrite_receipts(lambda r: r.update(started=r["ts"] - 3))
+        self.rival(receipt, 60, 61)  # an exploratory run a minute later
+        entry, = self.outputs_of(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"]), ("attempt-observed", "supported"))
+
+    def test_two_runs_of_one_plan_each_keep_their_own_output(self):  # control: a sibling that watched and did not list it
+        other = "analysis/a/outputs/other.tsv"
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT + " " + other))
+        self.run_cmd("python " + FIT + " --part a", writes={self.OUT: "x\n"})
+        self.run_cmd("python " + FIT + " --part b", writes={other: "y\n"})
+        out = self.verify("report", digest)
+        self.assertEqual(sorted((e["path"], e["strength"]) for e in self.outputs_of(digest)),
+                         [(self.OUT, "supported"), (other, "supported")])
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+
+    def test_a_folder_declaration_never_supports_a_file_inside_it(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/outputs/"))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})  # the gate saw the folder change, not the file
+        entry, = self.outputs_of(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"]), ("timing-only", "candidate"))
+        self.assertIn("names no file", entry["reason"])
+
+    def test_a_snakemake_record_with_one_wrapper_is_only_a_candidate(self):
+        step = "analysis/a/01_step.R"
+        for path in (step, "analysis/a/run.sh"):
+            self.write(path, "x\n", mtime=time.time() - 60)
+        digest = self.approve(plan("`analysis/a/run.sh`", "`{}`".format(step), outputs=self.OUT))
+        self.write(self.OUT, "x\n", mtime=time.time() + 1)
+        self.snakemake_record("outputs/fit.tsv", "s01_step", time.time(), ["01_step.R"], "Rscript 01_step.R")
+        self.run_cmd("bash analysis/a/run.sh")
+        out = self.verify("report", digest)
+        entry, = self.outputs_of(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"]), ("workflow-record", "candidate"))
+        self.assertEqual(entry["rule"], "Snakemake rule `s01_step`")
+        by = self.output_row(out, self.OUT).split("|")[3]
+        self.assertIn("unresolved", by)
+        self.assertNotIn("bash analysis/a/run.sh", by)
+        self.assertIn("likely written by", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+
+    def test_a_snakemake_record_with_two_compatible_wrappers_is_unresolved(self):
+        step = "analysis/a/01_step.R"
+        for path in (step, "analysis/a/run.sh"):
+            self.write(path, "x\n", mtime=time.time() - 60)
+        digest = self.approve(plan("`analysis/a/run.sh`", "`{}`".format(step), outputs=self.OUT))
+        self.write(self.OUT, "x\n", mtime=time.time() + 1)
+        self.snakemake_record("outputs/fit.tsv", "s01_step", time.time(), ["01_step.R"], "Rscript 01_step.R")
+        self.run_cmd("bash analysis/a/run.sh")
+        self.run_cmd("bash analysis/a/run.sh --again")
+        entry, = self.outputs_of(digest)
+        self.assertEqual((entry["evidence_method"], entry["strength"]), ("workflow-record", "unresolved"))
+        self.assertEqual(len(entry["candidates"]), 2)
+
+    # C01: launch evidence
+
+    def test_a_post_without_pre_is_a_gap_not_a_checked_launch(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.post_only("python " + FIT)
+        out = self.verify("report", digest)
+        self.assertIn("no checked launch: Post without matching Pre", out)
+        self.assertIn("1 unmatched", out.split("## Planned scripts")[0])
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+
+    def test_identical_launches_without_call_ids_are_an_ambiguous_gap(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        event = {"tool_name": "Bash", "tool_input": {"command": "python " + FIT}}
+        self.hook("tool", event)
+        self.hook("tool", event)  # the same call again before the first one reported back
+        self.post_only("python " + FIT)
+        self.post_only("python " + FIT)
+        out = self.verify("report", digest)
+        self.assertIn("ambiguous launch", out)
+        self.assertIn("2 ambiguous", out.split("## Planned scripts")[0])
+        self.assertNotIn("no checked launch", out)
+
+    def abandon_a_launch(self):
+        """A Pre whose Post never came, older than the gate's 24 h expiry; a later Pre moves it aside."""
+        self.hook("tool", {"tool_name": "Bash", "tool_input": {"command": "python " + FIT}, "tool_use_id": "gone"})
+        for path in glob.glob(os.path.join(gate.state_path(self.root, "launches"), "*.json")):
+            os.utime(path, (time.time() - 2 * 86400,) * 2)
+            with open(path) as handle:
+                record = json.load(handle)
+            record["started"] = record["ts"] = time.time() - 2 * 86400
+            with open(path, "w") as handle:
+                json.dump(record, handle)
+            os.utime(path, (record["ts"],) * 2)
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        return glob.glob(os.path.join(gate.state_path(self.root, "launches", "abandoned"), "*.json"))
+
+    def test_an_abandoned_attempt_of_this_plan_is_a_gap(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        kept, = self.abandon_a_launch()
+        out = self.verify("report", digest)
+        self.assertRegex(out, r"Attempt started at .* has no completion record")
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+        with open(kept) as handle:  # kept, not deleted
+            self.assertEqual(json.load(handle)["call_id"], "gone")
+
+    def test_an_abandoned_attempt_of_another_plan_is_not_this_plans_gap(self):  # control
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        kept, = self.abandon_a_launch()
+        with open(kept) as handle:
+            record = json.load(handle)
+        for entries in record["runs"].values():
+            for entry in entries:
+                entry["plans"] = ["deadbeef"]
+                entry["instance_ids"] = {"deadbeef": "0" * 16}
+        with open(kept, "w") as handle:
+            json.dump(record, handle)
+        out = self.verify("report", digest)
+        self.assertNotIn("no completion record", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+
+    def test_the_report_opens_with_what_was_checked(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.post_only("python " + FIT)
+        self.stamp_last_receipt(time.time() + 60)  # a minute on, so it cannot have written the output
+        out = self.verify("report", digest)
+        scope = out.split("## Scope")[1].split("## Planned scripts")[0]
+        self.assertIn("2 run(s)", scope)
+        self.assertIn("1 matched", scope)
+        self.assertIn("1 unmatched", scope)
+        self.assertIn("0 legacy", scope)
+        self.assertIn("1 of 1 output(s) have a supported producer", scope)
+
+    # C04/F04: one approval instance at a time
+
+    def reapproved_with_new_input(self):
+        """The same plan text approved twice with its input edited between: two instances. Returns
+        (hash, first instance, second instance); one run happened under the first."""
+        self.write("data/in.tsv", "a\n", mtime=time.time() - 3600)
+        text = plan("run `{}`".format(FIT), inputs="data/in.tsv", outputs=self.OUT)
+        digest = self.approve(text)
+        approvals = gate.state_path(self.root, "approvals", digest + ".json")
+        first = gate.read_json(approvals, {})["instance_id"]
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.write("data/in.tsv", "b changed\n", mtime=time.time() - 3000)
+        self.assertEqual(self.approve(text), digest)
+        second = gate.read_json(approvals, {})["instance_id"]
+        self.assertNotEqual(first, second)
+        return digest, first, second
+
+    def test_a_run_under_an_older_instance_does_not_establish_the_current_freeze(self):
+        digest, first, second = self.reapproved_with_new_input()
+        out = self.verify("report", digest)
+        self.assertIn("No run is recorded under approval instance {}".format(second), out)
+        self.assertIn("1 run(s) of this plan ran under other approval instance(s)", out)
+        self.assertIn("approval instance {}".format(second), out.split("## Planned scripts")[0])
+        self.assertIn("| `{}` | no receipt |".format(FIT), out)
+        self.assertNotIn("Verify status: CONFORMS\n", out)
+
+    def test_a_run_under_the_current_instance_is_the_evidence(self):  # control
+        digest, first, second = self.reapproved_with_new_input()
+        self.rewrite_receipts(lambda r: r.update(ts=r["ts"] - 120))  # the first run was minutes earlier
+        self.run_cmd("python " + FIT, writes={self.OUT: "again\n"})
+        out = self.verify("report", digest)
+        self.assertNotIn("No run is recorded under approval instance", out)
+        self.assertIn("1 run(s) of this plan ran under other approval instance(s)", out)  # history stays visible
+        self.assertIn("| `{}` | ran |".format(FIT), out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+
+    def test_an_older_instance_can_be_selected_and_is_checked_against_its_own_pins(self):
+        digest, first, second = self.reapproved_with_new_input()
+        out = self.verify("report", digest, "--instance", first)
+        self.assertIn("approval instance {} (an earlier freeze".format(first), out)
+        self.assertIn("| `{}` | ran |".format(FIT), out)
+        self.assertIn("Input `data/in.tsv` changed since the approval", out)  # the file moved on since that freeze
+        self.assertNotIn("No run is recorded under approval instance", out)
+        self.assertIn("no approval instance", self.verify("report", digest, "--instance", "0" * 16, fails=True))
+
+    def test_reapproving_an_unchanged_freeze_keeps_one_instance(self):  # control
+        text = plan("run `{}`".format(FIT), outputs=self.OUT)
+        digest = self.approve(text)
+        approvals = gate.state_path(self.root, "approvals", digest + ".json")
+        first = gate.read_json(approvals, {})["instance_id"]
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.approve(text)
+        self.assertEqual(gate.read_json(approvals, {})["instance_id"], first)
+        out = self.verify("report", digest)
+        self.assertNotIn("other approval instance", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+
+    def test_a_legacy_approval_is_read_as_before_with_an_info_line(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        path = gate.state_path(self.root, "approvals", digest + ".json")
+        record = gate.read_json(path, {})
+        record.pop("instance_id")
+        with open(path, "w") as handle:
+            json.dump(record, handle)
+        out = self.verify("report", digest)
+        self.assertIn("predates approval instances", out)
+        self.assertNotIn("No run is recorded under approval instance", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
+
+    def test_the_bundle_keeps_evidence_method_attempt_and_instance(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        receipt = self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        instance = gate.read_json(gate.state_path(self.root, "approvals", digest + ".json"), {})["instance_id"]
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        with open(os.path.join(self.root, "analysis/a/provenance/outputs-{}.tsv".format(digest))) as handle:
+            header, row = [line.rstrip("\n").split("\t") for line in handle][:2]
+        self.assertEqual(header[:6], ["path", "written", "size", "sha256", "fingerprint", "written_by"])
+        self.assertEqual(header[6:], ["producer_attempt", "evidence_method", "strength", "approval_instance"])
+        self.assertEqual(row[6:], [receipt["attempt_id"], "attempt-observed", "supported", instance])
 
     # C05: a Slurm submission is not a completion
 
