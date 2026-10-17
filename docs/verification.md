@@ -21,6 +21,20 @@ Validation bindings in the report, `verify diff`, `verify stale`, `verify status
 
 ## What the report shows
 
+The report opens with the status and five rows, each one line, so you can stop reading there when the answer is yes:
+
+```text
+# Verify plan 84bb5fce: CONFORMS
+
+Ran as planned  yes: 3 of 3 steps ran, 3 run(s), all completed
+Numbers match   yes: 8 of 8 claimed cells match
+Code checks     lint clean; 2 threshold finding(s) are Choices you approved
+Not checked     3 Validation cell(s) are prose; whether the code implements the choices (that is review)
+Next            confirm saving provenance to analysis/vaccine-response/provenance/
+```
+
+Each row says `yes`, `no`, `partly` (the headline holds but something underneath is unresolved) or `n/a`, with the reason. `Not checked` always ends with what verify cannot see (whether the code implements the choices) and adds prose Validation cells and open gaps. `Next` names the one thing to do: confirm saving provenance, close the first gap, or fix the first blocker. The sections below are the evidence behind those rows. `--json` is unchanged.
+
 - **Each planned script** (a path in the plan table with a script extension, a `Snakefile` name, or a `#!` line; another file it names, such as a log to read or a README, is not one): ran, failed, no receipt, edited or deleted since it ran, or only passed to other code. A lint or parse call (`Rscript -e 'lintr::lint()' x.R`) or another tool's script read from stdin gets the path but does not run it, so it is not counted as a run. Steps run inside a `run.sh` or Snakemake wrapper are matched through Snakemake's per-output records, and Slurm jobs through `sacct`. A job counts as a run of a planned script when its receipt names the script or when the `sbatch` line Slurm recorded (SubmitLine, with `$dir` expanded) does. A job that names no planned script and did not complete is a gap, and so is a job ID recorded for different `sbatch` commands.
 - **Command and folder runs:** a run credited to the plan that no script row covers (an approved `snakemake` or `sbatch` command, a script run through a granted folder) is checked the same way: a failed run blocks, one with no exit status is a gap, a compound command (`cd x && snakemake`) is a gap whose own failure blocks, and a Slurm submission that exited 0 is judged by its job's state in `sacct`, as a script row is. A later run of the same step supersedes an earlier one, where a step is the command's kind, working folder and the script, Snakefile or job script it names, so a retry with other options counts (a Snakemake run naming none is the Snakefile in its folder; any other command with none is keyed by its command line). The supersession decides the step's outcome only: every attempt stays visible under [Recovery](#recovery). A folder whose scripts the plan table grants is a gap when neither a run of a script in it nor a command run from it was recorded.
 - **Exploration history:** `verify explore` lists every attempt of an explore command, failed ones included, with its code version (the script's sha256), exit and scope (the approval instance of `allow explore <hash>`, or the session-wide grant). An explore run never validates a check and never owns an output. An output written inside an explore attempt and not re-observed under a matched approved attempt is `not re-run under approval`: promotion needs an approved rerun with fresh output identity, and the explore output is never relabelled. The gate records no output hash for explore runs, so "same content" is judged by the file's write time falling inside the explore attempt.

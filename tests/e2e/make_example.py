@@ -77,9 +77,11 @@ def main(out_path):
         doc += "## 3. Before approval, a run is denied\n\nThe agent tries step 1 straight away.\n\n" + \
                block("$ " + refused.command + "\n\n" + scrub(refused.reason))
         doc += "## 4. The approval card\n\nWhen the reply ends with `Plan status: READY`, the Stop hook shows this " \
-               "card. You check the science on it, then type the last line.\n\n" + block(scrub(card)) + \
-               "Step 3's `lint` bullet shows one open scilintr finding. The card is for your eyes and never blocks; " \
-               "`verify` decides below, and here that threshold is an approved Choice.\n\n"
+               "card. It is compact: the question, each choice and who made it, the checks, what ran before, and what the " \
+               "plan lets run. You check the science on it, then type `approve`. `card <hash> full` shows the rest.\n\n" + \
+               block(scrub(card)) + \
+               "The `lint` line counts step 3's threshold as an approved Choice, not an open finding. The card is for " \
+               "your eyes and never blocks; `verify` decides below.\n\n"
         doc += "## 5. Approval\n\n" + block("> approve plan {}\n\n{}".format(digest, scrub(reply["systemMessage"])))
         doc += "## 6. The gated runs and their receipts\n\nThe three steps run with no hook speaking. Each leaves a " \
                "receipt (here the first, trimmed to its main fields).\n\n"

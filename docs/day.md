@@ -26,7 +26,7 @@ If a second opinion is worth the cost today, `plan-review` sends the brief to in
 
 ## 09:45 Read the card, then approve
 
-When the reply ends with `Plan status: READY`, the gate shows a card: your question, the goal, each step with its choice and who decided it, what the plan lets run, which files are pinned, and what will be written. This is the one moment to check the *science*. The card shows what the gate allows; it does not judge the choices.
+When the reply ends with `Plan status: READY`, the gate shows a compact card: your question, each choice with who made it (`[you]`, `[repo: ...]`, or `[default: ...]*` where nothing could be sourced), the checks you will use, what ran before, and one line saying what the plan lets run. This is the one moment to check the *science*. The card shows what the gate allows; it does not judge the choices. If anything is unusual (a changed script, a folder or command granted, flagged evidence), it is on the card too. The file lists and the full step-by-step view are behind `card <hash> full`.
 
 When it is right, type:
 
@@ -72,7 +72,7 @@ Run it your usual way, for example `sbatch run.sh` on the cluster. The gate chec
 /mycelium-extra:verify <run plan hash>
 ```
 
-`verify` compares the plan with the receipts, outputs, lint and any numbers you declared in a `<!-- claims -->` block, and says one of:
+`verify` compares the plan with the receipts, outputs, lint and any numbers you declared in a `<!-- claims -->` block. The report opens with five rows: whether the steps ran as planned, whether the numbers match, what the code checks found, what was not checked, and the one thing to do next. Then it says one of:
 
 | Result | What you do |
 |---|---|
