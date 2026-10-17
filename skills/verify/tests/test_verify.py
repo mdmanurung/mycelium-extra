@@ -2676,10 +2676,6 @@ class LineageAndExploreHistoryTest(unittest.TestCase):
 
     # ---- lineage as candidate producer evidence
 
-    def sha(self, rel):
-        with open(os.path.join(self.root, rel), "rb") as handle:
-            return hashlib.sha256(handle.read()).hexdigest()
-
     def iso(self, ts):
         return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
 
@@ -2868,6 +2864,101 @@ class LineageAndExploreHistoryTest(unittest.TestCase):
         self.lineage(self.act(receipt, [], script="/tmp/scratchpad/smoke.R"), self.act(receipt, [self.OUT]))
         out = self.verify("report", digest)
         self.assertIn("lineage saw `/tmp/scratchpad/smoke.R`", out)
+
+    # ---- exploration history and promotion
+
+    def scoped(self, text=None):
+        digest = self.approve(text or plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.assertIn("scoped", self.hook("prompt", {"prompt": "allow explore " + digest})["systemMessage"])
+        return digest, gate.read_json(gate.state_path(self.root, "approvals", digest + ".json"), {})["instance_id"]
+
+    def sha(self, rel):
+        with open(os.path.join(self.root, rel), "rb") as handle:
+            return hashlib.sha256(handle.read()).hexdigest()
+
+    def test_explore_keeps_every_attempt_with_its_code_version_and_scope(self):
+        digest, instance = self.scoped()
+        first = self.sha(FIT)
+        self.run_cmd(self.EXPLORE + "python " + FIT, exit_code=1)
+        self.write(FIT, "print(2)\n")
+        self.run_cmd(self.EXPLORE + "python " + FIT)
+        runs = json.loads(self.verify("explore", "--session", "s1", "--json"))
+        run, = runs
+        self.assertEqual(run["runs"], 2)
+        failed, fixed = run["attempts"]
+        self.assertEqual((failed["exit_status"], fixed["exit_status"]), (1, 0))
+        self.assertEqual((failed["script_sha256"], fixed["script_sha256"]), (first, self.sha(FIT)))
+        self.assertNotEqual(failed["script_sha256"], fixed["script_sha256"])
+        self.assertEqual((failed["scope"], fixed["scope"]), (instance, instance))
+        self.assertTrue(failed["attempt_id"] and failed["attempt_id"] != fixed["attempt_id"])
+        out = self.verify("explore", "--session", "s1")
+        self.assertIn("exit 1", out)
+        self.assertIn(first[:12], out)
+        self.assertIn(self.sha(FIT)[:12], out)
+        self.assertIn("scope " + instance, out)
+
+    def test_a_plain_grant_attempt_is_shown_as_the_session_wide_grant(self):  # control
+        self.hook("prompt", {"prompt": "allow explore"})
+        self.run_cmd(self.EXPLORE + "python " + FIT)
+        run, = json.loads(self.verify("explore", "--session", "s1", "--json"))
+        attempt, = run["attempts"]
+        self.assertIsNone(attempt["scope"])
+        self.assertEqual(attempt["script_sha256"], self.sha(FIT))
+        self.assertIn("session-wide grant", self.verify("explore", "--session", "s1"))
+
+    def test_explore_states_that_promotion_needs_an_approved_rerun(self):
+        self.hook("prompt", {"prompt": "allow explore"})
+        self.run_cmd(self.EXPLORE + "python " + FIT)
+        out = self.verify("explore", "--session", "s1")
+        self.assertIn("approved rerun", out)
+        self.assertIn("fresh output identity", out)
+        self.assertIn("not re-run under approval", out)
+
+    def test_an_explore_receipt_that_wrote_a_declared_output_does_not_own_it(self):
+        digest, instance = self.scoped()
+        receipt = self.run_cmd(self.EXPLORE + "python " + FIT, writes={self.OUT: "x\n"})
+        self.assertTrue(receipt["explore"])
+        out = self.verify("report", digest)
+        entry = self.producer(digest)
+        self.assertNotEqual(entry["strength"], "supported")
+        self.assertIsNone(entry["producer_attempt"])
+        self.assertEqual(self.output_row(out, self.OUT).split("|")[3].strip(), "unresolved")
+        self.assertEqual(entry["promotion"], "not re-run under approval")
+        self.assertIn("not re-run under approval", out)
+        self.assertNotIn("Verify status: CONFORMS\n", out)
+
+    def test_an_approved_rerun_that_saw_the_output_change_is_a_fresh_identity(self):  # control
+        digest, instance = self.scoped()
+        self.run_cmd(self.EXPLORE + "python " + FIT, writes={self.OUT: "x\n"})
+        time.sleep(1.1)
+        rerun = self.run_cmd("python " + FIT, writes={self.OUT: "y\n"})
+        out = self.verify("report", digest)
+        entry = self.producer(digest)
+        self.assertEqual((entry["strength"], entry["producer_attempt"]), ("supported", rerun["attempt_id"]))
+        self.assertNotIn("promotion", entry)
+        self.assertNotIn("not re-run under approval", out)
+
+    def test_an_approved_run_that_left_the_explore_output_untouched_is_not_a_promotion(self):
+        digest, instance = self.scoped()
+        explored = self.run_cmd(self.EXPLORE + "python " + FIT, writes={self.OUT: "x\n"})
+        time.sleep(1.1)
+        self.run_cmd("python " + FIT)  # approved, matched, but it did not write the output: same bytes, same file
+        out = self.verify("report", digest)
+        entry = self.producer(digest)
+        self.assertNotEqual(entry["strength"], "supported")
+        self.assertEqual(entry["promotion"], "not re-run under approval")
+        self.assertIn(explored["attempt_id"], json.dumps(entry["explore_attempts"]))
+        self.assertNotIn("Verify status: CONFORMS\n", out)
+
+    def test_an_explore_run_of_a_checks_invocation_is_never_a_validation_result(self):  # control: holds today
+        digest, instance = self.scoped(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        self.run_cmd(self.EXPLORE + "python " + self.CHECK, writes={self.EVID: json.dumps({"status": "passed"})})
+        self.rewrite_receipts(lambda r: r.get("explore") and r.update(validation_check="V1"))  # even if it claimed it
+        one = self.validation_of(digest)["V1"]
+        self.assertEqual(one["outcome"], "not run")
+        out = self.verify("report", digest)
+        self.assertNotIn("Verify status: CONFORMS\n", out)
 
 
 if __name__ == "__main__":

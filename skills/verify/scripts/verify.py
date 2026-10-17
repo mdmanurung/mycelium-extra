@@ -2298,12 +2298,24 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                 if grade["gap"]:
                     report.add("gap", grade["gap"])
                 supported = grade["strength"] == "supported"
+                origin = [] if supported else explore_origin(receipts, mine, rel, mtime)
+                if origin:
+                    report.add("gap", "Output `{}` was written inside the window of explore attempt(s) {} and was not "
+                                      "re-observed under a matched approved attempt: not re-run under approval. Promotion "
+                                      "needs an approved rerun with fresh output identity; an explore output is never "
+                                      "relabelled as a result.".format(rel, ", ".join(
+                                          "{} (code {})".format(a["attempt_id"] or "with no attempt id",
+                                                                (a["script_sha256"] or "no content hash")[:12])
+                                          for a in map(explore_attempt, origin))))
                 outputs.append({"path": rel, "written": mtime,
                                 "by": describe_run(owner, digest) if supported else "unresolved", "rule": via,
                                 "producer_attempt": grade["producer_attempt"], "evidence_method": grade["evidence_method"],
                                 "strength": grade["strength"], "candidates": grade["candidates"], "reason": grade["reason"],
                                 "fingerprint": gate.describe(fingerprint), "record": fingerprint,
                                 "lineage": grade["lineage"], "explore": bool(owner and owner.get("explore"))})
+                if origin:
+                    outputs[-1].update(promotion="not re-run under approval",
+                                       explore_attempts=[explore_attempt(r) for r in origin])
                 if mtime < start - TOLERANCE:
                     report.add("block", "Output `{}` was written {}, before the plan was approved.".format(
                         rel, when(mtime)))
@@ -2923,6 +2935,31 @@ def render_status(rows):
 EXPLORE_DAYS = 7
 
 
+def explore_attempt(r):
+    """One explore receipt as an attempt: when, its attempt id, the scope it ran under (the approval instance of
+    `allow explore <hash>`; None for the session-wide grant), its exit status, and the code version: the script it
+    ran and that script's sha256 as the gate fingerprinted it at launch (None when only metadata was recorded)."""
+    script = r.get("script") if isinstance(r.get("script"), dict) else {}
+    pins = r.get("explore_script_pins") if isinstance(r.get("explore_script_pins"), dict) else {}
+    path, sha = script.get("path"), script.get("sha256")
+    for name, pin in sorted(pins.items()) if not sha else ():
+        if isinstance(pin, dict) and pin.get("sha256"):
+            path, sha = name, pin["sha256"]
+            break
+    return {"ts": r.get("ts"), "attempt_id": r.get("attempt_id"), "scope": r.get("explore_scope"),
+            "exit_status": r.get("exit_status"), "script": path, "script_sha256": sha}
+
+
+def explore_origin(receipts, mine, rel, mtime):
+    """The explore receipts whose attempt window holds the write time of output `rel`, when no matched attempt of
+    the plan saw it change: such an output is the exploration's, not re-run under approval. Neither the gate nor a
+    receipt records an explore run's output hash, so "the same content" is judged by the file's write time falling
+    inside the explore attempt (the file is unchanged since); an approved rerun that rewrote the bytes moved the time."""
+    if any(rel in (observed_paths(r) or ()) and fits_attempt(r, mtime) for r in mine):
+        return []
+    return [r for r in receipts if r.get("explore") and window(r)[0] - TOLERANCE <= mtime <= r["ts"] + TOLERANCE]
+
+
 def explore_runs(root, session, hash_mb, seconds):
     """Explore runs of gated code, newest command last, one entry per distinct command:
     the material for a grill plan that re-runs them reportably."""
@@ -2938,8 +2975,9 @@ def explore_runs(root, session, hash_mb, seconds):
             continue
         command = prefix.sub(r"\1", r.get("command", "")).strip()
         key = (r.get("cwd") or ".", command)
-        entry = merged.pop(key, {"command": command, "cwd": key[0], "runs": 0, "first": r.get("ts")})
+        entry = merged.pop(key, {"command": command, "cwd": key[0], "runs": 0, "first": r.get("ts"), "attempts": []})
         env = conda_env(root, r) or {}
+        entry["attempts"].append(explore_attempt(r))  # every try stays, a failed one with the code it ran
         entry.update(runs=entry["runs"] + 1, last=r.get("ts"), session=r.get("session_id"),
                      paths=ran_paths(root, r), exit_status=r.get("exit_status"), env=env.get("env"))
         script = r.get("script") or {}
@@ -2971,11 +3009,22 @@ def render_explore(runs, scope):
             "not recorded" if run["exit_status"] is None else run["exit_status"]))
         if run["env"]:
             lines.append("   - conda env `{}`".format(run["env"]))
+        for n, a in enumerate(run["attempts"], 1):
+            code = a["exit_status"]
+            lines.append("   - attempt {}: {}, exit {}{}, code {}, {}".format(
+                n, when(a["ts"]), "not recorded" if code is None else code,
+                " (failed)" if code not in (None, 0, "unknown") else "",
+                "`{}` sha256 {}".format(a["script"], a["script_sha256"][:12]) if a["script_sha256"]
+                else "not recorded (no content hash)",
+                "scope " + a["scope"] if a["scope"] else "session-wide grant (not tied to a plan)"))
         if run["changed"]:
             lines.append("   - " + run["changed"])
-    lines += ["", "Explore outputs are not results: a plan that re-runs these commands without the "
-                  "`{}=1` prefix makes them reportable. Explore runs of inline code (`python -c`) are "
-                  "not recorded here.".format(gate.EXPLORE_VAR)]
+    lines += ["", "Explore outputs are not results, and an explore run never validates a check or owns an output. "
+                  "Promotion needs an approved rerun with fresh output identity: a plan that re-runs these commands "
+                  "without the `{}=1` prefix, approved, and a run the gate sees write its outputs. `verify report` "
+                  "marks an output written inside an explore attempt and not re-observed under a matched approved "
+                  "attempt `not re-run under approval`; it is never relabelled. Explore runs of inline code "
+                  "(`python -c`) are not recorded here.".format(gate.EXPLORE_VAR)]
     return "\n".join(lines) + "\n"
 
 
