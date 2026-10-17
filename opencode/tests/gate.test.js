@@ -153,6 +153,18 @@ test("the server-wide event stream is filtered to this location", async (t) => {
   assert.deepEqual(calls.prompt, [])
 })
 
+test("gateCwd prefers a cwd under a gate and falls back to the location", () => {
+  const repo = gatedRepo()
+  const sub = join(repo, "analysis")
+  mkdirSync(sub, { recursive: true })
+  const plain = mkdtempSync(join(tmpdir(), "mx-plain-"))
+  assert.equal(__test__.gateCwd(sub, plain), sub)
+  // a shell workdir outside every gate must not switch the location's gate off
+  assert.equal(__test__.gateCwd(plain, repo), repo)
+  assert.equal(__test__.gateCwd(plain, plain), null)
+  assert.equal(__test__.gateCwd("", repo), repo)
+})
+
 test("handlers block covered runs and leave other tools alone", async (t) => {
   if (!PYTHON) return t.skip("needs python3.9+")
   const { ctx, handlers } = fakeCtx(gatedRepo())

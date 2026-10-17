@@ -47,28 +47,31 @@ function runGate(paths, action, payload, timeout) {
       resolve(null)
       return
     }
-    let out = ""
+    const chunks = []
+    let size = 0
     let done = false
     const finish = (value) => {
       if (done) return
       done = true
       clearTimeout(timer)
-      try { resolve(value) } catch { resolve(null) }
+      resolve(value)
     }
     const timer = setTimeout(() => {
       child.kill("SIGKILL")
       finish(null)
     }, timeout)
     child.stdout.on("data", (chunk) => {
-      out += chunk
-      if (out.length > MAX_OUTPUT) {
+      chunks.push(chunk)
+      size += chunk.length
+      if (size > MAX_OUTPUT) {
         child.kill("SIGKILL")
         finish(null)
       }
     })
     child.on("error", () => finish(null))
     child.on("close", () => {
-      const text = out.trim()
+      // concat before decoding: a multi-byte card glyph can straddle chunks
+      const text = Buffer.concat(chunks).toString("utf8").trim()
       if (!text) return finish(null)
       try { finish(JSON.parse(text)) } catch { finish(null) }
     })
@@ -121,6 +124,15 @@ function toolEvent(event, cwd) {
     session_id: event.sessionID,
     tool_use_id: event.id,
   }
+}
+
+/** The cwd the gate should see: a command's own working directory when it sits under a gated
+ *  checkout, else the session location when that does, else null (no gate applies). A shell
+ *  `workdir` outside every gate must not silently switch the gate off. */
+function gateCwd(cwd, place) {
+  if (cwd && findRoot(cwd)) return cwd
+  if (place && findRoot(place)) return place
+  return null
 }
 
 /** V2 server events carry their payload under `data`; older shapes were flat. */
@@ -186,24 +198,29 @@ export default {
     await ctx.tool.hook("execute.before", async (event) => {
       if (!TOOLS.has(event.tool)) return
       const input = event.input && typeof event.input === "object" ? event.input : {}
-      const cwd = event.tool === "shell" && typeof input.workdir === "string" && input.workdir
+      const requested = event.tool === "shell" && typeof input.workdir === "string" && input.workdir
         ? input.workdir : place
-      if (!gated(cwd)) return
+      const cwd = gateCwd(requested, place)
+      if (!cwd) return
       const reply = await runGate(paths, "tool", toolEvent(event, cwd), TIMEOUTS.tool)
       const reason = denyReason(reply)
       if (reason) throw new Error(reason)
       const notice = hookOutput(reply).additionalContext
-      if (typeof notice === "string" && notice) notes.set(event.id, notice)
+      if (typeof notice === "string" && notice) {
+        if (notes.size > 64) notes.clear() // a before without an after (rejected permission) must not leak
+        notes.set(event.id, notice)
+      }
     })
 
     await ctx.tool.hook("execute.after", async (event) => {
       if (!TOOLS.has(event.tool)) return
       const input = event.input && typeof event.input === "object" ? event.input : {}
-      const cwd = event.tool === "shell" && typeof input.workdir === "string" && input.workdir
+      const requested = event.tool === "shell" && typeof input.workdir === "string" && input.workdir
         ? input.workdir : place
       const notice = notes.get(event.id)
       notes.delete(event.id)
-      if (!gated(cwd)) return
+      const cwd = gateCwd(requested, place)
+      if (!cwd) return
       const payload = toolEvent(event, cwd)
       payload.status = event.status
       if (event.status === "completed") payload.tool_response = event.result
@@ -232,6 +249,12 @@ export default {
 
     const lastText = new Map() // session id -> the assistant text the Stop event will read
     const stopped = new Map()  // session id -> the text already run through stop, so a repeated boundary is one stop
+    const MAX_SESSIONS = 50    // the server is long-lived; plan texts are kilobytes
+    function remember(map, key, value) {
+      map.delete(key)
+      map.set(key, value)
+      while (map.size > MAX_SESSIONS) map.delete(map.keys().next().value)
+    }
     const controller = new AbortController()
     void (async () => {
       try {
@@ -243,7 +266,7 @@ export default {
           const mine = where === null ? null : samePlace(where, place)
           const ended = textEnded(event)
           if (ended) {
-            if (mine === true) lastText.set(ended.sessionID, ended.text)
+            if (mine === true) remember(lastText, ended.sessionID, ended.text)
             continue
           }
           const sessionID = executionEnded(event) || idleSession(event)
@@ -252,7 +275,7 @@ export default {
           if (mine === null && !lastText.has(sessionID)) continue // unknown scope: only sessions first seen here
           const text = lastText.get(sessionID) || ""
           if (stopped.get(sessionID) === text) continue // a repeated boundary over one turn is one stop
-          stopped.set(sessionID, text)
+          remember(stopped, sessionID, text)
           await stop(sessionID, text)
         }
       } catch {
@@ -292,5 +315,5 @@ export default {
 // Pure helpers, exercised by opencode/tests/gate.test.js under `node --test`.
 export const __test__ = {
   appendContent, blockedPromptText, contentText, denyReason, eventLocation, executionEnded, findRoot,
-  idleSession, runGate, samePlace, textEnded,
+  gateCwd, idleSession, runGate, samePlace, textEnded,
 }
