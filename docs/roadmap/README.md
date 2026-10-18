@@ -32,6 +32,7 @@ These come from decisions already locked in this repository. A task that would b
 | 7 | Execution fidelity: no false assurance from incomplete evidence | C01–C13 in [07-execution-fidelity.md](07-execution-fidelity.md) |
 | 8 | Working scope, amendment and freeze | [08-working-scope.md](08-working-scope.md) |
 | 9 | Validation recipes, correction lookup, coverage row | [09-clawbio-lessons.md](09-clawbio-lessons.md) |
+| 10 | Focus and track changes | [10-focus-track-changes.md](10-focus-track-changes.md) |
 
 Phases are a suggested order, not a gate; a task may start once its dependencies are done. B5 is a decision for the maintainer, not a build task, and has no phase.
 

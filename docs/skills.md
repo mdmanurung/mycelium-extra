@@ -17,6 +17,8 @@ adapter handles it. See [Host compatibility](installation.md#host-compatibility)
 | Check a completed run | `/mycelium-extra:verify <hash>` |
 | Create an analysis folder | `/mycelium-extra:new-analysis analysis/<name>: <question>` |
 | Resume in a fresh session | `/mycelium-extra:handoff` |
+| Say which analysis this session works on | type `focus analysis/<name>` |
+| See what changed against the approved plan | `/mycelium-extra:track-changes` |
 | Park a passing idea | `/mycelium-extra:idea <idea>` |
 | Choose the next idea | `/mycelium-extra:idea-triage` |
 
@@ -102,6 +104,25 @@ Checks columns, cohort levels/counts, unique units, complete pairs, and batch
 versus contrast nesting. Writes nothing. H5AD needs h5py; a missing dependency
 is a gap. Never loosens the contract to make a failed check pass without agreement.
 Usually called by `grill` when sample assumptions matter.
+
+## focus
+
+Typed commands, answered by the gate: `focus analysis/<name>`, `focus status`,
+`focus switch analysis/<name>`, `focus end`, and `focus analysis/<name> plan <hash>` to
+note which approved plan states the original intent. A focus belongs to one session,
+is advisory (no run, approval or pin follows from it), and is never restored in a new
+session. `/mycelium-extra:focus` explains it and lists the folders. See
+[Focus and track changes](focus-and-track-changes.md).
+
+## track-changes
+
+Read-only. Shows, for one analysis, plan changes between the original and current
+approved plans, scripts edited since each approval (with diffs), the gate's run
+records, declared outputs older than the code, and, from a Claude Code transcript,
+direct edits to other analyses. Prints a short card and writes `brief.md` and an
+offline `report.html` under `.mycelium-extra/track-changes/`. Approves, freezes and
+runs nothing; lists what it did not observe. See
+[Focus and track changes](focus-and-track-changes.md).
 
 ## handoff
 

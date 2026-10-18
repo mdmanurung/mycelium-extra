@@ -63,6 +63,8 @@ Codex, `plan-review` provides the engineering critique only.
   and [verification](docs/verification.md): look up details when needed.
 - [Advanced features](docs/advanced.md): optional settings and subcommands
   that Tiers 1 to 3 do not need.
+- [Focus and track changes](docs/focus-and-track-changes.md): say which analysis
+  a session works on, and see what changed against the approved plan.
 - [Mycelium integration](docs/mycelium-integration.md): credits and boundaries.
 - [Development](docs/development.md): tests, changelog, roadmap, and design notes.
 

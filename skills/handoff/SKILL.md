@@ -50,7 +50,7 @@ Overwrite, never append. Keep it under about 80 lines. Omit a section that would
 <1–2 lines: what we are trying to achieve, and what done looks like>
 
 ## Next action
-<the exact first command or edit, with path:line>
+<the exact first command or edit, with path:line. If the work was on one `analysis/` folder, the line to type first: `focus analysis/X`. A focus is never restored for the user.>
 
 ## Pending plan
 - `<hash>` not approved; stored word for word in `<pending file>`. Re-present it unchanged; do not re-grill. Print it with:
