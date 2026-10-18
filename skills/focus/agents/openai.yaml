@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra Focus"
+  short_description: "Declare which analysis this session works on"
+  default_prompt: "Use $mycelium-extra:focus to list the analyses I can focus on and tell me the exact focus line to type."

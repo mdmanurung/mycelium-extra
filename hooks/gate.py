@@ -3564,7 +3564,48 @@ def freeze_entry(root, config, digest):
     return entry, card
 
 
+def focus_module():
+    """hooks/focus.py (which analysis a session says it works on; advisory), imported only for a focus prompt
+    or while a focus is open."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import focus
+    return focus
+
+
 def on_prompt(event, root, config):
+    """Typed `focus` commands first; every other prompt goes to the existing handler, and while this session
+    has an open focus a bare hint (or nothing) also carries the one advisory focus line."""
+    prompt = event.get("prompt") or ""
+    if re.match(r"\s*focus\b", prompt, re.IGNORECASE):
+        module = focus_module()
+        verb = module.VERB.match(prompt)
+        if verb:
+            try:
+                if verb.group(1).lower() == "status":
+                    return {"decision": "block", "reason": module.status(sys.modules[__name__], root, config, event)}
+                if verb.group(1).lower() == "end":
+                    command = ("end", None, None)
+                else:
+                    command = ("switch" if verb.group(2) else "start", verb.group(3), (verb.group(4) or "").lower() or None)
+                message = module.change(sys.modules[__name__], root, event, command)
+            except module.FocusError as error:
+                return {"decision": "block", "reason": str(error)}
+            return {"systemMessage": message,
+                    "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
+    result = prompt_commands(event, root, config)
+    if os.path.isdir(state_path(root, "focus")) and (
+            result is None or str(result.get("systemMessage", "")).startswith("mycelium-extra hint")):
+        line = focus_module().context_line(root, event.get("session_id"))
+        if line:
+            extra = ((result or {}).get("hookSpecificOutput") or {}).get("additionalContext")
+            result = dict(result or {}, hookSpecificOutput={
+                "hookEventName": "UserPromptSubmit", "additionalContext": (extra + "\n" if extra else "") + line})
+    return result
+
+
+def prompt_commands(event, root, config):
     prompt = event.get("prompt") or ""
     consent = SEND_PACKET.fullmatch(prompt.strip().lower())
     if consent:
