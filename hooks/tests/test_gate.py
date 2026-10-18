@@ -3493,6 +3493,36 @@ class ValidationBindingsTest(unittest.TestCase):
         self.assertEqual(frozen["validation"], record["validation"])
         self.assertEqual(frozen["instance_id"], record["instance_id"])
 
+    COVERAGE = "Coverage  1 step with a bound check (row 2), 1 prose only (row 1) \u00b7 0 exact steps"
+
+    @staticmethod
+    def joined(card):
+        """The card with its wrapped continuation lines (ten spaces of indent) joined to the line above."""
+        return re.sub(r"\n {10}", " ", card)
+
+    def test_coverage_row_is_off_by_default(self):  # control: the card is the same without the setting
+        self.setup_files()
+        _, card = self.approved(self.plan(self.check()))
+        self.assertNotIn("Coverage", card)
+
+    def test_coverage_row_counts_bound_and_prose_checks_when_on(self):
+        self.setup_files()
+        self.config({"card_coverage": True})
+        _, card = self.approved(self.plan(self.check()))
+        self.assertIn(self.COVERAGE + " \u00b7 any arguments elsewhere", self.joined(card))
+
+    def test_coverage_row_counts_exact_steps_and_a_plan_with_no_block(self):
+        self.setup_files()
+        self.config({"card_coverage": True})
+        block = {"version": 1, "steps": [{"row": "1", "argv": ["python", "analysis/x/fit.py"], "cwd": ".", "env": {},
+                                          "operational": []}]}
+        _, card = self.approved(self.plan(self.check()).replace(
+            "Plan status: READY", "<!-- exact-execution {} -->\n\nPlan status: READY".format(json.dumps(block))))
+        self.assertIn("1 step with a bound check (row 2), 1 prose only (row 1) \u00b7 1 exact step \u00b7 any arguments "
+                      "elsewhere", self.joined(card))
+        _, bare = self.approved(self.TABLE + "Plan status: READY")
+        self.assertIn("0 steps with a bound check, 2 prose only (rows 1, 2) \u00b7 0 exact steps", self.joined(bare))
+
     def test_a_plan_without_the_block_is_unchanged(self):  # control
         self.setup_files()
         digest, card = self.approved(self.TABLE + "Plan status: READY")

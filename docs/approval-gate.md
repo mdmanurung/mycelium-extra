@@ -209,7 +209,7 @@ Type `hints on` to get a one-line suggestion of the command to run next; `hints 
 | `approval_hours` | `24` | How long an approval covers runs. Approvals are never deleted. |
 | `on_error` | `"allow"` | What a PreToolUse hook does when the gate itself breaks. `"deny"` blocks every tool call the gate could not check, including when `gate.py` cannot load; any other value is ignored with a notice. |
 
-The optional keys (`max_runs_per_approval`, `checkpoint_steps`, `pin_hash_mb`, `pin_seconds`, `card_lint`, `lint_on_write`, `lint_before_run`, `lint_before_stop` and `pin_scripts`) are listed under [Other `gate.json` settings](advanced.md#other-gatejson-settings).
+The optional keys (`max_runs_per_approval`, `checkpoint_steps`, `pin_hash_mb`, `pin_seconds`, `card_coverage`, `card_lint`, `lint_on_write`, `lint_before_run`, `lint_before_stop` and `pin_scripts`) are listed under [Other `gate.json` settings](advanced.md#other-gatejson-settings).
 
 Two switches are not keys. `hints on` and `hints off` create and remove `.mycelium-extra/hints.json`. `allow explore [<plan hash>]` and `stop explore` apply to one session.
 

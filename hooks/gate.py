@@ -40,6 +40,7 @@ DEFAULTS = {
     "pin_scripts": True,
     "lint_before_run": False,
     "lint_before_stop": False,
+    "card_coverage": False,
 }
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call that never reported back
@@ -2267,6 +2268,21 @@ def amendment_card(root, config, digest, text, record, paths, commands, outputs,
     return "\n".join(fit(line) if not line.startswith("Grant") else line for line in lines)
 
 
+def coverage_text(rows, blocks):
+    """The text of the opt-in `Coverage` row of the compact card: which of the plan's checks are bound to a pinned test and which
+    are prose, and how many steps freeze their command. Counted from the parsed plan only; a declared check is not a
+    passed check, and a prose check is one nothing runs."""
+    bound = sorted(set(check["plan_row"] for check in (blocks.get("validation") or {}).get("checks", [])),
+                   key=lambda num: (len(num), num))
+    prose = [row["num"] for row in rows if row["check"].strip() and row["num"] not in bound]
+    exact = len((blocks.get("execution") or {}).get("steps", []))
+    named = lambda nums: " (row{} {})".format("" if len(nums) == 1 else "s", ", ".join(nums)) if nums else ""
+    checks = "{} step{} with a bound check{}, {} prose only{}".format(
+        len(bound), "" if len(bound) == 1 else "s", named(bound), len(prose), named(prose))
+    freeze = "{} exact step{}".format(exact, "" if exact == 1 else "s")
+    return checks + " \u00b7 " + freeze + (" \u00b7 any arguments elsewhere" if exact < len(rows) else "")
+
+
 def procedure_card(root, text, config, digest, pins, outside, previous, scripts, blocks=None):
     """The card for a plan whose table has Step and Choice or Validation columns, else None."""
     rows = plan_rows(text)
@@ -2413,6 +2429,8 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
         compact.append("Defaults to confirm: step " + ", ".join(defaults) + "  (* = a default decided)")
     written = [quote(DONE_MARK.sub("", row["check"]), 80) for row in rows if row["check"].strip()]
     compact += labelled("Checks", " \u00b7 ".join(written) if written else "none written in the plan")
+    if config.get("card_coverage", False) is True:
+        compact += labelled("Coverage", coverage_text(rows, blocks or {}))
     compact += baseline
     kinds = collections.Counter(
         ("script" if SCRIPT_EXT.search(path) else "file") if os.path.isfile(os.path.join(root, path)) or SCRIPT_EXT.search(path)
