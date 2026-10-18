@@ -10,7 +10,8 @@ source_suffix = {".md": "markdown", ".rst": "restructuredtext"}
 root_doc = "index"
 include_patterns = ["index.rst", "docs/installation.md", "docs/usage.md", "docs/day.md", "docs/example.md",
                     "docs/skills.md", "docs/approval-gate.md", "docs/verification.md", "docs/advanced.md",
-                    "docs/validation-recipes.md", "docs/mycelium-integration.md", "skills/grill/references/run-plans.md"]
+                    "docs/validation-recipes.md", "docs/exercise.md", "docs/mycelium-integration.md",
+                    "skills/grill/references/run-plans.md"]
 exclude_patterns = ["docs/_build"]
 myst_heading_anchors = 6
 myst_fence_as_directive = ["mermaid"]

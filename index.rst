@@ -44,6 +44,7 @@ Claude Code and OpenCode use ``/mycelium-extra:<skill>``; Codex uses ``$mycelium
    docs/usage
    docs/day
    docs/example
+   docs/exercise
 
 .. toctree::
    :maxdepth: 1

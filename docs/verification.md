@@ -86,6 +86,24 @@ A step is what [Command and folder runs](#what-the-report-shows) groups: the com
 
 An instance that declares `exact-execution` also reports each run the gate did not match to a declared step (`exact_match` not true on its receipt; a validation check's own run is matched by its invocation) as a gap, "outside the exact reportable contract". A plan without the block keeps its broad grants and the report says nothing about exact execution.
 
+### When something fails
+
+What happens at each failure, and who makes it happen. "Tool" means the code stops or records it; "advice" means only the plan or the agent's instructions say so, and nothing enforces it.
+
+| Event | What happens | Who enforces it |
+|---|---|---|
+| A required sample label is missing or an input is empty | The analysis entry point stops before fitting and names the missing evidence. No label is invented. | The recipe's own preflight (see [Validation recipes](validation-recipes.md)); the gate does not know the input is empty |
+| The selected backend is unavailable | Report it and the alternatives with their consequences. No silent substitution; an analytical change is a new choice that needs an updated, approved plan. | Advice only |
+| An operational retry (same command, or only flags the plan's `exact-execution` lists as `operational`) | Both attempts stay in `## Recovery`; the retry is an info line and needs no new approval. | Tool: verify |
+| A planned script is edited after approval | The gate lets the edit through with a re-pin notice (a changed number is flagged for you). Verify reports unfrozen code as a gap until you [`freeze`](approval-gate.md#freeze) it. | Tool: gate and verify |
+| A pinned test or expectation file, a pinned input, or an `exact-execution` step is changed | The next gated run is denied until the plan is shown and approved again. | Tool: gate |
+| A required check fails, or cannot run | The failure blocks verification; `not run`, `unsupported` and the other gaps stay open. The claim that depends on the check is yours to restrict. | Tool: verify |
+| An exploratory repair writes outputs | They keep their explore identity; reportable use needs a fresh approved run. | Tool: gate and verify |
+
+Say every discrepancy the same way: **expected**, **observed**, **evidence** (the check id, attempt or file), **consequence**, whether the run **stopped or continued**, and the **next legitimate action**. Text can change between versions, so link the same discrepancy across reports by the check, attempt and approval-instance identities, not by wording.
+
+Limits: a preflight that fails in one command, followed by a separately permitted analysis command, is not prevented. Put the preflight and the analysis in one entry point that runs the analysis only when the preflight succeeds. A stop leaves no new success artifact for the blocked analysis, but an output from an earlier run may still be on disk; its time and attempt say which run wrote it.
+
 ## Status
 
 It ends with `Verify status: CONFORMS`, `CONFORMS_WITH_GAPS`, or `DOES_NOT_CONFORM`.
