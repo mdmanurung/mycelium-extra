@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra Track Changes"
+  short_description: "Read-only view of what changed against the approved plan"
+  default_prompt: "Use $mycelium-extra:track-changes to show what changed in this analysis against its approved plan, and what could not be observed."
