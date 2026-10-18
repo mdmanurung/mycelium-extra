@@ -37,6 +37,11 @@ PLAN = "## Plan\n| 1 | run `analysis/x.py` | repo | check |\n\nPlan status: READ
 BIGPLAN = "## Plan\n| # | step | source | check |\n" + "".join(
     "| %d | run `analysis/dir%d/mod%d.py` | repo: `repo:` x | ok |\n" % (i, i % 7, i)
     for i in range(120)) + "\nPlan status: READY"
+PROC_PLAN = ("> Question (user's words): \"does A beat B?\"\n\n**Objective.** Compare A with B.\n\n"
+             "Outputs: analysis/out/res.tsv\n\n"
+             "| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n"
+             "| 1 | Run `analysis/x.py` | exact test | user | 12 donors |\n\nPlan status: READY")
+PROC_PLAN_PLUS = PROC_PLAN.replace("12 donors |\n", "12 donors |\n| 2 | Run `analysis/y.py` | volcano | agent | none |\n")
 BASE_FILES = {"analysis/x.py": "print(1)\n", "nbs/n.ipynb": "{}\n", "renv.lock": "{}\n",
               "job.sh": "#!/bin/bash\n#SBATCH -p cpu\nmodule load R/4.3\npython analysis/x.py\n",
               "main.nf": "workflow {}\n", "params.yaml": "a: 1\n", "config/c.yaml": "a: 1\n",
@@ -209,6 +214,14 @@ def scenarios():
         case("post dirty git", "post", bash("python analysis/x.py; python analysis/new.py", {"stdout": "2"}),
              approvals=[(0, PLAN.replace("analysis/x.py", "analysis/x.py analysis/new.py"))], git="dirty"),
         case("stop big plan", "stop", {"last_assistant_message": BIGPLAN}),
+        case("stop procedure card", "stop", {"last_assistant_message": PROC_PLAN}),
+        case("stop procedure card, a later plan only adds a step", "stop", {"last_assistant_message": PROC_PLAN_PLUS},
+             files={"analysis/y.py": "print(2)\n"}, approvals=[(0, PROC_PLAN)]),
+        case("stop procedure card, a later plan changes a choice", "stop",
+             {"last_assistant_message": PROC_PLAN_PLUS.replace("exact test", "other test")},
+             files={"analysis/y.py": "print(2)\n"}, approvals=[(0, PROC_PLAN)]),
+        case("prompt freeze unknown", "prompt", {"prompt": "freeze deadbeef"}),
+        case("prompt approve amendment unknown", "prompt", {"prompt": "approve amendment deadbeef"}),
         case("stop plan without table", "stop",
              {"last_assistant_message": "## Plan\njust prose analysis/x.py\n\nPlan status: READY"}),
         case("stop plan with inputs", "stop",
@@ -307,6 +320,7 @@ def main():
     parser.add_argument("--fuzz", type=int, default=120, help="random cases after the fixed ones (default 120)")
     parser.add_argument("--seed", type=int, default=1234)
     parser.add_argument("--expect", help="reviewed exact old/new observations for intentional differences")
+    parser.add_argument("--write-expect", help="write the observed differences to this file, for review, as the new expectations")
     parser.add_argument("--self-check", action="store_true", help="compare identical current source; require no differences")
     args = parser.parse_args()
     folder = tempfile.mkdtemp(prefix="gate-diff-base-")
@@ -336,6 +350,14 @@ def main():
         print("{} {}: {}/{} identical (base {}, new {})".format(
             os.path.basename(sys.executable), sys.version.split()[0], len(cases) - len(actual), len(cases),
             args.base, os.path.relpath(os.path.abspath(args.new), REPO)))
+        if args.write_expect:
+            base = subprocess.check_output(["git", "-C", REPO, "rev-parse", args.base]).decode().strip()
+            with open(args.write_expect, "w", encoding="utf-8") as handle:
+                json.dump({"base": base, "fuzz": args.fuzz, "seed": args.seed, "cases": len(cases),
+                           "differences": json.loads(json.dumps(actual))}, handle, indent=2, sort_keys=True)
+                handle.write("\n")
+            print("Wrote {} differences to {}".format(len(actual), args.write_expect))
+            return 0
         if args.expect and not args.self_check:
             with open(args.expect, encoding="utf-8") as handle:
                 expected = json.load(handle)

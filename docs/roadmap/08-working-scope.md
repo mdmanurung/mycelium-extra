@@ -4,6 +4,8 @@ Objective: an approval is a working scope. The researcher edits listed scripts w
 
 Statuses: **done**, **in progress**, **todo**, **parked**.
 
+As built, two details differ from the first draft: freeze C's verify preview became `Gaps now`, a `verify report` run in a child process with a 4 s limit that leaves out unfrozen code and the linter; and the `gate_diff` expectations were re-based on 0.10.2 (`267d9e2`) with `--write-expect`, so the file now holds only this release's four reviewed differences (a script edit now re-pins, the amendment card, `freeze` and `approve amendment` are new). Python 3.9 is not installed here, so 3.9 syntax was checked by reading, not by running.
+
 ## Audit: what the first plan got wrong or left out
 
 | # | Finding in the code | Consequence |
@@ -23,30 +25,30 @@ Statuses: **done**, **in progress**, **todo**, **parked**.
 
 Order is fixed: each one lands on `v0110` as its own commit, tests green, before the next starts.
 
-### M1 · Re-pin (in progress: code and tests written; full suites pending)
+### M1 · Re-pin (done: `3ce080d`)
 - Scope: an edit to a script the plan lists (or a first-run-pinned one) is let through, re-pinned in `repins/<hash>.jsonl` (snapshot kept), with the notice of layout C to the user and the agent. The numbers heuristic compares changed literals with the plan rows that name the script. Verify: a run of code no approval froze is a gap ("`freeze <hash>`"), plus one info line listing re-pins, plus `edit_evidence` knows re-pinned versions.
 - Files: `hooks/gate.py` (`read_repins`, `current_script_pin`, `diff_numbers`, `plan_numbers`, `repin_notice`, `repin_scripts`, `on_tool`), `skills/verify/scripts/verify.py` (`approved_script_pin`, `repin_findings`, script row, `qualify`), tests in `hooks/tests/test_gate.py`, `skills/verify/tests/test_verify.py`.
 - Exit: edit gives allow + notice + journal line, the approval file is byte-identical, verify reports the unfrozen run, a denied run (lint) re-pins nothing; whole `test_gate.py`, `test_verify.py`, opencode and codex suites green.
 
-### M2 · Wording and small fixes (todo, ~30 min)
+### M2 · Wording and small fixes (done: `db3e8da`)
 - `lint_before_stop` / `lint_before_run` text: say what verify does with open findings (a gap, not a block).
 - `docs/approval-gate.md` lines 24, 86, 91 and `docs/usage.md:157`: replace "cannot run until you re-approve".
 - Exit: no doc or message in the repo says an edited script is blocked (grep).
 
-### M3 · Amendment card (todo, ~half a day)
+### M3 · Amendment card (done: `f4f9bb5`)
 - Scope: a branch of `procedure_card`: when `baseline_plan` finds an earlier approval and `compare_rows` shows only added rows (no changed, removed, reordered, columns, objective, inputs, blocks changed), the card is the layout-B delta: `Adds`, `Row`, `Reads/Writes`, `Grant`, `Unchanged`, then `▶ approve amendment <new hash>`. Any other difference falls back to the normal card, so the delta view never hides a change.
 - It approves the amended plan's own hash and text. Nothing about the old approval changes.
 - Files: `hooks/gate.py` (`procedure_card`, a small `amendment_delta`), `APPROVE` regex; tests for added-only, changed-row fallback, removed-row fallback, new input fallback.
 - Exit: both card shapes covered; `gate_diff` card scenario added here.
 
-### M4 · Freeze (todo, ~1 day)
+### M4 · Freeze (done: `c3b971c`)
 - Scope: the prompt `freeze <hash>` (answered by the hook like `card`, so the agent never sees it) builds a pending entry for that hash whose scripts are the current effective pins and whose card is layout C: per-script diffs against the approved pins, new scripts, unchanged inputs line, the rerun list (A9) and the open-gaps line (A8). `approve` / `approve freeze <hash>` writes a new approval record and instance with `scripts` = those pins (new `approved_at`, so older re-pins are history; the ledger is cleared as on re-approval). Runs after it belong to the new instance, so verify checks the new freeze and shows earlier runs as history.
 - Refusals, each with one sentence: no approval for the hash; nothing changed since approval; inputs, validation or exact-execution changed (re-present the plan: not a freeze matter); more than 20 changed scripts (list, no diff).
 - After a freeze, edits keep re-pinning (user decision, 2026-10-18). Instances get no `frozen` field.
 - Files: `hooks/gate.py` (`on_prompt`, a `freeze_card`, `APPROVE`), `skills/verify` (none beyond M1 unless the preview reuses `check`), tests: freeze with edit, with new script, with nothing changed, with stale input, same bytes twice reuses the instance, approve then verify shows the new instance.
 - Exit: edit → run → `freeze` → `approve` → rerun → `verify report` ends without the unfrozen-code gap.
 
-### M5 · Docs, oracle, release (todo, ~half a day)
+### M5 · Docs, oracle, release (in progress: docs and manifests `18dd666`; oracle and suites below)
 - `docs/approval-gate.md`, `docs/day.md` (the 13:00 "Review, then freeze" step), `docs/advanced.md`, `README.md`, `skills/verify/SKILL.md`, `skills/grill/references/run-plans.md` follow the code; CHANGELOG; version 0.11.0 in every place `tests/test_versions.py` checks.
 - `gate_diff`: regenerate expectations on a scratch clone with the patched timeouts (HANDOFF), review each new difference, record them.
 - Update memory (`human-in-the-loop-priority` is reversed; `researcher-first-redesign` status). Push only on request.
