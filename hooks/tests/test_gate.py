@@ -238,6 +238,48 @@ class GateTest(unittest.TestCase):
         "Plan status: READY_WITH_ASSUMPTIONS",
     ])
 
+    AMENDED_ROW = "| 4 | Run `analysis/a/04_plot.py` | volcano of step 2 | agent | none written |\n"
+
+    def amended(self, plan=None, row=None, outputs=None):
+        """CARD_PLAN with one more row (and output), the way an agent adds a script to an approved plan."""
+        plan = (plan or self.CARD_PLAN).replace("| dry run resolves |\n", "| dry run resolves |\n" + (row or self.AMENDED_ROW), 1)
+        return plan.replace("Outputs: analysis/a/out/res.tsv", "Outputs: " + (outputs or "analysis/a/out/res.tsv, analysis/a/out/volcano.pdf"))
+
+    def test_a_plan_that_only_adds_a_script_shows_the_change_only_card(self):
+        self.write_file("analysis/a/04_plot.py", "import sys\nprint(1)\n")
+        digest, _ = self.approve(self.CARD_PLAN)
+        card = self.card(self.amended())
+        self.assertIn("amendment to {} \u00b7 +1 step, +1 script".format(digest), card)
+        self.assertIn("Adds      analysis/a/04_plot.py   (new, 2 lines)", card)
+        self.assertIn("Row       4  volcano of step 2  [agent]   check: none written", card)
+        self.assertIn("Writes    new: analysis/a/out/volcano.pdf", card)
+        self.assertIn("Grant     script analysis/a/04_plot.py; any arguments; no folder or command grant added", card)
+        self.assertIn("Unchanged 3 steps, 0 scripts pinned, 1 input", card)
+        self.assertRegex(card, r"\u25b6 approve amendment [0-9a-f]{8}  \(or approve\)\Z")
+        self.assertNotIn("Choices", card)
+        self.assertIn("Sequence", self.full(self.amended()), "the whole card stays behind `card <hash> full`")
+        self.assertTrue(self.denied(self.bash("python analysis/a/04_plot.py")))
+        self.hook("prompt", {"prompt": "approve"})  # the one card waiting
+        self.assertIsNone(self.bash("python analysis/a/04_plot.py"))
+
+    def test_an_amendment_that_changes_anything_else_gets_the_whole_card(self):
+        self.approve(self.CARD_PLAN)
+        for name, plan in (
+                ("a changed choice", self.amended().replace("exact permutation test", "asymptotic test")),
+                ("a removed row", self.amended().replace(
+                    "| 3 | Run `snakemake` | dry run only | repo: CLAUDE.md | dry run resolves |\n", "")),
+                ("another objective", self.amended().replace("no refits", "with refits")),
+                ("a new input", self.amended().replace("Inputs: data/in.tsv", "Inputs: data/in.tsv, data/more.tsv")),
+                ("a folder grant", self.amended(row="| 4 | Run `analysis/b/` scripts | all | agent | none |\n")),
+                ("a new command grant", self.amended(row="| 4 | Run `sbatch` | queue | agent | none |\n"))):
+            card = self.card(plan)
+            self.assertNotIn("amendment to", card, name)
+            self.assertIn("Choices", card, name)
+
+    def test_the_same_plan_shown_again_is_not_an_amendment(self):
+        self.approve(self.CARD_PLAN)
+        self.assertNotIn("amendment to", self.card(self.CARD_PLAN))
+
     def card(self, plan):
         return self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
 
@@ -247,7 +289,7 @@ class GateTest(unittest.TestCase):
 
     def asked(self, card, part=""):
         """What `card <hash> <part>` shows the user; the agent never gets the prompt."""
-        digest = card.split("approve plan ")[-1][:8]
+        digest = re.findall(r"approve (?:plan|amendment) ([0-9a-f]{8})", card)[-1]
         answer = self.hook("prompt", {"prompt": ("card {} {}".format(digest, part)).strip()})
         self.assertEqual(answer["decision"], "block")
         return answer["reason"]

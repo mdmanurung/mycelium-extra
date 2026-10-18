@@ -44,7 +44,7 @@ DEFAULTS = {
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call that never reported back
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
-APPROVE = re.compile(r"^\s*approve(?: plan)?(?: ([0-9a-f]{8})(?: +(\d{1,4}))?)?\s*[.!]?\s*$", re.IGNORECASE)
+APPROVE = re.compile(r"^\s*approve(?: (?:plan|amendment|freeze))?(?: ([0-9a-f]{8})(?: +(\d{1,4}))?)?\s*[.!]?\s*$", re.IGNORECASE)
 EXPLORE_GRANT = re.compile(r"^\s*(allow|stop) explore(?: ([0-9a-f]{8}))?\s*[.!]?\s*$", re.IGNORECASE)
 SEND_PACKET = re.compile(r"send packet ([0-9a-f]{12,64})")  # no looser than review_packet.py's consent check
 HINTS_TOGGLE = re.compile(r"^\s*hints (on|off)\s*[.!]?\s*$", re.IGNORECASE)
@@ -1794,7 +1794,7 @@ CARD_WRAP = 72     # the compact card wraps its question and checks at this widt
 CARD_ASK = re.compile(r"^\s*card ([0-9a-f]{8})(?:\s+(checks|diff|full))?\s*[.!]?\s*$", re.IGNORECASE)
 ABS_PATH = re.compile(r"(?<![\w./~-])/[^\s`|'\"]+")
 CONTROL = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|[\x00-\x1f\x7f]")
-APPROVE_WORDS = re.compile(r"approve\s+plan", re.IGNORECASE)
+APPROVE_WORDS = re.compile(r"approve\s+(?:plan|amendment|freeze)", re.IGNORECASE)
 DONE_MARK = re.compile(r"\s*\(done\)", re.IGNORECASE)
 FLAG_WORDS = re.compile(r"\b(fail\w*|flag\w*|warn\w*|error\w*|diverg\w*|mismatch\w*|unverified)\b",
                         re.IGNORECASE)
@@ -2052,27 +2052,32 @@ def plan_blocks(text):
         r"<!--\s*{}\b(.*?)-->".format(name), text, re.DOTALL)]) for name in ("validation-bindings", "exact-execution"))
 
 
-def baseline_lines(root, config, digest, text, paths, outputs, pins, scripts, rows, short):
+def recorded_script(root, record, rel, receipts):
+    """The pin of `rel` that approval `record` froze, else the script as the newest run under it saw it; None when
+    neither exists. `receipts` is a list filled on first use."""
+    pin = (record.get("scripts") or {}).get(rel) or read_json(
+        state_path(root, "script-pins", record["hash"] + ".json"), {}).get(rel)
+    if pin:
+        return pin
+    if not receipts:
+        receipts.extend(read_receipts(root))
+    for r in reversed(receipts):
+        seen = r.get("script") or {}
+        if (seen.get("path") == rel and record["hash"] in (r.get("plans") or []) and not r.get("explore")
+                and not seen.get("missing")):
+            return seen
+    return None
+
+
+def baseline_lines(root, config, digest, text, paths, outputs, pins, scripts, rows, short, found=None):
     """What is new since the baseline plan, measured by the hook: scripts and inputs by fingerprint,
-    the plan by its objective and table rows. Says "no baseline" rather than imply nothing changed."""
-    record, why = baseline_plan(root, config, digest, text, paths, outputs)
+    the plan by its objective and table rows. Says "no baseline" rather than imply nothing changed.
+    `found` is the (record, why) of `baseline_plan`, when the caller already has it."""
+    record, why = found or baseline_plan(root, config, digest, text, paths, outputs)
     if record is None:
         return ["Since earlier plans: no baseline ({})".format(why)]
     receipts = []
-
-    def recorded(rel):
-        pin = (record.get("scripts") or {}).get(rel) or read_json(
-            state_path(root, "script-pins", record["hash"] + ".json"), {}).get(rel)
-        if pin:
-            return pin
-        if not receipts:
-            receipts.extend(read_receipts(root))
-        for r in reversed(receipts):
-            seen = r.get("script") or {}
-            if (seen.get("path") == rel and record["hash"] in (r.get("plans") or []) and not r.get("explore")
-                    and not seen.get("missing")):
-                return seen
-        return None
+    recorded = lambda rel: recorded_script(root, record, rel, receipts)
 
     states = collections.OrderedDict((name, []) for name in ("CHANGED", "NEW", "SAME"))
     for rel, now in sorted(scripts.items()):
@@ -2199,6 +2204,69 @@ def lint_bullets(root, rows, config):
     return out
 
 
+def amendment_card(root, config, digest, text, record, paths, commands, outputs, pins, scripts, rows, short, quote):
+    """The change-only card for a plan that adds to an earlier approval and changes nothing else, else None. A
+    changed, removed or reordered row, another objective or question, a new or changed input, an edited script,
+    a folder or command grant, or other blocks all give the normal card, so the delta never hides a change."""
+    if record is None or record["hash"] == digest:
+        return None
+    before = plan_rows(record["plan"])
+    diff = compare_rows(before, rows) if before else None
+    if (not diff or not diff["added"] or diff["changed"] or diff["removed"] or diff["reordered"] or diff["columns"]
+            or diff["cannot"]):
+        return None
+    goals = [None if objective_text(t) is None else comparison_text(objective_text(t)) for t in (record["plan"], text)]
+    asked = [QUESTION_LINE.search(t) and comparison_text(QUESTION_LINE.search(t).group(1)) for t in (record["plan"], text)]
+    if goals[0] != goals[1] or asked[0] != asked[1] or plan_blocks(record["plan"]) != plan_blocks(text):
+        return None
+    old_pins = record.get("pins") or {}
+    if set(old_pins) != set(pins or {}) or any(not unchanged(old_pins[r], now) for r, now in (pins or {}).items()):
+        return None
+    was_paths, was_commands = plan_grants(root, record["plan"], config)
+    added = sorted(set(paths) - set(was_paths))
+    was_outputs = output_words(record["plan"]) or []
+    if (set(commands) != set(was_commands) or set(was_paths) - set(paths)
+            or any(not (SCRIPT_EXT.search(p) or os.path.isfile(os.path.join(root, p))) for p in added)
+            or any(word not in (outputs or []) for word in was_outputs)):
+        return None
+    receipts, same_scripts = [], 0
+    for rel, now in sorted(scripts.items()):
+        pin = recorded_script(root, record, rel, receipts)
+        if pin is not None and not unchanged(pin, now):
+            return None
+        same_scripts += pin is not None
+    keys = set(row_key(r) for r in before)
+    new_rows = [r for r in rows if row_key(r) not in keys]
+    lines = ["mycelium-extra \u00b7 plan {} \u00b7 amendment to {} \u00b7 +{} step{}{}".format(
+        digest, record["hash"], len(new_rows), "" if len(new_rows) == 1 else "s",
+        ", +{} script{}".format(len(added), "" if len(added) == 1 else "s") if added else "")]
+    for rel in added:
+        path = os.path.join(root, rel)
+        data = script_text(path) if os.path.isfile(path) else None
+        lines.append("Adds".ljust(10) + "{}   ({})".format(short(rel), "new, {} lines".format(len(data.splitlines()))
+                     if data is not None else "not written yet; pinned at its first run"))
+    for row in new_rows:
+        is_default = row["source"].lower().startswith("default")
+        who = "  [{}]{}".format(source_tag(row["source"]), "*" if is_default else "") if row["source"].strip() else (
+            "*" if is_default else "")
+        label = quote(DONE_MARK.sub("", row["choice"]), 120) or quote(clean(row["step"]), 120)
+        check = quote(DONE_MARK.sub("", row["check"]), 80)
+        lines.append("Row".ljust(10) + "{}  {}{}   check: {}".format(row["num"], label, who, check or "none written"))
+    fresh = [w for w in (outputs or []) if w not in was_outputs]
+    lines.append("Reads".ljust(10) + ("{} pinned input{}, none new or changed".format(len(old_pins), "" if len(old_pins) == 1 else "s")
+                                       if old_pins else "no pinned inputs"))
+    lines.append("Writes".ljust(10) + ("new: " + names_plain(fresh, short) if fresh else "nothing new"))
+    lines.append("Grant".ljust(10) + ("{}; any arguments; no folder or command grant added".format(
+        ", ".join("script {}".format(short(p)) if SCRIPT_EXT.search(p) else "file " + short(p) for p in added))
+        if added else "nothing added"))
+    lines.append("Unchanged".ljust(10) + "{} step{}, {} script{} pinned, {} input{}, validation and exact-execution "
+                 "blocks as approved".format(diff["same"], "" if diff["same"] == 1 else "s", same_scripts,
+                                             "" if same_scripts == 1 else "s", len(old_pins), "" if len(old_pins) == 1 else "s"))
+    lines.append("More: `card {0} full` (the whole plan's card)".format(digest))
+    lines.append("\u25b6 approve amendment {0}  (or approve)".format(digest))
+    return "\n".join(fit(line) if not line.startswith("Grant") else line for line in lines)
+
+
 def procedure_card(root, text, config, digest, pins, outside, previous, scripts, blocks=None):
     """The card for a plan whose table has Step and Choice or Validation columns, else None."""
     rows = plan_rows(text)
@@ -2223,7 +2291,8 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
     changes = pin_changes(pins, previous) + script_changes
     defaults = [row["num"] for row in rows if row["source"].lower().startswith("default")]
     lines = ["mycelium-extra \u00b7 plan {} ready for approval".format(digest)]
-    baseline = baseline_lines(root, config, digest, text, paths, outputs, pins, scripts, rows, short)
+    found = baseline_plan(root, config, digest, text, paths, outputs)
+    baseline = baseline_lines(root, config, digest, text, paths, outputs, pins, scripts, rows, short, found)
     lines += baseline
     lines += changes
     lines += ["Question   " + card_question(text), "Goal       " + card_goal(text),
@@ -2308,6 +2377,10 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
         "", row["check"]))) for row in rows if row["check"].strip()]
     details = {"full": full, "checks": "\n".join(checks), "diff": "\n".join(
         ["Diff of changed scripts"] + script_diff_lines) if script_diff_lines else "No script diff on this card."}
+    amended = amendment_card(root, config, digest, text, found[0], paths, commands, outputs, pins, scripts, rows,
+                             short, quote)
+    if amended:  # an amendment shows only its delta; the whole card stays behind `card <hash> full`
+        return amended, details
     # The compact card: what a researcher checks first (the question, each choice and who made it, the
     # checks), then only what could surprise. A grant broader than named scripts, a changed script or
     # input, flagged Evidence and every warning stay on it; file lists and diffs are behind `card <hash>`.
@@ -3387,7 +3460,7 @@ def on_prompt(event, root, config):
     known = ", ".join(p["hash"] + ("" if plan_ready(p) else " (invalid block)" if p.get("invalid") else " (preparing)")
                       for p in pending) or "none"
     if not match:
-        if re.search(r"\bapprove plan\b", prompt, re.IGNORECASE) and len(prompt) < 200:
+        if re.search(r"\bapprove (?:plan|amendment|freeze)\b", prompt, re.IGNORECASE) and len(prompt) < 200:
             message = ("mycelium-extra: nothing approved. To approve, send only `approve plan <hash>` "
                        "(pending in this session: {}).".format(known))
             return {"systemMessage": message}
