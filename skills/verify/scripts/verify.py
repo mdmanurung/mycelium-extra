@@ -3294,6 +3294,60 @@ def provenance_receipts(root):
     return sorted(found)
 
 
+# ---------------------------------------------------------------- refs lookup
+
+def refs(root, path, sha=None):
+    """Which saved bundles pinned `path` as a check's test or expectation file. Read-only, over `provenance/`.
+    `definite`: a pinned file has this SHA256 (the path may have moved); `possible`: the same path pinned with another
+    SHA256 or none given, or the path is named in the bundle's plan text. A bundle without a validation record cannot
+    be searched for pins; it is counted, and still `possible` when its plan text names the path."""
+    path = os.path.normpath(os.path.relpath(path, root) if os.path.isabs(path) else path)
+    sha = (sha or "").lower() or None
+    found, unsearched = [], 0
+    for receipts in provenance_receipts(root):
+        folder, digest = os.path.dirname(receipts), os.path.basename(receipts)[len("receipts-"):-len(".jsonl")]
+        record = gate.read_json(os.path.join(root, folder, "validation-{}.json".format(digest)), None)
+        hits = []
+        checks = ((record or {}).get("binding") or {}).get("checks") if isinstance(record, dict) else None
+        for check in checks if isinstance(checks, list) else []:
+            for name, have in sorted((check.get("files") or {}).items()):
+                if sha and isinstance(have, str) and have.startswith(sha):
+                    hits.append(("definite", check.get("id"), name, "SHA256 matches"))
+                elif os.path.normpath(name) == path:
+                    hits.append(("possible", check.get("id"), name, "same path, SHA256 {}".format(
+                        "differs ({})".format(have[:12]) if sha else "not compared; give --sha")))
+        if not isinstance(checks, list):
+            unsearched += 1
+        try:
+            with open(os.path.join(root, folder, "plan-{}.md".format(digest)), encoding="utf-8", errors="replace") as handle:
+                named = path in handle.read()
+        except OSError:
+            named = False
+        if named and not hits:
+            hits.append(("possible", None, path, "named in the plan text; no pin recorded"))
+        if hits:
+            found.append({"hash": digest, "folder": folder, "hits": hits})
+    return {"path": path, "sha": sha, "bundles": found, "unsearched": unsearched}
+
+
+def render_refs(result):
+    lines = ["Looking for `{}`{}".format(result["path"], " with SHA256 " + result["sha"] if result["sha"] else
+                                         " (no --sha: a path match is only possible)"), ""]
+    for level in ("definite", "possible"):
+        for bundle in result["bundles"]:
+            for kind, check, name, why in bundle["hits"]:
+                if kind == level:
+                    lines.append("- {}: plan {} in `{}`{}: {} ({})".format(
+                        level, bundle["hash"], bundle["folder"], " check `{}`".format(check) if check else "",
+                        name, why))
+    if not result["bundles"]:
+        lines.append("No bundle records a reference.")
+    lines += ["", "No recorded reference is not proof the file was unused.",
+              "{} bundle(s) have no validation record, so their pins cannot be searched.".format(result["unsearched"]),
+              "Nothing was written; old receipts and findings are unchanged."]
+    return "\n".join(lines) + "\n"
+
+
 def output_fingerprint(path, budget):
     """An output is identified by its bytes. The gate reads a notebook as its code cells (right for the code that
     ran, wrong for results: executing it rewrites its outputs and its recorded size is the code's length), so an
@@ -4160,9 +4214,10 @@ def main(argv):
     parser.add_argument("--rscript", help="default: the path in tools.json, else `Rscript` on PATH")
     parser.add_argument("--hash-mb", type=float, default=2000)
     parser.add_argument("--seconds", type=float, default=120)
-    parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore", "multiplicity", "runs"])
+    parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore", "multiplicity", "runs", "refs"])
     parser.add_argument("hash", nargs="?")
     parser.add_argument("new_hash", nargs="?")
+    parser.add_argument("--sha", help="refs: the SHA256 (or at least 8 hex) of the file that was wrong")
     parser.add_argument("--analysis-dir")
     parser.add_argument("--instance", help="report/write: check this approval instance (16 hex, or a unique prefix) "
                         "instead of the newest one in approvals/<hash>.json; see `report` for the instances of its runs")
@@ -4187,6 +4242,13 @@ def main(argv):
         else:
             rows = status(base, args.hash_mb, args.seconds)
             sys.stdout.write(json.dumps(rows, indent=1) + "\n" if args.json else render_status(rows))
+        return 0
+    if args.action == "refs":  # the positional after the action is the file's path; read-only, no gate needed
+        if not args.hash or (args.sha and not re.fullmatch(r"[0-9a-fA-F]{8,64}", args.sha)):
+            sys.exit("verify: `refs` needs the path of the file, and --sha (8 to 64 hex digits) when you have it.")
+        top = gate.git(os.path.abspath(args.repo), "rev-parse", "--show-toplevel")
+        result = refs(root or (top.strip() if top else os.path.abspath(args.repo)), args.hash, args.sha)
+        sys.stdout.write(json.dumps(result, indent=1) + "\n" if args.json else render_refs(result))
         return 0
     if args.action == "runs":  # RESULTS_DIR is the positional after the action; no gate needed when it is given
         top = gate.git(os.path.abspath(args.repo), "rev-parse", "--show-toplevel")

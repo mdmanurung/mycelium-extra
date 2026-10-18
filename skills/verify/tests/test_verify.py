@@ -2700,6 +2700,54 @@ sys.exit(1 if hits else 0)
         self.assertEqual(provenance.bundle_state(folder, digest), "complete")
         self.assertIn("[validation](validation-{}.json)".format(digest), open(os.path.join(folder, "PROVENANCE.md")).read())
 
+    def saved_with_expectation(self):
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        self.run_check({"status": "passed"})
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        return digest, hashlib.sha256(b'{"rows": 60}\n').hexdigest()
+
+    def test_refs_names_a_bundle_that_pinned_the_old_expectation_as_definite(self):  # the wrong-expectation lookup
+        digest, old = self.saved_with_expectation()
+        self.write(self.EXPECT, '{"rows": 59}\n')  # the corrected file, same path
+        out = self.verify("refs", self.EXPECT, "--sha", old)
+        self.assertIn("- definite: plan {} in `analysis/a/provenance` check `V1`: {} (SHA256 matches)".format(
+            digest, self.EXPECT), out)
+        self.assertNotIn("possible", out)
+        data = json.loads(self.verify("refs", self.EXPECT, "--sha", old[:8], "--json"))
+        self.assertEqual(data["bundles"][0]["hits"][0][:2], ["definite", "V1"])
+
+    def test_refs_does_not_call_the_same_path_with_another_digest_definite(self):  # control
+        digest, old = self.saved_with_expectation()
+        other = hashlib.sha256(b"something else").hexdigest()
+        out = self.verify("refs", self.EXPECT, "--sha", other)
+        self.assertNotIn("definite", out)
+        self.assertIn("- possible: plan {} in `analysis/a/provenance` check `V1`: {} (same path, SHA256 differs ({}))"
+                      .format(digest, self.EXPECT, old[:12]), out)
+        self.assertIn("possible", self.verify("refs", self.EXPECT))  # no --sha: a path match is only possible
+        self.assertIn("give --sha", self.verify("refs", self.EXPECT))
+
+    def test_refs_reports_no_recorded_reference_and_writes_nothing(self):
+        self.saved_with_expectation()
+        before = sorted(glob.glob(os.path.join(self.root, "analysis/a/provenance", "*")))
+        out = self.verify("refs", "analysis/a/tests/unrelated.json", "--sha", "ab" * 32)
+        self.assertIn("No bundle records a reference.", out)
+        self.assertIn("is not proof the file was unused", out)
+        self.assertEqual(before, sorted(glob.glob(os.path.join(self.root, "analysis/a/provenance", "*"))))
+        self.assertIn("8 to 64 hex", self.verify("refs", self.EXPECT, "--sha", "xyz", fails=True))
+        self.assertIn("needs the path", self.verify("refs", fails=True))
+
+    def test_refs_counts_a_bundle_without_a_validation_record_and_reads_its_plan_text(self):
+        self.write("data/samples.tsv", "a\n")
+        digest = self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/outputs/", inputs="data/samples.tsv"))
+        receipt = self.run_cmd("python " + FIT)
+        self.write("analysis/a/outputs/fit.tsv", "x\n", mtime=receipt["ts"] - 1)
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        out = self.verify("refs", "data/samples.tsv")
+        self.assertIn("- possible: plan {} in `analysis/a/provenance`: data/samples.tsv (named in the plan text; no pin "
+                      "recorded)".format(digest), out)
+        self.assertIn("1 bundle(s) have no validation record", out)
+
     # C07/F08: every attempt of a step stays visible; a recovery is judged on what changed
 
     def recovery(self, out):

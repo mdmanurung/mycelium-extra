@@ -4,7 +4,7 @@
 
 Everything on this page is real, supported and tested, but you do not need it for Tiers 1 to 3 of the [usage tiers](usage.md): planning, running with approval, and verifying reportable work. It was moved here from the [approval gate](approval-gate.md), [verification](verification.md) and [skill](skills.md) pages so those read as one story. Nothing was removed: every setting, subcommand and file below behaves as it did.
 
-**On this page:** [Approval instances](#approval-instances) · [Run limit](#run-limit) · [Approval latency and comprehension checkpoint](#approval-latency-and-comprehension-checkpoint) · [Validation bindings](#validation-bindings) · [Exact execution](#exact-execution) · [Other `gate.json` settings](#other-gatejson-settings) · [Plan-review packets and consent](#plan-review-packets-and-consent) · [Validation in the report](#validation-in-the-report) · [Plan differences](#plan-differences) · [Stale plans](#stale-plans) · [Overview of all plans](#overview-of-all-plans) · [Runs and citations](#runs-and-citations)
+**On this page:** [Approval instances](#approval-instances) · [Run limit](#run-limit) · [Approval latency and comprehension checkpoint](#approval-latency-and-comprehension-checkpoint) · [Validation bindings](#validation-bindings) · [Exact execution](#exact-execution) · [Other `gate.json` settings](#other-gatejson-settings) · [Plan-review packets and consent](#plan-review-packets-and-consent) · [Validation in the report](#validation-in-the-report) · [Plan differences](#plan-differences) · [Stale plans](#stale-plans) · [Plans that pinned a file](#plans-that-pinned-a-file) · [Overview of all plans](#overview-of-all-plans) · [Runs and citations](#runs-and-citations)
 
 ## Gate features
 
@@ -131,6 +131,10 @@ A check command that exits nonzero is a failed run and blocks like any failed ru
 After a planned run in a Mycelium repository, the gate suggests writing the finding's Evidence Ledger Run/Session cell as `<session-id>; plan <hash>`, and ending its Result cell with `[agent-derived: <output path>]`. Mycelium reads only the ledger's date cell.
 
 `verify stale` reads only committed provenance, so it works without the gate on any clone. By default outputs are compared by size and time, and the result says `metadata checked`: a same-size file with its old modification time looks unchanged. `verify stale --content` instead hashes each output and compares it with the SHA256 verify saved (in `outputs-<hash>.tsv`), so such a change is caught and a file merely touched is not reported. A file with no saved SHA256, or one the `--hash-mb` or `--seconds` budget did not reach, is `content not checked` and keeps the size and time check; the summary counts both. A notebook output is hashed as the raw file (its executed results), not as its code cells, which are the right identity for the code that ran. Bundles written before this change recorded a notebook's code-cell hash, so those entries can read as changed until the next `write`.
+
+### Plans that pinned a file
+
+`verify refs <path> [--sha SHA256]` answers one question after you find a wrong expectation: which saved analyses pinned that file? It reads only committed provenance (`validation-<hash>.json` and `plan-<hash>.md` beside each `receipts-<hash>.jsonl`), needs no gate and writes nothing. A check that pinned a file with this SHA256 (8 to 64 hex digits; the path may have moved) is **definite**. A pin on the same path with another SHA256, a path match when no `--sha` was given, or a path named in a bundle's plan text with no pin recorded is **possible**. A bundle written without a validation record cannot be searched for pins; the result counts them. "No recorded reference" is not proof the file was unused. See [Correcting a wrong expectation](validation-recipes.md#correcting-a-wrong-expectation).
 
 ### Overview of all plans
 

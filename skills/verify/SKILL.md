@@ -1,6 +1,6 @@
 ---
 name: verify
-description: "After an approved mycelium-extra grill plan has run, check what ran against the plan and, once the user confirms, write the frozen plan, its run receipts, and the check into the analysis folder's `provenance/`. Flags failed, missing, edited, or unplanned runs, explore runs, changed pinned inputs, outputs not tied to a run of the plan, and `<!-- claims -->` numbers that disagree with their output cell; records the runs' conda and pip packages. Use when the user invokes mycelium-extra verify, asks whether an analysis ran according to plan, or wants provenance recorded. Subcommands: `list`, `report`, `write`, `diff` (what changed between two plans), `stale` (what is out of date or needs re-running), `status` (an overview of what was planned, run, or verified), `multiplicity` (what was tried before the plan was settled), `explore` (this session's explore runs), `runs` (the labelled run folders of a results folder). Not for planning (use grill) or judging code quality (use Mycelium's review)."
+description: "After an approved mycelium-extra grill plan has run, check what ran against the plan and, once the user confirms, write the frozen plan, its run receipts, and the check into the analysis folder's `provenance/`. Flags failed, missing, edited, or unplanned runs, explore runs, changed pinned inputs, outputs not tied to a run of the plan, and `<!-- claims -->` numbers that disagree with their output cell; records the runs' conda and pip packages. Use when the user invokes mycelium-extra verify, asks whether an analysis ran according to plan, or wants provenance recorded. Subcommands: `list`, `report`, `write`, `diff` (what changed between two plans), `stale` (what is out of date or needs re-running), `status` (an overview of what was planned, run, or verified), `multiplicity` (what was tried before the plan was settled), `explore` (this session's explore runs), `runs` (the labelled run folders of a results folder), `refs` (which saved plans pinned a given file). Not for planning (use grill) or judging code quality (use Mycelium's review)."
 ---
 
 # Mycelium Extra: Verify
@@ -9,7 +9,7 @@ Check one approved plan against the gate's record of what ran, and record the re
 
 ## 1. Find the plan
 
-- `list`, `report`, `write`, `diff`, `multiplicity` and `explore` require the approval gate (`.mycelium-extra/gate.json`). Without it, say so and stop. `stale`, `status` and `runs` read committed provenance and run on a clone with no gate.
+- `list`, `report`, `write`, `diff`, `multiplicity` and `explore` require the approval gate (`.mycelium-extra/gate.json`). Without it, say so and stop. `stale`, `status`, `runs` and `refs` read committed provenance and run on a clone with no gate.
 - Use the hash the user gives. Otherwise list the approved plans, newest first, and ask which one:
 
   ```bash
@@ -130,6 +130,16 @@ It reads the committed `provenance/receipts-<hash>.jsonl` and `outputs-<hash>.ts
 
 - In a Mycelium project, run each stale plan's `findings:` command, which searches `.living/findings/` for its session IDs and `plan <hash>` (the gate suggests `<session-id>; plan <hash>` as a ledger's Run/Session cell), to name the findings that rest on a stale plan. A finding's ledger may cite a run ID instead; if nothing matches, say the link is unknown, not that no finding is at risk.
 - Suggest, per stale plan: re-verify it (`verify <hash>`), or re-plan the re-run with grill. Write nothing.
+
+## Files a correction affects
+
+When the user says an expectation or test file was wrong, find the saved plans that pinned it, read-only:
+
+```bash
+sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. refs <path> [--sha SHA256] [--json] < <skill-dir>/scripts/verify.py
+```
+
+Ask for the old file's SHA256 (`git log`/`git show` or the saved `validation-<hash>.json`); without it every path match is only `possible`. Report each line as printed: `definite` means a pinned file had that SHA256, `possible` means same path with another or unchecked SHA256, or named in the plan text. Say that "no recorded reference" is not proof the file was unused, and that bundles with no validation record were not searched. Write nothing, and never edit an old receipt or finding; the user decides whether to rerun, amend or keep the result with a limitation.
 
 When the user asks for status or an overview, show one table, read-only:
 
