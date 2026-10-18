@@ -48,9 +48,9 @@ Order is fixed: each one lands on `v0110` as its own commit, tests green, before
 - Files: `hooks/gate.py` (`on_prompt`, a `freeze_card`, `APPROVE`), `skills/verify` (none beyond M1 unless the preview reuses `check`), tests: freeze with edit, with new script, with nothing changed, with stale input, same bytes twice reuses the instance, approve then verify shows the new instance.
 - Exit: edit → run → `freeze` → `approve` → rerun → `verify report` ends without the unfrozen-code gap.
 
-### M5 · Docs, oracle, release (in progress: docs and manifests `18dd666`; oracle re-based, suites green on 3.12; 3.9 and the push remain)
+### M5 · Docs, oracle, release (in progress: only the memory note; everything else done)
 - `docs/approval-gate.md`, `docs/day.md` (the 13:00 "Review, then freeze" step), `docs/advanced.md`, `README.md`, `skills/verify/SKILL.md`, `skills/grill/references/run-plans.md` follow the code; CHANGELOG; version 0.11.0 in every place `tests/test_versions.py` checks.
-- `gate_diff`: regenerate expectations on a scratch clone with the patched timeouts (HANDOFF), review each new difference, record them. Done `0a54977`, `ec6524a`: four reviewed differences, and the CI pin, `docs/development.md` and `tests/test_ci_pins.py` now name the same base.
+- `gate_diff`: regenerate expectations on a scratch clone with the patched timeouts (HANDOFF), review each new difference, record them. Done `0a54977`, `ec6524a`: four reviewed differences, and the CI pin, `docs/development.md` and `tests/test_ci_pins.py` now name the same base. The oracle is now interpreter-portable (the positional-`maxsplit` warning normalized in `VOLATILE`, pinned by `hooks/tests/test_gate_diff.py::VolatileTextTest`), and `gate-diff` passed on CI 3.14 (run 39135012620: 169/173 with the four reviewed differences, self-check 173/173) and on 3.12 locally.
 - Update memory (`human-in-the-loop-priority` is reversed; `researcher-first-redesign` status). Push only on request.
 - Exit: whole suite green on 3.9, 3.11 `LC_ALL=C` and 3.12; `gate_diff` differences all reviewed.
 
