@@ -210,6 +210,20 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("re-pinned by the gate (a working scope, not a freeze)", out)
         self.assertNotIn("Verify status: CONFORMS\n", out)
 
+    def test_a_freeze_and_a_rerun_clear_the_unfrozen_code_gap(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.write(FIT, "print(1)\nprint(2)\n", mtime=time.time() - 60)
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.assertIn("no approval froze that version", self.verify("report", digest))
+        card = self.hook("prompt", {"prompt": "freeze " + digest})["reason"]
+        self.assertIn("freeze {}".format(digest), card)
+        self.hook("prompt", {"prompt": "approve"})
+        self.run_cmd("python " + FIT, writes={self.OUT: "y\n"})  # the rerun, under the new instance
+        out = self.verify("report", digest)
+        self.assertNotIn("no approval froze that version", out)
+        self.assertNotIn("re-pinned by the gate", out)  # the journal before the freeze is history
+        self.assertIn("run(s) under it", out)
+
     def test_edited_script_pinned_by_a_later_plan_is_covered(self):
         digest = self.edited_after_run()
         self.write(FIT, "print(2)\n", mtime=time.time() - 60)

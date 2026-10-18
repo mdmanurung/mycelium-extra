@@ -2806,20 +2806,27 @@ def repin_notice(root, record, rel, old, new):
                 "(pinned by size and time, or over {} KiB). `freeze {}` shows what it can.".format(
                     MAX_SNAPSHOT // 1024, record["hash"])], None
     added, removed = diff_counts(diff)
-    dropped, fresh, other = diff_numbers(diff)
     lines = [head + " (+{} -{} lines). Runs now use the new version; `freeze {}` shows the diff.".format(
-        added, removed, record["hash"])]
+        added, removed, record["hash"])] + number_lines(diff, record.get("plan") or "", rel)
+    return lines, (added, removed)
+
+
+def number_lines(diff, plan, rel):
+    """The lines that say which numbers a script diff moved and whether the plan's rows hold them, then how many
+    other lines changed."""
+    dropped, fresh, other = diff_numbers(diff)
+    lines = []
     if dropped or fresh:
-        known, row = plan_numbers(record.get("plan") or "", rel)
+        known, row = plan_numbers(plan, rel)
         said = lambda text: "{}{}".format(text, "" if float(text) in known else " (not in the plan)")
-        lines.append("  ⚠ numbers changed: " + " · ".join(filter(None, [
+        lines.append("  \u26a0 numbers changed: " + " \u00b7 ".join(filter(None, [
             "dropped " + ", ".join(dropped) if dropped else "", "new " + ", ".join(map(said, fresh)) if fresh else ""])))
         lines.append("  If this is another choice than {} states, say so; the plan is not edited for you.".format(
             "step " + row if row else "the plan"))
     else:
         lines.append("  Numbers: none changed.")
     lines.append("  Other changed lines: {}".format(other or "none"))
-    return lines, (added, removed)
+    return lines
 
 
 def repin_scripts(root, repins, budget, session_id):
@@ -3390,6 +3397,155 @@ def packet_consent(event, root, prefix):
             "immediately before sending, and send exactly the files it lists.".format(digest, digest[:12]))
 
 
+FREEZE = re.compile(r"^\s*freeze ([0-9a-f]{8})\s*[.!]?\s*$", re.IGNORECASE)
+FREEZE_MAX_SCRIPTS = 20  # more changed scripts than this are listed without diffs
+FREEZE_DIFF_LINES = 40  # diff lines shown per script
+FREEZE_DIFF_TOTAL = 200
+GAPS_SECONDS = 4  # the freeze card's look at `verify report` must leave the 10 s prompt hook room
+
+
+def gaps_now(root, digest):
+    """One line: the gaps and blocks `verify report` finds now, apart from the unfrozen code this freeze settles
+    and the linter (not run here). Read-only; "not computed" when it cannot finish in GAPS_SECONDS."""
+    import subprocess  # here, not at the top: most prompt hooks never run it
+    home = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    again = "`verify report {}` after the rerun shows them".format(digest)
+    try:
+        with open(os.path.join(home, "skills", "verify", "scripts", "verify.py"), "rb") as source:
+            done = subprocess.run([sys.executable, "-I", "-", "--plugin-root", home, "--repo", root, "--scilintr",
+                                   os.devnull, "report", digest], stdin=source, stdout=subprocess.PIPE,
+                                  stderr=subprocess.DEVNULL, timeout=GAPS_SECONDS, cwd=root)
+    except (OSError, subprocess.SubprocessError) as error:
+        return "Gaps now   not computed ({}); {}".format(
+            "over {} s".format(GAPS_SECONDS) if isinstance(error, subprocess.TimeoutExpired) else type(error).__name__, again)
+    found = [line for line in done.stdout.decode("utf-8", "replace").splitlines() if line.startswith(("- **gap**", "- **block**"))
+             and "no approval froze" not in line and "scilintr" not in line]
+    blocks = sum(line.startswith("- **block**") for line in found)
+    if done.returncode or not found and b"Verify status" not in done.stdout:
+        return "Gaps now   not computed (verify exited {}); {}".format(done.returncode, again)
+    return "Gaps now   {} gap{} and {} block{} besides unfrozen code (before any rerun; {})".format(
+        len(found) - blocks, "" if len(found) - blocks == 1 else "s", blocks, "" if blocks == 1 else "s", again)
+
+
+def freeze_state(root, config, record, budget):
+    """(scripts, changed, new, deleted) for a freeze of approval `record`: the pins a freeze would approve (the
+    approved pin where the file is unchanged, else the file now), the scripts whose bytes differ from the approved
+    pin as (rel, approved pin, pin now), the scripts the approval never pinned, and the deleted ones."""
+    rels = set(record.get("scripts") or {}) | set(read_script_pins(root, record["hash"]))
+    rels |= set(e["rel"] for e in read_repins(root, record["hash"]) if e.get("ts", 0) >= record.get("approved_at", 0))
+    scripts, changed, new, deleted = {}, [], [], []
+    for rel in sorted(rels):
+        path = os.path.join(root, rel)
+        if not os.path.isfile(path):
+            deleted.append(rel)
+            continue
+        now = fingerprint(path, budget)
+        approved = (record.get("scripts") or {}).get(rel)
+        if approved is None:  # pinned at a first run, or by a re-pin of a script the plan did not name
+            scripts[rel] = now
+            new.append(rel)
+        elif unchanged(approved, now):
+            scripts[rel] = approved
+        else:
+            scripts[rel] = now
+            changed.append((rel, approved, now))
+        keep_snapshot(root, rel, scripts[rel])
+    return scripts, changed, new, deleted
+
+
+def freeze_card(root, config, record, scripts, changed, new, deleted):
+    """The card `freeze <hash>` shows: each changed script's diff with the numbers that moved, the scripts new
+    since the approval, what to rerun and what a rerun replaces."""
+    digest, plan = record["hash"], record.get("plan") or ""
+    journal = collections.defaultdict(list)
+    for entry in read_repins(root, digest):
+        if entry.get("ts", 0) >= record.get("approved_at", 0):
+            journal[entry["rel"]].append(entry["ts"])
+    stamp = lambda ts: time.strftime("%m-%d %H:%M", time.localtime(ts))
+    lines = ["mycelium-extra · freeze {} · {} script{} changed, {} new since approval {}".format(
+        digest, len(changed), "" if len(changed) == 1 else "s", len(new), stamp(record.get("approved_at", 0)))]
+    shown, budget_left = 0, FREEZE_DIFF_TOTAL
+    for rel, approved, now in changed:
+        diff = script_diff(root, rel, approved)
+        counts = " +{} -{}".format(*diff_counts(diff)) if diff is not None else " diff not kept"
+        times = journal.get(rel) or []
+        lines.append("  {:<28}{}{}".format(rel, counts, "   (re-pinned {}x, last {})".format(len(times), stamp(max(times)))
+                                           if times else ""))
+        if diff is None or len(changed) > FREEZE_MAX_SCRIPTS:
+            continue
+        body = ["      " + line for line in diff if not line.startswith(("---", "+++"))]
+        keep = body[:min(FREEZE_DIFF_LINES, budget_left)]
+        lines += keep + (["      … and {} more diff lines".format(len(body) - len(keep))] if len(body) > len(keep) else [])
+        budget_left -= len(keep)
+        lines += ["    " + line.strip() if line.strip().startswith("⚠") else line for line in number_lines(diff, plan, rel)]
+    for rel in new:
+        path = os.path.join(root, rel)
+        data = script_text(path)
+        lines.append("  {:<28} new since approval{}".format(
+            rel, ", {} lines".format(len(data.splitlines())) if data is not None else ""))
+    if deleted:
+        lines.append("  deleted since approval, not pinned: " + ", ".join(deleted))
+    rows = plan_rows(plan) or []
+    named = [i for i, row in enumerate(rows) if any(
+        rel in plan_paths_in(root, DONE_MARK.sub("", row["step"])) for rel in [c[0] for c in changed] + new)]
+    if named:
+        rerun = rows[named[0]:]
+        lines.append("Rerun      step{} {} (step {} names a changed script{})".format(
+            "" if len(rerun) == 1 else "s", ", ".join(r["num"] for r in rerun), rows[named[0]]["num"],
+            "; later steps may read its outputs" if len(rerun) > 1 else ""))
+    elif not rows:
+        lines.append("Rerun      every step of the plan (its table has no Step column to say which)")
+    else:
+        lines.append("Rerun      every step: none names a changed script, so it runs inside a folder or command grant")
+    outputs = output_words(plan) or []
+    lines.append("Stale      " + ("declared outputs may be out of date until the rerun: " + names_plain(outputs, str)
+                                  if outputs else "the plan declares no outputs"))
+    receipts = [r for r in read_receipts(root) if digest in (r.get("plans") or []) and not r.get("explore")
+                and r.get("ts", 0) >= record.get("approved_at", 0)]
+    lines.append("Runs       {} under this approval so far".format(len(receipts)))
+    lines.append(gaps_now(root, digest))
+    lines.append("▶ approve freeze {}   then: run the plan again, then verify".format(digest))
+    return "\n".join(lines)
+
+
+def freeze_moved(root, config, plan):
+    """The scripts of a pending freeze whose bytes are no longer the ones the card showed."""
+    budget = hash_budget(config)
+    return [rel for rel, pin in sorted((plan.get("scripts") or {}).items())
+            if os.path.isfile(os.path.join(root, rel)) and not unchanged(pin, fingerprint(os.path.join(root, rel), budget))]
+
+
+def freeze_entry(root, config, digest):
+    """(a pending entry that approves the freeze of plan `digest`, or None) and the message when none."""
+    path = state_path(root, "approvals", digest + ".json")
+    try:
+        record = read_approval(path) if os.path.isfile(path) else None
+    except InvalidApproval as error:
+        return None, str(error)
+    if not record or not record.get("plan"):
+        return None, "mycelium-extra: no approved plan {}; nothing to freeze.".format(digest)
+    budget, cache = hash_budget(config), {}
+    moved, skipped = changed_pins(root, record.get("pins") or {}, budget, cache)
+    if moved:
+        return None, ("mycelium-extra: inputs pinned by plan {} changed ({}). A freeze covers scripts only: show the "
+                      "plan again so the user approves the new pins with `approve plan <hash>`.".format(
+                          digest, "; ".join(moved[:3])))
+    if record.get("validation"):
+        stale = blocks_module().changes(root, record["validation"])
+        if stale:
+            return None, ("mycelium-extra: a test or expectation file pinned by plan {} changed. A freeze covers "
+                          "scripts only: show the plan again.".format(digest))
+    scripts, changed, new, deleted = freeze_state(root, config, record, budget)
+    if not changed and not new:
+        return None, ("mycelium-extra: nothing to freeze: the scripts of plan {} are as approved{}.".format(
+            digest, " ({} deleted)".format(len(deleted)) if deleted else ""))
+    card = freeze_card(root, config, record, scripts, changed, new, deleted)
+    entry = {"hash": digest, "ts": time.time(), "text": record["plan"], "pins": record.get("pins") or {},
+             "scripts": scripts, "ready": True, "freeze": True, "card": {"full": card, "diff": card}}
+    entry.update((key, record[key]) for key in ("validation", "execution") if record.get(key))
+    return entry, card
+
+
 def on_prompt(event, root, config):
     prompt = event.get("prompt") or ""
     consent = SEND_PACKET.fullmatch(prompt.strip().lower())
@@ -3441,6 +3597,14 @@ def on_prompt(event, root, config):
             message = "mycelium-extra: exploratory runs are no longer allowed in this session."
         return {"systemMessage": message,
                 "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
+    freeze = FREEZE.match(prompt)
+    if freeze:  # answered here, like `card`: the user reads the card, the agent does not
+        entry, shown = freeze_entry(root, config, freeze.group(1).lower())
+        if entry:
+            path = state_path(root, "pending", safe_session(event.get("session_id")) + ".json")
+            kept = [p for p in read_json(path, []) if p["hash"] != entry["hash"]]
+            write_json(path, (kept + [entry])[-10:])
+        return {"decision": "block", "reason": shown}
     match = APPROVE.match(prompt)
     steps, steps_notice = checkpoint_steps(config)
     if match and match.group(2) and not steps:  # a step number answers a checkpoint question; none is open
@@ -3485,11 +3649,16 @@ def on_prompt(event, root, config):
         message = ("mycelium-extra: plan {} has an invalid validation-bindings or exact-execution block ({}). "
                    "Nothing was approved. Fix the block and show the plan again.".format(
                        wanted, clean(plan["invalid"][0], 160)))
+    elif plan.get("freeze") and freeze_moved(root, config, plan):  # a script changed after the card was shown
+        message = ("mycelium-extra: {} changed after the freeze card for plan {} was shown ({}). Nothing was "
+                   "approved: send `freeze {}` to review the current code.".format(
+                       "a script" if len(freeze_moved(root, config, plan)) == 1 else "scripts", wanted,
+                       ", ".join(freeze_moved(root, config, plan)[:3]), wanted))
     elif not plan_ready(plan):  # preparation was interrupted; approving would drop the pins
         message = ("mycelium-extra: plan {} was not fully prepared (inputs, scripts or card). Nothing was "
                    "approved. Show the plan again so it is prepared, then approve its hash.".format(wanted))
     else:
-        reply, checkpoint = checkpoint_reply(root, session, plan, steps, match.group(2))
+        reply, checkpoint = checkpoint_reply(root, session, plan, 0 if plan.get("freeze") else steps, match.group(2))
         if reply:
             return {"systemMessage": reply,
                     "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": reply}}
@@ -3509,6 +3678,10 @@ def on_prompt(event, root, config):
                        wanted, config["approval_hours"],
                        "Pinned inputs: {}.".format(listing(pins)) if pins else "No inputs pinned.",
                        " Pinned scripts: {}.".format(listing(scripts)) if scripts else ""))
+        if plan.get("freeze"):
+            message = ("mycelium-extra: plan {} frozen: the scripts as reviewed are pinned ({}). Run the plan's "
+                       "steps again under this approval, then verify. Edits after this re-pin with a notice, as "
+                       "before.".format(wanted, listing(scripts)))
         if steps_notice:
             message += " " + steps_notice
     return {"systemMessage": message,

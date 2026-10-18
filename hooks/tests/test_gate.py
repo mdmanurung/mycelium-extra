@@ -1463,6 +1463,75 @@ class GateTest(unittest.TestCase):
         self.write("analysis/x.py", "keep = padj < 0.01 and lfc > 1\n# was 0.05\nseed = 7\n")
         self.assertIn("Numbers: none changed", self.bash("python analysis/x.py")["systemMessage"])
 
+    def freeze(self, digest):
+        return self.hook("prompt", {"prompt": "freeze " + digest})
+
+    FREEZE_PLAN = "\n".join([
+        "| # | Step | Choice | Source | Validation |", "|---|---|---|---|---|",
+        "| 1 | Run `analysis/x.py` | threshold 0.05 | user | check |",
+        "| 2 | Run `snakemake` | dry run | repo: CLAUDE.md | resolves |", "", "Plan status: READY"])
+
+    def test_freeze_reviews_the_edits_and_one_approve_pins_them(self):
+        self.write("analysis/x.py", "keep = 0.05\n")
+        digest, _ = self.approve(self.FREEZE_PLAN)
+        approved = self.approval(digest)
+        self.assertIsNone(self.bash("python analysis/x.py"))
+        self.write("analysis/x.py", "keep = 0.01\nprint(keep)\n")
+        self.assertIn("re-pinned", self.bash("python analysis/x.py")["systemMessage"])
+        shown = self.freeze(digest)
+        self.assertEqual(shown["decision"], "block")  # the user reads it; the agent does not
+        card = shown["reason"]
+        self.assertIn("freeze {} \u00b7 1 script changed, 0 new since approval".format(digest), card)
+        self.assertIn("analysis/x.py", card)
+        self.assertIn("+2 -1   (re-pinned 1x, last ", card)
+        self.assertIn("      -keep = 0.05\n      +keep = 0.01\n      +print(keep)", card)
+        self.assertIn("numbers changed: dropped 0.05 \u00b7 new 0.01 (not in the plan)", card)
+        self.assertIn("Rerun      steps 1, 2 (step 1 names a changed script; later steps may read its outputs)", card)
+        self.assertIn("Stale      the plan declares no outputs", card)
+        self.assertIn("Runs       0 under this approval so far", card)  # receipts come from Post, which this test skips
+        self.assertIn("Gaps now   ", card)
+        self.assertTrue(card.endswith("\u25b6 approve freeze {}   then: run the plan again, then verify".format(digest)))
+        self.assertEqual(self.approval(digest), approved, "showing the card approves nothing")
+        done = self.hook("prompt", {"prompt": "approve"})["systemMessage"]
+        self.assertIn("plan {} frozen".format(digest), done)
+        after = self.approval(digest)
+        self.assertNotEqual(after["instance_id"], approved["instance_id"], "a freeze is a new approval instance")
+        self.assertNotEqual(after["scripts"]["analysis/x.py"]["sha256"], approved["scripts"]["analysis/x.py"]["sha256"])
+        self.assertIsNone(self.bash("python analysis/x.py"), "the frozen bytes run silently")
+        self.write("analysis/x.py", "keep = 0.02\n")  # the working scope continues after a freeze
+        self.assertIn("re-pinned", self.bash("python analysis/x.py")["systemMessage"])
+
+    def test_freeze_refuses_with_one_sentence(self):
+        self.write("analysis/x.py", "print(1)\n")
+        self.write("data/samples.tsv", "x")
+        digest, _ = self.approve(self.inputs_plan("data/samples.tsv"))
+        self.assertIn("no approved plan 0badc0de", self.freeze("0badc0de")["reason"])
+        self.assertIn("nothing to freeze", self.freeze(digest)["reason"])
+        self.write("analysis/x.py", "print(2)\n")
+        self.write("data/samples.tsv", "changed")
+        self.assertIn("A freeze covers scripts only", self.freeze(digest)["reason"])
+
+    def test_a_script_changed_after_the_freeze_card_is_not_approved(self):
+        self.write("analysis/x.py", "print(1)\n")
+        digest, _ = self.approve()
+        self.write("analysis/x.py", "print(2)\n")
+        self.freeze(digest)
+        before = self.approval(digest)
+        self.write("analysis/x.py", "print(3)\n")
+        message = self.hook("prompt", {"prompt": "approve freeze " + digest})["systemMessage"]
+        self.assertIn("changed after the freeze card", message)
+        self.assertEqual(self.approval(digest), before)
+
+    def test_freeze_lists_scripts_pinned_at_a_first_run_as_new(self):
+        folder_plan = "## Plan\n| 1 | run `nbs/study/` scripts | repo | check |\n\nPlan status: READY"
+        self.write("nbs/study/a.R", "1\n")
+        digest, _ = self.approve(folder_plan)
+        self.assertIsNone(self.bash("Rscript nbs/study/a.R"))
+        card = self.freeze(digest)["reason"]
+        self.assertIn("0 script changed, 1 new since approval", card.replace("scripts", "script"))
+        self.assertIn("nbs/study/a.R", card)
+        self.assertIn("Rerun      every step of the plan", card)
+
     def test_script_first_run_is_pinned(self):
         digest, _ = self.approve()  # the script does not exist yet: plan A, analyze writes it later
         self.assertEqual(self.approval(digest)["scripts"], {})
