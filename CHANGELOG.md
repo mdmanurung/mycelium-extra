@@ -2,6 +2,21 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.12.0] - 2026-10-18
+
+Lessons from ClawBio's validation talks, taken as documentation, one fixture and two small additions. Nothing here changes an allow or deny decision, and nothing is on by default.
+
+### Added
+
+- **`docs/validation-recipes.md`:** three recipes (sample and key join, contrast direction, complete result table), each with its claim, expected answer, binding, deliberate failure, benign control and limit. `V-DC12` (new) shows a result table filtered after testing passing every other check and failing only `complete-table`. `tests/test_recipes.py` parses the page's binding blocks with the gate's own reader.
+- **`verify refs <path> [--sha SHA256]`:** which saved plans pinned a file as a check's test or expectation, read-only and without the gate. `definite` means a pinned file had that SHA256; `possible` means the same path with another or unchecked SHA256, or a path named in the plan text. Bundles without a validation record are counted, not guessed at.
+- **`card_coverage` (default `false`):** one `Coverage` row under `Checks` on the compact card: steps with a bound check, prose-only rows, exact steps, and that other steps take any arguments. `gate_diff` reports 173 of 173 cases identical with it off.
+- **`docs/verification.md` "When something fails"** (who enforces each stop, rebased on re-pin and freeze) and **`docs/exercise.md`**, a six-step practice run on the fixture project.
+
+### Not done
+
+- `docs/example.md` still shows 0.10.2 output: regenerating it needs `scilintr` and an `Rscript` whose R has it, and this host has neither.
+
 ## [0.11.0] - 2026-10-18
 
 Third step of the researcher-first redesign: an approval is a working scope. You and the agent edit the plan's scripts without a block, and you review the code once, at a freeze.

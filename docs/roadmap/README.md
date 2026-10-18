@@ -30,6 +30,8 @@ These come from decisions already locked in this repository. A task that would b
 | 5 | Shape how researchers use the agent | D4, D7, D8, D9, A6 |
 | 6 | Keep oversight honest | D10, D11, D12 |
 | 7 | Execution fidelity: no false assurance from incomplete evidence | C01–C13 in [07-execution-fidelity.md](07-execution-fidelity.md) |
+| 8 | Working scope, amendment and freeze | [08-working-scope.md](08-working-scope.md) |
+| 9 | Validation recipes, correction lookup, coverage row | [09-clawbio-lessons.md](09-clawbio-lessons.md) |
 
 Phases are a suggested order, not a gate; a task may start once its dependencies are done. B5 is a decision for the maintainer, not a build task, and has no phase.
 
