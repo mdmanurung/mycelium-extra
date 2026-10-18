@@ -2,6 +2,21 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.11.0] - 2026-10-18
+
+Third step of the researcher-first redesign: an approval is a working scope. You and the agent edit the plan's scripts without a block, and you review the code once, at a freeze.
+
+### Changed
+
+- **An edit to a script the plan lists no longer blocks a run.** The gate re-pins it (`.mycelium-extra/repins/<hash>.jsonl`, append-only; the approval and its instance are never rewritten) and shows you and the agent a notice: lines added and removed, and the numbers that moved with whether a plan row holds them. This reverses the 0.9.44 block-by-default. Changed inputs, validation files, exact-execution files and the run limit still block.
+- **`freeze <hash>`** shows the diff of each script since the approval, scripts first pinned since, which steps to run again, and the gaps `verify` finds now; one `approve` pins the code you reviewed as a new approval instance. It replaces the second grill before a reportable run.
+- **A plan that only adds steps and scripts shows a change-only amendment card** (`approve amendment <hash>`); any other change keeps the whole card. `approve amendment` and `approve freeze` mean `approve plan`.
+- `verify` reports a run of code no approval froze as a gap and lists re-pins as info; `lint_before_run` and `lint_before_stop` say what `verify` does with a finding left open.
+
+### Docs
+
+- `approval-gate.md` (pinned scripts, amendment cards, freeze), `day.md`, `advanced.md`, `run-plans.md` and the README follow the code. New tracker `docs/roadmap/08-working-scope.md`.
+
 ## [0.10.2] - 2026-10-17
 
 Second step of the researcher-first redesign: the two things you read most, the approval card and the verify report, now lead with the science and the answer.

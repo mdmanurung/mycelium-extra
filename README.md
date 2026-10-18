@@ -49,8 +49,9 @@ it approves nothing and lists the hashes.
 See [a worked example](docs/example.md) for the real output of each step. [A day with Mycelium Extra](docs/day.md) walks through a full working day.
 
 Run the approved steps through your normal workflow, then invoke
-`/mycelium-extra:verify <hash>`. For reportable or HPC work, freeze the finished
-code in a [run plan](skills/grill/references/run-plans.md) before the final run.
+`/mycelium-extra:verify <hash>`. Edit the plan's scripts freely: the gate re-pins each edit with a notice. Before a reportable run, type
+`freeze <hash>` to review the code once and approve it; for HPC work, a
+[run plan](skills/grill/references/run-plans.md) also freezes the exact commands.
 Codex CLI 0.160.0 receipts lack exit metadata; verification reports that gap.
 Independent Codex + Biomni review is led from Claude Code or OpenCode; in
 Codex, `plan-review` provides the engineering critique only.

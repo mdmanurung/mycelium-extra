@@ -65,10 +65,11 @@ in a run plan before executing it.
    ordinary repository, use your own review), and run the executable checks you
    select, such as the project's tests or `data-contract-check`. Fix what they
    find; every code edit belongs before the freeze.
-2. Ask `grill` for a run plan. It revises the existing `PLAN.md`, lists scripts,
-   Snakefile, and `run.sh` under `Inputs:`, and shows a dry run under the first
-   plan's approval.
-3. Read the revised plan and approve its displayed hash. Run the covered steps.
+2. Type `freeze <hash>`. It shows each script's diff since you approved the
+   plan, which steps to run again, and the numbers that moved. For exact
+   commands or HPC work, also ask `grill` for a run plan (it lists scripts,
+   Snakefile, and `run.sh` under `Inputs:` and shows a dry run).
+3. Read it and `approve`. Run the covered steps again.
 4. Invoke `/mycelium-extra:verify <hash>` for that run plan.
 5. Read the failures and gaps. Confirm if you want the check saved under
    `<analysis>/provenance/`, then commit it with the analysis. Ask for another
@@ -137,8 +138,8 @@ flowchart TD
     subgraph execute["2. Implement, review, and run"]
         code["mycelium:analyze or your own tools<br/>Implement preparation, models, and plots; lint and test"]
         review["mycelium:review or your own review, before the freeze<br/>Methods and code against the approved plan; run selected checks"]
-        freeze["grill: revise PLAN.md into a run plan<br/>Pin code + data; show dry run and tool versions"]
-        runapproval["You approve the run plan's displayed hash"]
+        freeze["freeze hash: diff of each script since approval<br/>Reruns to do; numbers that moved"]
+        runapproval["You approve the freeze"]
         run["Run preparation, models, diagnostics, and figures<br/>Use your normal runner; gate checks inputs and records receipts"]
         code --> review --> freeze --> runapproval --> run
     end
@@ -186,7 +187,7 @@ and the gate checks only part of each.
 |---|---|---|
 | You approve | The question, the choices and their sources, the steps, and the inputs | The finished code and data exactly as they will run |
 | When | After `grill`, before implementation | After implementation, lint, review, and checks, before the reportable run |
-| Checked mechanically today | The approved hash is tied to the plan text; covered commands are denied until it is approved; `Inputs:` files and the existing scripts the plan table names are pinned when the hash is shown, other covered scripts at their first run; receipts are recorded | Files listed under `Inputs:` (scripts, Snakefile, `run.sh`, data) are pinned when the hash is shown, and a launch after any of them changes is blocked until the revised plan is approved; receipts are recorded |
+| Checked mechanically today | The approved hash is tied to the plan text; covered commands are denied until it is approved; `Inputs:` files and the existing scripts the plan table names are pinned when the hash is shown, other covered scripts at their first run; receipts are recorded | `freeze <hash>` pins the scripts as you reviewed them; data under `Inputs:` is pinned when the hash is shown and a launch after it changes is blocked until the revised plan is approved; receipts are recorded |
 | Instructional only | That each choice is sourced and the plan complete (`grill`); that independent critique happened (`plan-review`) | That the code is finished and lint-clean, that the principal review and selected checks ran and their findings were fixed, and that the dry run and tool versions are in the plan (`grill`'s run-plan instructions) |
 
 The gate does not check that a review happened or that a test passed, and no test

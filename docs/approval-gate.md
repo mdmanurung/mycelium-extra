@@ -17,7 +17,7 @@ The gate works through Claude Code and Codex hooks, or the OpenCode plugin adapt
 
 ## Approving a plan
 
-When a reply ends with `Plan status: READY` or `READY_WITH_ASSUMPTIONS`, the Stop hook hashes the plan and shows `approve plan <hash>`. Plain `approve` (or `approve plan` without a hash) approves only when exactly one card in the session is waiting and it is the one shown last. With none waiting, two or more waiting, or an older card as the one waiting, nothing is approved and the reply lists the pending hashes (marked `(preparing)` or `(invalid block)` where that applies). Only the exact words count: `approve it` or `ok, approve` is an ordinary prompt and gets no reply. The hash may be given without the word "plan" (`approve 1a2b3c4d`), and case and a trailing `.` or `!` are ignored. The notice is a card you can check the science on. For a plan whose table has a Step column and a Choice or Validation column, it shows:
+When a reply ends with `Plan status: READY` or `READY_WITH_ASSUMPTIONS`, the Stop hook hashes the plan and shows `approve plan <hash>`. `approve amendment <hash>` and `approve freeze <hash>` mean the same as `approve plan <hash>` and are what the amendment and freeze cards ask for. Plain `approve` (or `approve plan` without a hash) approves only when exactly one card in the session is waiting and it is the one shown last. With none waiting, two or more waiting, or an older card as the one waiting, nothing is approved and the reply lists the pending hashes (marked `(preparing)` or `(invalid block)` where that applies). Only the exact words count: `approve it` or `ok, approve` is an ordinary prompt and gets no reply. The hash may be given without the word "plan" (`approve 1a2b3c4d`), and case and a trailing `.` or `!` are ignored. The notice is a card you can check the science on. For a plan whose table has a Step column and a Choice or Validation column, it shows:
 
 The compact card reads top to bottom as the science first:
 
@@ -96,6 +96,21 @@ An approval is a working scope, and it also records the code you approved. You a
 - Turn it off with `"pin_scripts": false` in `gate.json`.
 
 Changed inputs, changed validation or exact-execution files and the run limit still block until the plan is shown and approved again.
+
+### Amendment cards
+
+A plan that only adds to an earlier approval shows a change-only card: `Adds` (the new scripts), `Row` (each new plan row with its choice, who decided it and its check), `Reads`, `Writes`, `Grant` and `Unchanged`, ending in `▶ approve amendment <hash>` (a bare `approve` works when it is the one card waiting). The card appears only when every earlier row, the objective, the question, the pinned inputs, the validation and exact-execution blocks and every existing script are unchanged, and the only new grants are scripts or files. Anything else (a changed or removed row, a new input, a folder or command grant) gives the whole card, so the delta view never hides a change. It approves the amended plan's own hash and text; the earlier approval is not touched. `card <hash> full` shows the whole card.
+
+### Freeze
+
+`freeze <hash>` is the one review of code before a reportable run. Type it yourself; the hook answers it, so the agent never sees the card. It compares each script now with the one the approval pinned and shows:
+
+- every changed script with its size of change, how often the gate re-pinned it and its diff (40 lines per script, 200 in all; a script with no kept copy says "diff not kept"), then the numbers that moved and whether the plan's rows hold them;
+- scripts first pinned after the approval (run under a folder grant, say) as new;
+- `Rerun`: the step that names a changed script and every later step, since the gate cannot see which step reads which output; `Stale`: the plan's declared outputs, which may be out of date until the rerun;
+- `Runs` under this approval so far and `Gaps now`: the gaps and blocks `verify report` finds now apart from unfrozen code and the linter, or "not computed" when that takes over 4 s.
+
+`approve` (or `approve freeze <hash>`) then writes a new approval record and instance whose script pins are the code you reviewed. Run the plan again, then `verify`: the rerun belongs to the new instance, and earlier runs are history. A freeze refuses, in one sentence, when the hash has no approval, nothing changed, an input or a validation file changed (show the plan again; a freeze covers scripts only), or a script changed after the card was shown (send `freeze <hash>` again). Edits after a freeze re-pin with a notice, as before it.
 
 Only the script a command runs is checked. A file it sources or imports, and the scripts a Snakefile rule runs, are not; list them on the plan's `Inputs:` line to pin them (a run plan from grill freezes the code that way).
 
@@ -207,7 +222,7 @@ Everything is gitignored and local to the clone. The `.jsonl` logs and `explore.
 | `gate.json` | The settings above. |
 | `approvals/<hash>.json`, `approval-instances/<hash>/` | The approved plans and their frozen content ([Approval instances](advanced.md#approval-instances)). Never deleted. |
 | `pending/` | Plans shown, per session (text, pins, card), and the lint records of scripts written. |
-| `script-pins/`, `scripts/` | First-run script pins and the stored copies used for diffs. |
+| `script-pins/`, `repins/`, `scripts/` | First-run script pins, the append-only re-pin journal (`repins/<hash>.jsonl`: time, script, new pin, old hash, session, lines added and removed) and the stored copies used for diffs. |
 | `launches/` | One record per gated launch until its call reports back; `launches/abandoned/` keeps those never taken. |
 | `explore-grants/` | The session's `allow explore` grant. |
 | `receipts.jsonl` | Run receipts, read by `verify`. |

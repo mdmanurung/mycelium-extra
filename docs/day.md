@@ -57,10 +57,10 @@ Now the agent can fix and re-run code on the plan's own analysis paths as often 
 The code works on a test run. Before the reportable run:
 
 1. Ask for the principal methodological and code review (Mycelium's `review`, or your own in an ordinary repository) and run the checks you rely on. Fix what they find; every edit belongs before the freeze.
-2. Ask `grill` for a run plan. It revises the same `PLAN.md`, lists the scripts, Snakefile and `run.sh` under `Inputs:`, and shows a dry run.
-3. Read it and approve the new hash. The finished code is now pinned: if any listed file changes, the launch is blocked until the revised plan is approved.
+2. Type `freeze <hash>`. The card shows what changed in each script since you approved the plan, which steps to run again, and the numbers that moved. Nothing was blocked while you worked: the gate re-pinned each edit and told you.
+3. Read it and `approve`. The code you reviewed is now pinned, and the rerun and `verify` check that version. Use a [run plan](../skills/grill/references/run-plans.md) as well when the exact commands must be frozen.
 
-This is the second of the two checkpoints (see [Two checkpoints](usage.md#two-checkpoints)). The gate checks the pins; it does not check that a review happened.
+This is the second of the two checkpoints (see [Two checkpoints](usage.md#two-checkpoints)). The gate pins what you approved; it does not check that a review happened.
 
 ## 14:00 The real run
 
