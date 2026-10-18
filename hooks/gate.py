@@ -2561,7 +2561,7 @@ def checkpoint_reply(root, session, plan, steps, answer):
 
 def limit_changes(root, runs, budget, cache):
     """What differs now from the first run counted under an approval: the commit, and each script's content
-    (shown even with `pin_scripts` off). The approval's inputs and pinned scripts already block when they change."""
+    (shown even with `pin_scripts` off). The approval's changed inputs already block; a changed pinned script is re-pinned."""
     first, lines = runs[0], []
     now, before = git_state(root), first.get("git")
     if before and now and before.get("head") != now["head"]:
@@ -3047,6 +3047,8 @@ def on_tool(event, root, config):
 
 
 LINT_RUN_MODES = ("warn", "block")
+VERIFY_ON_FINDINGS = ("`verify` blocks on a finding left open, except a threshold finding (`magic-threshold`, `R002`) "
+                      "whose numbers a plan row's Choice cell states, which it reports as info.")
 
 
 def open_findings_before_run(root, rels):
@@ -3088,7 +3090,7 @@ def lint_before_run(root, rels, config):
                      "`ANALYSIS_OK[rule]: <what is done, why it is valid, where it is checked>` where the choice is "
                      "deliberate, then run again. The user can set it to warn. Do not work around this block.")
         return deny("\n".join(lines)), None, None
-    lines.append("Running anyway (lint_before_run is warn). `verify` blocks on any finding left.")
+    lines.append("Running anyway (lint_before_run is warn). " + VERIFY_ON_FINDINGS)
     return None, "\n".join(lines), "\n".join(lines)
 
 
@@ -3624,7 +3626,7 @@ def lint_on_write(event, root, config):
     if lines:
         text += ("mycelium-extra: scilintr reports after this write:\n{}\nFix each one, or waive it with "
                  "`ANALYSIS_OK[rule]: <what is done, why it is valid, where it is checked>` where the choice is "
-                 "deliberate. `verify` blocks on any finding left.".format("\n".join(lines)))
+                 "deliberate. {}".format("\n".join(lines), VERIFY_ON_FINDINGS))
     if notes:
         text += ("\n" if text else "mycelium-extra: ") + (
             "scilintr could not check everything just written, so this is not a clean result:\n{}\n`verify` "
@@ -3689,8 +3691,8 @@ def lint_stop_block(root, event, config):
         lines += ["    " + row for row in rows[:5]] + (["    ..."] if len(rows) > 5 else [])
     reason = ("mycelium-extra: scilintr findings are still open in script(s) you wrote this session:\n{}\n"
               "Fix each one, or waive it with `ANALYSIS_OK[rule]: <what is done, why it is valid, where it is "
-              "checked>` where the choice is deliberate, then finish. `verify` blocks on any finding left. "
-              "This stop is blocked once per change (gate.json `lint_before_stop`).".format("\n".join(lines)))
+              "checked>` where the choice is deliberate, then finish. {} "
+              "This stop is blocked once per change (gate.json `lint_before_stop`).".format("\n".join(lines), VERIFY_ON_FINDINGS))
     marker = state_path(root, "pending", safe_session(event.get("session_id")) + ".lint-stop-blocked")
     if read_json(marker, "") == reason:
         return None

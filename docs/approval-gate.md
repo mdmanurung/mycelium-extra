@@ -83,15 +83,19 @@ These are supported and tested, but most researchers never need them, so they li
 
 ## Pinned scripts
 
-An approval also refers to the code you approved. A script that changes after approval cannot run until you re-approve it, so an agent cannot edit an approved script and re-run it unseen.
+An approval is a working scope, and it also records the code you approved. You and the agent can keep editing the scripts the plan lists. The gate does not block an edit; it re-pins the script and says so, and `verify` reports a reportable run of code no approval froze as a gap.
 
 - When a plan is shown, the gate fingerprints each existing script (`.py`, `.R`, `.sh`, `.ipynb`, `Snakefile`, and similar) that the plan table names, up to 500. The card lists them under "Scripts pinned".
-- Any other script the plan covers, such as one under a folder it names or one that did not exist then (analyze writes code after plan approval), is pinned at its first covered run. The first version is not blocked; edits after it are, and showing the plan again lists them on the card.
-- Before a covered run, the gate compares the script it runs with the pin of the newest covering approval. A difference blocks the run, naming the script, both hashes, and the lines added and removed.
-- Present the plan again to review it. The card then shows "Scripts changed since last approved" near the top, and up to 30 lines of the diff under "Diff of changed scripts" just above the `approve plan` line (the grants and the question stay on screen first), and `approve plan <hash>` pins the new version. Approving the same plan again re-baselines its first-run pins.
-- The gate keeps a copy of each pinned script up to 256 KB in `.mycelium-extra/scripts/` to show the diff. A larger script is pinned and its change shows hashes only.
+- Any other script the plan covers, such as one under a folder it names or one that did not exist then (analyze writes code after plan approval), is pinned at its first covered run.
+- Before a covered run, the gate compares the script it runs with the pin of the newest covering approval. When the script was edited, the run goes ahead and the gate re-pins it: the new pin is appended to `.mycelium-extra/repins/<hash>.jsonl`, and the approval and its instance are not rewritten.
+- The notice, shown to you and to the agent, names the script, the lines added and removed and, when numbers moved between the removed and the added lines, which ones (`numbers changed: dropped 0.05 · new 0.01, 1 (not in the plan)`). A number is "in the plan" when a Choice or Step cell of a plan row naming the script holds it. The agent is told the plan row is not edited for it. Comment-only lines are skipped; numbers inside strings and indexes still count, so the line is a prompt to look, not a verdict.
+- A script pinned only by size and time, or larger than 256 KB, has no kept copy: the notice says "diff not kept" and does not check numbers.
+- Showing the plan again still lists "Scripts changed since last approved" with a diff, measured against the approved version, so the card shows what you have not seen. Approving the plan again re-baselines the pins; earlier re-pins stay in the journal as history.
+- The gate keeps a copy of each pinned or re-pinned script up to 256 KB in `.mycelium-extra/scripts/` to show diffs.
 - Any byte change counts, including whitespace and comments. For a notebook only the code cells count, since running it rewrites its outputs. Explore runs skip the check, like input pins.
 - Turn it off with `"pin_scripts": false` in `gate.json`.
+
+Changed inputs, changed validation or exact-execution files and the run limit still block until the plan is shown and approved again.
 
 Only the script a command runs is checked. A file it sources or imports, and the scripts a Snakefile rule runs, are not; list them on the plan's `Inputs:` line to pin them (a run plan from grill freezes the code that way).
 
@@ -169,7 +173,7 @@ Mycelium's `analyze` skill tells the agent to run scilintr after every code writ
 
 - **Before the turn ends (opt-in).** `"lint_before_stop": true` blocks the Stop once per change when scripts the agent wrote this session still have open findings, with the findings as the reason, so the agent can fix or waive them in the same turn. The host's `stop_hook_active` flag stops it from blocking twice in a row; OpenCode sends no such flag, so there the once-per-change marker is the only guard. It needs `lint_on_write`. Without it, only the user-only Stop line above is shown.
 
-`verify` still decides: it blocks on any finding left unfixed and unwaived, except a threshold finding (`magic-threshold`, `R002`) whose line holds only numbers, with the same sign, that a Choice cell of a plan row naming that script states (any row's Choice, when no row names the script). That one is info. The reason line of `lint_before_stop` still says "`verify` blocks on any finding left"; read it with this exception.
+`verify` still decides: it blocks on any finding left unfixed and unwaived, except a threshold finding (`magic-threshold`, `R002`) whose line holds only numbers, with the same sign, that a Choice cell of a plan row naming that script states (any row's Choice, when no row names the script). That one is info. The reason lines of `lint_before_run` and `lint_before_stop` say the same.
 
 ## Command hints
 

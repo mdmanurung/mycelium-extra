@@ -154,7 +154,7 @@ flowchart TD
     end
 
     approval --> code
-    runapproval -.->|"frozen code or data changes: revise and reapprove"| freeze
+    runapproval -.->|"data, checks or exact commands change: revise and reapprove; edited scripts re-pin with a notice"| freeze
     review -.->|"findings: fix the code and review again"| code
     run --> verify
     verify -.->|"work needs correction: revise the plan and repeat affected steps"| plan
