@@ -2,6 +2,21 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.13.0] - 2026-10-19
+
+Two new commands from the Focus + Track Changes spec (milestones M0 to M2). Neither changes an allow or deny decision, and a session that never types `focus` sees no difference (`gate_diff` 173/173 identical).
+
+### Added
+
+- **`focus`:** typed prompts (`focus analysis/X [plan <hash>]`, `focus status`, `focus switch analysis/Y`, `focus end`) say which analysis a session works on. One small record per session in `.mycelium-extra/focus/`; changed only by the typed command, never by a CLI. Advisory: it grants no run and changes no approval, and `focus status` shows separately whether a run is authorized. While a focus is open each prompt carries one advisory line. A missing folder, a path that escapes the project, a missing session id or an unrelated plan is refused.
+- **`track-changes`:** a read-only report for one analysis. Plan row changes between the original and the current approved plan, scripts edited since each approval with bounded diffs, the gate's run records, declared outputs older than the code, and direct edits to other analyses from an optional Claude Code transcript. Prints a short card and writes `snapshot.json`, `brief.md` and an offline `report.html` under `.mycelium-extra/track-changes/` only. Every item separates observed, potential and unknown; what was not observed is listed. Several candidate plans stop the run and ask for `--original`.
+- `docs/focus-and-track-changes.md` and the tracker `docs/roadmap/10-focus-track-changes.md`.
+
+### Not done
+
+- Turn-end notices, draft actions and `focus_id` in launches and receipts (M3), and AI explanation and a usability study (M4).
+- The viewer was run in Node against a DOM stub, not in a browser.
+
 ## [0.12.0] - 2026-10-18
 
 Lessons from ClawBio's validation talks, taken as documentation, one fixture and two small additions. Nothing here changes an allow or deny decision, and nothing is on by default.
