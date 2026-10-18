@@ -210,7 +210,9 @@ class GateTest(unittest.TestCase):
             self.assertIsNone(self.bash('python "analysis/my script.py"'))
             self.assertTrue(self.denied(self.bash("python analysis/my/other.py")))
         self.write("analysis/my script.py", "print(2)\n")
-        self.assertTrue(self.denied(self.bash('python "analysis/my script.py"')))
+        result = self.bash('python "analysis/my script.py"')
+        self.assertFalse(self.denied(result))
+        self.assertIn("analysis/my script.py re-pinned", result["systemMessage"])
 
     CARD_PLAN = "\n".join([
         "> Question (user's words): \"does A beat B?\"",
@@ -1372,26 +1374,52 @@ class GateTest(unittest.TestCase):
 
     # ------------------------------------------------------------ pinned scripts
 
-    def test_edited_script_blocks_until_reapproved(self):
+    def repins(self, digest):
+        path = os.path.join(self.root, ".mycelium-extra", "repins", digest + ".jsonl")
+        if not os.path.isfile(path):
+            return []
+        with open(path) as handle:
+            return [json.loads(line) for line in handle]
+
+    def test_edited_script_is_repinned_with_a_notice(self):
         self.write("analysis/x.py", "print(1)\n")
         digest, result = self.approve()
         self.assertEqual(sorted(self.approval(digest)["scripts"]), ["analysis/x.py"])
         self.assertIn("Pinned scripts: analysis/x.py", result["systemMessage"])
         self.assertIsNone(self.bash("python analysis/x.py"))
+        before = self.approval(digest)
         self.write("analysis/x.py", "print(1)\nprint(2)\n")
-        denial = self.bash("python analysis/x.py")
-        self.assertTrue(self.denied(denial))
-        reason = denial["hookSpecificOutput"]["permissionDecisionReason"]
-        self.assertIn("analysis/x.py: sha256", reason)
-        self.assertIn("(+1 -0 lines)", reason)
-        self.write("analysis/x.py", "print(1)\n")
-        self.assertIsNone(self.bash("python analysis/x.py"), "same content passes")
+        result = self.bash("python analysis/x.py")
+        self.assertFalse(self.denied(result))
+        self.assertIn("analysis/x.py re-pinned under plan {} (+1 -0 lines)".format(digest), result["systemMessage"])
+        self.assertIn("`freeze {}`".format(digest), result["systemMessage"])
+        self.assertIn("re-pinned under plan", result["hookSpecificOutput"]["additionalContext"])  # the agent reads it too
+        self.assertEqual(self.approval(digest), before, "the approval record is never rewritten")
+        self.assertEqual([e["rel"] for e in self.repins(digest)], ["analysis/x.py"])
+        self.assertIsNone(self.bash("python analysis/x.py"), "the next run of the same bytes is silent")
+        self.assertEqual(len(self.repins(digest)), 1)
+        self.write("analysis/x.py", "print(1)\n")  # back to the approved bytes: another edit, another re-pin
+        self.assertIn("re-pinned", self.bash("python analysis/x.py")["systemMessage"])
+        self.assertEqual(len(self.repins(digest)), 2)
         self.write("analysis/x.py", "print(3)\n")
-        card = self.hook("stop", {"last_assistant_message": PLAN})["systemMessage"]
+        card = self.hook("stop", {"last_assistant_message": PLAN})["systemMessage"]  # the card still compares with the approval
         self.assertIn("Scripts changed since last approved\n    \u2022 analysis/x.py: sha256", card)
         self.assertIn("      -print(1)\n      +print(3)", card)
         self.approve()
         self.assertIsNone(self.bash("python analysis/x.py"))
+        self.assertIsNone(self.bash("python analysis/x.py"), "approving again re-baselines; older re-pins are history")
+
+    def test_repin_notice_flags_changed_numbers_against_the_plan(self):
+        self.write("analysis/x.py", "keep = padj < 0.05\nseed = 7\n")
+        plan = "## Plan\n| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n" \
+               "| 3 | run `analysis/x.py` | padj < 0.01 | human | check |\n\nPlan status: READY"
+        digest, _ = self.approve(plan)
+        self.write("analysis/x.py", "keep = padj < 0.01 and lfc > 1\nseed = 7\n")
+        note = self.bash("python analysis/x.py")["systemMessage"]
+        self.assertIn("numbers changed: dropped 0.05 \u00b7 new 0.01, 1 (not in the plan)", note)
+        self.assertIn("If this is another choice than step 3 states, say so", note)
+        self.write("analysis/x.py", "keep = padj < 0.01 and lfc > 1\n# was 0.05\nseed = 7\n")
+        self.assertIn("Numbers: none changed", self.bash("python analysis/x.py")["systemMessage"])
 
     def test_script_first_run_is_pinned(self):
         digest, _ = self.approve()  # the script does not exist yet: plan A, analyze writes it later
@@ -1400,9 +1428,8 @@ class GateTest(unittest.TestCase):
         self.assertIsNone(self.bash("python analysis/x.py"))
         self.assertIsNone(self.bash("python analysis/x.py"))
         self.write("analysis/x.py", "print(2)\n")
-        denial = self.bash("python analysis/x.py")
-        self.assertTrue(self.denied(denial))
-        self.assertIn("(+1 -1 lines)", denial["hookSpecificOutput"]["permissionDecisionReason"])
+        result = self.bash("python analysis/x.py")
+        self.assertIn("(+1 -1 lines)", result["systemMessage"])
         self.approve()  # approving the same plan again re-baselines
         self.assertIsNone(self.bash("python analysis/x.py"))
 
@@ -1420,7 +1447,7 @@ class GateTest(unittest.TestCase):
         self.assertEqual(self.approval(digest)["scripts"], {}, "a folder is not walked at show time")
         self.assertIsNone(self.bash("Rscript nbs/study/a.R"))
         self.write("nbs/study/a.R", "2\n")
-        self.assertTrue(self.denied(self.bash("Rscript nbs/study/a.R")))
+        self.assertIn("nbs/study/a.R re-pinned", self.bash("Rscript nbs/study/a.R")["systemMessage"])
         card = self.hook("stop", {"last_assistant_message": folder_plan})["systemMessage"]
         self.assertIn("Scripts changed since last approved\n    \u2022 nbs/study/a.R: sha256", card)
         self.assertIn("      -1\n      +2", card)
@@ -1448,9 +1475,9 @@ class GateTest(unittest.TestCase):
         self.write("nbs/n.ipynb", notebook("1", "bbbb"))  # outputs and counts rewritten by the run
         self.assertIsNone(self.bash(run))
         self.write("nbs/n.ipynb", notebook("2", "bbbb"))  # a code cell edited
-        denial = self.bash(run)
-        self.assertTrue(self.denied(denial))
-        self.assertIn("(+1 -1 lines)", denial["hookSpecificOutput"]["permissionDecisionReason"])
+        result = self.bash(run)  # re-pinned with a notice, not blocked
+        self.assertFalse(self.denied(result))
+        self.assertIn("(+1 -1 lines)", result["systemMessage"])
 
     def test_explore_deleted_and_opt_out_skip_script_pins(self):
         self.write("analysis/x.py", "print(1)\n")
@@ -1479,10 +1506,10 @@ class GateTest(unittest.TestCase):
         digest, _ = self.approve()
         self.assertIn("sha256", self.approval(digest)["scripts"]["analysis/x.py"])
         self.write("analysis/x.py", "#" * (300 * 1024) + "\nprint(1)\n")
-        denial = self.bash("python analysis/x.py")
-        reason = denial["hookSpecificOutput"]["permissionDecisionReason"]
-        self.assertTrue(self.denied(denial))
-        self.assertNotIn("lines)", reason)
+        result = self.bash("python analysis/x.py")
+        self.assertFalse(self.denied(result))
+        self.assertIn("(diff not kept)", result["systemMessage"])
+        self.assertNotIn("numbers changed", result["systemMessage"])
 
     # ------------------------------------------------------------ run receipts
 

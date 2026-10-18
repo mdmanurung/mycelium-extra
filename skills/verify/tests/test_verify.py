@@ -200,6 +200,16 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("has not run under any plan, so no approval covers it", out)
         self.assertIn("Verify status: DOES_NOT_CONFORM", out)
 
+    def test_a_repinned_edit_is_a_gap_until_a_freeze_approves_it(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
+        self.write(FIT, "print(1)\nprint(2)\n", mtime=time.time() - 60)
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})  # the gate re-pins the edit and lets the run through
+        out = self.verify("report", digest)
+        self.assertIn("as edited since approval", out)
+        self.assertIn("no approval froze that version. `freeze {}`".format(digest), out)
+        self.assertIn("re-pinned by the gate (a working scope, not a freeze)", out)
+        self.assertNotIn("Verify status: CONFORMS\n", out)
+
     def test_edited_script_pinned_by_a_later_plan_is_covered(self):
         digest = self.edited_after_run()
         self.write(FIT, "print(2)\n", mtime=time.time() - 60)

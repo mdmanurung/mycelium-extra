@@ -2667,6 +2667,109 @@ def approved_script(root, approvals, rel):
     return None
 
 
+NUMBER = re.compile(r"(?<![\w.])-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
+
+
+def read_repins(root, digest):
+    """The re-pin journal of one plan, oldest first (`repins/<hash>.jsonl`); a line that does not parse is skipped."""
+    entries = []
+    try:
+        with open(state_path(root, "repins", digest + ".jsonl"), encoding="utf-8") as handle:
+            for line in handle:
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(entry, dict) and isinstance(entry.get("rel"), str) and valid_fingerprint(entry.get("pin")):
+                    entries.append(entry)
+    except OSError:
+        pass
+    return entries
+
+
+def current_script_pin(root, record, rel):
+    """The pin a run of `rel` is checked against: the newest re-pin made since the approval, else the
+    approved (or first-run) pin. The approval and its instance are never rewritten."""
+    for entry in reversed(read_repins(root, record["hash"])):
+        if entry["rel"] == rel and entry.get("ts", 0) >= record.get("approved_at", 0):
+            return entry["pin"]
+    return (record.get("scripts") or {}).get(rel) or read_script_pins(root, record["hash"]).get(rel)
+
+
+def diff_numbers(diff):
+    """(dropped, new, other): the numbers only the removed lines hold, the numbers only the added lines hold, and
+    how many changed lines hold neither. A comment-only line is skipped.
+    ponytail: a literal scan, so a number in a string or an index counts; a parser per language if that misleads."""
+    removed, added, values = collections.Counter(), collections.Counter(), {}
+    rows = []
+    for line in diff:
+        if line[:1] not in "+-" or line.startswith(("---", "+++")) or line[1:].lstrip().startswith(("#", "//")):
+            continue
+        found = NUMBER.findall(line[1:])
+        for text in found:
+            values.setdefault(float(text), text)
+        (added if line[0] == "+" else removed).update(float(text) for text in found)
+        rows.append([float(text) for text in found])
+    moved = set((removed - added) + (added - removed))
+    other = sum(1 for nums in rows if not any(n in moved for n in nums))
+    return ([values[n] for n in sorted(removed - added)], [values[n] for n in sorted(added - removed)], other)
+
+
+def plan_numbers(text, rel):
+    """(the numbers in the plan rows that name the script, else every row; the first such row's number)."""
+    rows = plan_rows(text) or []
+    named = [r for r in rows if os.path.basename(rel) in " ".join((r["step"], r["choice"]))]
+    cells = " ".join(" ".join((r["step"], r["choice"])) for r in (named or rows))
+    return set(float(n) for n in NUMBER.findall(cells)), (named[0]["num"] if named else None)
+
+
+def repin_notice(root, record, rel, old, new):
+    """(the notice lines, counts) for one script re-pinned at a run: its size of change, the numbers that moved
+    and whether the plan's rows hold them. A pin without a kept snapshot says so instead of guessing."""
+    diff = script_diff(root, rel, old)
+    head = "mycelium-extra: {} re-pinned under plan {}".format(rel, record["hash"])
+    if diff is None:
+        return [head + " (diff not kept).", "  Runs now use the new version; numeric changes were not checked "
+                "(pinned by size and time, or over {} KiB). `freeze {}` shows what it can.".format(
+                    MAX_SNAPSHOT // 1024, record["hash"])], None
+    added, removed = diff_counts(diff)
+    dropped, fresh, other = diff_numbers(diff)
+    lines = [head + " (+{} -{} lines). Runs now use the new version; `freeze {}` shows the diff.".format(
+        added, removed, record["hash"])]
+    if dropped or fresh:
+        known, row = plan_numbers(record.get("plan") or "", rel)
+        said = lambda text: "{}{}".format(text, "" if float(text) in known else " (not in the plan)")
+        lines.append("  ⚠ numbers changed: " + " · ".join(filter(None, [
+            "dropped " + ", ".join(dropped) if dropped else "", "new " + ", ".join(map(said, fresh)) if fresh else ""])))
+        lines.append("  If this is another choice than {} states, say so; the plan is not edited for you.".format(
+            "step " + row if row else "the plan"))
+    else:
+        lines.append("  Numbers: none changed.")
+    lines.append("  Other changed lines: {}".format(other or "none"))
+    return lines, (added, removed)
+
+
+def repin_scripts(root, repins, budget, session_id):
+    """Re-pin the scripts whose edit a run just passed, journal each, and return the notice lines. Called only
+    for a run the gate lets through; the journal is append-only, so a verify reading it sees every step."""
+    notes, entries = [], []
+    for record, rel, old in repins:
+        pin = fingerprint(os.path.join(root, rel), budget)
+        if pin.get("missing") or pin.get("skipped") or not valid_fingerprint(pin):
+            continue
+        keep_snapshot(root, rel, pin)
+        lines, counts = repin_notice(root, record, rel, old, pin)
+        notes += lines
+        entries.append((record, {"ts": time.time(), "hash": record["hash"], "instance_id": record.get("instance_id"),
+                                 "rel": rel, "pin": pin, "old": old.get("sha256"), "session_id": session_id,
+                                 "added": counts and counts[0], "removed": counts and counts[1]}))
+    if entries:
+        with state_lock(root, "repins"):
+            for record, entry in entries:
+                append_line(state_path(root, "repins", record["hash"] + ".jsonl"), entry)
+    return notes
+
+
 def script_lines(root, scripts, config):
     """The approval card's script section: what is pinned and what changed since a plan approved it."""
     pinned, changed, diff = script_state(root, scripts, config)
@@ -2765,7 +2868,7 @@ def on_tool(event, root, config):
                     "Reading it is fine; changing it is the user's call.".format(STATE_DIR))
     approvals = None
     blocked, stale, unchecked = [], [], []
-    stale_scripts, firsts = [], []
+    repins, firsts = [], []
     scripts_on, notice = script_pinning(config)
     budget, cache = hash_budget(config), {}
     limit, limit_notice = run_limit(config)
@@ -2847,21 +2950,19 @@ def on_tool(event, root, config):
             stale.append((newest["hash"], changes))
         else:
             unchecked += [rel for rel in skipped if rel not in unchecked]
-        changed_scripts = []
         for rel in used if scripts_on else []:
             if not os.path.isfile(os.path.join(root, rel)):
                 continue
-            pin = (newest.get("scripts") or {}).get(rel) or read_script_pins(root, newest["hash"]).get(rel)
+            pin = current_script_pin(root, newest, rel)
             if not pin:
                 firsts.append((newest["hash"], rel))
                 continue
             change, skipped_script = script_change(root, rel, pin, budget, cache)
-            if change:
-                changed_scripts.append(change)
+            if change:  # an edit to a script the plan lists: re-pinned below, once the run is let through
+                if all((newest["hash"], rel) != (r["hash"], x) for r, x, _ in repins):
+                    repins.append((newest, rel, pin))
             elif skipped_script and rel not in unchecked:
                 unchecked.append(rel)
-        if changed_scripts:
-            stale_scripts.append((newest["hash"], changed_scripts))
         if limit and all(newest["hash"] != h for h, _, _ in capped):
             try:
                 runs = load_verify().approval_runs(root, config, newest["hash"], newest.get("approved_at", 0),
@@ -2877,7 +2978,7 @@ def on_tool(event, root, config):
         return deny("\n".join(exact_refused))
     if stale_validation and not blocked:  # a pinned test or expectation file changed: checked before the pins below
         return deny("\n".join(validation_denial(stale_validation)))
-    if (stale or stale_scripts or capped) and not blocked:
+    if (stale or capped) and not blocked:
         lines = []
         for digest, changes in stale:
             lines.append("mycelium-extra gate: blocked because inputs pinned by plan {} changed after "
@@ -2887,13 +2988,6 @@ def on_tool(event, root, config):
             lines.append("Re-check these inputs (for example, re-run the plan's data-contract check) and "
                          "present the plan again; the user approves the new pins with `approve plan <hash>`. "
                          "Do not work around this block.")
-        for digest, changes in stale_scripts:
-            lines.append("mycelium-extra gate: blocked because scripts pinned under plan {} changed "
-                         "since it was approved or first run:".format(digest))
-            lines.extend("  - " + change for change in changes)
-        if stale_scripts:
-            lines.append("The user reviews the change and re-approves: present the plan again, and they "
-                         "approve it with `approve plan <hash>`. Do not work around this block.")
         for digest, used, changes in capped:
             lines.append("mycelium-extra gate: blocked because plan {} has been used for {} run(s), its limit "
                          "(`max_runs_per_approval` in gate.json). Changes since its first run:".format(digest, used))
@@ -2915,8 +3009,12 @@ def on_tool(event, root, config):
         denied, user_note, agent_note = lint_before_run(root, run_scripts, config)
         if denied:
             return denied
+        repinned = repin_scripts(root, repins, budget, event.get("session_id")) if repins else []  # a denied run re-pins nothing
+        messages = repinned + messages
         if user_note:
             messages.append(user_note)
+        if repinned:  # the agent reads it too: the plan row is not edited for it
+            agent_note = "\n".join(repinned + [agent_note] * bool(agent_note))
         if scope_notes:
             messages += scope_notes
             agent_note = "\n".join([agent_note] * bool(agent_note) + scope_notes)

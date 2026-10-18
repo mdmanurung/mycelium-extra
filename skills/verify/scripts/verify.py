@@ -1618,6 +1618,11 @@ def edit_evidence(root, path, budget, receipts):
             pin = (record if folder == "script-pins" else record.get("scripts") or {}).get(path) or {}
             if pin.get("sha256") == sha:
                 return "Plan {} pinned this version, so an approval covers it; check that plan instead.".format(name[:8])
+    folder = gate.state_path(root, "repins")
+    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:  # the gate re-pinned this version at a run
+        if any(e["rel"] == path and e["pin"].get("sha256") == sha for e in gate.read_repins(root, name.split(".")[0])):
+            return "Plan {} re-pinned this version at a run (a working scope, not a freeze); `freeze {}` approves it.".format(
+                name[:8], name[:8])
     ran = [(r, (r.get("script") or {})) for r in receipts
            if r.get("plans") and not r.get("explore") and (r.get("script") or {}).get("path") == path
            and (r.get("script") or {}).get("sha256") == sha]
@@ -2137,6 +2142,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                      if chosen and digest in r.get("plans", []) and not r.get("explore")
                      and r.get("approval_instance") != chosen and attempt_state(r, {})[0] == "failed"]
     instance_findings(report, digest, chosen, current, frozen, history, mine, approved_at, bool(instance), failed_before)
+    repin_findings(root, report, digest, approved_at)
     abandoned = abandoned_attempts(root)
     open_attempts = launch_findings(report, mine, abandoned, digest, chosen, approved_at)
     frozen_blocks = frozen if frozen is not None else approval  # the plan's validation and exact-execution blocks, as approved
@@ -2241,6 +2247,14 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                                                                    " " + covered if covered else ""))
                 if not recorded.get("sha256") or not now.get("sha256"):
                     report.add("gap", "Script `{}` has a metadata-only fingerprint; its executed content is unverified.".format(path))
+                approved = approved_script_pin(root, digest, frozen or approval, path)
+                if approved.get("sha256") and recorded.get("sha256") and approved["sha256"] != recorded["sha256"]:
+                    row["unfrozen"] = True  # the gate re-pinned an edit; no approval froze these bytes
+                    row["notes"].append("ran code no approval froze")
+                    report.add("gap", "`{}` ran at {} as edited since approval (approved {}, ran {}); no approval froze "
+                                      "that version. `freeze {}` shows the diff and approves it; then run the plan "
+                                      "again.".format(path, when(last["ts"]), approved["sha256"][:12],
+                                                      recorded["sha256"][:12], digest))
                 if recorded.get("git") in ("modified", "untracked"):
                     row["notes"].append("{} when it ran".format(recorded["git"]))
                     report.add("gap", "`{}` was {} when it ran, so no commit holds the code that ran."
@@ -2553,6 +2567,31 @@ def completed(r, jobs, shared):
     return True, "exit 0"
 
 
+def approved_script_pin(root, digest, record, path):
+    """The pin of `path` that approving the plan froze: the approval instance's, else the first-run ledger's; {}
+    when the plan pinned none (no baseline to compare with)."""
+    pin = (record.get("scripts") or {}).get(path)
+    if not pin:
+        try:
+            pin = gate.read_script_pins(root, digest).get(path)
+        except gate.InvalidApproval:
+            pin = None
+    return pin or {}
+
+
+def repin_findings(root, report, digest, approved_at):
+    """One info line when the gate re-pinned edited scripts since this approval: which, how often, when last."""
+    found = {}
+    for entry in gate.read_repins(root, digest):
+        if entry.get("ts", 0) >= approved_at:
+            found.setdefault(entry["rel"], []).append(entry["ts"])
+    if found:
+        report.add("info", "Edited since approval and re-pinned by the gate (a working scope, not a freeze): {}. "
+                           "`freeze {}` shows the diffs and approves them.".format(
+                               "; ".join("`{}` x{} (last {})".format(rel, len(times), when(max(times)))
+                                         for rel, times in sorted(found.items())), digest))
+
+
 def script_identity(recorded, now):
     """How the script's current bytes compare with the ones that ran: deleted, edited, metadata only (a size and time
     comparison, no content hash on one side), or unchanged (content hashes agree)."""
@@ -2599,7 +2638,8 @@ ACTIONS = {
     "authorization": "run the planned steps again under this approval so the gate records matched launches, or approve "
                      "a plan for what actually ran",
     "completion": "let each planned step finish with exit 0 (a submitted batch job must reach COMPLETED), then report again",
-    "code and input identity": "restore or re-approve the changed code or input, or pin it with a content hash",
+    "code and input identity": "restore or re-approve the changed code or input (`freeze <hash>` for code changed since "
+                               "approval, then run the plan again), or pin it with a content hash",
     "lineage": "re-run so the gate sees each declared output change during a matched attempt, or correct the "
                "`Outputs:` line",
     "required validation": "run each required check as a matched attempt that writes its result",
@@ -2653,7 +2693,9 @@ def qualify(root, result):
         if row["last_run"] is None:
             continue
         state = row["identity"] or "not recorded"
-        if state == "unchanged":
+        if row.get("unfrozen"):
+            problems.append("script `{}` ran as edited since approval; no approval froze that version".format(row["path"]))
+        elif state == "unchanged":
             strong += 1
         else:
             problems.append("script `{}` {}".format(row["path"], {
