@@ -30,7 +30,8 @@ REPO = os.path.normpath(os.path.join(HERE, "..", ".."))
 FIXED = 1700000000
 VOLATILE = [(re.compile(r'"(ts|approved_at|granted_at|started)": -?[0-9.e+]+'), r'"\1": 0'),
             (re.compile(r'"mtime": [0-9-]+'), '"mtime": 0'),
-            (re.compile(r'"attempt_id": "[0-9a-f]+"'), '"attempt_id": "<ATTEMPT>"')]
+            (re.compile(r'"attempt_id": "[0-9a-f]+"'), '"attempt_id": "<ATTEMPT>"'),
+            (re.compile(r"\(approved [0-9-]+ [0-9:]+\)"), "(approved <TIME>)")]  # the card's 'Since <hash>' line
 GIT_ENV = dict(os.environ, GIT_AUTHOR_DATE="1700000000 +0000", GIT_COMMITTER_DATE="1700000000 +0000",
                GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
 PLAN = "## Plan\n| 1 | run `analysis/x.py` | repo | check |\n\nPlan status: READY"
