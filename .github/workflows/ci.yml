@@ -54,7 +54,7 @@ jobs:
       - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Gate decisions against the PR base
         run: |
-          python3 hooks/tests/gate_diff.py --base 384e6394b71cdae6ab983f0b10fa8d4f5e65c900 --expect hooks/tests/gate_diff_expected.json
+          python3 hooks/tests/gate_diff.py --base 267d9e244d1f50abef2d024c9632c50df1911823 --expect hooks/tests/gate_diff_expected.json
           python3 hooks/tests/gate_diff.py --self-check
 
   opencode-plugin:

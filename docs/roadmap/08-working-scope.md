@@ -15,7 +15,7 @@ As built, two details differ from the first draft: freeze C's verify preview bec
 | A3 | Every hook timeout is 10 s, including `UserPromptSubmit`; the PreToolUse pin budget is `pin_seconds` (5 s). | The freeze card computes only diffs. The verify preview of freeze C must be cheap, lint off, read-only and fail open ("preview not computed (time)"). |
 | A4 | `explore` runs record `explore_script_pins` and never check plan script pins. | Unaffected. The messages at ~3185 and ~3201 still say "re-approval" for protected test and exact-execution files, which stay blocked, so their wording stays. |
 | A5 | Stale **inputs**, changed **validation** files, **exact-execution** mismatches and the run limit still deny. | Only scripts stop blocking. These four keep their order and text. |
-| A6 | `gate_diff` has cases `tool script edited since approval` and `... newest plan pins it`; both flip from deny to allow. | They are new reviewed differences. The oracle also needs a procedure-card scenario (open item in HANDOFF). |
+| A6 | `gate_diff` has cases `tool script edited since approval` and `... newest plan pins it`; both flip from deny to allow. | They are new reviewed differences. The oracle also needs a procedure-card scenario (open item in HANDOFF; added in `0a54977`). |
 | A7 | `APPROVE` (`gate.py:46`) accepts only `approve` or `approve plan`. OpenCode passes prompts through unfiltered. | Accept `approve plan\|amendment\|freeze` as synonyms; no new state. |
 | A8 | `freeze C` promises "status would be: ran as frozen after rerun". No instance exists yet, so that is a hypothesis. | Replace with what is computable: the open gaps of the current check, labelled as such. If that cannot run in budget the line says so. |
 | A9 | The first plan said "steps 1, 2, 4 unaffected". The code has no dataflow between rows. | The rerun list is the changed scripts' rows plus every later row, unless a row's `Inputs:` and `Outputs:` words prove independence. The "stales" line names only outputs whose producer is `supported` (C05); others read "may be out of date". |
@@ -48,9 +48,9 @@ Order is fixed: each one lands on `v0110` as its own commit, tests green, before
 - Files: `hooks/gate.py` (`on_prompt`, a `freeze_card`, `APPROVE`), `skills/verify` (none beyond M1 unless the preview reuses `check`), tests: freeze with edit, with new script, with nothing changed, with stale input, same bytes twice reuses the instance, approve then verify shows the new instance.
 - Exit: edit → run → `freeze` → `approve` → rerun → `verify report` ends without the unfrozen-code gap.
 
-### M5 · Docs, oracle, release (in progress: docs and manifests `18dd666`; oracle and suites below)
+### M5 · Docs, oracle, release (in progress: docs and manifests `18dd666`; oracle re-based, suites green on 3.12; 3.9 and the push remain)
 - `docs/approval-gate.md`, `docs/day.md` (the 13:00 "Review, then freeze" step), `docs/advanced.md`, `README.md`, `skills/verify/SKILL.md`, `skills/grill/references/run-plans.md` follow the code; CHANGELOG; version 0.11.0 in every place `tests/test_versions.py` checks.
-- `gate_diff`: regenerate expectations on a scratch clone with the patched timeouts (HANDOFF), review each new difference, record them.
+- `gate_diff`: regenerate expectations on a scratch clone with the patched timeouts (HANDOFF), review each new difference, record them. Done `0a54977`, `ec6524a`: four reviewed differences, and the CI pin, `docs/development.md` and `tests/test_ci_pins.py` now name the same base.
 - Update memory (`human-in-the-loop-priority` is reversed; `researcher-first-redesign` status). Push only on request.
 - Exit: whole suite green on 3.9, 3.11 `LC_ALL=C` and 3.12; `gate_diff` differences all reviewed.
 

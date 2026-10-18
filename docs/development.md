@@ -54,10 +54,10 @@ CI (`.github/workflows/ci.yml`) runs on every push to `main`, every pull request
 
 Each leg then runs, in order: every `hooks/tests/test_*.py`, `skills/*/tests/test_*.py`, and `tests/test_*.py` file with `python3` (a failure is reported and the loop goes on, then the step fails); `python3 tests/e2e/ablate.py`; and `tests/check_links.py` over the tracked Markdown files Files outside those patterns, such as `tests/integration_workflows.py`, are not run by CI. The Sphinx build is a separate workflow, `docs.yml`.
 
-**`gate-diff`** runs only on pull requests, in `python:3.14-bookworm` with full history. It compares the working tree's gate against the **fixed** base `384e6394b71cdae6ab983f0b10fa8d4f5e65c900`, not the pull request's base commit:
+**`gate-diff`** runs only on pull requests, in `python:3.14-bookworm` with full history. It compares the working tree's gate against the **fixed** base `267d9e244d1f50abef2d024c9632c50df1911823` (the 0.10.2 release), not the pull request's base commit. The pin must name the same commit as `hooks/tests/gate_diff_expected.json`; `tests/test_ci_pins.py` fails if the two drift apart:
 
 ```bash
-python3 hooks/tests/gate_diff.py --base 384e6394b71cdae6ab983f0b10fa8d4f5e65c900 --expect hooks/tests/gate_diff_expected.json
+python3 hooks/tests/gate_diff.py --base 267d9e244d1f50abef2d024c9632c50df1911823 --expect hooks/tests/gate_diff_expected.json
 python3 hooks/tests/gate_diff.py --self-check
 ```
 
