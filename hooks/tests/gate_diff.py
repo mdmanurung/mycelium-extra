@@ -31,7 +31,12 @@ FIXED = 1700000000
 VOLATILE = [(re.compile(r'"(ts|approved_at|granted_at|started)": -?[0-9.e+]+'), r'"\1": 0'),
             (re.compile(r'"mtime": [0-9-]+'), '"mtime": 0'),
             (re.compile(r'"attempt_id": "[0-9a-f]+"'), '"attempt_id": "<ATTEMPT>"'),
-            (re.compile(r"\(approved [0-9-]+ [0-9:]+\)"), "(approved <TIME>)")]  # the card's 'Since <hash>' line
+            (re.compile(r"\(approved [0-9-]+ [0-9:]+\)"), "(approved <TIME>)"),  # the card's 'Since <hash>' line
+            # Python 3.13+ warns about a positional maxsplit, which the frozen base (0.10.2) passes and
+            # the working tree does not. The oracle is recorded on 3.12 and CI runs 3.14, so the warning
+            # is an interpreter artifact on stderr, not a decision: normalize it like the clocks above.
+            (re.compile(r"(?m)^<GATE>:[^:]*: DeprecationWarning: 'maxsplit' is passed as positional "
+                        r"argument\n(?:  .*\n)?"), "")]
 GIT_ENV = dict(os.environ, GIT_AUTHOR_DATE="1700000000 +0000", GIT_COMMITTER_DATE="1700000000 +0000",
                GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
 PLAN = "## Plan\n| 1 | run `analysis/x.py` | repo | check |\n\nPlan status: READY"
