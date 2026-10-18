@@ -475,6 +475,7 @@ def v02c(p):
 
 NAMESPACE = "data/reference/gene_symbols.txt"
 ALIGN_CONTRACT, IDENT_CONTRACT = CHECKS + "/sample_alignment_contract.json", CHECKS + "/gene_identifiers_contract.json"
+COMPLETE_CONTRACT = CHECKS + "/complete_table_contract.json"
 SCHEMA = "mycelium-extra.data_contract.v1"
 
 
@@ -494,6 +495,14 @@ def alignment_contract():
         "reference": {"path": COUNTS, "header": True, "exclude": ["gene"]}}]}, indent=1)
 
 
+def complete_contract():
+    """Every gene of counts.tsv, the tested universe, is a row of de_results.tsv and the reverse. A table filtered after
+    testing and presented as the result fails; this says nothing about whether the universe itself was the right one."""
+    return json.dumps({"schema": SCHEMA, "table": DE, "checks": [{
+        "id": "complete-table", "kind": "sample_alignment", "key": "gene",
+        "reference": {"path": COUNTS, "column": "gene"}}]}, indent=1)
+
+
 def identifiers_contract(namespace=True):
     check = {"id": "gene-identifiers", "kind": "identifiers", "column": "gene"}
     if namespace:
@@ -502,7 +511,7 @@ def identifiers_contract(namespace=True):
 
 
 def declared_specs(symbols):
-    """The five approved checks: id, script, file texts, pinned test paths and result file of each."""
+    """The six approved checks: id, script, file texts, pinned test paths and result file of each."""
     known = lambda name, text: {"script": CHECKS + "/check_{}.py".format(name), "text": text,
                                 "evidence": A + "/outputs/{}_check.json".format(name), "files": {}, "extra": []}
     specs = [dict(known("contrast_direction", checks.CONTRAST_DIRECTION), id="contrast-direction",
@@ -519,7 +528,9 @@ def declared_specs(symbols):
             ("sample_alignment", "sample-alignment", (ALIGN_CONTRACT, alignment_contract()), {},
              "metadata and counts hold the same sample ids", "ids equal on both sides"),
             ("gene_identifiers", "gene-identifiers", (IDENT_CONTRACT, identifiers_contract()), {NAMESPACE: "\n".join(symbols) + "\n"},
-             "gene symbols are the lab's HGNC namespace", "every counts symbol is in the namespace")]:
+             "gene symbols are the lab's HGNC namespace", "every counts symbol is in the namespace"),
+            ("complete_table", "complete-table", (COMPLETE_CONTRACT, complete_contract()), {},
+             "de_results.tsv holds every tested gene, none filtered out", "genes equal on both sides")]:
         evidence = A + "/outputs/{}_check.json".format(name)
         script = CHECKS + "/check_{}.py".format(name)
         specs.append({"id": id, "script": script, "evidence": evidence, "choice": choice, "validation": validation,
@@ -575,7 +586,7 @@ def declared_chain(p, mutate=None, symbols=None, skip=()):
 
 
 ALL_CHECKS = sorted(["contrast-direction", "normalization-known-answer", "shuffle-invariance", "sample-alignment",
-                     "gene-identifiers"])
+                     "gene-identifiers", "complete-table"])
 
 
 def only_failing(*ids):
@@ -638,6 +649,19 @@ def v_dc11(p):
     return declared_chain(p, lambda q: q.edit(PAIRED, replace(
         "    sf = size_factors(counts, samples, genes)\n",
         "    sf = {s: sum(counts[g][s] for g in genes) / 1e6 for s in samples}\n")))
+
+
+@defect("V-DC12", "verify", "verify", ["Silent row loss"],
+        dict(only_failing("complete-table"), messages=[
+            "Validation `complete-table` (plan row 9, required; declared researcher-approved, not verified) failed",
+            "`complete-table`: the table and the independent list hold different numbers of keys"]))
+def v_dc12(p):
+    """A prefiltered result presented as the full table: step 02 drops low-count genes (mean count below 80 per
+    library) at the write, after testing. The known-answer checks run the real step on a dataset whose genes all pass
+    that filter, so the other five checks pass; only the declared universe comparison sees the missing genes."""
+    return declared_chain(p, lambda q: q.edit(PAIRED, replace(
+        "        for g in genes:\n            handle.write(",
+        "        for g in [g for g in genes if sum(counts[g].values()) / len(samples) >= 80]:\n            handle.write(")))
 
 
 @defect("DC-09b", "data", "data-contract-check", ["Identifier mismatch"],

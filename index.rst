@@ -53,6 +53,7 @@ Claude Code and OpenCode use ``/mycelium-extra:<skill>``; Codex uses ``$mycelium
    docs/approval-gate
    docs/verification
    docs/advanced
+   docs/validation-recipes
    docs/mycelium-integration
 
 .. toctree::
