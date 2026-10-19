@@ -18,7 +18,7 @@ Open the worked example's [plan and card](example.md#2-the-brief). Find, on the 
 
 - what question is asked, and the reference level (placebo);
 - which steps can run, and that a path in the Step column grants *any arguments*;
-- which Validation cells are prose and which are bound to a check. If your install has `"card_coverage": true` in `.mycelium-extra/gate.json`, the `Coverage` row counts them for you; otherwise `card <hash> full` lists the bindings.
+- which Validation cells are prose and which are bound to a check. Unless your `.mycelium-extra/gate.json` sets `"card_coverage": false`, the `Coverage` row counts them for you; otherwise `card <hash> full` lists the bindings.
 
 A prose Validation cell is a promise nothing runs. Write down which of the three steps have one.
 

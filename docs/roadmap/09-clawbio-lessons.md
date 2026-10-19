@@ -18,7 +18,7 @@ Baseline before the work (0.11.0 at `50b9ca0`, python3.12): gate 441, verify 218
 ## Not done, on purpose
 
 - Trace view for one plan row (mostly regroups the report; reinstated as DT-1 in `11-coverage-and-evidence.md` on 2026-10-19), portable replay, a capability catalog, a metadata schema, evaluation frameworks.
-- Turning `card_coverage` on by default: decide after the ~2026-10-31 before/after usage measurement of 0.11.0.
+- `card_coverage` is now on by default (the user overrode the ~2026-10-31 measurement on 2026-10-19). `"card_coverage": false` turns it off; the only `gate_diff` differences are the `Coverage` row on 12 approval-card scenarios.
 - The `gate-diff` CI job has not been run on this change (needs a push; it ran locally, 173/173).
 
 ## Limits

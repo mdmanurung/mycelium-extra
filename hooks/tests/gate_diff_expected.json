@@ -2,6 +2,542 @@
   "base": "267d9e244d1f50abef2d024c9632c50df1911823",
   "cases": 173,
   "differences": {
+    "fuzz #106": {
+      "new": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 01bd1579 \\u00b7 2 steps \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   1 snakemake  [repo: repo: x]\\n          5 main.nf  [repo: repo: x]\\nChecks    ok \\u00b7 ok\\nCoverage  0 steps with a bound check, 2 prose only (rows 1, 5) \\u00b7 0 exact steps \\u00b7\\n          any arguments elsewhere\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  command  snakemake  (any invocation)\\nRuns      reads 2 pinned \\u00b7 writes none named\\nMore: `card 01bd1579 full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 01bd1579)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | params.yaml | repo: `repo:` x | ok |\\n| 1 | | | repo: `repo:` x | ok |\\n| 5 | logs/%j.out | repo: `repo:` x | ok |\\n| 6 | x.dat | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | -o | repo: `repo:` x | ok |\\n| 3 | config/c.yaml | repo: `repo:` x | ok |\\n| 6 | -params-file | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | params.yaml | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s2.json",
+            "[\n {\n  \"hash\": \"01bd1579\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | snakemake | repo: `repo:` x | ok |\\n| 5 | main.nf | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\",\n  \"pins\": {\n   \"analysis/x.py\": {\n    \"size\": 12,\n    \"mtime\": 0,\n    \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\"\n   },\n   \"renv.lock\": {\n    \"size\": 3,\n    \"mtime\": 0,\n    \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\"\n   }\n  },\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 01bd1579 ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    1 snakemake\\n        - check: ok\\n  \\u2193 5 main.nf\\n        - check: ok\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  command  snakemake  (any invocation)\\nReads 2 pinned: analysis/x.py, renv.lock\\nWrites none named (no `Outputs:` line)\\nNot established before running\\n  - Validation on rows 1, 5 is prose: no validation-bindings check is bound to it\\n  Out of scope here: whether the science is right, and runs the gate's hooks do not see\\n\\u25b6 approve plan 01bd1579\",\n   \"checks\": \"Checks of plan 01bd1579\\n 1  ok\\n 5  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      },
+      "old": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 01bd1579 \\u00b7 2 steps \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   1 snakemake  [repo: repo: x]\\n          5 main.nf  [repo: repo: x]\\nChecks    ok \\u00b7 ok\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  command  snakemake  (any invocation)\\nRuns      reads 2 pinned \\u00b7 writes none named\\nMore: `card 01bd1579 full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 01bd1579)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | params.yaml | repo: `repo:` x | ok |\\n| 1 | | | repo: `repo:` x | ok |\\n| 5 | logs/%j.out | repo: `repo:` x | ok |\\n| 6 | x.dat | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | -o | repo: `repo:` x | ok |\\n| 3 | config/c.yaml | repo: `repo:` x | ok |\\n| 6 | -params-file | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | params.yaml | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s2.json",
+            "[\n {\n  \"hash\": \"01bd1579\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | snakemake | repo: `repo:` x | ok |\\n| 5 | main.nf | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\",\n  \"pins\": {\n   \"analysis/x.py\": {\n    \"size\": 12,\n    \"mtime\": 0,\n    \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\"\n   },\n   \"renv.lock\": {\n    \"size\": 3,\n    \"mtime\": 0,\n    \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\"\n   }\n  },\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 01bd1579 ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    1 snakemake\\n        - check: ok\\n  \\u2193 5 main.nf\\n        - check: ok\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  command  snakemake  (any invocation)\\nReads 2 pinned: analysis/x.py, renv.lock\\nWrites none named (no `Outputs:` line)\\n\\u25b6 approve plan 01bd1579\",\n   \"checks\": \"Checks of plan 01bd1579\\n 1  ok\\n 5  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      }
+    },
+    "fuzz #12": {
+      "new": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 43665d6b \\u00b7 1 step \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   7 ~  [repo: repo: x]\\nChecks    ok\\nCoverage  0 steps with a bound check, 1 prose only (row 7) \\u00b7 0 exact steps \\u00b7 any\\n          arguments elsewhere\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nRuns      reads 2 pinned \\u00b7 writes none named\\nMore: `card 43665d6b full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 43665d6b)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "3"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"43665d6b\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | ~ | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\",\n  \"pins\": {\n   \"analysis/x.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\"\n   },\n   \"renv.lock\": {\n    \"size\": 3,\n    \"mtime\": 0,\n    \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\"\n   }\n  },\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 43665d6b ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    7 ~\\n        - check: ok\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nReads 2 pinned: analysis/x.py, renv.lock\\nWrites none named (no `Outputs:` line)\\nNot established before running\\n  - Validation on row 7 is prose: no validation-bindings check is bound to it\\n  Out of scope here: whether the science is right, and runs the gate's hooks do not see\\n\\u25b6 approve plan 43665d6b\",\n   \"checks\": \"Checks of plan 43665d6b\\n 7  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      },
+      "old": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 43665d6b \\u00b7 1 step \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   7 ~  [repo: repo: x]\\nChecks    ok\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nRuns      reads 2 pinned \\u00b7 writes none named\\nMore: `card 43665d6b full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 43665d6b)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "3"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"43665d6b\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | ~ | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\",\n  \"pins\": {\n   \"analysis/x.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\"\n   },\n   \"renv.lock\": {\n    \"size\": 3,\n    \"mtime\": 0,\n    \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\"\n   }\n  },\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 43665d6b ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    7 ~\\n        - check: ok\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nReads 2 pinned: analysis/x.py, renv.lock\\nWrites none named (no `Outputs:` line)\\n\\u25b6 approve plan 43665d6b\",\n   \"checks\": \"Checks of plan 43665d6b\\n 7  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      }
+    },
+    "fuzz #20": {
+      "new": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan f6bbe187 \\u00b7 2 steps \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   5 sbatch  [repo: repo: x]\\n          2 snakemake  [repo: repo: x]\\nChecks    ok \\u00b7 ok\\nCoverage  0 steps with a bound check, 2 prose only (rows 5, 2) \\u00b7 0 exact steps \\u00b7\\n          any arguments elsewhere\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  command  sbatch  (any invocation)\\n  command  snakemake  (any invocation)\\nRuns      reads none (no `Inputs:` line) \\u00b7 writes none named\\nMore: `card f6bbe187 full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan f6bbe187)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | -o | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | workflow/Snakefile | repo: `repo:` x | ok |\\n| 7 | --resume | repo: `repo:` x | ok |\\n| 1 | nextflow | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | 4 | repo: `repo:` x | ok |\\n| 8 | nextflow | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"f6bbe187\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | sbatch | repo: `repo:` x | ok |\\n| 2 | snakemake | repo: `repo:` x | ok |\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan f6bbe187 ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    5 sbatch\\n        - check: ok\\n  \\u2193 2 snakemake\\n        - check: ok\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  command  sbatch  (any invocation)\\n  command  snakemake  (any invocation)\\nReads none (no `Inputs:` line)\\nWrites none named (no `Outputs:` line)\\nNot established before running\\n  - Validation on rows 5, 2 is prose: no validation-bindings check is bound to it\\n  Out of scope here: whether the science is right, and runs the gate's hooks do not see\\n\\u25b6 approve plan f6bbe187\",\n   \"checks\": \"Checks of plan f6bbe187\\n 5  ok\\n 2  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      },
+      "old": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan f6bbe187 \\u00b7 2 steps \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   5 sbatch  [repo: repo: x]\\n          2 snakemake  [repo: repo: x]\\nChecks    ok \\u00b7 ok\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  command  sbatch  (any invocation)\\n  command  snakemake  (any invocation)\\nRuns      reads none (no `Inputs:` line) \\u00b7 writes none named\\nMore: `card f6bbe187 full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan f6bbe187)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | -o | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | workflow/Snakefile | repo: `repo:` x | ok |\\n| 7 | --resume | repo: `repo:` x | ok |\\n| 1 | nextflow | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | 4 | repo: `repo:` x | ok |\\n| 8 | nextflow | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"f6bbe187\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | sbatch | repo: `repo:` x | ok |\\n| 2 | snakemake | repo: `repo:` x | ok |\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan f6bbe187 ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    5 sbatch\\n        - check: ok\\n  \\u2193 2 snakemake\\n        - check: ok\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  command  sbatch  (any invocation)\\n  command  snakemake  (any invocation)\\nReads none (no `Inputs:` line)\\nWrites none named (no `Outputs:` line)\\n\\u25b6 approve plan f6bbe187\",\n   \"checks\": \"Checks of plan f6bbe187\\n 5  ok\\n 2  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      }
+    },
+    "fuzz #24": {
+      "new": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan cc32b654 \\u00b7 3 steps \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   9 \\n          3 $HOME  [repo: repo: x]\\n          9 --wrap=python x.py  [repo: repo: x]\\nChecks    repo: repo: x \\u00b7 ok \\u00b7 ok\\nCoverage  0 steps with a bound check, 3 prose only (rows 9, 3, 9) \\u00b7 0 exact steps\\n          \\u00b7 any arguments elsewhere\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nRuns      1 script (1 pinned) \\u00b7 any arguments \\u00b7 reads none (no `Inputs:` line) \\u00b7 writes none named\\n          lint: step 9: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\nMore: `card cc32b654 full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan cc32b654)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"cc32b654\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | | | repo: `repo:` x | ok |\\n| 3 | $HOME | repo: `repo:` x | ok |\\n| 9 | --wrap=python analysis/x.py | repo: `repo:` x | ok |\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {\n   \"analysis/x.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\"\n   }\n  },\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan cc32b654 ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    9 \\n        - check: repo: repo: x\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n  \\u2193 3 $HOME\\n        - check: ok\\n  \\u2193 9 --wrap=python x.py\\n        - check: ok\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  script   analysis/x.py  pinned\\nReads none (no `Inputs:` line)\\nWrites none named (no `Outputs:` line)\\nNot established before running\\n  - Validation on rows 9, 3 is prose: no validation-bindings check is bound to it\\n  Out of scope here: whether the science is right, and runs the gate's hooks do not see\\n\\u25b6 approve plan cc32b654\",\n   \"checks\": \"Checks of plan cc32b654\\n 9  repo: repo: x\\n 3  ok\\n 9  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ],
+          [
+            ".mycelium-extra/scripts/cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213",
+            "print(1)\n"
+          ]
+        ]
+      },
+      "old": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan cc32b654 \\u00b7 3 steps \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   9 \\n          3 $HOME  [repo: repo: x]\\n          9 --wrap=python x.py  [repo: repo: x]\\nChecks    repo: repo: x \\u00b7 ok \\u00b7 ok\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nRuns      1 script (1 pinned) \\u00b7 any arguments \\u00b7 reads none (no `Inputs:` line) \\u00b7 writes none named\\n          lint: step 9: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\nMore: `card cc32b654 full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan cc32b654)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"cc32b654\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | | | repo: `repo:` x | ok |\\n| 3 | $HOME | repo: `repo:` x | ok |\\n| 9 | --wrap=python analysis/x.py | repo: `repo:` x | ok |\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {\n   \"analysis/x.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\"\n   }\n  },\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan cc32b654 ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    9 \\n        - check: repo: repo: x\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n  \\u2193 3 $HOME\\n        - check: ok\\n  \\u2193 9 --wrap=python x.py\\n        - check: ok\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  script   analysis/x.py  pinned\\nReads none (no `Inputs:` line)\\nWrites none named (no `Outputs:` line)\\n\\u25b6 approve plan cc32b654\",\n   \"checks\": \"Checks of plan cc32b654\\n 9  repo: repo: x\\n 3  ok\\n 9  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ],
+          [
+            ".mycelium-extra/scripts/cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213",
+            "print(1)\n"
+          ]
+        ]
+      }
+    },
+    "fuzz #30": {
+      "new": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 04c261da \\u00b7 1 step \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   8 ;  [repo: repo: x]\\nChecks    ok\\nCoverage  0 steps with a bound check, 1 prose only (row 8) \\u00b7 0 exact steps \\u00b7 any\\n          arguments elsewhere\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nRuns      reads none (no `Inputs:` line) \\u00b7 writes none named\\nMore: `card 04c261da full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 04c261da)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | --parsable | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | --parsable | repo: `repo:` x | ok |\\n| 6 | ; | repo: `repo:` x | ok |\\n| 1 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | --parsable | repo: `repo:` x | ok |\\n| 7 | -params-file | repo: `repo:` x | ok |\\n| 5 | - | repo: `repo:` x | ok |\\n| 3 | config/c.yaml | repo: `repo:` x | ok |\\n| 8 | --resume | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000004.json",
+            "{\"hash\": \"00000004\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | -o | repo: `repo:` x | ok |\\n| 3 | snakemake | repo: `repo:` x | ok |\\n| 9 | 4 | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000005.json",
+            "{\"hash\": \"00000005\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | job.sh | repo: `repo:` x | ok |\\n| 2 | job.sh | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000006.json",
+            "{\"hash\": \"00000006\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | -c | repo: `repo:` x | ok |\\n| 7 | -c | repo: `repo:` x | ok |\\n| 5 | --configfile | repo: `repo:` x | ok |\\n| 3 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000007.json",
+            "{\"hash\": \"00000007\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | ../outside.py | repo: `repo:` x | ok |\\n| 2 | -o | repo: `repo:` x | ok |\\n| 5 | ~ | repo: `repo:` x | ok |\\n| 6 | | | repo: `repo:` x | ok |\\n| 5 | ; | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000008.json",
+            "{\"hash\": \"00000008\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | --configfile | repo: `repo:` x | ok |\\n| 1 | main.nf | repo: `repo:` x | ok |\\n| 1 | nbs/n.ipynb | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "2"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"04c261da\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | ; | repo: `repo:` x | ok |\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 04c261da ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    8 ;\\n        - check: ok\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nReads none (no `Inputs:` line)\\nWrites none named (no `Outputs:` line)\\nNot established before running\\n  - Validation on row 8 is prose: no validation-bindings check is bound to it\\n  Out of scope here: whether the science is right, and runs the gate's hooks do not see\\n\\u25b6 approve plan 04c261da\",\n   \"checks\": \"Checks of plan 04c261da\\n 8  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      },
+      "old": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 04c261da \\u00b7 1 step \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   8 ;  [repo: repo: x]\\nChecks    ok\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nRuns      reads none (no `Inputs:` line) \\u00b7 writes none named\\nMore: `card 04c261da full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 04c261da)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | --parsable | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 9 | --parsable | repo: `repo:` x | ok |\\n| 6 | ; | repo: `repo:` x | ok |\\n| 1 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | --parsable | repo: `repo:` x | ok |\\n| 7 | -params-file | repo: `repo:` x | ok |\\n| 5 | - | repo: `repo:` x | ok |\\n| 3 | config/c.yaml | repo: `repo:` x | ok |\\n| 8 | --resume | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000004.json",
+            "{\"hash\": \"00000004\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | -o | repo: `repo:` x | ok |\\n| 3 | snakemake | repo: `repo:` x | ok |\\n| 9 | 4 | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000005.json",
+            "{\"hash\": \"00000005\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | job.sh | repo: `repo:` x | ok |\\n| 2 | job.sh | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000006.json",
+            "{\"hash\": \"00000006\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | -c | repo: `repo:` x | ok |\\n| 7 | -c | repo: `repo:` x | ok |\\n| 5 | --configfile | repo: `repo:` x | ok |\\n| 3 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000007.json",
+            "{\"hash\": \"00000007\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | ../outside.py | repo: `repo:` x | ok |\\n| 2 | -o | repo: `repo:` x | ok |\\n| 5 | ~ | repo: `repo:` x | ok |\\n| 6 | | | repo: `repo:` x | ok |\\n| 5 | ; | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000008.json",
+            "{\"hash\": \"00000008\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | --configfile | repo: `repo:` x | ok |\\n| 1 | main.nf | repo: `repo:` x | ok |\\n| 1 | nbs/n.ipynb | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "2"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"04c261da\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | ; | repo: `repo:` x | ok |\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 04c261da ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    8 ;\\n        - check: ok\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nReads none (no `Inputs:` line)\\nWrites none named (no `Outputs:` line)\\n\\u25b6 approve plan 04c261da\",\n   \"checks\": \"Checks of plan 04c261da\\n 8  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      }
+    },
+    "fuzz #35": {
+      "new": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 3a49d8a6 \\u00b7 1 step \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   4 c.yaml  [repo: repo: x]\\nChecks    ok\\nCoverage  0 steps with a bound check, 1 prose only (row 4) \\u00b7 0 exact steps \\u00b7 any\\n          arguments elsewhere\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nRuns      reads 2 pinned \\u00b7 writes none named\\nMore: `card 3a49d8a6 full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 3a49d8a6)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n| 4 | -c | repo: `repo:` x | ok |\\n| 6 | analysis/x.py | repo: `repo:` x | ok |\\n| 2 | && | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"3a49d8a6\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | config/c.yaml | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\",\n  \"pins\": {\n   \"analysis/x.py\": {\n    \"size\": 12,\n    \"mtime\": 0,\n    \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\"\n   },\n   \"renv.lock\": {\n    \"size\": 3,\n    \"mtime\": 0,\n    \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\"\n   }\n  },\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 3a49d8a6 ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    4 c.yaml\\n        - check: ok\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nReads 2 pinned: analysis/x.py, renv.lock\\nWrites none named (no `Outputs:` line)\\nNot established before running\\n  - Validation on row 4 is prose: no validation-bindings check is bound to it\\n  Out of scope here: whether the science is right, and runs the gate's hooks do not see\\n\\u25b6 approve plan 3a49d8a6\",\n   \"checks\": \"Checks of plan 3a49d8a6\\n 4  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      },
+      "old": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 3a49d8a6 \\u00b7 1 step \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   4 c.yaml  [repo: repo: x]\\nChecks    ok\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nRuns      reads 2 pinned \\u00b7 writes none named\\nMore: `card 3a49d8a6 full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 3a49d8a6)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n| 4 | -c | repo: `repo:` x | ok |\\n| 6 | analysis/x.py | repo: `repo:` x | ok |\\n| 2 | && | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"3a49d8a6\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | config/c.yaml | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\",\n  \"pins\": {\n   \"analysis/x.py\": {\n    \"size\": 12,\n    \"mtime\": 0,\n    \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\"\n   },\n   \"renv.lock\": {\n    \"size\": 3,\n    \"mtime\": 0,\n    \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\"\n   }\n  },\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 3a49d8a6 ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    4 c.yaml\\n        - check: ok\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nReads 2 pinned: analysis/x.py, renv.lock\\nWrites none named (no `Outputs:` line)\\n\\u25b6 approve plan 3a49d8a6\",\n   \"checks\": \"Checks of plan 3a49d8a6\\n 4  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      }
+    },
+    "fuzz #51": {
+      "new": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan d0773a8f \\u00b7 1 step \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   1 c.yaml  [repo: repo: x]\\nChecks    ok\\nCoverage  0 steps with a bound check, 1 prose only (row 1) \\u00b7 0 exact steps \\u00b7 any\\n          arguments elsewhere\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nRuns      reads none (no `Inputs:` line) \\u00b7 writes none named\\nMore: `card d0773a8f full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan d0773a8f)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | ../outside.py | repo: `repo:` x | ok |\\n| 9 | --configfile | repo: `repo:` x | ok |\\n| 3 | logs/%j.out | repo: `repo:` x | ok |\\n| 1 | -params-file | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "1"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"d0773a8f\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | config/c.yaml | repo: `repo:` x | ok |\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan d0773a8f ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    1 c.yaml\\n        - check: ok\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nReads none (no `Inputs:` line)\\nWrites none named (no `Outputs:` line)\\nNot established before running\\n  - Validation on row 1 is prose: no validation-bindings check is bound to it\\n  Out of scope here: whether the science is right, and runs the gate's hooks do not see\\n\\u25b6 approve plan d0773a8f\",\n   \"checks\": \"Checks of plan d0773a8f\\n 1  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      },
+      "old": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan d0773a8f \\u00b7 1 step \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   1 c.yaml  [repo: repo: x]\\nChecks    ok\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nRuns      reads none (no `Inputs:` line) \\u00b7 writes none named\\nMore: `card d0773a8f full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan d0773a8f)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s\\\"x\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | ../outside.py | repo: `repo:` x | ok |\\n| 9 | --configfile | repo: `repo:` x | ok |\\n| 3 | logs/%j.out | repo: `repo:` x | ok |\\n| 1 | -params-file | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "1"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"d0773a8f\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | config/c.yaml | repo: `repo:` x | ok |\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan d0773a8f ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    1 c.yaml\\n        - check: ok\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nReads none (no `Inputs:` line)\\nWrites none named (no `Outputs:` line)\\n\\u25b6 approve plan d0773a8f\",\n   \"checks\": \"Checks of plan d0773a8f\\n 1  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      }
+    },
+    "fuzz #59": {
+      "new": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 372baf4a \\u00b7 2 steps \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   6 renv.lock  [repo: repo: x]\\n          4 -c  [repo: repo: x]\\nChecks    ok \\u00b7 ok\\nCoverage  0 steps with a bound check, 2 prose only (rows 6, 4) \\u00b7 0 exact steps \\u00b7\\n          any arguments elsewhere\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nRuns      reads none (no `Inputs:` line) \\u00b7 writes none named\\nMore: `card 372baf4a full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 372baf4a)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | python analysis/x.py | repo: `repo:` x | ok |\\n| 9 | --wrap=python analysis/x.py | repo: `repo:` x | ok |\\n| 1 | renv.lock | repo: `repo:` x | ok |\\n| 6 | -j | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | -c | repo: `repo:` x | ok |\\n| 3 | snakemake | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | sub/../analysis/x.py | repo: `repo:` x | ok |\\n| 8 | logs/%j.out | repo: `repo:` x | ok |\\n| 2 | -params-file | repo: `repo:` x | ok |\\n| 2 | ../outside.py | repo: `repo:` x | ok |\\n| 6 | -o | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"372baf4a\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 6 | renv.lock | repo: `repo:` x | ok |\\n| 4 | -c | repo: `repo:` x | ok |\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 372baf4a ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    6 renv.lock\\n        - check: ok\\n  \\u2193 4 -c\\n        - check: ok\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nReads none (no `Inputs:` line)\\nWrites none named (no `Outputs:` line)\\nNot established before running\\n  - Validation on rows 6, 4 is prose: no validation-bindings check is bound to it\\n  Out of scope here: whether the science is right, and runs the gate's hooks do not see\\n\\u25b6 approve plan 372baf4a\",\n   \"checks\": \"Checks of plan 372baf4a\\n 6  ok\\n 4  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      },
+      "old": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 372baf4a \\u00b7 2 steps \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   6 renv.lock  [repo: repo: x]\\n          4 -c  [repo: repo: x]\\nChecks    ok \\u00b7 ok\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nRuns      reads none (no `Inputs:` line) \\u00b7 writes none named\\nMore: `card 372baf4a full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 372baf4a)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | python analysis/x.py | repo: `repo:` x | ok |\\n| 9 | --wrap=python analysis/x.py | repo: `repo:` x | ok |\\n| 1 | renv.lock | repo: `repo:` x | ok |\\n| 6 | -j | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | -c | repo: `repo:` x | ok |\\n| 3 | snakemake | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | sub/../analysis/x.py | repo: `repo:` x | ok |\\n| 8 | logs/%j.out | repo: `repo:` x | ok |\\n| 2 | -params-file | repo: `repo:` x | ok |\\n| 2 | ../outside.py | repo: `repo:` x | ok |\\n| 6 | -o | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"372baf4a\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 6 | renv.lock | repo: `repo:` x | ok |\\n| 4 | -c | repo: `repo:` x | ok |\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 372baf4a ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    6 renv.lock\\n        - check: ok\\n  \\u2193 4 -c\\n        - check: ok\\n\\nCAN RUN (in full)\\n  nothing: the plan table names no gated script, folder, or command\\nReads none (no `Inputs:` line)\\nWrites none named (no `Outputs:` line)\\n\\u25b6 approve plan 372baf4a\",\n   \"checks\": \"Checks of plan 372baf4a\\n 6  ok\\n 4  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      }
+    },
+    "fuzz #84": {
+      "new": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 9b43729b \\u00b7 3 steps \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   5 sbatch  [repo: repo: x]\\n          5 params.yaml  [repo: repo: x]\\n          4 main.nf  [repo: repo: x]\\nChecks    ok \\u00b7 ok \\u00b7 ok\\nCoverage  0 steps with a bound check, 3 prose only (rows 5, 5, 4) \\u00b7 0 exact steps\\n          \\u00b7 any arguments elsewhere\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  command  sbatch  (any invocation)\\nRuns      reads none (no `Inputs:` line) \\u00b7 writes none named\\nMore: `card 9b43729b full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 9b43729b)\\n\\nmycelium-extra: 2 exploratory run(s) this session are not reportable: python a.py (2 runs). Say \\\"promote explore runs\\\" to plan a reportable re-run.\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | a b.py | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | -j | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | -o | repo: `repo:` x | ok |\\n| 5 | main.nf | repo: `repo:` x | ok |\\n| 7 | x.dat | repo: `repo:` x | ok |\\n| 6 | | | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s2.explore-seen",
+            "2"
+          ],
+          [
+            ".mycelium-extra/pending/s2.json",
+            "[\n {\n  \"hash\": \"9b43729b\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | sbatch | repo: `repo:` x | ok |\\n| 5 | params.yaml | repo: `repo:` x | ok |\\n| 4 | main.nf | repo: `repo:` x | ok |\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 9b43729b ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    5 sbatch\\n        - check: ok\\n  \\u2193 5 params.yaml\\n        - check: ok\\n  \\u2193 4 main.nf\\n        - check: ok\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  command  sbatch  (any invocation)\\nReads none (no `Inputs:` line)\\nWrites none named (no `Outputs:` line)\\nNot established before running\\n  - Validation on rows 5, 4 is prose: no validation-bindings check is bound to it\\n  Out of scope here: whether the science is right, and runs the gate's hooks do not see\\n\\u25b6 approve plan 9b43729b\",\n   \"checks\": \"Checks of plan 9b43729b\\n 5  ok\\n 5  ok\\n 4  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      },
+      "old": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 9b43729b \\u00b7 3 steps \\u00b7 ready for approval\\nQuestion  none in the plan\\nChoices   5 sbatch  [repo: repo: x]\\n          5 params.yaml  [repo: repo: x]\\n          4 main.nf  [repo: repo: x]\\nChecks    ok \\u00b7 ok \\u00b7 ok\\nSince earlier plans: no baseline (no earlier approval names these paths)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  command  sbatch  (any invocation)\\nRuns      reads none (no `Inputs:` line) \\u00b7 writes none named\\nMore: `card 9b43729b full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 9b43729b)\\n\\nmycelium-extra: 2 exploratory run(s) this session are not reportable: python a.py (2 runs). Say \\\"promote explore runs\\\" to plan a reportable re-run.\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/explore.log",
+            "{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\u00e9\", \"ts\": 0}\n{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"s2\", \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | a b.py | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000002.json",
+            "{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 7 | -j | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000003.json",
+            "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | -o | repo: `repo:` x | ok |\\n| 5 | main.nf | repo: `repo:` x | ok |\\n| 7 | x.dat | repo: `repo:` x | ok |\\n| 6 | | | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s2.explore-seen",
+            "2"
+          ],
+          [
+            ".mycelium-extra/pending/s2.json",
+            "[\n {\n  \"hash\": \"9b43729b\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | sbatch | repo: `repo:` x | ok |\\n| 5 | params.yaml | repo: `repo:` x | ok |\\n| 4 | main.nf | repo: `repo:` x | ok |\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 9b43729b ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nDefaults to confirm: none\\n\\nSequence\\n    5 sbatch\\n        - check: ok\\n  \\u2193 5 params.yaml\\n        - check: ok\\n  \\u2193 4 main.nf\\n        - check: ok\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  command  sbatch  (any invocation)\\nReads none (no `Inputs:` line)\\nWrites none named (no `Outputs:` line)\\n\\u25b6 approve plan 9b43729b\",\n   \"checks\": \"Checks of plan 9b43729b\\n 5  ok\\n 5  ok\\n 4  ok\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ]
+        ]
+      }
+    },
     "prompt approve amendment unknown": {
       "new": {
         "err": "",
@@ -50,6 +586,102 @@
         ]
       }
     },
+    "stop procedure card": {
+      "new": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan c6a1614a \\u00b7 1 step \\u00b7 ready for approval\\nQuestion  \\\"does A beat B?\\\"\\nChoices   1 exact test  [you]\\nChecks    12 donors\\nCoverage  0 steps with a bound check, 1 prose only (row 1) \\u00b7 0 exact steps \\u00b7 any\\n          arguments elsewhere\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nRuns      1 script (1 pinned) \\u00b7 any arguments \\u00b7 reads none (no `Inputs:` line) \\u00b7 writes 1\\n          lint: step 1: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\nMore: `card c6a1614a full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan c6a1614a)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"c6a1614a\",\n  \"ts\": 0,\n  \"text\": \"> Question (user's words): \\\"does A beat B?\\\"\\n\\n**Objective.** Compare A with B.\\n\\nOutputs: analysis/out/res.tsv\\n\\n| # | Step | Choice | Source | Validation |\\n|---|---|---|---|---|\\n| 1 | Run `analysis/x.py` | exact test | user | 12 donors |\\n\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {\n   \"analysis/x.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\"\n   }\n  },\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan c6a1614a ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   \\\"does A beat B?\\\"\\nGoal       Compare A with B.\\nDefaults to confirm: none\\n\\nSequence\\n    1 x.py\\n        - choice: exact test  [you]\\n        - check: 12 donors\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  script   analysis/x.py  pinned\\nReads none (no `Inputs:` line)\\nWrites 1: analysis/out/res.tsv\\nNot established before running\\n  - Validation on row 1 is prose: no validation-bindings check is bound to it\\n  Out of scope here: whether the science is right, and runs the gate's hooks do not see\\n\\u25b6 approve plan c6a1614a\",\n   \"checks\": \"Checks of plan c6a1614a\\n 1  12 donors\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ],
+          [
+            ".mycelium-extra/scripts/cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213",
+            "print(1)\n"
+          ]
+        ]
+      },
+      "old": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan c6a1614a \\u00b7 1 step \\u00b7 ready for approval\\nQuestion  \\\"does A beat B?\\\"\\nChoices   1 exact test  [you]\\nChecks    12 donors\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nRuns      1 script (1 pinned) \\u00b7 any arguments \\u00b7 reads none (no `Inputs:` line) \\u00b7 writes 1\\n          lint: step 1: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\nMore: `card c6a1614a full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan c6a1614a)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"c6a1614a\",\n  \"ts\": 0,\n  \"text\": \"> Question (user's words): \\\"does A beat B?\\\"\\n\\n**Objective.** Compare A with B.\\n\\nOutputs: analysis/out/res.tsv\\n\\n| # | Step | Choice | Source | Validation |\\n|---|---|---|---|---|\\n| 1 | Run `analysis/x.py` | exact test | user | 12 donors |\\n\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {\n   \"analysis/x.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\"\n   }\n  },\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan c6a1614a ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   \\\"does A beat B?\\\"\\nGoal       Compare A with B.\\nDefaults to confirm: none\\n\\nSequence\\n    1 x.py\\n        - choice: exact test  [you]\\n        - check: 12 donors\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  script   analysis/x.py  pinned\\nReads none (no `Inputs:` line)\\nWrites 1: analysis/out/res.tsv\\n\\u25b6 approve plan c6a1614a\",\n   \"checks\": \"Checks of plan c6a1614a\\n 1  12 donors\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ],
+          [
+            ".mycelium-extra/scripts/cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213",
+            "print(1)\n"
+          ]
+        ]
+      }
+    },
+    "stop procedure card, a later plan changes a choice": {
+      "new": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 7b1847c4 \\u00b7 2 steps \\u00b7 ready for approval\\nQuestion  \\\"does A beat B?\\\"\\nChoices   1 other test  [you]\\n          2 volcano  [agent]\\nChecks    12 donors \\u00b7 none\\nCoverage  0 steps with a bound check, 2 prose only (rows 1, 2) \\u00b7 0 exact steps \\u00b7\\n          any arguments elsewhere\\nSince 00000001 (approved <TIME>)\\n  scripts  NEW: analysis/x.py, analysis/y.py\\n  inputs   none pinned\\n  plan     objective SAME \\u00b7 steps: 0 same, 2 new or changed\\n  scope    NEW: analysis/y.py\\nRuns      2 scripts (2 pinned) \\u00b7 any arguments \\u00b7 reads none (no `Inputs:` line) \\u00b7 writes 1\\n          lint: step 1: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat); step 2: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\nMore: `card 7b1847c4 full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 7b1847c4)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"> Question (user's words): \\\"does A beat B?\\\"\\n\\n**Objective.** Compare A with B.\\n\\nOutputs: analysis/out/res.tsv\\n\\n| # | Step | Choice | Source | Validation |\\n|---|---|---|---|---|\\n| 1 | Run `analysis/x.py` | exact test | user | 12 donors |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"7b1847c4\",\n  \"ts\": 0,\n  \"text\": \"> Question (user's words): \\\"does A beat B?\\\"\\n\\n**Objective.** Compare A with B.\\n\\nOutputs: analysis/out/res.tsv\\n\\n| # | Step | Choice | Source | Validation |\\n|---|---|---|---|---|\\n| 1 | Run `analysis/x.py` | other test | user | 12 donors |\\n| 2 | Run `analysis/y.py` | volcano | agent | none |\\n\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {\n   \"analysis/x.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\"\n   },\n   \"analysis/y.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"0111afd387e1ad576083c5039aa542faa2ed4a53d3e128bd03de990f9ea4255f\"\n   }\n  },\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 7b1847c4 ready for approval\\nSince 00000001 (approved <TIME>)\\n  scripts  NEW: analysis/x.py, analysis/y.py\\n  inputs   none pinned\\n  plan     objective SAME \\u00b7 steps: 0 same, 2 new or changed\\n  scope    NEW: analysis/y.py\\nQuestion   \\\"does A beat B?\\\"\\nGoal       Compare A with B.\\nDefaults to confirm: none\\n\\nSequence\\n    1 x.py\\n        - choice: other test  [you]\\n        - check: 12 donors\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n  \\u2193 2 y.py\\n        - choice: volcano  [agent]\\n        - check: none\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  script   analysis/x.py  pinned\\n  script   analysis/y.py  pinned\\nReads none (no `Inputs:` line)\\nWrites 1: analysis/out/res.tsv\\nNot established before running\\n  - Validation on row 1 is prose: no validation-bindings check is bound to it\\n  Out of scope here: whether the science is right, and runs the gate's hooks do not see\\n\\u25b6 approve plan 7b1847c4\",\n   \"checks\": \"Checks of plan 7b1847c4\\n 1  12 donors\\n 2  none\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ],
+          [
+            ".mycelium-extra/scripts/0111afd387e1ad576083c5039aa542faa2ed4a53d3e128bd03de990f9ea4255f",
+            "print(2)\n"
+          ],
+          [
+            ".mycelium-extra/scripts/cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213",
+            "print(1)\n"
+          ]
+        ]
+      },
+      "old": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra \\u00b7 plan 7b1847c4 \\u00b7 2 steps \\u00b7 ready for approval\\nQuestion  \\\"does A beat B?\\\"\\nChoices   1 other test  [you]\\n          2 volcano  [agent]\\nChecks    12 donors \\u00b7 none\\nSince 00000001 (approved <TIME>)\\n  scripts  NEW: analysis/x.py, analysis/y.py\\n  inputs   none pinned\\n  plan     objective SAME \\u00b7 steps: 0 same, 2 new or changed\\n  scope    NEW: analysis/y.py\\nRuns      2 scripts (2 pinned) \\u00b7 any arguments \\u00b7 reads none (no `Inputs:` line) \\u00b7 writes 1\\n          lint: step 1: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat); step 2: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\nMore: `card 7b1847c4 full` (every grant, file and check)\\n\\u25b6 approve  (or approve plan 7b1847c4)\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"> Question (user's words): \\\"does A beat B?\\\"\\n\\n**Objective.** Compare A with B.\\n\\nOutputs: analysis/out/res.tsv\\n\\n| # | Step | Choice | Source | Validation |\\n|---|---|---|---|---|\\n| 1 | Run `analysis/x.py` | exact test | user | 12 donors |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.json",
+            "[\n {\n  \"hash\": \"7b1847c4\",\n  \"ts\": 0,\n  \"text\": \"> Question (user's words): \\\"does A beat B?\\\"\\n\\n**Objective.** Compare A with B.\\n\\nOutputs: analysis/out/res.tsv\\n\\n| # | Step | Choice | Source | Validation |\\n|---|---|---|---|---|\\n| 1 | Run `analysis/x.py` | other test | user | 12 donors |\\n| 2 | Run `analysis/y.py` | volcano | agent | none |\\n\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {\n   \"analysis/x.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\"\n   },\n   \"analysis/y.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"0111afd387e1ad576083c5039aa542faa2ed4a53d3e128bd03de990f9ea4255f\"\n   }\n  },\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 7b1847c4 ready for approval\\nSince 00000001 (approved <TIME>)\\n  scripts  NEW: analysis/x.py, analysis/y.py\\n  inputs   none pinned\\n  plan     objective SAME \\u00b7 steps: 0 same, 2 new or changed\\n  scope    NEW: analysis/y.py\\nQuestion   \\\"does A beat B?\\\"\\nGoal       Compare A with B.\\nDefaults to confirm: none\\n\\nSequence\\n    1 x.py\\n        - choice: other test  [you]\\n        - check: 12 donors\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n  \\u2193 2 y.py\\n        - choice: volcano  [agent]\\n        - check: none\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  script   analysis/x.py  pinned\\n  script   analysis/y.py  pinned\\nReads none (no `Inputs:` line)\\nWrites 1: analysis/out/res.tsv\\n\\u25b6 approve plan 7b1847c4\",\n   \"checks\": \"Checks of plan 7b1847c4\\n 1  12 donors\\n 2  none\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+          ],
+          [
+            ".mycelium-extra/scripts/0111afd387e1ad576083c5039aa542faa2ed4a53d3e128bd03de990f9ea4255f",
+            "print(2)\n"
+          ],
+          [
+            ".mycelium-extra/scripts/cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213",
+            "print(1)\n"
+          ]
+        ]
+      }
+    },
     "stop procedure card, a later plan only adds a step": {
       "new": {
         "err": "",
@@ -66,7 +698,7 @@
           ],
           [
             ".mycelium-extra/pending/s1.json",
-            "[\n {\n  \"hash\": \"abe1d289\",\n  \"ts\": 0,\n  \"text\": \"> Question (user's words): \\\"does A beat B?\\\"\\n\\n**Objective.** Compare A with B.\\n\\nOutputs: analysis/out/res.tsv\\n\\n| # | Step | Choice | Source | Validation |\\n|---|---|---|---|---|\\n| 1 | Run `analysis/x.py` | exact test | user | 12 donors |\\n| 2 | Run `analysis/y.py` | volcano | agent | none |\\n\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {\n   \"analysis/x.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\"\n   },\n   \"analysis/y.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"0111afd387e1ad576083c5039aa542faa2ed4a53d3e128bd03de990f9ea4255f\"\n   }\n  },\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan abe1d289 ready for approval\\nSince 00000001 (approved <TIME>)\\n  scripts  NEW: analysis/x.py, analysis/y.py\\n  inputs   none pinned\\n  plan     objective SAME \\u00b7 steps: 1 same, 1 new or changed\\n  scope    NEW: analysis/y.py\\nQuestion   \\\"does A beat B?\\\"\\nGoal       Compare A with B.\\nDefaults to confirm: none\\n\\nSequence\\n    1 x.py\\n        - choice: exact test  [you]\\n        - check: 12 donors\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n  \\u2193 2 y.py\\n        - choice: volcano  [agent]\\n        - check: none\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  script   analysis/x.py  pinned\\n  script   analysis/y.py  pinned\\nReads none (no `Inputs:` line)\\nWrites 1: analysis/out/res.tsv\\n\\u25b6 approve plan abe1d289\",\n   \"checks\": \"Checks of plan abe1d289\\n 1  12 donors\\n 2  none\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
+            "[\n {\n  \"hash\": \"abe1d289\",\n  \"ts\": 0,\n  \"text\": \"> Question (user's words): \\\"does A beat B?\\\"\\n\\n**Objective.** Compare A with B.\\n\\nOutputs: analysis/out/res.tsv\\n\\n| # | Step | Choice | Source | Validation |\\n|---|---|---|---|---|\\n| 1 | Run `analysis/x.py` | exact test | user | 12 donors |\\n| 2 | Run `analysis/y.py` | volcano | agent | none |\\n\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {\n   \"analysis/x.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"cc42155088fca5730758db72b2a5bca33112a941dfaa2d43098ec422ce4ea213\"\n   },\n   \"analysis/y.py\": {\n    \"size\": 9,\n    \"mtime\": 0,\n    \"sha256\": \"0111afd387e1ad576083c5039aa542faa2ed4a53d3e128bd03de990f9ea4255f\"\n   }\n  },\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan abe1d289 ready for approval\\nSince 00000001 (approved <TIME>)\\n  scripts  NEW: analysis/x.py, analysis/y.py\\n  inputs   none pinned\\n  plan     objective SAME \\u00b7 steps: 1 same, 1 new or changed\\n  scope    NEW: analysis/y.py\\nQuestion   \\\"does A beat B?\\\"\\nGoal       Compare A with B.\\nDefaults to confirm: none\\n\\nSequence\\n    1 x.py\\n        - choice: exact test  [you]\\n        - check: 12 donors\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n  \\u2193 2 y.py\\n        - choice: volcano  [agent]\\n        - check: none\\n        - lint: not checked (`scilintr` not found. Install it (`pip install scilintr`) and re-verify, or record its pat)\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  script   analysis/x.py  pinned\\n  script   analysis/y.py  pinned\\nReads none (no `Inputs:` line)\\nWrites 1: analysis/out/res.tsv\\nNot established before running\\n  - Validation on row 1 is prose: no validation-bindings check is bound to it\\n  Out of scope here: whether the science is right, and runs the gate's hooks do not see\\n\\u25b6 approve plan abe1d289\",\n   \"checks\": \"Checks of plan abe1d289\\n 1  12 donors\\n 2  none\",\n   \"diff\": \"No script diff on this card.\"\n  }\n }\n]"
           ],
           [
             ".mycelium-extra/scripts/0111afd387e1ad576083c5039aa542faa2ed4a53d3e128bd03de990f9ea4255f",

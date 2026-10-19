@@ -29,6 +29,8 @@ What to rely on:
 - **One per session.** Two terminals can focus different analyses. A new session starts with none: `handoff` suggests the line to type.
 - **Nothing is guessed.** The folder must exist and sit under a gated root. A plan is linked only if you name it. The objective is quoted from the analysis doc, or reported as not stated.
 - State is one small file per session in `.mycelium-extra/focus/` (no prompt text). A malformed file is reported, never repaired.
+- **Receipts keep the focus at launch.** A run launched while a focus is open has that `focus_id` and `focus_folder` in its matched receipt. Switching or ending the focus while the job runs does not relabel it, and a job started before any focus is never assigned to one later; an unmatched receipt carries none.
+- **A turn-end notice, off by default.** With `"focus_notices": true` in `gate.json`, the Stop hook adds one plain line when scripts under another analysis folder ran under this focus: "observed run of scripts under analysis/other while this focus was open ... the relationship is not established". It reads receipts already written, tells each folder once per focus, never blocks, and a failure to compute it shows nothing. It is a pointer to `track-changes`, not a finding.
 
 ## Track changes
 
