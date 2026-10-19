@@ -13,6 +13,7 @@ is said so: no warning is not evidence of no drift.
 
 import argparse
 import calendar
+import glob
 import hashlib
 import importlib.util
 import json
@@ -27,7 +28,8 @@ CAP_ITEMS, CAP_PLAN_ITEMS, CAP_RECEIPTS, CAP_TIMELINE = 80, 25, 40, 200
 CAP_DIFF, CAP_DIFF_TOTAL = 40, 300
 CAP_TRANSCRIPT_BYTES, CAP_TRANSCRIPT_LINES = 20 * 1024 * 1024, 300000
 SECRET = re.compile(
-    r"(?i)((?:api[_-]?key|secret|token|passw(?:or)?d|credential|auth)[\w-]*\s*[:=]\s*\S+"
+    r"(?i)((?:api[_-]?key|secret|token|passw(?:or)?d|credential|auth)[\w-]*[\"']?\s*[:=]\s*[\"']?(?:(?:Bearer|Basic|Token)\s+)?\S+"
+    r"|\bBearer\s+[A-Za-z0-9._~+/=-]{8,}"
     r"|\bAKIA[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{20,}\b|\bsk-[A-Za-z0-9_-]{20,}\b|\bxox[abp]-[A-Za-z0-9-]{10,}\b"
     r"|-----BEGIN[ A-Z]*PRIVATE KEY-----)")
 EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
@@ -208,7 +210,10 @@ def code_items(gate, verify, snap, root, config, original, current, redact, budg
     last_change, diff_budget, used = 0, CAP_DIFF_TOTAL, 0
     if original and orig_inst is None:
         snap.limitations.append("original plan {} has no approval-instance record: its first script pins are not "
-                                "recoverable, so original code baselines are unavailable".format(original["hash"]))
+                                "recoverable; baselines come from the approval record, which a later approval of the same plan may have "
+                                "re-baselined".format(original["hash"]))
+    if len(rels) > 40:
+        snap.limitations.append("only the first 40 of {} pinned scripts were compared".format(len(rels)))
     for rel in sorted(rels)[:40]:
         path = os.path.join(root, rel)
         now = gate.fingerprint(path, budget)
@@ -237,7 +242,7 @@ def code_items(gate, verify, snap, root, config, original, current, redact, budg
         if diff is not None:
             body = [l for l in diff if not l.startswith(("---", "+++"))]
             for line in body[:min(CAP_DIFF, max(diff_budget, 0))]:
-                shown.append(["add" if line.startswith("+") else "del" if line.startswith("-") else "ctx", redact(line[:300])])
+                shown.append(["add" if line.startswith("+") else "del" if line.startswith("-") else "ctx", redact(line)[:300]])
             diff_budget -= len(shown)
             if len(body) > len(shown):
                 shown.append(["ctx", "… {} more diff lines not shown".format(len(body) - len(shown))])
@@ -267,7 +272,7 @@ def code_items(gate, verify, snap, root, config, original, current, redact, budg
                              "result is not assessed.".format(", ".join(outside)) if outside else ""),
                   unknown="Who edited it and why is not recorded here{}.".format(
                       "; re-pinned {}x since approval, last {}".format(len(since), stamp(since[-1]["ts"])) if since else ""),
-                  baseline="Original code baseline: {}.".format("available (approval instance)" if orig_pin else
+                  baseline="Original code baseline: {}.".format("available (the original approval's pin)" if orig_pin else
                                                                   "not available" + (" (script absent from the original approval)" if original else "")),
                   current="Current approval {} pinned {}.".format(current["hash"], "this script" if cur_pin else "no pin for this script"),
                   authorization="Edits after an approval re-pin as working code; freeze approves the reviewed bytes." if unfrozen
@@ -294,11 +299,12 @@ def execution_items(gate, snap, root, original, current):
         snap.event(r["ts"], "run", "{} {} · exit {} · launch {}".format(
             r.get("kind") or "run", ",".join((r.get("paths") or [])[:2]) or "", r.get("exit_status"), r.get("launch_match")),
             snap.evid("receipt", "{}:{}".format(r.get("ts"), r.get("call_id") or r.get("command_sha") or ""), "receipt", r["ts"]))
-    failed = [r for r in receipts if r.get("exit_status") not in (0, "unknown")]
-    unknown = [r for r in receipts if r.get("exit_status") == "unknown"]
+    failed = [r for r in receipts if r.get("exit_status") not in (0, "unknown", None)]
+    unknown = [r for r in receipts if r.get("exit_status") in ("unknown", None)]  # a legacy receipt has no status: unknown, not failed
     unmatched = [r for r in receipts if r.get("launch_match") != "matched"]
     sbatch = [r for r in receipts if r.get("kind") == "sbatch"]
-    other_instance = [r for r in receipts if current and current["hash"] in (r.get("plans") or []) and r.get("approval_instance")
+    # a receipt's instance is that of its last plan, so only a receipt of this plan alone says anything about this instance
+    other_instance = [r for r in receipts if current and (r.get("plans") or []) == [current["hash"]] and r.get("approval_instance")
                       and r.get("approval_instance") != current.get("instance_id")]
     gap = unknown or unmatched or sbatch
     bad = failed or gap or other_instance
@@ -329,17 +335,31 @@ def output_items(gate, snap, root, current, last_change):
     words = gate.output_words(current["plan"]) if current else None
     if not words:
         return
-    older, missing, fine = [], [], []
-    for word in words[:30]:
-        path = os.path.join(root, word)
+    older, missing, fine, patterns = [], [], [], []
+
+    def classify(path, label):
         if os.path.isdir(path):
-            continue
+            return
         if not os.path.isfile(path):
-            missing.append(word)
+            missing.append(label)
         elif last_change and os.path.getmtime(path) < last_change:
-            older.append(word)
+            older.append(label)
         else:
-            fine.append(word)
+            fine.append(label)
+
+    for word in words[:30]:
+        if any(c in word for c in "*?["):  # `<name>` and `{a,b}` in an Outputs line become patterns
+            hits = sorted(glob.glob(os.path.join(root, word)))[:50]
+            for hit in hits:
+                classify(hit, os.path.relpath(hit, root))
+            if not hits:
+                patterns.append(word)
+        else:
+            classify(os.path.join(root, word), word)
+    if len(words) > 30:
+        snap.limitations.append("only the first 30 of {} declared output paths were checked".format(len(words)))
+    if patterns:
+        snap.limitations.append("declared output pattern(s) matched no file, so they were not checked: {}".format(", ".join(patterns[:3])))
     if not (older or missing):
         if fine:
             snap.limitations.append("{} declared output(s) are not older than the latest code change; that does not show the code produced them".format(len(fine)))
@@ -367,6 +387,7 @@ def transcript_scan(path, root, since, container):
     count of shell commands that mention an analysis folder. No prompt text or command text is kept."""
     info = {"status": "available", "note": ""}
     edits, mentions = [], {}
+    real_root = os.path.realpath(root)
     try:
         size = os.path.getsize(path)
         with open(path, "rb") as handle:
@@ -398,7 +419,17 @@ def transcript_scan(path, root, since, container):
                         target = data.get("file_path") or data.get("notebook_path")
                         if isinstance(target, str):
                             full = os.path.normpath(target if os.path.isabs(target) else os.path.join(root, target))
-                            rel = os.path.relpath(full, root) if full == root or full.startswith(root + os.sep) else None
+                            rel = None
+                            for base in (root, real_root):
+                                if full == base or full.startswith(base + os.sep):
+                                    rel = os.path.relpath(full, base)
+                                    break
+                            if rel is None:
+                                real = os.path.realpath(full)
+                                if real.startswith(real_root + os.sep):
+                                    rel = os.path.relpath(real, real_root)
+                            if rel is None:
+                                info["outside_root"] = info.get("outside_root", 0) + 1
                             edits.append({"ts": ts, "rel": rel, "tool": part["name"], "sidechain": bool(record.get("isSidechain"))})
                     elif part.get("name") == "Bash" and isinstance(data.get("command"), str):
                         for name in set(re.findall(re.escape(container) + r"/([A-Za-z0-9_][A-Za-z0-9._-]*)", data["command"])):
@@ -512,6 +543,8 @@ def collect(args, gate, focus, verify):
     if path and os.path.isfile(path):
         edits, mentions, transcript = transcript_scan(path, root, (episode or {}).get("started_at"), posixpath.dirname(rel))
         focus_items(snap, root, rel, edits, mentions, transcript, episode)
+        if transcript.get("outside_root"):
+            snap.limitations.append("{} transcript edit(s) lay outside the project path and were not classified".format(transcript["outside_root"]))
         if not episode:
             transcript["note"] = (transcript["note"] + "; " if transcript["note"] else "") + "no focus window: the whole transcript was read"
     elif path:
@@ -534,7 +567,7 @@ def collect(args, gate, focus, verify):
     manifest = os.path.isdir(os.path.join(root, ".living"))
     return {
         "schema": SCHEMA, "generated_at": iso(now), "root": os.path.basename(root), "analysis_path": rel,
-        "objective": {"text": objective, "source": doc},
+        "objective": {"text": redact(objective) if objective else objective, "source": doc},
         "focus": {"active_at_snapshot": bool(episode), "focus_id": (episode or {}).get("focus_id"),
                   "started_at": (episode or {}).get("started_at")} if episode else {"active_at_snapshot": False},
         "baselines": {"original_plan": (original or {}).get("hash"), "current_plan": (current or {}).get("hash"),
@@ -546,7 +579,7 @@ def collect(args, gate, focus, verify):
                      "receipts": "available" if any(i["kind"] == "execution" for i in snap.items) else "not_available",
                      "claude_transcript": transcript["status"], "transcript_note": transcript["note"], "mycelium": "present" if manifest else "absent",
                      "limitations": snap.limitations,
-                     "not_observed": ["shell-made edits", "file reads"] + (
+                     "not_observed": ["shell-made edits", "file reads", "scripts no approval pinned and no run touched"] + (
                          ["subagent work not marked in the transcript"] if transcript["status"] in ("available", "partial")
                          else ["edits to other analyses (no transcript read)"])},
         "counts": {b: sum(1 for i in snap.items if i["bucket"] == b) for b in order},
@@ -625,7 +658,7 @@ def write_outputs(args, gate, root, data, html):
     expected = os.path.join(os.path.realpath(root), ".mycelium-extra", "track-changes")
     if os.path.lexists(base) and os.path.realpath(base) != expected:  # a symlink here would send the report elsewhere
         raise Stop("refusing to write: .mycelium-extra/track-changes is a link or resolves outside the project")
-    folder = os.path.join(base, re.sub(r"[^A-Za-z0-9_-]+", "-", data["analysis_path"]).strip("-"))
+    folder = os.path.join(base, data["analysis_path"].replace("/", "__"))
     os.makedirs(folder, mode=0o700, exist_ok=True)
     if not os.path.realpath(folder).startswith(expected + os.sep):
         raise Stop("refusing to write: {} resolves outside .mycelium-extra/track-changes/".format(folder))
@@ -662,17 +695,25 @@ def main(argv):
     gate, focus, verify = load(args.plugin_root)
     try:
         data = collect(args, gate, focus, verify)
-        root = gate.find_root(args.repo) or os.path.abspath(args.repo)
-        paths = {}
-        if not args.no_write:
-            paths = write_outputs(args, gate, root, data, load_render(args.plugin_root).render(data, brief(data)))
-    except (Stop, focus.FocusError) as error:
+    except (Stop, focus.FocusError, ValueError, OSError) as error:  # a malformed approval record is a ValueError
         print("track-changes: {}".format(error), file=sys.stderr)
         return 2
+    root = gate.find_root(args.repo) or os.path.abspath(args.repo)
+    paths, write_error = {}, None
+    if not args.no_write:
+        try:
+            paths = write_outputs(args, gate, root, data, load_render(args.plugin_root).render(data, brief(data)))
+        except Stop as error:
+            print("track-changes: {}".format(error), file=sys.stderr)
+            return 2
+        except (ValueError, OSError) as error:  # still show what was found
+            write_error = error
     if args.json:
         print(json.dumps(data, indent=1))
     else:
         print(card(data))
+        if write_error:
+            print("Files      none written: {}".format(write_error))
         if paths:
             print("Files      {} (brief.md, report.html: open the HTML in a browser)".format(os.path.dirname(paths["brief.md"])))
         git = gate.git(root, "rev-parse", "--is-inside-work-tree")

@@ -13,7 +13,7 @@ A read-only account of how one analysis moved from what the researcher approved.
 sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. [--analysis <folder>] [--original <hash>] [--current <hash>] [--transcript <file>] [--json] [--no-write] < <skill-dir>/scripts/track_changes.py
 ```
 
-- The analysis is this session's open `focus` (the session comes from `$CLAUDE_CODE_SESSION_ID`, or `--session`). A focus left open by another session is never used. With no focus for this session, pass `--analysis`. Never guess one.
+- The analysis is this session's open `focus` (the session comes from `$CLAUDE_CODE_SESSION_ID`, or `--session`). A focus left open by another session is never used. Codex and OpenCode do not set that variable: pass `--session` or `--analysis` there. With no focus for this session, pass `--analysis`. Never guess one.
 - If several approved plans name paths inside the folder, it stops and lists them. Ask the user which plan states the original intent, then pass `--original`. Do not pick by date.
 - The transcript is the one recorded when the focus started; `--transcript` names another. Without one, edits to other analyses are not observed, and the report says so.
 - Pipe the script from stdin as shown. Running it by path opens Mycelium's post-action cycle.

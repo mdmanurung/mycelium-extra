@@ -48,7 +48,7 @@ Attention  3
 Also       1 authorized change(s) · 2 routine
 Unknown    shell-made edits; file reads; subagent work not marked in the transcript
 ▶ review the diffs, then `freeze aabbccdd`   (or `/mycelium-extra:grill` to amend the plan)
-Files      .mycelium-extra/track-changes/analysis-pbmc-ifn (brief.md, report.html: open the HTML in a browser)
+Files      .mycelium-extra/track-changes/analysis__pbmc-ifn (brief.md, report.html: open the HTML in a browser)
 ```
 
 It reads, and only reads:

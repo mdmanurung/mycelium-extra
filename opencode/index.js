@@ -84,6 +84,15 @@ function hookOutput(reply) {
   return (reply && reply.hookSpecificOutput) || {}
 }
 
+// What OpenCode appends to a prompt: the gate's user-facing message, else its agent context. When the reply
+// carries both (a hint plus an open focus), the focus line travels in the context only, so it is added here.
+function promptMessage(reply) {
+  const context = hookOutput(reply).additionalContext
+  if (!reply.systemMessage) return context
+  const focus = typeof context === "string" ? context.split("\n").find((line) => line.startsWith("mycelium-extra focus:")) : null
+  return focus && !String(reply.systemMessage).includes(focus) ? reply.systemMessage + "\n" + focus : reply.systemMessage
+}
+
 function denyReason(reply) {
   const output = hookOutput(reply)
   if (output.permissionDecision !== "deny") return null
@@ -291,7 +300,7 @@ export default {
       const payload = { prompt: event.prompt.text, cwd: place, session_id: event.sessionID }
       const reply = await runGate(paths, "prompt", payload, TIMEOUTS.prompt)
       if (!reply) return
-      const message = reply.systemMessage || hookOutput(reply).additionalContext
+      const message = promptMessage(reply)
       if (reply.decision === "block") {
         event.prompt.text = blockedPromptText(reply.reason || message || "handled by the approval gate.")
       } else if (typeof message === "string" && message) {
@@ -367,5 +376,5 @@ export default {
 // Pure helpers, exercised by opencode/tests/gate.test.js under `node --test`.
 export const __test__ = {
   appendContent, blockedPromptText, commandText, contentText, denyReason, eventLocation,
-  executionEnded, findRoot, gateCwd, idleSession, runGate, samePlace, skillCommands, textEnded,
+  executionEnded, findRoot, gateCwd, idleSession, promptMessage, runGate, samePlace, skillCommands, textEnded,
 }

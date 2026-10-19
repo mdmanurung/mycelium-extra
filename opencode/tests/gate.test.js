@@ -168,6 +168,16 @@ test("gateCwd prefers a cwd under a gate and falls back to the location", () => 
   assert.equal(__test__.gateCwd("", repo), repo)
 })
 
+test("an open focus line reaches the prompt even beside a hint", () => {
+  const focus = "mycelium-extra focus: analysis/a. Stay on this analysis."
+  const hint = { systemMessage: "mycelium-extra hint: this fits /mycelium-extra:handoff",
+                 hookSpecificOutput: { additionalContext: "mycelium-extra hint: long text\n" + focus } }
+  assert.equal(__test__.promptMessage(hint), hint.systemMessage + "\n" + focus)
+  assert.equal(__test__.promptMessage({ hookSpecificOutput: { additionalContext: focus } }), focus)  // no hint: the context itself
+  assert.equal(__test__.promptMessage({ systemMessage: "plain" }), "plain")
+  assert.equal(__test__.promptMessage({ systemMessage: "m", hookSpecificOutput: { additionalContext: "no focus here" } }), "m")
+})
+
 test("skill commands come from the skills folder", () => {
   const skills = __test__.skillCommands(ROOT)
   assert.equal(skills.length, 13)

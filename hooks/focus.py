@@ -9,6 +9,8 @@ default), such as `analysis/pbmc-ifn` or `nbs/09_factorizations`.
 `python3 hooks/focus.py list [--repo DIR]` lists the folders a focus can name (read-only).
 """
 
+import contextlib
+import hashlib
 import os
 import re
 import sys
@@ -39,7 +41,8 @@ def session_name(session_id):
     if not isinstance(session_id, str) or not session_id.strip() or session_id.strip() == "unknown":
         raise FocusError("mycelium-extra: no focus change: this host sent no session id, and a focus belongs to "
                          "one session.")
-    return re.sub(r"[^A-Za-z0-9_-]", "_", session_id)
+    safe = re.sub(r"[^A-Za-z0-9_-]", "_", session_id)
+    return safe if safe == session_id else safe + "-" + hashlib.sha1(session_id.encode("utf-8")).hexdigest()[:8]
 
 
 def record_path(root, session_id):
@@ -161,13 +164,28 @@ def plan_touches(gate, root, record, rel):
     return any(p == rel or p.startswith(rel + "/") for p in paths)
 
 
+def step_covers(gate, root, record, rel):
+    """Whether a Step cell of the approved plan names a path in this folder or above it. Only Step cells grant
+    runs (a Choice or Validation cell grants nothing); the gate still decides each run, so this is not a promise."""
+    named = gate.plan_paths_in(root, gate.plan_table(record.get("plan") or ""))
+    return any(p == rel or p.startswith(rel + "/") or rel.startswith(p + "/") for p in named)
+
+
+@contextlib.contextmanager
 def _locked(root, session_id):
+    """The focus record's lock, mandatory: a change never goes ahead unlocked. `stateio.locked` raises when it is
+    entered (busy for 2 s, or a symlinked lock), so it is entered here, where the error becomes a FocusError."""
     _state_dir()
     import stateio
+    guard = stateio.locked(os.path.join(root, ".mycelium-extra", "locks", "focus-" + session_name(session_id) + ".lock"))
     try:
-        return stateio.locked(os.path.join(root, ".mycelium-extra", "locks", "focus-" + session_name(session_id) + ".lock"))
-    except (OSError, ValueError) as error:  # a focus change never goes ahead unlocked
-        raise FocusError("mycelium-extra: no focus change: could not lock the focus record ({}).".format(error))
+        guard.__enter__()
+    except (OSError, ValueError) as error:
+        raise FocusError("mycelium-extra: no focus change: could not lock the focus record ({}). Try again.".format(error))
+    try:
+        yield
+    finally:
+        guard.__exit__(None, None, None)
 
 
 def _save(root, session_id, record):
@@ -274,12 +292,14 @@ def status(gate, root, config, event):
     elsewhere = gate.active_approvals(root, config)
     if active is None or elsewhere is None:
         runs = "not checked (scan timed out)"
-    elif any(plan_touches(gate, root, r, rel) for r in active):
-        runs = "an approval naming this folder is active in this session (focus did not grant it)"
-    elif any(plan_touches(gate, root, r, rel) for r in elsewhere):
+    elif any(step_covers(gate, root, r, rel) for r in active):
+        runs = "an approval whose steps name paths in or above this folder is active in this session (focus did not grant it; the gate decides each run)"
+    elif any(step_covers(gate, root, r, rel) for r in elsewhere):
         runs = "not authorized in this session (an active approval belongs to another session)"
+    elif any(step_covers(gate, root, r, rel) for r in approvals or []):
+        runs = "not authorized: the approval whose steps name paths in or above this folder has expired"
     elif touching:
-        runs = "not authorized: the approval naming this folder has expired"
+        runs = "not authorized: a plan names this folder, but only outside its Step column, which grants nothing"
     else:
         runs = "not authorized: no approved plan names this folder"
     lines.append("Runs       " + runs)

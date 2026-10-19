@@ -51,6 +51,12 @@ class FocusTest(unittest.TestCase):
     def text(self, result):
         return (result or {}).get("reason") or (result or {}).get("systemMessage") or ""
 
+    def approve_text(self, text, session="s1"):
+        notice = self.hook("stop", {"last_assistant_message": text}, session)
+        digest = notice["systemMessage"].split("approve plan ")[1][:8]
+        self.say("approve plan " + digest, session)
+        return digest
+
     def approve(self, session="s1"):
         notice = self.hook("stop", {"last_assistant_message": PLAN}, session)
         digest = notice["systemMessage"].split("approve plan ")[1][:8]
@@ -101,7 +107,7 @@ class FocusTest(unittest.TestCase):
         digest = self.approve("s1")
         self.say("focus analysis/a", "s1")
         self.say("focus analysis/a", "s2")
-        self.assertIn("active in this session (focus did not grant it)", self.text(self.say("focus status", "s1")))
+        self.assertIn("is active in this session (focus did not grant it", self.text(self.say("focus status", "s1")))
         self.assertIn("belongs to another session", self.text(self.say("focus status", "s2")))
         path = os.path.join(self.root, ".mycelium-extra", "approvals", digest + ".json")
         with open(path) as handle:
@@ -109,7 +115,7 @@ class FocusTest(unittest.TestCase):
         record["approved_at"] = time.time() - 3 * 86400
         with open(path, "w") as handle:
             json.dump(record, handle)
-        self.assertIn("approval naming this folder has expired", self.text(self.say("focus status", "s1")))
+        self.assertIn("steps name paths in or above this folder has expired", self.text(self.say("focus status", "s1")))
         self.assertTrue(self.record("s1")["episodes"][0]["ended_at"] is None)  # still focused, no re-approval
 
     def test_missing_or_unsafe_target_is_refused(self):  # F02, F07
@@ -131,7 +137,8 @@ class FocusTest(unittest.TestCase):
     def test_odd_session_ids_get_their_own_safe_file(self):
         self.say("focus analysis/a", "../../evil")
         files = os.listdir(os.path.join(self.root, ".mycelium-extra", "focus"))
-        self.assertEqual(files, ["______evil.json"])
+        self.assertEqual(len(files), 1)
+        self.assertRegex(files[0], r"^______evil-[0-9a-f]{8}\.json$")  # a hash keeps two odd ids from sharing a file
 
     def test_prose_and_other_commands_do_not_match(self):  # F06
         for prompt in ("focus on QC today", "please focus analysis/a", "focus", "focus analysis/a and more",
@@ -158,11 +165,11 @@ class FocusTest(unittest.TestCase):
     def test_context_line_joins_a_hint_not_an_approval(self):
         self.say("focus analysis/a")
         self.say("hints on")
-        result = self.say("run a differential expression comparison")
+        result = self.say("let's hand off now")
+        self.assertTrue(result["systemMessage"].startswith("mycelium-extra hint"), result)  # the hint did fire
         extra = result["hookSpecificOutput"]["additionalContext"]
         self.assertIn("mycelium-extra focus: analysis/a", extra)
-        if result.get("systemMessage", "").startswith("mycelium-extra hint"):
-            self.assertIn("request fits", extra)
+        self.assertIn("request fits", extra)
 
     def test_plan_option_needs_a_plan_that_names_the_folder(self):
         digest = self.approve()
@@ -222,13 +229,45 @@ class FocusTest(unittest.TestCase):
         self.assertIn("started on work/a", self.text(self.say("focus work/a")))
         self.assertIn("not under a gated folder (work/)", self.say("focus switch analysis/a")["reason"])
 
-    def test_list_command_is_read_only(self):
-        out = subprocess.run([sys.executable, os.path.join(HERE, "..", "focus.py"), "list", "--repo", self.root],
-                             stdout=subprocess.PIPE, universal_newlines=True).stdout
+    def test_a_busy_lock_is_a_message_and_changes_nothing(self):
+        import fcntl
+        folder = os.path.join(self.root, ".mycelium-extra", "locks")
+        os.makedirs(folder)
+        fd = os.open(os.path.join(folder, "focus-s1.lock"), os.O_CREAT | os.O_RDWR, 0o600)
+        self.addCleanup(os.close, fd)
+        fcntl.flock(fd, fcntl.LOCK_EX)  # another process holds the focus record
+        result = self.say("focus analysis/a")
+        self.assertEqual(result["decision"], "block")
+        self.assertIn("could not lock the focus record", result["reason"])
+        self.assertFalse(os.path.exists(os.path.join(self.root, ".mycelium-extra", "focus", "s1.json")))
+
+    def test_runs_row_asks_the_gates_question_not_just_whether_a_plan_names_the_folder(self):
+        choice_only = ("## Plan\n| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n"
+                       "| 1 | run the fit | uses `analysis/a/run.py` | user | ok |\n\nPlan status: READY")
+        self.approve_text(choice_only)
+        self.say("focus analysis/a")
+        card = self.text(self.say("focus status"))
+        self.assertIn("only outside its Step column, which grants nothing", card)
+        self.assertNotIn("is active in this session", card)
+
+    def test_a_parent_folder_in_a_step_cell_covers_a_nested_focus(self):
+        parent = ("## Plan\n| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n"
+                  "| 1 | run every script under `analysis/a/` | x | user | ok |\n\nPlan status: READY")
+        self.approve_text(parent)
+        os.makedirs(os.path.join(self.root, "analysis", "a", "sub"))
+        self.say("focus analysis/a/sub")
+        self.assertIn("steps name paths in or above this folder is active in this session", self.text(self.say("focus status")))
+
+    def test_two_session_ids_that_sanitise_alike_do_not_collide(self):
+        self.say("focus analysis/a", "x/y")
+        self.assertIn("focus started on analysis/b", self.text(self.say("focus analysis/b", "x_y")))
+        self.assertEqual(len(os.listdir(os.path.join(self.root, ".mycelium-extra", "focus"))), 2)
+        before = sorted(os.path.join(d, f) for d, _, fs in os.walk(self.root) for f in fs)
         os.makedirs(os.path.join(self.root, "nbs", "t1"))
         out = subprocess.run([sys.executable, os.path.join(HERE, "..", "focus.py"), "list", "--repo", self.root],
                              stdout=subprocess.PIPE, universal_newlines=True).stdout
         self.assertEqual(out.split(), ["analysis/a", "analysis/b", "nbs/t1"])
+        self.assertEqual(sorted(os.path.join(d, f) for d, _, fs in os.walk(self.root) for f in fs), before)  # no file written
         refused = subprocess.run([sys.executable, os.path.join(HERE, "..", "focus.py"), "start", "analysis/a"],
                                  stderr=subprocess.PIPE, universal_newlines=True)
         self.assertEqual(refused.returncode, 2)  # no command line can change a focus

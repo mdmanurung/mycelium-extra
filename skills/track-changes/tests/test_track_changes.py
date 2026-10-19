@@ -87,9 +87,9 @@ class Base(unittest.TestCase):
             event["tool_use_id"] = call
         self.hook("post", event)
 
-    def cli(self, *args, fail=False, env=None):
+    def cli(self, *args, fail=False, env=None, repo=None):
         with open(SCRIPT) as source:
-            proc = subprocess.run([sys.executable, "-", "--plugin-root", PLUGIN, "--repo", self.root] + list(args),
+            proc = subprocess.run([sys.executable, "-", "--plugin-root", PLUGIN, "--repo", repo or self.root] + list(args),
                                   stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.root,
                                   universal_newlines=True, env=env)
         if fail:
@@ -208,7 +208,7 @@ class PlansAndCodeTest(Base):
         secret = "sk-abcdefghijklmnopqrstuvwxyz0123"
         self.write(FIT, 'min_cells = 200\nAPI_KEY = "{}"\npassword = hunter2xyz\n'.format(secret), mtime=time.time())
         out = self.cli("--analysis", "analysis/a", "--original", first)
-        folder = os.path.join(self.root, ".mycelium-extra", "track-changes", "analysis-a")
+        folder = os.path.join(self.root, ".mycelium-extra", "track-changes", "analysis__a")
         blob = out
         for name in ("snapshot.json", "brief.md", "report.html"):
             with open(os.path.join(folder, name)) as handle:
@@ -217,6 +217,84 @@ class PlansAndCodeTest(Base):
         self.assertNotIn("hunter2xyz", blob)
         self.assertIn("[redacted]", blob)
         self.assertIn("replaced with [redacted]", blob)
+
+
+class ReviewFixesTest(Base):
+    def test_a_wildcard_output_is_a_pattern_never_missing(self):
+        self.approve(plan("min_cells 500", outputs="analysis/a/outputs/de_<contrast>.csv"))
+        data = self.collect(analysis="analysis/a")
+        self.assertEqual(self.items(data, "output"), [])
+        self.assertTrue(any("pattern(s) matched no file" in l and "de_*.csv" in l for l in data["coverage"]["limitations"]))
+        self.write("analysis/a/outputs/de_x.csv", "x\n", mtime=time.time() - 7200)
+        self.write(FIT, "min_cells = 7\n", mtime=time.time())
+        item = self.items(self.collect(analysis="analysis/a"), "output")[0]
+        self.assertIn("analysis/a/outputs/de_x.csv", item["observed"])  # the file the pattern found, not the pattern
+        self.assertNotIn("missing", item["title"])
+
+    def test_a_malformed_approval_is_a_message_not_a_traceback(self):
+        digest = self.approve(plan("min_cells 500"))
+        with open(os.path.join(self.root, ".mycelium-extra", "approvals", digest + ".json"), "w") as handle:
+            json.dump({"hash": digest, "plan": 5}, handle)
+        message = self.cli("--analysis", "analysis/a", fail=True)
+        self.assertIn("invalid approval state", message)
+        self.assertNotIn("Traceback", message)
+
+    def test_a_failed_write_still_shows_the_card(self):
+        link = os.path.join(tempfile.mkdtemp(), "link")
+        self.addCleanup(shutil.rmtree, os.path.dirname(link))
+        os.symlink(self.root, link)  # the repo reached through a symlink: the state writer refuses
+        out = self.cli("--analysis", "analysis/a", repo=link)
+        self.assertIn("Attention", out)
+        self.assertIn("Files      none written: refusing a symlinked state target", out)
+
+    def test_redaction_covers_quoted_keys_and_auth_schemes(self):
+        redact = tc.Redactor()
+        for line in ('"password": "hunter2"', "'api_key': 'abc123def'", "Authorization: Bearer abcdef1234567890",
+                     "token=xyz987", "x = 1  # secret: s3cr3tvalue"):
+            out = redact(line)
+            for leak in ("hunter2", "abc123def", "abcdef1234567890", "xyz987", "s3cr3tvalue"):
+                self.assertNotIn(leak, out, line)
+        self.assertEqual(redact.count, 5)
+        self.assertEqual(redact("min_cells = 500"), "min_cells = 500")
+
+    def test_the_objective_text_is_redacted_too(self):
+        self.write("analysis/a/A.md", "Objective: fit with token=abc123xyz789 for the run.\n")
+        data = self.collect(analysis="analysis/a")
+        self.assertNotIn("abc123xyz789", json.dumps(data))
+
+    def test_legacy_receipts_and_multi_plan_receipts_are_not_misread(self):
+        first, second = self.two_plans()
+        now = time.time()
+        with open(os.path.join(self.root, ".mycelium-extra", "receipts.jsonl"), "a") as handle:
+            for record in ({"ts": now, "plans": [second], "kind": "python", "paths": [FIT], "launch_match": "matched", "explore": False},
+                           {"ts": now + 1, "plans": [first, second], "kind": "python", "paths": [FIT], "exit_status": 0,
+                            "launch_match": "matched", "approval_instance": "deadbeefdeadbeef", "explore": False}):
+                handle.write(json.dumps(record) + "\n")
+        item = self.items(self.collect(analysis="analysis/a", original=first), "execution")[0]
+        self.assertIn("0 failed", item["title"])  # no exit_status is unknown, not "exited None"
+        self.assertIn("run completion is unknown for 1 run(s)", item["unknown"])
+        self.assertNotIn("different approval instance", item["authorization"])  # a two-plan receipt says nothing about this instance
+
+    def test_edits_outside_the_project_path_are_counted(self):
+        path = os.path.join(self.root, "session.jsonl")
+        edit = {"type": "assistant", "timestamp": tc.iso(time.time() + 20), "message": {"content": [
+            {"type": "tool_use", "name": "Edit", "input": {"file_path": "/somewhere/else/x.py"}}]}}
+        with open(path, "w") as handle:
+            handle.write(json.dumps(edit) + "\n")
+        self.hook("prompt", {"prompt": "focus analysis/a", "transcript_path": path})
+        data = self.collect()
+        self.assertTrue(any("1 transcript edit(s) lay outside the project path" in l for l in data["coverage"]["limitations"]))
+
+    def test_two_folders_never_share_a_report_folder(self):
+        for rel in ("analysis/a-b", "analysis/a/b"):
+            os.makedirs(os.path.join(self.root, rel), exist_ok=True)
+            self.cli("--analysis", rel)
+        folders = sorted(os.listdir(os.path.join(self.root, ".mycelium-extra", "track-changes")))
+        self.assertEqual(folders, ["analysis__a-b", "analysis__a__b"])
+
+    def test_scripts_nothing_pinned_are_listed_as_not_observed(self):
+        data = self.collect(analysis="analysis/a")
+        self.assertIn("scripts no approval pinned and no run touched", data["coverage"]["not_observed"])
 
 
 class ExecutionAndOutputsTest(Base):
@@ -366,7 +444,7 @@ class SafetyTest(Base):
         self.assertEqual(self.tree(), before)
         self.assertEqual({p: os.path.getmtime(os.path.join(self.root, ".mycelium-extra", p)) for p in before}, mtimes)
         self.assertEqual(os.path.getmtime(os.path.join(self.root, FIT)), scripts)
-        folder = os.path.join(self.root, ".mycelium-extra", "track-changes", "analysis-a")
+        folder = os.path.join(self.root, ".mycelium-extra", "track-changes", "analysis__a")
         self.assertEqual(sorted(os.listdir(folder)), ["brief.md", "report.html", "snapshot.json"])
         self.assertTrue(all(oct(os.stat(os.path.join(folder, n)).st_mode & 0o777) == "0o600" for n in os.listdir(folder)))
 
@@ -383,7 +461,7 @@ class SafetyTest(Base):
         self.write(FIT, "min_cells = 500\n", mtime=time.time() - 3600)
         second = self.approve(plan(evil, outputs="analysis/a/outputs2/"))
         self.cli("--analysis", "analysis/a", "--original", first)
-        with open(os.path.join(self.root, ".mycelium-extra", "track-changes", "analysis-a", "report.html"), encoding="utf-8") as handle:
+        with open(os.path.join(self.root, ".mycelium-extra", "track-changes", "analysis__a", "report.html"), encoding="utf-8") as handle:
             page = handle.read()
         self.assertEqual(page.count("</script>"), 2)  # the data block and the viewer: nothing inside a value can end one
         self.assertNotIn("<img", page)
@@ -407,12 +485,14 @@ class SafetyTest(Base):
 
     def test_viewer_runs_and_every_control_clicks(self):
         node = shutil.which("node")
+        if not node and os.environ.get("CI"):
+            self.fail("node is required in CI: the viewer would otherwise go untested")
         if not node:
             self.skipTest("node not installed")
         first, second = self.two_plans()
         self.write(FIT, "min_cells = 50\nalpha = 0.01\n", mtime=time.time())
         self.cli("--analysis", "analysis/a", "--original", first)
-        page = os.path.join(self.root, ".mycelium-extra", "track-changes", "analysis-a", "report.html")
+        page = os.path.join(self.root, ".mycelium-extra", "track-changes", "analysis__a", "report.html")
         proc = subprocess.run([node, os.path.join(HERE, "viewer_smoke.js"), page], stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE, universal_newlines=True)
         self.assertEqual(proc.returncode, 0, proc.stderr)
@@ -420,6 +500,8 @@ class SafetyTest(Base):
 
     def test_viewer_script_parses(self):
         node = shutil.which("node")
+        if not node and os.environ.get("CI"):
+            self.fail("node is required in CI: the viewer would otherwise go untested")
         if not node:
             self.skipTest("node not installed")
         js = os.path.join(PLUGIN, "skills", "track-changes", "assets", "viewer.js")
