@@ -2,7 +2,7 @@
 
 [Back to the usage tiers](usage.md)
 
-One session on the fixture project (`tests/fixtures/mycelium-project`): plan, approve, run, verify. Every output block below is what the hooks and `verify` printed in a real run on 2026-10-19, at version 0.12.0. The two exceptions are the plan, which is written by hand because the model writes it in a real session (the file is `tests/e2e/plans/baseline_plan.md`), and Mycelium's lineage manifest, which the test harness writes where Mycelium's own hook would. Regenerate with Python 3.9 or later (for example `python3.12 tests/e2e/make_example.py`; see the top of that file for the tools it needs) when an output format changes.
+One session on the fixture project (`tests/fixtures/mycelium-project`): plan, approve, run, verify. Every output block below is what the hooks and `verify` printed in a real run on 2026-10-19, at version 0.13.2. The two exceptions are the plan, which is written by hand because the model writes it in a real session (the file is `tests/e2e/plans/baseline_plan.md`), and Mycelium's lineage manifest, which the test harness writes where Mycelium's own hook would. Regenerate with Python 3.9 or later (for example `python3.12 tests/e2e/make_example.py`; see the top of that file for the tools it needs) when an output format changes.
 
 ## 1. Ask
 
@@ -102,17 +102,17 @@ Code checks     lint clean; 2 threshold finding(s) are Choices you approved
 Not checked     3 Validation cell(s) are prose; whether the code implements the choices (that is review)  
 Next            confirm saving provenance to analysis/vaccine-response/provenance/  
 
-Approved 2026-10-19 11:31 - analysis folder `analysis/vaccine-response` - 3 run(s) under this plan - HEAD b19559e1de21 (clean)
+Approved 2026-10-19 13:27 - analysis folder `analysis/vaccine-response` - 3 run(s) under this plan - HEAD b19559e1de21 (clean)
 
 ## Scope
 
-- Checked against approval instance 371b72bfa0f462b7: 3 run(s) under it - launch evidence 3 matched, 0 unmatched, 0 ambiguous, 0 legacy (launch link not recorded).
+- Checked against approval instance e545c5a61f5f86e3: 3 run(s) under it - launch evidence 3 matched, 0 unmatched, 0 ambiguous, 0 legacy (launch link not recorded).
 - Producers: 3 of 3 output(s) have a supported producer; 0 candidate, 0 unresolved (only a supported producer is named).
 - Qualification: **qualified**; separate from the verify status below, and not a scientific judgement.
 
 | Evidence | State | Basis |
 |---|---|---|
-| authorization | established | 3 of 3 run(s) are matched launches under approval instance 371b72bfa0f462b7 |
+| authorization | established | 3 of 3 run(s) are matched launches under approval instance e545c5a61f5f86e3 |
 | completion | established | all 3 planned step(s): the latest attempt of each completed |
 | code and input identity | established | 5 script(s) and input(s) unchanged, compared by content hash |
 | lineage | established | 3 of 3 declared output(s) have a supported producer (a matched attempt saw each change) |
@@ -127,9 +127,9 @@ Approved 2026-10-19 11:31 - analysis folder `analysis/vaccine-response` - 3 run(
 
 | Script | Status | Last run | Notes |
 |---|---|---|---|
-| `analysis/vaccine-response/scripts/01_select_samples.py` | ran (exit 0 from hook event) | 2026-10-19 11:31 |  |
-| `analysis/vaccine-response/scripts/02_paired_test.py` | ran (exit 0 from hook event) | 2026-10-19 11:31 |  |
-| `analysis/vaccine-response/scripts/03_summary.R` | ran (exit 0 from hook event) | 2026-10-19 11:31 |  |
+| `analysis/vaccine-response/scripts/01_select_samples.py` | ran (exit 0 from hook event) | 2026-10-19 13:27 |  |
+| `analysis/vaccine-response/scripts/02_paired_test.py` | ran (exit 0 from hook event) | 2026-10-19 13:27 |  |
+| `analysis/vaccine-response/scripts/03_summary.R` | ran (exit 0 from hook event) | 2026-10-19 13:27 |  |
 
 ## Pinned inputs
 
@@ -142,9 +142,9 @@ Approved 2026-10-19 11:31 - analysis folder `analysis/vaccine-response` - 3 run(
 
 | Output | Written | By | Evidence | Fingerprint |
 |---|---|---|---|---|
-| `analysis/vaccine-response/outputs/samples_used.tsv` | 2026-10-19 11:31 | `python3 analysis/vaccine-response/scripts/01_select_samples.py` at 2026-10-19 11:31 | attempt-observed, supported | sha256 b980761d554c |
-| `analysis/vaccine-response/outputs/de_results.tsv` | 2026-10-19 11:31 | `python3 analysis/vaccine-response/scripts/02_paired_test.py` at 2026-10-19 11:31 | attempt-observed, supported | sha256 67c17edf1d9b |
-| `analysis/vaccine-response/outputs/summary.tsv` | 2026-10-19 11:31 | `Rscript analysis/vaccine-response/scripts/03_summary.R` at 2026-10-19 11:31 | attempt-observed, supported | sha256 409ac0ca64d2 |
+| `analysis/vaccine-response/outputs/samples_used.tsv` | 2026-10-19 13:27 | `python3 analysis/vaccine-response/scripts/01_select_samples.py` at 2026-10-19 13:27 | attempt-observed, supported | sha256 b980761d554c |
+| `analysis/vaccine-response/outputs/de_results.tsv` | 2026-10-19 13:27 | `python3 analysis/vaccine-response/scripts/02_paired_test.py` at 2026-10-19 13:27 | attempt-observed, supported | sha256 67c17edf1d9b |
+| `analysis/vaccine-response/outputs/summary.tsv` | 2026-10-19 13:27 | `Rscript analysis/vaccine-response/scripts/03_summary.R` at 2026-10-19 13:27 | attempt-observed, supported | sha256 409ac0ca64d2 |
 
 ## Lint
 
@@ -157,6 +157,10 @@ Approved 2026-10-19 11:31 - analysis folder `analysis/vaccine-response` - 3 run(
 - `analysis/vaccine-response/VACCINE_RESPONSE.md`: 8 verified (0 via transform), 0 mismatch, 0 unverified, 0 explore-only; 8 other number(s) not claimed
   - Coverage: 1 block(s), 8 claim line(s); 8 cell(s) checked, 8 matched, 0 mismatched, 0 unverified; 8 prose number(s) listed, not checked.
 
+## Citations
+
+- none found (a citation needs a DOI, a `PMID:` number or an `arXiv:` number to be checked).
+
 ## Findings
 
 - **info**: 4 other script(s) in the analysis folder are not in the plan, and no run of them since the approval was recorded.
@@ -165,6 +169,7 @@ Approved 2026-10-19 11:31 - analysis folder `analysis/vaccine-response` - 3 run(
 - **info**: `analysis/vaccine-response/reports/report.Rmd:10` [R002]: its threshold is a Choice the plan approved, so it does not block.
 - **info**: `analysis/vaccine-response/scripts/03_summary.R:8` [R002]: its threshold is a Choice the plan approved, so it does not block.
 - **info**: 8 number(s) in `analysis/vaccine-response/VACCINE_RESPONSE.md` near its claims block are not claims, so not checked: L21 `0.05`, L21 `28`, L21 `0`, L24 `2`, L24 `924`, L25 `12`, L25 `6`, L25 `6`.
+- **info**: No DOI, PMID or arXiv ID in the checked document(s).
 - **info**: 3 Validation cells are prose only; nothing checks them.
 
 ## Not visible to verify
@@ -174,6 +179,7 @@ Approved 2026-10-19 11:31 - analysis folder `analysis/vaccine-response` - 3 run(
 - Code run through MCP notebook tools (`nb_*_execute`) bypasses both the gate and the lineage.
 - A run of a planned script proves it ran, not that it implements the plan's choices; that is what the review step checks.
 - Claims are checked only where a document's `<!-- claims -->` block names the output cell; other numbers in the text are listed, not checked, and a verified claim matches its cell, not the truth.
+- A resolved citation shows that the identifier exists and that its title and first author appear in the citation text; it does not show that the paper supports the sentence citing it.
 - With `snakemake --use-conda`, rules run in their own envs under `.snakemake/conda/`; the conda env recorded is the one Snakemake ran in, not the rules' envs.
 - Pip packages are read from the conda env's site-packages: one uninstalled after the run is not seen, and `pip install --user` packages under `~/.local` are not read.
 
