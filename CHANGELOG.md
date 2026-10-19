@@ -2,6 +2,26 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.14.0] - 2026-10-19
+
+The roadmap items that were parked behind the 2026-10-31 usage measurement, built at the user's request on 2026-10-19, plus grill's Socratic and librarian references. The one decision-visible change is the card: `card_coverage` is now on by default, which adds a `Coverage` line to the approval card and nothing else (`gate_diff` differs from 0.13.2 in 12 of 173 cases, each only that row; the reviewed oracle `hooks/tests/gate_diff_expected.json` is regenerated to match). Set `"card_coverage": false` to turn it off.
+
+### Added
+
+- **`grill` Socratic mode, `explain row N`, `challenge row N`:** `references/socratic.md`. Off by default; one neutral probe inside a question you own, whose answer becomes the row's Validation cell. Explain and challenge are read-only, spend no questions, and never approve or edit.
+- **`grill` librarian dossier:** `references/evidence-assistance.md` now defines what the evidence lookup returns (what was searched, found, not found, the alternatives, and the decision left to you) and makes it available for any row after the plan is shown.
+- **`track_changes.py --explain <item_id>` (M4):** a bounded five-heading evidence block for one report item, read-only, writing no files; Review Brief pointers from `grill`, `handoff` and the Mycelium integration page.
+- **`focus_id` and `focus_folder` in receipts, and `focus_notices` (M3):** a matched receipt records the focus open at launch; with `"focus_notices": true` (default `false`) the Stop hook shows one plain line, once per focus and folder, for runs under another gated analysis.
+- **`verify` per-rule conda envs (E1b):** reads literal `conda:` paths from the Snakefile, records each env file's hash and, when a byte-identical built env exists, its conda-meta and pip packages. **The layout is checked only on a synthetic fixture** (`synthetic_format_only: true`); an env it does not recognise is a gap.
+- **`docs/decisions.md`:** the decisions that still bind and the dead ends not to redo.
+
+### Changed
+
+- `card_coverage` defaults to `true` (see above).
+- README restructured as Introduction, Installation, Input Data, User Guide, License.
+- Documentation site uses the Clarity theme (`sphinx_clarity_theme` 2.1.0 by ReadCraft, Community MIT licence; its footer attribution is kept). The Sphinx `-W` build passes locally.
+- Roadmap 11 and 12: the librarian is a role inside `grill`, not an adapter; the live Socratic study (M5b) stays parked.
+
 ## [0.13.2] - 2026-10-19
 
 The last open tasks of four roadmap waves: what the card cannot establish before a run, a decision trace for one plan row, citation resolution, and a disclosure draft for the agent's own part. Nothing here changes an allow or deny decision (`gate_diff` 173/173 identical).
