@@ -48,6 +48,14 @@ Turns on the approval gate for the current repository. Writes
 `.mycelium-extra/gate.json` and adds `.mycelium-extra/` to `.gitignore`;
 leaves an existing gate unchanged. Default paths are `analysis/**` and `nbs/**`.
 See [Gate settings](approval-gate.md#settings) to change coverage.
+`init` shows the effective config with every `gate.json` key at its real default.
+
+Flags of the script (`gate_init.py`, run through `hooks/py.sh` from stdin; the skill does this for you):
+
+- `--paths GLOB ...`, `--commands CMD ...`, `--hours N`: write those values into a new `gate.json` instead of the defaults.
+- `--dry-run`: say what would be created and change nothing.
+- `--tools [--scilintr PATH] [--rscript PATH]`: record where the linters are (`.mycelium-extra/tools.json`).
+- `--diagnose`: read-only report of the effective config (invalid values flagged), hook registrations, Mycelium version, which optional tools are present, and the last receipt and gate error.
 
 ## verify
 
@@ -93,6 +101,8 @@ Challenges a grill draft before approval. In Claude Code or OpenCode, the host
 assembles a minimal packet for separate Codex engineering and Biomni biomedical critiques.
 Before anything leaves the machine it runs a pre-send check and asks you to type `send packet <digest>`; Biomni uses cloud credits. The check and the consent mechanics are in [Advanced features](advanced.md#plan-review-packets-and-consent). Missing reviewers are reported unavailable.
 
+It also runs `scripts/default_reasons.py` on the plan table: it names each row whose `default:` has no reason, a reason under three words, or only an empty phrase. It is advisory and does not judge whether a reason is correct; `verify` runs the same check on the frozen plan.
+
 Writes nothing and approves nothing (apart from the prepared packet folder the send
 route needs). Material revisions need a new approval.
 In Codex, this skill supplies the engineering critique only.
@@ -108,8 +118,22 @@ Usually called by `grill` when a plan depends on prior decisions.
 ## data-contract-check
 
 Compares a plan's assumptions with CSV/TSV sample tables or H5AD `obs`.
-Checks columns, cohort levels/counts, unique units, complete pairs, and batch
-versus contrast nesting. Writes nothing. H5AD needs h5py; a missing dependency
+Writes nothing. The nine check kinds:
+
+| Kind | What it checks |
+|---|---|
+| `schema` | the named columns exist |
+| `cohort` | required levels present, row counts, no missing values in named columns |
+| `unit_of_replication` | units per group and per group-by-within cell |
+| `pairing` | every unit observed at every `within` level |
+| `batch_confounding` | contrast fully nested in batch, or levels sharing no batch |
+| `unique_key` | the named columns are nonempty and their combination is unique |
+| `sample_alignment` | the table's sample keys match a declared sample sheet |
+| `identifiers` | identifiers are unique and found in a declared namespace file |
+| `h5ad_layer` | properties of an `.h5ad` matrix (non-negative, integer-valued, maximum) |
+
+`--result-json PATH` also writes a machine-readable result (`mycelium-extra.contract_result.v1`).
+Contract syntax is in the skill's `SKILL.md`. H5AD needs h5py; a missing dependency
 is a gap. Never loosens the contract to make a failed check pass without agreement.
 Usually called by `grill` when sample assumptions matter.
 
@@ -129,7 +153,8 @@ approved plans, scripts edited since each approval (with diffs), the gate's run
 records, declared outputs older than the code, and, from a Claude Code transcript,
 direct edits to other analyses. Prints a short card and writes `brief.md` and an
 offline `report.html` under `.mycelium-extra/track-changes/`. Approves, freezes and
-runs nothing; lists what it did not observe. See
+runs nothing; lists what it did not observe. `--no-write` prints the card and writes no
+files; `--explain <item_id>` shows the evidence for one card item. See
 [Focus and track changes](focus-and-track-changes.md).
 
 ## handoff
@@ -147,7 +172,7 @@ Parks a passing idea without a question, so the main work keeps its flow. Writes
 `todo/<slug>.md` and one `todo/TODO_REGISTRY.md` row (priority `idea`, status
 `open`) in Mycelium's todo format, then replies with one line. Uses your words as
 written. Writes only under `todo/`: no code runs, and a plan waiting for approval
-stays approvable. Mycelium's own `todo-idea` mode asks up to six questions first;
+stays approvable. If the registry write fails, rerun the same command with `--recover` instead of `--text-file`: it finishes the pending capture without creating a second item. Mycelium's own `todo-idea` mode asks up to six questions first;
 `idea` is the no-question path into the same registry.
 
 ## idea-triage

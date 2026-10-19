@@ -4,7 +4,7 @@
 
 **On this page:** [Approving a plan](#approving-a-plan) · [What is gated](#what-is-gated) · [Pinned inputs](#pinned-inputs) · [Optional features](#optional-features) · [Pinned scripts](#pinned-scripts) · [Run receipts](#run-receipts) · [Mycelium's post-action protocol](#myceliums-post-action-protocol) · [Exploratory runs](#exploratory-runs) · [Lint on write](#lint-on-write) · [Command hints](#command-hints) · [Settings](#settings) · [Limits](#limits)
 
-A plan is useful only if the run still follows it. The approval gate checks covered analysis commands before execution, so an agent cannot start a new run just because a previous conversation discussed it. You decide what is approved, and the gate keeps a record of the runs that follow.
+A plan is useful only if the run still follows it. The approval gate checks covered analysis commands before execution, so an agent cannot start a new run just because a previous conversation discussed it. You decide what is approved, and the gate keeps a record of the runs that follow. The gate catches execution mistakes and shows gaps; it is not a security boundary. The confirmation steps in the skills (`verify write`, `decision-status`, `harden`, `idea-triage`, `new-analysis`) are instructions to the agent: they ask first, but nothing enforces it.
 
 For example, a plan might cover `analysis/response/02_model.R` using a particular sample table. Approving it allows that run for the configured window. If a pinned sample table changes, the gate asks for a checked, revised plan before the covered run proceeds.
 

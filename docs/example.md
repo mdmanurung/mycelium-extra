@@ -59,6 +59,8 @@ Choices   1 keep preferred_acquisition == TRUE  [repo: .living/decisions.md]
 Defaults to confirm: step 3  (* = a default decided)
 Checks    24 rows, 12 donors x 2 visits · sample IDs identical across tables ·
           summary row count 1
+Coverage  0 steps with a bound check, 3 prose only (rows 1, 2, 3) · 0 exact steps
+          · any arguments elsewhere
 Since earlier plans: no baseline (no earlier approval names these paths)
 Runs      3 scripts (3 pinned) · any arguments · reads 2 pinned · writes 3
           lint: step 3: clean; 1 approved threshold(s)
@@ -66,7 +68,7 @@ More: `card 84bb5fce full` (every grant, file and check)
 ▶ approve  (or approve plan 84bb5fce)
 ```
 
-The `lint` line counts step 3's threshold as an approved Choice, not an open finding. The card is for your eyes and never blocks; `verify` decides below.
+The `Coverage` row (on by default since 0.14.0) says how many steps have a Validation cell bound to a check; here none do, so all three are prose only. That row was taken from a 0.14.0 run of the same plan, without a linter, so the rest of the card is as at 0.13.2. The `lint` line counts step 3's threshold as an approved Choice, not an open finding. The card is for your eyes and never blocks; `verify` decides below.
 
 ## 5. Approval
 
