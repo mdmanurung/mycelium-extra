@@ -33,6 +33,7 @@ These come from decisions already locked in this repository. A task that would b
 | 8 | Working scope, amendment and freeze | [08-working-scope.md](08-working-scope.md) |
 | 9 | Validation recipes, correction lookup, coverage row | [09-clawbio-lessons.md](09-clawbio-lessons.md) |
 | 10 | Focus and track changes | [10-focus-track-changes.md](10-focus-track-changes.md) |
+| 11 | Coverage exceptions, decision trace, recipe gaps, evidence assistance | [11-coverage-and-evidence.md](11-coverage-and-evidence.md) |
 | 12 | Agentic reasoning: heuristics, objection classification, post-report reading | [12-agentic-reasoning.md](12-agentic-reasoning.md) |
 
 Phases are a suggested order, not a gate; a task may start once its dependencies are done. B5 is a decision for the maintainer, not a build task, and has no phase.
@@ -76,6 +77,7 @@ Every task uses these fields, under a `### <ID>: <title>` heading:
 - [06-anti-gaming.md](06-anti-gaming.md): D10 to D12, checking that oversight stays real.
 - [07-execution-fidelity.md](07-execution-fidelity.md): C01 to C13, the implementation tracker for execution fidelity: no false assurance from incomplete evidence.
 - [10-focus-track-changes.md](10-focus-track-changes.md): M0 to M2 built in `0.13.0`/`0.13.1`; M3 and M4 parked behind the ~2026-10-31 usage measurement.
+- [11-coverage-and-evidence.md](11-coverage-and-evidence.md): CT-1, DT-1, VR-1 gap fill and ER-1, the tracker for opt-in coverage exceptions, the decision trace, recipe gaps and evidence assistance.
 - [12-agentic-reasoning.md](12-agentic-reasoning.md): M0 to M4 reasoning contracts in grill, plan-review and verify; M5 (live Socratic study) parked.
 
 ## Updating this roadmap
