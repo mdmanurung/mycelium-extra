@@ -173,6 +173,34 @@ class GrillReferenceContractTest(unittest.TestCase):
         self.assertIn("references/evidence-assistance.md", skill)
         self.assertIn("the question may add an evidence lookup as one option", skill)
 
+    def test_socratic_mode_is_opt_in_and_read_only(self):
+        socratic = read(os.path.join(SKILL, "references", "socratic.md"))
+        skill = read(os.path.join(SKILL, "SKILL.md"))
+        assistance = read(os.path.join(SKILL, "references",
+                                       "evidence-assistance.md"))
+        self.assertIn("references/socratic.md", skill)
+        # Off by default, conversation only, nothing recorded.
+        self.assertIn("Friction is opt-in", socratic)
+        self.assertIn("no `gate.json` key, no stored state", socratic)
+        # One probe inside the question: no extra question, no cap spent, options kept.
+        self.assertIn("add **one** probe to the same message", socratic)
+        self.assertIn("costs nothing against the five-question cap", socratic)
+        self.assertIn("must not name the answer the agent prefers", socratic)
+        self.assertIn("`[human-stated]`", socratic)
+        # Explain and Challenge never edit, approve, or manufacture an objection.
+        self.assertIn("`explain row N`", socratic)
+        self.assertIn("`challenge row N`", socratic)
+        self.assertIn("`no strong objection found`", socratic)
+        self.assertIn("Both are read-only", socratic)
+        self.assertIn("never with an edit", socratic)
+        self.assertIn("Do not close either answer by asking whether to approve", socratic)
+        # The librarian dossier shows what left the machine and what was not found.
+        self.assertIn("## The librarian dossier", assistance)
+        self.assertIn("`Searched:`", assistance)
+        self.assertIn("`Not found:`", assistance)
+        self.assertIn("`Yours to decide:`", assistance)
+        self.assertIn("## After the plan is shown", assistance)
+
 
 if __name__ == "__main__":
     unittest.main()

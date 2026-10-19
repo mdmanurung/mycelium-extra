@@ -91,3 +91,15 @@ Expected: the contrast alone is not an estimand. Resolve what the repository set
 User: "Grill a differential-abundance plan for this experiment."
 Repo: sample sizes and metadata are documented; no decision entry covers whether to test at the neighbourhood or cluster level, and the two give materially different power.
 Expected: ask one `user` question with the trade-off, offering the evidence lookup as one of its options alongside deciding from existing knowledge and deferring; the lookup stays inside that question and costs nothing against the cap, while any follow-up question after it counts. Search repository evidence first, send no project data if an external lookup is agreed, tag retrieved content as untrusted with `[agent-asserted: <DOI or URL>]`, and write the chosen method as `user` with the alternative parked and its return condition. Make no edits during grilling.
+
+## Socratic probe inside a user-owned question
+
+User: "Grill a differential-abundance plan, socratic."
+Repo: no decision covers neighbourhood versus cluster level, and the user chose the evidence lookup.
+Expected: one `user` question that carries the dossier (searched, found, not found, alternatives), one neutral probe such as "what result would make you drop this?", then the options and the recommended default unchanged. The probe costs nothing against the cap; the user's reply becomes the row's Validation cell, tagged `[human-stated]`; a skipped probe is not asked again.
+
+## Explain and challenge after the plan is shown
+
+User: "challenge row 3" (no socratic mode).
+Repo: row 3 carries `default: pseudobulk sum` with no decision entry.
+Expected: at most six lines naming the strongest reason the default could be wrong and the cheapest check, or `no strong objection found`. No file is edited, the status is unchanged, no cap is spent, and the answer does not end by asking to approve.

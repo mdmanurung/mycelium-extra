@@ -52,7 +52,7 @@ Order is fixed: each one is its own commit on branch `v0120b`, tests green, befo
 ## Out of scope
 - ED-1, deferred.
 - D2 and D3: implemented in 0.13.2 (`0d5bfa8`) — see `05-mindfulness-core.md`; this lane's own changes are CT-1, DT-1, VR-1, ER-1 and the tracker itself.
-- No Librarian adapter.
+- No Librarian adapter, skill or server. The user reopened the librarian idea on 2026-10-19 as a role inside grill's `evidence-assistance.md` (a dossier), not an adapter; see `12-agentic-reasoning.md` M5a.
 - Regenerating `docs/example.md`: done in `316b7af` at 0.12.0 (ClawBio step `5b`), with the Python `scilintr` from the archive `codex` environment and the `cellbouncer` `Rscript`; `tests/test_example.py` passes.
 - Version, release, push, tag and PR: decided later with the user. No CHANGELOG or manifest edits here.
 

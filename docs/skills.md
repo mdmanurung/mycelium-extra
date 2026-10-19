@@ -29,6 +29,14 @@ It asks only consequential questions you own, at most five after the opening
 question. It calls `decision-status` and `data-contract-check` when needed.
 It writes nothing and runs no analysis.
 
+To be better informed before you approve, ask for the evidence lookup in a
+question (a librarian-style dossier: what was searched, what was found, what
+was not, the alternatives, and the decision left to you). Say `socratic` to get
+one neutral probe per question ("what result would make you drop this?"); your
+answer becomes the row's check. After the plan is shown, type `explain row N`
+or `challenge row N` for a short, read-only answer. None of these approves,
+edits, or counts toward the five questions.
+
 The brief ends with `READY`, `READY_WITH_ASSUMPTIONS`, or `DECISION_REQUIRED`.
 Its `Inputs:` line identifies files the gate will pin. With the gate enabled,
 use the displayed `approve plan <hash>` message to authorize covered runs.
