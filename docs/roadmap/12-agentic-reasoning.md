@@ -1,6 +1,6 @@
 # 12 · Agentic reasoning (tracker)
 
-Objective: make the agent's reasoning inspectable at the two places it matters — before approval (`grill` resolving a blocked plan; `plan-review` classifying objections) and after a report (`verify` interpreting one) — without adding questions, prompts, or unverifiable claims. Milestones come from `plans/mycelium-agentic/AGENTIC_ENGINEERING_PATTERNS_COMPLETE_BUNDLE.md` (archived at `plans/_DONE/mycelium-agentic/`).
+Objective: make the agent's reasoning inspectable at the two places it matters — before approval (`grill` resolving a blocked plan; `plan-review` classifying objections) and after a report (`verify` interpreting one) — without adding questions, prompts, or unverifiable claims. Milestones come from `plans/_DONE/mycelium-agentic/AGENTIC_ENGINEERING_PATTERNS_COMPLETE_BUNDLE.md` (archived 2026-10-19, all four milestones landed).
 
 Statuses: **done**, **parked**, **dropped**.
 

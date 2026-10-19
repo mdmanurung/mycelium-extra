@@ -107,7 +107,7 @@ Every row remains open until its required executable or observed evidence exists
 
 ## Reconciliation at 0.9.74 (2026-10-17)
 
-The sections above record the first pass by the Codex session, which stopped on 2026-10-16. A second session took over, committed that work in its own commit-plan groups (`62628c3` to `0a4042e`), fixed what the independent approval and execution-evidence audit still found (the audit bundle `plans/mycelium_extra_audit/`, kept locally and not in the repository, pinned to 0.9.70 at `384e639`), and pushed to `origin/main`. Where the sections above say "dirty 0.9.71", "not pushed" or "23 differences", this section is current.
+The sections above record the first pass by the Codex session, which stopped on 2026-10-16. A second session took over, committed that work in its own commit-plan groups (`62628c3` to `0a4042e`), fixed what the independent approval and execution-evidence audit still found (the audit bundle `plans/_DONE/mycelium_extra_audit/`, kept locally and not in the repository, pinned to 0.9.70 at `384e639`), and pushed to `origin/main`. Where the sections above say "dirty 0.9.71", "not pushed" or "23 differences", this section is current.
 
 ### State
 
