@@ -173,10 +173,12 @@ local candidate, not a published installation.
 
 ## Usage measurement (the ~2026-10-31 review)
 
-The opt-in features shipped between 0.11.0 and 0.13.1 were released on the
+The opt-in features shipped between 0.11.0 and 0.13.2 were released on the
 understanding that they would be reviewed after a measurement window: the
 `card_coverage` row, the coverage exceptions, the decision trace, the correction
-lookup and the evidence assistance. Nothing in the gate records a "feature was
+lookup and the evidence assistance. The last two landed in 0.13.2, so they have
+the shortest exposure before the ~2026-10-31 review and a low reading for them
+says more about the calendar than about the feature. Nothing in the gate records a "feature was
 used" event, and none of the state files is written for this purpose, so the
 measurement is assembled read-only from what the gate already keeps. Run it
 against each live project that has a `.mycelium-extra/` folder; the two in use
