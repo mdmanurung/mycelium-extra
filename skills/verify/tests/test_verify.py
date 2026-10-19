@@ -1416,6 +1416,63 @@ sys.exit(1 if hits else 0)
         self.run_cmd("conda run -n fakeenv python " + FIT)
         self.assertNotIn("Conda env", self.verify("report", digest))
 
+    # E1b. Synthetic format, not validated against a real Snakemake run: no built
+    # `.snakemake/conda` folder existed on the machine this was written on.
+    SMK = "analysis/a/Snakefile"
+    SMK_ENV = "analysis/a/envs/fit.yaml"
+
+    def smk_project(self, snakefile=None, built=True, meta=True):
+        self.write(self.SMK, snakefile or 'rule fit:\n    conda: "envs/fit.yaml"\n    shell: "true"\n',
+                   mtime=time.time() - 3600)
+        self.write(self.SMK_ENV, "dependencies:\n  - python=3.11\n")
+        if built:
+            self.write(".snakemake/conda/abc123.yaml", "dependencies:\n  - python=3.11\n")
+            if meta:
+                self.write(".snakemake/conda/abc123/conda-meta/a-1-0.json",
+                           json.dumps({"url": "https://x/a-1-0.conda", "md5": "aa"}))
+                self.write(".snakemake/conda/abc123/conda-meta/history", "==> 2024 <==\n", mtime=time.time() - 7200)
+            else:
+                self.write(".snakemake/conda/abc123/bin/python", "")
+        return self.approve(plan("`{}`".format(self.SMK)))
+
+    def test_snakemake_rule_env_is_recorded(self):
+        digest = self.smk_project()
+        self.run_cmd("snakemake --use-conda --cores 1 -s " + self.SMK)
+        out = self.verify("report", digest)
+        self.assertIn("Rule env `{}` (rule `fit`): file sha256 ".format(self.SMK_ENV), out)
+        self.assertIn("1 packages recorded", out)
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        folder = os.path.join(self.root, "analysis/a/provenance")
+        with open(os.path.join(folder, "rule-envs-{}.json".format(digest))) as handle:
+            record = json.load(handle)["envs"][0]
+        self.assertEqual(record["packages"], ["https://x/a-1-0.conda#aa"])
+        self.assertEqual(len(record["sha256"]), 64)
+        self.assertTrue(record["synthetic_format_only"])
+        with open(os.path.join(folder, "PROVENANCE.md")) as handle:
+            self.assertIn("[rule envs](rule-envs-{}.json)".format(digest), handle.read())
+
+    def test_snakemake_rule_env_that_cannot_be_read_is_a_gap_never_recorded(self):
+        cases = [("no built env", dict(built=False), "no built env(s)"),
+                 ("no conda-meta", dict(meta=False), "format not recognised"),
+                 ("non-literal conda:", dict(snakefile="rule fit:\n    conda: ENV\n    shell: 'true'\n"),
+                  "`conda:` that is not a string literal"),
+                 ("missing env file", dict(snakefile='rule fit:\n    conda: "envs/gone.yaml"\n'),
+                  "could not be read")]
+        for name, kwargs, gap in cases:
+            with self.subTest(name):
+                digest = self.smk_project(**kwargs)
+                self.run_cmd("snakemake --use-conda --cores 1 -s " + self.SMK)
+                out = self.verify("report", digest)
+                self.assertIn(gap, out)
+                self.assertNotIn("packages recorded", out.split("Rule env")[-1] if "Rule env" in out else "")
+
+    def test_snakemake_rule_env_without_use_conda_is_a_gap(self):
+        digest = self.smk_project()
+        self.run_cmd("snakemake --cores 1 -s " + self.SMK)
+        out = self.verify("report", digest)
+        self.assertIn("does not show `--use-conda`", out)
+        self.assertNotIn("file sha256", out)
+
     def pip_env(self):
         """fakeenv plus site-packages: two conda-owned folders (one reinstalled by pip at the same
         version), a pip-only package, a pip upgrade over a conda one, an editable uv install, and a
@@ -3765,7 +3822,7 @@ class DecisionTraceTest(unittest.TestCase):
         keys = set(json.loads(before_json))
         self.assertEqual(keys, {
             "hash", "approved_at", "start", "session_id", "instance", "scope", "analysis_dir", "git", "runs", "scripts",
-            "folders", "commands", "inputs", "outputs", "outputs_named", "findings", "lint", "envs", "claims",
+            "folders", "commands", "inputs", "outputs", "outputs_named", "findings", "lint", "envs", "rule_envs", "claims",
             "citations", "recovery", "validation", "validation_binding", "status", "plan", "receipts",
             "qualification", "rerun"})
         # Calling the trace must not perturb what the plain report and --json print, byte for byte.

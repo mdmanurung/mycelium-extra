@@ -28,6 +28,7 @@ Open items carried in `HANDOFF.md`, turned into tasks. They are ordered by how o
 - **Tests:** a synthetic `.snakemake/conda/<hash>.yaml` and built env folder.
 - **Effort:** M. Return when a `--use-conda` pipeline runs under verify.
 - **Status:** parked 2026-10-16 by the user's decision: no real `--use-conda` pipeline exists to check Snakemake's env-folder format against, and a reader built on a synthetic fixture that reports "recorded" is worse than the current `LIMITS` line.
+- **Status (2026-10-19):** built (uncommitted at the time of writing) on the user's override of the 2026-10-16 park. `verify` reads each literal `conda:` env file's sha256 and, when exactly one `.snakemake/conda/<hash>.yaml` is a byte copy with a built `<hash>/` folder, its `conda-meta` and pip packages (`rule-envs-<hash>.json`); everything else is a gap. No real built `.snakemake/conda` folder exists on this machine (every one found was empty), so the folder layout is **synthetic and not validated against a real Snakemake run**; the `LIMITS` line and `docs/verification.md` say so. Return to validate it when a `--use-conda` pipeline has run.
 
 ## E2: Gate false positives on state-folder mentions
 
