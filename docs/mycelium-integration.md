@@ -100,6 +100,10 @@ so. Hints in Extra's skills and hooks are advice to the agent. Routing planning,
 approval, or verification through `analyze` would need an agreed upstream
 contribution; it is future collaboration, not a current integration.
 
+## Review brief for Mycelium's review
+
+`track-changes` writes `.mycelium-extra/track-changes/<analysis>/brief.md`: what changed against the approved plan, what is only potential, and what was not observed. Hand that one file to Mycelium's `review` before a freeze instead of re-deriving the changes. `grill` and `handoff` point to it when it exists. For the evidence behind one item, run `track-changes` with `--explain <item_id>`.
+
 ## Boundaries
 
 Extra's planning and data checks are read-only. Scaffolding writes only the new

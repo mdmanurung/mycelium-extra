@@ -10,7 +10,7 @@ A read-only account of how one analysis moved from what the researcher approved.
 ## 1. Run it
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. [--analysis <folder>] [--original <hash>] [--current <hash>] [--transcript <file>] [--json] [--no-write] < <skill-dir>/scripts/track_changes.py
+sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. [--analysis <folder>] [--original <hash>] [--current <hash>] [--transcript <file>] [--json] [--no-write] [--explain <item_id>] < <skill-dir>/scripts/track_changes.py
 ```
 
 - The analysis is this session's open `focus` (the session comes from `$CLAUDE_CODE_SESSION_ID`, or `--session`). A focus left open by another session is never used. Codex and OpenCode do not set that variable: pass `--session` or `--analysis` there. With no focus for this session, pass `--analysis`. Never guess one.
@@ -24,6 +24,10 @@ sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. [--analysis <
 Print the card as it comes: Baseline, Attention, Also, Unknown, then one `▶` line. Say which file is the brief and which is the HTML. Do not paraphrase an item into a verdict.
 
 Wording to keep, because it is what the evidence supports: *Observed code change*, *Potential analytical implication*, *Execution evidence gap*, *Relationship to current focus not established*. Never say a change is "safe", "validated", "no impact", "in scope" or "out of scope". A number changing in code is an observed edit, not a changed conclusion. Another analysis's folder may be a supporting dependency.
+
+### Explain one item
+
+`--explain <item_id>` (a unique id prefix is enough; ids are in `snapshot.json` and `brief.md`) prints one bounded block with five headings: Observed, Potential, Unknown, Authorization, Evidence. It is read-only and writes no files. Relay it as printed and keep its wording: it says what was seen, what is only potential and what was not observed, never whether the change is safe, validated, or in scope.
 
 ## 3. Offer next steps, as drafts
 

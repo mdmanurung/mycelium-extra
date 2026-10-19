@@ -32,6 +32,8 @@ What to rely on:
 
 ## Track changes
 
+To see the evidence behind one item, add `--explain <item_id>` (a unique id prefix works; ids are in `brief.md`). It prints five headings (Observed, Potential, Unknown, Authorization, Evidence), reads the same records, and writes nothing.
+
 ```text
 /mycelium-extra:track-changes [analysis/pbmc-ifn]
 ```

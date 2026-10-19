@@ -35,6 +35,7 @@ Write `HANDOFF.md` at the project root: the least a fresh session needs to keep 
   ```
 
   `approved` means nothing to carry. `pending` gives the file and hash for the Pending plan section. `none` (no gate, or no match): copy the brief into `HANDOFF.md` word for word instead.
+- If `.mycelium-extra/track-changes/<analysis>/brief.md` exists for the work in hand, list it under Read first as a pointer; do not summarise it.
 - If `HANDOFF.md` exists, read it before overwriting. Carry forward locked decisions, dead ends, and open items that still hold. Drop finished work, or keep it as one line with its commit hash.
 
 ## 2. Write

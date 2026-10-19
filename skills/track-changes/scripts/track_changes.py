@@ -26,6 +26,7 @@ import time
 SCHEMA = "mycelium-extra.track-changes.v1"
 CAP_ITEMS, CAP_PLAN_ITEMS, CAP_RECEIPTS, CAP_TIMELINE = 80, 25, 40, 200
 CAP_DIFF, CAP_DIFF_TOTAL = 40, 300
+CAP_EXPLAIN = 400
 CAP_TRANSCRIPT_BYTES, CAP_TRANSCRIPT_LINES = 20 * 1024 * 1024, 300000
 SECRET = re.compile(
     r"(?i)((?:api[_-]?key|secret|token|passw(?:or)?d|credential|auth)[\w-]*[\"']?\s*[:=]\s*[\"']?(?:(?:Bearer|Basic|Token)\s+)?\S+"
@@ -587,6 +588,34 @@ def collect(args, gate, focus, verify):
     }
 
 
+def explain(data, wanted):
+    """The bounded evidence block for one item: five headings, no verdict. A unique id prefix is enough."""
+    found = [i for i in data["items"] if i["id"] == wanted] or [i for i in data["items"] if i["id"].startswith(wanted)]
+    if len(found) != 1:
+        ids = ", ".join(i["id"] for i in data["items"][:8]) or "none"
+        raise Stop("{} item matches '{}'; ids in this snapshot: {}".format("no" if not found else "more than one", wanted, ids))
+    i = found[0]
+    by_id = {e["id"]: e for e in data["evidence"]}
+    lines = ["mycelium-extra · track-changes explain {} · {}".format(i["id"], i["title"]), ""]
+    lines += ["Observed", "  " + short(i["observed"] or i["summary"] or "nothing recorded", CAP_EXPLAIN), ""]
+    lines += ["Potential", "  " + short(i["potential"] or "no analytical implication was assessed", CAP_EXPLAIN), ""]
+    lines += ["Unknown", "  " + short(i["unknown"] or "not stated for this item", CAP_EXPLAIN),
+              "  not observed anywhere in this report: " + "; ".join(data["coverage"]["not_observed"]), ""]
+    lines += ["Authorization",
+              "  {}; focus relation {}; difference {}".format(
+                  short(i["authorization"] or i["authorization_relation"], CAP_EXPLAIN), i["focus_relation"], i["difference"]), ""]
+    lines += ["Evidence"]
+    for key in i["evidence"][:5]:
+        e = by_id[key]
+        lines.append("  {} {} {}".format(e["id"], e["source"], short(" ".join(x for x in (e["ref"], e["detail"]) if x), 100)))
+    if not i["evidence"]:
+        lines.append("  none recorded")
+    if len(i["evidence"]) > 5:
+        lines.append("  … and {} more in snapshot.json".format(len(i["evidence"]) - 5))
+    lines.append("This block approves, freezes and validates nothing; it does not say whether the change matters.")
+    return "\n".join(lines)
+
+
 def next_line(data):
     cur = data["baselines"]["current_plan"]
     by_kind = {}
@@ -691,6 +720,7 @@ def main(argv):
     parser.add_argument("--transcript")
     parser.add_argument("--json", action="store_true", help="print the snapshot instead of the card")
     parser.add_argument("--no-write", action="store_true", help="print only; write no files")
+    parser.add_argument("--explain", metavar="ITEM_ID", help="print the bounded evidence block for one item (read-only; writes no files)")
     args = parser.parse_args(argv)
     gate, focus, verify = load(args.plugin_root)
     try:
@@ -698,6 +728,13 @@ def main(argv):
     except (Stop, focus.FocusError, ValueError, OSError) as error:  # a malformed approval record is a ValueError
         print("track-changes: {}".format(error), file=sys.stderr)
         return 2
+    if args.explain:
+        try:
+            print(explain(data, args.explain))
+        except Stop as error:
+            print("track-changes: {}".format(error), file=sys.stderr)
+            return 2
+        return 0
     root = gate.find_root(args.repo) or os.path.abspath(args.repo)
     paths, write_error = {}, None
     if not args.no_write:
