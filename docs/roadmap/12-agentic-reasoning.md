@@ -12,7 +12,7 @@ Statuses: **done**, **parked**, **dropped**.
 | M1 | `skills/grill/references/polya-heuristics.md`: backward chain from claim to discriminating check, plus five selective heuristics for a blocked plan | done | this tracker; `skills/grill/SKILL.md` links it |
 | M2 | Material-objection classification in `skills/plan-review/`: four fields and a status per material objection, synthesis leading with the single strongest undecided crux | done | `skills/plan-review/references/review-contract.md`, `synthesis.md` |
 | M3 | Focus and track-changes (typed `focus`, read-only `track-changes`) | done (`0.13.0`) | [10-focus-track-changes.md](10-focus-track-changes.md) |
-| M4 | Three-line post-report interpretation template (*Established / Still uncertain / Next insight*) in `skills/verify/SKILL.md`; opt-in evidence lookup inside one grill question (`ER-1`) | done | `skills/verify/SKILL.md`, `skills/grill/references/evidence-assistance.md` |
+| M4 | Three-line post-report interpretation template (*Established / Still uncertain / Next insight*) in `skills/verify/SKILL.md`; opt-in evidence lookup inside one grill question (`ER-1`) | done (`0.13.2`, `0d5bfa8`) | `skills/verify/SKILL.md`, `skills/grill/references/evidence-assistance.md` |
 | M5 | Live Socratic `Explain`/`Challenge` study with real researchers | **parked** | needs the ~2026-10-31 usage measurement first; see [00-parked.md](00-parked.md) |
 
 ## What the reasoning additions may not do
@@ -25,8 +25,9 @@ Statuses: **done**, **parked**, **dropped**.
 
 ## Evidence
 
-- `skills/grill/tests/test_grill_references.py`: the backward chain and all five heuristics are present, the cap subordination and the `default:`-not-`repo:` rule are asserted, and the evidence-assistance file keeps its opt-in shape (option inside the question, no sixth question, follow-up counts toward the cap, offline first, zero project data, untrusted, `planned: D2` for invented citations, no writes).
+- `skills/grill/tests/test_grill_references.py`: the backward chain and all five heuristics are present, the cap subordination and the `default:`-not-`repo:` rule are asserted, and the evidence-assistance file keeps its opt-in shape (option inside the question, no sixth question, follow-up counts toward the cap, offline first, zero project data, untrusted, the shipped `--resolve-citations` check for invented citations, no writes).
 - `skills/plan-review/tests/test_plan_review.py`: the four objection fields and the four statuses are asserted, non-material issues may not be promoted to cruxes, and the synthesis must open with one undecided crux or `no substantiated material concern`.
+- `skills/verify/tests/test_verify.py`: the three-line look-back (Established / Still uncertain / Next insight) stays in `skills/verify/SKILL.md`, and the shipped checks the same file documents are asserted too — offline citations stay gaps, a mocked resolver's mismatch and a 404 block, and every `disclose` line carries a `[source: ...]` tag or a `[BLANK: ...]` marker.
 - No hook, gate decision, message, or `gate_diff` expectation changes with any milestone here; M1/M2/M4 are documentation and tests in skills, and M3 shipped with its own tracker and `gate_diff` run.
 
 ## Limits
