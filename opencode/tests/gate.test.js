@@ -9,7 +9,8 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { createHash } from "node:crypto"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -37,6 +38,31 @@ function gatedRepo() {
   mkdirSync(join(dir, ".mycelium-extra"), { recursive: true })
   writeFileSync(join(dir, ".mycelium-extra", "gate.json"), "{}")
   return dir
+}
+
+/** A gated repo with one exploratory run recorded for session "mine". */
+function noticeRepo() {
+  const repo = gatedRepo()
+  writeFileSync(join(repo, ".mycelium-extra", "explore.log"),
+    JSON.stringify({ session_id: "mine", command: "python analysis/explore.py" }) + "\n")
+  return repo
+}
+
+/** A gated repo where the gate's own state says a script that session wrote still has open findings. */
+function openLintRepo() {
+  const repo = gatedRepo()
+  writeFileSync(join(repo, ".mycelium-extra", "gate.json"), JSON.stringify({ lint_before_stop: true }))
+  const rel = "analysis/check.R"
+  const file = join(repo, rel)
+  mkdirSync(dirname(file), { recursive: true })
+  writeFileSync(file, "x <- 1\n")
+  const when = 1700000000 // an exact mtime: the gate compares the recorded mtime literally
+  utimesSync(file, when, when)
+  const dir = join(repo, ".mycelium-extra", "pending", "mine.lint")
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, createHash("sha256").update(rel).digest("hex").slice(0, 16) + ".json"),
+    JSON.stringify({ file: rel, rows: ["R001 magic number"], mtime: when }))
+  return repo
 }
 
 function fakeCtx(location, stream) {
@@ -154,6 +180,42 @@ test("the server-wide event stream is filtered to this location", async (t) => {
     "a foreign session produced a notification")
   assert.match(calls.synthetic[0].text, /approve plan/)
   assert.deepEqual(calls.prompt, [])
+})
+
+test("a stop notice reaches the model as a synthetic message, with the gate's own text", async (t) => {
+  if (!PYTHON) return t.skip("needs python3.9+")
+  // Two fresh repos with the same state: one is driven through the plugin, the other is asked
+  // directly for the reply the plugin had to deliver. The gate consumes the notice it reports,
+  // so the two cannot share a repo.
+  const driven = noticeRepo()
+  const asked = noticeRepo()
+  const stream = streamCtx()
+  const { ctx, calls } = fakeCtx(driven, stream)
+  await plugin.setup(ctx)
+  const reply = await __test__.runGate({ ...PATHS, root: ROOT }, "stop",
+    { last_assistant_message: "done", cwd: asked, session_id: "mine" }, 30000)
+  assert.match(reply.systemMessage || "", /exploratory run\(s\) this session are not reportable/)
+  assert.notEqual(reply.decision, "block")
+  stream.push({ type: "session.text.ended", location: { directory: driven }, data: { sessionID: "mine", text: "done" } })
+  stream.push({ type: "session.execution.succeeded", data: { sessionID: "mine" } })
+  assert.equal(await waitFor(() => calls.synthetic.length > 0, 30000), true,
+    "the Stop notice never reached the model")
+  assert.deepEqual(calls.synthetic, [{ sessionID: "mine", text: reply.systemMessage }])
+  assert.deepEqual(calls.prompt, [], "a notice must not be delivered as a steering prompt")
+})
+
+test("a blocked stop steers the model instead of notifying it", async (t) => {
+  if (!PYTHON) return t.skip("needs python3.9+")
+  const repo = openLintRepo()
+  const stream = streamCtx()
+  const { ctx, calls } = fakeCtx(repo, stream)
+  await plugin.setup(ctx)
+  stream.push({ type: "session.text.ended", location: { directory: repo }, data: { sessionID: "mine", text: "done" } })
+  stream.push({ type: "session.execution.succeeded", data: { sessionID: "mine" } })
+  assert.equal(await waitFor(() => calls.prompt.length > 0, 30000), true, "the Stop block never reached the model")
+  assert.match(calls.prompt[0].text, /scilintr findings are still open/)
+  assert.equal(calls.prompt[0].delivery, "steer")
+  assert.deepEqual(calls.synthetic, [], "a blocking stop must not be delivered as a user-only notice")
 })
 
 test("gateCwd prefers a cwd under a gate and falls back to the location", () => {
