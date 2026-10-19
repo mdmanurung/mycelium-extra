@@ -2,7 +2,7 @@
 
 Objective: fewer consequential AI deviations falsely presented as acceptable, without making ordinary research unnecessarily cumbersome.
 
-This is the single tracker for the source-verified roadmap of 2026-10-16 (audited at `0dc43f0`, 0.9.72; kept locally as `plans/mycelium_extra_refined_review_and_roadmap_2026-10-16.md`, not in the repository). Change sets are `C01`–`C13`, findings `F01`–`F11`; historical `M*-T*` IDs are cross-references only. The deleted review bundles are not recreated or edited. Statuses: **done** (implemented, regression evidence named), **partial**, **todo**, **superseded** (a better current implementation, with evidence), **blocked** (needs access or a decision named in the row).
+This is the single tracker for the source-verified roadmap of 2026-10-16 (audited at `0dc43f0`, 0.9.72; kept locally as `plans/_DONE/mycelium-workflow-experience/mycelium_extra_refined_review_and_roadmap_2026-10-16.md`, not in the repository). Change sets are `C01`–`C13`, findings `F01`–`F11`; historical `M*-T*` IDs are cross-references only. The deleted review bundles are not recreated or edited. Statuses: **done** (implemented, regression evidence named), **partial**, **todo**, **superseded** (a better current implementation, with evidence), **blocked** (needs access or a decision named in the row).
 
 ## Starting state
 
