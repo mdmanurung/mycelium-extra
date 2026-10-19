@@ -38,9 +38,11 @@ Claude Code and OpenCode use ``/mycelium-extra:<skill>``; Codex uses ``$mycelium
 
 .. toctree::
    :maxdepth: 1
-   :caption: Start here
+   :caption: Start
 
+   docs/start/what-it-is
    docs/installation
+   docs/start/first-plan
    docs/usage
    docs/day
    docs/example
@@ -48,18 +50,65 @@ Claude Code and OpenCode use ``/mycelium-extra:<skill>``; Codex uses ``$mycelium
 
 .. toctree::
    :maxdepth: 1
-   :caption: Look up details
+   :caption: Guides
 
+   docs/guides/plan-an-analysis
+   docs/guides/approve-and-run
+   docs/guides/verify-and-provenance
+   docs/guides/amend-freeze-rescope
+   docs/guides/stay-oriented
+   docs/guides/hand-off
+   docs/guides/second-model-review
+   docs/guides/harden-against-repeats
+   docs/guides/with-mycelium-or-plain-repo
+   docs/validation-recipes
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Reference
+
+   docs/reference/index
    docs/skills
+   docs/reference/gate
+   docs/reference/gate-json
+   docs/reference/state-files
    docs/approval-gate
    docs/verification
    docs/advanced
-   docs/validation-recipes
    docs/focus-and-track-changes
    docs/mycelium-integration
 
 .. toctree::
+   :maxdepth: 1
+   :caption: Concepts
+
+   docs/concepts/control-model
+   docs/concepts/gaps-and-passes
+   docs/concepts/not-guaranteed
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Development
+
+   Development notes <https://github.com/mdmanurung/mycelium-extra/blob/main/docs/development.md>
+   Decisions <https://github.com/mdmanurung/mycelium-extra/blob/main/docs/decisions.md>
+   Changelog <https://github.com/mdmanurung/mycelium-extra/blob/main/CHANGELOG.md>
+
+.. toctree::
    :hidden:
 
+   docs/reference/skills/grill
+   docs/reference/skills/init
+   docs/reference/skills/verify
+   docs/reference/skills/new-analysis
+   docs/reference/skills/plan-review
+   docs/reference/skills/decision-status
+   docs/reference/skills/data-contract-check
+   docs/reference/skills/focus
+   docs/reference/skills/track-changes
+   docs/reference/skills/handoff
+   docs/reference/skills/idea
+   docs/reference/skills/idea-triage
+   docs/reference/skills/harden
    skills/grill/references/run-plans
    skills/track-changes/references/schema

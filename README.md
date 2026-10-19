@@ -116,16 +116,29 @@ focus <folder>                               # say which analysis this session w
 
 ### Learn more
 
-- [A worked example](docs/example.md) shows the real output of each step, and
-  [A day with Mycelium Extra](docs/day.md) walks through a full working day.
-- [Usage tiers](docs/usage.md) has commands and the full analysis workflow diagram.
-- [Skill reference](docs/skills.md), [approval gate](docs/approval-gate.md), and
-  [verification](docs/verification.md) hold the details; [advanced features](docs/advanced.md)
-  covers optional settings.
-- [Focus and track changes](docs/focus-and-track-changes.md),
-  [Mycelium integration](docs/mycelium-integration.md), and
+- **Start:** [What it is](docs/start/what-it-is.md), [Installation](docs/installation.md), and
+  [your first plan](docs/start/first-plan.md). [A worked example](docs/example.md) shows the real
+  output of each step, and [A day with Mycelium Extra](docs/day.md) walks through a full working day.
+  [Usage tiers](docs/usage.md) has the commands and the full analysis workflow diagram.
+- **Guides by task:** [plan an analysis](docs/guides/plan-an-analysis.md),
+  [approve and run](docs/guides/approve-and-run.md),
+  [verify and record provenance](docs/guides/verify-and-provenance.md),
+  [amend, freeze, re-scope](docs/guides/amend-freeze-rescope.md),
+  [stay oriented](docs/guides/stay-oriented.md), [hand off](docs/guides/hand-off.md),
+  [second-model review](docs/guides/second-model-review.md),
+  [harden against repeats](docs/guides/harden-against-repeats.md), and
+  [with Mycelium or in a plain repo](docs/guides/with-mycelium-or-plain-repo.md).
+- **Reference:** the [reference index](docs/reference/index.md), the [skill index](docs/skills.md),
+  [gate decisions](docs/reference/gate.md), [`gate.json`](docs/reference/gate-json.md),
+  [state files](docs/reference/state-files.md), the [approval gate](docs/approval-gate.md),
+  [verification](docs/verification.md), [advanced features](docs/advanced.md),
+  [focus and track changes](docs/focus-and-track-changes.md), and
+  [Mycelium integration](docs/mycelium-integration.md).
+- **Concepts:** [the control model](docs/concepts/control-model.md),
+  [gaps and passes](docs/concepts/gaps-and-passes.md), and
+  [what is not guaranteed](docs/concepts/not-guaranteed.md).
+- **Development:** [Development](docs/development.md) (tests, release steps), and
   [Decisions](docs/decisions.md) (choices that still bind, and dead ends not to redo).
-- [Development](docs/development.md): tests, changelog, roadmap, and design notes.
 - The [documentation website](https://mdmanurung.github.io/mycelium-extra/).
 
 ## License

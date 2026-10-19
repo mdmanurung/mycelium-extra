@@ -9,7 +9,7 @@ it. The shared gate should keep the same meaning in Claude Code, Codex, and Open
 
 ## Testing a change
 
-Run the affected skill's tests and the gate tests first:
+Use `python3.12` for everything below (CI runs 3.9, 3.12 and 3.14; on RHEL 8 the bare `python3` is 3.6, which the hooks reject). Run the affected skill's tests and the gate tests first:
 
 ```bash
 python3 skills/<skill>/tests/test_<name>.py
@@ -22,9 +22,9 @@ adapter spawns `hooks/py.sh`, so the Node tests need Python 3.9 or later on `PAT
 `MYCELIUM_EXTRA_PYTHON`, and their spawn cases skip without it.
 
 Then run `python3 tests/test_end_to_end.py` on the fixture project (about two
-minutes) and `python3 tests/test_fixture_data.py`. The ablations in
-`python3 tests/e2e/ablate.py` remove individual guards to check that the defect
-cases actually depend on them. See the [fixture design](design/c1-fixture-project.md).
+minutes) and `python3 tests/test_fixture_data.py`. The 17 ablations in
+`python3 tests/e2e/ablate.py` remove individual guards (verify, gate and launcher, including the consent guards) to check that the defect
+cases actually depend on them; each ablation must turn its named test red, and a new guard gets one. See the [fixture design](design/c1-fixture-project.md).
 
 Two more files under `tests/` cover the edges of the checks. `tests/test_contract_compatibility.py`
 runs a fixed corpus of small tables through Extra's data-contract checker and, when a Mycelium
@@ -35,6 +35,8 @@ checkout. `tests/test_eval_score.py` tests the scorer and leakage rules of the e
 `tests/eval/`, using synthetic adjudications only; it checks the scorer, not the product.
 `hooks/tests/test_gate_diff.py` checks that the gate-comparison oracle rejects a missing, new, or
 changed difference.
+
+`docs/examples/track-changes-report.html` is generated too, from a synthetic analysis with no real data: run `python3 tests/e2e/make_track_changes_example.py` when the track-changes report changes shape.
 
 `docs/example.md` is generated: with a real `scilintr` and an `Rscript` whose R has it, run
 `MX_E2E_SCILINTR=<path> MX_E2E_RSCRIPT=<path> python3 tests/e2e/make_example.py` when an output format
@@ -72,6 +74,22 @@ Before changing `hooks/gate.py`, also run `python3 hooks/tests/gate_diff.py`: wi
 ### Changing the gate's behaviour on purpose
 
 An intended gate behaviour change needs a named regression test that fails before the change and passes after it, and a reviewed, case-specific rationale for each oracle entry it changes. Never regenerate `gate_diff_expected.json` blindly to turn a red comparison green: the file is the record of which decisions changed and why, and the comparison matches observed output only. It does not read the `rationale` text, so reviewing that each entry still describes its own case is a human step.
+
+The oracle procedure:
+
+1. In a worktree, make the change and run `python3.12 hooks/tests/gate_diff.py --base 267d9e244d1f50abef2d024c9632c50df1911823 --expect hooks/tests/gate_diff_expected.json`. It lists every case whose decision differs from the pinned base and is not in the oracle.
+2. Read each listed difference (old and new exit status, output and state). Show the human a plain before and after of the changed output, and have them approve it.
+3. Write the observed differences for review with `--write-expect <file>`, check that each entry's `rationale` describes its own case, then replace `hooks/tests/gate_diff_expected.json`.
+4. Re-run the `--expect` command and `python3.12 hooks/tests/gate_diff.py --self-check`; both must pass. Commit the oracle on its own, named for the reviewed change.
+
+The base stays the 0.10.2 release; `python3 tests/test_ci_pins.py` fails if `ci.yml` and the oracle name different commits.
+
+## Release steps
+
+1. Work in a worktree and land on `main`; do not edit `hooks/` in a tree that live sessions run from.
+2. Run the whole CI set with `python3.12`: every `hooks/tests/test_*.py`, `skills/*/tests/test_*.py` and `tests/test_*.py`, `python3.12 tests/e2e/ablate.py`, `python3.12 tests/check_links.py $(git ls-files '*.md')`, `node --test opencode/tests/gate.test.js`, and the Sphinx build in [Documentation website](#documentation-website). With a gate change, add the `gate_diff` commands above.
+3. One feature, two commits: the change, then the version bump. Bump `version` in the four manifests together and add the `CHANGELOG.md` entry in the same commit; `python3 tests/test_versions.py` checks they agree.
+4. Push and tag only on request. The installed plugin follows `origin/main`, so a push is a release.
 
 ## Python compatibility and versions
 
@@ -257,7 +275,7 @@ The website and repository use the same Markdown pages. You can improve a
 guide without maintaining a second copy, and Sphinx checks the links when it
 builds the site.
 
-Use Python 3.12 for the website tooling.
+Use Python 3.12 for the website tooling. Every page is listed in `include_patterns` in `docs/conf.py`, and the site navigation is the toctrees in `index.rst`; add a new page to both.
 
 ```bash
 python3.12 -m venv /tmp/mycelium-extra-docs
@@ -267,9 +285,8 @@ python3.12 -m venv /tmp/mycelium-extra-docs
 ```
 
 Open `http://localhost:8000/`. The build treats warnings as errors and checks
-internal document links. The configuration uses an explicit list of user guides
-and the run-plan reference. Developer instructions, roadmap, changelog, design notes, and the
-repository README are excluded from the website and its search index.
+internal document links. Developer instructions, decisions, roadmap, changelog, design notes, and the
+repository README are excluded from the website and its search index; the site links to the first three on GitHub.
 Generated HTML is ignored by Git.
 
 The Documentation workflow builds every pull request and publishes pushes to
