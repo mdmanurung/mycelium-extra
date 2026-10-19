@@ -3633,6 +3633,175 @@ class ValidationBindingsTest(unittest.TestCase):
         self.assertNotIn("not gated", named)
 
 
+class CardNotEstablishedTest(unittest.TestCase):
+    """CT-1 (opt-in, with `card_coverage`): the compact card names inputs and scripts whose pin is missing or not
+    taken, the full card every pin weaker than a content hash, and prose Validation of a plan with no bindings block.
+    With the key off no card changes."""
+    entry = GATE
+    setUp, tearDown, config, hook, bash, denied = (
+        GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook, GateTest.bash, GateTest.denied)
+    path, write, approval, pending, prompt = (
+        PreparationAndLaunchTest.path, PreparationAndLaunchTest.write, PreparationAndLaunchTest.approval,
+        PreparationAndLaunchTest.pending, PreparationAndLaunchTest.prompt)
+    asked = GateTest.asked
+    HEAD = "Not established before running"
+    OUT = "Out of scope here: whether the science is right, and runs the gate's hooks do not see"
+    ROWS = ("## Plan\n| # | Step | Choice | Source | Validation |\n|---|---|---|---|---|\n"
+            "| 1 | run `analysis/x/fit.py` | model A | user | rows |\n| 2 | run `analysis/x/plot.py` | png | user | none |\n\n")
+
+    def plan(self, *inputs, **blocks):
+        return ("Inputs: {}\n\n".format(", ".join(inputs)) if inputs else "") + self.ROWS + "".join(
+            "<!-- {} {} -->\n\n".format(name, json.dumps(block)) for name, block in blocks.items()) + "Plan status: READY"
+
+    def show(self, text):
+        return self.hook("stop", {"last_assistant_message": text})["systemMessage"]
+
+    def files(self):
+        self.write("data/in.tsv", "a\n")
+        self.write("analysis/x/fit.py", "pass\n")
+        self.write("analysis/x/plot.py", "pass\n")
+
+    def test_the_option_off_changes_no_card_even_with_weak_and_missing_pins(self):
+        self.files()
+        self.config({"pin_hash_mb": 0})
+        plan = self.plan("data/in.tsv", "data/gone.tsv")
+        off = self.show(plan)
+        full_off = self.asked(off, "full")
+        self.config({"pin_hash_mb": 0, "card_coverage": True})
+        on = self.show(plan)
+        for card in (off, full_off):
+            self.assertNotIn(self.HEAD, card)
+            self.assertNotIn("Out of scope", card)
+            self.assertNotIn("not computed", card)
+        self.assertNotIn("Coverage", off)
+        # the same card, bar the Coverage row and the new block, so no slice moved
+        lines = on.splitlines()
+        start = [i for i, l in enumerate(lines) if l.startswith("Coverage")][0]
+        stop = lines.index(self.HEAD) + 1
+        while lines[stop].startswith(("  - ", "  (+")):
+            stop += 1
+        self.assertEqual(lines[:start] + lines[stop:], off.splitlines())
+
+    def test_a_missing_input_is_on_the_compact_card_when_on(self):
+        self.files()
+        self.config({"card_coverage": True})
+        card = self.show(self.plan("data/in.tsv", "data/gone.tsv"))
+        lines = card.splitlines()
+        at = lines.index(self.HEAD)
+        self.assertEqual(lines[at + 1], "  - input data/gone.tsv (missing)")
+        self.assertTrue(lines[at - 1].startswith(("Coverage", " " * 10)))  # right after the Coverage row
+        self.assertNotIn("data/in.tsv (", card)  # a sha256 pin is not listed
+        self.assertEqual(lines[-2], "More: `card {} full` (every grant, file and check)".format(lines[-1][-9:-1]))
+        for word in ("covered", "passed"):
+            self.assertNotIn(word, card.lower())
+
+    def test_nothing_is_added_when_every_pin_is_a_content_hash(self):  # control
+        self.files()
+        self.config({"card_coverage": True})
+        card = self.show(self.plan("data/in.tsv").replace("| rows |", "| none |"))
+        self.assertNotIn(self.HEAD, card)
+        self.assertNotIn(self.HEAD, self.asked(card, "full"))
+
+    def test_size_and_mtime_pins_are_on_the_full_card_only(self):
+        self.files()
+        self.config({"card_coverage": True, "pin_hash_mb": 0})
+        card = self.show(self.plan("data/in.tsv"))
+        self.assertNotIn(self.HEAD, card)
+        full = self.asked(card, "full")
+        self.assertIn(self.HEAD, full)
+        self.assertIn("  - input data/in.tsv (size+mtime)", full)
+        self.assertIn("  - script analysis/x/fit.py (size+mtime)", full)
+        self.assertIn(self.OUT, full)
+        self.assertNotIn("covered", full.lower())
+
+    def test_full_card_lists_every_weak_pin_with_its_method(self):
+        self.files()
+        self.write("data/dir/f.tsv", "a\n")
+        self.config({"card_coverage": True, "pin_hash_mb": 0})
+        full = self.asked(self.show(self.plan("data/in.tsv", "data/dir", "data/gone.tsv")), "full")
+        for line in ("  - input data/in.tsv (size+mtime)", "  - input data/dir (folder listing)",
+                     "  - input data/gone.tsv (missing)"):
+            self.assertIn(line, full)
+
+    def test_prose_validation_without_a_block_is_on_the_full_card_only(self):
+        self.files()
+        self.config({"card_coverage": True})
+        card = self.show(self.plan("data/in.tsv"))
+        self.assertNotIn(self.HEAD, card)  # the compact Coverage row already counts it
+        full = self.asked(card, "full")
+        self.assertIn(self.HEAD, full)
+        self.assertIn("Validation on row 1 is prose: no validation-bindings check is bound to it", full)
+        self.assertNotIn("row 2", full.split(self.HEAD)[1])  # a `none` Validation cell is not a written check
+        self.assertIn(self.OUT, full)
+
+    def test_a_folder_that_could_not_be_pinned_is_on_the_compact_card(self):
+        self.files()
+        self.write("data/dir/f.tsv", "a\n")
+        self.config({"card_coverage": True, "pin_seconds": 0})
+        card = self.show(self.plan("data/dir"))
+        self.assertIn("  - input data/dir (not pinned: time limit)", card.splitlines())
+
+    def test_coverage_row_keeps_counting_none_cells_while_the_full_card_does_not_list_them(self):
+        self.files()
+        self.config({"card_coverage": True})
+        plan = self.plan("data/in.tsv").replace("| none |", "| **None** |")
+        plan = plan.replace("Plan status", "| 3 | run `analysis/x/fit.py` | b | user | \u2014 |\n| 4 | run `analysis/x/fit.py` | c | user | n/a |\n\nPlan status")
+        plan = plan.replace("|\n\n| 3", "|\n| 3")
+        card = self.show(plan)
+        # the released Coverage row counts every non-empty Validation cell, so none, dash and n/a rows stay named
+        self.assertIn("0 steps with a bound check, 4 prose only (rows 1, 2, 3, 4)", re.sub(r"\n {10}", " ", card))
+        # the full card's prose line applies verify's rule: only a written check is listed
+        self.assertIn("Validation on row 1 is prose", self.asked(card, "full"))
+
+    def test_a_validation_block_with_no_checks_still_means_no_prose_line(self):
+        self.files()
+        self.config({"card_coverage": True})
+        card = self.show(self.plan("data/in.tsv", **{"validation-bindings": {"version": 1, "checks": []}}))
+        self.assertNotIn("is prose", self.asked(card, "full"))
+
+    def test_five_missing_inputs_show_three_and_a_pointer(self):
+        self.files()
+        self.config({"card_coverage": True})
+        card = self.show(self.plan(*["data/m{}.tsv".format(i) for i in range(5)]))
+        lines = card.splitlines()
+        at = lines.index(self.HEAD)
+        self.assertEqual([l for l in lines[at + 1:at + 5] if l.startswith("  -")], [
+            "  - input data/m{}.tsv (missing)".format(i) for i in range(3)])
+        self.assertEqual(lines[at + 4], "  (+2 more: `card {} full`)".format(lines[-1][-9:-1]))
+        full = self.asked(card, "full")
+        self.assertEqual(len(re.findall(r"  - input data/m\d\.tsv \(missing\)", full)), 5)
+
+    def test_a_failing_helper_says_not_computed_and_the_plan_stays_approvable(self):
+        self.files()
+        sys.dont_write_bytecode = True
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        self.config({"card_coverage": True})
+        event = {"session_id": "s1", "cwd": self.root, "last_assistant_message": self.plan("data/gone.tsv")}
+        with mock.patch.object(gate, "coverage_gaps", side_effect=TypeError("injected")):
+            card = gate.on_stop(event, self.root, gate.load_config(self.root))["systemMessage"]
+        self.assertIn(self.HEAD + "\n  - not computed (TypeError)", card)
+        for word in ("covered", "passed"):
+            self.assertNotIn(word, card.lower())
+        entry, = self.pending()
+        self.assertTrue(entry["ready"])
+        self.assertIn("approved", self.prompt("approve plan " + entry["hash"]))
+        self.assertTrue(os.path.isfile(self.path("approvals", entry["hash"] + ".json")))
+
+    def test_the_amendment_card_has_no_block(self):
+        self.files()
+        self.write("analysis/x/more.py", "pass\n")
+        self.config({"card_coverage": True, "pin_hash_mb": 0})
+        first = self.show(self.plan("data/in.tsv"))
+        self.assertIn("(size+mtime)", self.asked(first, "full"))
+        self.prompt("approve plan " + first.splitlines()[-1][-9:-1])
+        plan = self.plan("data/in.tsv").replace("Plan status", "| 3 | run `analysis/x/more.py` | extra | agent | none |\n\nPlan status")
+        plan = plan.replace("none |\n\n| 3", "none |\n| 3")
+        card = self.show(plan)
+        self.assertIn("amendment to", card)
+        self.assertNotIn(self.HEAD, card)
+
+
 class ExactExecutionTest(unittest.TestCase):
     """C07 / F09 gate side: a plan's `exact-execution` block holds a covered run to its declared argv, folder and
     inline variables, except the flags it lists as operational; plans without the block keep a broad grant."""

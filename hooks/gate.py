@@ -2283,6 +2283,35 @@ def coverage_text(rows, blocks):
     return checks + " \u00b7 " + freeze + (" \u00b7 any arguments elsewhere" if exact < len(rows) else "")
 
 
+def prose_check(cell):
+    """Whether a Validation cell is a written check: not empty, `none`, `n/a` or `na` once markdown and dashes around it
+    are stripped (the test verify's report applies). Only the full card's prose line uses it: the released Coverage row
+    still counts every non-empty cell, so a `none` step stays named there."""
+    return cell.strip(" -\u2013\u2014*_").lower() not in ("", "none", "n/a", "na")
+
+
+def coverage_gaps(rows, pins, scripts, blocks):
+    """What the card can say, from the parsed plan and the pins alone, was not established before a run:
+    (compact items, full items). An input or script pin that is `missing` or `not pinned` is on both cards; any other pin
+    weaker than a content hash (size+mtime, folder listing), and Validation prose in a plan with no bindings block, on the
+    full card only. Empty means none of these was found, never that the plan is covered."""
+    compact, full = [], []
+    for what, found in (("input", pins), ("script", scripts)):
+        for rel, pin in sorted((found or {}).items()):
+            label = method(pin)
+            if label != "sha256":
+                item = "{} {} ({})".format(what, rel, label)
+                full.append(item)
+                if label == "missing" or label.startswith("not pinned"):
+                    compact.append(item)
+    if not (blocks or {}).get("validation"):
+        prose = list(dict.fromkeys(row["num"] for row in rows if prose_check(row["check"])))
+        if prose:
+            full.append("Validation on row{} {} is prose: no validation-bindings check is bound to it".format(
+                "" if len(prose) == 1 else "s", names_plain(prose, str)))
+    return compact, full
+
+
 def procedure_card(root, text, config, digest, pins, outside, previous, scripts, blocks=None):
     """The card for a plan whose table has Step and Choice or Validation columns, else None."""
     rows = plan_rows(text)
@@ -2382,6 +2411,16 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
     if outside_prose:
         lines.append("Outside the Step column, not authorised" + names(outside_prose, short))
     lines += validation_lines(root, config, text, (blocks or {}).get("validation"))
+    cover_at = len(lines)  # the compact card stops copying here; its own short block comes after the Coverage row
+    gaps, detail = [], []
+    if config.get("card_coverage", False) is True:
+        try:
+            gaps, detail = coverage_gaps(rows, pins, scripts, blocks)
+        except Exception as error:  # ANALYSIS_OK[card-best-effort]: the plan stays approvable; the card claims no coverage
+            gaps = detail = ["not computed ({})".format(type(error).__name__)]
+        if detail:
+            lines += ["Not established before running"] + ["  - " + item for item in detail] + [
+                "  Out of scope here: whether the science is right, and runs the gate's hooks do not see"]
     diff_at = len(lines)
     if script_diff_lines:
         lines += ["Diff of changed scripts"] + script_diff_lines
@@ -2431,6 +2470,9 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
     compact += labelled("Checks", " \u00b7 ".join(written) if written else "none written in the plan")
     if config.get("card_coverage", False) is True:
         compact += labelled("Coverage", coverage_text(rows, blocks or {}))
+        if gaps:
+            compact += ["Not established before running"] + ["  - " + item for item in gaps[:3]] + (
+                ["  (+{} more: `card {} full`)".format(len(gaps) - 3, digest)] if len(gaps) > 3 else [])
     compact += baseline
     kinds = collections.Counter(
         ("script" if SCRIPT_EXT.search(path) else "file") if os.path.isfile(os.path.join(root, path)) or SCRIPT_EXT.search(path)
@@ -2453,7 +2495,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
         notes = ["step {}: {}".format(num, value) for num, value in lint.items() if value != "clean"]
         compact.append(" " * 10 + "lint: " + ("; ".join(notes) if notes else "clean"))
     compact += lines[steps_end:can_run_at - 1]
-    compact += [line for line in lines[reads_at + 2:diff_at] if broad or not line.startswith("P = ")]
+    compact += [line for line in lines[reads_at + 2:cover_at] if broad or not line.startswith("P = ")]
     if script_diff_lines:
         compact.append("{} changed-script diff line(s): `card {} diff`".format(len(script_diff_lines), digest))
     compact.append("More: `card {0} full` (every grant, file and check)".format(digest))

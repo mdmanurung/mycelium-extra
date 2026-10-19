@@ -26,7 +26,7 @@ Order is fixed: each one is its own commit on branch `v0120b`, tests green, befo
 - Files: `docs/roadmap/10-coverage-and-evidence.md`, `docs/roadmap/README.md`, `docs/roadmap/09-clawbio-lessons.md`.
 - Exit: `tests/check_links.py` reports 0 broken; `skills/grill/tests/test_grill_references.py` and the roadmap-heading tests in `tests/test_end_to_end.py` pass.
 
-### M1 · CT-1 opt-in coverage exceptions (todo)
+### M1 · CT-1 opt-in coverage exceptions (done)
 - Scope: with `card_coverage: true` only, the compact card also lists `Not established before running` lines for inputs and scripts whose pin is `missing` or `not pinned…` (at most 3, then a pointer to `card <hash> full`); `card <hash> full` lists every non-sha256 pin, unbound prose when the plan has no bindings block, and one out-of-scope line. With the key off every card is byte-identical to today. The existing Coverage row already counts prose-only rows and exact steps and is not duplicated.
 - Files: `hooks/gate.py` (a small helper beside `coverage_text`), `hooks/tests/test_gate.py`, `docs/approval-gate.md`.
 - Exit: key off gives identical cards and `gate_diff` stays identical against its current base (oracle file, base and `ci.yml` pins untouched); key on gives the new lines; a failing helper prints `not computed (<error>)` and the plan stays approvable.
