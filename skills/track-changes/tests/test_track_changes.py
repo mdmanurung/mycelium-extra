@@ -485,8 +485,8 @@ class SafetyTest(Base):
 
     def test_viewer_runs_and_every_control_clicks(self):
         node = shutil.which("node")
-        if not node and os.environ.get("CI"):
-            self.fail("node is required in CI: the viewer would otherwise go untested")
+        if not node and os.environ.get("MX_REQUIRE_NODE"):  # set by the CI job that has Node: the viewer must not go untested
+            self.fail("node is required here (MX_REQUIRE_NODE is set)")
         if not node:
             self.skipTest("node not installed")
         first, second = self.two_plans()
@@ -500,8 +500,8 @@ class SafetyTest(Base):
 
     def test_viewer_script_parses(self):
         node = shutil.which("node")
-        if not node and os.environ.get("CI"):
-            self.fail("node is required in CI: the viewer would otherwise go untested")
+        if not node and os.environ.get("MX_REQUIRE_NODE"):  # set by the CI job that has Node: the viewer must not go untested
+            self.fail("node is required here (MX_REQUIRE_NODE is set)")
         if not node:
             self.skipTest("node not installed")
         js = os.path.join(PLUGIN, "skills", "track-changes", "assets", "viewer.js")

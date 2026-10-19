@@ -71,3 +71,6 @@ jobs:
         # The adapter spawns hooks/py.sh; the runner's python3 (3.12) is recorded through
         # MYCELIUM_EXTRA_PYTHON by the test, so a 3.6-only machine still exercises the gate.
         run: node --test opencode/tests/gate.test.js
+      - name: Report viewer
+        # The Python legs run in images without Node and skip the viewer tests; here Node exists, so they must run.
+        run: MX_REQUIRE_NODE=1 python3 skills/track-changes/tests/test_track_changes.py

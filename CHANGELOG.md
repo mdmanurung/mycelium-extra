@@ -19,7 +19,7 @@ A second review of 0.13.0 against the code. Nothing here changes an allow or den
 
 ### Changed
 
-- Three tests that could not fail now can (the hint test, the read-only list test, and the viewer test, which fails in CI instead of skipping when Node is missing). The OpenCode test pins 13 skills.
+- Three tests that could not fail now can (the hint test, the read-only list test, and the viewer tests, which the Python CI legs skip for lack of Node and the OpenCode job now runs with `MX_REQUIRE_NODE=1`, so they cannot be skipped there). The OpenCode test pins 13 skills.
 
 ## [0.13.0] - 2026-10-19
 
