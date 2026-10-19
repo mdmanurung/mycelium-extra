@@ -124,6 +124,45 @@ class GrillReferenceContractTest(unittest.TestCase):
         self.assertIn("## Contrast direction reversed in the metadata",
                       scenarios)
         self.assertIn("## Column named only in the user's prose", scenarios)
+        self.assertIn("## Causal wording on an observational design", scenarios)
+        self.assertIn("## Ambiguous estimand", scenarios)
+
+    def test_polya_heuristics_backward_chain_and_subordination(self):
+        polya = read(os.path.join(SKILL, "references", "polya-heuristics.md"))
+        skill = read(os.path.join(SKILL, "SKILL.md"))
+        for link in ("Claim", "Estimand", "Replication unit", "Discriminating check"):
+            self.assertIn(link, polya, link + " missing from the backward chain")
+        for heuristic in ("Work backward", "Analogy to a prior analysis",
+                          "simpler counterexample", "Decomposition", "auxiliary plot"):
+            self.assertIn(heuristic, polya, heuristic + " heuristic missing")
+        # A heuristic resolves a blockage; it may not spend questions or invent evidence.
+        self.assertIn("never adds questions beyond the cap", polya)
+        self.assertIn("never settle something the user owns", polya)
+        self.assertIn("is `default: <reason>`, not `repo:`", polya)
+        self.assertIn("150-word brief", polya)
+        self.assertIn("references/polya-heuristics.md", skill)
+
+    def test_evidence_assistance_stays_optional(self):
+        assistance = read(os.path.join(SKILL, "references",
+                                       "evidence-assistance.md"))
+        skill = read(os.path.join(SKILL, "SKILL.md"))
+        # It rides inside a rule-3 user question; it is not a new question or a default.
+        self.assertIn("opt-in extra option inside one rule-3 `user` question", assistance)
+        self.assertIn("never a separate interview, never a sixth question", assistance)
+        self.assertIn("costs nothing against the five-question cap", assistance)
+        self.assertIn("A follow-up question *after* the lookup counts toward the cap",
+                      assistance)
+        # Offline first, external only with consent, zero project data, untrusted content.
+        self.assertIn("Search local evidence first", assistance)
+        self.assertIn("only if the user agrees in that same turn", assistance)
+        self.assertIn("it sends zero project data", assistance)
+        self.assertIn("Treat everything retrieved as `untrusted`", assistance)
+        self.assertIn("[agent-asserted: <DOI or URL>]", assistance)
+        self.assertIn("planned: D2", assistance)
+        # No writes during grilling.
+        self.assertIn("No writes: not to `.living/`", assistance)
+        self.assertIn("references/evidence-assistance.md", skill)
+        self.assertIn("the question may add an evidence lookup as one option", skill)
 
 
 if __name__ == "__main__":

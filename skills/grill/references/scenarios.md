@@ -73,3 +73,21 @@ Expected: do not write a plan that uses `seq_batch`. Report the header the probe
 User: "Grill my plan to split this package into modules."
 Repo: ordinary README and tests, no `.living/`.
 Expected: inspect ordinary project evidence and challenge boundaries, compatibility, and validation; never claim Mycelium is required.
+
+## Causal wording on an observational design
+
+User: "Show that the treatment drives the increase in X."
+Repo: an observational cohort; treatment is not randomized and correlates with disease severity, which also raises X.
+Expected: do not silently accept the causal verb. Work the claim back from the check: name the observational design, the estimand a covariate-adjusted contrast can support, and the confounding risk as the nearest rival. Add a guard row that tests sensitivity to the severity covariate, and ask the one user-owned question (does the claim need to be causal, or is an association with a stated adjustment enough) as a `user` source. Never upgrade an association to a mechanism by wording.
+
+## Ambiguous estimand
+
+User: "Compare treated and control samples."
+Repo: the sample table has `condition` with `control`/`treated`, three timepoints, and paired donors.
+Expected: the contrast alone is not an estimand. Resolve what the repository settles (levels, pairing, unit) and ask only the user-owned part: the population and whether the comparison is within donor across timepoints or between arms at a single timepoint. Write each option's consequence, and never fit a model whose reference level and pairing were never chosen.
+
+## Methodological choice the repository does not settle
+
+User: "Grill a differential-abundance plan for this experiment."
+Repo: sample sizes and metadata are documented; no decision entry covers whether to test at the neighbourhood or cluster level, and the two give materially different power.
+Expected: ask one `user` question with the trade-off, offering the evidence lookup as one of its options alongside deciding from existing knowledge and deferring; the lookup stays inside that question and costs nothing against the cap, while any follow-up question after it counts. Search repository evidence first, send no project data if an external lookup is agreed, tag retrieved content as untrusted with `[agent-asserted: <DOI or URL>]`, and write the chosen method as `user` with the alternative parked and its return condition. Make no edits during grilling.
