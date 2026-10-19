@@ -71,12 +71,12 @@ Statuses: **done**, **parked**, **dropped**.
 
 ## Not done, on purpose (parked)
 
-M3 and M4 are **parked**, not dropped, and strict focus blocking, an AI explanation and the usability study stay out of scope until the trigger below. Decision recorded 2026-10-19: M3 waits until after the ~2026-10-31 usage measurement, because turn-end notices and `focus_id` in receipts would change what that measurement observes.
+M3 is **parked** (M4 was built on 2026-10-19, see its row), not dropped, and strict focus blocking, an AI explanation and the usability study stay out of scope until the trigger below. Decision recorded 2026-10-19: M3 waits until after the ~2026-10-31 usage measurement, because turn-end notices and `focus_id` in receipts would change what that measurement observes.
 
 | Milestone | Scope | Files it would touch | Acceptance cases | Reactivation trigger |
 |---|---|---|---|---|
 | **M3** | Launch-time `focus_id`/`focus_folder` in matched receipts, copied into the receipt by `on_post` (never relabelling an in-flight job); opt-in deduplicated turn-end notice under `"focus_notices": true`, default `false` | `hooks/gate.py`, `hooks/tests/test_focus.py`, `docs/approval-gate.md` | `F04`, `F21`, `F31` | after the ~2026-10-31 usage measurement of 0.11.0–0.13.1 |
-| **M4** | `track_changes.py --explain <item_id>` emitting the five-heading bounded evidence block, plus Review Brief pointers from `grill`, `handoff` and `docs/mycelium-integration.md` | `skills/track-changes/scripts/track_changes.py`, `skills/track-changes/SKILL.md`, `skills/grill/SKILL.md`, `skills/handoff/SKILL.md`, `docs/mycelium-integration.md` | none (no `F` case; a usability study is Track R work) | after the same measurement, and only if the measurement shows the report is used enough to justify the explanation pass |
+| **M4** (done, uncommitted in this checkout: the user overrode the measurement condition on 2026-10-19) | `track_changes.py --explain <item_id>` emitting the five-heading bounded evidence block, plus Review Brief pointers from `grill`, `handoff` and `docs/mycelium-integration.md` | `skills/track-changes/scripts/track_changes.py`, `skills/track-changes/SKILL.md`, `skills/grill/SKILL.md`, `skills/handoff/SKILL.md`, `docs/mycelium-integration.md` | none (no `F` case; a usability study is Track R work) | after the same measurement, and only if the measurement shows the report is used enough to justify the explanation pass |
 
 Both milestones are opt-in or additive by design: neither changes an allow, deny or message decision (`gate_diff` must stay identical), and the default-off flag keeps the measurement unconfounded. The spec bundle that produced them is archived at `plans/_DONE/mycelium_extra_focus_track_changes_complete_bundle/`; this tracker is self-contained. A human usability study stays parked under Track R and is not part of either milestone.
 

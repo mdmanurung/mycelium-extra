@@ -297,6 +297,39 @@ class ReviewFixesTest(Base):
         self.assertIn("scripts no approval pinned and no run touched", data["coverage"]["not_observed"])
 
 
+class ExplainTest(Base):
+    def edited(self):
+        first, second = self.two_plans()
+        self.write(FIT, "min_cells = 50\nalpha = 0.01\n", mtime=time.time())
+        item = self.items(self.collect(analysis="analysis/a", original=first), "code")[0]
+        return first, item
+
+    def test_explain_prints_five_headings_and_writes_nothing(self):  # M4
+        first, item = self.edited()
+        before = self.tree()
+        out = self.cli("--analysis", "analysis/a", "--original", first, "--explain", item["id"])
+        heads = [l for l in out.splitlines() if l and not l.startswith(" ") and not l.startswith("mycelium-extra")]
+        self.assertEqual(heads[:5], ["Observed", "Potential", "Unknown", "Authorization", "Evidence"])
+        self.assertIn("Potential analytical implication", out)
+        self.assertFalse(os.path.exists(os.path.join(self.root, ".mycelium-extra", "track-changes")))
+        self.assertEqual(before, self.tree())
+        for word in ("safe", "validated", "in scope", "no impact"):
+            self.assertNotRegex(out.replace("approves, freezes and validates nothing", ""), r"\b" + word + r"\b")
+
+    def test_explain_takes_a_unique_prefix_and_refuses_the_rest(self):  # M4
+        first, item = self.edited()
+        self.assertIn(item["id"], self.cli("--analysis", "analysis/a", "--original", first, "--explain", item["id"][:4]))
+        message = self.cli("--analysis", "analysis/a", "--original", first, "--explain", "nope", fail=True)
+        self.assertIn("no item matches", message)
+        self.assertIn(item["id"], message)
+
+    def test_explain_is_bounded(self):  # M4
+        first, item = self.edited()
+        out = self.cli("--analysis", "analysis/a", "--original", first, "--explain", item["id"])
+        self.assertLess(len(out.splitlines()), 30)
+        self.assertLess(len(out), 3000)
+
+
 class ExecutionAndOutputsTest(Base):
     def test_failed_then_successful_retry_keeps_both(self):  # F17
         digest = self.approve(plan("min_cells 500"))

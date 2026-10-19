@@ -67,6 +67,7 @@ Codex, `plan-review` provides the engineering critique only.
   a session works on, and see what changed against the approved plan.
 - [Mycelium integration](docs/mycelium-integration.md): credits and boundaries.
 - [Development](docs/development.md): tests, changelog, roadmap, and design notes.
+- [Decisions](docs/decisions.md): choices that still bind, with their reasons, and dead ends not to redo.
 
 ## License and credits
 
