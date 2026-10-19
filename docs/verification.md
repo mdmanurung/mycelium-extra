@@ -153,6 +153,7 @@ After you confirm, `verify` writes `<analysis>/provenance/`:
 - the scilintr output, waivers, waived findings and approved thresholds (`lint-<hash>.txt`);
 - the package list of any conda env a run used that no `conda-lock.yml` pins (`env-<hash>.txt`, read from the env's `conda-meta`; an env changed since the run is a gap);
 - the pip packages in such an env that conda did not install, locked or not (`pip-<hash>.txt`, in requirements format);
+- for a `snakemake --use-conda` run, each rule's env (`rule-envs-<hash>.json`): the sha256 of the literal `conda:` env file and, when exactly one built env under `.snakemake/conda/` is a byte-identical copy of it, that env's `conda-meta` packages and pip packages. A rule env it cannot match or read, a `conda:` or `include:` that is not a string literal, or a run that does not show `--use-conda` is a gap, never "recorded". **Synthetic format, not validated against a real Snakemake run:** no built `.snakemake/conda` folder existed to check it against (the ones found were empty), so the layout is an assumption until one is read;
 - the report, and a `PROVENANCE.md` index.
 
 Commit it with the analysis. It never writes `PLAN.md`, `TRACKER.md`, or `specification.md`, so the analysis keeps one plan file. It then names the review command, `/mycelium:review <folder> — check the code against the approved plan in <folder>/provenance/plan-<hash>.md`.

@@ -174,7 +174,7 @@ Approved 2026-10-17 21:46 - analysis folder `analysis/vaccine-response` - 3 run(
 - Code run through MCP notebook tools (`nb_*_execute`) bypasses both the gate and the lineage.
 - A run of a planned script proves it ran, not that it implements the plan's choices; that is what the review step checks.
 - Claims are checked only where a document's `<!-- claims -->` block names the output cell; other numbers in the text are listed, not checked, and a verified claim matches its cell, not the truth.
-- With `snakemake --use-conda`, rules run in their own envs under `.snakemake/conda/`; the conda env recorded is the one Snakemake ran in, not the rules' envs.
+- With `snakemake --use-conda`, a rule's env is read only from a literal `conda:` path in the Snakefile or its literal `include:` files, matched to a built env under `.snakemake/conda/` by the env file's bytes; any other rule env is a gap. The reader is checked on a synthetic folder, not against a real Snakemake run.
 - Pip packages are read from the conda env's site-packages: one uninstalled after the run is not seen, and `pip install --user` packages under `~/.local` are not read.
 
 Verify status: CONFORMS

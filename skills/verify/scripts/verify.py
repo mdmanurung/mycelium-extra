@@ -65,8 +65,9 @@ LIMITS = [
     "that is what the review step checks.",
     "Claims are checked only where a document's `<!-- claims -->` block names the output cell; other "
     "numbers in the text are listed, not checked, and a verified claim matches its cell, not the truth.",
-    "With `snakemake --use-conda`, rules run in their own envs under `.snakemake/conda/`; the conda env "
-    "recorded is the one Snakemake ran in, not the rules' envs.",
+    "With `snakemake --use-conda`, a rule's env is read only from a literal `conda:` path in the Snakefile or "
+    "its literal `include:` files, matched to a built env under `.snakemake/conda/` by the env file's bytes; "
+    "any other rule env is a gap. The reader is checked on a synthetic folder, not against a real Snakemake run.",
     "Pip packages are read from the conda env's site-packages: one uninstalled after the run is not seen, "
     "and `pip install --user` packages under `~/.local` are not read.",
 ]
@@ -1295,6 +1296,118 @@ def conda_snapshots(root, runs, report):
     return snapshots
 
 
+SNAKE_CONDA = re.compile(r"^[ \t]*conda:\s*[\"']([^\"'\n]+)[\"']", re.MULTILINE)
+SNAKE_CONDA_ANY = re.compile(r"^[ \t]*conda:", re.MULTILINE)
+SNAKE_INCLUDE = re.compile(r"^[ \t]*include:\s*[\"']([^\"'\n]+)[\"']", re.MULTILINE)
+SNAKE_INCLUDE_ANY = re.compile(r"^[ \t]*include:", re.MULTILINE)
+USE_CONDA = re.compile(r"--use-conda\b|--(?:software-deployment-method|sdm)[ =]conda\b")
+
+
+def snake_conda_decls(root, rel, report, seen=None):
+    """[(env file path relative to the repository, rule name)] for each literal `conda:` path in the
+    Snakefile `rel` and its literal `include:` files. Paths resolve against the including file's folder,
+    as Snakemake does. A `conda:` or `include:` that is not a string literal is a gap, not skipped."""
+    seen = set() if seen is None else seen
+    if rel in seen or len(seen) > 50:
+        return []
+    seen.add(rel)
+    text = read_text(os.path.join(root, rel))
+    if not text:
+        report.add("gap", "Snakefile `{}` could not be read, so its rule envs were not recorded.".format(rel))
+        return []
+    here = os.path.dirname(rel)
+    rules = [(m.start(), m.group(1)) for m in SNAKE_RULE.finditer(text)]
+    found = []
+    for m in SNAKE_CONDA.finditer(text):
+        rule = next((name for start, name in reversed(rules) if start < m.start()), "")
+        found.append((os.path.normpath(os.path.join(here, m.group(1))), rule))
+    if len(SNAKE_CONDA_ANY.findall(text)) > len(found):
+        report.add("gap", "`{}` has a `conda:` that is not a string literal, so that rule env was not "
+                          "recorded.".format(rel))
+    includes = SNAKE_INCLUDE.findall(text)
+    if len(SNAKE_INCLUDE_ANY.findall(text)) > len(includes):
+        report.add("gap", "`{}` has an `include:` that is not a string literal, so rule envs in it were not "
+                          "recorded.".format(rel))
+    for inc in includes:
+        found += snake_conda_decls(root, os.path.normpath(os.path.join(here, inc)), report, seen)
+    return found
+
+
+def rule_envs(root, runs, report):
+    """The per-rule conda envs of a `snakemake --use-conda` run: each literal `conda:` env file's sha256
+    and, when exactly one built env under `.snakemake/conda/` is a byte-identical copy of that file, its
+    conda-meta packages and its pip packages. Files are only read. Anything else (file missing or
+    unreadable, no built env, several, no conda-meta records) is a gap, never `recorded`. The folder
+    layout is not validated against a real Snakemake run: only synthetic folders were available."""
+    out, done = [], set()
+    for r in runs:
+        if r.get("kind") != "snakemake":
+            continue
+        cwd = r.get("cwd") or "."
+        snakefiles = [p for p in ran_paths(root, r) if is_snakefile(p)] or [os.path.join(cwd, "Snakefile")]
+        decls = []
+        for smk in snakefiles:
+            if os.path.isfile(os.path.join(root, smk)):
+                decls += snake_conda_decls(root, os.path.normpath(smk), report)
+        flagged = bool(USE_CONDA.search(r.get("command", "")))
+        for env_rel, rule in decls:
+            if (cwd, env_rel, flagged) in done:
+                continue
+            done.add((cwd, env_rel, flagged))
+            label = "Rule env `{}` (rule `{}`)".format(env_rel, rule or "?")
+            if not flagged:
+                report.add("gap", "{} is declared, but the run does not show `--use-conda` (a profile can set "
+                                  "it), so it was not recorded.".format(label))
+                continue
+            try:
+                with open(os.path.join(root, env_rel), "rb") as handle:
+                    data = handle.read()
+            except OSError:
+                report.add("gap", "{} could not be read, so it was not recorded.".format(label))
+                continue
+            digest = hashlib.sha256(data).hexdigest()
+            built = []
+            for yaml in sorted(glob.glob(os.path.join(root, cwd, ".snakemake", "conda", "*.yaml"))):
+                try:
+                    with open(yaml, "rb") as handle:
+                        same = handle.read() == data
+                except OSError:
+                    continue
+                if same and os.path.isdir(yaml[:-len(".yaml")]):
+                    built.append(yaml[:-len(".yaml")])
+            if len(built) != 1:
+                report.add("gap", "{}: env file sha256 {}, but {} built env(s) under `.snakemake/conda/` match "
+                                  "it, so its packages were not recorded.".format(
+                                      label, digest[:12], "no" if not built else len(built)))
+                continue
+            meta = os.path.join(built[0], "conda-meta")
+            records = [gate.read_json(p, {}) for p in sorted(glob.glob(os.path.join(meta, "*.json")))]
+            urls = sorted("{}#{}".format(m["url"], m["md5"]) if m.get("md5") else m["url"]
+                          for m in records if m.get("url"))
+            if not urls:
+                report.add("gap", "{}: env file sha256 {}; the built env has no readable `conda-meta` records "
+                                  "(format not recognised), so its packages were not recorded.".format(
+                                      label, digest[:12]))
+                continue
+            pip, unreadable, both, _ = pip_packages(built[0], records)
+            if unreadable:
+                report.add("gap", "{}: {} pip package folder(s) have no readable name and version, so they "
+                                  "were not recorded.".format(label, len(unreadable)))
+            try:
+                changed = os.stat(os.path.join(meta, "history")).st_mtime
+            except OSError:
+                changed = 0
+            stale = changed > r.get("ts", 0) + TOLERANCE
+            if stale:
+                report.add("gap", "{} changed {}, after its run here ({}); the recorded list is the env as it "
+                                  "is now.".format(label, when(changed), when(r.get("ts", 0))))
+            report.add("info", "{}: file sha256 {}, {} packages recorded{}.".format(
+                label, digest[:12], len(urls), "; {} pip".format(len(pip)) if pip else ""))
+            out.append({"file": env_rel, "rule": rule, "sha256": digest, "prefix": built[0], "packages": urls,
+                        "pip": pip, "changed_after_run": stale, "synthetic_format_only": True})
+    return out
+
+
 def prose_validation(plan, binding, report):
     """F06 residual, info: Validation cells that hold prose while no validation binding covers their row. The
     cell is not executed or reconciled, so this says so; it is not a gap (the plan did not ask for a check)."""
@@ -2514,6 +2627,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         fact_tags("`{}` Key Findings".format(doc), section_bullets(read_text(os.path.join(root, doc)),
                                                                    "Key Findings"), report)
     envs = conda_snapshots(root, mine, report)
+    rule_env_list = rule_envs(root, mine, report)
     linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds,
                   choices=[(" ".join(row.values()), row.get("choice", "")) for row in plan_rows(plan)[0].values()])
     claimed = check_claims(root, analysis_dir, outputs, claims, report, budget["bytes"])
@@ -2534,7 +2648,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                          "prepared": (frozen or {}).get("prepared")}, "scope": scope,
             "analysis_dir": analysis_dir, "git": gate.git_state(root), "runs": len(mine),
             "scripts": scripts, "folders": folders, "commands": commands, "inputs": inputs,
-            "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted, "envs": envs,
+            "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted, "envs": envs, "rule_envs": rule_env_list,
             "claims": claimed, "recovery": recovery, "validation": validated, "validation_binding": binding,
             "status": report.status(), "plan": plan,
             # Kept for the record (a scaffolder call can explain a moved input), marked as not runs.
@@ -3149,6 +3263,14 @@ def _write_bundle(root, result, folder):
                     env["env"], env["prefix"], env["source"],
                     "# changed after the run: this is the env as it was when verify read it\n"
                     if env["pip_changed_after_run"] else "", "\n".join(env["pip"])))
+    if result.get("rule_envs"):
+        paths["rule_envs"] = "rule-envs-{}.json".format(digest)
+        with open(os.path.join(folder, paths["rule_envs"]), "w", encoding="utf-8") as handle:
+            json.dump({"schema": "mycelium-extra.rule-envs.v1", "hash": digest,
+                       "note": "Read from `.snakemake/conda/`; the layout was checked on a synthetic folder, "
+                               "not a real Snakemake run.", "envs": result["rule_envs"]},
+                      handle, indent=1, sort_keys=True)
+            handle.write("\n")
     with open(os.path.join(folder, paths["plan"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
         handle.write("# Approved plan {}\n\nApproved {} in session {}. Frozen copy of the plan "
                      "the mycelium-extra gate approved; do not edit it. Revise the analysis's own plan "
@@ -3189,7 +3311,8 @@ def _write_bundle(root, result, folder):
         paths["outputs"], paths["lint"], paths["report"],
         (" - [validation]({})".format(paths["validation"]) if "validation" in paths else "") +
         (" - [conda env]({})".format(paths["env"]) if "env" in paths else "") +
-        (" - [pip]({})".format(paths["pip"]) if "pip" in paths else ""))
+        (" - [pip]({})".format(paths["pip"]) if "pip" in paths else "") +
+        (" - [rule envs]({})".format(paths["rule_envs"]) if "rule_envs" in paths else ""))
     if os.path.isfile(index):
         with open(index, encoding="utf-8") as handle:
             lines = [line.rstrip("\n") for line in handle if not line.startswith("| {} |".format(digest))]
