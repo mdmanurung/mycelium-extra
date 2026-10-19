@@ -1,6 +1,6 @@
 # 10 · Focus and track changes (0.13.0 tracker)
 
-Objective: build milestones M0 to M2 of the focus and track-changes spec (2026-10-18, archived with this tracker's bundle at `plans/_DONE/mycelium_extra_focus_track_changes_complete_bundle/`) against the real code: a typed `focus` command and a read-only `track-changes` report. M3 (turn-end notices, draft actions, `focus_id` in launches and receipts) and M4 (AI explanation, usability evaluation) are parked with their trigger in "Not done, on purpose" below.
+Objective: build milestones M0 to M2 of the focus and track-changes spec (2026-10-18, archived with this tracker's bundle at `plans/_DONE/mycelium_extra_focus_track_changes_complete_bundle/`) against the real code: a typed `focus` command and a read-only `track-changes` report. M3 (turn-end notice, `focus_id` in launches and receipts) is built; M4 (AI explanation, usability evaluation) is parked with its trigger in "Not done, on purpose" below.
 
 Statuses: **done**, **parked**, **dropped**.
 
@@ -59,7 +59,7 @@ Statuses: **done**, **parked**, **dropped**.
 | F25 | nothing under `.mycelium-extra/` outside `track-changes/` changes |
 | F26, F30, F32 | no gate; no observation is not "on task"; explicit analysis works without focus |
 | F27 | `gate_diff` identical; codex and opencode suites unchanged |
-| F04, F21, F31 | **parked**: they concern launch-time focus and notices (M3), see "Not done, on purpose" |
+| F04, F21, F31 | done (M3): `test_receipt_carries_the_focus_at_launch_not_at_completion`, `test_a_job_started_before_the_focus_is_never_assigned_to_it`, `test_the_turn_end_notice_is_opt_in_plain_and_told_once` in `hooks/tests/test_focus.py`; `gate_diff` 173/173 identical with `card_coverage` off |
 
 ## Decisions on the spec
 
@@ -71,14 +71,22 @@ Statuses: **done**, **parked**, **dropped**.
 
 ## Not done, on purpose (parked)
 
-M3 is **parked** (M4 was built on 2026-10-19, see its row), not dropped, and strict focus blocking, an AI explanation and the usability study stay out of scope until the trigger below. Decision recorded 2026-10-19: M3 waits until after the ~2026-10-31 usage measurement, because turn-end notices and `focus_id` in receipts would change what that measurement observes.
+M3 and M4 were parked on 2026-10-19 to keep the ~2026-10-31 usage measurement unconfounded; the user reopened both the same day and both are built. M3: `focus_id`/`focus_folder` in matched receipts and the opt-in `focus_notices` turn-end line (see "M3 as built" below). M4: `track_changes.py --explain`. Strict focus blocking, an AI explanation and the usability study stay out of scope.
 
-| Milestone | Scope | Files it would touch | Acceptance cases | Reactivation trigger |
+| Milestone | Scope | Files it touches | Acceptance cases | Status |
 |---|---|---|---|---|
-| **M3** | Launch-time `focus_id`/`focus_folder` in matched receipts, copied into the receipt by `on_post` (never relabelling an in-flight job); opt-in deduplicated turn-end notice under `"focus_notices": true`, default `false` | `hooks/gate.py`, `hooks/tests/test_focus.py`, `docs/approval-gate.md` | `F04`, `F21`, `F31` | after the ~2026-10-31 usage measurement of 0.11.0–0.13.1 |
-| **M4** (done, uncommitted in this checkout: the user overrode the measurement condition on 2026-10-19) | `track_changes.py --explain <item_id>` emitting the five-heading bounded evidence block, plus Review Brief pointers from `grill`, `handoff` and `docs/mycelium-integration.md` | `skills/track-changes/scripts/track_changes.py`, `skills/track-changes/SKILL.md`, `skills/grill/SKILL.md`, `skills/handoff/SKILL.md`, `docs/mycelium-integration.md` | none (no `F` case; a usability study is Track R work) | after the same measurement, and only if the measurement shows the report is used enough to justify the explanation pass |
+| **M3** | Launch-time `focus_id`/`focus_folder` in matched receipts, copied into the receipt by `on_post` (never relabelling an in-flight job); opt-in deduplicated turn-end notice under `"focus_notices": true`, default `false` | `hooks/gate.py`, `hooks/tests/test_focus.py`, `docs/approval-gate.md` | `F04`, `F21`, `F31` | done (the user overrode the measurement condition on 2026-10-19) |
+| **M4** | `track_changes.py --explain <item_id>` emitting the five-heading bounded evidence block, plus Review Brief pointers from `grill`, `handoff` and `docs/mycelium-integration.md` | `skills/track-changes/scripts/track_changes.py`, `skills/track-changes/SKILL.md`, `skills/grill/SKILL.md`, `skills/handoff/SKILL.md`, `docs/mycelium-integration.md` | none (no `F` case; a usability study is Track R work) | done (same override) |
 
 Both milestones are opt-in or additive by design: neither changes an allow, deny or message decision (`gate_diff` must stay identical), and the default-off flag keeps the measurement unconfounded. The spec bundle that produced them is archived at `plans/_DONE/mycelium_extra_focus_track_changes_complete_bundle/`; this tracker is self-contained. A human usability study stays parked under Track R and is not part of either milestone.
+
+### M3 as built
+
+- `hooks/gate.py`: `open_focus` reads this session's open focus (one directory test when there is none; any error means none). `write_launch` keeps `focus_id` and `focus_folder` in the launch record; `on_post` copies them into a *matched* receipt only, so a switch while a job runs, a focus opened after the launch, and an unmatched receipt never get a label.
+- `focus_notice` (Stop hook, `"focus_notices": true`, default `false`): reads the last MiB of `receipts.jsonl`, takes receipts carrying the current `focus_id`, and for script paths under another gated analysis folder (not the focus folder, not a parent of it) adds one plain line, aggregated per turn and told once per (focus, folder) through `.mycelium-extra/pending/<session>.focus-notices.json`. Any failure is no notice.
+- `skills/init/scripts/gate_init.py` knows `focus_notices` (and the previously missing `card_coverage`), so `--diagnose` no longer calls them typos.
+- Not built from the spec's M3 list: the editable draft-action templates and a notice for direct edits (that needs the transcript, which a hook must not scan); `track-changes` still shows those on request.
+- Evidence: `gate_diff` 173/173 identical with `card_coverage` off, so M3 changes no allow, deny or message decision; `hooks/tests/test_focus.py` 26 tests OK.
 
 One verification limit carried forward: the viewer was checked in headless Firefox and by the user in a browser on 2026-10-19, so no browser run remains outstanding.
 

@@ -227,6 +227,8 @@ CONFIG_RULES = {
     "pin_seconds": ("a positive number", lambda v: _number(v) and v > 0),
     "pin_scripts": ("true or false", lambda v: isinstance(v, bool)),
     "card_lint": ("true or false", lambda v: isinstance(v, bool)),
+    "card_coverage": ("true or false", lambda v: isinstance(v, bool)),
+    "focus_notices": ("true or false", lambda v: isinstance(v, bool)),
     "lint_on_write": ("true or false", lambda v: isinstance(v, bool)),
     "lint_before_stop": ("true or false", lambda v: isinstance(v, bool)),
     "lint_before_run": ('false, "warn" or "block"', lambda v: v is False or v in ("warn", "block")),

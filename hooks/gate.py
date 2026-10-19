@@ -40,7 +40,7 @@ DEFAULTS = {
     "pin_scripts": True,
     "lint_before_run": False,
     "lint_before_stop": False,
-    "card_coverage": False,
+    "card_coverage": True,
 }
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call that never reported back
@@ -1065,6 +1065,9 @@ def write_launch(root, event, runs, attempt_id=None):
     now = time.time()
     attempt = {"ts": now, "started": now, "attempt_id": attempt_id or os.urandom(8).hex(), "call_id": call_id(event),
                "cwd": repo_relative(root, root, event.get("cwd") or root) or ".", "runs": runs}
+    focus = open_focus(root, event)
+    if focus:  # what the session said at launch; the receipt copies it, never today's focus
+        attempt.update(focus_id=focus[0], focus_folder=focus[1])
     path = launch_path(root, event)
     # ponytail: three simultaneous identical launches can lose one attempt from the ambiguous list
     if call_id(event) is None and not create_exclusive(path, attempt):
@@ -1073,6 +1076,19 @@ def write_launch(root, event, runs, attempt_id=None):
         write_json(path, {"ts": now, "ambiguous": True, "attempts": (attempts or []) + [attempt]})
     elif call_id(event) is not None:
         write_json(path, attempt)
+
+
+def open_focus(root, event):
+    """(focus_id, folder) of this session's open focus, or None. One directory test when no focus was ever
+    opened; an unreadable or malformed record, or a missing session id, counts as none."""
+    if not os.path.isdir(state_path(root, "focus")):
+        return None
+    try:
+        module = focus_module()
+        episode = module.open_episode(module.read(root, event.get("session_id")))
+        return (episode["focus_id"], episode["analysis_path"]) if episode else None
+    except Exception:
+        return None
 
 
 def pins_of(launch, record):
@@ -2413,7 +2429,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
     lines += validation_lines(root, config, text, (blocks or {}).get("validation"))
     cover_at = len(lines)  # the compact card stops copying here; its own short block comes after the Coverage row
     gaps, detail = [], []
-    if config.get("card_coverage", False) is True:
+    if config.get("card_coverage", True) is True:
         try:
             gaps, detail = coverage_gaps(rows, pins, scripts, blocks)
         except Exception as error:  # ANALYSIS_OK[card-best-effort]: the plan stays approvable; the card claims no coverage
@@ -2468,7 +2484,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
         compact.append("Defaults to confirm: step " + ", ".join(defaults) + "  (* = a default decided)")
     written = [quote(DONE_MARK.sub("", row["check"]), 80) for row in rows if row["check"].strip()]
     compact += labelled("Checks", " \u00b7 ".join(written) if written else "none written in the plan")
-    if config.get("card_coverage", False) is True:
+    if config.get("card_coverage", True) is True:
         compact += labelled("Coverage", coverage_text(rows, blocks or {}))
         if gaps:
             compact += ["Not established before running"] + ["  - " + item for item in gaps[:3]] + (
@@ -3835,11 +3851,62 @@ def on_stop(event, root, config):
         notices.append(open_lint)
     if hints_on(root):
         notices += stop_hints(root, event)
+    drift = focus_notice(root, event, config)
+    if drift:
+        notices.append(drift)
     result = {"systemMessage": "\n\n".join(notices)} if notices else {}
     block = lint_stop_block(root, event, config)
     if block:
         result.update(decision="block", reason=block)
     return result or None
+
+
+def focus_notice(root, event, config):
+    """Opt-in (`focus_notices`: true): one plain line at turn end naming analysis folders whose scripts ran
+    under this session's open focus, read from receipts already written (the last MiB; no scan, no model).
+    Each (focus, folder) is told once per session. Advisory: any failure is no notice, never a decision."""
+    if config.get("focus_notices") is not True:
+        return None
+    try:
+        focus = open_focus(root, event)
+        if not focus:
+            return None
+        focus_id, folder = focus
+        roots = focus_module().roots_of(config)
+        try:
+            with open(state_path(root, "receipts.jsonl"), "rb") as handle:
+                handle.seek(0, os.SEEK_END)
+                handle.seek(max(0, handle.tell() - (1 << 20)))
+                tail = handle.read().decode("utf-8", "replace")
+        except OSError:
+            return None
+        marker = state_path(root, "pending", safe_session(event.get("session_id")) + ".focus-notices.json")
+        told = read_json(marker, [])
+        found = []
+        for line in tail.splitlines():
+            try:
+                record = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(record, dict) or record.get("focus_id") != focus_id:
+                continue  # a run launched under no focus or another one is never assigned to this one
+            for path in record.get("paths") or []:
+                parts = str(path).split("/")
+                other = "/".join(parts[:2])
+                if (len(parts) < 3 or parts[0] not in roots or path.startswith(folder + "/")
+                        or folder.startswith(other + "/") or other in found
+                        or focus_id + "|" + other in told):
+                    continue
+                found.append(other)
+        if not found:
+            return None
+        write_json(marker, (told + [focus_id + "|" + other for other in found])[-200:])
+        return ("mycelium-extra \u00b7 focus {}: observed run of scripts under {} while this focus was open. "
+                "This may be a supporting dependency or a different analysis; the relationship is not "
+                "established. /mycelium-extra:track-changes shows details.".format(
+                    folder, ", ".join(sorted(found)[:3]) + (" (+{} more)".format(len(found) - 3) if len(found) > 3 else "")))
+    except Exception:
+        return None
 
 
 def new_explore_runs(root, session_id):
@@ -4136,6 +4203,8 @@ def on_post(event, root, config):
         }
         if limitations:
             receipt["limitations"] = limitations
+        if launch_match == "matched" and attempt.get("focus_id"):  # the focus at launch, never at completion
+            receipt["focus_id"], receipt["focus_folder"] = attempt["focus_id"], attempt["focus_folder"]
         for key in ("validation_check", "exact_match", "exact_step", "explore_scope", "explore_script_pins"):
             if launch and key in launch:  # what the launch recorded about the plan's blocks, or a scoped explore
                 receipt[key] = launch[key]

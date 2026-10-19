@@ -815,7 +815,7 @@ class GateTest(unittest.TestCase):
             .format(self.root), "| 2 | View fig | Print size | default: print rules | labels >= 6 pt |"]))
         card = self.card(plan)
         lines = card.splitlines()
-        self.assertLessEqual(len(lines), 20)
+        self.assertLessEqual(len(lines), 22)  # 20 lines plus the Coverage row, which is on by default and takes up to two
         self.assertEqual(lines[3:7], ["Goal      Compare A with B.", "Choices   1 Exact test. Two-sided.  [you]",
                                       "          2 Print size  [default: print rules]*",
                                       "Defaults to confirm: step 2  (* = a default decided)"])  # the whole choice
@@ -3500,10 +3500,13 @@ class ValidationBindingsTest(unittest.TestCase):
         """The card with its wrapped continuation lines (ten spaces of indent) joined to the line above."""
         return re.sub(r"\n {10}", " ", card)
 
-    def test_coverage_row_is_off_by_default(self):  # control: the card is the same without the setting
+    def test_coverage_row_is_on_by_default_and_off_with_false(self):
         self.setup_files()
         _, card = self.approved(self.plan(self.check()))
-        self.assertNotIn("Coverage", card)
+        self.assertIn("Coverage", card)  # no setting: on
+        self.config({"card_coverage": False})
+        _, card = self.approved(self.plan(self.check()))
+        self.assertNotIn("Coverage", card)  # an explicit false is a control: the card is the same without the row
 
     def test_coverage_row_counts_bound_and_prose_checks_when_on(self):
         self.setup_files()
@@ -3663,7 +3666,7 @@ class CardNotEstablishedTest(unittest.TestCase):
 
     def test_the_option_off_changes_no_card_even_with_weak_and_missing_pins(self):
         self.files()
-        self.config({"pin_hash_mb": 0})
+        self.config({"pin_hash_mb": 0, "card_coverage": False})
         plan = self.plan("data/in.tsv", "data/gone.tsv")
         off = self.show(plan)
         full_off = self.asked(off, "full")

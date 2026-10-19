@@ -176,7 +176,7 @@ local candidate, not a published installation.
 The opt-in features shipped between 0.11.0 and 0.13.2 were released on the
 understanding that they would be reviewed after a measurement window: the
 `card_coverage` row, the coverage exceptions, the decision trace, the correction
-lookup and the evidence assistance. The last two landed in 0.13.2, so they have
+lookup and the evidence assistance. (`card_coverage` was turned on by default on 2026-10-19, before the review, at the user's request; the new `focus_notices` is off by default.) The last two landed in 0.13.2, so they have
 the shortest exposure before the ~2026-10-31 review and a low reading for them
 says more about the calendar than about the feature. Nothing in the gate records a "feature was
 used" event, and none of the state files is written for this purpose, so the

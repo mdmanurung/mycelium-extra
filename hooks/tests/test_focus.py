@@ -272,6 +272,84 @@ class FocusTest(unittest.TestCase):
                                  stderr=subprocess.PIPE, universal_newlines=True)
         self.assertEqual(refused.returncode, 2)  # no command line can change a focus
 
+    TWO = ("## Plan\n| 1 | run `analysis/a/run.py` | repo | check |\n| 2 | run `analysis/b/run.py` | repo | check |\n\n"
+           "Plan status: READY")
+
+    def run_script(self, name, call, between=None):
+        """Launch `python analysis/<name>/run.py` and report it done; `between` runs after the launch, before the report."""
+        command = "python analysis/{}/run.py".format(name)
+        allowed = self.hook("tool", {"tool_name": "Bash", "tool_input": {"command": command}, "tool_use_id": call})
+        self.assertNotIn("deny", json.dumps(allowed))
+        if between:
+            between()
+        self.hook("post", {"tool_name": "Bash", "tool_input": {"command": command}, "tool_use_id": call,
+                           "tool_response": {"stdout": "", "stderr": "", "interrupted": False}})
+
+    def last_receipt(self):
+        with open(os.path.join(self.root, ".mycelium-extra", "receipts.jsonl")) as handle:
+            return json.loads(handle.read().splitlines()[-1])
+
+    def stop_notice(self, session="s1"):
+        return self.text(self.hook("stop", {"last_assistant_message": "done"}, session))
+
+    def test_receipt_carries_the_focus_at_launch_not_at_completion(self):  # F04
+        os.makedirs(os.path.join(self.root, "analysis", "b"), exist_ok=True)
+        self.approve_text(self.TWO)
+        self.say("focus analysis/a")
+        first = self.record()["episodes"][0]["focus_id"]
+        self.run_script("a", "t1", between=lambda: self.say("focus switch analysis/b"))
+        receipt = self.last_receipt()
+        self.assertEqual((receipt["launch_match"], receipt["focus_id"], receipt["focus_folder"]),
+                         ("matched", first, "analysis/a"))
+        self.assertNotEqual(first, self.record()["episodes"][1]["focus_id"])
+
+    def test_a_job_started_before_the_focus_is_never_assigned_to_it(self):  # F31
+        os.makedirs(os.path.join(self.root, "analysis", "b"), exist_ok=True)
+        self.approve_text(self.TWO)
+        self.run_script("a", "t1", between=lambda: self.say("focus analysis/a"))
+        receipt = self.last_receipt()
+        self.assertEqual(receipt["launch_match"], "matched")
+        self.assertNotIn("focus_id", receipt)
+        self.assertNotIn("focus_folder", receipt)
+        self.hook("post", {"tool_name": "Bash", "tool_input": {"command": "python analysis/a/run.py"},
+                           "tool_use_id": "no-launch", "tool_response": {"stdout": "", "stderr": ""}})
+        self.assertEqual(self.last_receipt()["launch_match"], "unmatched")  # no launch record: nothing to copy
+        self.assertNotIn("focus_id", self.last_receipt())
+
+    def test_the_turn_end_notice_is_opt_in_plain_and_told_once(self):  # F21
+        os.makedirs(os.path.join(self.root, "analysis", "b"), exist_ok=True)
+        with open(os.path.join(self.root, "analysis", "b", "run.py"), "w") as handle:
+            handle.write("print(2)\n")
+        self.approve_text(self.TWO)
+        self.say("focus analysis/a")
+        self.run_script("a", "t1")
+        self.run_script("b", "t2")
+        self.assertEqual(self.stop_notice(), "")  # off by default
+        with open(os.path.join(self.root, ".mycelium-extra", "gate.json"), "w") as handle:
+            json.dump({"focus_notices": True}, handle)
+        notice = self.stop_notice()
+        self.assertIn("focus analysis/a: observed run of scripts under analysis/b while this focus was open", notice)
+        self.assertIn("relationship is not established", notice)
+        self.assertNotIn("analysis/a/", notice)  # a run inside the focus folder is not drift
+        self.assertFalse(any(c in notice for c in "*#`"))  # plain text
+        self.run_script("b", "t3")
+        self.assertEqual(self.stop_notice(), "")  # the same folder under the same focus: no second notice
+        self.assertEqual(self.stop_notice("other-session"), "")  # another session has no focus and no receipts
+
+    def test_a_notice_failure_changes_no_decision(self):
+        os.makedirs(os.path.join(self.root, "analysis", "b"), exist_ok=True)
+        self.approve_text(self.TWO)
+        self.say("focus analysis/a")
+        self.run_script("b", "t1")
+        with open(os.path.join(self.root, ".mycelium-extra", "gate.json"), "w") as handle:
+            json.dump({"focus_notices": True}, handle)
+        with open(os.path.join(self.root, ".mycelium-extra", "receipts.jsonl"), "w") as handle:
+            handle.write("not json\n[1]\n")
+        self.assertEqual(self.stop_notice(), "")
+        with open(os.path.join(self.root, ".mycelium-extra", "focus", "s1.json"), "w") as handle:
+            handle.write("{")
+        self.assertEqual(self.stop_notice(), "")  # a malformed focus record: no notice, no error
+
 
 if __name__ == "__main__":
     unittest.main()
