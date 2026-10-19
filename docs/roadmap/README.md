@@ -14,7 +14,7 @@ These come from decisions already locked in this repository. A task that would b
 - **Friction is opt-in.** New prompts, checkpoints, and hints are off by default per repository, like `hints`.
 - **Plain-text hook notices.** `systemMessage` text has no Markdown.
 - **No SessionStart messages.** They compete with Mycelium's session resume (measured dead end).
-- **Python 3.6 compatible, stdlib only** for hooks and skill scripts; hooks call bare `python3`.
+- **Stdlib only; Python 3.9 or later** for hooks and skill scripts, run through `hooks/py.sh`. `hooks/gate_run.py` stays parseable by Python 3.6 so an old `python3` registration can hand the event to `py.sh` (see `docs/installation.md#requirements`).
 - **One feature, two commits:** `feat(...)`/`fix(...)`, then `chore: bump version` across the three manifests.
 - **Run `hooks/tests/gate_diff.py` before and after any change to `hooks/gate.py`;** only intended decisions may differ.
 
