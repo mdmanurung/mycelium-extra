@@ -171,6 +171,84 @@ opencode/tests/gate.test.js` (11 tests), the 421-test gate suite, `gate_diff`
 168/168, and the 103-test end-to-end suite passed. These checks validate the
 local candidate, not a published installation.
 
+## Usage measurement (the ~2026-10-31 review)
+
+The opt-in features shipped between 0.11.0 and 0.13.1 were released on the
+understanding that they would be reviewed after a measurement window: the
+`card_coverage` row, the coverage exceptions, the decision trace, the correction
+lookup and the evidence assistance. Nothing in the gate records a "feature was
+used" event, and none of the state files is written for this purpose, so the
+measurement is assembled read-only from what the gate already keeps. Run it
+against each live project that has a `.mycelium-extra/` folder; the two in use
+are `/exports/para-lipg-hpc/mdmanurung/bmv_pilot_cytof_integration` and
+`/exports/para-lipg-hpc/mdmanurung/scale`.
+
+There is no pre-0.11.0 baseline in either project. Take a reading now and again
+at the review: a before/after over a window you define is worth more than the
+absolute numbers, which only say how busy a project was.
+
+```bash
+P=/exports/para-lipg-hpc/mdmanurung/bmv_pilot_cytof_integration   # then the same for .../scale
+cd "$P"
+
+# Approvals per day, and the latency between a plan being shown and approved.
+# approvals.jsonl holds one line per approval: shown_ts, approved_ts, latency_s,
+# plan_chars and plan_rows — how big the plan was is part of the cost of approving one.
+jq -r '.approved_ts | strftime("%Y-%m-%d")' .mycelium-extra/approvals.jsonl 2>/dev/null | sort | uniq -c
+jq -s '{n: length, median_latency_s: (map(.latency_s // 0) | sort | .[length/2 | floor]),
+        mean_plan_rows: (map(.plan_rows) | if length > 0 then add / length else 0 end)}' .mycelium-extra/approvals.jsonl 2>/dev/null
+
+# A second, independent approval count: one frozen plan per approval.
+ls .mycelium-extra/approvals/ 2>/dev/null | wc -l
+
+# Denials the gate made, and why. The file only exists once a denial has happened.
+{ wc -l < .mycelium-extra/denies.jsonl; } 2>/dev/null || echo "no denial recorded yet"
+jq -r .reason .mycelium-extra/denies.jsonl 2>/dev/null | sort | uniq -c | sort -rn
+
+# Re-pins and freezes per plan (one line per re-pin), and plans frozen without one.
+wc -l .mycelium-extra/repins/*.jsonl 2>/dev/null || echo "no re-pin recorded yet"
+ls .mycelium-extra/approvals/ 2>/dev/null | wc -l
+
+# A gate that could not decide. Anything here is a gate bug or a host problem, not a denial.
+{ wc -l < .mycelium-extra/gate-errors.jsonl; } 2>/dev/null || echo "no gate errors"
+jq -r '.reason // .error // "?"' .mycelium-extra/gate-errors.jsonl 2>/dev/null | sort | uniq -c | sort -rn
+
+# Read-only work: explore grants, and the runs a launch hook recorded.
+ls .mycelium-extra/explore-grants 2>/dev/null | wc -l
+ls .mycelium-extra/launches 2>/dev/null | wc -l
+
+# Reportable work that was verified. `verify` itself leaves no record — it is read-only
+# by design — so the only trace of verification is the provenance folder `verify write`
+# creates. Keep the depth bounded: a full-tree find is slow on a large project.
+find . -maxdepth 6 -type d -name provenance -newermt 2026-07-01 2>/dev/null | wc -l
+```
+
+Two things this cannot measure, and should not be read as measuring. **`verify`
+runs are not recorded anywhere.** Every `verify` subcommand except `write` is
+read-only, so a project that reads the report daily and a project that never
+opens it look identical in the state files; the `provenance/` count above is a
+lower bound on `verify write` only. **`card_coverage` use is not recorded
+either**: it changes what is printed, not what is stored, so the row's effect
+has to be judged from the transcript that asked for it and from whether a
+coverage exception was approved, which shows up as a `plan_rows`/`plan_chars`
+change and, for the placement question, as a `denies.jsonl` reason.
+
+A first reading on 2026-10-19, as a baseline (both projects predate 0.11.0's
+last release, so this is a starting point, not a before):
+
+| Project | `approvals.jsonl` | `approvals/` | `receipts.jsonl` | `launches` | `denies.jsonl` | `repins/` | `gate-errors.jsonl` | `explore-grants` | `provenance/` |
+|---|---|---|---|---|---|---|---|---|---|
+| `bmv_pilot_cytof_integration` | 1 | 99 | 379 | 0 | absent | 0 | 21 | 3 | 42 |
+| `scale` | absent | 45 | 196 | 0 | absent | 0 | absent | 0 | 3 |
+
+The `bmv` approvals log has one line because it was added in 0.11.0; the 99 files
+in `approvals/` are the real approval count, which is why the folder is counted
+separately. `scale` has no `approvals.jsonl` at all, so its summary line reports
+`n: 0` and a null median rather than failing — worth knowing before reading a
+zero as "no approvals". The 21 gate errors are 20 hosts where the hook ran a
+Python older than 3.9 and 1 `No module named 'gate'` — the reason strings are
+specific enough to triage, which is the point of keeping them.
+
 ## Documentation website
 
 The website and repository use the same Markdown pages. You can improve a
