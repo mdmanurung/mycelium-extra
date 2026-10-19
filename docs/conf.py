@@ -16,9 +16,13 @@ include_patterns = ["index.rst", "docs/installation.md", "docs/usage.md", "docs/
 exclude_patterns = ["docs/_build"]
 myst_heading_anchors = 6
 myst_fence_as_directive = ["mermaid"]
-html_theme = "alabaster"
+html_theme = "sphinx_clarity_theme"
 html_title = "Mycelium Extra"
 html_baseurl = "https://mdmanurung.github.io/mycelium-extra/"
-html_theme_options = {"description": "Evidence before execution",
-                      "github_user": "mdmanurung", "github_repo": "mycelium-extra"}
-html_sidebars = {"**": ["about.html", "navigation.html", "searchfield.html"]}
+html_theme_options = {
+    "header_title": "Mycelium Extra",
+    "announcement": "Evidence before execution: plan, approve, verify.",
+    "header_menu": [
+        {"content": "GitHub", "url": "https://github.com/mdmanurung/mycelium-extra"},
+    ],
+}

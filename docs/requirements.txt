@@ -1,3 +1,4 @@
 sphinx==8.2.3
 myst-parser==4.0.1
 sphinxcontrib-mermaid==1.0.0
+sphinx_clarity_theme==2.1.0
