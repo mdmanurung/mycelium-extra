@@ -47,7 +47,7 @@ Checks an approved plan against receipts, pinned inputs, outputs, lint, and
 explicit claims. It never re-runs the analysis. Requires the approval gate
 for a current plan's report; `verify stale`, `status` and `runs` can read saved
 provenance without it. Other subcommands (`list`, `diff`, `multiplicity`,
-`explore`, and `--require-reportable`) are described in
+`explore`, `disclose`, `--resolve-citations` and `--require-reportable`) are described in
 [Verification reference](verification.md); `stale`, `status`, `diff` and `runs` are in
 [Advanced features](advanced.md#verify-features).
 

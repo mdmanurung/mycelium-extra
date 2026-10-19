@@ -4,7 +4,8 @@ Stdlib-only; runs on Python 3.9+. Run it from stdin, inside the repository, so
 Mycelium's hooks do not open the post-action cycle:
 
     sh <root>/hooks/py.sh - --plugin-root <root> list < verify.py
-    sh <root>/hooks/py.sh - --plugin-root <root> report <hash> [--analysis-dir DIR] [--claims DOC] [--instance ID] [--require-reportable] [--json] < verify.py
+    sh <root>/hooks/py.sh - --plugin-root <root> report <hash> [--analysis-dir DIR] [--claims DOC] [--instance ID] [--require-reportable] [--resolve-citations [--contact EMAIL]] [--json] < verify.py
+    sh <root>/hooks/py.sh - --plugin-root <root> disclose <hash> [--analysis-dir DIR] [--resolve-citations [--contact EMAIL]] < verify.py
     sh <root>/hooks/py.sh - --plugin-root <root> write <hash> --analysis-dir DIR [--claims DOC] [--require-reportable] < verify.py
     sh <root>/hooks/py.sh - --plugin-root <root> stale [--content] [--json] < verify.py
     sh <root>/hooks/py.sh - --plugin-root <root> status [--json] < verify.py
@@ -41,6 +42,9 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 
 gate = None  # the approval gate module, loaded from --plugin-root
 PLUGIN_ROOT = None
@@ -65,6 +69,8 @@ LIMITS = [
     "that is what the review step checks.",
     "Claims are checked only where a document's `<!-- claims -->` block names the output cell; other "
     "numbers in the text are listed, not checked, and a verified claim matches its cell, not the truth.",
+    "A resolved citation shows that the identifier exists and that its title and first author appear in "
+    "the citation text; it does not show that the paper supports the sentence citing it.",
     "With `snakemake --use-conda`, rules run in their own envs under `.snakemake/conda/`; the conda env "
     "recorded is the one Snakemake ran in, not the rules' envs.",
     "Pip packages are read from the conda env's site-packages: one uninstalled after the run is not seen, "
@@ -1454,11 +1460,7 @@ def check_claims(root, analysis_dir, outputs, extra, report, max_bytes):
     documents against the output cell it names. Numbers in the block's own section that the block
     does not cover are listed as info: the block, not the prose, is the checked record."""
     by_path = {row["path"]: row for row in outputs}
-    docs = [p for p in by_path if p.endswith(".md")]
-    if analysis_dir:
-        name = os.path.basename(analysis_dir).upper().replace("-", "_") + ".md"
-        docs.insert(0, os.path.join(analysis_dir, name))
-    docs += [rel_or_abs(root, os.path.abspath(p)) for p in extra]
+    docs = document_set(root, analysis_dir, outputs, extra)
     checked = []
     for doc in sorted(set(docs), key=docs.index):
         asked = doc in [rel_or_abs(root, os.path.abspath(p)) for p in extra]
@@ -1561,6 +1563,216 @@ def check_claims(root, analysis_dir, outputs, extra, report, max_bytes):
                            "matching value shows the file's current content, not which run wrote it. Run attribution needs "
                            "the output's producer (artifact and run identity) above, not the number.".format(registered))
     return checked
+
+
+# ---------------------------------------------------------------- citation resolution (D2)
+
+DOI = re.compile(r"(?<![\w/])10\.\d{4,9}/[-._;()/:A-Za-z0-9]+")
+PMID = re.compile(r"\bPMID:?\s*(\d{4,9})\b", re.I)
+ARXIV = re.compile(r"\barXiv:\s*(\d{4}\.\d{4,5})(?:v\d+)?\b", re.I)
+REFERENCE_HEADING = re.compile(r"^#{1,6}\s*(?:references|bibliography|literature cited|works cited)\s*$",
+                               re.I | re.M)
+REFERENCE_LINE = re.compile(r"^\s*(?:[-*]\s+|\d+[.)]\s+)?\S.*\(\d{4}[a-z]?\)")
+CITATION_DELAY = 1.0  # seconds between requests: Crossref, NCBI and arXiv each ask for about one
+MAX_LOOKUP_BYTES = 200000
+CITATIONS_SHOWN = 40
+
+
+def document_set(root, analysis_dir, outputs, extra):
+    """The researcher's own documents, in the order they are checked: the analysis doc, the Markdown
+    outputs of the plan's runs, then the `--claims` documents."""
+    by_path = {row["path"]: row for row in outputs}
+    docs = [p for p in by_path if p.endswith(".md")]
+    if analysis_dir:
+        name = os.path.basename(analysis_dir).upper().replace("-", "_") + ".md"
+        docs.insert(0, os.path.join(analysis_dir, name))
+    docs += [rel_or_abs(root, os.path.abspath(p)) for p in extra]
+    return sorted(set(docs), key=docs.index)
+
+
+def trim_identifier(raw):
+    """A matched DOI without the punctuation of the sentence it sat in: trailing `.`, `,`, `;` and `:`
+    always, and a trailing `)` or `]` only when no opening one balances it (DOIs may contain
+    parentheses, as in `10.1002/(SICI)1099-0`)."""
+    out = raw.rstrip(".,;:")
+    pairs = {")": "(", "]": "["}
+    while out and out[-1] in pairs and out.count(out[-1]) > out.count(pairs[out[-1]]):
+        out = out[:-1]
+    return out
+
+
+def citations_in_text(text, doc):
+    """One entry per citation: `{"doc", "line", "text", "kind", "id"}`. `kind` is `doi`, `pmid` or
+    `arxiv` when the line carries an identifier, and `none` for a reference-shaped line under a
+    reference heading that carries none (those cannot be resolved, only listed)."""
+    starts = [m.start() for m in SECTION_HEADING.finditer(text)]
+    sections = [(m.start(), min([s for s in starts if s > m.start()] or [len(text)]))
+                for m in REFERENCE_HEADING.finditer(text)]
+    entries, offset = [], 0
+    for lineno, line in enumerate(text.split("\n"), 1):
+        here, offset = offset, offset + len(line) + 1
+        found = [("doi", trim_identifier(m.group())) for m in DOI.finditer(line)]
+        found += [("pmid", m.group(1)) for m in PMID.finditer(line)]
+        found += [("arxiv", m.group(1)) for m in ARXIV.finditer(line)]
+        for kind, ident in found:
+            entries.append({"doc": doc, "line": lineno, "text": line.strip(), "kind": kind, "id": ident})
+        if not found and REFERENCE_LINE.match(line) and any(a <= here < b for a, b in sections):
+            entries.append({"doc": doc, "line": lineno, "text": line.strip(), "kind": "none", "id": None})
+    return entries
+
+
+def normalise(text):
+    """Lowercase, punctuation to spaces, whitespace collapsed: for comparing a title or a name with
+    text a researcher wrote."""
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]+", " ", (text or "").lower())).strip()
+
+
+def citation_gist(entry):
+    """How a citation is named in a finding: its identifier, or the start of its text."""
+    if entry["kind"] == "none":
+        return "citation \"{}\"".format(cell(entry["text"])[:70])
+    return "{} {}".format(entry["kind"].upper() if entry["kind"] != "arxiv" else "arXiv", entry["id"])
+
+
+def citation_request(kind, ident, contact):
+    """(url, headers) for one identifier. A contact address is sent only when the user configured
+    one: Crossref asks for one in the URL, NCBI for `tool` and `email`."""
+    agent = "mycelium-extra-verify" + (" (mailto:{})".format(contact) if contact else "")
+    if kind == "doi":
+        url = "https://api.crossref.org/works/" + urllib.parse.quote(ident)
+        if contact:
+            url += "?mailto=" + urllib.parse.quote(contact)
+        return url, {"User-Agent": agent}
+    if kind == "pmid":
+        url = ("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&retmode=json&id="
+               + urllib.parse.quote(ident) + "&tool=mycelium-extra")
+        if contact:
+            url += "&email=" + urllib.parse.quote(contact)
+        return url, {"User-Agent": agent}
+    return "http://export.arxiv.org/api/query?id_list=" + urllib.parse.quote(ident), {"User-Agent": agent}
+
+
+def parse_lookup(kind, ident, body):
+    """(title, first author's surname) from a service's reply, or (None, None) when it has no record."""
+    text = body.decode("utf-8", "replace")
+    if kind == "doi":
+        message = (json.loads(text).get("message") or {})
+        titles = message.get("title") or []
+        authors = message.get("author") or []
+        return (titles[0] if titles else None), (authors[0].get("family") if authors else None)
+    if kind == "pmid":
+        record = (json.loads(text).get("result") or {}).get(ident) or {}
+        authors = record.get("authors") or []
+        name = authors[0].get("name", "") if authors else ""
+        return record.get("title"), (name.split()[0] if name.split() else None)
+    found = re.search(r"<entry>.*?<title>(.*?)</title>", text, re.S)
+    if not found:
+        return None, None
+    title = re.sub(r"\s+", " ", found.group(1)).strip()
+    author = re.search(r"<entry>.*?<name>(.*?)</name>", text, re.S)
+    parts = author.group(1).split() if author else []
+    return title, (parts[-1] if parts else None)
+
+
+def lookup_citation(kind, ident, contact, timeout=20):
+    """(title, surname, verdict, note) for one identifier over the network.
+
+    `resolved` means the service has a record; `unresolved` that it says it has none (the identifier
+    does not exist); `not checked (request failed)` that the request could not be made at all — no
+    network, a refused connection, a timeout — which is a gap, never a pass."""
+    url, headers = citation_request(kind, ident, contact)
+    try:
+        request = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(request, timeout=timeout) as reply:  # noqa: S310 - https, fixed hosts
+            body = reply.read(MAX_LOOKUP_BYTES)
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            return None, None, "unresolved", "the service has no record of it (HTTP 404)"
+        return None, None, "not checked (request failed)", "the service answered HTTP {}".format(error.code)
+    except (urllib.error.URLError, OSError, ValueError) as error:
+        return None, None, "not checked (request failed)", "the request failed: {}".format(
+            cell(str(getattr(error, "reason", error)))[:120])
+    try:
+        title, surname = parse_lookup(kind, ident, body)
+    except (ValueError, AttributeError, TypeError, KeyError):
+        return None, None, "not checked (request failed)", "the service's reply did not parse"
+    if not title:
+        return None, None, "unresolved", "the service has no record of it"
+    return title, surname, "resolved", ""
+
+
+def citation_match(line, title, surname):
+    """(whether the title appears in the citation text, whether the first author does).
+
+    A title matches when most of its significant words are in the line, so an abbreviated citation
+    is not called a mismatch; a surname matches on the whole word."""
+    words = normalise(line)
+    significant = [w for w in normalise(title).split() if len(w) > 3]
+    found = sum(1 for w in significant if w in words.split() or w in words)
+    title_ok = bool(significant) and found >= max(1, math.ceil(0.7 * len(significant)))
+    author_ok = bool(surname) and normalise(surname) in words.split()
+    return title_ok, author_ok
+
+
+def check_citations(root, analysis_dir, outputs, extra, report, resolve=False, contact=None):
+    """Resolve every DOI, PMID and arXiv ID in the checked documents.
+
+    Offline (the default) each identifier is `not checked (offline)`, which is a gap: verify will not
+    report a citation it did not check as resolved. With `resolve`, each identifier is queried once,
+    rate-limited, and classified `resolved`, `mismatch`, `unresolved` (no such record) or
+    `not checked (request failed)`. A reference with no identifier is listed, never resolved."""
+    docs = document_set(root, analysis_dir, outputs, extra)
+    entries = []
+    for doc in docs:
+        path = os.path.join(root, doc)
+        if os.path.isfile(path):
+            entries += citations_in_text(read_text(path), doc)
+    looked = []
+    for index, entry in enumerate(entries):
+        where = "`{}:{}`".format(entry["doc"], entry["line"])
+        on_screen = index < CITATIONS_SHOWN
+        if entry["kind"] == "none":
+            entry["verdict"] = "no identifier"
+            if on_screen:
+                report.add("info", "{}: {} carries no DOI, PMID or arXiv ID, so nothing was "
+                                   "resolved.".format(where, citation_gist(entry)))
+        elif not resolve:
+            entry["verdict"] = "not checked (offline)"
+            if on_screen:
+                report.add("gap", "{}: {} not checked: resolving citations needs `--resolve-citations` "
+                                  "and network access; offline this is a gap, not a pass.".format(
+                                      where, citation_gist(entry)))
+        else:
+            title, surname, verdict, note = lookup_citation(entry["kind"], entry["id"], contact)
+            if verdict == "resolved":
+                title_ok, author_ok = citation_match(entry["text"], title, surname)
+                if not (title_ok and author_ok):
+                    verdict = "mismatch"
+                    wrong = ([] if title_ok else ["the title"]) + ([] if author_ok else ["the first author"])
+                    note = "the record is \"{}\" by {}, and the citation text does not name {}".format(
+                        cell(title)[:90], surname or "an unnamed author", " or ".join(wrong))
+            entry.update(verdict=verdict, title=title, author=surname, note=note)
+            if on_screen:
+                if verdict == "resolved":
+                    report.add("info", "{}: {} resolved to \"{}\" by {}.".format(
+                        where, citation_gist(entry), cell(title)[:90], surname or "an unnamed author"))
+                elif verdict == "mismatch":
+                    report.add("block", "{}: {} does not match the record: {}.".format(
+                        where, citation_gist(entry), note))
+                elif verdict == "unresolved":
+                    report.add("block", "{}: {} is unresolved: {}.".format(where, citation_gist(entry), note))
+                else:
+                    report.add("gap", "{}: {} was {}. Network access is opt-in, so an unchecked "
+                                      "citation stays a gap.".format(where, citation_gist(entry), verdict))
+        looked.append(entry)
+        if resolve and entry["kind"] != "none" and index + 1 < len(entries):
+            time.sleep(CITATION_DELAY)  # one request per identifier, spaced as each service asks
+    if len(entries) > CITATIONS_SHOWN:
+        report.add("info", "{} more citation(s) were checked; `--json` or `write` lists them all.".format(
+            len(entries) - CITATIONS_SHOWN))
+    if not entries and docs:
+        report.add("info", "No DOI, PMID or arXiv ID in the checked document(s).")
+    return looked
 
 
 def plan_runs(receipts, digest, approved_at, instance=None):
@@ -2066,7 +2278,7 @@ def exact_findings(report, mine, execution):
 
 
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
-          rscript="Rscript", claims=(), instance=None):
+          rscript="Rscript", claims=(), instance=None, resolve_citations=False, contact=None):
     config = gate.load_config(root)
     approval = read_approval(gate.state_path(root, "approvals", digest + ".json"))
     if approval is None:
@@ -2517,6 +2729,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds,
                   choices=[(" ".join(row.values()), row.get("choice", "")) for row in plan_rows(plan)[0].values()])
     claimed = check_claims(root, analysis_dir, outputs, claims, report, budget["bytes"])
+    cited = check_citations(root, analysis_dir, outputs, claims, report, resolve_citations, contact)
     elsewhere = set(r.get("validation_check") for r in receipts if digest in r.get("plans", []) and not r.get("explore")
                     and chosen and r.get("approval_instance") != chosen)
     validated = check_validations(root, report, binding, mine, elsewhere) if binding else []
@@ -2535,7 +2748,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             "analysis_dir": analysis_dir, "git": gate.git_state(root), "runs": len(mine),
             "scripts": scripts, "folders": folders, "commands": commands, "inputs": inputs,
             "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted, "envs": envs,
-            "claims": claimed, "recovery": recovery, "validation": validated, "validation_binding": binding,
+            "claims": claimed, "citations": cited, "recovery": recovery, "validation": validated,
+            "validation_binding": binding,
             "status": report.status(), "plan": plan,
             # Kept for the record (a scaffolder call can explain a moved input), marked as not runs.
             "receipts": sorted(mine + [dict(r, not_a_run="only passed planned paths to other code")
@@ -3098,6 +3312,22 @@ def render(result, all_outputs=False, saved=False):
                              "not which run wrote it.".format(cov["registered"]))
     if not result.get("claims"):
         lines.append("No document with a `<!-- claims -->` block.")
+    lines += ["", "## Citations", ""]
+    citations = result.get("citations") or []
+    if citations:
+        counts = collections.Counter(c["verdict"] for c in citations)
+        lines.append("- {} citation(s): {} resolved, {} mismatch, {} unresolved, {} without an identifier, "
+                     "{} offline, {} where the request failed.".format(
+                         len(citations), counts.get("resolved", 0), counts.get("mismatch", 0),
+                         counts.get("unresolved", 0), counts.get("no identifier", 0),
+                         counts.get("not checked (offline)", 0), counts.get("not checked (request failed)", 0)))
+        for entry in citations:
+            where = "`{}:{}`".format(entry["doc"], entry["line"])
+            what = "{} {}".format(entry["kind"], entry["id"]) if entry["kind"] != "none" else "no identifier"
+            note = " - " + entry["note"] if entry.get("note") else ""
+            lines.append("- {}: {}: {}{}".format(where, what, entry["verdict"], note))
+    else:
+        lines.append("- none found (a citation needs a DOI, a `PMID:` number or an `arXiv:` number to be checked).")
     lines += ["", "## Findings", ""]
     order = {"block": 0, "gap": 1, "info": 2}
     for level, text in sorted(result["findings"], key=lambda f: order[f[0]]):
@@ -3106,6 +3336,164 @@ def render(result, all_outputs=False, saved=False):
         lines.append("- none")
     lines += ["", "## Not visible to verify", ""] + ["- " + text for text in LIMITS]
     lines += ["", "Verify status: " + result["status"]]
+    return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------- disclosure (D3)
+
+def plugin_manifest(root):
+    """(name, version, rel path) from the plugin's own manifest, or (None, None, the path looked for)."""
+    for rel in (os.path.join(".claude-plugin", "plugin.json"), os.path.join(".codex-plugin", "plugin.json")):
+        path = os.path.join(root, rel)
+        try:
+            with open(path, encoding="utf-8") as handle:
+                manifest = json.load(handle)
+        except (OSError, ValueError):
+            continue
+        if isinstance(manifest, dict) and manifest.get("version"):
+            return manifest.get("name") or "mycelium-extra", str(manifest["version"]), rel
+    return None, None, os.path.join(".claude-plugin", "plugin.json")
+
+
+def source(path, detail=None):
+    """A record citation for one disclosure sentence."""
+    return "[source: {}{}]".format(path, " " + detail if detail else "")
+
+
+def stamp(value, with_time=False):
+    """`value`, a POSIX timestamp, as a date, or None when it is not one."""
+    try:
+        when = time.localtime(float(value))
+    except (TypeError, ValueError):
+        return None
+    return time.strftime("%Y-%m-%d %H:%M" if with_time else "%Y-%m-%d", when)
+
+
+def render_disclosure(root, result):
+    """A draft AI-use methods paragraph for one analysis folder: one sentence per line, each ending with
+    the record it came from, or `[BLANK: ...]` where no record exists. Read-only: it prints, nothing is
+    written, and the researcher edits what they keep into their own manuscript."""
+    digest = result["hash"]
+    approval = os.path.join(".mycelium-extra", "approvals", digest + ".json")
+    instances = os.path.join(".mycelium-extra", "approval-instances", digest)
+    receipts = os.path.join(".mycelium-extra", "receipts.jsonl")
+    repins = os.path.join(".mycelium-extra", "repins", digest + ".jsonl")
+    checked = "verify report for plan {} run on {}".format(digest, time.strftime("%Y-%m-%d %H:%M"))
+    lines = ["# AI-use disclosure draft for plan " + digest, "",
+             "## Each line below is one sentence and ends with the record it came from; fill in every "
+             "`[BLANK: ...]` from what you know, and delete whatever you do not want to send", ""]
+
+    name, version, rel = plugin_manifest(PLUGIN_ROOT or root)
+    if version:
+        lines.append("The agent planned, ran and checked the steps below under {0} {1}, a plugin for an AI coding "
+                     "assistant, which is what wrote every record cited here. {2}".format(
+                         name, version, source(rel)))
+    else:
+        lines.append("[BLANK: no readable plugin manifest with a version at {0}]".format(rel))
+
+    steps = [cell(row.get("step") or "") for row in plan_rows(result.get("plan") or "")[0].values()]
+    if steps:
+        lines.append("The approved plan set out {0} step(s): {1}. {2}".format(
+            len(steps), "; ".join(steps[:8]) + (" and {} more".format(len(steps) - 8) if len(steps) > 8 else ""),
+            source(approval, "frozen plan text")))
+    else:
+        lines.append("[BLANK: the approval record at {0} names no plan step]".format(approval))
+
+    approved = stamp(result.get("approved_at"), with_time=True)
+    if approved:
+        lines.append("You reviewed and approved that plan on {0}, and the record pins the version of each script "
+                     "it covers. {1}".format(approved, source(approval)))
+    else:
+        lines.append("[BLANK: no approval timestamp was readable at {0}]".format(approval))
+
+    folder_instances = os.path.join(root, instances)
+    if os.path.isdir(folder_instances):
+        freezes = len([n for n in os.listdir(folder_instances) if n.endswith(".json")])
+        lines.append("This plan text was frozen {0} time(s); a later freeze starts a new timeline, and only the "
+                     "current one is evidence for the runs counted below. {1}".format(
+                         freezes, source(instances)))
+    else:
+        lines.append("[BLANK: no approval-instance record at {0}, so earlier freezes of this plan text cannot be "
+                     "ruled out]".format(instances))
+
+    scope = result.get("scope") or {}
+    launch = scope.get("launch") or {}
+    if result["runs"]:
+        lines.append("The gate recorded {0} run(s) of the plan's steps under this approval: {1} with a matched "
+                     "launch, {2} unmatched, {3} ambiguous, {4} from before launch matching was recorded. {5}"
+                     .format(result["runs"], launch.get("matched", 0), launch.get("unmatched", 0),
+                             launch.get("ambiguous", 0), launch.get("legacy", 0), source(receipts)))
+    else:
+        lines.append("[BLANK: no run receipt in {0} names this plan, so the records do not establish what ran]"
+                     .format(receipts))
+
+    repinned = gate.read_repins(root, digest) if gate else []
+    if repinned:
+        lines.append("The gate re-pinned {0} file(s) at run time under a working scope, each recorded with the run "
+                     "that used it; a re-pin is not a new approval. {1}".format(len(repinned), source(repins)))
+    else:
+        lines.append("[BLANK: no re-pin record at {0}; the gate writes one whenever a run changes a pinned file, so "
+                     "absence means none was recorded]".format(repins))
+
+    if result.get("envs"):
+        lines.append("{0} conda environment(s) used by these runs were recorded with their package versions. {1}"
+                     .format(len(result["envs"]), source(receipts)))
+    else:
+        lines.append("[BLANK: no conda environment was recorded for these runs, so tool versions other than the "
+                     "plugin's are not in the records]")
+
+    lines.append("The checking stage reports {0} for this plan. {1}".format(result["status"], source(checked)))
+    overall = (result.get("qualification") or {}).get("overall")
+    if overall:
+        lines.append("Reportable qualification at the time of this check: {0}; that covers evidence linkage, not "
+                     "whether the analysis is scientifically right. {1}".format(overall, source(checked)))
+
+    claims = result.get("claims") or []
+    counts = collections.Counter(c["verdict"] for doc in claims for c in doc["claims"])
+    if claims:
+        lines.append("{0} claimed value(s) in {1} document(s) were checked against the output cells they name: {2} "
+                     "verified, {3} mismatch, {4} unverified, {5} from an explore run only. {6}".format(
+                         sum(counts.values()), len(claims),
+                         counts.get("verified", 0) + counts.get("verified-transform", 0),
+                         counts.get("mismatch", 0), counts.get("unverified", 0), counts.get("explore-only", 0),
+                         source(claims[0]["doc"], "claims block")))
+    else:
+        lines.append("[BLANK: no document with a `<!-- claims -->` block, so the numbers written in the text were "
+                     "not checked against their outputs]")
+
+    citations = result.get("citations") or []
+    if citations:
+        cited = collections.Counter(c["verdict"] for c in citations)
+        lines.append("{0} citation identifier(s) were found: {1} resolved, {2} mismatch, {3} unresolved, {4} carrying "
+                     "no identifier. {5}".format(
+                         len(citations), cited.get("resolved", 0), cited.get("mismatch", 0),
+                         cited.get("unresolved", 0), cited.get("no identifier", 0),
+                         source(claims[0]["doc"]) if claims else source(approval)))
+        unchecked = cited.get("not checked (offline)", 0) + cited.get("not checked (request failed)", 0)
+        if unchecked:
+            lines.append("[BLANK: {0} citation(s) were not checked, because resolution needs network access; re-run "
+                         "verify with `--resolve-citations` to check them]".format(unchecked))
+    else:
+        lines.append("[BLANK: no DOI, PMID or arXiv ID was found in the checked documents, so no citation was "
+                     "resolved; references without an identifier cannot be checked]")
+
+    lint = result.get("lint") or {}
+    findings, waived = lint.get("findings") or [], lint.get("waived") or []
+    if findings or waived:
+        lines.append("{0} lint finding(s) were open on the code this plan covers, {1} of them waived with a stated "
+                     "reason in the code. {2}".format(
+                         len(findings) + len(waived), len(waived), source(checked, "scilintr findings")))
+    else:
+        lines.append("No lint finding was open on the code this plan covers at the time of this check. {0}".format(
+            source(checked, "scilintr findings")))
+
+    git = result.get("git")
+    if git and git.get("head"):
+        lines.append("The repository was at commit {0}{1} when this check ran. {2}".format(
+            git["head"][:12], ", with uncommitted changes to tracked files" if git.get("dirty") else ", clean",
+            source("git rev-parse HEAD, at check time")))
+    else:
+        lines.append("[BLANK: the repository's commit at the time of this check was not readable]")
     return "\n".join(lines) + "\n"
 
 
@@ -4420,7 +4808,8 @@ def main(argv):
     parser.add_argument("--rscript", help="default: the path in tools.json, else `Rscript` on PATH")
     parser.add_argument("--hash-mb", type=float, default=2000)
     parser.add_argument("--seconds", type=float, default=120)
-    parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore", "multiplicity", "runs", "refs"])
+    parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore",
+                                           "multiplicity", "runs", "refs", "disclose"])
     parser.add_argument("hash", nargs="?")
     parser.add_argument("new_hash", nargs="?")
     parser.add_argument("--sha", help="refs: the SHA256 (or at least 8 hex) of the file that was wrong")
@@ -4436,12 +4825,19 @@ def main(argv):
                         help="stale: compare each output's content with the SHA256 verify saved (default: size and time)")
     parser.add_argument("--require-reportable", action="store_true",
                         help="report/write: exit 3 and name the dimension unless the run is qualified for reporting")
+    parser.add_argument("--resolve-citations", action="store_true",
+                        help="report/write/disclose: resolve each DOI, PMID and arXiv ID over the network "
+                             "(Crossref, NCBI, arXiv). Offline is the default, and is a gap, not a pass")
+    parser.add_argument("--contact", help="--resolve-citations: an email address to send to Crossref and NCBI, "
+                        "as both ask for one; omitted unless you configure it")
     parser.add_argument("--trace", nargs="?", const="", metavar="ROW",
                         help="report: the decision trace, one line per plan row, or one row's evidence links with ROW "
                         "(put the hash first: `report <hash> --trace [ROW]`). A text view; nothing is written")
     args = parser.parse_args(argv)
     if args.trace is not None and (args.action != "report" or args.json):
         sys.exit("verify: --trace is a text view of report only (not --json, write or the other actions); nothing was written.")
+    if args.json and args.action == "disclose":
+        sys.exit("verify: `disclose` prints a plain-text draft to edit; it has no --json form.")
     load_gate(args.plugin_root)
     root = gate.find_root(os.path.abspath(args.repo))
     if args.action in ("stale", "status"):  # committed provenance suffices, so no gate needed
@@ -4493,9 +4889,13 @@ def main(argv):
         sys.exit("verify: `write` needs --analysis-dir, confirmed by the user.")
     recorded = gate.lint_tools(root)
     result = check(root, args.hash, args.analysis_dir, args.sacct, args.hash_mb, args.seconds,
-                   args.scilintr or recorded[0], args.rscript or recorded[1], args.claims, args.instance)
+                   args.scilintr or recorded[0], args.rscript or recorded[1], args.claims, args.instance,
+                   args.resolve_citations, args.contact)
     result["qualification"] = qualify(root, result)
     result["rerun"] = rerun_evidence(root, result)
+    if args.action == "disclose":  # read-only: a draft for the researcher to edit, never written
+        sys.stdout.write(render_disclosure(root, result))
+        return 0
     refusal = reportable_error(result) if args.require_reportable else None
     if args.action == "write":
         if result["instance"]["selected"] != result["instance"]["current"]:

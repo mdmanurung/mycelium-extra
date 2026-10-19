@@ -15,7 +15,7 @@ individual outcomes remain gaps, while a failed aggregate command blocks.
 Claim tables with duplicate column headers or no data rows are unverified;
 unrepresentable numeric values are also gaps, never verified by accident.
 
-**In this section:** [What the report shows](#what-the-report-shows) · [Output producers](#output-producers) · [Recovery](#recovery) · [Status](#status) · [Qualification](#qualification) · [Rerun evidence](#rerun-evidence) · [What it writes](#what-it-writes) · [Recoverable provenance publication](#recoverable-provenance-publication) · [Advanced features](advanced.md#verify-features)
+**In this section:** [What the report shows](#what-the-report-shows) · [Output producers](#output-producers) · [Recovery](#recovery) · [Status](#status) · [Qualification](#qualification) · [Rerun evidence](#rerun-evidence) · [Citations](#citations) · [Disclosure draft](#disclosure-draft) · [What it writes](#what-it-writes) · [Recoverable provenance publication](#recoverable-provenance-publication) · [Advanced features](advanced.md#verify-features)
 
 Validation bindings in the report, `verify diff`, `verify stale`, `verify status` and `verify runs` are described under [Advanced features](advanced.md#verify-features).
 
@@ -57,6 +57,7 @@ Each row says `yes`, `no`, `partly` (the headline holds but something underneath
   - The `{r}` and `{python}` chunks of `.qmd` and `.Rmd` files are linted as well, cited by the document's own line.
 - **Claims:** each `<!-- claims -->` block in the analysis doc, a Markdown output, or a `--claims` document names a value and the output cell it came from (`8 | outputs/summary.tsv n_hits`, `0.0162 | outputs/de_results.tsv padj SIGLEC1`). A value is checked against its cell after rounding. A non-finite cell, such as NaN or infinity, is an unverified gap with its value and location. A table with more than one row needs a row label, so a common value cannot match some row by chance. Other numbers near the block are listed, not checked. Under the counts a `Coverage` line gives the blocks found, the claim lines (and how many did not parse), the cells actually read and compared, how many matched, mismatched or stayed unverified, and the prose numbers listed but not checked: a prose number is never counted as checked. A claim that cites a Mycelium `numbers.json` fragment is still compared with its cell, but `register_value` upserts across runs, so a match shows the file's current content, not which run wrote that key; an info line says so. Run attribution comes from the file's producer in the Outputs table, not from the number.
 - **Prose Validation cells, as info:** when the plan table has a Validation column, each row whose cell holds prose and that no `validation-bindings` check covers is counted in one line (`N Validation cells are prose only; nothing checks them`). It is not a gap: the plan never asked for a check, and the line does not say the prose is wrong.
+- **Citations:** each DOI, `PMID:` and `arXiv:` identifier in the documents it checks for claims, resolved only when you ask it to ([Citations](#citations)).
 - **Fact tags, as info:** per tag, how many facts in the frozen plan's Evidence and in the analysis doc's Key Findings carry `[human-stated]`, `[agent-derived: <path>]`, or `[agent-asserted: <source>]`. It flags an untagged fact, an `agent-derived` one without its path, and an `agent-asserted` one without a source. A list with no tag at all (a plan from before 0.9.35) gets one line. The status does not change.
 
 ## Output producers
@@ -111,7 +112,7 @@ It ends with `Verify status: CONFORMS`, `CONFORMS_WITH_GAPS`, or `DOES_NOT_CONFO
 - **Blocks:** a failed run, a required validation check that failed, an edited script, a changed input, an output older than the approval, an incomplete Snakemake job, a scilintr finding neither fixed nor waived (a threshold finding the plan approved is info), a claim its cell contradicts, or a claim read from an explore run's output.
 - **Gaps:** things the records cannot show. A required validation check that is not run, changed, unattributable or unsupported is a gap (not established). A success after a failed attempt with a changed command, script, engine config file or folder is a gap (equivalence not established). These include code scilintr could not check: scilintr not installed, timed out, or with unreadable output, or a script or notebook whose code does not parse, under the Python verify runs on or under R (which scilintr would silently pass). An output whose producer is not `supported` (timing only, a candidate, competing or overlapping writers) is a gap, and so is a run with no checked launch or an attempt that never reported back. An output written before the approval, or by an explore run, is the block it always was.
 
-Exit codes and options: `report` and `write` exit 0 whatever the status; `--require-reportable` is the only way to exit 3 (see [Qualification](#qualification)), and a `verify:` error, or `py.sh` finding no Python 3.9 or later, exits 1. `write` ignores `--json` and prints a `Qualification:` line after `Verify status:`. The budgets are `--hash-mb` (default 2000) and `--seconds` (default 120); `--repo`, `--sacct`, `--scilintr` and `--rscript` say where to look. `list`, `report`, `write`, `diff`, `multiplicity` and `explore` need the gate; `stale`, `status`, `runs` and `refs` read committed provenance. `report <hash> --trace [ROW]` prints the [decision trace](advanced.md#decision-trace), a read-only text view (put the hash first; it is refused with `--json`, `write` and every other action). `explore` takes `--session ID` (default `$CLAUDE_CODE_SESSION_ID`; with neither it shows every session of the last 7 days) or `--all`.
+Exit codes and options: `report` and `write` exit 0 whatever the status; `--require-reportable` is the only way to exit 3 (see [Qualification](#qualification)), and a `verify:` error, or `py.sh` finding no Python 3.9 or later, exits 1. `write` ignores `--json` and prints a `Qualification:` line after `Verify status:`. The budgets are `--hash-mb` (default 2000) and `--seconds` (default 120); `--repo`, `--sacct`, `--scilintr` and `--rscript` say where to look. `list`, `report`, `write`, `disclose`, `diff`, `multiplicity` and `explore` need the gate; `stale`, `status`, `runs` and `refs` read committed provenance. `report <hash> --trace [ROW]` prints the [decision trace](advanced.md#decision-trace), a read-only text view (put the hash first; it is refused with `--json`, `write` and every other action). `report --resolve-citations [--contact EMAIL]` resolves citations over the network ([Citations](#citations)); `disclose <hash>` prints the read-only [disclosure draft](#disclosure-draft) and has no `--json` form. `explore` takes `--session ID` (default `$CLAUDE_CODE_SESSION_ID`; with neither it shows every session of the last 7 days) or `--all`.
 
 ## Qualification
 
@@ -141,6 +142,37 @@ When the plan table names an entry point (a `run.sh` or a Snakefile), the report
 - **rerun reproduced specified artifacts**: the rerun exited 0, its attempt saw every output named with a saved SHA256 created or rewritten, and each file's content hash now equals the hash saved before the attempt. Anything less is "reproduction not established" with the reason. A table written after the rerun cannot show reproduction, and a re-saved table loses the earlier baseline.
 
 Whether a frozen entry point can be rerun without the agent is the researcher's to try. Verify only reads what a rerun left behind.
+
+## Citations
+
+A write-up cites papers; an agent can invent an identifier, or attach a real one to the wrong sentence. Verify reads every DOI (`10.<4-9 digits>/<suffix>`), `PMID: <n>` and `arXiv: <id>` in the same documents it checks claims in, one entry per identifier, and, under a `References`, `Bibliography`, `Literature cited` or `Works cited` heading, each reference-shaped line that carries no identifier (reported `no identifier`: listed, never resolvable).
+
+Resolution is opt-in and offline by default:
+
+```bash
+sh <plugin-root>/hooks/py.sh - --plugin-root <plugin-root> report <hash> --resolve-citations [--contact you@example.org] < <plugin-root>/skills/verify/scripts/verify.py
+```
+
+| Verdict | What it rests on | Finding |
+|---|---|---|
+| `resolved` | Crossref (DOI), NCBI E-utilities (PMID) or arXiv (id) has a record, and the record's title and first author appear in the citation line | none |
+| `mismatch` | A record exists but its title or first author does not appear in the citation line | blocks |
+| `unresolved` | The service has no record of the identifier (HTTP 404), so the identifier as written does not exist | blocks |
+| `no identifier` | A reference-shaped line with no DOI, PMID or arXiv id | info |
+| `not checked (offline)` | The default: no request was made | gap |
+| `not checked (request failed)` | The request never reached a service (no network, a timeout, an error other than 404) | gap |
+
+Offline is a gap, never a pass, so a plan whose document cites something is `CONFORMS_WITH_GAPS` until you resolve it or say in the write-up that the citation was not machine-checked. A `resolved` citation means the identifier exists and matches the text it sits next to; it does not mean the paper supports the sentence, and judging that stays with you. The contact address is optional and sent only when you pass it: Crossref asks for one in the URL (`mailto`), NCBI for `email`. Requests are rate-limited, one per identifier with a wait between them. The report's `## Citations` section counts each verdict and lists every entry with its document and line.
+
+## Disclosure draft
+
+`verify disclose <hash> [--analysis-dir DIR]` prints a plain-text draft of an AI-use methods paragraph from the records, read-only (nothing is written, and there is no `--json` form):
+
+```bash
+sh <plugin-root>/hooks/py.sh - --plugin-root <plugin-root> disclose <hash> [--analysis-dir DIR] < <plugin-root>/skills/verify/scripts/verify.py
+```
+
+Every sentence ends with the record it came from, `[source: ...]`: the plugin and its version, the plan's steps, the approval and its freeze history, the runs the gate recorded with their launch evidence, any re-pins, the recorded environments, the verify status and qualification, the claims checked, the citations found, the lint state, and the repository commit. Any record that is missing prints `[BLANK: <what is missing>]` instead of a guess — no receipts, no claims block, no re-pin record, an unreadable plugin manifest, an unreadable commit. It never writes to a manuscript, and it never states that the analysis is scientifically right: hand it to the researcher to edit, and to fill in each `[BLANK: ...]` themselves.
 
 ## What it writes
 

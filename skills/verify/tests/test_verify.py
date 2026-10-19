@@ -18,6 +18,7 @@ import sys
 import tempfile
 import time
 import unittest
+import urllib.error
 from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -3765,7 +3766,8 @@ class DecisionTraceTest(unittest.TestCase):
         self.assertEqual(keys, {
             "hash", "approved_at", "start", "session_id", "instance", "scope", "analysis_dir", "git", "runs", "scripts",
             "folders", "commands", "inputs", "outputs", "outputs_named", "findings", "lint", "envs", "claims",
-            "recovery", "validation", "validation_binding", "status", "plan", "receipts", "qualification", "rerun"})
+            "citations", "recovery", "validation", "validation_binding", "status", "plan", "receipts",
+            "qualification", "rerun"})
         # Calling the trace must not perturb what the plain report and --json print, byte for byte.
         self.trace(digest)
         self.trace(digest, "1")
@@ -3787,6 +3789,154 @@ class DecisionTraceTest(unittest.TestCase):
     def test_the_hash_goes_before_trace(self):  # nargs='?' reads the next word as the row
         digest = self.fit_plan()
         self.assertIn("8-character hash", self.verify("report", "--trace", digest, fails=True))
+
+
+class CitationsAndDisclosureTest(unittest.TestCase):
+    """D2 (`report --resolve-citations`) and D3 (`verify disclose`). Borrows VerifyTest's helpers rather
+    than subclassing it, so its tests do not run twice."""
+
+    for _name in ("setUp", "tearDown", "write", "fake_sacct", "fake_tool", "hook", "approve", "run_cmd",
+                  "post_only", "verify", "read_receipts", "rewrite_receipts", "outputs_of", "bound_plan",
+                  "binding", "run_check", "fit_plan", "exact_plan", "reapproved_with_new_input", "OUT",
+                  "CHECK", "EXPECT", "EVID", "claims_run"):
+        locals()[_name] = VerifyTest.__dict__[_name]
+    del _name
+
+    DOC = "analysis/a/references.md"
+    # One identifier per line: a real one, a title/author that does not match the line, one the service
+    # does not have, one whose request fails, and a reference with no identifier at all.
+    REFERENCES = ("## References\n\n"
+                  "- Smith J (2020). A study of things. Nature. doi:10.1038/real\n"
+                  "- Smith J (2020). A study of things. Nature. doi:10.1038/wrong\n"
+                  "- Smith J (2020). A study of things. Nature. doi:10.1038/absent\n"
+                  "- Smith J (2020). A study of things. Nature. doi:10.1038/down\n"
+                  "- Jones K (2019). A reference with no identifier at all. Journal.\n")
+    FOUND = b'{"message": {"title": ["A study of things"], "author": [{"family": "Smith"}]}}'
+    OTHER = b'{"message": {"title": ["An unrelated paper"], "author": [{"family": "Jones"}]}}'
+
+    class Reply(object):
+        def __init__(self, body):
+            self.body = body
+
+        def read(self, size=None):
+            return self.body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def answers(self):
+        """/works/<doi> -> a reply, or the exception the service would raise."""
+        return {"10.1038/real": self.FOUND, "10.1038/wrong": self.OTHER,
+                "10.1038/absent": urllib.error.HTTPError("https://api.crossref.org", 404, "Not Found", {}, None),
+                "10.1038/down": urllib.error.URLError("network unreachable")}
+
+    def fake_urlopen(self):
+        def open_(request, timeout=None):
+            url = request.full_url
+            for fragment, answer in self.answers().items():
+                if fragment in url:
+                    return self.Reply(answer) if isinstance(answer, bytes) else self.raise_(answer)
+            raise AssertionError("unexpected request: " + url)
+        return open_
+
+    @staticmethod
+    def raise_(error):
+        raise error
+
+    def test_resolved_mismatch_unresolved_failed_and_no_identifier(self):
+        verify = gate.load_verify()
+        path = self.write(self.DOC, self.REFERENCES)
+        report = verify.Report()
+        with mock.patch.object(verify, "CITATION_DELAY", 0), \
+                mock.patch.object(verify.time, "sleep") as slept, \
+                mock.patch("urllib.request.urlopen", side_effect=self.fake_urlopen()):
+            found = verify.check_citations(self.root, None, [], [path], report, resolve=True)
+        self.assertEqual([(f["kind"], f["id"], f["verdict"]) for f in found],
+                         [("doi", "10.1038/real", "resolved"), ("doi", "10.1038/wrong", "mismatch"),
+                          ("doi", "10.1038/absent", "unresolved"),
+                          ("doi", "10.1038/down", "not checked (request failed)"),
+                          ("none", None, "no identifier")])
+        # A mismatch and a record the service does not have block; a request that never reached a service
+        # and a reference with no identifier do not: the first is not evidence about the source, the second
+        # cannot be resolved at all.
+        self.assertEqual([level for level, _ in report.findings], ["info", "block", "block", "gap", "info"])
+        self.assertEqual(report.status(), "DOES_NOT_CONFORM")
+        self.assertEqual(slept.call_count, 4)  # one wait between the four requests, none after the last
+        mismatch = [text for level, text in report.findings if level == "block"][0]
+        self.assertIn('the record is "An unrelated paper" by Jones', mismatch)
+        self.assertIn("does not name the title or the first author", mismatch)
+        self.assertIn("the service has no record of it (HTTP 404)", report.findings[2][1])
+
+    def test_offline_citations_never_touch_the_network_and_stay_gaps(self):
+        verify = gate.load_verify()
+        path = self.write(self.DOC, self.REFERENCES)
+        report = verify.Report()
+        with mock.patch("urllib.request.urlopen", side_effect=AssertionError("offline made a request")):
+            found = verify.check_citations(self.root, None, [], [path], report, resolve=False)
+        self.assertEqual([f["verdict"] for f in found],
+                         ["not checked (offline)"] * 4 + ["no identifier"])
+        self.assertEqual(report.status(), "CONFORMS_WITH_GAPS")
+        self.assertIn("offline this is a gap, not a pass", report.findings[0][1])
+
+    def test_a_contact_address_goes_only_where_the_user_configured_one(self):
+        verify = gate.load_verify()
+        url, headers = verify.citation_request("doi", "10.1/x", "me@example.org")
+        self.assertEqual(url, "https://api.crossref.org/works/10.1/x?mailto=me%40example.org")
+        self.assertIn("me@example.org", headers["User-Agent"])
+        url, _ = verify.citation_request("pmid", "12345678", "me@example.org")
+        self.assertTrue(url.startswith("https://eutils.ncbi.nlm.nih.gov/"), url)
+        self.assertIn("&email=me%40example.org", url)
+        url, _ = verify.citation_request("arxiv", "2101.00001", None)
+        self.assertEqual(url, "http://export.arxiv.org/api/query?id_list=2101.00001")
+
+    def test_an_unchecked_citation_in_a_report_is_a_gap_not_a_pass(self):
+        digest, _ = self.claims_run("- 48 | outputs/numbers.json qc.n | donors",
+                                    prose="As in the earlier cohort (doi:10.1038/s41586-020-2649-2).")
+        out = self.verify("report", digest)
+        self.assertIn("## Citations", out)
+        self.assertIn("`analysis/a/A.md:5`: doi 10.1038/s41586-020-2649-2: not checked (offline)", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+        listed = json.loads(self.verify("report", digest, "--json"))["citations"]
+        self.assertEqual([(c["kind"], c["id"], c["verdict"]) for c in listed],
+                         [("doi", "10.1038/s41586-020-2649-2", "not checked (offline)")])
+
+    def test_disclose_pairs_every_sentence_with_a_record_or_a_blank(self):
+        digest, _ = self.claims_run("- 48 | outputs/numbers.json qc.n | donors")
+        before = sorted(os.walk(self.root))
+        out = self.verify("disclose", digest, "--analysis-dir", "analysis/a")
+        self.assertEqual(sorted(os.walk(self.root)), before)  # read-only: no file, no manuscript, written
+        self.assertIn("AI-use disclosure draft for plan " + digest, out)
+        for line in out.splitlines():
+            if line.strip() and not line.startswith("#"):
+                self.assertTrue(line.rstrip().endswith("]"), line)
+        self.assertIn("[source: .claude-plugin/plugin.json]", out)
+        self.assertIn("[source: .mycelium-extra/approvals/{}.json]".format(digest), out)
+        self.assertIn("[source: .mycelium-extra/receipts.jsonl]", out)
+        self.assertIn("[source: analysis/a/A.md claims block]", out)
+        self.assertIn("The gate recorded 1 run(s)", out)
+        self.assertIn("1 claimed value(s)", out)
+        self.assertIn("The checking stage reports", out)
+        # What the records cannot show is marked, not guessed.
+        self.assertIn("[BLANK: no DOI, PMID or arXiv ID was found in the checked documents", out)
+        self.assertIn("[BLANK: no re-pin record at .mycelium-extra/repins/{}.jsonl".format(digest), out)
+
+    def test_disclose_blanks_the_execution_sentence_when_nothing_ran(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        out = self.verify("disclose", digest)
+        self.assertIn("[BLANK: no run receipt in .mycelium-extra/receipts.jsonl names this plan, so the "
+                      "records do not establish what ran]", out)
+        self.assertNotIn("The gate recorded 0 run(s)", out)
+        self.assertIn("plain-text draft", self.verify("disclose", digest, "--json", fails=True))
+
+    def test_the_verify_skill_keeps_the_three_line_look_back(self):
+        with open(os.path.join(PLUGIN, "skills", "verify", "SKILL.md"), encoding="utf-8") as handle:
+            text = handle.read()
+        for label in ("**Established:**", "**Still uncertain:**", "**Next insight:**"):
+            self.assertIn(label, text)
+        self.assertIn("never move a gap into **Established**", text)
 
 
 if __name__ == "__main__":
