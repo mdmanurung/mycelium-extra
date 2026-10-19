@@ -15,6 +15,8 @@ class El {
   removeChild(c) { this.children.splice(this.children.indexOf(c), 1); return c; }
   get firstChild() { return this.children[0] || null; }
   addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+  setAttribute(k, v) { this.attrs = this.attrs || {}; this.attrs[k] = String(v); }
+  removeAttribute(k) { if (this.attrs) delete this.attrs[k]; }
   setSelectionRange() {} focus() {} select() {}
   get selectionStart() { return 0; }
 }
@@ -32,6 +34,10 @@ document.execCommand = () => { copied.push(document.lastCopy); return true; };
 global.setTimeout = () => 0; global.clearTimeout = () => {};
 
 new Function(code)();
+// the first draw is the Review view: its filters sit directly under the view tabs, not beside them
+const order = byId.app.children.map(c => c.className.split(" ")[0]);
+const v = order.indexOf("views"), f = order.indexOf("filters");
+if (v < 0 || f !== v + 1) throw new Error("filters must sit directly under the view tabs, got: " + order.join(","));
 const clickable = el => [].concat(el.listeners.click ? [el] : [], ...el.children.map(clickable));
 let clicks = 0;
 for (let round = 0; round < 3; round++) {
