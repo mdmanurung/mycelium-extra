@@ -25,6 +25,7 @@ class LauncherTest(unittest.TestCase):
         return subprocess.run(["/bin/sh", LAUNCHER] + args, input=stdin, env=env, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE, universal_newlines=True)
 
+    @unittest.skipIf(sys.version_info < (3, 9), "the override test runs the launcher under the test interpreter, which must be 3.9+")
     def test_the_override_runs_a_script_from_stdin(self):
         env = dict(os.environ, MYCELIUM_EXTRA_PYTHON=sys.executable)
         out = self.launch(["-", "a b"], env, "import sys; print(sys.argv[1:], sys.version_info >= (3, 9))")
@@ -51,6 +52,7 @@ class LauncherTest(unittest.TestCase):
 
 
 class OldPythonGateTest(unittest.TestCase):
+    @unittest.skipIf(sys.version_info < (3, 8), "ast.parse(feature_version=) needs Python 3.8+; the 3.6 run below is the real check")
     def test_gate_run_stays_parseable_by_python_3_6(self):
         with open(GATE_RUN, encoding="utf-8") as handle:
             ast.parse(handle.read(), feature_version=(3, 6))  # best effort; the 3.6 run below is the real check
