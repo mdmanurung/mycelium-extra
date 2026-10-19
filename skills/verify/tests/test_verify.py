@@ -523,6 +523,14 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("0 run(s) under this plan", out)
         self.assertIn("not a git repository", out)
 
+    def test_a_repository_with_no_commit_says_no_commit_yet(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        self.assertIn("not a git repository", self.verify("report", digest))  # control: no repository at all
+        subprocess.check_call(["git", "init", "-q", self.root])
+        out = self.verify("report", digest)
+        self.assertIn("no commit yet", out)
+        self.assertNotIn("not a git repository", out)
+
     def test_failed_run_and_edited_script_block(self):
         digest = self.approve(plan("run `{}`".format(FIT)))
         self.run_cmd("python " + FIT, exit_code=1)
@@ -1449,7 +1457,8 @@ sys.exit(1 if hits else 0)
         self.assertEqual(len(record["sha256"]), 64)
         self.assertTrue(record["synthetic_format_only"])
         with open(os.path.join(folder, "PROVENANCE.md")) as handle:
-            self.assertIn("[rule envs](rule-envs-{}.json)".format(digest), handle.read())
+            self.assertIn("[rule envs (synthetic format, not validated against a real Snakemake run)](rule-envs-{}.json)"
+                          .format(digest), handle.read())
 
     def test_snakemake_rule_env_that_cannot_be_read_is_a_gap_never_recorded(self):
         cases = [("no built env", dict(built=False), "no built env(s)"),
@@ -1472,6 +1481,33 @@ sys.exit(1 if hits else 0)
         out = self.verify("report", digest)
         self.assertIn("does not show `--use-conda`", out)
         self.assertNotIn("file sha256", out)
+
+    def test_snakemake_conda_prefix_run_is_a_gap_not_a_stale_env_record(self):
+        digest = self.smk_project()  # a built env that matches by bytes sits under .snakemake/conda
+        self.run_cmd("snakemake --use-conda --conda-prefix /shared/envs --cores 1 -s " + self.SMK)
+        out = self.verify("report", digest)
+        self.assertIn("sets `--conda-prefix`", out)
+        self.assertNotIn("packages recorded", out)
+
+    def test_snakemake_use_conda_run_with_no_snakefile_found_is_a_gap(self):
+        digest = self.approve(plan("`snakemake --use-conda --cores 1`"))
+        self.run_cmd("snakemake --use-conda --cores 1")
+        out = self.verify("report", digest)
+        self.assertIn("no Snakefile was found", out)
+        self.assertNotIn("packages recorded", out)
+
+    def test_snakemake_rule_env_is_read_from_the_default_workflow_snakefile(self):
+        self.write("workflow/Snakefile", 'rule fit:\n    conda: "envs/fit.yaml"\n    shell: "true"\n',
+                   mtime=time.time() - 3600)
+        self.write("workflow/envs/fit.yaml", "dependencies:\n  - python=3.11\n")
+        self.write(".snakemake/conda/abc123.yaml", "dependencies:\n  - python=3.11\n")
+        self.write(".snakemake/conda/abc123/conda-meta/a-1-0.json", json.dumps({"url": "https://x/a-1-0.conda"}))
+        self.write(".snakemake/conda/abc123/conda-meta/history", "x\n", mtime=time.time() - 7200)
+        digest = self.approve(plan("`snakemake --use-conda --cores 1`"))
+        self.run_cmd("snakemake --use-conda --cores 1")
+        out = self.verify("report", digest)
+        self.assertNotIn("no Snakefile was found", out)
+        self.assertIn("Rule env `workflow/envs/fit.yaml` (rule `fit`)", out)
 
     def pip_env(self):
         """fakeenv plus site-packages: two conda-owned folders (one reinstalled by pip at the same
@@ -1888,6 +1924,8 @@ sys.exit(1 if hits else 0)
         self.assertIn("`snakemake -j1` was named in a compound command at", out)
         self.assertIn("cannot be attributed to this step", out)
         self.assertNotIn("carried no exit status", out)
+        self.assertIn("Ran as planned  not attributable:", out)
+        self.assertNotIn("Ran as planned  no:", out)
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
         self.run_cmd("cd analysis/a && snakemake -j1", exit_code=2)
         out = self.verify("report", digest)
@@ -2377,6 +2415,44 @@ sys.exit(1 if hits else 0)
         self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
         out = self.verify("report", digest)
         self.assertIn("Of these, 1 failed: `python {}` failed (exit 1)".format(FIT), out)
+
+    def test_an_edited_plan_text_blocks_and_is_not_saved_as_the_frozen_plan(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        self.run_cmd("python " + FIT)
+        self.assertNotIn("not the text that was approved", self.verify("report", digest))  # control: untouched
+        path = gate.state_path(self.root, "approvals", digest + ".json")
+        record = gate.read_json(path, {})
+        record["plan"] += "\nA step added after approval.\n"
+        with open(path, "w") as handle:
+            json.dump(record, handle)
+        out = self.verify("report", digest)
+        self.assertIn("not the text that was approved", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: DOES_NOT_CONFORM"), out)
+        err = self.verify("write", digest, "--analysis-dir", "analysis/a", fails=True)
+        self.assertIn("not saved as the frozen plan as approved", err)
+        self.assertFalse(os.path.exists(os.path.join(self.root, "analysis/a/provenance/plan-{}.md".format(digest))))
+
+    def test_an_edited_instance_plan_hash_blocks_even_without_the_instance_option(self):
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        instance = gate.read_json(gate.state_path(self.root, "approvals", digest + ".json"), {})["instance_id"]
+        path = gate.state_path(self.root, "approval-instances", digest, instance + ".json")
+        record = gate.read_json(path, {})
+        record["plan_sha256"] = "0" * 64
+        with open(path, "w") as handle:
+            json.dump(record, handle)
+        self.assertIn("plan_sha256 the approval instance recorded", self.verify("report", digest))
+
+    def test_an_emptied_instance_pins_map_is_a_gap_where_the_plan_names_inputs(self):
+        self.write("data/in.tsv", "value\n")
+        digest = self.approve(plan("run `{}`".format(FIT), inputs="data/in.tsv"))
+        self.assertNotIn("records no pins", self.verify("report", digest))  # control
+        instance = gate.read_json(gate.state_path(self.root, "approvals", digest + ".json"), {})["instance_id"]
+        path = gate.state_path(self.root, "approval-instances", digest, instance + ".json")
+        record = gate.read_json(path, {})
+        record["pins"] = {}
+        with open(path, "w") as handle:
+            json.dump(record, handle)
+        self.assertIn("records no pins, but the plan names input(s) (`data/in.tsv`)", self.verify("report", digest))
 
     def test_an_instance_prepared_before_readiness_is_not_established(self):
         digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
@@ -3821,9 +3897,9 @@ class DecisionTraceTest(unittest.TestCase):
         self.assertNotIn("Decision trace", before_text)
         keys = set(json.loads(before_json))
         self.assertEqual(keys, {
-            "hash", "approved_at", "start", "session_id", "instance", "scope", "analysis_dir", "git", "runs", "scripts",
+            "hash", "approved_at", "start", "session_id", "instance", "scope", "analysis_dir", "git", "git_repo", "runs", "scripts",
             "folders", "commands", "inputs", "outputs", "outputs_named", "findings", "lint", "envs", "rule_envs", "claims",
-            "citations", "recovery", "validation", "validation_binding", "status", "plan", "receipts",
+            "citations", "recovery", "validation", "validation_binding", "status", "plan", "plan_intact", "receipts",
             "qualification", "rerun"})
         # Calling the trace must not perturb what the plain report and --json print, byte for byte.
         self.trace(digest)
@@ -3937,6 +4013,41 @@ class CitationsAndDisclosureTest(unittest.TestCase):
                          ["not checked (offline)"] * 4 + ["no identifier"])
         self.assertEqual(report.status(), "CONFORMS_WITH_GAPS")
         self.assertIn("offline this is a gap, not a pass", report.findings[0][1])
+
+    def many(self, last):
+        """45 citations that resolve, then a 46th whose DOI ends in `last`, in one document."""
+        lines = ["- Smith J (2020). A study of things. Nature. doi:10.1038/ok{}".format(i) for i in range(45)]
+        lines.append("- Smith J (2020). A study of things. Nature. doi:10.1038/" + last)
+        return self.write(self.DOC, "## References\n\n" + "\n".join(lines) + "\n")
+
+    def test_a_bad_citation_past_the_listing_cap_still_blocks_or_gaps(self):
+        verify = gate.load_verify()
+        self.assertEqual(verify.CITATIONS_SHOWN, 40)
+
+        def open_(request, timeout=None):
+            if "absent" in request.full_url:
+                raise urllib.error.HTTPError("https://api.crossref.org", 404, "Not Found", {}, None)
+            if "down" in request.full_url:
+                raise urllib.error.URLError("network unreachable")
+            return self.Reply(self.OTHER if "wrong" in request.full_url else self.FOUND)
+        for last, level, status in (("absent", "block", "DOES_NOT_CONFORM"), ("wrong", "block", "DOES_NOT_CONFORM"),
+                                    ("down", "gap", "CONFORMS_WITH_GAPS")):
+            report = verify.Report()
+            with mock.patch.object(verify, "CITATION_DELAY", 0), mock.patch.object(verify.time, "sleep"), \
+                    mock.patch("urllib.request.urlopen", side_effect=open_):
+                found = verify.check_citations(self.root, None, [], [self.many(last)], report, resolve=True)
+            self.assertEqual(len(found), 46)
+            self.assertEqual(report.status(), status, last)
+            self.assertEqual(sum(1 for lv, t in report.findings if lv == level and "10.1038/" + last in t), 1)
+            self.assertEqual(sum(1 for lv, _ in report.findings if lv == "info" and "resolved to" in _), 40)
+
+    def test_offline_citations_past_the_listing_cap_are_each_a_gap(self):
+        verify = gate.load_verify()
+        report = verify.Report()
+        with mock.patch("urllib.request.urlopen", side_effect=AssertionError("offline made a request")):
+            verify.check_citations(self.root, None, [], [self.many("last")], report, resolve=False)
+        self.assertEqual(sum(1 for lv, _ in report.findings if lv == "gap"), 46)
+        self.assertEqual(report.status(), "CONFORMS_WITH_GAPS")
 
     def test_a_contact_address_goes_only_where_the_user_configured_one(self):
         verify = gate.load_verify()

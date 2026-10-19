@@ -1339,6 +1339,9 @@ def snake_conda_decls(root, rel, report, seen=None):
     return found
 
 
+CONDA_PREFIX_FLAG = re.compile(r"--conda-prefix\b")
+
+
 def rule_envs(root, runs, report):
     """The per-rule conda envs of a `snakemake --use-conda` run: each literal `conda:` env file's sha256
     and, when exactly one built env under `.snakemake/conda/` is a byte-identical copy of that file, its
@@ -1350,12 +1353,23 @@ def rule_envs(root, runs, report):
         if r.get("kind") != "snakemake":
             continue
         cwd = r.get("cwd") or "."
-        snakefiles = [p for p in ran_paths(root, r) if is_snakefile(p)] or [os.path.join(cwd, "Snakefile")]
-        decls = []
+        snakefiles = [p for p in ran_paths(root, r) if is_snakefile(p)] or [
+            os.path.join(cwd, "Snakefile"), os.path.join(cwd, "workflow", "Snakefile")]
+        decls, read = [], False
         for smk in snakefiles:
             if os.path.isfile(os.path.join(root, smk)):
+                read = True
                 decls += snake_conda_decls(root, os.path.normpath(smk), report)
         flagged = bool(USE_CONDA.search(r.get("command", "")))
+        if flagged and not read:
+            report.add("gap", "`{}` ran with `--use-conda`, but no Snakefile was found (looked for `-s`, `Snakefile` "
+                              "and `workflow/Snakefile` under `{}`), so its rule envs were not recorded.".format(
+                                  r.get("command", "")[:60], cwd))
+            continue
+        if flagged and CONDA_PREFIX_FLAG.search(r.get("command", "")):
+            report.add("gap", "`{}` sets `--conda-prefix`, so its built envs are not under `.snakemake/conda/` "
+                              "and were not read; its rule envs were not recorded.".format(r.get("command", "")[:60]))
+            continue
         for env_rel, rule in decls:
             if (cwd, env_rel, flagged) in done:
                 continue
@@ -1851,10 +1865,9 @@ def check_citations(root, analysis_dir, outputs, extra, report, resolve=False, c
                                    "resolved.".format(where, citation_gist(entry)))
         elif not resolve:
             entry["verdict"] = "not checked (offline)"
-            if on_screen:
-                report.add("gap", "{}: {} not checked: resolving citations needs `--resolve-citations` "
-                                  "and network access; offline this is a gap, not a pass.".format(
-                                      where, citation_gist(entry)))
+            report.add("gap", "{}: {} not checked: resolving citations needs `--resolve-citations` "
+                              "and network access; offline this is a gap, not a pass.".format(
+                                  where, citation_gist(entry)))
         else:
             title, surname, verdict, note = lookup_citation(entry["kind"], entry["id"], contact)
             if verdict == "resolved":
@@ -1865,24 +1878,26 @@ def check_citations(root, analysis_dir, outputs, extra, report, resolve=False, c
                     note = "the record is \"{}\" by {}, and the citation text does not name {}".format(
                         cell(title)[:90], surname or "an unnamed author", " or ".join(wrong))
             entry.update(verdict=verdict, title=title, author=surname, note=note)
-            if on_screen:
-                if verdict == "resolved":
+            # Only the resolved (info) lines are capped; every block and gap is reported at any position.
+            if verdict == "resolved":
+                if on_screen:
                     report.add("info", "{}: {} resolved to \"{}\" by {}.".format(
                         where, citation_gist(entry), cell(title)[:90], surname or "an unnamed author"))
-                elif verdict == "mismatch":
-                    report.add("block", "{}: {} does not match the record: {}.".format(
-                        where, citation_gist(entry), note))
-                elif verdict == "unresolved":
-                    report.add("block", "{}: {} is unresolved: {}.".format(where, citation_gist(entry), note))
-                else:
-                    report.add("gap", "{}: {} was {}. Network access is opt-in, so an unchecked "
-                                      "citation stays a gap.".format(where, citation_gist(entry), verdict))
+            elif verdict == "mismatch":
+                report.add("block", "{}: {} does not match the record: {}.".format(
+                    where, citation_gist(entry), note))
+            elif verdict == "unresolved":
+                report.add("block", "{}: {} is unresolved: {}.".format(where, citation_gist(entry), note))
+            else:
+                report.add("gap", "{}: {} was {}. Network access is opt-in, so an unchecked "
+                                  "citation stays a gap.".format(where, citation_gist(entry), verdict))
         looked.append(entry)
         if resolve and entry["kind"] != "none" and index + 1 < len(entries):
             time.sleep(CITATION_DELAY)  # one request per identifier, spaced as each service asks
     if len(entries) > CITATIONS_SHOWN:
-        report.add("info", "{} more citation(s) were checked; `--json` or `write` lists them all.".format(
-            len(entries) - CITATIONS_SHOWN))
+        report.add("info", "Only the first {} resolved or identifier-less citations are listed; every mismatch, "
+                           "unresolved and unchecked citation is listed above at any position, and `--json` "
+                           "or `write` lists them all.".format(CITATIONS_SHOWN))
     if not entries and docs:
         report.add("info", "No DOI, PMID or arXiv ID in the checked document(s).")
     return looked
@@ -2031,6 +2046,23 @@ def instance_findings(report, digest, chosen, current, frozen, history, mine, ap
         if not mine:
             report.add("gap", "No run is recorded under approval instance {} (approved {}); runs under an earlier "
                               "instance do not establish this freeze.".format(chosen, when(approved_at)))
+
+
+def plan_text_findings(report, digest, plan, frozen):
+    """Re-hash the frozen plan text. The approval's name is the first 8 hex of its sha256, and the instance
+    record holds the full sha256, so an edited `approvals/<hash>.json` (or instance record) cannot pass as the
+    plan that was approved. A mismatch is a block: what ran is being judged against text nobody approved.
+    Returns whether the text is intact."""
+    full = hashlib.sha256(plan.encode("utf-8")).hexdigest()
+    bad = []
+    if full[:8] != digest:
+        bad.append("its sha256 begins {}, not the approval's {}".format(full[:8], digest))
+    if frozen and frozen.get("plan_sha256") != full:
+        bad.append("it does not match the plan_sha256 the approval instance recorded")
+    if bad:
+        report.add("block", "The frozen plan text is not the text that was approved: {}. The record was edited or "
+                            "damaged; restore it from the shown plan, and do not save provenance from it.".format("; ".join(bad)))
+    return not bad
 
 
 def launch_findings(report, mine, abandoned, digest, chosen, approved_at):
@@ -2467,6 +2499,12 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                      if chosen and digest in r.get("plans", []) and not r.get("explore")
                      and r.get("approval_instance") != chosen and attempt_state(r, {})[0] == "failed"]
     instance_findings(report, digest, chosen, current, frozen, history, mine, approved_at, bool(instance), failed_before)
+    plan_intact = plan_text_findings(report, digest, plan, frozen)
+    inputs_named = [w for w in (gate.read_inputs(plan, root)[0] or []) if os.path.isfile(os.path.join(root, w))]
+    if frozen and inputs_named and not frozen.get("pins"):
+        report.add("gap", "Approval instance {} records no pins, but the plan names input(s) ({}): either nothing was "
+                          "pinned at approval or the record was emptied, so a change to those inputs since "
+                          "approval is not detectable.".format(chosen, ", ".join("`{}`".format(p) for p in inputs_named[:3])))
     repin_findings(root, report, digest, approved_at)
     abandoned = abandoned_attempts(root)
     open_attempts = launch_findings(report, mine, abandoned, digest, chosen, approved_at)
@@ -2859,12 +2897,13 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     return {"hash": digest, "approved_at": approved_at, "start": start, "session_id": session,
             "instance": {"selected": chosen, "current": current, "history": dict(history),
                          "prepared": (frozen or {}).get("prepared")}, "scope": scope,
-            "analysis_dir": analysis_dir, "git": gate.git_state(root), "runs": len(mine),
+            "analysis_dir": analysis_dir, "git": gate.git_state(root),
+            "git_repo": gate.git(root, "rev-parse", "--git-dir") is not None, "runs": len(mine),
             "scripts": scripts, "folders": folders, "commands": commands, "inputs": inputs,
             "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted, "envs": envs, "rule_envs": rule_env_list,
             "claims": claimed, "citations": cited, "recovery": recovery, "validation": validated,
             "validation_binding": binding,
-            "status": report.status(), "plan": plan,
+            "status": report.status(), "plan": plan, "plan_intact": plan_intact,
             # Kept for the record (a scaffolder call can explain a moved input), marked as not runs.
             "receipts": sorted(mine + [dict(r, not_a_run="only passed planned paths to other code")
                                        for r in handed], key=lambda r: r.get("ts", 0))}
@@ -3239,6 +3278,9 @@ def render_summary(result, saved=False):
     runs = result["runs"]
     if not runs:
         ran = "no: no run is recorded under this approval"
+    elif undone and all("compound command" in s["why"] for s in steps if not s["complete"]):
+        ran = ("not attributable: {} of {} steps were named in a compound shell command, so what ran and whether it "
+               "succeeded cannot be told from the receipt; run each step as its own command".format(len(undone), len(steps)))
     elif undone:
         ran = "no: {} of {} steps ran to completion; not completed: {}{}".format(
             len(steps) - len(undone), len(steps), "; ".join(undone[:2]), " and {} more".format(len(undone) - 2)
@@ -3314,7 +3356,7 @@ def render_summary(result, saved=False):
 def render(result, all_outputs=False, saved=False):
     git = result["git"]
     head = "HEAD {} ({})".format(git["head"][:12], "uncommitted changes" if git.get("dirty") else "clean") \
-        if git else "not a git repository"
+        if git else "no commit yet" if result.get("git_repo") else "not a git repository"
     lines = [
         "# Verify plan {}: {}".format(result["hash"], result["status"]),
         "",
@@ -3612,6 +3654,9 @@ def render_disclosure(root, result):
 
 
 def _write_bundle(root, result, folder):
+    if result.get("plan_intact") is False:
+        sys.exit("verify: plan {} does not hash to its approval record, so it is not saved as the frozen plan as "
+                 "approved. Restore the approval record, then write again.".format(result["hash"]))
     if not os.path.isdir(os.path.join(root, result["analysis_dir"])):
         sys.exit("verify: analysis folder {} does not exist.".format(result["analysis_dir"]))
     os.makedirs(folder, exist_ok=True)
@@ -3700,7 +3745,7 @@ def _write_bundle(root, result, folder):
         (" - [validation]({})".format(paths["validation"]) if "validation" in paths else "") +
         (" - [conda env]({})".format(paths["env"]) if "env" in paths else "") +
         (" - [pip]({})".format(paths["pip"]) if "pip" in paths else "") +
-        (" - [rule envs]({})".format(paths["rule_envs"]) if "rule_envs" in paths else ""))
+        (" - [rule envs (synthetic format, not validated against a real Snakemake run)]({})".format(paths["rule_envs"]) if "rule_envs" in paths else ""))
     if os.path.isfile(index):
         with open(index, encoding="utf-8") as handle:
             lines = [line.rstrip("\n") for line in handle if not line.startswith("| {} |".format(digest))]
