@@ -39,6 +39,8 @@ An entry with no status is `unknown`, not `current`. You may say an entry looks 
 
 ## 4. Record the user's answer
 
+The agent asks first because this skill says so; nothing enforces it.
+
 Once the user explicitly confirms a resolution in the conversation, append one new entry to the end of `.living/decisions.md`. Never edit, reorder, renumber, or delete an existing entry. Match the file's heading level (`###` unless the file uses `##`):
 
 ```markdown

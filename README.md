@@ -5,9 +5,11 @@
 **Plan an analysis. Approve what runs. Check the execution record.**
 
 Mycelium Extra reads your repository, helps you make a sourced plan, and can
-check covered runs against that plan. You stay in control: nothing runs, is
-recorded, or is claimed until you say so, and anything it could not check is
-shown as a gap, never as a pass. It works in Claude Code, Codex, and OpenCode,
+check covered runs against that plan. The approval gate catches execution
+mistakes: a covered run that was never approved is denied, and anything it could
+not check is shown as a gap, never as a pass. It is not a security boundary: the
+"ask first" steps in the skills are instructions to the agent, not rules the gate
+enforces. It works in Claude Code, Codex, and OpenCode,
 alongside
 [Mycelium](https://github.com/arjunrajlaboratory/mycelium) or in an ordinary repository.
 

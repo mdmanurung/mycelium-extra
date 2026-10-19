@@ -24,12 +24,14 @@ Turn a learning the project keeps having to remember into a test that remembers 
 
 ## 3. Prove it guards something
 
-Run the test twice and show both results:
+Do not write the test file yet. Show the user the proposed test (path and body) and the reproduction it will use, and ask whether that reproduction really is the problem the learning describes: you chose it, and a wrong reproduction makes a worthless test. Write the file only after the user says yes; if they correct the reproduction, revise and ask again.
+
+Then run the test twice and show both results:
 
 1. Against a minimal inline reproduction of the original problem (a small fixture built in the test, or a parameter that recreates the bad input). It must **fail**.
 2. Against the current code or data. It must **pass**.
 
-If it cannot be made to fail on the reproduction, it guards nothing: stop, and leave the entry `ambient-awareness`. If it fails on the current code, the problem is live: report it, and do not mark the learning structural.
+If it cannot be made to fail on the reproduction, it guards nothing: delete the test file you wrote, stop, and leave the entry `ambient-awareness`. If it fails on the current code, the problem is live: report it, and do not mark the learning structural.
 
 For a data learning (a column, a sample count, a file format), the test may read the repository's data file. If that file is large or git-ignored, say the test only runs where the data exists.
 
@@ -40,4 +42,4 @@ Show the test path, both runs, and the exact edit, then ask. After the user conf
 - `**mitigation_type**: structural`
 - Append to the `**structural_mitigation_candidate**:` line: ` Shipped: \`<test path>\` (YYYY-MM-DD).`
 
-Change no other field or entry. Do not commit. If Mycelium's Stop hook asks for `.living/` updates afterwards, follow it. End with one line: the learning, the test path, and how to run it.
+Change no other field or entry. Do not commit. This confirmation is the agent's instruction, not a gate rule: nothing enforces it. If Mycelium's Stop hook asks for `.living/` updates afterwards, follow it. End with one line: the learning, the test path, and how to run it.

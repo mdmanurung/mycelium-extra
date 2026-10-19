@@ -12,9 +12,9 @@ Friction is opt-in. Socratic mode starts when the user invokes grill with `socra
 
 When a rule-3 `user` question is asked, add **one** probe to the same message, after the evidence (and the librarian dossier, if the user chose the lookup, see [evidence-assistance.md](evidence-assistance.md)) and before the options. The user's one reply answers both. A probe costs nothing against the five-question cap and is never a second question. Pick the one that fits:
 
-- Expectation: "What would you expect to see if option A is right?"
-- Disconfirmation: "What result would make you drop it?"
-- Consequence: "If it is wrong, which later step breaks first?"
+- Expectation: "Whichever option you pick, what would you expect to see if it is right?"
+- Disconfirmation: "What result would make you drop the option you pick?"
+- Consequence: "If the option you pick is wrong, which later step breaks first?"
 
 Keep the options and the recommended default exactly as without the probe. Word the probe neutrally: it must not name the answer the agent prefers. If the user skips it, proceed and do not ask again.
 

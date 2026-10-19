@@ -228,6 +228,29 @@ class DiagnoseTest(unittest.TestCase):
         with open(os.path.join(self.state, name), "w") as handle:
             handle.write(text)
 
+    def test_defaults_mirror_the_gate_and_cover_every_key(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("gate_init_under_test", SCRIPT)
+        init = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(init)
+        spec = importlib.util.spec_from_file_location("gate_under_test", GATE)
+        gate = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gate)
+        self.assertEqual(set(init.DEFAULTS), set(init.CONFIG_RULES))
+        for key, value in gate.DEFAULTS.items():
+            self.assertEqual(init.DEFAULTS[key], value, key)
+        # defaults the gate applies inline (config.get(key, default)), not in gate.DEFAULTS
+        for key, value in {"card_lint": True, "lint_on_write": True, "focus_notices": False,
+                           "on_error": "allow"}.items():
+            self.assertEqual(init.DEFAULTS[key], value, key)
+
+    def test_diagnose_shows_every_key_with_its_default(self):
+        out = self.diagnose()
+        for key in ("card_coverage", "card_lint", "lint_on_write", "pin_scripts", "focus_notices"):
+            self.assertIn("  " + key + ": ", out)
+        self.assertIn("card_coverage: true  (default)", out)
+        self.assertIn("focus_notices: false  (default)", out)
+
     def test_diagnose_writes_nothing_with_or_without_state(self):
         before = self.listing()
         out = self.diagnose()

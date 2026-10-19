@@ -102,6 +102,9 @@ Never add, edit, or drop a claims line to make a failing check pass.
 
 Ask once whether to record this check, naming the analysis folder and the status. Only after an explicit yes:
 
+(This confirmation is the agent's instruction, not a gate rule: nothing enforces it, so `write` runs whenever the agent runs it.)
+
+
 ```bash
 sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. write <hash> --analysis-dir <folder> < <skill-dir>/scripts/verify.py
 ```

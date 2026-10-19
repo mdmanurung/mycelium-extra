@@ -27,10 +27,25 @@ import tempfile
 STATE_DIR = ".mycelium-extra"
 TESTED_MYCELIUM = ("0.6.0", "0.7.2")  # the versions whose hooks and files the docs were checked against
 IGNORE_LINE = STATE_DIR + "/"
+# Every key gate.json reads, with the default the gate uses. gate_init runs from stdin and cannot import
+# hooks/gate.py, so this mirrors it; skills/init/tests/test_gate_init.py fails if the two drift.
+# null: unset (no limit / off).
 DEFAULTS = {
     "gated_paths": ["analysis/**", "nbs/**"],
     "gated_commands": ["sbatch", "snakemake", "nextflow"],
     "approval_hours": 24,
+    "pin_hash_mb": 200,
+    "pin_seconds": 5,
+    "pin_scripts": True,
+    "card_lint": True,
+    "card_coverage": True,
+    "focus_notices": False,
+    "lint_on_write": True,
+    "lint_before_stop": False,
+    "lint_before_run": False,
+    "on_error": "allow",
+    "max_runs_per_approval": None,
+    "checkpoint_steps": None,
 }
 
 

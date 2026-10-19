@@ -95,13 +95,15 @@ See [Verification reference](verification.md) for report details and
 ## Tier 4: Full project workflow
 
 Add tools **when the project needs them**; there is no requirement to invoke
-all eleven skills for every analysis.
+all thirteen skills for every analysis.
 
 | Need | Tool | When to use it |
 |---|---|---|
 | Predictable analysis structure | `new-analysis` | Before implementing a new analysis; creates stubs, workflow, plan, and tracker |
 | Independent challenge | `plan-review` | Optional, after `grill` and before the first approval; revised plans return to `grill` |
 | Continuity between sessions | `handoff` | Before starting a fresh session |
+| Say which analysis this session works on | `focus` (typed `focus <folder>`) | Several analyses open; makes notices and `track-changes` name the right one |
+| See what changed against the approved plan | `track-changes` | Before a freeze or a write-up; read-only |
 | Keep flow when an idea strikes | `idea` | Any time; one line, no questions |
 | Choose what to work on next | `idea-triage` | Between analyses, when several ideas are waiting |
 | Prevent a recurring mistake | `harden` | When a Mycelium learning names a concrete test candidate |

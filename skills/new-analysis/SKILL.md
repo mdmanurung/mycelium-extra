@@ -17,7 +17,7 @@ analysis/<name>/
 
 ## 1. Gather
 
-Take these from the user's message. Ask only if the destination is missing.
+Take these from the user's message. Ask only if the destination is missing. Asking before writing is the agent's instruction, not a gate rule: nothing enforces it.
 
 - **Destination.**
   - In a Mycelium repository (`.living/` exists), use `analysis/<name>/`.
