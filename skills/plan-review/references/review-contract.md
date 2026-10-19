@@ -81,3 +81,27 @@ confidence_notes: []
 Use `status: unavailable` with a reason when a reviewer cannot be reached, cannot be safely invoked, or was not sent because `verify` refused. Use `status: pending` for a launched review that has not finished. Use `status: invalid` when output cannot be attributed to the intended reviewer, lacks enough structure to recover issues, or claims work the reviewer did not do. An empty `issues` list is meaningful only with `status: complete`. Do not transform absence into agreement.
 
 The Source column is provenance, not permission. Grill's sources are `repo:`, `user`, and `default:`; a reviewer is not a source of authority. In a later revised plan, a recommendation the user accepted is sourced as `user (accepted review: codex)` or `user (accepted review: biomni; PMID ...)`, keeping the supporting repository citation or retrievable scientific reference. The approval gate ignores Source cells; only the rest of the approved plan table can authorize gated runs.
+
+## Material objection classification
+
+An issue is **material** when accepting or rejecting it would change a consequential choice in the plan. Material issues are ranked, not counted, and each carries four fields plus one status, whether the reviewer supplied them in this shape or not (recover them from the reviewer's prose, and say when a field could not be recovered):
+
+```yaml
+- id: C1
+  affected_choice: "the step and the consequential choice it would change"
+  evidence: "repo path/line, packet field, or traceable primary source"
+  inferential_consequence: "what the result would mean if the concern holds, in plain scientific terms"
+  discriminating_check: "the observation, test, or artifact that would settle it"
+  status: unresolved            # substantiated | refuted | unresolved | out_of_scope
+```
+
+Statuses, applied by the lead host with evidence, never by vote or severity:
+
+- `substantiated` — the evidence supports the concern and the discriminating check is available.
+- `refuted` — the plan or the repository already answers it; cite what refutes it, with the path or line.
+- `unresolved` — the concern stands and the discriminating check cannot settle it before execution.
+- `out_of_scope` — it concerns a choice this plan does not make (a later milestone, a different deliverable). Name where it belongs instead of arguing it.
+
+Non-material issues — wording, style, optional improvements — stay in the reviewer's own list and are never promoted to cruxes.
+
+The synthesis leads with the strongest `unresolved` crux: the material objection with the largest inferential consequence that the check cannot settle. Exactly one. Then list the rest. When every material objection is `refuted` or `out_of_scope`, say `no substantiated material concern` in the summary line — that is a statement about the objections raised, never about the plan's correctness, and it does not replace any reviewer's status.

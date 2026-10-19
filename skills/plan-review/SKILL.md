@@ -52,6 +52,7 @@ Challenge a proposed plan before approval. This skill is consultation only: do n
 ## 3. Normalize and adjudicate
 
 - Normalize responses to the common issue schema in [review-contract.md](references/review-contract.md). Keep each reviewer's original ID, evidence, uncertainty, and recommendation. Verify cited scientific sources before using them for material plan changes.
+- Classify each material objection with the four fields and the status (`substantiated | refuted | unresolved | out_of_scope`) in [review-contract.md](references/review-contract.md), then lead the synthesis with the single strongest undecided crux. Classification is a judgment from evidence: a concern is not substantiated because a reviewer asserted it, and not refuted because the plan's author disagrees.
 - Use [synthesis.md](references/synthesis.md) on the lead host (Claude Code or OpenCode). Record agreement, single-reviewer concerns, conflicts, accepted and rejected recommendations, and user-owned choices. Consensus is not required.
 - Give proposed amendments separately from the plan. Do not rewrite the plan, its Source column, or `.living/` during this skill. If the user later requests a revised plan, source accepted reviewer choices as `user (accepted review: codex)` or `user (accepted review: biomni; PMID ...)` with the underlying evidence, then present the entire revised plan for normal approval. A prior approval does not cover a changed plan.
 

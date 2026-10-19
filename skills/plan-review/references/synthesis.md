@@ -2,6 +2,7 @@
 
 Use this section order. The order and issue IDs are fixed; deciding which recommendation to accept requires evidence and judgment, not a vote.
 
+0. **Undecided crux:** one line naming the strongest `unresolved` material objection (its ID, the choice it affects, and the consequence if it holds), or `no substantiated material concern` when every material objection was `refuted` or `out_of_scope`. Classify material objections with the four fields and the status rules in [review-contract.md](review-contract.md); non-material wording and optional improvements are not cruxes and never appear here.
 1. **Reviewer status:** name who actually ran, the packet version/content each saw, redactions, the pre-send check's result (exit status, what it flagged, what the user decided; a clean result is pattern-based, not a clearance), failures, and gaps. Name the packet digest each reviewer received and whether `verify` succeeded (before the gate records consent, it cannot: say the send was not byte-bound). An unavailable, invalid or pending review is not a negative finding, and none is an empty completed review.
 2. **Agreement:** independently raised concerns with each original issue ID and evidence. Similar wording without the same substantive concern is not agreement.
 3. **Biomni-only concerns** and **Codex-only concerns:** retain unique findings and uncertainty.

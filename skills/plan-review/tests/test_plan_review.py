@@ -74,6 +74,24 @@ class PlanReviewContractTest(unittest.TestCase):
         self.assertIn("pre-send check's result", synthesis)
         self.assertIn("never report it as clean", skill)
 
+    def test_material_objections_are_classified_and_lead_with_the_crux(self):
+        skill = read("SKILL.md")
+        contract = read("references/review-contract.md")
+        synthesis = read("references/synthesis.md")
+        for field in ("affected_choice:", "inferential_consequence:", "discriminating_check:"):
+            self.assertIn(field, contract, field + " missing from the objection schema")
+        for status in ("substantiated", "refuted", "unresolved", "out_of_scope"):
+            self.assertIn(status, contract)
+        self.assertIn("An issue is **material** when accepting or rejecting it would change", contract)
+        self.assertIn("Non-material issues", contract)
+        self.assertIn("never promoted to cruxes", contract)
+        self.assertIn("no substantiated material concern", contract)
+        self.assertIn("never about the plan's correctness", contract)
+        self.assertIn("**Undecided crux:**", synthesis)
+        self.assertIn("Exactly one.", contract)
+        self.assertIn("Classification is a judgment from evidence", skill)
+        self.assertIn("not substantiated because a reviewer asserted it", skill)
+
     def test_packet_and_provenance_require_evidence(self):
         contract = read("references/review-contract.md")
         synthesis = read("references/synthesis.md")
