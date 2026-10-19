@@ -36,6 +36,12 @@ Statuses: **done**, **parked**, **dropped**.
 - Median wall time of one `gate.py prompt` for an ordinary prompt, 30 calls: 113 ms with no focus folder, 119 ms with a focus open, 119 ms for another session while the folder exists, 120 ms for `focus status`. About 6 ms from one small JSON read.
 - `gate_diff` against `62d4725`: 173/173 identical; fuzz seed 1, 253/253. Fuzz seed 3 differed in 3 of 253 cases, but a control run of the unchanged base `gate.py` against itself differed in 17 of 253 at that seed, so that seed's fuzz is not deterministic and says nothing about this change.
 
+## Real repositories (read-only dry run, 2026-10-19)
+
+- Both repos keep analyses under `nbs/<topic>`, not `analysis/<name>`: `scale` had 158 plan hits for `nbs/09_factorizations` and none for any `analysis/` folder. The spec's `analysis/X` would have made both commands useless there, so a focus target is any existing folder under a gated root (`gated_paths`, default `analysis/` and `nbs/`). A sibling folder under the focus's parent is "another analysis".
+- Busy folders name many plans (`scale` `nbs/09_factorizations` 44 of 45 approvals; `bmv` `nbs/cytof_exvivo` 80 of 99, `analysis/manuscript` 15), so `track-changes` there stops and asks for `--original`, listing the 8 newest with date and objective. Focusing a deeper folder, or `focus <folder> plan <hash>`, avoids the question.
+- The work `focus status` does (all approvals, plan match for every folder, two active-approval scans) took 0.6 s for 99 approvals; the prompt hook allows 10 s. `track-changes` collect took 0.1 to 0.25 s per folder.
+
 ## Acceptance map (spec F01 to F32)
 
 | ID | Where tested |

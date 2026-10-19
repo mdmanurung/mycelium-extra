@@ -44,6 +44,7 @@ class Base(unittest.TestCase):
         home = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, home)
         os.environ["HOME"] = home
+        os.environ["CLAUDE_CODE_SESSION_ID"] = "s1"  # the session the hooks below act as
         self.root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.root)
         os.makedirs(os.path.join(self.root, ".mycelium-extra"))
@@ -86,11 +87,11 @@ class Base(unittest.TestCase):
             event["tool_use_id"] = call
         self.hook("post", event)
 
-    def cli(self, *args, fail=False):
+    def cli(self, *args, fail=False, env=None):
         with open(SCRIPT) as source:
             proc = subprocess.run([sys.executable, "-", "--plugin-root", PLUGIN, "--repo", self.root] + list(args),
                                   stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.root,
-                                  universal_newlines=True)
+                                  universal_newlines=True, env=env)
         if fail:
             self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
             return proc.stderr
@@ -99,7 +100,7 @@ class Base(unittest.TestCase):
 
     def collect(self, **kw):
         args = argparse.Namespace(repo=self.root, analysis=kw.get("analysis"), original=kw.get("original"),
-                                  current=kw.get("current"), transcript=kw.get("transcript"))
+                                  current=kw.get("current"), transcript=kw.get("transcript"), session=kw.get("session"))
         gate, focus, verify = tc.load(PLUGIN)
         return tc.collect(args, gate, focus, verify)
 
@@ -136,6 +137,15 @@ class PlansAndCodeTest(Base):
         self.assertIn("--original", message)
         self.assertFalse(os.path.isdir(os.path.join(self.root, ".mycelium-extra", "track-changes")))
         self.assertIn("no approved plan deadbeef", self.cli("--analysis", "analysis/a", "--original", "deadbeef", fail=True))
+        self.assertRegex(message, r"{} \(approved \d\d-\d\d \d\d:\d\d; Fit the model".format(second))
+
+    def test_a_long_list_of_candidate_plans_is_capped(self):  # F10
+        for i in range(10):
+            self.approve(plan("min_cells {}".format(100 + i)))
+        message = self.cli("--analysis", "analysis/a", fail=True)
+        self.assertIn("10 approved plans name paths inside analysis/a", message)
+        self.assertIn("and 2 more (`verify list` shows them all)", message)
+        self.assertEqual(message.count("(approved "), 8)
 
     def test_a_later_approved_amendment_is_not_called_unauthorized(self):  # F09
         first, second = self.two_plans()
@@ -288,8 +298,28 @@ class FocusAndTranscriptTest(Base):
         self.assertEqual(shared["focus_relation"], "unknown")
         self.assertFalse([i for i in data["items"] if FIT in i["file"] and i["kind"] == "focus"])  # inside the focus: not drift
         self.assertEqual(data["coverage"]["claude_transcript"], "partial")
+        self.assertIn("`focus switch analysis/b`", tc.card(data).splitlines()[-1])  # the target, not a word of the title
         self.assertTrue(any("shell commands mention other analyses (analysis/b x1)" in l for l in data["coverage"]["limitations"]))
         self.assertNotIn(secret, json.dumps(data))  # no prompt or command text is kept
+
+    def test_siblings_under_nbs_are_other_analyses_too(self):  # real repos keep analyses under nbs/
+        for name in ("topic_a", "topic_b"):
+            os.makedirs(os.path.join(self.root, "nbs", name))
+        path = self.transcript([
+            self.tool("Edit", file_path=os.path.join(self.root, "nbs/topic_b/fit.py")),
+            self.tool("Edit", file_path=os.path.join(self.root, "nbs/topic_a/inside.py")),
+            self.tool("Edit", file_path=os.path.join(self.root, "analysis/a/elsewhere.py")),
+            self.tool("Bash", command="python nbs/topic_b/fit.py"),
+        ])
+        self.hook("prompt", {"prompt": "focus nbs/topic_a", "transcript_path": path})
+        data = self.collect()
+        self.assertEqual(data["analysis_path"], "nbs/topic_a")
+        far = [i for i in self.items(data, "focus") if i["bucket"] == "attention"]
+        self.assertEqual([i["target"] for i in far], ["nbs/topic_b"])
+        self.assertIn("`focus switch nbs/topic_b`", tc.card(data).splitlines()[-1])
+        shared = [i for i in self.items(data, "focus") if i["bucket"] == "routine"][0]
+        self.assertIn("outside nbs/ during the focus", shared["title"])
+        self.assertTrue(any("nbs/topic_b x1" in l for l in data["coverage"]["limitations"]))
 
     def test_edits_before_the_focus_started_are_not_counted(self):
         old = self.tool("Edit", file_path=os.path.join(self.root, "analysis/b/old.py"))
@@ -398,7 +428,7 @@ class SafetyTest(Base):
 
     def test_no_focus_needs_an_explicit_analysis_when_several_exist(self):  # F32
         message = self.cli(fail=True)
-        self.assertIn("pass --analysis analysis/<folder>", message)
+        self.assertIn("pass --analysis <folder>", message)
         self.assertIn("analysis/a", message)
         self.assertIn("Attention", self.cli("--analysis", "analysis/a", "--no-write"))
 
@@ -406,11 +436,24 @@ class SafetyTest(Base):
         for bad in ("analysis/../etc", "/etc", "analysis/nope"):
             self.assertIn("no focus", self.cli("--analysis", bad, fail=True))
 
-    def test_open_focus_in_two_sessions_needs_a_choice(self):  # F03
+    def test_each_session_uses_only_its_own_focus(self):  # F03
         self.hook("prompt", {"prompt": "focus analysis/a"}, "s1")
         self.hook("prompt", {"prompt": "focus analysis/b"}, "s2")
-        self.assertIn("several sessions have an open focus", self.cli(fail=True))
-        self.assertIn("track-changes analysis/b", self.cli("--analysis", "analysis/b", "--no-write"))
+        self.assertIn("track-changes analysis/a", self.cli("--no-write"))  # $CLAUDE_CODE_SESSION_ID is s1
+        self.assertIn("track-changes analysis/b", self.cli("--session", "s2", "--no-write"))
+        bare = {k: v for k, v in os.environ.items() if k != "CLAUDE_CODE_SESSION_ID"}
+        message = self.cli("--no-write", fail=True, env=bare)
+        self.assertIn("no session id", message)
+        self.assertIn("pass --analysis", message)
+
+    def test_a_focus_left_open_by_an_earlier_session_is_not_this_sessions(self):  # F06
+        self.hook("prompt", {"prompt": "focus analysis/b"}, "old-session")  # never ended
+        message = self.cli(fail=True)  # this session (s1) has no focus
+        self.assertIn("this session has no open focus", message)
+        data = self.collect(analysis="analysis/a")
+        self.assertFalse(data["focus"]["active_at_snapshot"])
+        self.assertEqual(data["coverage"]["claude_transcript"], "not_requested")
+        self.assertFalse(self.collect(analysis="analysis/b")["focus"]["active_at_snapshot"])  # old-session's focus is not s1's
 
     def test_without_a_gate_it_still_reports_what_it_cannot_read(self):  # F26
         bare = tempfile.mkdtemp()
@@ -434,6 +477,9 @@ class SafetyTest(Base):
         self.assertTrue(any(l.startswith("Attention  ") for l in lines))
         self.assertTrue(any(l.startswith("Unknown    ") for l in lines))
         self.assertTrue(any(l.startswith("▶ ") for l in lines))
+        self.assertIn("(newest approved plan naming this folder; --current to choose)", lines[1])
+        explicit = self.cli("--analysis", "analysis/a", "--original", first, "--current", second, "--no-write")
+        self.assertNotIn("--current to choose", explicit)
 
 
 if __name__ == "__main__":

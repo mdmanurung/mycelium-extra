@@ -8,10 +8,10 @@ Type each line as the whole prompt. The gate answers it, so the agent never runs
 
 | You type | What happens |
 |---|---|
-| `focus analysis/pbmc-ifn` | Starts a focus on that folder. Refused if one is already open, or the folder does not exist (it lists the folders that do). |
+| `focus analysis/pbmc-ifn` (or `focus nbs/09_factorizations`) | Starts a focus on that folder. It must exist under a gated root: `analysis/` and `nbs/` by default, otherwise the folders in `gate.json`'s `gated_paths`. Refused if one is already open or the folder is missing (it lists the folders that exist). |
 | `focus analysis/pbmc-ifn plan 84bb5fce` | Same, and notes that approved plan `84bb5fce` states the original intent. Refused unless that plan's table names a path inside the folder. |
 | `focus status` | A short card, shown to you only. |
-| `focus switch analysis/other` | Ends this focus and starts the next. The first stays in the record. |
+| `focus switch <folder>` | Ends this focus and starts the next. The first stays in the record. |
 | `focus end` | Closes it. The analysis is not thereby complete or reportable. |
 
 ```text
@@ -27,7 +27,7 @@ What to rely on:
 - **It grants nothing.** Runs still need an approved plan, exactly as before. The `Runs` row reports that separately and never says focus authorized anything.
 - **It is yours to change.** Only the line you type changes a focus; the agent has no command that does. While one is open, each prompt carries one advisory line asking the agent to stay on that analysis and to propose `focus switch` rather than drift. You can still ask it anything.
 - **One per session.** Two terminals can focus different analyses. A new session starts with none: `handoff` suggests the line to type.
-- **Nothing is guessed.** The folder must exist. A plan is linked only if you name it. The objective is quoted from the analysis doc, or reported as not stated.
+- **Nothing is guessed.** The folder must exist and sit under a gated root. A plan is linked only if you name it. The objective is quoted from the analysis doc, or reported as not stated.
 - State is one small file per session in `.mycelium-extra/focus/` (no prompt text). A malformed file is reported, never repaired.
 
 ## Track changes
@@ -36,7 +36,7 @@ What to rely on:
 /mycelium-extra:track-changes [analysis/pbmc-ifn]
 ```
 
-With one open focus it uses that analysis; with none or several, name the folder. If more than one approved plan names a path inside it, you are asked which states the original intent (`--original <hash>`); dates are not used to guess.
+It uses this session's open focus (from `$CLAUDE_CODE_SESSION_ID`, or `--session`); a focus an earlier session left open is never picked up. Without one, name the folder. If more than one approved plan names a path inside it, you are asked which states the original intent (`--original <hash>`, or type `focus <folder> plan <hash>` once); dates are not used to guess. On a broad folder that many plans name, focus a deeper folder instead.
 
 ```text
 mycelium-extra · track-changes analysis/pbmc-ifn · snapshot 10-19 11:02

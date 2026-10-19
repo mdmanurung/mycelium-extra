@@ -205,10 +205,30 @@ class FocusTest(unittest.TestCase):
         self.assertIsNone(self.say("hello", "new"))
         self.assertIn("focus none", self.text(self.say("focus status", "new")))
 
+    def test_any_gated_root_works_not_only_analysis(self):  # real repos keep analyses under nbs/
+        os.makedirs(os.path.join(self.root, "nbs", "09_factorizations"))
+        self.assertIn("focus started on nbs/09_factorizations", self.text(self.say("focus nbs/09_factorizations.")))
+        self.assertIn("focus nbs/09_factorizations", self.text(self.say("focus status")))
+        self.assertIn("(was nbs/09_factorizations)", self.text(self.say("focus switch analysis/a")))
+        for outside in ("src/tools", "notes/x", ".mycelium-extra/focus", "README.md/x"):
+            result = self.say("focus switch " + outside)
+            self.assertIn("no focus", result["reason"], outside)
+        self.assertIn("not under a gated folder (analysis/, nbs/)", self.say("focus switch src/tools")["reason"])
+
+    def test_gated_roots_follow_gate_json(self):
+        os.makedirs(os.path.join(self.root, "work", "a"))
+        with open(os.path.join(self.root, ".mycelium-extra", "gate.json"), "w") as handle:
+            json.dump({"gated_paths": ["work/**"]}, handle)
+        self.assertIn("started on work/a", self.text(self.say("focus work/a")))
+        self.assertIn("not under a gated folder (work/)", self.say("focus switch analysis/a")["reason"])
+
     def test_list_command_is_read_only(self):
         out = subprocess.run([sys.executable, os.path.join(HERE, "..", "focus.py"), "list", "--repo", self.root],
                              stdout=subprocess.PIPE, universal_newlines=True).stdout
-        self.assertEqual(out.split(), ["analysis/a", "analysis/b"])
+        os.makedirs(os.path.join(self.root, "nbs", "t1"))
+        out = subprocess.run([sys.executable, os.path.join(HERE, "..", "focus.py"), "list", "--repo", self.root],
+                             stdout=subprocess.PIPE, universal_newlines=True).stdout
+        self.assertEqual(out.split(), ["analysis/a", "analysis/b", "nbs/t1"])
         refused = subprocess.run([sys.executable, os.path.join(HERE, "..", "focus.py"), "start", "analysis/a"],
                                  stderr=subprocess.PIPE, universal_newlines=True)
         self.assertEqual(refused.returncode, 2)  # no command line can change a focus

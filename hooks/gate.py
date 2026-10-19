@@ -3589,7 +3589,7 @@ def on_prompt(event, root, config):
                     command = ("end", None, None)
                 else:
                     command = ("switch" if verb.group(2) else "start", verb.group(3), (verb.group(4) or "").lower() or None)
-                message = module.change(sys.modules[__name__], root, event, command)
+                message = module.change(sys.modules[__name__], root, config, event, command)
             except module.FocusError as error:
                 return {"decision": "block", "reason": str(error)}
             return {"systemMessage": message,

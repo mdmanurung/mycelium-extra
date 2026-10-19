@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """track-changes: a read-only view of how one analysis moved away from its approved intent.
 
-    sh hooks/py.sh - --plugin-root <plugin> [--repo DIR] [--analysis analysis/X] [--original HASH] [--current HASH]
+    sh hooks/py.sh - --plugin-root <plugin> [--repo DIR] [--analysis <folder>] [--original HASH] [--current HASH]
         [--transcript FILE] [--json] [--no-write] < track_changes.py
 
 Reads approvals, approval instances, the re-pin journal, kept script snapshots, receipts, the focus records and
@@ -17,6 +17,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import posixpath
 import re
 import sys
 import time
@@ -107,20 +108,15 @@ def read_json(path):
         return None
 
 
-def open_focuses(root, focus):
-    """[(session_id, open episode)] over every session record that parses; a bad record is skipped."""
-    folder = os.path.join(root, ".mycelium-extra", "focus")
-    found = []
-    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
-        record = read_json(os.path.join(folder, name))
-        session = record.get("session_id") if isinstance(record, dict) else None
-        try:
-            episode = focus.open_episode(focus.read(root, session)) if isinstance(session, str) else None
-        except focus.FocusError:
-            continue
-        if episode:
-            found.append((session, episode))
-    return found
+def session_episode(root, focus, session_id):
+    """This session's open focus episode, or None. Another session's focus is never used: a focus left open by a
+    session that ended is not this session's (it is inactive once another session starts)."""
+    if not session_id:
+        return None
+    try:
+        return focus.open_episode(focus.read(root, session_id))
+    except focus.FocusError:
+        return None
 
 
 def first_instance(root, digest):
@@ -131,7 +127,7 @@ def first_instance(root, digest):
     return min(found, key=lambda r: r.get("approved_at", 0)) if found else None
 
 
-def choose_baselines(gate, focus, root, rel, episode, args, approvals, snap):
+def choose_baselines(gate, focus, verify, root, rel, episode, args, approvals, snap):
     candidates = [r for r in approvals or [] if focus.plan_touches(gate, root, r, rel)]  # newest first
     by_hash = {r["hash"]: r for r in approvals or []}
     names = [r["hash"] for r in candidates]
@@ -145,8 +141,12 @@ def choose_baselines(gate, focus, root, rel, episode, args, approvals, snap):
     elif not candidates:
         original, relation = None, "none"
     else:
-        raise Stop("{} approved plans name paths inside {} ({}); which one states the original intent? Pass "
-                   "--original <hash>. Nothing is guessed from dates.".format(len(candidates), rel, ", ".join(names)))
+        shown = ["{} (approved {}; {})".format(r["hash"], stamp(r["approved_at"]), short(verify.plan_objective(r["plan"]), 50) or "no objective line")
+                 for r in candidates[:8]]
+        raise Stop("{} approved plans name paths inside {}; which one states the original intent? Pass --original <hash>. "
+                   "Nothing is guessed from dates. Newest first: {}{}".format(
+                       len(candidates), rel, "; ".join(shown), " \u2026 and {} more (`verify list` shows them all)".format(len(candidates) - 8)
+                       if len(candidates) > 8 else ""))
     if args.current:
         if args.current not in by_hash:
             raise Stop("no approved plan {}. Pass --current with a plan that exists.".format(args.current))
@@ -362,7 +362,7 @@ def parse_ts(text):
         return None
 
 
-def transcript_scan(path, root, since):
+def transcript_scan(path, root, since, container):
     """(edits, shell mentions, info) from a Claude Code transcript: direct Edit/Write tool calls only, and a bare
     count of shell commands that mention an analysis folder. No prompt text or command text is kept."""
     info = {"status": "available", "note": ""}
@@ -401,7 +401,7 @@ def transcript_scan(path, root, since):
                             rel = os.path.relpath(full, root) if full == root or full.startswith(root + os.sep) else None
                             edits.append({"ts": ts, "rel": rel, "tool": part["name"], "sidechain": bool(record.get("isSidechain"))})
                     elif part.get("name") == "Bash" and isinstance(data.get("command"), str):
-                        for name in set(re.findall(r"analysis/([A-Za-z0-9][A-Za-z0-9._-]*)", data["command"])):
+                        for name in set(re.findall(re.escape(container) + r"/([A-Za-z0-9_][A-Za-z0-9._-]*)", data["command"])):
                             mentions[name] = mentions.get(name, 0) + 1
     except OSError as error:
         return [], {}, {"status": "unavailable", "note": "could not read the transcript ({})".format(type(error).__name__)}
@@ -411,28 +411,36 @@ def transcript_scan(path, root, since):
     return edits, mentions, info
 
 
-def top(rel):
-    parts = rel.split("/")
-    return "/".join(parts[:2]) if parts[0] == "analysis" and len(parts) > 2 else None
+def unit_of(path, container):
+    """The sibling folder of the focus that `path` lies in (`container/<unit>`), or None when it is not inside
+    the focus's container or is a bare file there."""
+    prefix = container + "/"
+    if path.startswith(prefix):
+        rest = path[len(prefix):].split("/")
+        return prefix + rest[0] if len(rest) > 1 else None
+    return None
 
 
 def focus_items(snap, root, rel, edits, mentions, transcript, started):
-    mine = top(rel + "/x")
+    mine = rel  # the focused folder; its siblings under the same parent are the other analyses
+    container = posixpath.dirname(rel)
     groups, shared = {}, []
     for e in edits:
         r = e["rel"]
         if r is None or r.startswith("."):
             continue
-        group = top(r + "/x") if r.startswith("analysis/") else None
-        if group is None:
+        if r == mine or r.startswith(mine + "/"):
+            continue  # inside the focus: not drift
+        group = unit_of(r, container) if container else None
+        if group is None or not os.path.isdir(os.path.join(root, group)):
             shared.append(e)
-        elif group != mine and os.path.isdir(os.path.join(root, group)):
+        else:
             groups.setdefault(group, []).append(e)
     for group, found in sorted(groups.items()):
         files = sorted(set(e["rel"] for e in found))
         times = [e["ts"] for e in found if e["ts"]]
         side = any(e["sidechain"] for e in found)
-        snap.item("focus", group, "Observed work under {} while {} was in focus".format(group, mine), "attention", file=files[0],
+        snap.item("focus", group, "Observed work under {} while {} was in focus".format(group, mine), "attention", file=files[0], target=group,
                   difference="observed", focus_relation="outside_path", semantic_relation="unassessed", attribution="contextual" if side else "direct_tool",
                   authorization_relation="not_applicable", consequence="unknown",
                   summary="Relationship to current focus not established: {} edit(s) to {} file(s) in another analysis.".format(len(found), len(files)),
@@ -447,7 +455,7 @@ def focus_items(snap, root, rel, edits, mentions, transcript, started):
             snap.event(e["ts"], "edit", "edit {}".format(e["rel"]), snap.evid("transcript_edit", e["rel"], "direct tool call"))
     if shared:
         files = sorted(set(e["rel"] for e in shared if e["rel"]))
-        snap.item("focus", "shared", "{} edit(s) outside analysis/ during the focus".format(len(shared)), "routine", file=files[0] if files else "",
+        snap.item("focus", "shared", "{} edit(s) outside {}/ during the focus".format(len(shared), container), "routine", file=files[0] if files else "",
                   focus_relation="unknown", attribution="direct_tool", consequence="unknown",
                   summary="Relationship to current focus not established: shared or project code was edited.",
                   observed="Direct editor tool calls: {}.".format(", ".join(files[:5]) + (" …" if len(files) > 5 else "")),
@@ -455,10 +463,10 @@ def focus_items(snap, root, rel, edits, mentions, transcript, started):
                   evidence=[snap.evid("transcript_edit", f, "direct tool call") for f in files[:5]],
                   limitations=["an out-of-directory edit is not out of scope"])
     if mentions:
-        others = {k: v for k, v in mentions.items() if "analysis/" + k != mine}
+        others = {k: v for k, v in mentions.items() if container + "/" + k != mine}
         if others:
             snap.limitations.append("shell commands mention other analyses ({}); shell effects are not attributed".format(
-                ", ".join("analysis/{} x{}".format(k, v) for k, v in sorted(others.items())[:5])))
+                ", ".join("{}/{} x{}".format(container, k, v) for k, v in sorted(others.items())[:5])))
 
 
 def collect(args, gate, focus, verify):
@@ -467,34 +475,27 @@ def collect(args, gate, focus, verify):
     root = gate.find_root(args.repo) or os.path.abspath(args.repo)
     gated = os.path.isfile(os.path.join(root, ".mycelium-extra", "gate.json"))
     config = gate.load_config(root) if gated else dict(gate.DEFAULTS)
-    focuses = open_focuses(root, focus)
-    session_focus = None
+    session_id = args.session or os.environ.get("CLAUDE_CODE_SESSION_ID")
+    episode = session_episode(root, focus, session_id)
     if args.analysis:
-        rel = focus.resolve_target(root, args.analysis)
-        match = [f for f in focuses if f[1]["analysis_path"] == rel]
-        session_focus = match[0] if len(match) == 1 else None
-    elif len(focuses) == 1:
-        session_focus = focuses[0]
-        rel = session_focus[1]["analysis_path"]
-    elif focuses:
-        raise Stop("several sessions have an open focus ({}); pass --analysis analysis/<folder>.".format(
-            ", ".join(sorted(set(f[1]["analysis_path"] for f in focuses)))))
+        rel = focus.resolve_target(root, args.analysis, focus.roots_of(config))
+        if episode and episode["analysis_path"] != rel:
+            episode = None  # this session is focused elsewhere: no focus window for this analysis
+    elif episode:
+        rel = episode["analysis_path"]
     else:
-        found = focus.analyses(root)
-        if len(found) == 1:
-            rel = found[0]
-        else:
-            raise Stop("no focus is open and {}; pass --analysis analysis/<folder>{}.".format(
-                "there is no folder under analysis/" if not found else "there are {} analyses".format(len(found)),
-                " ({})".format(", ".join(found[:6])) if found else ""))
-    episode = session_focus[1] if session_focus else None
+        found = focus.analyses(root, focus.roots_of(config))
+        raise Stop("this session has no open focus{}; pass --analysis <folder>{}.".format(
+            "" if session_id else " (no session id: set $CLAUDE_CODE_SESSION_ID or pass --session)",
+            " ({})".format(", ".join(found[:6])) if found else ""))
     approvals = gate.all_approvals(root) if gated else []
+    explicit_current = bool(args.current)
     if approvals is None:
         approvals = []
         snap.limitations.append("reading approvals ran out of time: plan baselines unavailable")
     if not gated:
         snap.limitations.append("no .mycelium-extra/gate.json: there are no approvals, instances or receipts to read")
-    original, current, relation = choose_baselines(gate, focus, root, rel, episode, args, approvals, snap)
+    original, current, relation = choose_baselines(gate, focus, verify, root, rel, episode, args, approvals, snap)
     objective, doc = focus.objective_of(root, rel)
     if original:
         snap.event(original["approved_at"], "approval", "plan {} approved (original)".format(original["hash"]))
@@ -509,7 +510,7 @@ def collect(args, gate, focus, verify):
     transcript = {"status": "not_requested", "note": ""}
     path = args.transcript or (episode or {}).get("transcript_path")
     if path and os.path.isfile(path):
-        edits, mentions, transcript = transcript_scan(path, root, (episode or {}).get("started_at"))
+        edits, mentions, transcript = transcript_scan(path, root, (episode or {}).get("started_at"), posixpath.dirname(rel))
         focus_items(snap, root, rel, edits, mentions, transcript, episode)
         if not episode:
             transcript["note"] = (transcript["note"] + "; " if transcript["note"] else "") + "no focus window: the whole transcript was read"
@@ -538,6 +539,7 @@ def collect(args, gate, focus, verify):
                   "started_at": (episode or {}).get("started_at")} if episode else {"active_at_snapshot": False},
         "baselines": {"original_plan": (original or {}).get("hash"), "current_plan": (current or {}).get("hash"),
                       "current_instance": (current or {}).get("instance_id"), "relation": relation,
+                      "current_selection": "explicit" if explicit_current else "newest_naming_folder",
                       "original_approved": (original or {}).get("approved_at"), "current_approved": (current or {}).get("approved_at")},
         "coverage": {"focus_events": "available" if episode else "not_requested", "approvals": "available" if gated and approvals else "not_available",
                      "snapshots": "partial" if any("snapshot" in l or "baseline" in l for l in snap.limitations) else "available",
@@ -564,7 +566,7 @@ def next_line(data):
         return "▶ decide whether the plan change is intended; `/mycelium-extra:grill` revises it"
     if "focus" in by_kind:
         return "▶ `focus switch {}` if that is the new work, else note why it supports this analysis".format(
-            by_kind["focus"]["title"].split()[4] if len(by_kind["focus"]["title"].split()) > 4 else "analysis/<folder>")
+            by_kind["focus"].get("target") or "<folder>")
     if cur:
         return "▶ `/mycelium-extra:verify report {}` once the plan's steps have run".format(cur)
     return "▶ `/mycelium-extra:grill` to plan this analysis; there is no approved plan to compare"
@@ -573,9 +575,10 @@ def next_line(data):
 def card(data):
     b, counts = data["baselines"], data["counts"]
     lines = ["mycelium-extra · track-changes {} · snapshot {}".format(data["analysis_path"], stamp(calendar.timegm(time.strptime(data["generated_at"], "%Y-%m-%dT%H:%M:%SZ"))))]
-    lines.append("Baseline   original {} · current {}{}".format(
+    lines.append("Baseline   original {} · current {}{}{}".format(
         b["original_plan"] or "none", b["current_plan"] or "none",
-        " (instance {})".format(b["current_instance"][:8]) if b.get("current_instance") else ""))
+        " (instance {})".format(b["current_instance"][:8]) if b.get("current_instance") else "",
+        " (newest approved plan naming this folder; --current to choose)" if b["current_plan"] and b.get("current_selection") != "explicit" else ""))
     lines.append("Attention  {}".format(counts["attention"]))
     for i in [i for i in data["items"] if i["bucket"] == "attention"][:6]:
         lines.append("  ⚠ " + i["title"])
@@ -649,6 +652,7 @@ def main(argv):
     parser.add_argument("--plugin-root", required=True)
     parser.add_argument("--repo", default=os.getcwd())
     parser.add_argument("--analysis")
+    parser.add_argument("--session", help="the session whose focus to use (default: $CLAUDE_CODE_SESSION_ID)")
     parser.add_argument("--original")
     parser.add_argument("--current")
     parser.add_argument("--transcript")
