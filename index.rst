@@ -62,3 +62,4 @@ Claude Code and OpenCode use ``/mycelium-extra:<skill>``; Codex uses ``$mycelium
    :hidden:
 
    skills/grill/references/run-plans
+   skills/track-changes/references/schema
