@@ -55,6 +55,8 @@ Unknown    shell-made edits; file reads; subagent work not marked in the transcr
 Files      .mycelium-extra/track-changes/analysis__pbmc-ifn (brief.md, report.html: open the HTML in a browser)
 ```
 
+Open [an example `report.html`](examples/track-changes-report.html) to see the report itself: it is the real output on a synthetic analysis (invented names, no data), a single offline file you can open from disk. Regenerate it with `python3 tests/e2e/make_track_changes_example.py`.
+
 It reads, and only reads:
 
 | Source | What it shows |

@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Track changes</title>
+<style>/* Hallmark · component: report viewer · genre: modern-minimal · theme: custom (tinted-neutral paper, one blue accent)
+   pre-emit critique: P4 H5 E4 S4 R5 V3. Offline file: system fonts only, a CSP forbids loading any other. */
+:root {
+  --paper: oklch(98.6% 0.004 90);
+  --paper-2: oklch(96.2% 0.005 90);
+  --ink: oklch(22% 0.012 90);
+  --ink-2: oklch(46% 0.012 90);
+  --rule: oklch(91% 0.006 90);
+  --rule-strong: oklch(80% 0.008 90);
+  --accent: oklch(48% 0.14 255);
+  --focus: oklch(48% 0.14 255);
+  --st-attention: oklch(64% 0.14 55);
+  --st-authorized: oklch(58% 0.11 155);
+  --st-routine: oklch(68% 0.01 90);
+  --add: oklch(95.5% 0.04 155);
+  --del: oklch(95.5% 0.035 25);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 120ms;
+}
+:root[data-theme="dark"] {
+  --paper: oklch(19% 0.008 90);
+  --paper-2: oklch(23% 0.01 90);
+  --ink: oklch(93% 0.008 90);
+  --ink-2: oklch(72% 0.01 90);
+  --rule: oklch(29% 0.01 90);
+  --rule-strong: oklch(40% 0.012 90);
+  --accent: oklch(76% 0.12 255);
+  --focus: oklch(76% 0.12 255);
+  --st-attention: oklch(76% 0.13 60);
+  --st-authorized: oklch(74% 0.11 155);
+  --st-routine: oklch(60% 0.01 90);
+  --add: oklch(28% 0.05 155);
+  --del: oklch(28% 0.05 25);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: oklch(19% 0.008 90);
+    --paper-2: oklch(23% 0.01 90);
+    --ink: oklch(93% 0.008 90);
+    --ink-2: oklch(72% 0.01 90);
+    --rule: oklch(29% 0.01 90);
+    --rule-strong: oklch(40% 0.012 90);
+    --accent: oklch(76% 0.12 255);
+    --focus: oklch(76% 0.12 255);
+    --st-attention: oklch(76% 0.13 60);
+    --st-authorized: oklch(74% 0.11 155);
+    --st-routine: oklch(60% 0.01 90);
+    --add: oklch(28% 0.05 155);
+    --del: oklch(28% 0.05 25);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 var(--font-sans); -webkit-font-smoothing: antialiased; }
+#app { max-width: 1080px; margin: 0 auto; padding: var(--space-lg) var(--space-md) var(--space-xl); }
+h1, h2, h3, p, dl, dd { margin: 0; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mono, code { font-family: var(--font-mono); font-size: 0.9em; }
+code { background: var(--paper-2); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere; }
+.mute { color: var(--ink-2); }
+
+/* page header */
+.head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-md); flex-wrap: wrap; }
+.title { font-size: 1.375rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; overflow-wrap: anywhere; min-width: 0; }
+.sub { color: var(--ink-2); font-size: 0.875rem; margin-top: var(--space-xs); }
+.tools { display: flex; gap: var(--space-sm); }
+.btn { background: transparent; border: 1px solid var(--rule-strong); border-radius: 6px; padding: 5px 12px; font-size: 0.875rem; line-height: 1.4; white-space: nowrap; transition: background-color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out); }
+.btn:hover { background: var(--paper-2); }
+.btn:active { transform: translateY(1px); }
+.btn[data-state="done"] { border-color: var(--st-authorized); color: var(--st-authorized); }
+.btn[data-state="failed"] { border-color: var(--st-attention); color: var(--st-attention); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+.meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-sm) var(--space-lg); margin-top: var(--space-md); font-size: 0.875rem; }
+.meta .wide { grid-column: 1 / -1; }
+.meta dt { color: var(--ink-2); font-size: 0.8125rem; }
+.meta dd { overflow-wrap: anywhere; }
+.fine { margin-top: var(--space-md); color: var(--ink-2); font-size: 0.8125rem; max-width: 72ch; }
+details.limits { margin-top: var(--space-sm); font-size: 0.8125rem; color: var(--ink-2); }
+details.limits summary { cursor: pointer; width: fit-content; }
+details.limits ul { margin: var(--space-sm) 0 0; padding-left: 1.1em; max-width: 72ch; }
+
+/* level 1: views */
+.views { display: flex; gap: var(--space-lg); margin-top: var(--space-lg); border-bottom: 1px solid var(--rule); overflow-x: auto; scrollbar-width: none; }
+.views::-webkit-scrollbar { display: none; }
+.view { background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 10px 0; color: var(--ink-2); font-weight: 500; white-space: nowrap; transition: color var(--dur) var(--ease-out); }
+.view:hover { color: var(--ink); }
+.view[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.view .n { margin-left: 6px; color: var(--ink-2); font-weight: 400; font-variant-numeric: tabular-nums; }
+
+/* level 2: filters inside the Review view, directly under the view strip */
+.filters { display: flex; justify-content: space-between; align-items: center; gap: var(--space-md); flex-wrap: wrap; padding: var(--space-md) 0 var(--space-sm); }
+.seg { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
+.chip { background: none; border: 1px solid transparent; border-radius: 6px; padding: 3px 10px; color: var(--ink-2); font-size: 0.875rem; white-space: nowrap; transition: background-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out); }
+.chip:hover { background: var(--paper-2); color: var(--ink); }
+.chip:active { transform: translateY(1px); }
+.chip[aria-pressed="true"] { background: var(--paper-2); border-color: var(--rule-strong); color: var(--ink); }
+.chip .n { margin-left: 4px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.search { background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 6px; padding: 4px 10px; font-size: 0.875rem; width: 240px; max-width: 100%; }
+.search::placeholder { color: var(--ink-2); }
+
+/* list and detail: one hairline between them, no boxes */
+.split { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); margin-top: var(--space-sm); }
+.list { display: flex; flex-direction: column; border-right: 1px solid var(--rule); min-width: 0; }
+.row { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 10px var(--space-md) 10px 0; min-width: 0; transition: background-color var(--dur) var(--ease-out); }
+.row:hover { background: var(--paper-2); }
+.row[aria-current="true"] { background: var(--paper-2); }
+.row .t { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; font-weight: 500; }
+.row .t span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.row .f { display: block; margin: 2px 0 0 calc(7px + var(--space-sm)); color: var(--ink-2); font-family: var(--font-mono); font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--st-routine); }
+.dot.attention { background: var(--st-attention); }
+.dot.authorized { background: var(--st-authorized); }
+.detail { padding-left: var(--space-lg); min-width: 0; }
+.status { display: flex; align-items: center; gap: var(--space-sm); color: var(--ink-2); font-size: 0.8125rem; }
+.detail h2 { font-size: 1.125rem; font-weight: 600; line-height: 1.35; margin-top: var(--space-sm); overflow-wrap: anywhere; }
+.detail .lead { margin-top: var(--space-sm); max-width: 68ch; }
+.fields { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: var(--space-sm) var(--space-md); margin-top: var(--space-md); font-size: 0.9375rem; }
+.fields dt { color: var(--ink-2); font-size: 0.875rem; }
+.fields dd { overflow-wrap: anywhere; max-width: 68ch; }
+.fields dd.axes { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink-2); }
+.section { margin-top: var(--space-lg); }
+.section h3 { font-size: 0.9375rem; font-weight: 600; }
+.section .hint { color: var(--ink-2); font-size: 0.8125rem; margin-top: 2px; }
+.step { display: flex; gap: var(--space-sm); align-items: baseline; flex-wrap: wrap; margin-top: var(--space-sm); }
+.step span { max-width: 62ch; }
+.links { display: flex; gap: var(--space-sm); flex-wrap: wrap; margin-top: var(--space-sm); }
+.links .btn { font-family: var(--font-mono); font-size: 0.8125rem; }
+
+/* diff, timeline, evidence */
+.diff { font: 12px/1.5 var(--font-mono); border: 1px solid var(--rule); border-radius: 6px; overflow-x: auto; margin: var(--space-sm) 0 var(--space-md); }
+.diff div { white-space: pre; padding: 0 var(--space-sm); }
+.diff .add { background: var(--add); }
+.diff .del { background: var(--del); }
+.block h2 { font-size: 1rem; font-weight: 600; margin-top: var(--space-lg); overflow-wrap: anywhere; }
+.block h2:first-child { margin-top: var(--space-md); }
+table { border-collapse: collapse; width: 100%; font-size: 0.875rem; margin-top: var(--space-sm); }
+th, td { text-align: left; padding: 6px var(--space-md) 6px 0; border-bottom: 1px solid var(--rule); vertical-align: top; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+th { color: var(--ink-2); font-weight: 500; }
+tr.pick td { background: var(--paper-2); }
+.empty { color: var(--ink-2); padding: var(--space-lg) 0; max-width: 60ch; }
+
+@media (max-width: 760px) {
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .list { border-right: 0; border-bottom: 1px solid var(--rule); }
+  .detail { padding-left: 0; padding-top: var(--space-md); }
+  .fields { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .fields dd { margin-bottom: var(--space-sm); }
+  .search { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style></head>
+<body><div id="app"></div>
+<script type="application/json" id="data">{"schema":"mycelium-extra.track-changes.v1","generated_at":"2026-10-19T19:15:32Z","root":"tmp76mgrq7t","analysis_path":"analysis/pbmc-ifn","objective":{"text":"Characterize the interferon response.","source":"analysis/pbmc-ifn/PBMC_IFN.md"},"focus":{"active_at_snapshot":false},"baselines":{"original_plan":"5b50b8f9","current_plan":"813cc324","current_instance":"d14e6a34fa6ffe0e","relation":"explicit","current_selection":"newest_naming_folder","original_approved":1792437330.076818,"current_approved":1792437331.402116},"coverage":{"focus_events":"not_requested","approvals":"available","snapshots":"available","receipts":"available","claude_transcript":"not_requested","transcript_note":"","mycelium":"absent","limitations":["inputs, outputs and validation blocks of the two plans are not compared here; `verify diff` does","cross-analysis edits not observed: no transcript was read (pass --transcript, or focus first)"],"not_observed":["shell-made edits","file reads","scripts no approval pinned and no run touched","edits to other analyses (no transcript read)"]},"counts":{"attention":2,"authorized":1,"routine":1},"items":[{"id":"P-9bfd9b23","kind":"plan","title":"Plan step 1 choice: minimum 500 cells per donor → minimum 200 cells per donor","bucket":"attention","file":"plan 813cc324","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"covered_current","historical":"different_original","consequence":"potential","attribution":"not_applicable","currency":"not_checked","summary":"Observed plan change between the original and the current approved plan.","observed":"Row 1, choice: was `minimum 500 cells per donor`, now `minimum 200 cells per donor`.","potential":"Potential analytical implication: a changed Choice, Step or Validation can change what is estimated; whether it does is for the researcher to assess.","unknown":"Why the plan changed is not recorded here.","baseline":"Original plan 5b50b8f9 (approved 10-19 21:15).","current":"Current plan 813cc324 (approved 10-19 21:15).","authorization":"The current plan was approved by the researcher, so this is a later authorized revision, not an unexplained deviation.","context":"","next":["revise the plan with `/mycelium-extra:grill` if this was not intended, then approve the new hash"],"evidence":["E-35956ef1","E-63898f96"],"diff":[],"limitations":[]},{"id":"E-44c6ae31","kind":"execution","title":"Execution record: 3 run(s), 1 failed, 0 unmatched","bucket":"attention","file":"receipts.jsonl","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"covered_current","historical":"not_applicable","consequence":"unknown","attribution":"not_applicable","currency":"not_checked","summary":"3 run record(s) for 5b50b8f9, 813cc324.","observed":"10-19 21:15 analysis/pbmc-ifn/scripts/01_fit.py exited 1; a later run of the same path at 10-19 21:15 exited 0 (both kept)","potential":"","unknown":"Nothing recorded says whether the runs' outputs are the ones the plan declares.","baseline":"","current":"","authorization":"Runs of the current plan carry the current instance or none is recorded.","context":"","next":["`/mycelium-extra:verify report 813cc324` grades what these runs establish"],"evidence":["E-0adf4853","E-9d7bf0b3","E-dba5302c"],"diff":[],"limitations":[]},{"id":"C-614daf7b","kind":"code","title":"analysis/pbmc-ifn/scripts/01_fit.py differs from the original approved code","bucket":"authorized","file":"analysis/pbmc-ifn/scripts/01_fit.py","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"covered_current","historical":"different_original","consequence":"not_assessed","attribution":"unattributed","currency":"not_checked","summary":"Observed code change.","observed":"The bytes differ from the original approval pin. Numbers dropped: 500; new: 200; other changed lines: 0.","potential":"","unknown":"Who edited it and why is not recorded here.","baseline":"Original code baseline: available (the original approval's pin).","current":"Current approval 813cc324 pinned this script.","authorization":"The current approval pins these bytes.","context":"","next":[],"evidence":["E-f5b7025a","E-a505d08f"],"diff":[["ctx","@@ -1 +1 @@"],["del","-min_cells = 500"],["add","+min_cells = 200"]],"limitations":[]},{"id":"O-62b5b933","kind":"output","title":"1 declared output(s) missing","bucket":"routine","file":"analysis/pbmc-ifn/outputs_v2/","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"not_applicable","historical":"not_applicable","consequence":"unknown","attribution":"not_applicable","currency":"unknown","summary":"Declared outputs not found.","observed":"Older than the newest changed script: none. Missing: analysis/pbmc-ifn/outputs_v2/.","potential":"","unknown":"Whether any output was produced by the earlier or the later code is not established by a modification time.","baseline":"","current":"","authorization":"","context":"","next":["rerun the affected steps after `freeze`, then `/mycelium-extra:verify report 813cc324`"],"evidence":["E-dfcea0d7"],"diff":[],"limitations":[]}],"evidence":[{"id":"E-0adf4853","source":"receipt","ref":"1792437330.535408:toolu_1","detail":"receipt","ts":1792437330.535408},{"id":"E-35956ef1","source":"approval","ref":"5b50b8f9","detail":"original plan approved 10-19 21:15","ts":1792437330.076818},{"id":"E-63898f96","source":"approval","ref":"813cc324","detail":"current plan approved 10-19 21:15","ts":1792437331.402116},{"id":"E-9d7bf0b3","source":"receipt","ref":"1792437330.8216588:toolu_2","detail":"receipt","ts":1792437330.8216588},{"id":"E-a505d08f","source":"pin","ref":"analysis/pbmc-ifn/scripts/01_fit.py72921f31c5ec9a26a92bfeef5bd9331d64a2104b5d00f8d0562ed6910f314357","detail":"original approval pin","ts":null},{"id":"E-dba5302c","source":"receipt","ref":"1792437331.9117305:toolu_3","detail":"receipt","ts":1792437331.9117305},{"id":"E-dfcea0d7","source":"file","ref":"analysis/pbmc-ifn/outputs_v2/","detail":"output path","ts":null},{"id":"E-f5b7025a","source":"script","ref":"analysis/pbmc-ifn/scripts/01_fit.py","detail":"fingerprint now 03229066a5e9","ts":null}],"timeline":[{"ts":1792437330.076818,"when":"10-19 21:15","kind":"approval","text":"plan 5b50b8f9 approved (original)","ref":null},{"ts":1792437330.535408,"when":"10-19 21:15","kind":"run","text":"python analysis/pbmc-ifn/scripts/01_fit.py · exit 1 · launch matched","ref":"E-0adf4853"},{"ts":1792437330.8216588,"when":"10-19 21:15","kind":"run","text":"python analysis/pbmc-ifn/scripts/01_fit.py · exit 0 · launch matched","ref":"E-9d7bf0b3"},{"ts":1792437331.402116,"when":"10-19 21:15","kind":"approval","text":"plan 813cc324 approved (current)","ref":null},{"ts":1792437331.9117305,"when":"10-19 21:15","kind":"run","text":"python analysis/pbmc-ifn/scripts/01_fit.py · exit 0 · launch matched","ref":"E-dba5302c"}],"brief_md":"# Review brief: analysis/pbmc-ifn\n\nSnapshot 2026-10-19T19:15:32Z · original plan 5b50b8f9 · current plan 813cc324 · no focus open\n\nRead-only evidence summary. It approves nothing and does not judge scientific validity.\n\n## Needs attention (2)\n\n### Plan step 1 choice: minimum 500 cells per donor → minimum 200 cells per donor\n\nObserved plan change between the original and the current approved plan.\n\n- **Observed:** Row 1, choice: was `minimum 500 cells per donor`, now `minimum 200 cells per donor`.\n- **Potential:** Potential analytical implication: a changed Choice, Step or Validation can change what is estimated; whether it does is for the researcher to assess.\n- **Unknown:** Why the plan changed is not recorded here.\n- **Baseline:** Original plan 5b50b8f9 (approved 10-19 21:15).\n- **Current:** Current plan 813cc324 (approved 10-19 21:15).\n- **Authorization:** The current plan was approved by the researcher, so this is a later authorized revision, not an unexplained deviation.\n- **Axes:** difference observed, focus within_path, authorization covered_current, consequence potential, attribution not_applicable, currency not_checked\n- **Evidence:** E-35956ef1, E-63898f96\n- Next: revise the plan with `/mycelium-extra:grill` if this was not intended, then approve the new hash\n\n### Execution record: 3 run(s), 1 failed, 0 unmatched\n\n3 run record(s) for 5b50b8f9, 813cc324.\n\n- **Observed:** 10-19 21:15 analysis/pbmc-ifn/scripts/01_fit.py exited 1; a later run of the same path at 10-19 21:15 exited 0 (both kept)\n- **Unknown:** Nothing recorded says whether the runs' outputs are the ones the plan declares.\n- **Authorization:** Runs of the current plan carry the current instance or none is recorded.\n- **Axes:** difference observed, focus within_path, authorization covered_current, consequence unknown, attribution not_applicable, currency not_checked\n- **Evidence:** E-0adf4853, E-9d7bf0b3, E-dba5302c\n- Next: `/mycelium-extra:verify report 813cc324` grades what these runs establish\n\n## Changed, now authorized (1)\n\n### analysis/pbmc-ifn/scripts/01_fit.py differs from the original approved code\n\nObserved code change.\n\n- **Observed:** The bytes differ from the original approval pin. Numbers dropped: 500; new: 200; other changed lines: 0.\n- **Unknown:** Who edited it and why is not recorded here.\n- **Baseline:** Original code baseline: available (the original approval's pin).\n- **Current:** Current approval 813cc324 pinned this script.\n- **Authorization:** The current approval pins these bytes.\n- **Axes:** difference observed, focus within_path, authorization covered_current, consequence not_assessed, attribution unattributed, currency not_checked\n- **Evidence:** E-f5b7025a, E-a505d08f\n\n## Routine (1)\n\n### 1 declared output(s) missing\n\nDeclared outputs not found.\n\n- **Observed:** Older than the newest changed script: none. Missing: analysis/pbmc-ifn/outputs_v2/.\n- **Unknown:** Whether any output was produced by the earlier or the later code is not established by a modification time.\n- **Axes:** difference observed, focus within_path, authorization not_applicable, consequence unknown, attribution not_applicable, currency unknown\n- **Evidence:** E-dfcea0d7\n- Next: rerun the affected steps after `freeze`, then `/mycelium-extra:verify report 813cc324`\n\n## Coverage\n\n- focus_events: not_requested\n- approvals: available\n- snapshots: available\n- receipts: available\n- claude_transcript: not_requested\n- transcript_note: \n- mycelium: absent\n- Not observed: shell-made edits, file reads, scripts no approval pinned and no run touched, edits to other analyses (no transcript read)\n- inputs, outputs and validation blocks of the two plans are not compared here; `verify diff` does\n- cross-analysis edits not observed: no transcript was read (pass --transcript, or focus first)\n"}</script>
+<script>(function () {
+  "use strict";
+  var data = JSON.parse(document.getElementById("data").textContent);
+  var state = {view: "review", filter: "attention", query: "", sel: null};
+  var app = document.getElementById("app");
+  var BUCKET = {attention: "Needs attention", authorized: "Authorized change", routine: "Routine"};
+  var byEvidence = {};
+  data.evidence.forEach(function (e) { byEvidence[e.id] = e; });
+
+  // Every string reaches the page through textContent, never as markup.
+  function h(tag, cls, text) {
+    var el = document.createElement(tag);
+    if (cls) el.className = cls;
+    if (text !== undefined && text !== null) el.textContent = String(text);
+    for (var i = 3; i < arguments.length; i++) if (arguments[i]) el.appendChild(arguments[i]);
+    return el;
+  }
+  // `backticked` text becomes a code span; still textContent only, never markup.
+  function rich(el, text) {
+    String(text).split("`").forEach(function (part, i) { el.appendChild(i % 2 ? h("code", "", part) : document.createTextNode(part)); });
+    return el;
+  }
+  function attr(el, name, value) { el.setAttribute(name, value); return el; }
+  function btn(label, cls, fn) { var b = h("button", cls, label); b.type = "button"; b.addEventListener("click", fn); return b; }
+  function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+
+  // Copies only; nothing on this page can run a command. The button says what happened.
+  function copy(text, button) {
+    var label = button.textContent;
+    function settle(ok) {
+      button.textContent = ok ? "Copied" : "Copy failed: select the text by hand";
+      attr(button, "data-state", ok ? "done" : "failed");
+      setTimeout(function () { button.textContent = label; button.removeAttribute("data-state"); }, 1800);
+    }
+    function fallback() {
+      var a = h("textarea"); a.value = text; document.body.appendChild(a); a.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      document.body.removeChild(a);
+      settle(ok);
+    }
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(function () { settle(true); }, fallback);
+    else fallback();
+  }
+  function copyButton(label, text, cls) {
+    var b = btn(label, cls || "btn", function () { copy(text, b); });
+    return b;
+  }
+
+  function dot(bucket) { return h("span", "dot " + bucket); }
+  function visible() {
+    var q = state.query.toLowerCase();
+    return data.items.filter(function (i) {
+      if (state.filter !== "all" && i.bucket !== state.filter) return false;
+      return !q || (i.title + " " + i.file + " " + i.summary + " " + i.observed).toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  function field(dl, label, value, cls) {
+    if (!value) return;
+    dl.appendChild(h("dt", "", label));
+    dl.appendChild(rich(h("dd", cls || ""), value));
+  }
+
+  function detail(item) {
+    var box = h("div", "detail");
+    if (!item) { box.appendChild(h("div", "empty", "Select a change on the left.")); return box; }
+    box.appendChild(h("div", "status", "", dot(item.bucket), h("span", "", BUCKET[item.bucket]),
+                      h("span", "mono", item.kind + " · " + item.id)));
+    box.appendChild(h("h2", "", item.title));
+    box.appendChild(rich(h("p", "lead"), item.summary));
+    var dl = h("dl", "fields");
+    field(dl, "Observed", item.observed);
+    field(dl, "Potential", item.potential);
+    field(dl, "Unknown", item.unknown);
+    field(dl, "Baseline", item.baseline);
+    field(dl, "Current", item.current);
+    field(dl, "Authorization", item.authorization);
+    field(dl, "Context", item.context);
+    field(dl, "Axes", ["difference", "focus_relation", "semantic_relation", "authorization_relation", "historical", "consequence", "attribution", "currency"]
+      .map(function (k) { return k.replace("_", " ") + " " + item[k]; }).join(" · "), "axes");
+    box.appendChild(dl);
+    if (item.limitations.length) box.appendChild(h("p", "fine", "Limits: " + item.limitations.join("; ")));
+    if (item.next.length) {
+      var steps = h("div", "section");
+      steps.appendChild(h("h3", "", "Possible next steps"));
+      steps.appendChild(h("p", "hint", "Nothing runs from this page; the buttons copy a command."));
+      item.next.forEach(function (n) {
+        var row = h("div", "step", "", rich(h("span"), n));
+        (n.match(/`[^`]+`/g) || []).forEach(function (c) { var cmd = c.slice(1, -1); row.appendChild(copyButton("Copy " + cmd, cmd)); });
+        steps.appendChild(row);
+      });
+      box.appendChild(steps);
+    }
+    var links = h("div", "section");
+    links.appendChild(h("h3", "", "Evidence"));
+    var row = h("div", "links");
+    item.evidence.forEach(function (id) {
+      var e = byEvidence[id];
+      row.appendChild(btn(id + (e ? " · " + e.source : ""), "btn", function () { state.view = "evidence"; state.sel = id; draw(); }));
+    });
+    if (item.diff.length) row.appendChild(btn("Open diff", "btn", function () { state.view = "diff"; draw(); }));
+    if (!item.evidence.length && !item.diff.length) row.appendChild(h("span", "mute", "No linked records."));
+    links.appendChild(row);
+    box.appendChild(links);
+    return box;
+  }
+
+  function review() {
+    var list = visible(), wrap = h("div", "split"), col = h("div", "list");
+    if (!list.length) {
+      col.appendChild(h("div", "empty", "Nothing in this filter. That is not evidence that nothing changed: see the coverage limits above."));
+    }
+    var shown = data.items.filter(function (i) { return i.id === state.sel; })[0];
+    if (!shown || list.indexOf(shown) < 0) shown = list[0];
+    list.forEach(function (i) {
+      var b = btn("", "row", function () { state.sel = i.id; renderBody(); });
+      if (shown && shown.id === i.id) attr(b, "aria-current", "true");
+      b.appendChild(h("span", "t", "", dot(i.bucket), h("span", "", i.title)));
+      b.appendChild(h("span", "f", i.file));
+      attr(b, "title", i.title);
+      col.appendChild(b);
+    });
+    wrap.appendChild(col);
+    wrap.appendChild(detail(shown));
+    return wrap;
+  }
+  function diffs() {
+    var box = h("div", "block"), any = false;
+    data.items.forEach(function (i) {
+      if (!i.diff.length) return;
+      any = true;
+      box.appendChild(h("h2", "", i.title));
+      box.appendChild(h("div", "sub", i.baseline));
+      var d = h("div", "diff");
+      i.diff.forEach(function (l) { d.appendChild(h("div", l[0], l[1])); });
+      box.appendChild(d);
+    });
+    if (!any) box.appendChild(h("div", "empty", "No line diffs: no baseline was kept, or nothing changed. Diffs are bounded, and secret-like strings are redacted."));
+    return box;
+  }
+  function table(head, rows, pick) {
+    var t = h("table"), tr = h("tr");
+    head.forEach(function (x) { tr.appendChild(h("th", "", x)); });
+    t.appendChild(tr);
+    rows.forEach(function (r) {
+      var row = h("tr", pick && pick === r[0] ? "pick" : "");
+      r.forEach(function (c) { row.appendChild(h("td", "", c)); });
+      t.appendChild(row);
+    });
+    return t;
+  }
+  function timeline() {
+    if (!data.timeline.length) return h("div", "empty", "No events were recorded.");
+    return h("div", "block", "", h("p", "fine", "Order is not causation, consent or authorship."),
+             table(["When", "Kind", "Event"], data.timeline.map(function (e) { return [e.when, e.kind, e.text]; })));
+  }
+  function evidence() {
+    return h("div", "block", "", table(["Id", "Source", "Reference", "Detail"],
+      data.evidence.map(function (e) { return [e.id, e.source, e.ref, e.detail]; }), state.sel));
+  }
+
+  function header() {
+    var b = data.baselines, c = data.coverage, frag = h("div");
+    var tools = h("div", "tools");
+    tools.appendChild(copyButton("Copy review brief", data.brief_md || ""));
+    tools.appendChild(btn("Light / dark", "btn", function () {
+      var r = document.documentElement;
+      var dark = r.dataset.theme ? r.dataset.theme === "dark" : (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      r.dataset.theme = dark ? "light" : "dark";
+    }));
+    frag.appendChild(h("div", "head", "", h("div", "", "", h("h1", "title", data.analysis_path),
+                                            h("p", "sub", "Track changes · snapshot " + data.generated_at)), tools));
+    var meta = h("dl", "meta");
+    [["Objective", (data.objective.text || "not stated") + (data.objective.source ? " (" + data.objective.source + ")" : ""), true],
+     ["Original plan", b.original_plan || "none"], ["Current plan", b.current_plan || "none"],
+     ["Focus", data.focus.active_at_snapshot ? "open" : "none"]].forEach(function (p) {
+      var cell = h("div", p[2] ? "wide" : "");
+      cell.appendChild(h("dt", "", p[0]));
+      cell.appendChild(h("dd", p[0].indexOf("plan") >= 0 ? "mono" : "", p[1]));
+      meta.appendChild(cell);
+    });
+    frag.appendChild(meta);
+    frag.appendChild(h("p", "fine", "Read-only evidence. It does not approve, freeze, run or validate anything. Not observed: " + c.not_observed.join(", ") + "."));
+    if (c.limitations.length) {
+      var d = h("details", "limits"), ul = h("ul");
+      d.appendChild(h("summary", "", "Coverage limits (" + c.limitations.length + ")"));
+      c.limitations.forEach(function (l) { ul.appendChild(h("li", "", l)); });
+      d.appendChild(ul);
+      frag.appendChild(d);
+    }
+    return frag;
+  }
+
+  var VIEWS = [["review", "Review", function () { return data.items.length; }],
+               ["diff", "Diff", function () { return data.items.filter(function (i) { return i.diff.length; }).length; }],
+               ["timeline", "Timeline", function () { return data.timeline.length; }],
+               ["evidence", "Evidence", function () { return data.evidence.length; }]];
+
+  // level 1: the four views
+  function views() {
+    var bar = attr(h("div", "views"), "role", "tablist");
+    VIEWS.forEach(function (v) {
+      var t = h("button", "view", v[1], h("span", "n", v[2]()));
+      t.type = "button";
+      attr(t, "role", "tab"); attr(t, "aria-selected", state.view === v[0] ? "true" : "false");
+      t.addEventListener("click", function () { state.view = v[0]; draw(); });
+      bar.appendChild(t);
+    });
+    return bar;
+  }
+  // level 2: filters of the Review view, drawn directly under the view strip, only for Review
+  function filters() {
+    var bar = h("div", "filters"), seg = attr(h("div", "seg"), "role", "group");
+    attr(seg, "aria-label", "Filter changes");
+    [["attention", "Needs attention", data.counts.attention], ["all", "All", data.items.length],
+     ["authorized", "Authorized", data.counts.authorized], ["routine", "Routine", data.counts.routine]].forEach(function (f) {
+      var c = h("button", "chip", f[1], h("span", "n", f[2]));
+      c.type = "button"; attr(c, "aria-pressed", state.filter === f[0] ? "true" : "false");
+      c.addEventListener("click", function () { state.filter = f[0]; draw(); });
+      seg.appendChild(c);
+    });
+    var q = h("input", "search"); q.type = "search"; q.placeholder = "Search changes"; q.value = state.query;
+    attr(q, "aria-label", "Search changes");
+    q.addEventListener("input", function () { state.query = q.value; renderBody(); });  // only the body redraws, so typing keeps focus
+    bar.appendChild(seg); bar.appendChild(q);
+    return bar;
+  }
+
+  var mount = h("div");
+  function renderBody() {
+    clear(mount);
+    mount.appendChild({review: review, diff: diffs, timeline: timeline, evidence: evidence}[state.view]());
+  }
+  function draw() {
+    clear(app);
+    document.title = "Track changes · " + data.analysis_path;
+    app.appendChild(header());
+    app.appendChild(views());
+    if (state.view === "review") app.appendChild(filters());
+    app.appendChild(mount);
+    renderBody();
+  }
+  draw();
+})();
+</script></body></html>
