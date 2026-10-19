@@ -31,6 +31,11 @@ Statuses: **done**, **parked**, **dropped**.
 | 3 | Docs, README and index rows, handoff line | done | links checked |
 | 4 | Version 0.13.0 | done | `test_versions.py` |
 
+## Measured (python3.12, this host)
+
+- Median wall time of one `gate.py prompt` for an ordinary prompt, 30 calls: 113 ms with no focus folder, 119 ms with a focus open, 119 ms for another session while the folder exists, 120 ms for `focus status`. About 6 ms from one small JSON read.
+- `gate_diff` against `62d4725`: 173/173 identical; fuzz seed 1, 253/253. Fuzz seed 3 differed in 3 of 253 cases, but a control run of the unchanged base `gate.py` against itself differed in 17 of 253 at that seed, so that seed's fuzz is not deterministic and says nothing about this change.
+
 ## Acceptance map (spec F01 to F32)
 
 | ID | Where tested |
