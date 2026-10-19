@@ -81,6 +81,13 @@ from its own location the same way; if you copy the plugin directory, pass
 For a project-local install, add the same two entries to that project's
 `opencode.json(c)`; relative paths resolve from OpenCode's working directory.
 
+When the gate cannot answer (a timeout, a spawn error, an unreadable reply, or a
+wrong `root` option), the plugin appends a plain-text gate-error note to the tool
+result, or posts it in the session for a prompt, and lets the call through. If
+`gate.json` sets `"on_error": "deny"`, it denies the call instead. A typed
+`card`, `freeze`, or other blocked-prompt reply is also posted in the session
+directly, so you read it as the gate wrote it and not only through the agent.
+
 To update, pull or replace the checkout and start a new OpenCode session; the
 `plugins` and `skills` entries point at the folder, so there is no cache to refresh.
 OpenCode needs the same Python 3.9 or later as the other hosts (see

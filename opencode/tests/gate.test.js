@@ -328,3 +328,83 @@ test("the spawn contract drives deny, approve, receipts, and inertness", async (
   const plain = mkdtempSync(join(tmpdir(), "mx-plain-"))
   assert.equal(await __test__.runGate(PATHS, "tool", { ...bash, cwd: plain }, 10000), null)
 })
+
+/** A stand-in plugin root whose launcher prints `body` (a shell fragment) for every gate call. */
+function fakeRoot(body) {
+  const root = mkdtempSync(join(tmpdir(), "mx-fakeroot-"))
+  mkdirSync(join(root, "hooks"))
+  writeFileSync(join(root, "hooks", "py.sh"), "cat >/dev/null\n" + body + "\n")
+  writeFileSync(join(root, "hooks", "gate_run.py"), "")
+  return root
+}
+
+async function setupWith(root, repo) {
+  const made = fakeCtx(repo)
+  made.ctx.options = { root }
+  await plugin.setup(made.ctx)
+  return made
+}
+
+const SHELL = (id) => ({ tool: "shell", input: { command: "ls" }, sessionID: "s", id })
+
+test("a null gate reply is shown to the human, not swallowed", async () => {
+  const { handlers } = await setupWith(fakeRoot("exit 0"), gatedRepo())
+  await handlers.before[0](SHELL("c1")) // fails open, as on Claude Code
+  const event = { ...SHELL("c1"), status: "completed", result: { content: "out" } }
+  await handlers.after[0](event)
+  assert.match(event.result.content, /^out\n\n/)
+  assert.match(event.result.content, /gate error \(tool\).*not checked/)
+  assert.match(event.result.content, /gate error \(post\)/)
+  assert.doesNotMatch(event.result.content, /[*#`]/)
+})
+
+test("a timed-out gate resolves null", async () => {
+  const root = fakeRoot("sleep 5")
+  const reply = await __test__.runGate({ py: join(root, "hooks", "py.sh"), gate: "g" }, "tool", {}, 200)
+  assert.equal(reply, null)
+})
+
+test("a tool reply's systemMessage reaches the tool result", async () => {
+  const { handlers } = await setupWith(
+    fakeRoot(`echo '{"systemMessage":"pinned input changed","hookSpecificOutput":{"additionalContext":"ctx line"}}'`), gatedRepo())
+  await handlers.before[0](SHELL("c1"))
+  const event = { ...SHELL("c1"), status: "completed", result: { content: "out" } }
+  await handlers.after[0](event)
+  assert.match(event.result.content, /pinned input changed\n\nctx line/)
+  assert.equal(event.result.content.split("pinned input changed").length, 2, "shown once, not once per event")
+})
+
+test("on_error deny blocks a call the gate could not check", async () => {
+  const repo = gatedRepo()
+  writeFileSync(join(repo, ".mycelium-extra", "gate.json"), JSON.stringify({ on_error: "deny" }))
+  const { handlers } = await setupWith(fakeRoot("exit 0"), repo)
+  await assert.rejects(handlers.before[0](SHELL("c1")), /on_error to deny/)
+  const other = await setupWith(fakeRoot("exit 0"), gatedRepo())
+  await other.handlers.before[0](SHELL("c2")) // default on_error allow
+})
+
+test("a wrong root option warns visibly instead of going inert", async () => {
+  const lines = []
+  const original = console.error
+  console.error = (...args) => lines.push(args.join(" "))
+  let made
+  try { made = await setupWith(join(tmpdir(), "mx-no-such-root"), gatedRepo()) } finally { console.error = original }
+  assert.match(lines.join("\n"), /hooks not found/)
+  assert.equal(made.handlers.before.length, 1, "the gate must stay wired so calls fail visibly")
+  const event = { ...SHELL("c1"), status: "completed", result: { content: "out" } }
+  await made.handlers.before[0](SHELL("c1"))
+  await made.handlers.after[0](event)
+  assert.match(event.result.content, /gate error \(tool\)/)
+  const prompt = { text: "hello" }
+  await made.handlers.prompt[0]({ prompt, sessionID: "s" })
+  assert.match(made.calls.synthetic[0].text, /gate error \(prompt\)/)
+})
+
+test("a blocked prompt reaches the human through a synthetic message", async () => {
+  const { handlers, calls } = await setupWith(
+    fakeRoot(`echo '{"decision":"block","reason":"no pending plan abcd1234"}'`), gatedRepo())
+  const prompt = { text: "card abcd1234" }
+  await handlers.prompt[0]({ prompt, sessionID: "s9" })
+  assert.deepEqual(calls.synthetic, [{ sessionID: "s9", text: "no pending plan abcd1234" }])
+  assert.match(prompt.text, /handled the user's message/)
+})

@@ -93,6 +93,29 @@ function promptMessage(reply) {
   return focus && !String(reply.systemMessage).includes(focus) ? reply.systemMessage + "\n" + focus : reply.systemMessage
 }
 
+// gate.json's on_error, read the way hooks/gate_run.py reads it: only an explicit "deny" opts in.
+function onErrorDeny(cwd) {
+  try {
+    const root = findRoot(cwd)
+    return JSON.parse(readFileSync(join(root, ".mycelium-extra", "gate.json"), "utf8")).on_error === "deny"
+  } catch {
+    return false
+  }
+}
+
+function gateFailure(action) {
+  return "mycelium-extra gate error (" + action + "): the gate did not run (timeout, spawn failure, or an unreadable reply)" +
+    (action === "tool" ? "; this call was not checked and pinned inputs were not re-checked." :
+      action === "post" ? "; no run receipt was recorded for this call." : ".")
+}
+
+// The user-facing text of a tool-event reply: its systemMessage and agent context, without repeats.
+function toolNotice(reply) {
+  const context = hookOutput(reply).additionalContext
+  return [reply && reply.systemMessage, context].filter(
+    (text, i, all) => typeof text === "string" && text && all.indexOf(text) === i).join("\n\n")
+}
+
 function denyReason(reply) {
   const output = hookOutput(reply)
   if (output.permissionDecision !== "deny") return null
@@ -228,7 +251,7 @@ export default {
     if (!existsSync(paths.py) || !existsSync(paths.gate)) {
       console.error("mycelium-extra: hooks not found under " + root +
         "; set the plugin option root to the mycelium-extra checkout.")
-      return
+      // Stay loaded: every gate call then fails visibly (a note, or a deny under on_error) instead of the adapter going inert.
     }
     const place = (ctx.location && ctx.location.directory) || process.cwd()
     const notes = new Map() // call id -> a PreToolUse notice to show with the result
@@ -264,10 +287,19 @@ export default {
       const cwd = gateCwd(requested, place)
       if (!cwd) return
       const reply = await runGate(paths, "tool", toolEvent(event, cwd), TIMEOUTS.tool)
-      const reason = denyReason(reply)
-      if (reason) throw new Error(reason)
-      const notice = hookOutput(reply).additionalContext
-      if (typeof notice === "string" && notice) {
+      let notice
+      if (!reply) {
+        notice = gateFailure("tool")
+        if (onErrorDeny(cwd)) {
+          throw new Error(notice.replace(/; this call was not checked.*$/, "") +
+            "; blocked because gate.json sets on_error to deny. Do not work around this block; the user can fix the gate or set on_error to allow.")
+        }
+      } else {
+        const reason = denyReason(reply)
+        if (reason) throw new Error(reason)
+        notice = toolNotice(reply)
+      }
+      if (notice) {
         if (notes.size > 64) notes.clear() // a before without an after (rejected permission) must not leak
         notes.set(event.id, notice)
       }
@@ -288,20 +320,30 @@ export default {
       else payload.error = event.error && typeof event.error === "object"
         ? { message: String(event.error.message || ""), metadata: event.error.metadata } : String(event.error || "")
       const reply = await runGate(paths, "post", payload, TIMEOUTS.post)
-      const extra = [notice, hookOutput(reply).additionalContext].filter(
-        (text) => typeof text === "string" && text).join("\n\n")
+      const extra = [notice, reply ? toolNotice(reply) : gateFailure("post")].filter(
+        (text, i, all) => typeof text === "string" && text && all.indexOf(text) === i).join("\n\n")
       if (extra && event.status === "completed") {
         event.result = appendContent(event.result, extra)
       }
     })
 
+    // A message for the human: synthetic messages stay in the session without invoking the prompt hook.
+    async function tell(sessionID, text) {
+      if (typeof ctx.session.synthetic !== "function") return
+      try {
+        await ctx.session.synthetic({ sessionID, text })
+      } catch { /* the session may have been removed */ }
+    }
+
     await ctx.session.hook("prompt", async (event) => {
       if (!gated(place)) return
       const payload = { prompt: event.prompt.text, cwd: place, session_id: event.sessionID }
       const reply = await runGate(paths, "prompt", payload, TIMEOUTS.prompt)
-      if (!reply) return
+      if (!reply) return tell(event.sessionID, gateFailure("prompt"))
       const message = promptMessage(reply)
       if (reply.decision === "block") {
+        // The rewrite below reaches only the agent; the human gets the gate's own words directly.
+        await tell(event.sessionID, reply.reason || message || "handled by the approval gate.")
         event.prompt.text = blockedPromptText(reply.reason || message || "handled by the approval gate.")
       } else if (typeof message === "string" && message) {
         event.prompt.text = event.prompt.text + "\n\n" + message
@@ -348,7 +390,7 @@ export default {
       if (!gated(place)) return
       const reply = await runGate(paths, "stop",
         { last_assistant_message: text, cwd: place, session_id: sessionID }, TIMEOUTS.stop)
-      if (!reply) return
+      if (!reply) return tell(sessionID, gateFailure("stop"))
       const output = hookOutput(reply)
       const notice = reply.systemMessage || output.additionalContext
       if (reply.decision === "block") {
@@ -360,13 +402,8 @@ export default {
         } catch { /* the session may have been removed */ }
         return
       }
-      if (typeof notice === "string" && notice && typeof ctx.session.synthetic === "function") {
-        // Approval cards and explore notices must reach the user; synthetic messages stay in
-        // the session without invoking the prompt hook.
-        try {
-          await ctx.session.synthetic({ sessionID, text: notice })
-        } catch { /* the session may have been removed */ }
-      }
+      // Approval cards and explore notices must reach the user.
+      if (typeof notice === "string" && notice) await tell(sessionID, notice)
     }
 
     return () => controller.abort()
@@ -375,6 +412,6 @@ export default {
 
 // Pure helpers, exercised by opencode/tests/gate.test.js under `node --test`.
 export const __test__ = {
-  appendContent, blockedPromptText, commandText, contentText, denyReason, eventLocation,
+  appendContent, blockedPromptText, commandText, contentText, denyReason, eventLocation, gateFailure, onErrorDeny, toolNotice,
   executionEnded, findRoot, gateCwd, idleSession, promptMessage, runGate, samePlace, skillCommands, textEnded,
 }
