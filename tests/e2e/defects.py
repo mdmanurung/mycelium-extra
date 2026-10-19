@@ -974,6 +974,21 @@ def v32(p):
     return outcome
 
 
+@defect("V-33", "verify", "verify", ["Invented citations"],
+        {"status": GAPS, "messages": ["not checked (offline)"]})
+def v33(p):
+    """D2: the write-up carries a fabricated DOI, and resolution is offline by default. Verify will not
+    call an identifier resolved that it did not resolve, so the entry is listed `not checked (offline)`
+    in the Citations section, the identifier is a gap, and the plan is CONFORMS_WITH_GAPS rather than
+    conforming. The blocking half — a record the service does not have, or one whose title and first
+    author are not in the citation line — needs the network and is asserted with mocked responses in
+    `skills/verify/tests/test_verify.py`, not here."""
+    p.edit(DOC, lambda text: text.rstrip("\n") + "\n\nWe follow the atlas of {}: doi:10.1038/s41586-020-9999-9.\n"
+           .format("Vaccine responses"))
+    p.commit("write-up cites a fabricated DOI")
+    return baseline(p)[1]
+
+
 @defect("V-21", "verify", "verify", ["Number transcription"],
         {"status": BLOCKED, "messages": ["claims 9, but `{}` n_hits holds 8.".format(SUMMARY)]})
 def v21(p):
