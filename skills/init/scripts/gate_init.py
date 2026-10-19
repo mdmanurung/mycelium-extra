@@ -237,9 +237,9 @@ def _whole(value, low):
 CONFIG_RULES = {
     "gated_paths": ("a list of strings", _strings),
     "gated_commands": ("a list of strings", _strings),
-    "approval_hours": ("a positive number", lambda v: _number(v) and v > 0),
-    "pin_hash_mb": ("a positive number", lambda v: _number(v) and v > 0),
-    "pin_seconds": ("a positive number", lambda v: _number(v) and v > 0),
+    "approval_hours": ("a number of 0 or more", lambda v: _number(v) and v >= 0),
+    "pin_hash_mb": ("a number of 0 or more", lambda v: _number(v) and v >= 0),
+    "pin_seconds": ("a number of 0 or more", lambda v: _number(v) and v >= 0),
     "pin_scripts": ("true or false", lambda v: isinstance(v, bool)),
     "card_lint": ("true or false", lambda v: isinstance(v, bool)),
     "card_coverage": ("true or false", lambda v: isinstance(v, bool)),
