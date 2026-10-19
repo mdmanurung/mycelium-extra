@@ -2,6 +2,26 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.13.2] - 2026-10-19
+
+The last open tasks of four roadmap waves: what the card cannot establish before a run, a decision trace for one plan row, citation resolution, and a disclosure draft for the agent's own part. Nothing here changes an allow or deny decision (`gate_diff` 173/173 identical).
+
+### Added
+
+- **`verify report <hash> --trace [ROW]` (DT-1):** a read-only decision trace, one line per plan row, or — with `ROW` — that row's declared script and exact command, the attempts that ran it, its bound checks' results and its supported outputs, each labelled `declared`, `observed`, `check result`, `candidate` or `unresolved`. Refused with `--json` and with `write`, and it writes nothing.
+- **`verify report <hash> --resolve-citations [--contact EMAIL]` (D2):** resolves every DOI, `PMID:` and `arXiv:` identifier in the documents verify checks for claims (Crossref, NCBI E-utilities, arXiv; one request per identifier, with a wait between them) and compares the returned title and first author with the citation line. A new `## Citations` section counts the verdicts: `resolved` when both appear in the line, `mismatch` when they do not (blocks), `unresolved` when the service has no such record (blocks), `no identifier` for a reference-shaped line that carries none, `not checked (offline)` — the default, and a gap, so a citation is never shown as resolved that verify did not resolve — and `not checked (request failed)` when the request never reached a service. A resolved citation means the identifier exists and matches the text beside it, not that the paper supports the sentence.
+- **`verify disclose <hash>` (D3):** a plain-text, read-only draft of an AI-use methods paragraph built from the records — plugin and version, the plan's steps, the approval and freeze history, the runs with their launch evidence, re-pins, environments, the verify status and qualification, the claims checked, the citations found, the lint state and the commit. Every sentence ends with `[source: <record>]`, and a record that is missing prints `[BLANK: <what is missing>]` instead of a guess. There is no `--json` form, and it writes nothing.
+- **`gate` card coverage (M1):** the approval card lists the pins and checks the plan carries and says what they cannot establish before the run.
+- **`grill` (M1):** `references/polya-heuristics.md` — a backward chain from a claim to the check that would discriminate it, and five heuristics for a plan that is blocked, plus an opt-in evidence lookup that rides inside one rule-3 question.
+- **`plan-review` (M2):** a material objection carries four fields and a status, and the synthesis opens with the single strongest undecided crux (or says `no substantiated material concern`).
+- **Validation recipes (VR-1):** result statuses, subprocess steps and pairing limits now match what `verify` reports, with the measurement commands in `docs/development.md`.
+
+### Changed
+
+- `verify report --json` gains a `citations` key; the e2e fixture catalog plants a fabricated DOI (V-33) and asserts the offline gap, so the grill failure-mode row `Invented citations` can credit the check that ships instead of naming it `planned: D2`.
+- The `verify` skill carries the three-line post-report look-back (*Established / Still uncertain / Next insight*).
+- Focus and track-changes M3/M4 are parked behind the 2026-10-31 usage measurement, with the trigger recorded in the tracker.
+
 ## [0.13.1] - 2026-10-19
 
 A second review of 0.13.0 against the code. Nothing here changes an allow or deny decision (`gate_diff` 173/173 identical).
