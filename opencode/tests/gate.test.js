@@ -170,9 +170,9 @@ test("gateCwd prefers a cwd under a gate and falls back to the location", () => 
 
 test("skill commands come from the skills folder", () => {
   const skills = __test__.skillCommands(ROOT)
-  assert.equal(skills.length, 11)
+  assert.equal(skills.length, 13)
   const ids = skills.map((skill) => skill.id)
-  for (const id of ["grill", "init", "verify", "handoff", "plan-review"]) assert.ok(ids.includes(id), id)
+  for (const id of ["grill", "init", "verify", "handoff", "plan-review", "focus", "track-changes"]) assert.ok(ids.includes(id), id)
   assert.match(skills.find((skill) => skill.id === "grill").description, /planning/i)
   assert.equal(__test__.skillCommands("/nonexistent").length, 0)
   assert.match(__test__.commandText(ROOT, "verify", "status"), /skills\/verify/)
