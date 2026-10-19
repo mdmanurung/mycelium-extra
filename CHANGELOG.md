@@ -2,6 +2,25 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.13.1] - 2026-10-19
+
+A second review of 0.13.0 against the code. Nothing here changes an allow or deny decision (`gate_diff` 173/173 identical).
+
+### Fixed
+
+- **`track-changes` called a wildcard output "missing".** An `Outputs:` word such as `de_<contrast>.csv` is a pattern; it is now matched with a glob, reported under the files it finds, and a pattern that matches nothing is a coverage limit, not a missing file.
+- **A malformed approval or a failed write was a Python traceback.** Both are now a message; a failed write still prints the card.
+- **A legacy receipt with no exit status counted as failed**, and a receipt covering two plans could be flagged as another approval instance. The first is now unknown, and only a receipt of the current plan alone is compared.
+- **Coverage said more than it knew.** It now says when more than 40 scripts were pinned, that scripts no approval pinned and no run touched are not compared, and how many transcript edits lay outside the project path. The objective text is redacted like diffs.
+- **Redaction missed `"password": "x"`, `'api_key': 'x'` and `Authorization: Bearer x`.**
+- **`focus status` "Runs" said an approval was active when the plan named the folder only in a Choice cell.** It now asks the gate's question: does a Step cell name a path in or above the folder.
+- **A busy focus lock showed as a gate error;** it is now "could not lock the focus record". Two session ids that differ only in odd characters no longer share a file, and two folders (`analysis/a-b`, `analysis/a/b`) no longer share a report folder (`analysis__a__b`).
+- **OpenCode dropped the focus line when a hint was also shown.**
+
+### Changed
+
+- Three tests that could not fail now can (the hint test, the read-only list test, and the viewer test, which fails in CI instead of skipping when Node is missing). The OpenCode test pins 13 skills.
+
 ## [0.13.0] - 2026-10-19
 
 Two new commands from the Focus + Track Changes spec (milestones M0 to M2). Neither changes an allow or deny decision, and a session that never types `focus` sees no difference (`gate_diff` 173/173 identical).
