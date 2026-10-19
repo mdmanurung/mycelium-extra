@@ -4,7 +4,7 @@
 
 Everything on this page is real, supported and tested, but you do not need it for Tiers 1 to 3 of the [usage tiers](usage.md): planning, running with approval, and verifying reportable work. It was moved here from the [approval gate](approval-gate.md), [verification](verification.md) and [skill](skills.md) pages so those read as one story. Nothing was removed: every setting, subcommand and file below behaves as it did.
 
-**On this page:** [Approval instances](#approval-instances) · [Run limit](#run-limit) · [Approval latency and comprehension checkpoint](#approval-latency-and-comprehension-checkpoint) · [Validation bindings](#validation-bindings) · [Exact execution](#exact-execution) · [Other `gate.json` settings](#other-gatejson-settings) · [Plan-review packets and consent](#plan-review-packets-and-consent) · [Validation in the report](#validation-in-the-report) · [Plan differences](#plan-differences) · [Stale plans](#stale-plans) · [Plans that pinned a file](#plans-that-pinned-a-file) · [Overview of all plans](#overview-of-all-plans) · [Runs and citations](#runs-and-citations)
+**On this page:** [Approval instances](#approval-instances) · [Run limit](#run-limit) · [Approval latency and comprehension checkpoint](#approval-latency-and-comprehension-checkpoint) · [Validation bindings](#validation-bindings) · [Exact execution](#exact-execution) · [Other `gate.json` settings](#other-gatejson-settings) · [Plan-review packets and consent](#plan-review-packets-and-consent) · [Validation in the report](#validation-in-the-report) · [Decision trace](#decision-trace) · [Plan differences](#plan-differences) · [Stale plans](#stale-plans) · [Plans that pinned a file](#plans-that-pinned-a-file) · [Overview of all plans](#overview-of-all-plans) · [Runs and citations](#runs-and-citations)
 
 ## Gate features
 
@@ -120,6 +120,33 @@ A plan may declare acceptance checks in a `<!-- validation-bindings -->` block: 
 A check command that exits nonzero is a failed run and blocks like any failed run, whatever its result says; a runner that should leave the judgement to the result file exits 0. **Not established** is the gap wording for a required check: the plan's expectation is not counted as met, and a report with such a gap is never `CONFORMS`. It is not a failure; it says the records cannot show the check passed. `defined_by` (`agent-proposed`, `researcher-approved`, `independent`) is shown as the plan declared it, with "not verified": a label is not proof of who wrote the check, and approval binds the named expectation, not its scientific truth. The evidence file must be one of the plan's declared outputs (or inside a declared output folder) for the gate to observe it being written.
 
 `write` adds `validation-<hash>.json` to the bundle: the frozen binding (with each file's sha256 and the definition's sha256), every check's outcome, reason and attempt, and the evidence file's path and sha256. A bundle without it is from a plan with no binding, or from an older verify, and reads as before.
+
+### Decision trace
+
+`verify report <hash> --trace [ROW]` is a read-only text view of the same check: for each plan row, what the plan declares for it, the attempts that ran it, the results of its bound checks and its supported outputs, each marked with where the link comes from. Put the hash before `--trace`: the flag takes the next word as the row. Without a row it prints one line per row and what is linked to no row; with a row it lists that row's evidence. It writes nothing, and the default report, `--json` and `write` are unchanged: `--trace` is refused with `--json` and with every action but `report`. The block below is illustrative: it shows the shape of one row's view, not output from a real plan.
+
+```text
+# Decision trace: plan 1a2b3c4d, approval instance 2d1b02e74e73763d
+
+Row 2: donor is the replication unit
+  Approved choice: donor is the replication unit [declared; source: user]
+  Declared implementation: `analysis/a/scripts/02_check.py` [declared; pinned sha256 7cc4a1a9dec6]
+  Exact command: none declared (broad grant)
+  Validation: `V1` [declared binding, required, defined_by researcher-approved (not verified); check result: passed, attempt 12e7e64b8439ddcc]; a pass is the check's own claim, not proof the choice is right
+  Observed launch: attempt 12e7e64b8439ddcc at 2026-10-19 11:50 [observed: matched launch]; succeeded (exit 0); ran check `V1`
+  Output: `analysis/a/outputs/check.json` [observed: producer supported, attempt 12e7e64b8439ddcc]
+```
+
+| Label | Where it comes from |
+|---|---|
+| declared | The plan: a script, folder or command named in the row's Step cell, an `exact-execution` step, or a validation binding, with the pin approval froze. Declaration is not execution. |
+| observed | A receipt of this approval instance that the gate matched to the row: by its exact step, else by the check it ran, else by a declared script or folder it ran. |
+| unresolved | A launch or a link the trace could not establish: an unmatched, ambiguous or legacy receipt, or an attempt with no matching row. It is shown with its reason and is never a pass. |
+| check result | The outcome `report` already gave the bound check. A pass is the check's own claim, not proof the choice is right. |
+| candidate | An output whose producer is not established. It is never attached to a row; it is listed under the plan's outputs not linked to a row, with its strength. |
+| not applicable | The plan's `Outputs:` line is `none`, so the row has no output to link. It is a statement about the plan's declaration, not about a file. |
+
+When a link cannot be established the trace says so instead of choosing. A row whose ID repeats, or is empty, prints `cannot map` and has nothing linked; its attempts count as not linked. A receipt that matches several rows, or none, is listed as not linked with the reason. A decision written only in a Choice or Validation cell reads `no executable check bound` (or `not checked` when the cell names no check, `not applicable` for an `Outputs: none` plan), even when code ran. A script named only in a Choice or Validation cell is `mentioned`, not declared. Several attempts of one row are all listed, and a recovery whose equivalence is not established says so. Only the selected approval instance is traced (`--instance` picks an earlier one); runs under others are a count. Every trace ends with two lines: scientific correctness is not determined (that is review), and the modules and helpers the scripts import are not traced, because only named scripts are pinned.
 
 ### Plan differences
 

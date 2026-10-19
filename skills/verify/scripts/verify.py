@@ -4205,6 +4205,212 @@ def render_runs(result):
     return "\n".join(lines) + "\n"
 
 
+# ---------------------------------------------------------------- decision trace (DT-1)
+
+TRACE_LIMITS = [
+    "Interpretation: declared, observed and check-result evidence shown; scientific correctness not determined "
+    "(that is review).",
+    "Not traced: modules and helpers the scripts import (only named scripts are pinned); findings stay in "
+    "`report`, not attached to rows."]
+
+
+def trace_hits(root, r, rows, declared, validation):
+    """The indexes of the plan rows one receipt names, from the strongest source that names any: the exact-execution
+    step it matched, the row of the validation check it ran, then the Step cells that declare a script or folder it
+    ran (a command only when it ran no path). Never a filename likeness, a time, or a Slurm submit line."""
+    if r.get("exact_match") is True and r.get("exact_step") is not None:
+        hits = [i for i, row in enumerate(rows) if row["num"] == str(r["exact_step"])]
+        if hits:
+            return hits
+    if r.get("validation_check"):
+        wanted = [str(v["plan_row"]) for v in validation if v["id"] == r["validation_check"]]
+        hits = [i for i, row in enumerate(rows) if row["num"] in wanted]
+        if hits:
+            return hits
+    ran = set(ran_paths(root, r))
+    if not ran:
+        return [i for i, d in enumerate(declared) if r.get("kind") in d["commands"]]
+    return [i for i, d in enumerate(declared)
+            if ran & d["scripts"] or any(under(p, f) for p in ran for f in d["folders"])]
+
+
+def trace_attempt(r, jobs=None):
+    """One attempt in words: its id, time, launch label (observed only for a matched launch) and outcome, including
+    the state sacct reports for a Slurm job, so a failed job reads failed here as it does in `report`."""
+    kind = launch_kind(r)
+    label = "observed: matched launch" if kind == "matched" else "unresolved: launch link not recorded (legacy)" \
+        if kind == "legacy" else "unresolved: {} launch".format(kind)
+    return "attempt {} at {} [{}]; {}{}".format(
+        r.get("attempt_id") or "with no attempt id", when(r.get("ts")), label, attempt_state(r, jobs or {})[1],
+        "; ran check `{}`".format(r["validation_check"]) if r.get("validation_check") else "")
+
+
+def trace_jobs(result, sacct):
+    """The Slurm states the trace needs: one `sacct` call per job the plan's own receipts submitted. Read-only,
+    and only reached by `--trace`, so `report` and `--json` keep their output and their call pattern."""
+    jobs = {}
+    for r in result["receipts"]:
+        if r.get("job_id") and r["job_id"] not in jobs:
+            jobs[r["job_id"]] = sacct_state(sacct, r["job_id"], r.get("ts") or time.time())
+    return jobs
+
+
+def render_trace(root, result, wanted=None, sacct="sacct"):
+    """The decision trace: each plan row with what is declared for it, the attempts that ran it, its bound checks'
+    results and its supported outputs, every edge labelled with its source. Read-only: it reads `result`, saves
+    nothing, and a link it cannot establish stays `unlinked` or `cannot map`. It never says a choice was implemented."""
+    digest, chosen = result["hash"], result["instance"]["selected"]
+    jobs = trace_jobs(result, sacct)
+    head = "# Decision trace: plan {}, {}{}".format(
+        digest, "approval instance " + chosen if chosen else "a legacy approval (no instance id)",
+        "; {} run(s) under other approval instances are not shown".format(sum(result["instance"]["history"].values()))
+        if result["instance"].get("history") else "")
+    rows = gate.plan_rows(result["plan"])
+    if rows is None:
+        return "\n".join([head, "", "No step table (a Step column with a Choice or Validation column): nothing to "
+                          "trace by row.", ""] + TRACE_LIMITS) + "\n"
+    record = (load_instance(root, digest, chosen) if chosen else None) or read_approval(
+        gate.state_path(root, "approvals", digest + ".json")) or {}
+    steps = (record.get("execution") or {}).get("steps") or []
+    counts = collections.Counter(r["num"] for r in rows)
+    problem = ["row ID {} repeats".format(r["num"]) if counts[r["num"]] > 1 else "row has no ID" if r["id"] == "" else None
+               for r in rows]
+    names = {s["path"] for s in result["scripts"]}
+    declared = []
+    for r in rows:
+        named = gate.plan_paths_in(root, r["step"])
+        declared.append({"scripts": named & names, "folders": [f for f in result["folders"] if f in named],
+                         "commands": [c for c in result["commands"] if gate.names_command(c, r["step"])],
+                         "mentioned": (gate.plan_paths_in(root, r["choice"] + " " + r["check"]) & names) - named})
+    attempts, unlinked = collections.defaultdict(list), []
+    for r in (x for x in result["receipts"] if not x.get("not_a_run")):
+        hits = trace_hits(root, r, rows, declared, result["validation"])
+        bad = [problem[i] for i in hits if problem[i]]
+        if len(hits) == 1 and not bad:
+            attempts[hits[0]].append(r)
+        else:
+            unlinked.append((r, "cannot map: " + bad[0] if bad else
+                             "matches rows " + ", ".join(rows[i]["num"] for i in hits) if hits
+                             else "no row's Step cell names what it ran"))
+    ids = [{r["attempt_id"] for r in attempts[i] if r.get("attempt_id")} for i in range(len(rows))]
+    owned, loose = collections.defaultdict(list), []
+    for o in result["outputs"]:
+        owner = [i for i in range(len(rows)) if o.get("producer_attempt") and o["producer_attempt"] in ids[i]]
+        if o["strength"] == "supported" and len(owner) == 1:
+            owned[owner[0]].append(o)
+        else:
+            loose.append("`{}` [{}]: {}".format(o["path"], o["strength"], "producer attempt not linked to one row"
+                                                if o["strength"] == "supported" else cut(o["reason"] or "no reason recorded")))
+
+    # Each of these returns [(full text, short text)] for one row: the detail view shows the first, the table the second.
+    def implementation(i):
+        d, found = declared[i], []
+        for path in sorted(d["scripts"]):
+            pin = approved_script_pin(root, digest, record, path)
+            how = "pinned sha256 " + pin["sha256"][:12] if pin.get("sha256") else "not pinned" + (
+                " ({})".format(gate.method(pin)) if pin else "")
+            frozen = not next(s for s in result["scripts"] if s["path"] == path).get("unfrozen")
+            found.append(("`{}` [declared; {}{}]".format(path, how, "" if frozen else "; ran code no approval froze"),
+                          "`{}`".format(path)))
+        return found + [("folder `{}/` [declared]".format(f), "`{}/`".format(f)) for f in d["folders"]] + [
+            ("command `{}` [declared]".format(c), "`{}`".format(c)) for c in d["commands"]]
+
+    def validation(i):
+        checks = [v for v in result["validation"] if str(v["plan_row"]) == rows[i]["num"]]
+        if checks:
+            return [("`{}` [declared binding, {}, defined_by {} (not verified); check result: {}{}]{}".format(
+                v["id"], "required" if v["required"] else "optional", v["defined_by"], v["outcome"],
+                ", attempt " + v["attempt_id"] if v.get("attempt_id") else "",
+                "; a pass is the check's own claim, not proof the choice is right" if v["outcome"] == "passed"
+                else ": " + cut(v["reason"] or "")), "`{}` check result: {}".format(v["id"], v["outcome"]))
+                for v in checks]
+        if gate.prose_check(rows[i]["check"]):
+            return [("no executable check bound (the cell is prose); the choice is not established by a check",
+                     "no executable check bound")]
+        return [("not checked (the row names no check)", "not checked")]
+
+    def output(i):
+        if owned[i]:
+            return [("`{}` [observed: producer supported, attempt {}]".format(o["path"], o["producer_attempt"]),
+                     "`{}`".format(o["path"])) for o in owned[i]]
+        text = "not applicable (Outputs: none)" if result["outputs_named"] == [] else \
+            "not declared (no Outputs: line)" if result["outputs_named"] is None else "none linked to this row"
+        return [(text, text.split(" (")[0])]
+
+    lines = [head, ""]
+    if wanted is None:
+        lines += ["| Row | Choice | Declared | Check | Attempts | Output |", "|---|---|---|---|---|---|"]
+        for i, r in enumerate(rows):
+            if problem[i]:
+                lines.append("| {} | {} | cannot map: {} | - | - | - |".format(
+                    cell(r["num"]), cell(cut(r["choice"], 50)), problem[i]))
+                continue
+            made = attempts[i]
+            lines.append("| {} | {} | {} | {} | {} | {} |".format(
+                cell(r["num"]), cell(cut(r["choice"], 50)),
+                cell(cut(", ".join(short for _, short in implementation(i)) or "none named", 60)),
+                cell(cut("; ".join(short for _, short in validation(i)), 60)),
+                "{} ({} matched launch{})".format(
+                    len(made), sum(launch_kind(x) == "matched" for x in made),
+                    "".join("; {} {}".format(n, k) for k, n in sorted(collections.Counter(
+                        attempt_state(x, jobs)[0] for x in made if attempt_state(x, jobs)[0] != "ok").items())))
+                if made else "none", cell(cut(", ".join(short for _, short in output(i)), 50))))
+        lines.append("")
+        shown = len(lines)
+        if unlinked:
+            lines += ["Attempts not linked to a row: {}".format(len(unlinked))] + [
+                "- {}: {}".format(trace_attempt(r), why) for r, why in unlinked[:3]] + (
+                ["- and {} more".format(len(unlinked) - 3)] if len(unlinked) > 3 else [])
+        if loose:
+            lines += ["Outputs not linked to a row:"] + ["- " + x for x in loose[:SHOWN_OUTPUTS]] + (
+                ["- ... and {} more".format(len(loose) - SHOWN_OUTPUTS)] if len(loose) > SHOWN_OUTPUTS else [])
+        orphans = sorted(names - set().union(*[d["scripts"] for d in declared]))
+        if orphans:
+            lines.append("Scripts named in no Step cell (mentioned, not declared): "
+                         + ", ".join("`{}`".format(p) for p in orphans))
+        lines += [""] * (len(lines) > shown) + ["Detail: report {} --trace <row>{}".format(
+            digest, " --instance " + chosen if chosen else ""), ""]
+    else:
+        picked = [i for i, r in enumerate(rows) if r["num"] == wanted]
+        if not picked:
+            sys.exit("verify: plan {} has no row {} (rows: {}).".format(
+                digest, wanted, ", ".join(r["num"] for r in rows)))
+        for i in picked:
+            r = rows[i]
+            lines.append("Row {}: {}".format(r["num"], cut(r["choice"], 200) or "(no Choice cell)"))
+            if problem[i]:
+                lines += ["  cannot map: {}; nothing is linked to this row.".format(problem[i]), ""]
+                continue
+            exact = ["`{}` in {} [declared; operational flags: {}]".format(
+                " ".join(s["argv"]), s["cwd"], ", ".join(s["operational"]) or "none")
+                for s in steps if str(s["row"]) == r["num"]] or ["none declared (broad grant)"]
+            recovered = ["{} attempts listed; no failure followed by a success".format(len(e["attempts"]))
+                         if e["verdict"] is None else "equivalent retry" if e["verdict"] == "equivalent"
+                         else "equivalence not established ({})".format(e["verdict"])
+                         for e in result["recovery"]
+                         if ids[i] & {a["attempt_id"] for a in e["attempts"] if a.get("attempt_id")}]
+            fields = [("Approved choice", ["{} [declared; source: {}]".format(cut(r["choice"], 200), cut(r["source"], 60) or "none")]),
+                      ("Declared implementation", [full for full, _ in implementation(i)]
+                       or ["none named in this row's Step cell"]),
+                      ("Mentioned only", ["`{}` [mentioned in Choice or Validation, not a declared step]".format(p)
+                                          for p in sorted(declared[i]["mentioned"])]),
+                      ("Exact command", exact), ("Validation", [full for full, _ in validation(i)]),
+                      ("Observed launch", [trace_attempt(x, jobs) for x in attempts[i]]
+                       or ["not observed (no run of this row under " + ("instance " + chosen if chosen else "this approval") + ")"]),
+                      ("Recovery", recovered), ("Output", [full for full, _ in output(i)])]
+            for label, items in fields:
+                for n, item in enumerate(items):
+                    lines.append("  {}: {}".format(label if n == 0 else " " * len(label), item))
+            lines.append("")
+        if unlinked or loose:
+            lines += ["{} attempt(s) and {} output(s) of the plan are linked to no row: `report {} --trace`.".format(
+                len(unlinked), len(loose), digest), ""]
+    qualified = (result.get("qualification") or {}).get("overall")
+    lines.append("Whole-plan verify status: {}{}. A row here is evidence, not a status; failures and open gaps: "
+                 "`report {}`.".format(result["status"], "; qualification: " + qualified if qualified else "", digest))
+    return "\n".join(lines + [""] + TRACE_LIMITS) + "\n"
+
+
 def main(argv):
     parser = argparse.ArgumentParser(prog="verify")
     parser.add_argument("--plugin-root", required=True)
@@ -4230,7 +4436,12 @@ def main(argv):
                         help="stale: compare each output's content with the SHA256 verify saved (default: size and time)")
     parser.add_argument("--require-reportable", action="store_true",
                         help="report/write: exit 3 and name the dimension unless the run is qualified for reporting")
+    parser.add_argument("--trace", nargs="?", const="", metavar="ROW",
+                        help="report: the decision trace, one line per plan row, or one row's evidence links with ROW "
+                        "(put the hash first: `report <hash> --trace [ROW]`). A text view; nothing is written")
     args = parser.parse_args(argv)
+    if args.trace is not None and (args.action != "report" or args.json):
+        sys.exit("verify: --trace is a text view of report only (not --json, write or the other actions); nothing was written.")
     load_gate(args.plugin_root)
     root = gate.find_root(os.path.abspath(args.repo))
     if args.action in ("stale", "status"):  # committed provenance suffices, so no gate needed
@@ -4303,7 +4514,9 @@ def main(argv):
             sys.stderr.write(refusal + "\n")
             return 3
         return 0
-    if args.json:
+    if args.trace is not None:
+        sys.stdout.write(render_trace(root, result, args.trace or None, args.sacct))
+    elif args.json:
         shown = dict(result, plan=None, receipts=len(result["receipts"]))
         sys.stdout.write(json.dumps(shown, indent=1, sort_keys=True) + "\n")
     else:

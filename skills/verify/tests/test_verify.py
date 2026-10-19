@@ -3540,5 +3540,254 @@ class QualificationTest(unittest.TestCase):
         self.assertIn("no saved", entry["reason"])
 
 
+class DecisionTraceTest(unittest.TestCase):
+    """DT-1: `report <hash> --trace [ROW]` is a read-only text view over the report's own result. Borrows
+    VerifyTest's helpers rather than subclassing it, so its tests do not run twice."""
+
+    for _name in ("setUp", "tearDown", "write", "fake_sacct", "fake_tool", "hook", "approve", "run_cmd", "post_only",
+                  "verify", "read_receipts", "rewrite_receipts", "outputs_of", "bound_plan", "binding", "run_check",
+                  "fit_plan", "exact_plan", "reapproved_with_new_input", "OUT", "CHECK", "EXPECT", "EVID"):
+        locals()[_name] = VerifyTest.__dict__[_name]
+    unobserved_run = LineageAndExploreHistoryTest.__dict__["unobserved_run"]
+    candidate_case = LineageAndExploreHistoryTest.__dict__["candidate_case"]
+    del _name
+    FOOTER = "scientific correctness not determined"
+    LIMIT = "Not traced: modules and helpers the scripts import"
+
+    def trace(self, digest, *args, **kwargs):
+        return self.verify("report", digest, "--trace", *args, **kwargs)
+
+    def exact_bound_plan(self):
+        step = {"row": "1", "argv": ["python", FIT], "cwd": ".", "env": {}, "operational": []}
+        block = "<!-- exact-execution {} -->\n\n".format(json.dumps({"version": 1, "steps": [step]}))
+        return self.bound_plan().replace("Plan status: READY", block + "Plan status: READY")
+
+    def test_exact_step_bound_check_and_matched_run_link_without_certifying(self):  # spec case 1
+        digest = self.approve(self.exact_bound_plan())
+        self.run_cmd("python " + FIT)
+        self.run_check({"status": "passed"})
+        attempt = self.read_receipts()[0]["attempt_id"]
+        one = self.trace(digest, "1")
+        self.assertIn("Exact command: `python {}` in . [declared".format(FIT), one)
+        self.assertIn("attempt {} at".format(attempt), one)
+        self.assertIn("[observed: matched launch]", one)
+        self.assertIn("`{}` [declared; pinned sha256".format(FIT), one)
+        two = self.trace(digest, "2")
+        self.assertIn("check result: passed", two)
+        self.assertIn("not proof the choice is right", two)
+        self.assertIn("`{}` [observed: producer supported".format(self.EVID), two)
+        for out in (one, two, self.trace(digest)):
+            self.assertIn(self.FOOTER, out)
+            self.assertIn(self.LIMIT, out)
+        self.assertNotIn("implemented", one + two)
+
+    def test_a_prose_validation_cell_is_no_executable_check_bound(self):  # spec case 2
+        digest = self.fit_plan()
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        one = self.trace(digest, "1")
+        self.assertIn("no executable check bound", one)
+        self.assertIn("not established by a check", one)
+        self.assertIn("[observed: matched launch]", one)  # the code ran; the choice is still unchecked
+        self.assertIn("Exact command: none declared (broad grant)", one)
+
+    def test_a_changed_command_after_failure_shows_both_attempts(self):  # spec case 3
+        digest = self.fit_plan()
+        self.run_cmd("python {} --model original".format(FIT), exit_code=1)
+        self.run_cmd("python {} --model alternative".format(FIT), writes={self.OUT: "x\n"})
+        first, second = [r["attempt_id"] for r in self.read_receipts()]
+        one = self.trace(digest, "1")
+        self.assertIn("attempt {} at".format(first), one)
+        self.assertIn("attempt {} at".format(second), one)
+        self.assertIn("failed (exit 1)", one)
+        self.assertIn("equivalence not established (changed command)", one)
+
+    def test_a_candidate_producer_is_never_attached_to_a_row(self):  # spec case 4
+        digest, _ = self.candidate_case()
+        self.write(self.OUT, "x\n")  # still no supported producer
+        self.assertIn("Output: none linked to this row", self.trace(digest, "1"))
+        out = self.trace(digest)
+        footer = out.split("Outputs not linked to a row:")[1]
+        self.assertIn("`{}` [".format(self.OUT), footer)
+        self.assertIn(self.LIMIT, out)
+        self.assertNotIn("observed: producer supported", out)
+
+    def test_the_selected_instance_is_traced_not_the_newest(self):  # spec case 5
+        digest, first, second = self.reapproved_with_new_input()
+        newest = self.trace(digest, "1")
+        self.assertIn("approval instance {}".format(second), newest)
+        self.assertIn("not observed (no run of this row", newest)
+        self.assertIn("1 run(s) under other approval instances are not shown", newest)
+        attempt = self.read_receipts()[0]["attempt_id"]
+        earlier = self.trace(digest, "1", "--instance", first)
+        self.assertIn("approval instance {}".format(first), earlier)
+        self.assertIn("attempt {} at".format(attempt), earlier)
+        self.assertIn("[observed: matched launch]", earlier)
+
+    def test_each_instance_shows_the_script_pin_it_froze(self):  # spec case 5, pin half
+        """A script edited between two approvals gives each instance its own frozen bytes, so the trace of an
+        older instance must show the older pin."""
+        self.write("data/in.tsv", "a\n", mtime=time.time() - 3600)
+        text = plan("run `{}`".format(FIT), inputs="data/in.tsv", outputs=self.OUT)
+        digest = self.approve(text)
+        approvals = gate.state_path(self.root, "approvals", digest + ".json")
+        first = gate.read_json(approvals, {})["instance_id"]
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        self.write(FIT, "print('edited')\n", mtime=time.time() - 3000)
+        self.assertEqual(self.approve(text), digest)
+        second = gate.read_json(approvals, {})["instance_id"]
+        self.assertNotEqual(first, second)
+        pin = r"`{}` \[declared; pinned sha256 ([0-9a-f]+)\]".format(re.escape(FIT))
+        earlier = re.search(pin, self.trace(digest, "1", "--instance", first))
+        newest = re.search(pin, self.trace(digest, "1", "--instance", second))
+        self.assertIsNotNone(earlier, "no pinned sha256 line for the earlier instance")
+        self.assertIsNotNone(newest, "no pinned sha256 line for the newest instance")
+        self.assertNotEqual(earlier.group(1), newest.group(1))
+
+    def test_a_repeated_or_missing_row_id_cannot_map(self):  # spec case 6
+        digest = self.approve(plan("run `{}`".format(FIT), "run `{}`".format(FIT)).replace("| 2 |", "| 1 |"))
+        self.run_cmd("python " + FIT)
+        summary = self.trace(digest)
+        self.assertIn("cannot map: row ID 1 repeats", summary)
+        self.assertIn("Attempts not linked to a row: 1", summary)
+        one = self.trace(digest, "1")
+        self.assertIn("cannot map", one)
+        self.assertNotIn(self.read_receipts()[0]["attempt_id"], one)
+        self.assertNotIn("Observed launch", one)
+        self.assertIn("has no row 9", self.trace(digest, "9", fails=True))
+
+    def test_a_row_with_no_id_cannot_map(self):  # spec case 6, variant
+        other = "analysis/a/scripts/02_other.py"
+        self.write(other, "print(2)\n", mtime=time.time() - 3600)
+        digest = self.approve(plan("run `{}`".format(FIT), "run `{}`".format(other)).replace("| 2 |", "|  |"))
+        self.assertIn("cannot map: row has no ID", self.trace(digest))
+
+    OTHER = "analysis/a/scripts/02_other.py"
+
+    def two_scripts(self, first_id="1", second_id="2", **kwargs):
+        """FIT and OTHER as plan rows `first_id` and `second_id`, each named in exactly one Step cell."""
+        self.write(self.OTHER, "print(2)\n", mtime=time.time() - 3600)
+        text = plan("run `{}`".format(FIT), "run `{}`".format(self.OTHER), **kwargs)
+        return self.approve(text.replace("| 1 |", "| {} |".format(first_id)).replace("| 2 |", "| {} |".format(second_id)))
+
+    def test_a_row_naming_a_script_another_row_names_links_by_the_exact_step(self):  # precedence 1
+        step = {"row": "2", "argv": ["python", FIT], "cwd": ".", "env": {}, "operational": []}
+        block = "<!-- exact-execution {} -->\n\n".format(json.dumps({"version": 1, "steps": [step]}))
+        digest = self.approve(plan("run `{}`".format(FIT), "run `{}`".format(FIT)).replace(
+            "Plan status: READY", block + "Plan status: READY"))
+        self.run_cmd("python " + FIT)
+        self.assertIn("not observed (no run of this row", self.trace(digest, "1"))
+        self.assertIn("[observed: matched launch]", self.trace(digest, "2"))
+        self.assertNotIn("Attempts not linked", self.trace(digest))
+
+    def test_a_check_script_named_in_two_rows_links_to_the_row_its_binding_names(self):  # precedence 2
+        text = self.bound_plan()
+        row = "| 2 | run `{}` | x | user | ok |".format(self.CHECK)
+        digest = self.approve(text.replace(row, row + "\n" + row.replace("| 2 |", "| 3 |")))
+        self.run_cmd("python " + FIT)
+        self.run_check({"status": "passed"})
+        self.assertIn("ran check `V1`", self.trace(digest, "2"))
+        self.assertIn("not observed (no run of this row", self.trace(digest, "3"))
+        self.assertNotIn("Attempts not linked", self.trace(digest))
+
+    def test_a_script_under_a_folder_a_row_names_links_to_that_row(self):  # precedence 3
+        digest = self.approve(plan("run everything in `analysis/a/scripts/`"))
+        self.run_cmd("python " + FIT)
+        self.assertIn("[observed: matched launch]", self.trace(digest, "1"))
+
+    def test_a_repeated_row_id_still_holds_an_attempt_that_names_one_of_its_rows(self):  # the cannot-map guard
+        digest = self.two_scripts(second_id="1")
+        self.run_cmd("python " + FIT)  # only the first of the two rows named 1
+        summary = self.trace(digest)
+        self.assertIn("Attempts not linked to a row: 1", summary)
+        self.assertIn("cannot map: row ID 1 repeats", summary)
+
+    def test_a_receipt_with_no_attempt_id_is_not_taken_for_another_rows_attempt(self):
+        digest = self.two_scripts()
+        self.run_cmd("python " + FIT, exit_code=1)
+        self.run_cmd("python " + FIT)  # row 1 recovers
+        self.run_cmd("python " + self.OTHER)
+        self.rewrite_receipts(lambda r: r.pop("attempt_id", None))  # receipts an older gate wrote
+        self.assertNotIn("Recovery: equivalent retry", self.trace(digest, "2"))
+
+    def test_a_failed_run_and_the_whole_plan_status_are_not_hidden_by_the_trace(self):
+        digest = self.fit_plan()
+        self.run_cmd("python " + FIT, exit_code=1)
+        summary = self.trace(digest)
+        self.assertIn("1 (1 matched launch; 1 failed)", summary)
+        self.assertIn("Whole-plan verify status: DOES_NOT_CONFORM", summary)
+        self.assertIn("`report {}`".format(digest), summary)
+        self.assertIn("Whole-plan verify status: DOES_NOT_CONFORM", self.trace(digest, "1"))
+
+    def test_a_slurm_job_outcome_is_shown_as_report_shows_it(self):
+        self.write("analysis/a/job.sh", "#!/bin/bash\n#SBATCH -t 1:00:00\npython analysis/a/scripts/01_fit.py\n")
+        digest = self.approve(plan("`sbatch analysis/a/job.sh`"))
+        self.run_cmd("sbatch analysis/a/job.sh", stdout="Submitted batch job 4242")
+        failed = self.fake_sacct("4242|FAILED|1:0|2026-09-30T10:00:00|2026-09-30T10:05:00")
+        out = self.trace(digest, "1", sacct=failed)
+        self.assertIn("job 4242 ended FAILED", out)  # the state `report` gives this attempt
+        self.assertNotIn("outcome is not shown here", out)
+        self.assertIn("Whole-plan verify status: DOES_NOT_CONFORM", out)
+        summary = self.trace(digest, sacct=failed)
+        self.assertIn("1 (1 matched launch; 1 failed)", summary)
+
+    def test_the_unlinked_output_footer_is_capped_at_SHOWN_OUTPUTS(self):
+        many = ["analysis/a/outputs/o{:02d}.csv".format(n) for n in range(45)]
+        digest = self.approve(plan("run `{}`".format(FIT), outputs=", ".join(many)))
+        for path in many:
+            self.write(path, "x\n")
+        out = self.trace(digest)
+        footer = out.split("Outputs not linked to a row:")[1]
+        self.assertIn("- ... and 5 more", footer)
+        self.assertNotIn(many[-1], footer)
+        self.assertIn(many[0], footer)
+
+    def test_the_detail_hint_keeps_the_instance_the_user_asked_for(self):
+        digest, first, second = self.reapproved_with_new_input()
+        self.assertNotIn("Detail: report", self.trace(digest, "1", "--instance", first))  # the row view has no hint
+        self.assertIn("Detail: report {} --trace <row> --instance {}".format(digest, first),
+                      self.trace(digest, "--instance", first))
+        # Without --instance the hint names the instance the summary itself traced, so a copy-paste stays scoped.
+        self.assertIn("Detail: report {} --trace <row> --instance {}".format(digest, second), self.trace(digest))
+
+    def test_no_outputs_and_no_check_read_not_applicable_and_not_checked(self):  # spec case 7
+        digest = self.approve(plan("run `{}`".format(FIT), outputs="none").replace("| user | ok |", "| user | - |"))
+        self.run_cmd("python " + FIT)
+        one = self.trace(digest, "1")
+        self.assertIn("Output: not applicable", one)
+        self.assertIn("Validation: not checked", one)
+
+    def test_report_and_json_are_unchanged_without_trace(self):  # control
+        digest = self.approve(self.bound_plan())
+        self.run_cmd("python " + FIT)
+        before_text, before_json = self.verify("report", digest), self.verify("report", digest, "--json")
+        self.assertNotIn("Decision trace", before_text)
+        keys = set(json.loads(before_json))
+        self.assertEqual(keys, {
+            "hash", "approved_at", "start", "session_id", "instance", "scope", "analysis_dir", "git", "runs", "scripts",
+            "folders", "commands", "inputs", "outputs", "outputs_named", "findings", "lint", "envs", "claims",
+            "recovery", "validation", "validation_binding", "status", "plan", "receipts", "qualification", "rerun"})
+        # Calling the trace must not perturb what the plain report and --json print, byte for byte.
+        self.trace(digest)
+        self.trace(digest, "1")
+        self.assertEqual(self.verify("report", digest), before_text)
+        self.assertEqual(self.verify("report", digest, "--json"), before_json)
+
+    def test_trace_is_refused_outside_a_plain_report_and_writes_nothing(self):  # misuse
+        digest = self.fit_plan()
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        before = sorted(os.walk(self.root))
+        for args in (("write", digest, "--analysis-dir", "analysis/a", "--trace"), ("report", digest, "--trace", "--json"),
+                     ("status", "--trace"), ("list", "--trace"), ("stale", "--trace"), ("runs", "--trace"),
+                     ("refs", FIT, "--trace"), ("explore", "--trace"), ("multiplicity", digest, "--trace"),
+                     ("diff", digest, digest, "--trace")):
+            self.assertIn("--trace is a text view of report", self.verify(*args, fails=True), args)
+        self.assertEqual(sorted(os.walk(self.root)), before)
+        self.assertFalse(os.path.exists(os.path.join(self.root, "analysis", "a", "provenance")))
+
+    def test_the_hash_goes_before_trace(self):  # nargs='?' reads the next word as the row
+        digest = self.fit_plan()
+        self.assertIn("8-character hash", self.verify("report", "--trace", digest, fails=True))
+
+
 if __name__ == "__main__":
     unittest.main()
