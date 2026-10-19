@@ -33,6 +33,8 @@ ABLATIONS = [
      '"pins_checked": bool(records) and not explore,', "F-02"),
     ("A-7", "gate", 'cells = lambda row: tuple(comparison_text(cell) for cell in row["cells"])',
      'cells = lambda row: tuple(clean(cell) for cell in row["cells"])', "F-03"),
+    ("A-8", "verify", 'report.add("gap", "{}: {} not checked: resolving citations needs',
+     '(lambda *a: None)("gap", "{}: {} not checked: resolving citations needs', "V-33"),
 ]
 
 
