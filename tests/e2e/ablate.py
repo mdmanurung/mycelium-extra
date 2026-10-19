@@ -35,6 +35,22 @@ ABLATIONS = [
      'cells = lambda row: tuple(clean(cell) for cell in row["cells"])', "F-03"),
     ("A-8", "verify", 'report.add("gap", "{}: {} not checked: resolving citations needs',
      '(lambda *a: None)("gap", "{}: {} not checked: resolving citations needs', "V-33"),
+    # consent guards: protected-state writes (A-9..A-11), exact APPROVE matching (A-12, A-13), session scoping
+    # (A-14), the explore grant (A-15), on_error (A-16), and the unresolved-operand rule (A-17)
+    ("A-9", "gate", '    if writes_state(command, root, event.get("cwd") or root):\n', "    if False:\n", "G-04"),
+    ("A-10", "gate", "    if head in SHELLS and any(SHELL_C.match(t) for t in args):\n", "    if False:\n", "G-09"),
+    ("A-11", "gate", '    if head == "git":\n        return git_wipes_state(args, ancestor)\n',
+     '    if False:\n        return git_wipes_state(args, ancestor)\n', "G-10"),
+    ("A-12", "gate", 'APPROVE = re.compile(r"^\\s*approve(?:', 'APPROVE = re.compile(r".*approve(?:', "G-11"),
+    ("A-13", "gate", '(\\d{1,4}))?)?\\s*[.!]?\\s*$", re.IGNORECASE)', '(\\d{1,4}))?)?\\s*[.!]?.*$", re.IGNORECASE)',
+     "G-11"),
+    ("A-14", "gate", '(session_id is None or bool(session_id) and record.get("session_id") == session_id)',
+     "True", "G-12"),
+    ("A-15", "gate", '        if explore:\n            return deny("mycelium-extra gate: the exploratory-run prefix',
+     '        if False:\n            return deny("mycelium-extra gate: the exploratory-run prefix', "G-03"),
+    ("A-16", "gate_run", "            policy = value\n", '            policy = "allow"\n', "G-13"),
+    ("A-17", "gate", '            if (rel is None and (first or SCRIPT_EXT.search(value)) and re.search(r"[$`]", value)\n',
+     '            if (False and (first or SCRIPT_EXT.search(value)) and re.search(r"[$`]", value)\n', "G-14"),
 ]
 
 
@@ -45,14 +61,14 @@ def case_passes(defect_id):
 
 
 def patched(tmp, target, old, new):
-    """A patched copy: verify.py alone (it runs as stdin source), or the whole hooks/ folder."""
+    """A patched copy: verify.py alone (it runs as stdin source), or the whole hooks/ folder (gate.py or gate_run.py)."""
     if target == "verify":
         source, path = harness.VERIFY, os.path.join(tmp, "verify.py")
         shutil.copyfile(source, path)
         entry = path
     else:
         shutil.copytree(os.path.dirname(harness.GATE_RUN), os.path.join(tmp, "hooks"))
-        path = os.path.join(tmp, "hooks", "gate.py")
+        path = os.path.join(tmp, "hooks", "gate_run.py" if target == "gate_run" else "gate.py")
         entry = os.path.join(tmp, "hooks", os.path.basename(harness.GATE_RUN))
     with open(path, encoding="utf-8") as handle:
         text = handle.read()

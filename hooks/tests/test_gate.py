@@ -280,6 +280,25 @@ class GateTest(unittest.TestCase):
         self.approve(self.CARD_PLAN)
         self.assertNotIn("amendment to", self.card(self.CARD_PLAN))
 
+    def test_the_approve_verb_must_match_the_card_kind(self):
+        self.write_file("analysis/a/04_plot.py", "print(1)\n")
+        digest, _ = self.approve(self.CARD_PLAN)
+        amendment = re.findall(r"approve amendment ([0-9a-f]{8})", self.card(self.amended()))[-1]
+        for verb in ("plan", "freeze"):
+            reply = self.hook("prompt", {"prompt": "approve {} {}".format(verb, amendment)})["systemMessage"]
+            self.assertIn("is an amendment card, so approve it with `approve amendment {}`".format(amendment), reply)
+            self.assertIn("nothing was approved", reply)
+        self.assertTrue(self.denied(self.bash("python analysis/a/04_plot.py")))
+        self.assertIn("approved", self.hook("prompt", {"prompt": "approve amendment " + amendment})["systemMessage"])
+        self.assertIsNone(self.bash("python analysis/a/04_plot.py"))
+        fresh = self.card(self.CARD_PLAN.replace("12 donors", "13 donors"))  # an ordinary plan card
+        other = re.findall(r"approve plan ([0-9a-f]{8})", fresh)[-1]
+        for verb in ("amendment", "freeze"):
+            self.assertIn("is a plan card, so approve it with `approve plan {}`".format(other),
+                          self.hook("prompt", {"prompt": "approve {} {}".format(verb, other)})["systemMessage"])
+        self.assertIn("plan {} approved".format(other),
+                      self.hook("prompt", {"prompt": "approve " + other})["systemMessage"], "no verb: any card")
+
     def card(self, plan):
         return self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
 
@@ -1263,6 +1282,99 @@ class GateTest(unittest.TestCase):
                         "python3 -c \"open('n.txt','w').write(open('.mycelium-extra/gate.json').read()); "
                         "import os; os.remove('.mycelium-extra/gate.json')\""]:
             self.assertTrue(self.denied(self.bash(command)), command)
+
+    def test_state_writes_through_every_shell_spelling_are_denied(self):
+        write = "cp forged.json .mycelium-extra/approvals/deadbeef.json"
+        for shell in ("bash -lc", "bash -ec", "bash -xc", "bash -ce", "bash -c -l", "bash -l -c", "sh -ec",
+                      "env bash -lc", "/bin/bash -lc", "zsh -lc", "dash -c", "ksh -c", "fish -c", "csh -c",
+                      "tcsh -c", "dash -ec", "ksh -lc", "env -i /usr/bin/bash -lc"):
+            command = "{} '{}'".format(shell, write)
+            with self.subTest(shell=shell):
+                self.assertTrue(self.denied(self.bash(command)), command)
+                self.assertIsNone(self.bash("{} 'cat .mycelium-extra/gate.json'".format(shell)), shell)
+
+    def test_a_read_only_replace_on_state_text_is_not_a_write(self):
+        for command in (
+                "python3 -c \"t = open('.mycelium-extra/gate.json').read().replace('a', 'b'); print(t)\"",
+                "python3 -c \"print('.mycelium-extra/x'.replace('x', 'y'))\"",
+                "python3 -c \"import pathlib; print(pathlib.Path('.mycelium-extra/gate.json').read_text().replace(' ', ''))\""):
+            self.assertIsNone(self.bash(command), command)
+        for command in (
+                "python3 -c \"import os; os.replace('x', '.mycelium-extra/gate.json')\"",
+                "python3 -c \"import os; os.rename('x', '.mycelium-extra/gate.json')\"",
+                "python3 -c \"from pathlib import Path; Path('x').replace('.mycelium-extra/gate.json')\"",
+                "python3 -c \"from pathlib import Path; Path('.mycelium-extra/gate.json').rename('y')\"",
+                "python3 -c \"open('.mycelium-extra/gate.json', 'w').write('{}')\""):
+            self.assertTrue(self.denied(self.bash(command)), command)
+
+    def test_commands_on_a_folder_that_holds_the_state_are_denied(self):
+        for command in ("git clean -fdx", "git clean -fdX", "git clean -ffdx", "git clean -xfd", "git clean -x -f",
+                        "git -C . clean -fdx", "git stash -a", "git stash push --all", "git stash push -a -m wip",
+                        "rm -rf .", "rm -rf $PWD", "rm -r ..", "rm -rf .*", "rm -fr ./", "mv . /tmp/zz",
+                        "rsync -a --delete e/ ./", "rsync -a --delete-after e/ .", "find . -delete",
+                        "find . -type f -delete", "bash -lc 'git clean -fdx'"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+        for command in ("git clean -fd", "git clean -fdxn", "git clean -n -x", "git clean -fdx analysis/",
+                        "git clean -fdx -e .mycelium-extra", "git stash", "git stash -u", "git stash list",
+                        "git stash -a -- analysis/", "git stash push -a -- ':!.mycelium-extra'",
+                        "rm -rf analysis/x", "rm -rf *", "rm x.tmp", "rm -rf $TMP", "mv analysis/x/o.tsv .",
+                        "mv a b", "rsync -a --delete e/ analysis/x/", "rsync -a e/ ./",
+                        "rsync -a --delete --exclude .mycelium-extra e/ ./", "find . -name '*.pyc' -delete",
+                        "find analysis -delete", "find . -type f"):
+            self.assertIsNone(self.bash(command), command)
+        os.makedirs(os.path.join(self.root, "analysis", "x"))
+        sub = os.path.join(self.root, "analysis", "x")
+        self.assertIsNone(self.bash("rm -rf .", cwd=sub), "a subfolder does not hold the state folder")
+        self.assertTrue(self.denied(self.bash("rm -rf ../..", cwd=sub)))
+
+    def test_a_runner_operand_the_shell_expands_is_unresolved(self):
+        self.approve()  # a plan that names analysis/x.py
+        for command in ("for f in analysis/y/*.py; do python3 $f; done",
+                        "for f in analysis/x.py; do python3 $f; done",
+                        "S=analysis; python3 $S/y/01.py", "python3 $(ls analysis/y/*.py | head -1)",
+                        "python3 `ls analysis/y/*.py`", 'while read f; do python3 "$f"; done < list',
+                        "Rscript $SCRIPT", "bash $JOB", "source $ENVFILE", "bash -lc 'python3 $f'",
+                        "pushd analysis/y && python3 01.py", "cd $(dirname analysis/y/a) && python3 01.py",
+                        'cd "$ROOT" && python3 analysis/y/01.py',
+                        "singularity exec img.sif python3 analysis/y/01.py",
+                        "apptainer exec --bind a:b img.sif python3 analysis/y/01.py",
+                        "docker run --rm img python3 analysis/y/01.py", "podman run img Rscript analysis/y/01.R",
+                        "if true; then python3 analysis/y/01.py; fi",
+                        "for i in 1 2; do python3 analysis/y/01.py; done"):
+            reply = self.bash(command)
+            self.assertTrue(self.denied(reply), command)
+        self.assertIn("holds a shell expansion", self.bash("for f in a; do python3 $f; done")
+                      ["hookSpecificOutput"]["permissionDecisionReason"])
+        for command in ("python3 tools/y.py --out $OUT", "python3 -c \"print($X)\"", "python3 $HOME/tool.py",
+                        "python3 tools/y.py $(ls)", "python3 $CLAUDE_PLUGIN_ROOT/hooks/x.py", "echo $f", "for f in 1 2; do echo $f; done",
+                        "pushd tools && python3 y.py", "docker run img echo hi", "make -C tools",
+                        "if true; then python tools/y.py; fi"):
+            self.assertIsNone(self.bash(command), command)
+        self.assertIsNone(self.bash("for i in 1 2; do python3 analysis/x.py; done"), "a literal path the plan names")
+        self.assertIsNone(self.bash("singularity exec img.sif python3 analysis/x.py"), "covered through the wrapper")
+
+    def test_invalid_numeric_settings_give_a_notice_naming_the_key(self):
+        digest, _ = self.approve()
+        for key, value in (("approval_hours", "x"), ("approval_hours", -1), ("approval_hours", True),
+                           ("pin_hash_mb", "big"), ("pin_hash_mb", None), ("pin_seconds", [5]),
+                           ("pin_seconds", float("nan"))):
+            self.config({key: value})
+            with self.subTest(key=key, value=repr(value)):
+                card = self.card(PLAN.replace("analysis/x.py", "analysis/z.py"))
+                self.assertIn('"{}" in gate.json must be'.format(key), card)
+                self.assertIn("approve plan", card, "the card is still shown")
+                reply = self.hook("prompt", {"prompt": "approve plan " + digest})
+                self.assertIn('"{}" in gate.json must be'.format(key), reply["systemMessage"])
+                self.assertIsNone(self.bash("ls"), "the run gate keeps working on the defaults")
+        self.config({"approval_hours": 0})  # 0 is valid: every approval is already expired
+        self.assertNotIn("in gate.json must be", self.card(PLAN))
+
+    def test_an_invalid_on_error_value_gets_a_notice_and_allows(self):
+        self.config({"on_error": "block"})
+        self.assertIn('"on_error" in gate.json must be "allow" or "deny"; allowing.', self.card(PLAN))
+        self.assertIsNone(self.bash("ls"))
+        self.config({"on_error": "deny"})
+        self.assertNotIn("on_error", self.card(PLAN))
 
     def test_python_that_does_not_parse_is_scanned_by_tokens(self):
         # Stands in for 3.8+ syntax on Python 3.6: a source this interpreter's ast cannot parse.
@@ -2615,10 +2727,12 @@ class OpenGapsTest(unittest.TestCase):
         self.approve(self.plan("run `analysis/x.py` with snakemake"))
         self.assertIsNone(self.bash('env -C "$X" snakemake -j 4'))
 
-    def test_cd_into_an_expansion_is_unchanged(self):
-        # control: `cd` is not a wrapper option; this reading is the same as before this change
-        for command in ['cd "$PWD/analysis/demo" && python step.py', 'cd "$X" && python step.py']:
-            self.assertIsNone(self.bash(command), command)
+    def test_cd_into_an_expansion_is_read_like_a_wrapper_folder(self):
+        # 0.14.1: `cd`/`pushd` into `$PWD`/`$HOME` resolve; any other expansion is an unresolved folder, as for `env -C`
+        for command in ['cd "$PWD/analysis/demo" && python step.py', 'cd "$X" && python step.py',
+                        'pushd analysis/demo && python step.py', 'cd $(dirname analysis/demo/a) && python step.py']:
+            self.assertTrue(self.denied(self.bash(command)), command)
+        self.assertIn("cannot resolve", self.reason('cd "$X" && python step.py'))
         self.assertTrue(self.denied(self.bash('cd analysis/demo && python step.py')))
 
     def test_literal_folder_options_are_gated_as_before(self):

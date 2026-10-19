@@ -70,7 +70,12 @@ PLAN_STATUS = re.compile(
     re.IGNORECASE | re.MULTILINE)
 RUNNERS = re.compile(
     r"^(python[\d.]*|Rscript|R|bash|sh|zsh|jupyter|papermill|quarto|julia|perl|node|source|\.)$")
-SHELLS = {"bash", "sh", "zsh"}
+SHELLS = {"bash", "sh", "zsh", "dash", "ksh", "fish", "csh", "tcsh"}
+CONTAINERS = {"apptainer", "singularity", "docker", "podman"}  # `exec IMAGE CMD`: CMD is read as if run directly
+# ponytail: a plugin or tool root (`$MYC/skills/..`, `$CLAUDE_PLUGIN_ROOT/..`) is never a planned analysis script;
+# any other variable is unresolved. Add a name here if a host's own scripts are denied.
+PLUGIN_ROOT_VAR = re.compile(r"^\$\{?(MYC\w*|MYCELIUM\w*|CLAUDE_\w+|\w*PLUGIN_ROOT|\w*SKILL_DIR)\}?/")
+SHELL_C = re.compile(r"^-[A-Za-z]*c[A-Za-z]*$")  # `-c`, `-lc`, `-ec`, `-ce`: the shell runs inline code
 MYCELIUM_SEES = re.compile(r"^(python[\d.]*|Rscript|R|jupyter)$")  # Mycelium 0.7.2's run detector
 SCRIPT_EXT = re.compile(r"(\.(py|R|r|sh|ipynb|qmd|Rmd|rmd|jl|smk|pl)$|(^|/)Snakefile$)")
 WRAPPERS = {"env", "time", "nohup", "nice", "command", "exec", "stdbuf", "timeout", "srun",
@@ -115,12 +120,14 @@ WRAPPER_FLAGS = {
 WRITE_ALL = {"rm", "rmdir", "mv", "tee", "touch", "truncate", "mkdir", "chmod", "chown", "shred",
              "unlink"}  # every path argument is written
 WRITE_LAST = {"cp", "ln", "install", "rsync", "scp"}  # only the destination is written
-HEAD_SKIP = {"sudo", "do", "then", "else", "elif", "!", "{"}
+HEAD_SKIP = {"sudo", "do", "then", "else", "elif", "!", "{", "if", "while", "until"}
 WRITE_CODE = re.compile(
     r"""open\s*\([^)]*,\s*(mode\s*=\s*)?['"][^'"]*[wax+]|\.write(_text|_bytes|lines)?\s*\("""
     r"|\b(json|pickle)\.dump\s*\(|\bshutil\.\w+\s*\(|\bsubprocess\.|\bos\.system\s*\("
     r"|\bos\.(remove|unlink|rename|renames|replace|makedirs|mkdir|rmdir|removedirs|truncate|symlink"
-    r"|link|chmod)\s*\(|\.(unlink|touch|mkdir|rmdir|rename|replace|symlink_to|chmod)\s*\("
+    r"|link|chmod)\s*\(|\.(unlink|touch|mkdir|rmdir|rename|symlink_to|chmod)\s*\(|\bPath\s*\([^)]*\)\.replace\s*\("
+    # ponytail: a bare `.replace(` is str.replace in most code, so only `Path(...).replace(` and os.replace count;
+    # a Path held in a variable and replaced is missed
     r"|\b(writeLines|saveRDS|save|write\.(csv|table|delim)|write_(csv|tsv|delim|lines|json|rds)"
     r"|file\.(remove|rename|create|copy|append)|unlink|dir\.create|sink|system2?)\s*\("
     r"|\bcat\s*\([^)]*\bfile\s*=")
@@ -166,10 +173,34 @@ def find_root(cwd):
         path = parent
 
 
+def _number(value):  # 0 is allowed: `approval_hours: 0` expires every approval, `pin_seconds: 0` skips hashing
+    return (isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+            and value >= 0)
+
+
+# numeric key -> (what it accepts, test); an invalid value is replaced by its default and named in a notice, as
+# `max_runs_per_approval` is, instead of aborting the hook. Mirrors CONFIG_RULES in skills/init/scripts/gate_init.py.
+CONFIG_CHECKS = (
+    ("approval_hours", "a number of 0 or more", _number),
+    ("pin_hash_mb", "a number of 0 or more", _number),
+    ("pin_seconds", "a number of 0 or more", _number),
+)
+
+
 def load_config(root):
+    """The settings, with defaults; `_notices` lists each invalid value found and what is used instead."""
     with open(os.path.join(root, STATE_DIR, "gate.json"), encoding="utf-8") as handle:
         config = dict(DEFAULTS)
         config.update(json.load(handle))
+    notices = []
+    for key, wants, ok in CONFIG_CHECKS:
+        if not ok(config[key]):
+            notices.append('mycelium-extra gate: "{}" in gate.json must be {}; using the default ({}).'.format(
+                key, wants, json.dumps(DEFAULTS[key])))
+            config[key] = DEFAULTS[key]
+    if config.get("on_error", "allow") not in ("allow", "deny"):
+        notices.append('mycelium-extra gate: "on_error" in gate.json must be "allow" or "deny"; allowing.')
+    config["_notices"] = notices
     return config
 
 
@@ -567,7 +598,7 @@ def _classify(tokens, root, cwd, config, info=None):
     """`info`, if given, gets "head": the index of the program in `tokens` once wrappers and assignments are skipped."""
     explore = False
     i = 0
-    while i < len(tokens) and is_assignment(tokens[i]):
+    while i < len(tokens) and (tokens[i] in HEAD_SKIP or is_assignment(tokens[i])):
         if tokens[i] == EXPLORE_VAR + "=1":
             explore = True
         i += 1
@@ -586,6 +617,12 @@ def _classify(tokens, root, cwd, config, info=None):
                 cwd = move_folder(cwd, value)
             previous, unknown, i = "", False, i + step
             continue
+        if word in CONTAINERS:  # `singularity exec --bind a:b IMG python3 x.py`: read the command after the image
+            for j in range(i + 1, len(tokens)):
+                if RUNNERS.match(os.path.basename(tokens[j])) or os.path.basename(tokens[j]) in config["gated_commands"]:
+                    import shlex
+                    return explore, "recurse", [" ".join(shlex.quote(t) for t in tokens[j:])], cwd
+            return explore, None, [], cwd
         if RUNNERS.match(word) or word in config["gated_commands"]:
             break
         if "/" in tokens[i] and not (word in WRAPPERS and gated_rel(root, cwd, tokens[i], config) is None):
@@ -671,10 +708,18 @@ def _classify(tokens, root, cwd, config, info=None):
             value = token.split("=", 1)[1] if token.startswith("-") and "=" in token else token
             if token.startswith("-") and value == token:
                 continue
-            rel = script_rel(value)
             first = positional is None and not token.startswith("-")
             if first:
                 positional = token
+            rel = script_rel(value)
+            if (rel is None and (first or SCRIPT_EXT.search(value)) and re.search(r"[$`]", value)
+                    and not PLUGIN_ROOT_VAR.match(value)):
+                # an operand the shell expands (`$f`, `$(ls ...)`) is unresolved: it is read as written, which no
+                # plan covers, unless the expansion is `$PWD`/`$HOME`, which resolve
+                value = re.sub(r"\$(?:\{(PWD|HOME)\}|(PWD|HOME)(?![A-Za-z0-9_]))",
+                               lambda m: cwd if "PWD" in m.group(0) else os.path.expanduser("~"), value)
+                rel = script_rel(value) if not re.search(r"[$`]", value) else (
+                    repo_relative(root, cwd, value) or value)
             if rel and (first or SCRIPT_EXT.search(rel) or word in ("jupyter", "papermill", "quarto")):
                 paths.append(rel)
         return explore, (word if paths else None), paths, cwd
@@ -691,6 +736,8 @@ def job_cwd(tokens, cwd):
 
 def cd_target(cwd, tokens):
     target = tokens[1] if len(tokens) > 1 else os.path.expanduser("~")
+    if re.search(r"[$`]", target):  # `cd $(dirname ...)`: the folder is unresolved, as for a wrapper's folder option
+        return move_folder(cwd, target)
     return os.path.normpath(os.path.join(cwd, os.path.expanduser(target)))
 
 
@@ -698,7 +745,7 @@ def analyse_command(command, root, cwd, config):
     """Yield (explore, label, paths, segment, tokens, cwd) for each gated segment."""
     virtual_cwd = cwd
     for tokens in segments(command):
-        if tokens[0] == "cd":
+        if tokens[0] in ("cd", "pushd"):
             virtual_cwd = cd_target(virtual_cwd, tokens)
             continue
         explore, label, paths, run_cwd = classify(tokens, root, virtual_cwd, config)
@@ -751,7 +798,7 @@ def writes_state(command, root, cwd):
             if own and token in (">", ">>"):  # cat > run.py <<EOF: run.py's code is that heredoc
                 written[tokens[j + 1]] = "\n".join(own)
         own += [written[t] for t in tokens if t in written]
-        if tokens[0] == "cd":
+        if tokens[0] in ("cd", "pushd"):
             virtual_cwd = cd_target(virtual_cwd, tokens)
             continue
 
@@ -764,7 +811,20 @@ def writes_state(command, root, cwd):
             path = os.path.realpath(os.path.join(virtual_cwd, os.path.expanduser(token)))
             return path == state or path.startswith(state + os.sep)
 
-        if segment_writes(tokens, own, command, inside, root, virtual_cwd):
+        def ancestor(token):
+            """Whether token names the state folder or a folder holding it (`.`, `..`, `$PWD`, `*`, `.*`)."""
+            token = re.sub(r"\$(?:\{(PWD|HOME)\}|(PWD|HOME)(?![A-Za-z0-9_]))",
+                           lambda m: virtual_cwd if "PWD" in m.group(0) else os.path.expanduser("~"), token)
+            if "$" in token or "`" in token:  # ponytail: an unresolved expansion is not guessed to be an ancestor
+                return False
+            path = os.path.join(virtual_cwd, os.path.expanduser(token))
+            for found in glob.glob(path) if re.search(r"[*?\[]", token) else [path]:
+                found = os.path.realpath(found).rstrip(os.sep) + os.sep
+                if (state + os.sep).startswith(found):
+                    return True
+            return False
+
+        if segment_writes(tokens, own, command, inside, root, virtual_cwd, ancestor):
             return True
     return False
 
@@ -875,7 +935,36 @@ def binds_state(tokens):
     return False
 
 
-def segment_writes(tokens, bodies, command, inside, root, cwd):
+def git_wipes_state(args, ancestor):
+    """`git clean` with -x/-X and `git stash` with -a/--all remove the state folder (untracked or ignored) unless
+    a pathspec or an exclude names a folder that does not hold it."""
+    rest, j = [], 0
+    while j < len(args):  # skip git's own options (`-C DIR`, `-c k=v`)
+        if args[j] in ("-C", "-c"):
+            j += 2
+        elif args[j].startswith("-"):
+            j += 1
+        else:
+            rest = args[j:]
+            break
+    if not rest or rest[0] not in ("clean", "stash"):
+        return False
+    sub, flags = rest[0], rest[1:]
+    shorts = "".join(t[1:] for t in flags if re.match(r"^-[A-Za-z]+$", t))
+    if sub == "clean":
+        if not re.search(r"[xX]", shorts) or "n" in shorts or "--dry-run" in flags:
+            return False
+    elif not (re.search(r"a", shorts) or "--all" in flags) or flags[:1] in (["pop"], ["apply"], ["list"], ["drop"],
+                                                                            ["show"]):
+        return False
+    if any(STATE_DIR in t for t in flags):  # `-e .mycelium-extra`, `:(exclude).mycelium-extra`
+        return False
+    values = {flags[k + 1] for k, t in enumerate(flags[:-1]) if t in ("-e", "--exclude", "-m", "--message")}
+    pathspecs = [t for t in flags if not t.startswith("-") and t not in values and t not in ("push", "save")]
+    return not pathspecs or any(ancestor(t) for t in pathspecs)
+
+
+def segment_writes(tokens, bodies, command, inside, root, cwd, ancestor=lambda token: False):
     for j, token in enumerate(tokens[:-1]):
         if token in (">", ">>") and inside(tokens[j + 1]):
             return True
@@ -889,6 +978,11 @@ def segment_writes(tokens, bodies, command, inside, root, cwd):
         return False
     head, args = os.path.basename(tokens[i]), tokens[i + 1:]
     code = [args[j + 1] for j, t in enumerate(args[:-1]) if t in ("-c", "-e", "--eval")]
+    if head in SHELLS and any(SHELL_C.match(t) for t in args):
+        # `-lc`, `-ec`, `-ce`, `-c -l CMD`: the payload is the first word that is not an option, and later
+        # words (`$0`, arguments) are read too, so a reordering cannot hide the code
+        code = [t for j, t in enumerate(args) if not t.startswith("-") and (j == 0 or args[j - 1] not in (
+            ">", ">>", "<", "<<", "<<-"))] + code
     stdin = [args[j + 1] for j, t in enumerate(args[:-1]) if t == "<"]
     positional, skip = [], False
     for token in args:
@@ -909,11 +1003,22 @@ def segment_writes(tokens, bodies, command, inside, root, cwd):
         return (any(os.path.basename(t) in WRITE_ALL | WRITE_LAST for t in args)
                 and any(inside(t) for part in segments(command) for t in part))
     if head in WRITE_ALL:
-        return any(inside(t) for t in positional)
+        if any(inside(t) for t in positional):
+            return True
+        # a folder that holds the state folder, removed or moved whole (`rm -rf .`, `mv . /tmp/x`); the
+        # destination of a move is not moved itself
+        if head == "rm" and any(t == "--recursive" or re.match(r"^-[A-Za-z]*[rR]", t) for t in args):
+            return any(ancestor(t) for t in positional)
+        if head == "mv":
+            return any(ancestor(t) for t in (positional if "-t" in args else positional[:-1]))
+        return False
     if head in WRITE_LAST:
         targets = positional[-1:] + [t.split("=", 1)[1] for t in args if t.startswith("--target-directory=")]
         targets += [args[j + 1] for j, t in enumerate(args[:-1]) if t == "-t"]
-        return any(inside(t) for t in targets)
+        if any(inside(t) for t in targets):
+            return True
+        return (head == "rsync" and any(t == "--del" or t.startswith("--delete") for t in args)
+                and STATE_DIR not in " ".join(args) and any(ancestor(t) for t in positional[-1:]))
     if head == "dd":
         return any(t.startswith("of=") and inside(t[3:]) for t in args)
     if head in ("sed", "perl") and any(re.match(r"^-\w*i", t) for t in args):
@@ -922,7 +1027,13 @@ def segment_writes(tokens, bodies, command, inside, root, cwd):
             positional = positional[1:] if not code else positional  # the first word is the script
         return any(inside(t) for t in positional)
     if head == "find" and any(t in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for t in args):
-        return any(inside(t) for t in positional)
+        if any(inside(t) for t in positional):
+            return True
+        named = ("-name", "-iname", "-path", "-ipath", "-wholename", "-regex", "-iregex", "-prune")
+        return "-delete" in args and not any(t in named for t in args) and any(
+            ancestor(t) for t in args if not t.startswith(("-", "!", "(")))
+    if head == "git":
+        return git_wipes_state(args, ancestor)
     if RUNNERS.match(head):
         if any(inside(t) for t in positional + stdin):
             return True
@@ -3190,10 +3301,14 @@ def on_tool(event, root, config):
                      "what the payload runs ({}); plans that cover them separately do not count.".format(
                          ", ".join(wrapped)))
     for raw in unresolved:
-        lines.append("The folder `{}` given to a wrapper's folder option is a shell expansion the gate cannot "
+        lines.append("The folder `{}` given to `cd`, `pushd` or a wrapper's folder option is a shell expansion the gate cannot "
                      "resolve, so it read the run relative to the repo root and to the current folder, and "
                      "no approved plan covers either. Write a literal path (`env -C analysis/demo ...`) or "
                      "`cd` there first.".format(raw))
+    if any(re.search(r"[$`]", p) for _, paths in blocked for p in paths):
+        lines.append("A script path that holds a shell expansion (`$VAR`, `$(...)`, a loop variable) cannot be "
+                     "resolved by the gate, so it is read as written and no plan covers it. Write each script "
+                     "path literally.")
     lines.append("Active approved plans (last {} h): {}.".format(config["approval_hours"], hashes))
     lines.append("Present a plan whose plan table names these paths (prose, Evidence, and Source "
                  "citations do not count) and that ends with the grill status line; "
@@ -3759,9 +3874,15 @@ def prompt_commands(event, root, config):
                 "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
     wanted = (match.group(1) or waiting[0]["hash"]).lower()
     plan = next((p for p in pending if p["hash"] == wanted), None)
+    said = re.match(r"^\s*approve (plan|amendment|freeze)\b", prompt, re.IGNORECASE)
+    verb = said.group(1).lower() if said else None
+    kind = "freeze" if plan and plan.get("freeze") else plan.get("kind") if plan else None
     if plan is None:
         message = ("mycelium-extra: no pending plan {} in this session (pending: {}). "
                    "Nothing was approved.".format(wanted, known))
+    elif verb and kind and verb != kind:  # the verb names a narrower or different consent than the card shows
+        message = ("mycelium-extra: plan {} is {} {} card, so approve it with `approve {} {}`; nothing was "
+                   "approved.".format(wanted, "an" if kind == "amendment" else "a", kind, kind, wanted))
     elif plan.get("invalid"):  # its validation-bindings or exact-execution block did not pass
         message = ("mycelium-extra: plan {} has an invalid validation-bindings or exact-execution block ({}). "
                    "Nothing was approved. Fix the block and show the plan again.".format(
@@ -3832,6 +3953,7 @@ def on_stop(event, root, config):
             card, details = approval_card(root, text, config, digest, pins, outside, previous, entry["scripts"], blocks)
         if details:
             entry["card"] = details
+        entry["kind"] = "amendment" if "approve amendment {}".format(digest) in card else "plan"
         entry["ready"] = not errors  # pins, scripts and card are done: now the hash can be approved
         write_json(path, pending[-10:])
         notices.append(card)
@@ -4521,7 +4643,12 @@ def main(argv, text=None):
         root = find_root(cwd)
         if root is None:
             return 0
-        result = HANDLERS[argv[1]](event, root, load_config(root))
+        config = load_config(root)
+        result = HANDLERS[argv[1]](event, root, config)
+        if config["_notices"] and argv[1] in ("prompt", "stop"):  # where the user is reading: each turn, not each call
+            result = dict(result or {})
+            result["systemMessage"] = "\n\n".join(config["_notices"] + [result["systemMessage"]] * bool(
+                result.get("systemMessage")))
         if argv[1] == "tool":
             log_deny(root, event, result)
         emit(result)

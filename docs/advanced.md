@@ -73,7 +73,7 @@ The match is on the launched words, not on what the script does with them: it do
 
 ### Other `gate.json` settings
 
-`gated_paths`, `gated_commands`, `approval_hours` and `on_error` are in [Settings](approval-gate.md#settings). These keys are optional; a missing key uses its default.
+`gated_paths`, `gated_commands`, `approval_hours` and `on_error` are in [Settings](approval-gate.md#settings). These keys are optional; a missing key uses its default. An invalid numeric value, or an `on_error` that is neither `"allow"` nor `"deny"`, does not abort the card: at the next prompt and Stop the gate shows one notice naming the key and what it accepts, and uses the default for that key (`approval_hours`, `pin_hash_mb` and `pin_seconds` take a number of 0 or more; `on_error` is `"allow"` or `"deny"`, and any other value allows). `max_runs_per_approval`, `checkpoint_steps`, `pin_scripts` and `lint_before_run` give their own notice where they apply. A `gate.json` that is not valid JSON is a gate error and follows `on_error`.
 
 | Key | Default | Meaning |
 |---|---|---|

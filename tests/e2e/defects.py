@@ -297,6 +297,61 @@ def g08(p):
     return gate(p.run_step(harness.SCRIPTS[0]))
 
 
+@defect("G-09", "gate", "approval gate", ["tool: gate state"],
+        {"decision": DENY, "messages": ["appears to modify .mycelium-extra/"]})
+def g09(p):
+    """A forged approval written through a combined shell flag (`bash -lc`) is denied like `bash -c`."""
+    p.approve(harness.plan_text())
+    return gate(p.agent_bash("bash -lc 'cp forged.json .mycelium-extra/approvals/deadbeef.json'"))
+
+
+@defect("G-10", "gate", "approval gate", ["tool: gate state"],
+        {"decision": DENY, "messages": ["appears to modify .mycelium-extra/"]})
+def g10(p):
+    """A command on the folder that holds the gate state (`git clean -fdx`) is denied, not left to delete it."""
+    return gate(p.agent_bash("git clean -fdx"))
+
+
+@defect("G-11", "gate", "approval gate", ["tool: approval"],
+        {"decision": DENY, "messages": ["no active approved plan covers this run"]})
+def g11(p):
+    """Only a prompt that is exactly `approve plan <hash>` approves: the phrase inside other text does not."""
+    notice = p.hook(p.events.get("Stop", "stop"),
+                    {"last_assistant_message": harness.plan_text(), "stop_hook_active": False})
+    digest = re.search(r"approve plan ([0-9a-f]{8})", (notice or {}).get("systemMessage", "")).group(1)
+    for prompt in ("yes, approve plan " + digest, "approve plan " + digest + " thanks"):
+        p.hook(p.events.get("UserPromptSubmit", "prompt"), {"prompt": prompt})
+    return gate(p.run_step(harness.SCRIPTS[0]))
+
+
+@defect("G-12", "gate", "approval gate", ["tool: approval"],
+        {"decision": DENY, "messages": ["no active approved plan covers this run"]})
+def g12(p):
+    """An approval belongs to the session that typed it: another session's run is not covered."""
+    p.approve(harness.plan_text())
+    p.session = "e2e-session-other"
+    return gate(p.run_step(harness.SCRIPTS[0]))
+
+
+@defect("G-13", "gate", "approval gate", ["tool: approval"],
+        {"decision": DENY, "messages": ["blocked because gate.json sets on_error to deny"]})
+def g13(p):
+    """With `on_error: deny`, a tool call the gate could not check is blocked, not let through."""
+    with open(p.path(".mycelium-extra", "gate.json"), "w", encoding="utf-8") as handle:
+        json.dump({"on_error": "deny"}, handle)
+    reply = p.hook(p.events["PreToolUse"], {"tool_name": "Bash", "tool_input": {"command": 123}})
+    reason = ((reply or {}).get("hookSpecificOutput") or {}).get("permissionDecisionReason", "")
+    return {"decision": DENY if p.denied(reply) else "silent", "text": reason}
+
+
+@defect("G-14", "gate", "approval gate", ["Silent scope growth"],
+        {"decision": DENY, "messages": ["no active approved plan covers this run", "holds a shell expansion"]})
+def g14(p):
+    """A script reached through a shell variable is unresolved, so a plan that names the script does not cover it."""
+    p.approve(harness.plan_text())
+    return gate(p.agent_bash("for f in " + EXTRA + "; do python3 $f; done"))
+
+
 # ---------------------------------------------------------------- 8.3 verify layer
 
 BLOCKED = "Verify status: DOES_NOT_CONFORM"
