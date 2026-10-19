@@ -824,19 +824,20 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("state unknown (no sacct)", missing)
 
     def test_sbatch_job_is_matched_by_its_sacct_submit_line(self):
-        # `$F` hides the script from the gate; Slurm records the expanded line.
-        digest = self.approve(plan("`sbatch --wrap \"python {}\"`".format(FIT)))
-        self.run_cmd('sbatch -J a --wrap "python $F"', stdout="Submitted batch job 4243")
+        # A job file hides the script from the command line (an expansion like `$F` is now denied at
+        # launch); the plan names the script as its own step, and Slurm records the expanded line.
+        digest = self.approve(plan("`sbatch job.sh`", "run `{}`".format(FIT)))
+        self.run_cmd("sbatch -J a job.sh", stdout="Submitted batch job 4243")
         line = "4243|{}|0:0|2026-09-30T10:00:00|2026-09-30T10:05:00|" + self.root + "|sbatch --wrap=python {}"
         out = self.verify("report", digest, sacct=self.fake_sacct(line.format("COMPLETED", FIT)))
         self.assertIn("job 4243 COMPLETED | ", out)
         self.assertIn("matched by its sacct submit line", out)
         out = self.verify("report", digest, sacct=self.fake_sacct(line.format("FAILED", "other.py")))
-        self.assertIn("`sbatch -J a --wrap python $F`: Slurm job 4243 ended FAILED", out)  # a command receipt
+        self.assertIn("`sbatch -J a job.sh`: Slurm job 4243 ended FAILED", out)  # a command receipt
         array = self.write("bin/sacct-array", "#!/bin/sh\nprintf '4243_1|COMPLETED|0:0|||\\n4243_2|TIMEOUT|0:0|||\\n'\n")
         os.chmod(array, os.stat(array).st_mode | stat.S_IEXEC)
         self.assertIn("Slurm job 4243 ended TIMEOUT", self.verify("report", digest, sacct=array))
-        self.run_cmd('sbatch -J b --wrap "python $F"', stdout="Submitted batch job 4243")  # one shared output
+        self.run_cmd("sbatch -J b job.sh", stdout="Submitted batch job 4243")  # one shared output
         out = self.verify("report", digest, sacct=self.fake_sacct(line.format("COMPLETED", FIT)))
         self.assertIn("job 4243 (state not attributable)", out)
 
