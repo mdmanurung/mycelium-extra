@@ -240,10 +240,12 @@ class ReviewFixesTest(Base):
         self.assertNotIn("Traceback", message)
 
     def test_a_failed_write_still_shows_the_card(self):
-        link = os.path.join(tempfile.mkdtemp(), "link")
-        self.addCleanup(shutil.rmtree, os.path.dirname(link))
-        os.symlink(self.root, link)  # the repo reached through a symlink: the state writer refuses
-        out = self.cli("--analysis", "analysis/a", repo=link)
+        outside = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, outside)
+        folder = os.path.join(self.root, ".mycelium-extra", "track-changes", "analysis__a")
+        os.makedirs(folder)
+        os.symlink(os.path.join(outside, "brief.md"), os.path.join(folder, "brief.md"))  # the state writer refuses
+        out = self.cli("--analysis", "analysis/a")
         self.assertIn("Attention", out)
         self.assertIn("Files      none written: refusing a symlinked state target", out)
 

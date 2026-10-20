@@ -29,10 +29,12 @@ CAP_DIFF, CAP_DIFF_TOTAL = 40, 300
 CAP_EXPLAIN = 400
 CAP_TRANSCRIPT_BYTES, CAP_TRANSCRIPT_LINES = 20 * 1024 * 1024, 300000
 SECRET = re.compile(
-    r"(?i)((?:api[_-]?key|secret|token|passw(?:or)?d|credential|auth)[\w-]*[\"']?\s*[:=]\s*[\"']?(?:(?:Bearer|Basic|Token)\s+)?\S+"
+    r"(?i)((?:api[_-]?key|secret|token|passw(?:or)?d|credential|auth)[\w-]*[\"']?\s*[:=]\s*(?:\"[^\"]*\"|'[^']*'|[\"']?(?:(?:Bearer|Basic|Token)\s+)?\S+)"
     r"|\bBearer\s+[A-Za-z0-9._~+/=-]{8,}"
+    r"|\b[a-z][a-z0-9+.-]*://[^\s/:@]+:[^\s/@]+@\S*"  # a password in a URL
+    r"|\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}"  # a JWT
     r"|\bAKIA[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{20,}\b|\bsk-[A-Za-z0-9_-]{20,}\b|\bxox[abp]-[A-Za-z0-9-]{10,}\b"
-    r"|-----BEGIN[ A-Z]*PRIVATE KEY-----)")
+    r"|-----BEGIN[ A-Z]*PRIVATE KEY-----[\s\S]*?-----END[ A-Z]*PRIVATE KEY-----)")
 EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
 
 
@@ -501,6 +503,17 @@ def focus_items(snap, root, rel, edits, mentions, transcript, started):
                 ", ".join("{}/{} x{}".format(container, k, v) for k, v in sorted(others.items())[:5])))
 
 
+def prioritize(snap):
+    """Order items by bucket then kind, and only then keep the first CAP_ITEMS: the cap must never drop an
+    attention item that was collected late while a routine one collected early stays. Says what it left out."""
+    order = {"attention": 0, "authorized": 1, "routine": 2}
+    rank = {"plan": 0, "code": 1, "execution": 2, "focus": 3, "output": 4}
+    snap.items.sort(key=lambda i: (order[i["bucket"]], rank[i["kind"]], i["id"]))
+    if len(snap.items) > CAP_ITEMS:
+        snap.limitations.append("{} items beyond the first {} were left out".format(len(snap.items) - CAP_ITEMS, CAP_ITEMS))
+        snap.items = snap.items[:CAP_ITEMS]
+
+
 def collect(args, gate, focus, verify):
     now = time.time()
     snap, redact = Snapshot(), Redactor()
@@ -555,12 +568,7 @@ def collect(args, gate, focus, verify):
             "" if args.transcript or episode else " (pass --transcript, or focus first)"))
     if redact.count:
         snap.limitations.append("{} secret-like string(s) replaced with [redacted] in diffs and plan text".format(redact.count))
-    if len(snap.items) > CAP_ITEMS:
-        snap.limitations.append("{} items beyond the first {} were left out".format(len(snap.items) - CAP_ITEMS, CAP_ITEMS))
-        snap.items = snap.items[:CAP_ITEMS]
-    order = {"attention": 0, "authorized": 1, "routine": 2}
-    rank = {"plan": 0, "code": 1, "execution": 2, "focus": 3, "output": 4}
-    snap.items.sort(key=lambda i: (order[i["bucket"]], rank[i["kind"]], i["id"]))
+    prioritize(snap)
     snap.timeline.sort(key=lambda e: e["ts"])
     snap.timeline = snap.timeline[-CAP_TIMELINE:]
     for e in snap.items:
@@ -583,7 +591,7 @@ def collect(args, gate, focus, verify):
                      "not_observed": ["shell-made edits", "file reads", "scripts no approval pinned and no run touched"] + (
                          ["subagent work not marked in the transcript"] if transcript["status"] in ("available", "partial")
                          else ["edits to other analyses (no transcript read)"])},
-        "counts": {b: sum(1 for i in snap.items if i["bucket"] == b) for b in order},
+        "counts": {b: sum(1 for i in snap.items if i["bucket"] == b) for b in ("attention", "authorized", "routine")},
         "items": snap.items, "evidence": sorted(snap.evidence.values(), key=lambda e: e["id"]), "timeline": snap.timeline,
     }
 
@@ -681,13 +689,30 @@ def brief(data):
     return "\n".join(out) + "\n"
 
 
+def output_folder(base, analysis_path):
+    """The report folder for one analysis. Two analyses can spell one folder name (`a/b` and a folder
+    literally named `a__b`); when the snapshot already there belongs to another analysis, keep both by
+    adding a hash of the exact path."""
+    folder = os.path.join(base, analysis_path.replace("/", "__"))
+    snapshot = os.path.join(folder, "snapshot.json")
+    if os.path.isfile(snapshot):
+        try:
+            with open(snapshot, encoding="utf-8") as handle:
+                prior = json.load(handle).get("analysis_path")
+        except (OSError, ValueError, AttributeError):
+            prior = None
+        if prior is not None and prior != analysis_path:
+            folder = "{}-{}".format(folder, hashlib.sha256(analysis_path.encode("utf-8")).hexdigest()[:8])
+    return folder
+
+
 def write_outputs(args, gate, root, data, html):
     import stateio
     base = os.path.join(root, ".mycelium-extra", "track-changes")
     expected = os.path.join(os.path.realpath(root), ".mycelium-extra", "track-changes")
     if os.path.lexists(base) and os.path.realpath(base) != expected:  # a symlink here would send the report elsewhere
         raise Stop("refusing to write: .mycelium-extra/track-changes is a link or resolves outside the project")
-    folder = os.path.join(base, data["analysis_path"].replace("/", "__"))
+    folder = output_folder(base, data["analysis_path"])
     os.makedirs(folder, mode=0o700, exist_ok=True)
     if not os.path.realpath(folder).startswith(expected + os.sep):
         raise Stop("refusing to write: {} resolves outside .mycelium-extra/track-changes/".format(folder))
