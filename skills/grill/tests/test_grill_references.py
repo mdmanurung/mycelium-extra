@@ -202,5 +202,27 @@ class GrillReferenceContractTest(unittest.TestCase):
         self.assertIn("## After the plan is shown", assistance)
 
 
+    def test_scientific_convention_route_is_linked_and_bounded(self):
+        skill = read(os.path.join(SKILL, "SKILL.md"))
+        mycelium = read(os.path.join(SKILL, "references", "mycelium.md"))
+        science = read(os.path.join(SKILL, "references", "scientific-conventions.md"))
+        self.assertIn("references/scientific-conventions.md", skill)
+        self.assertIn("scientific-conventions.md", mycelium)
+        self.assertLess(skill.index("## 0. Ask for the question first"),
+                        skill.index("references/scientific-conventions.md"))
+        for required in ("ACTIVE_CONVENTIONS.yaml", "not activation",
+                         "read selectively", "replicate-aware-inference.md",
+                         "composition-crumblr.md", "variance-dreamlet.md",
+                         "integration-scib.md", "pathway-decoupler.md",
+                         "communication-liana.md", "multicellular-mofacellular.md",
+                         "gpu-and-interoperability.md", "method-policy.json",
+                         "method-lock.json", "DECISION_REQUIRED",
+                         "No", "approval"):
+            self.assertIn(required.lower(), science.lower(), required)
+        self.assertIn("maximum five", science)
+        self.assertIn("not implemented guards", science)
+        self.assertIn("never itself", science.lower())
+
+
 if __name__ == "__main__":
     unittest.main()
