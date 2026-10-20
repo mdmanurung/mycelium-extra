@@ -4476,5 +4476,75 @@ class ScopedExploreTest(unittest.TestCase):
             self.assertNotIn("explore_scope", handle.read())
 
 
+class ConfirmWritesTest(unittest.TestCase):
+    """F1: with `confirm_writes` on, a pending write is denied until the user types `confirm write <id>`."""
+    entry = GATE
+    setUp, tearDown, config, hook = GateTest.setUp, GateTest.tearDown, GateTest.config, GateTest.hook
+    path = PreparationAndLaunchTest.path
+    SCRIPT = os.path.join(os.path.dirname(GATE), "confirm_write.py")
+
+    def prepare(self, kind, *targets):
+        args = [sys.executable, self.SCRIPT, "prepare", "--kind", kind, "--root", self.root]
+        for target in targets:
+            args += ["--target", target]
+        out = subprocess.check_output(args).decode("utf-8")
+        return re.search(r"confirm write ([0-9a-f]{8})", out).group(1)
+
+    def edit(self, target):
+        return self.hook("tool", {"tool_name": "Edit", "tool_input": {"file_path": os.path.join(self.root, target)}})
+
+    def verify_write(self):
+        return self.hook("tool", {"tool_name": "Bash", "tool_input": {
+            "command": "sh hooks/py.sh - --plugin-root . write abcd1234 --analysis-dir analysis/a < skills/verify/scripts/verify.py"}})
+
+    def denied(self, result):
+        return ((result or {}).get("hookSpecificOutput") or {}).get("permissionDecision") == "deny"
+
+    def test_off_by_default_nothing_is_denied(self):
+        self.prepare("harden", ".living/learnings.md")
+        self.assertFalse(self.denied(self.edit(".living/learnings.md")))
+        self.assertFalse(self.denied(self.verify_write()))
+
+    def test_a_pending_target_is_denied_until_the_user_confirms(self):
+        self.config({"confirm_writes": True})
+        ident = self.prepare("harden", ".living/learnings.md")
+        self.assertTrue(self.denied(self.edit(".living/learnings.md")))
+        self.assertFalse(self.denied(self.edit(".living/decisions.md")), "an unrelated write passes")
+        self.hook("prompt", {"prompt": "confirm write " + ident})
+        self.assertTrue(os.path.isfile(self.path("write-consent", ident + ".json")))
+        self.assertFalse(self.denied(self.edit(".living/learnings.md")))
+
+    def test_a_bash_command_naming_a_pending_target_is_denied(self):
+        self.config({"confirm_writes": True})
+        self.prepare("idea-triage", "todo/TODO_REGISTRY.md")
+        result = self.hook("tool", {"tool_name": "Bash", "tool_input": {"command": "upsert_table_row.py todo/TODO_REGISTRY.md"}})
+        self.assertTrue(self.denied(result))
+
+    def test_verify_write_needs_a_confirmed_verify_write_even_without_a_prepare(self):
+        self.config({"confirm_writes": True})
+        self.assertTrue(self.denied(self.verify_write()))
+        ident = self.prepare("verify-write", "analysis/a")
+        self.assertTrue(self.denied(self.verify_write()), "prepared but not confirmed")
+        self.hook("prompt", {"prompt": "confirm write " + ident})
+        self.assertFalse(self.denied(self.verify_write()))
+
+    def test_only_the_exact_prompt_or_a_known_id_records_consent(self):
+        self.config({"confirm_writes": True})
+        ident = self.prepare("harden", ".living/learnings.md")
+        for prompt in ("please confirm write " + ident, "confirm write " + ident + ".", "confirm write ffffffff"):
+            self.hook("prompt", {"prompt": prompt})
+        self.assertFalse(os.path.isdir(self.path("write-consent")))
+
+    def test_an_invalid_setting_says_so_and_stays_off(self):
+        self.config({"confirm_writes": "yes"})
+        self.prepare("harden", ".living/learnings.md")
+        self.assertFalse(self.denied(self.edit(".living/learnings.md")))
+
+    def test_the_agent_cannot_write_the_consent_file(self):
+        self.config({"confirm_writes": True})
+        result = self.edit(".mycelium-extra/write-consent/aaaaaaaa.json")
+        self.assertTrue(self.denied(result))
+
+
 if __name__ == "__main__":
     unittest.main()

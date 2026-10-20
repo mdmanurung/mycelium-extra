@@ -41,6 +41,7 @@ DEFAULTS = {
     "lint_before_run": False,
     "lint_before_stop": False,
     "card_coverage": True,
+    "confirm_writes": False,
 }
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call that never reported back
@@ -48,6 +49,9 @@ EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
 APPROVE = re.compile(r"^\s*approve(?:\s+(?:plan|amendment|freeze))?(?:\s+([0-9a-f]{8})(?:\s+(\d{1,4}))?)?\s*[.!]?\s*$", re.IGNORECASE)
 EXPLORE_GRANT = re.compile(r"^\s*(allow|stop)\s+explore(?:\s+([0-9a-f]{8}))?\s*[.!]?\s*$", re.IGNORECASE)
 SEND_PACKET = re.compile(r"send packet ([0-9a-f]{12,64})")  # no looser than review_packet.py's consent check
+CONFIRM_WRITE = re.compile(r"confirm write ([0-9a-f]{8})")
+WRITE_CONSENT_HOURS = 1
+VERIFY_WRITE = re.compile(r"scripts/verify\.py")
 HINTS_TOGGLE = re.compile(r"^\s*hints (on|off)\s*[.!]?\s*$", re.IGNORECASE)
 NEAR_COMMAND = re.compile(r"^\s*(approve|allow\s+explore|stop\s+explore|send\s+packet|hints|card)\b",
                           re.IGNORECASE)  # a prompt that starts like a command but did not parse as one
@@ -189,6 +193,7 @@ def _number(value):  # 0 is allowed: `approval_hours: 0` expires every approval,
 # numeric key -> (what it accepts, test); an invalid value is replaced by its default and named in a notice, as
 # `max_runs_per_approval` is, instead of aborting the hook. Mirrors CONFIG_RULES in skills/init/scripts/gate_init.py.
 CONFIG_CHECKS = (
+    ("confirm_writes", "true or false", lambda v: isinstance(v, bool)),
     ("approval_hours", "a number of 0 or more", _number),
     ("pin_hash_mb", "a number of 0 or more", _number),
     ("pin_seconds", "a number of 0 or more", _number),
@@ -3290,6 +3295,9 @@ def on_tool(event, root, config):
     tool = event.get("tool_name", "")
     tool_input = event.get("tool_input") or {}
     state = os.path.realpath(state_path(root))
+    denial = confirm_denial(root, event, config)
+    if denial:
+        return denial
     if tool == "apply_patch":
         for _, target in PATCH_TARGET.findall(tool_input.get("command", "")):
             target = os.path.realpath(os.path.join(event.get("cwd") or root, target.strip()))
@@ -3769,6 +3777,66 @@ def packet_consent(event, root, prefix):
             "immediately before sending, and send exactly the files it lists.".format(digest, digest[:12]))
 
 
+def pending_writes(root, consented):
+    """Unexpired write-pending records (`hooks/confirm_write.py prepare`) whose consent is (not) recorded."""
+    folder = state_path(root, "write-pending")
+    found = []
+    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        record = read_json(os.path.join(folder, name), {})
+        if not isinstance(record, dict) or time.time() - record.get("ts", 0) > WRITE_CONSENT_HOURS * 3600:
+            continue
+        given = os.path.isfile(state_path(root, "write-consent", str(record.get("id")) + ".json"))
+        if given == consented:
+            found.append(record)
+    return found
+
+
+def write_consent(event, root, ident):
+    """Record the user's consent to one pending write (`write-consent/<id>.json`), the only place it is written."""
+    record = read_json(state_path(root, "write-pending", ident + ".json"), None)
+    if not isinstance(record, dict) or time.time() - record.get("ts", 0) > WRITE_CONSENT_HOURS * 3600:
+        return ("mycelium-extra: no consent recorded: no unexpired pending write `{}`. The skill prepares it with "
+                "`confirm_write.py prepare` and prints the exact line to type.".format(ident))
+    write_json(state_path(root, "write-consent", ident + ".json"),
+               {"schema": "mycelium-extra.write-consent.v1", "id": ident, "kind": record.get("kind"),
+                "session_id": event.get("session_id") or "unknown", "ts": time.time(), "prompt": event.get("prompt")})
+    return ("mycelium-extra: consent recorded for the {} write to {}. It is valid for {} hour; the agent may "
+            "write now.".format(record.get("kind"), ", ".join(record.get("targets") or []), WRITE_CONSENT_HOURS))
+
+
+def confirm_denial(root, event, config):
+    """A deny for a write the user has not confirmed, or None. Only with `confirm_writes` on. A path write is
+    stopped when a pending record names its target and no consent exists; `verify.py write` needs a consent of
+    kind verify-write. Cooperative: a skill that never prepares a pending write is not stopped, except verify."""
+    if config.get("confirm_writes") is not True:
+        return None
+    tool, tool_input = event.get("tool_name", ""), event.get("tool_input") or {}
+    cwd = event.get("cwd") or root
+    if tool == "apply_patch":
+        names = [name.strip() for _, name in PATCH_TARGET.findall(tool_input.get("command", ""))]
+    elif tool in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
+        names = [tool_input.get("file_path") or tool_input.get("notebook_path") or ""]
+    elif tool == "Bash":
+        names = []
+    else:
+        return None
+    rels = [repo_relative(root, cwd, name) for name in names if name]
+    command = tool_input.get("command", "") if tool == "Bash" else ""
+    if tool == "Bash" and VERIFY_WRITE.search(command) and re.search(r"(?:^|\s)write(?:\s|$)", command):
+        if not any(r.get("kind") == "verify-write" for r in pending_writes(root, True)):
+            return deny("mycelium-extra: confirm_writes is on, so `verify write` needs your confirmation. Run "
+                        "`hooks/confirm_write.py prepare --kind verify-write --target <analysis folder>`, "
+                        "show the user the line it prints, and wait for them to type it.")
+    for record in pending_writes(root, False):
+        hit = [t for t in record.get("targets") or []
+               if (command and t in command) or any(r and (r == t or r.startswith(t + "/")) for r in rels)]
+        if hit:
+            return deny("mycelium-extra: confirm_writes is on and the {} write to {} is not confirmed. Ask the "
+                        "user to type exactly `confirm write {}`, then write.".format(
+                            record.get("kind"), ", ".join(hit), record.get("id")))
+    return None
+
+
 FREEZE = re.compile(r"^\s*freeze ([0-9a-f]{8})\s*[.!]?\s*$", re.IGNORECASE)
 FREEZE_MAX_SCRIPTS = 20  # more changed scripts than this are listed without diffs
 FREEZE_DIFF_LINES = 40  # diff lines shown per script
@@ -3961,6 +4029,11 @@ def on_prompt(event, root, config):
 
 def prompt_commands(event, root, config):
     prompt = event.get("prompt") or ""
+    confirm = CONFIRM_WRITE.fullmatch(prompt.strip().lower())
+    if confirm:
+        message = write_consent(event, root, confirm.group(1))
+        return {"systemMessage": message,
+                "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
     consent = SEND_PACKET.fullmatch(prompt.strip().lower())
     if consent:
         message = packet_consent(event, root, consent.group(1))
