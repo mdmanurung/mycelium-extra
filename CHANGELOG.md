@@ -4,6 +4,12 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-21
+
+### Added
+
+- **track-changes:** an Analysis Journal (`--journal`) with overview, detail and evidence views, explicit portable checkpoints (`--save-checkpoint`), inert note references (`--note`), a `mycelium-extra.evidence-handoff.v1` export written by verify, and a read-only consumer example. No gate, approval or oracle semantics change.
+
 ## [0.14.4] - 2026-10-20
 
 The gate now denies more shell spellings, so a command that ran silently before can be denied: the message says to write the path literally. `gate_diff` differs from 0.14.3 only by a `pins_unchecked` field in the stored launch record (reviewed oracle regenerated, 57 cases); no allow or deny decision changes in that comparison.
