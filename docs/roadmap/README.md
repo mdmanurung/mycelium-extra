@@ -8,7 +8,7 @@ This is a plan, not a promise. Tasks are dropped or reshaped when grilling shows
 
 These come from decisions already locked in this repository. A task that would break one says so in its Constraints line and needs that decision revisited first.
 
-- **Complement Mycelium, never override it.** No writes to `.living/`, manifests, or Mycelium's files except by confirmed append where a skill already does so. Run helper scripts from stdin so Mycelium's hooks do not open a post-action cycle.
+- **Complement Mycelium, never override it.** No writes to `.living/`, manifests, or Mycelium's files except these three, each listed in [Mycelium integration](../mycelium-integration.md#boundaries): `decision-status` appends a resolution after you confirm; `harden` edits one learning in place after you confirm; `idea` and `idea-triage` write under `todo/` (`idea` asks nothing by design, `idea-triage` waits for your pick). The confirmations are the agent's instruction, not a gate rule. Run helper scripts from stdin so Mycelium's hooks do not open a post-action cycle.
 - **A gap is never clean.** A missing, timed-out, unreadable, or unparseable check is reported as a gap. Nothing passes because a checker failed.
 - **The checker adjudicates; the user decides.** Skills report evidence and never loosen a contract, threshold, or claim to make something pass.
 - **Friction is opt-in.** New prompts, checkpoints, and hints are off by default per repository, like `hints`.

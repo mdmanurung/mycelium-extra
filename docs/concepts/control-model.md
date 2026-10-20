@@ -53,7 +53,7 @@ Example: to go back after a wrong approval, show and approve a corrected plan; t
 
 **The tool stays out of Mycelium's files and does not add noise to your session.**
 
-It never writes into `.living/` except confirmed appends (for example `decision-status` after you confirm). It prints no SessionStart messages, because they would compete with Mycelium's session resume. Hooks use only the Python standard library, so there is nothing to install beside the plugin. See [Mycelium integration](../mycelium-integration.md).
+It writes into `.living/` only when you confirm: `decision-status` appends a resolution and `harden` edits one learning. `idea` and `idea-triage` write under `todo/`. These confirmations are the agent's instruction, not a gate rule. It prints no SessionStart messages, because they would compete with Mycelium's session resume. Hooks use only the Python standard library, so there is nothing to install beside the plugin. See [Mycelium integration](../mycelium-integration.md).
 
 Example: `new-analysis` writes only inside the folder it creates; Mycelium's `analyze` handles manifest and memory updates.
 

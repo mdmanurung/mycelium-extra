@@ -6,7 +6,7 @@ Mycelium Extra works in both. With Mycelium it reads the project's records; with
 
 - **Your typed word:** the same approvals in both cases. Mycelium never approves anything for Extra, and Extra never approves for Mycelium.
 - **Shown to you:** where the plan's evidence came from (`repo: <path>`), and what the install can see (`init --diagnose`).
-- **To say no:** Extra never writes `.living/` or Mycelium's manifests, except a confirmed append where a skill already does so. Turn the gate off by removing `.mycelium-extra/gate.json`.
+- **To say no:** Extra never writes `.living/` or Mycelium's manifests, except three confirmed or by-design writes: `decision-status` appends a resolution, `harden` edits one learning, and `idea` and `idea-triage` write under `todo/`. The details are in [Mycelium integration](../mycelium-integration.md#boundaries). Turn the gate off by removing `.mycelium-extra/gate.json`.
 
 ## Steps
 
