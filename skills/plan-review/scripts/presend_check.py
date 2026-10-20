@@ -23,7 +23,8 @@ on stdout.
 
 What is and is not caught is the PATTERNS table below. Not caught, by design: a secret with no recognisable
 shape or keyword, a name or an identifier in free text, a value in a table the plan does not name under
-`Inputs:`, anything in a language the patterns do not cover, and re-identification by combining facts.
+`Inputs:`, an identifier column whose name is outside `ID_COLUMN` (the text output names such a table as read
+but not checked), anything in a language the patterns do not cover, and re-identification by combining facts.
 """
 
 import argparse
@@ -57,8 +58,8 @@ PATTERNS = [
      "a network address"),
 ]
 # Columns of a table named under `Inputs:` whose values are read as participant or sample identifiers.
-ID_COLUMN = re.compile(r"(?i)^(?:donor|subject|participant|patient|individual|person|case|specimen|mrn|"
-                       r"sample|sample_?id|subject_?id|participant_?id|patient_?id|donor_?id)$")
+ID_COLUMN = re.compile(r"(?i)^(?:donor|subject|participant|patient|individual|person|case|specimen|mrn|sample)"
+                       r"(?:[ _-]?(?:id|no|nr|number|code|name))?$")
 MIN_ID = 1          # known short IDs still need exact token boundaries
 MAX_ROWS = 100000   # rows read per input table
 INPUT_EXT = (".tsv", ".csv", ".txt")
@@ -107,17 +108,22 @@ def redactions_listed(packet):
 
 
 def packet_inputs(packet):
-    """Paths named on the packet's or plan's `Inputs:` line."""
+    """Paths named on the packet's or plan's `Inputs:` line, which may be a bullet, or bold around the
+    label (`**Inputs:**`, `**Inputs**:`) or the whole line."""
     found = []
-    for match in re.finditer(r"(?im)^[ \t]*Inputs[ \t]*:[ \t]*([^\n]*)$", packet):
+    for match in re.finditer(r"(?im)^[ \t]*(?:[-*+][ \t]+)?(?:\*\*|__)?[ \t]*Inputs[ \t]*(?:\*\*|__)?[ \t]*:"
+                             r"[ \t]*(?:\*\*|__)?[ \t]*([^\n]*?)[ \t]*(?:\*\*|__)?$", packet):
         for parts in re.findall(r"`([^`]+)`|\"([^\"]+)\"|'([^']+)'|([^,;\s]+)", match.group(1)):
-            found.append(next(p for p in parts if p))
+            found.append(next(p for p in parts if p).strip("*_"))
     return found
 
 
-def known_identifiers(packet, repo):
-    """{identifier: column} from the ID-like columns of the tables the plan names as inputs, under `repo`."""
-    ids, unread = {}, []
+def known_identifiers(packet, repo, no_id=None):
+    """({identifier: column}, unread inputs, tables read with no recognised identifier column) from the
+    ID-like columns of the tables the plan names as inputs, under `repo`. `no_id` is a list the caller may
+    pass to receive the third item: such a table was read, but nothing in it looks like an identifier, so
+    its values were not checked and the text output says so."""
+    ids, unread, quiet = {}, [], []
     for rel in packet_inputs(packet):
         path = rel if os.path.isabs(rel) else os.path.join(repo, rel)
         if not rel.lower().endswith(INPUT_EXT):
@@ -131,12 +137,20 @@ def known_identifiers(packet, repo):
             with open(path, encoding="utf-8-sig", errors="strict", newline="") as handle:
                 sample = handle.read(4096)
                 handle.seek(0)
-                delimiter = "," if sample.count(",") > sample.count("\t") else "\t"
+                # the delimiter this table really uses, not just comma-or-tab
+                delimiter = max(",;\t|", key=lambda mark: (sample.count(mark), mark == ","))
+                if sample.count(delimiter) == 0:
+                    unread.append(rel)
+                    continue
                 reader = csv.reader(handle, delimiter=delimiter, strict=True)
                 header = next(reader, [])
                 if not header or len(set(header)) != len(header):
                     unread.append(rel)
+                    continue
                 columns = [i for i, name in enumerate(header) if ID_COLUMN.match(name.strip())]
+                if not columns:  # no identifier column: read, but its values are not checked
+                    quiet.append(rel)
+                    continue
                 for n, row in enumerate(reader):
                     if n >= MAX_ROWS:
                         unread.append(rel)
@@ -148,11 +162,15 @@ def known_identifiers(packet, repo):
                             ids.setdefault(row[i].strip(), header[i].strip())
         except (OSError, csv.Error, UnicodeError):
             unread.append(rel)
+    if no_id is not None:
+        no_id[:] = quiet
     return ids, unread
 
 
-def check(packet, repo=None):
-    """(flags, unread inputs). A flag is (line, kind, masked value, why)."""
+def check(packet, repo=None, no_id=None):
+    """(flags, unread inputs). A flag is (line, kind, masked value, why). Pass `no_id` (a list) to receive
+    the input tables that were read but have no recognised identifier column, so their values were not
+    checked; the text output says so instead of leaving it implicit."""
     flags = []
     lines = packet.splitlines()
     for number, line in enumerate(lines, 1):
@@ -161,7 +179,7 @@ def check(packet, repo=None):
                 flags.append((number, kind, mask(match.group(0)), why))
     unread = []
     if repo:
-        ids, unread = known_identifiers(packet, repo)
+        ids, unread = known_identifiers(packet, repo, no_id)
         if ids:
             token = re.compile(r"(?<![\w-])(?:{})(?![\w-])".format(
                 "|".join(re.escape(v) for v in sorted(ids, key=len, reverse=True))))
@@ -172,7 +190,7 @@ def check(packet, repo=None):
     return sorted(set(flags)), unread
 
 
-def render(flags, unread, listed):
+def render(flags, unread, listed, no_id=()):
     out = []
     if flags:
         out.append("Pre-send check: {} flag(s) in the packet.".format(len(flags)))
@@ -188,6 +206,10 @@ def render(flags, unread, listed):
         out.append("Pre-send check: nothing flagged.")
     if unread:
         out.append("Not checked against identifiers: {} input(s) (missing, unsupported, malformed or truncated). Do not send before disclosing this coverage gap.".format(len(unread)))
+    if no_id:
+        out.append("Read but not checked for identifiers: {} input table(s) with no recognised identifier column ({}); "
+                   "an identifier column named outside this check's vocabulary is not checked."
+                   .format(len(no_id), ", ".join(mask(rel) for rel in no_id[:5])))
     out.append(NOTE)
     return "\n".join(out) + "\n"
 
@@ -206,19 +228,21 @@ def unread_reasons(unread, repo):
 def analyse(raw, repo=None):
     """Scan the packet bytes `raw`. Returns the structured result; its `exit` is the exit status."""
     packet = raw.decode("utf-8", errors="replace").replace("\r\n", "\n")  # as text mode read it
-    flags, unread = check(packet, repo)
+    quiet = []
+    flags, unread = check(packet, repo, quiet)
     listed = redactions_listed(packet)
     matches = list(REDACTIONS.finditer(packet))
     valid = len(matches) == 1 and (re.sub(r"\s+#.*$", "", matches[0].group("rest")).strip() == "[]" or listed)
     return {"schema": "mycelium-extra.presend-check.v1", "packet_sha256": hashlib.sha256(raw).hexdigest(),
             "packet_bytes": len(raw), "flags": flags, "unread": unread, "redactions_listed": listed,
             "redactions_valid": valid, "inputs_unread": unread_reasons(unread, repo) if repo else [],
+            "inputs_without_id_column": [mask(rel) for rel in sorted(set(quiet))],
             "exit": 3 if unread or not valid else 0 if not flags else 2 if listed else 3, "note": NOTE}
 
 
 def as_json(result):
     keys = ("schema", "packet_sha256", "packet_bytes", "exit", "redactions_listed", "redactions_valid",
-            "inputs_unread", "note")
+            "inputs_unread", "inputs_without_id_column", "note")
     out = {k: result[k] for k in keys}
     out["flags"] = [{"line": n, "kind": k, "masked": m, "why": w} for n, k, m, w in result["flags"]]
     return json.dumps(out, indent=2, sort_keys=True) + "\n"
@@ -242,7 +266,8 @@ def main(argv):
         return result["exit"]
     sys.stdout.write("Packet sha256: {} ({} bytes). Consent applies to these exact bytes only.\n".format(
         result["packet_sha256"], result["packet_bytes"]))
-    sys.stdout.write(render(result["flags"], result["unread"], result["redactions_listed"]))
+    sys.stdout.write(render(result["flags"], result["unread"], result["redactions_listed"],
+                            result["inputs_without_id_column"]))
     if not result["redactions_valid"]:
         sys.stdout.write("Redaction entries are missing or malformed; do not send. Use [] or objects with kind/field strings.\n")
     return result["exit"]

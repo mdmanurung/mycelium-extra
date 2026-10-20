@@ -107,13 +107,19 @@ def attachment_path(root, given):
     return rel, raw
 
 
-def prepare(root, packet_file, attachments):
+def prepare(root, packet_file, attachments, consent_unread_inputs=False):
     raw = read_bytes(packet_file)
     scan = presend_check.analyse(raw, root)
     out = ["Pre-send scan of the packet: sha256 {}.".format(scan["packet_sha256"]),
            presend_check.render(scan["flags"], scan["unread"], scan["redactions_listed"]).rstrip()]
-    if scan["exit"] in (1, 3):
-        raise Refuse("\n".join(out + ["The scan says do not send; fix the packet, then prepare again."]))
+    # The user may consent to a stated input coverage gap (SKILL.md), but not to undisclosed flags or a
+    # malformed redactions block: those still refuse.
+    gap_only = bool(scan["unread"]) and not scan["flags"] and scan["redactions_valid"]
+    if scan["exit"] in (1, 3) and not (consent_unread_inputs and gap_only):
+        raise Refuse("\n".join(out + ["The scan says do not send; fix the packet, then prepare again."
+                                      + ("" if not scan["unread"] or scan["flags"] or not scan["redactions_valid"]
+                                         else " To send with the input coverage gap the user accepted, pass "
+                                              "--consent-unread-inputs.")]))
     files = {}
     for given in attachments:
         rel, data = attachment_path(root, given)
@@ -127,7 +133,8 @@ def prepare(root, packet_file, attachments):
                 "attachments": [{"path": rel, "size": len(files[rel]), "sha256": sha256_bytes(files[rel])}
                                 for rel in sorted(files)],
                 "scan": {"packet_exit": scan["exit"], "packet_flags": len(scan["flags"]),
-                         "attachment_flags": len(flagged), "inputs_unread": len(scan["unread"])}}
+                         "attachment_flags": len(flagged), "inputs_unread": len(scan["unread"]),
+                         "consented_unread_inputs": bool(consent_unread_inputs and gap_only)}}
     mbytes = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("ascii")
     digest = sha256_bytes(mbytes)
     base = packets_dir(root)
@@ -267,6 +274,8 @@ def main(argv):
     parser.add_argument("command", choices=("prepare", "preview", "verify"))
     parser.add_argument("--packet", help="prepare: the packet file")
     parser.add_argument("--attach", action="append", default=[], help="prepare: a code or document file (repeatable)")
+    parser.add_argument("--consent-unread-inputs", action="store_true",
+                        help="prepare: the user accepted the stated input coverage gap")
     parser.add_argument("--digest", help="preview, verify: the digest or its first 12+ hex characters")
     parser.add_argument("--root", default=None, help="project root (default: nearest with .mycelium-extra/gate.json)")
     args = parser.parse_args(argv)
@@ -275,7 +284,7 @@ def main(argv):
         if args.command == "prepare":
             if not args.packet:
                 parser.error("prepare needs --packet")
-            sys.stdout.write(prepare(root, args.packet, args.attach))
+            sys.stdout.write(prepare(root, args.packet, args.attach, args.consent_unread_inputs))
         else:
             if not args.digest:
                 parser.error(args.command + " needs --digest")
