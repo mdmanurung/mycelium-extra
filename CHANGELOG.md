@@ -4,6 +4,8 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-10-20
+
 ### Fixed
 
 - **init:** a glob-free `--paths` folder (for example `analysis`) is warned about, since it gates only the folder itself. `--diagnose` now states what the gate does with an unchecked `gated_paths` or `gated_commands` value and no longer crashes on a huge integer. A non-UTF-8 `.gitignore` no longer aborts init after `gate.json` is written.
