@@ -1,0 +1,14 @@
+{
+ "build": "hcfc3c73_0",
+ "build_number": 0,
+ "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+ "files": [],
+ "fn": "libuuid-2.42.4-hcfc3c73_0.conda",
+ "md5": "54a948337e66706380ff24d6b5fde63f",
+ "name": "libuuid",
+ "sha256": "f34b8d1de9a2bf62476d8608057d9b8a918d97444236dc53a47128f2fae79041",
+ "size": 34442,
+ "subdir": "linux-64",
+ "url": "https://conda.anaconda.org/conda-forge/linux-64/libuuid-2.42.4-hcfc3c73_0.conda",
+ "version": "2.42.4"
+}

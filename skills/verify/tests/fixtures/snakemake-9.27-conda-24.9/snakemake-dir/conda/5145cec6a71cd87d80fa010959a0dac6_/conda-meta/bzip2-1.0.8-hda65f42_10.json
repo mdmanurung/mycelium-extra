@@ -1,0 +1,14 @@
+{
+ "build": "hda65f42_10",
+ "build_number": 10,
+ "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+ "files": [],
+ "fn": "bzip2-1.0.8-hda65f42_10.conda",
+ "md5": "e675fabcf81499adc7edf58124fb1e01",
+ "name": "bzip2",
+ "sha256": "1a0d382c515ebf55f8ee1f38c8b81bc95af5c2acc42ad53b66bc5df932032f96",
+ "size": 257808,
+ "subdir": "linux-64",
+ "url": "https://conda.anaconda.org/conda-forge/linux-64/bzip2-1.0.8-hda65f42_10.conda",
+ "version": "1.0.8"
+}

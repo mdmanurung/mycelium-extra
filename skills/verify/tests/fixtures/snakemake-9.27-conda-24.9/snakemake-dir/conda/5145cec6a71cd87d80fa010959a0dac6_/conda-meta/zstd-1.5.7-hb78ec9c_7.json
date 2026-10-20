@@ -1,0 +1,14 @@
+{
+ "build": "hb78ec9c_7",
+ "build_number": 7,
+ "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+ "files": [],
+ "fn": "zstd-1.5.7-hb78ec9c_7.conda",
+ "md5": "aa459086047c0e5e27023ab19f8cb86a",
+ "name": "zstd",
+ "sha256": "47d682b9f6d6ec9eb1a6e6c3e75ea6273e899e78fb7fc59f81d39745009fbc60",
+ "size": 601301,
+ "subdir": "linux-64",
+ "url": "https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_7.conda",
+ "version": "1.5.7"
+}

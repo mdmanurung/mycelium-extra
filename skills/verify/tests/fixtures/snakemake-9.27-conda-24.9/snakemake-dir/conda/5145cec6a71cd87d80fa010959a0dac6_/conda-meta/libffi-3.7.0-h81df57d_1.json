@@ -1,0 +1,14 @@
+{
+ "build": "h81df57d_1",
+ "build_number": 1,
+ "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+ "files": [],
+ "fn": "libffi-3.7.0-h81df57d_1.conda",
+ "md5": "6525a0b06aa4fd390795f0740636a9dd",
+ "name": "libffi",
+ "sha256": "c8c7583ef063bc3c430f1d48298e5ad24f796a35c22ed5b14183325825a61106",
+ "size": 68004,
+ "subdir": "linux-64",
+ "url": "https://conda.anaconda.org/conda-forge/linux-64/libffi-3.7.0-h81df57d_1.conda",
+ "version": "3.7.0"
+}

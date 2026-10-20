@@ -1,0 +1,14 @@
+{
+ "build": "20_gnu",
+ "build_number": 20,
+ "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+ "files": [],
+ "fn": "_openmp_mutex-4.5-20_gnu.conda",
+ "md5": "a9f577daf3de00bca7c3c76c0ecbd1de",
+ "name": "_openmp_mutex",
+ "sha256": "1dd3fffd892081df9726d7eb7e0dea6198962ba775bd88842135a4ddb4deb3c9",
+ "size": 28948,
+ "subdir": "linux-64",
+ "url": "https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda",
+ "version": "4.5"
+}

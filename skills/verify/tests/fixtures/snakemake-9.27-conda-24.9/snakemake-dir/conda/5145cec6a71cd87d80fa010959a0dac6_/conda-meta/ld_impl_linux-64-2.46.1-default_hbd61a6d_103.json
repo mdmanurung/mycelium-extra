@@ -1,0 +1,14 @@
+{
+ "build": "default_hbd61a6d_103",
+ "build_number": 103,
+ "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+ "files": [],
+ "fn": "ld_impl_linux-64-2.46.1-default_hbd61a6d_103.conda",
+ "md5": "2362c70e7e79827c32db35547d9c179b",
+ "name": "ld_impl_linux-64",
+ "sha256": "901649b1edbe841fd4ee7e2d491a05184ed540eb01cdae506872f344babc1d28",
+ "size": 742109,
+ "subdir": "linux-64",
+ "url": "https://conda.anaconda.org/conda-forge/linux-64/ld_impl_linux-64-2.46.1-default_hbd61a6d_103.conda",
+ "version": "2.46.1"
+}

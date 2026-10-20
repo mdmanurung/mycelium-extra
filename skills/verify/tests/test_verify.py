@@ -1425,8 +1425,8 @@ sys.exit(1 if hits else 0)
         self.run_cmd("conda run -n fakeenv python " + FIT)
         self.assertNotIn("Conda env", self.verify("report", digest))
 
-    # E1b. Synthetic format, not validated against a real Snakemake run: no built
-    # `.snakemake/conda` folder existed on the machine this was written on.
+    # E1b. `smk_project` builds a minimal synthetic folder; `test_real_snakemake_9_27_folder` runs the reader on a
+    # trimmed copy of a real one (fixtures/snakemake-9.27-conda-24.9).
     SMK = "analysis/a/Snakefile"
     SMK_ENV = "analysis/a/envs/fit.yaml"
 
@@ -1456,10 +1456,98 @@ sys.exit(1 if hits else 0)
             record = json.load(handle)["envs"][0]
         self.assertEqual(record["packages"], ["https://x/a-1-0.conda#aa"])
         self.assertEqual(len(record["sha256"]), 64)
-        self.assertTrue(record["synthetic_format_only"])
+        self.assertIn("Snakemake 9.27.0", record["layout_checked_against"])
         with open(os.path.join(folder, "PROVENANCE.md")) as handle:
-            self.assertIn("[rule envs (synthetic format, not validated against a real Snakemake run)](rule-envs-{}.json)"
+            self.assertIn("[rule envs (layout checked against one real run: Snakemake 9.27.0, conda 24.9.2)](rule-envs-{}.json)"
                           .format(digest), handle.read())
+
+    def real_env(self, name="h0_", folder="analysis/a"):
+        """The folder Snakemake 9.27 built (`<hash>_`, with a trailing underscore) with conda 24.9, as seen on
+        2026-10-20: conda-forge's python ships `lib/python3.1 -> python3.11`, and six came from pip."""
+        base = "{}/.snakemake/conda/{}".format(folder, name)
+        self.write(base + ".yaml", "dependencies:\n  - python=3.11\n")
+        self.write(base + "/conda-meta/a-1-0.json", json.dumps({"url": "https://x/a-1-0.conda", "md5": "aa"}))
+        self.write(base + "/conda-meta/history", "==> 2024 <==\n", mtime=time.time() - 7200)
+        self.write(base + "/lib/python3.11/site-packages/six-1.16.0.dist-info/METADATA", "Name: six\nVersion: 1.16.0\n")
+        os.symlink("python3.11", os.path.join(self.root, base, "lib", "python3.1"))
+
+    def test_real_snakemake_layout_with_directory_flag_lists_each_pip_package_once(self):
+        self.smk_project(built=False)
+        digest = self.approve(plan("`analysis/a`", "`snakemake`"))  # `-d analysis/a` is a path operand the plan must name
+        self.real_env()
+        self.run_cmd("snakemake --use-conda --cores 1 -s {} -d analysis/a".format(self.SMK))
+        out = self.verify("report", digest)
+        self.assertIn("1 packages recorded; 1 pip", out)
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        with open(os.path.join(self.root, "analysis/a/provenance/rule-envs-{}.json".format(digest))) as handle:
+            self.assertEqual(json.load(handle)["envs"][0]["pip"], ["six==1.16.0"])
+
+    def test_real_snakemake_9_27_folder(self):
+        # A trimmed copy of what Snakemake 9.27.0 with conda 24.9.2 built on 2026-10-20 (see the fixture's README).
+        fixture = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "snakemake-9.27-conda-24.9")
+        with open(os.path.join(fixture, "snakemake-dir", "conda", "5145cec6a71cd87d80fa010959a0dac6_.yaml"), "rb") as f:
+            env_file = f.read()
+        self.write(self.SMK, 'rule hello:\n    conda: "envs/tiny.yaml"\n    shell: "true"\n', mtime=time.time() - 3600)
+        os.makedirs(os.path.join(self.root, "analysis/a/envs"), exist_ok=True)
+        with open(os.path.join(self.root, "analysis/a/envs/tiny.yaml"), "wb") as f:
+            f.write(env_file)
+        shutil.copytree(os.path.join(fixture, "snakemake-dir"), os.path.join(self.root, "analysis/a/.snakemake"),
+                        symlinks=True)
+        history = os.path.join(self.root, "analysis/a/.snakemake/conda/5145cec6a71cd87d80fa010959a0dac6_/conda-meta/history")
+        os.utime(history, (time.time() - 7200, time.time() - 7200))
+        digest = self.approve(plan("`snakemake`", "`analysis/a`"))
+        self.run_cmd("snakemake --use-conda --conda-frontend conda --cores 1 -s analysis/a/Snakefile -d analysis/a")
+        out = self.verify("report", digest)
+        self.assertIn("Rule env `analysis/a/envs/tiny.yaml` (rule `hello`): file sha256 ", out)
+        self.assertIn("26 packages recorded; 1 pip", out)
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        with open(os.path.join(self.root, "analysis/a/provenance/rule-envs-{}.json".format(digest))) as handle:
+            record = json.load(handle)["envs"][0]
+        self.assertEqual(record["pip"], ["six==1.16.0"])
+        self.assertEqual(len(record["packages"]), 26)
+        self.assertTrue(record["prefix"].endswith("5145cec6a71cd87d80fa010959a0dac6_"))
+
+    def test_wrapped_snakemake_with_built_envs_is_a_gap_not_silence(self):
+        self.write(self.SMK, 'rule fit:\n    conda: "envs/fit.yaml"\n    shell: "true"\n', mtime=time.time() - 3600)
+        self.write(self.SMK_ENV, "dependencies:\n  - python=3.11\n")
+        self.write("analysis/a/run.sh", "x\n", mtime=time.time() - 60)
+        self.real_env()
+        digest = self.approve(plan("`analysis/a/run.sh`", "`{}`".format(self.SMK)))
+        self.snakemake_record("outputs/1.tsv", "fit", time.time(), [], "true")
+        self.run_cmd("bash analysis/a/run.sh")
+        out = self.verify("report", digest)
+        self.assertIn("Snakemake jobs ran in `analysis/a`, and 1 built env(s) are under `.snakemake/conda/` and its "
+                      "Snakefile declares `conda:` envs, but no `snakemake` run was recorded for that folder", out)
+        self.assertNotIn("Rule env `", out)
+
+    def test_wrapped_snakemake_with_conda_prefix_is_still_a_gap(self):
+        # No built env under .snakemake/conda (the prefix put them elsewhere): the Snakefile's conda: rules still say so.
+        self.write(self.SMK, 'rule fit:\n    conda: "envs/fit.yaml"\n    shell: "true"\n', mtime=time.time() - 3600)
+        self.write(self.SMK_ENV, "dependencies:\n  - python=3.11\n")
+        self.write("analysis/a/run.sh", "x\n", mtime=time.time() - 60)
+        digest = self.approve(plan("`analysis/a/run.sh`", "`{}`".format(self.SMK)))
+        self.snakemake_record("outputs/1.tsv", "fit", time.time(), [], "true")
+        self.run_cmd("bash analysis/a/run.sh")
+        out = self.verify("report", digest)
+        self.assertIn("Snakemake jobs ran in `analysis/a`, and its Snakefile declares `conda:` envs, but no", out)
+        self.assertNotIn("built env(s)", out)
+
+    def test_directory_flag_forms_and_the_snakefile_stays_in_the_original_folder(self):
+        # `-d` moves .snakemake/, not the Snakefile search (Snakemake resolves the default Snakefile before it changes folder).
+        self.write("Snakefile", 'rule fit:\n    conda: "envs/fit.yaml"\n    shell: "true"\n', mtime=time.time() - 3600)
+        self.write("envs/fit.yaml", "dependencies:\n  - python=3.11\n")
+        self.write("analysis/a/Snakefile", 'rule other:\n    conda: "envs/other.yaml"\n    shell: "true"\n',
+                   mtime=time.time() - 3600)
+        self.real_env()
+        digest = self.approve(plan("`snakemake`", "`analysis/a`"))
+        for form in ("-d analysis/a", "-danalysis/a", "--directory analysis/a", "--directory=analysis/a",
+                     "--dir analysis/a", "-d analysis/a/envs -d analysis/a"):
+            self.run_cmd("snakemake --use-conda --cores 1 " + form)
+        out = self.verify("report", digest)
+        self.assertIn("Rule env `envs/fit.yaml`", out)  # the root Snakefile, not the one under -d
+        self.assertNotIn("other.yaml", out)
+        self.assertNotIn("through a wrapper", out)
+        self.assertNotIn("no Snakefile was found", out)
 
     def test_snakemake_rule_env_that_cannot_be_read_is_a_gap_never_recorded(self):
         cases = [("no built env", dict(built=False), "no built env(s)"),

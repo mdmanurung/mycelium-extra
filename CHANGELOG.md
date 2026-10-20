@@ -6,6 +6,8 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Fixed
 
+- **verify (E1b):** the per-rule conda env record was checked against a real `snakemake --use-conda` run (Snakemake 9.27.0, conda 24.9.2). Pip packages are listed once (conda-forge's `lib/python3.1` symlink to `python3.11` doubled them, in the plain conda snapshot too). `-d`, `-dDIR` and `--directory` are honoured for `.snakemake/` while the default Snakefile is still looked for in the starting folder. A `snakemake` run wrapped in a script (`sh run.sh`) is now a gap when its folder has built envs or a Snakefile with `conda:` rules. `rule-envs-<hash>.json` carries `layout_checked_against` in place of `synthetic_format_only`.
+
 - **init:** `--hours 0` is accepted, matching the gate's `approval_hours: 0` (every approval expires at once); negative and non-finite values are still usage errors.
 - **init:** `--diagnose` now says what the gate does with each invalid value (for example `card_coverage: 1` is read as off), not only what it wants.
 

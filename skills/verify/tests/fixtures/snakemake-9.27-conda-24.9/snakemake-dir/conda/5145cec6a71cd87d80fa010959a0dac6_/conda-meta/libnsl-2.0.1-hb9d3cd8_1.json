@@ -1,0 +1,14 @@
+{
+ "build": "hb9d3cd8_1",
+ "build_number": 1,
+ "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+ "files": [],
+ "fn": "libnsl-2.0.1-hb9d3cd8_1.conda",
+ "md5": "d864d34357c3b65a4b731f78c0801dc4",
+ "name": "libnsl",
+ "sha256": "927fe72b054277cde6cb82597d0fcf6baf127dcbce2e0a9d8925a68f1265eef5",
+ "size": 33731,
+ "subdir": "linux-64",
+ "url": "https://conda.anaconda.org/conda-forge/linux-64/libnsl-2.0.1-hb9d3cd8_1.conda",
+ "version": "2.0.1"
+}

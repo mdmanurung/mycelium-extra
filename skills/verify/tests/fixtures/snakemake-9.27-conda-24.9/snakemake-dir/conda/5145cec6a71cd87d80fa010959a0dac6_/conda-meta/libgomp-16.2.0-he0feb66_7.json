@@ -1,0 +1,14 @@
+{
+ "build": "he0feb66_7",
+ "build_number": 7,
+ "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+ "files": [],
+ "fn": "libgomp-16.2.0-he0feb66_7.conda",
+ "md5": "d904c7ddd95e026254b4b80808ee9e12",
+ "name": "libgomp",
+ "sha256": "92a0bb350c7be6a4eedcb4e111c60aefd176018e6b1c009a6e025dbe9bbcd758",
+ "size": 640566,
+ "subdir": "linux-64",
+ "url": "https://conda.anaconda.org/conda-forge/linux-64/libgomp-16.2.0-he0feb66_7.conda",
+ "version": "16.2.0"
+}

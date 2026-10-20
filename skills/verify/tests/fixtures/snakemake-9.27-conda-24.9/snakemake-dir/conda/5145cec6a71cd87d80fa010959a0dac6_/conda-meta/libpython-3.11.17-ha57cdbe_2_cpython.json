@@ -1,0 +1,14 @@
+{
+ "build": "ha57cdbe_2_cpython",
+ "build_number": 2,
+ "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+ "files": [],
+ "fn": "libpython-3.11.17-ha57cdbe_2_cpython.conda",
+ "md5": "cb04e9b70b164bd183486d383730cd02",
+ "name": "libpython",
+ "sha256": "0ea77899926834769e1878e319615d1af1735127941456a646aa255f0b09043b",
+ "size": 7820542,
+ "subdir": "linux-64",
+ "url": "https://conda.anaconda.org/conda-forge/linux-64/libpython-3.11.17-ha57cdbe_2_cpython.conda",
+ "version": "3.11.17"
+}

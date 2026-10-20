@@ -1,0 +1,14 @@
+{
+ "build": "hbd8a1cb_0",
+ "build_number": 0,
+ "channel": "https://conda.anaconda.org/conda-forge/noarch",
+ "files": [],
+ "fn": "ca-certificates-2026.10.19-hbd8a1cb_0.conda",
+ "md5": "a1d1bf676059d2863f000d5e2777743f",
+ "name": "ca-certificates",
+ "sha256": "9404ee878c6bd5b260655ab651366db43fac6be8d465fcc0acd0f7a50be91acb",
+ "size": 131396,
+ "subdir": "noarch",
+ "url": "https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.19-hbd8a1cb_0.conda",
+ "version": "2026.10.19"
+}

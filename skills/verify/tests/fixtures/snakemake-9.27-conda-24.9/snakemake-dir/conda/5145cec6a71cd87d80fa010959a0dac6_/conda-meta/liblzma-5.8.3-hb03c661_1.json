@@ -1,0 +1,14 @@
+{
+ "build": "hb03c661_1",
+ "build_number": 1,
+ "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+ "files": [],
+ "fn": "liblzma-5.8.3-hb03c661_1.conda",
+ "md5": "1390b7c5ac0b1d8e447bc5efa6d3c8c2",
+ "name": "liblzma",
+ "sha256": "9787df8c22a59c9a70d3e5a10db9ad663485e75e9ccc3f09bd092cb7b95e0dab",
+ "size": 112995,
+ "subdir": "linux-64",
+ "url": "https://conda.anaconda.org/conda-forge/linux-64/liblzma-5.8.3-hb03c661_1.conda",
+ "version": "5.8.3"
+}

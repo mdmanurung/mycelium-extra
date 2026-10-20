@@ -58,6 +58,6 @@ Two independent reviews of 0.14.0 found, among others, these limits. Version 0.1
 
 - **Fixed in 0.14.1:** combined shell flags such as `bash -lc` could write an approval record; loops, `$VAR`, `pushd` and container wrappers slipped past unseen; a citation past the 40th was never flagged; a frozen plan's text was never re-hashed.
 - **Still true:** some state-deleting commands are not seen (above); `make` and `bash <script>` are untraced; the OpenCode adapter depends on the plugin being loaded; native Claude Code and Codex sessions, hook timeouts and whether any host fires the prompt hook for agent-submitted prompts were not tested in the review.
-- **Not validated:** `verify`'s per-rule conda environment record for `snakemake --use-conda` is built on a synthetic fixture, not a real Snakemake run.
+- **Validated on one version only:** `verify`'s per-rule conda environment record for `snakemake --use-conda` was checked against one real run (Snakemake 9.27.0 with conda 24.9.2). Other versions are not validated, and a run wrapped in a script is a gap, not a record.
 
 For what the tool does promise, see [The control model](control-model.md) and [Gaps and passes](gaps-and-passes.md).

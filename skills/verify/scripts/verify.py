@@ -73,7 +73,7 @@ LIMITS = [
     "the citation text; it does not show that the paper supports the sentence citing it.",
     "With `snakemake --use-conda`, a rule's env is read only from a literal `conda:` path in the Snakefile or "
     "its literal `include:` files, matched to a built env under `.snakemake/conda/` by the env file's bytes; "
-    "any other rule env is a gap. The reader is checked on a synthetic folder, not against a real Snakemake run.",
+    "any other rule env is a gap. The folder layout was checked against one real run (Snakemake 9.27.0 with conda 24.9.2 (one real run, 2026-10-20)); other Snakemake or conda versions are not validated.",
     "Pip packages are read from the conda env's site-packages: one uninstalled after the run is not seen, "
     "and `pip install --user` packages under `~/.local` are not read.",
 ]
@@ -1205,10 +1205,14 @@ def pip_packages(prefix, records):
                 owned.add(tail.split("/")[0])
     conda = {pep503(m["name"]): m.get("version", "") for m in records if m.get("name")}
     lines, unreadable, both, newest = [], [], 0, 0
+    seen = set()
     for path in sorted(glob.glob(os.path.join(prefix, "lib", "python*", "site-packages", "*-info"))):
         base = os.path.basename(path)
         if not base.endswith((".dist-info", ".egg-info")):
             continue
+        if os.path.realpath(path) in seen:  # lib/python3.1 is a symlink to lib/python3.11 in conda-forge's python
+            continue
+        seen.add(os.path.realpath(path))
         folder = os.path.isdir(path)  # an .egg-info can be a plain PKG-INFO file
         installer = read_text(os.path.join(path, "INSTALLER")).strip() if folder else ""
         if base in owned and installer in ("", "conda"):
@@ -1340,6 +1344,26 @@ def snake_conda_decls(root, rel, report, seen=None):
 
 
 CONDA_PREFIX_FLAG = re.compile(r"--conda-prefix\b")
+def snakemake_workdir(command, cwd):
+    """The folder `snakemake` works in, and keeps `.snakemake/` in: `cwd`, moved by the last `-d DIR`, `-dDIR`,
+    `--directory DIR` or `--directory=DIR` (argparse also takes `--dir` and longer prefixes). `cwd` itself when the
+    command names none or cannot be split."""
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        return cwd
+    given = None
+    for i, word in enumerate(words):
+        name, equals, value = word.partition("=")
+        if word == "-d" and i + 1 < len(words):
+            given = words[i + 1]
+        elif word.startswith("-d") and not word.startswith("--") and len(word) > 2:
+            given = word[2:].lstrip("=")
+        elif len(name) >= 5 and "--directory".startswith(name) and (equals or i + 1 < len(words)):
+            given = value if equals else words[i + 1]
+    return os.path.normpath(os.path.join(cwd, given)) if given else cwd
+
+
 
 
 def rule_envs(root, runs, report):
@@ -1347,12 +1371,13 @@ def rule_envs(root, runs, report):
     and, when exactly one built env under `.snakemake/conda/` is a byte-identical copy of that file, its
     conda-meta packages and its pip packages. Files are only read. Anything else (file missing or
     unreadable, no built env, several, no conda-meta records) is a gap, never `recorded`. The folder
-    layout is not validated against a real Snakemake run: only synthetic folders were available."""
+    layout was checked against one real run (Snakemake 9.27.0 with conda 24.9.2 (one real run, 2026-10-20)); other versions are not validated."""
     out, done = [], set()
     for r in runs:
         if r.get("kind") != "snakemake":
             continue
         cwd = r.get("cwd") or "."
+        workdir = snakemake_workdir(r.get("command", ""), cwd)  # `.snakemake/` follows `-d`; the Snakefile does not
         snakefiles = [p for p in ran_paths(root, r) if is_snakefile(p)] or [
             os.path.join(cwd, "Snakefile"), os.path.join(cwd, "workflow", "Snakefile")]
         decls, read = [], False
@@ -1370,6 +1395,7 @@ def rule_envs(root, runs, report):
             report.add("gap", "`{}` sets `--conda-prefix`, so its built envs are not under `.snakemake/conda/` "
                               "and were not read; its rule envs were not recorded.".format(r.get("command", "")[:60]))
             continue
+        cwd = workdir
         for env_rel, rule in decls:
             if (cwd, env_rel, flagged) in done:
                 continue
@@ -1424,8 +1450,32 @@ def rule_envs(root, runs, report):
             report.add("info", "{}: file sha256 {}, {} packages recorded{}.".format(
                 label, digest[:12], len(urls), "; {} pip".format(len(pip)) if pip else ""))
             out.append({"file": env_rel, "rule": rule, "sha256": digest, "prefix": built[0], "packages": urls,
-                        "pip": pip, "changed_after_run": stale, "synthetic_format_only": True})
+                        "pip": pip, "changed_after_run": stale, "layout_checked_against": "Snakemake 9.27.0 with conda 24.9.2 (one real run, 2026-10-20)"})
     return out
+
+
+def wrapped_rule_env_gaps(root, smk, runs, report):
+    """A gap for each folder where Snakemake jobs ran and either built conda envs under `.snakemake/conda/` or
+    have a Snakefile declaring `conda:` envs, but no `snakemake` run was recorded for that folder: a wrapper such as
+    `sh run.sh` hides `--use-conda` (and `--conda-prefix`) from the gate, so `rule_envs` never looked."""
+    root = os.path.abspath(root)
+    direct = set(os.path.abspath(os.path.join(root, snakemake_workdir(r.get("command", ""), r.get("cwd") or ".")))
+                 for r in runs if r.get("kind") == "snakemake")
+    for workdir in sorted(set(os.path.abspath(m["workdir"]) for m in smk)):
+        if workdir in direct:
+            continue
+        rel = os.path.relpath(workdir, root)
+        built = glob.glob(os.path.join(workdir, ".snakemake", "conda", "*.yaml"))
+        declared = any(snake_conda_decls(root, os.path.normpath(os.path.join(rel, name)), Report())
+                       for name in ("Snakefile", os.path.join("workflow", "Snakefile"))
+                       if os.path.isfile(os.path.join(workdir, name)))
+        if built or declared:
+            seen = ["{} built env(s) are under `.snakemake/conda/`".format(len(built))] * bool(built) + [
+                "its Snakefile declares `conda:` envs"] * declared
+            report.add("gap", "Snakemake jobs ran in `{}`, and {}, but no `snakemake` run was recorded for that folder "
+                              "(a wrapper such as `sh run.sh` hides `--use-conda` from the gate, or a `-d` it could not "
+                              "read), so the rule envs were not recorded; run `snakemake --use-conda` directly to "
+                              "record them.".format(rel, " and ".join(seen)))
 
 
 def prose_validation(plan, binding, report):
@@ -2878,6 +2928,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                                                                    "Key Findings"), report)
     envs = conda_snapshots(root, mine, report)
     rule_env_list = rule_envs(root, mine, report)
+    wrapped_rule_env_gaps(root, smk, mine, report)
     linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds,
                   choices=[(" ".join(row.values()), row.get("choice", "")) for row in plan_rows(plan)[0].values()])
     claimed = check_claims(root, analysis_dir, outputs, claims, report, budget["bytes"])
@@ -3700,8 +3751,8 @@ def _write_bundle(root, result, folder):
         paths["rule_envs"] = "rule-envs-{}.json".format(digest)
         with open(os.path.join(folder, paths["rule_envs"]), "w", encoding="utf-8") as handle:
             json.dump({"schema": "mycelium-extra.rule-envs.v1", "hash": digest,
-                       "note": "Read from `.snakemake/conda/`; the layout was checked on a synthetic folder, "
-                               "not a real Snakemake run.", "envs": result["rule_envs"]},
+                       "note": "Read from `.snakemake/conda/`; the layout was checked against one real run (Snakemake 9.27.0 with conda 24.9.2 (one real run, 2026-10-20)), "
+                               "other versions are not validated.", "envs": result["rule_envs"]},
                       handle, indent=1, sort_keys=True)
             handle.write("\n")
     with open(os.path.join(folder, paths["plan"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
@@ -3745,7 +3796,7 @@ def _write_bundle(root, result, folder):
         (" - [validation]({})".format(paths["validation"]) if "validation" in paths else "") +
         (" - [conda env]({})".format(paths["env"]) if "env" in paths else "") +
         (" - [pip]({})".format(paths["pip"]) if "pip" in paths else "") +
-        (" - [rule envs (synthetic format, not validated against a real Snakemake run)]({})".format(paths["rule_envs"]) if "rule_envs" in paths else ""))
+        (" - [rule envs (layout checked against one real run: Snakemake 9.27.0, conda 24.9.2)]({})".format(paths["rule_envs"]) if "rule_envs" in paths else ""))
     if os.path.isfile(index):
         with open(index, encoding="utf-8") as handle:
             lines = [line.rstrip("\n") for line in handle if not line.startswith("| {} |".format(digest))]

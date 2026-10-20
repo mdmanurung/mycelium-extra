@@ -1,0 +1,14 @@
+{
+ "build": "hd2095e1_0",
+ "build_number": 0,
+ "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+ "files": [],
+ "fn": "libexpat-2.8.5-hd2095e1_0.conda",
+ "md5": "72cfd2b95b0540247220b42f58a148d7",
+ "name": "libexpat",
+ "sha256": "6de73033a7c5f712c9c5a54124e4581e025691029835e5bceaf10a333a7e7bc0",
+ "size": 77893,
+ "subdir": "linux-64",
+ "url": "https://conda.anaconda.org/conda-forge/linux-64/libexpat-2.8.5-hd2095e1_0.conda",
+ "version": "2.8.5"
+}

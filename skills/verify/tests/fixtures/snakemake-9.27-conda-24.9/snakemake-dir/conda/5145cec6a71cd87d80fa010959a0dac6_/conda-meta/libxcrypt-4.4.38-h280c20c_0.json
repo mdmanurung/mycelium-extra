@@ -1,0 +1,14 @@
+{
+ "build": "h280c20c_0",
+ "build_number": 0,
+ "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+ "files": [],
+ "fn": "libxcrypt-4.4.38-h280c20c_0.conda",
+ "md5": "f7a7ff5a6ab331e037abd34f379a631d",
+ "name": "libxcrypt",
+ "sha256": "f7e9292dd219a6435bbb1223da9586c3e70d66d169c5a92f08db3f2127df04e9",
+ "size": 101957,
+ "subdir": "linux-64",
+ "url": "https://conda.anaconda.org/conda-forge/linux-64/libxcrypt-4.4.38-h280c20c_0.conda",
+ "version": "4.4.38"
+}

@@ -1,0 +1,14 @@
+{
+ "build": "h151e31d_0",
+ "build_number": 0,
+ "channel": "https://conda.anaconda.org/conda-forge/noarch",
+ "files": [],
+ "fn": "tzdata-2026c-h151e31d_0.conda",
+ "md5": "fcb489df604d100968b737f2cb6076c6",
+ "name": "tzdata",
+ "sha256": "b928c30ddcb0e3f544c6eade8352737e6e610e263276b90232db6a578ef899d8",
+ "size": 118849,
+ "subdir": "noarch",
+ "url": "https://conda.anaconda.org/conda-forge/noarch/tzdata-2026c-h151e31d_0.conda",
+ "version": "2026c"
+}

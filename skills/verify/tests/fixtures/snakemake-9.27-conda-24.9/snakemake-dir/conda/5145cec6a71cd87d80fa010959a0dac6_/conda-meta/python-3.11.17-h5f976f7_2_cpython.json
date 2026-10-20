@@ -1,0 +1,16 @@
+{
+ "build": "h5f976f7_2_cpython",
+ "build_number": 2,
+ "channel": "https://conda.anaconda.org/conda-forge/linux-64",
+ "files": [
+  "lib/python3.11/site-packages/README.txt"
+ ],
+ "fn": "python-3.11.17-h5f976f7_2_cpython.conda",
+ "md5": "473514bec154e4f8729a8475d721ea6c",
+ "name": "python",
+ "sha256": "4429baf50718406938c256b8b65bc4fbbaeb9b1513ba161f618908f302cc03e3",
+ "size": 23328011,
+ "subdir": "linux-64",
+ "url": "https://conda.anaconda.org/conda-forge/linux-64/python-3.11.17-h5f976f7_2_cpython.conda",
+ "version": "3.11.17"
+}
