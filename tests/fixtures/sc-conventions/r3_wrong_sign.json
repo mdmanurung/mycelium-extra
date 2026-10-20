@@ -1,0 +1,20 @@
+{
+  "schema": "mycelium-extra.executed_model.v1",
+  "formula": "~ condition + age + (1|donor)",
+  "contrast": {
+    "numerator": "stimulated",
+    "denominator": "control",
+    "sign": -1
+  },
+  "random_effects": [
+    "(1|donor)"
+  ],
+  "covariates": [
+    "condition",
+    "age"
+  ],
+  "assay": "layers/counts",
+  "exclusions": [
+    "sample-low-quality"
+  ]
+}
