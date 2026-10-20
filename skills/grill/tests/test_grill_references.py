@@ -210,7 +210,7 @@ class GrillReferenceContractTest(unittest.TestCase):
         self.assertIn("scientific-conventions.md", mycelium)
         self.assertLess(skill.index("## 0. Ask for the question first"),
                         skill.index("references/scientific-conventions.md"))
-        for required in ("ACTIVE_CONVENTIONS.yaml", "not activation",
+        for required in ("ACTIVE_CONVENTIONS.yaml", "does **not** activate",
                          "read selectively", "replicate-aware-inference.md",
                          "composition-crumblr.md", "variance-dreamlet.md",
                          "integration-scib.md", "pathway-decoupler.md",
