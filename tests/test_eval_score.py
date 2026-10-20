@@ -10,6 +10,7 @@ import io
 import json
 import os
 import re
+import subprocess
 import sys
 import unittest
 from contextlib import redirect_stdout
@@ -26,7 +27,6 @@ def load(*parts):
 
 
 SCENARIOS = load("scenarios.json")["scenarios"]
-KEYS = load("answer_keys.json")["keys"]
 RUBRIC = load("rubric.json")
 SYNTH = os.path.join(EVAL, "examples", "synthetic-adjudications.json")
 
@@ -47,6 +47,49 @@ def run_main(args):
 
 
 class Schema(unittest.TestCase):
+    def test_public_classes_never_open_answer_keys(self):
+        # A fresh interpreter guards import as well as every other public test.
+        script = r'''import builtins
+import io
+import os
+import runpy
+import sys
+import unittest
+
+def guard(original):
+    def checked(path, *args, **kwargs):
+        if not isinstance(path, int) and os.path.basename(os.fsdecode(path)) == "answer_keys.json":
+            raise AssertionError("public tests attempted sealed-key access")
+        return original(path, *args, **kwargs)
+    return checked
+
+builtins.open = guard(builtins.open)
+io.open = guard(io.open)
+os.open = guard(os.open)
+try:
+    open("answer_keys.json")
+except AssertionError:
+    pass
+else:
+    raise AssertionError("sealed-key guard did not fire")
+module = runpy.run_path(sys.argv[1], run_name="public_eval_test_guard")
+suite = unittest.TestSuite()
+for name in ("Schema", "Totals", "Banner"):
+    cls = module[name]
+    for method in unittest.defaultTestLoader.getTestCaseNames(cls):
+        if method != "test_public_classes_never_open_answer_keys":
+            suite.addTest(cls(method))
+expected_count = suite.countTestCases()
+assert expected_count > 0
+result = unittest.TextTestRunner().run(suite)
+assert result.testsRun == expected_count, result.testsRun
+sys.exit(not result.wasSuccessful())
+'''
+        result = subprocess.run([sys.executable, "-c", script, os.path.abspath(__file__)],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                universal_newlines=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_synthetic_example_is_valid(self):
         self.assertEqual(errors_of(doc()), [])
 
@@ -215,6 +258,10 @@ class Banner(unittest.TestCase):
 
 
 class Leakage(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.keys = load("answer_keys.json")["keys"]
+
     def test_scenario_fields_and_split(self):
         allowed = {"id", "split", "family", "kind", "recovery", "workspace", "prompt"}
         ids = [s["id"] for s in SCENARIOS]
@@ -223,7 +270,7 @@ class Leakage(unittest.TestCase):
             self.assertEqual(set(s), allowed)
             self.assertIn(s["split"], ("development", "held-out"))
             self.assertIn(s["kind"], ("defect", "control"))
-        self.assertEqual(set(ids), set(KEYS))
+        self.assertEqual(set(ids), set(self.keys))
         for split in ("development", "held-out"):
             fams = set(s["family"] for s in SCENARIOS if s["split"] == split and s["kind"] == "defect")
             self.assertEqual(len(fams), 5, split)
@@ -231,16 +278,16 @@ class Leakage(unittest.TestCase):
     def test_no_answer_key_text_in_scenarios(self):
         with open(os.path.join(EVAL, "scenarios.json"), encoding="utf-8") as handle:
             text = handle.read().lower()
-        for sid, key in KEYS.items():
+        for sid, key in self.keys.items():
             for field in ("consequential_choice", "expected_finding", "workspace_variant", "unnecessary_interruptions", "not_detection"):
                 self.assertNotIn(key[field].lower(), text, "%s.%s appears in scenarios.json" % (sid, field))
         for s in SCENARIOS:
             prompt = s["prompt"].lower()
-            for term in KEYS[s["id"]]["leak_terms"]:
+            for term in self.keys[s["id"]]["leak_terms"]:
                 self.assertNotIn(term.lower(), prompt, "%s prompt contains key term %r" % (s["id"], term))
             for field in ("consequential_choice", "expected_finding"):
-                self.assertNotIn(prompt, KEYS[s["id"]][field].lower())
-        defects = [k for s in SCENARIOS if s["kind"] == "defect" for k in [KEYS[s["id"]]]]
+                self.assertNotIn(prompt, self.keys[s["id"]][field].lower())
+        defects = [k for s in SCENARIOS if s["kind"] == "defect" for k in [self.keys[s["id"]]]]
         self.assertTrue(all(k["leak_terms"] for k in defects))
 
     def test_prompts_do_not_name_the_defect_cases(self):
