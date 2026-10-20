@@ -60,7 +60,7 @@ The code works on a test run. Before the reportable run:
 2. Type `freeze <hash>`. The card shows what changed in each script since you approved the plan, which steps to run again, and the numbers that moved. Nothing was blocked while you worked: the gate re-pinned each edit and told you.
 3. Read it and `approve`. The code you reviewed is now pinned, and the rerun and `verify` check that version. Use a [run plan](../skills/grill/references/run-plans.md) as well when the exact commands must be frozen.
 
-This is the second of the two checkpoints (see [Two checkpoints](usage.md#two-checkpoints)). The gate pins what you approved; it does not check that a review happened.
+This is the second of the two checkpoints (see [Two checkpoints](guides/full-workflow.md#two-checkpoints)). The gate pins what you approved; it does not check that a review happened.
 
 ## 14:00 The real run
 

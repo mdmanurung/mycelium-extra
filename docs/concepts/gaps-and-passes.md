@@ -27,7 +27,7 @@ The top of the report has rows (`Ran as planned`, `Numbers match`, `Code checks`
 
 **On the approval card.** The `Coverage` row says how many steps have a Validation cell bound to a check and how many are prose only. The `Not established before running` block names an input or script whose pin is missing or weaker than a content hash. An absent block means none of these was found, not that the plan is covered. A lint line can read `not checked (...)`. See [the card](../approval-gate.md#approving-a-plan).
 
-**In track-changes.** Every item keeps three things apart: what was observed, what is only a potential analytical implication, and what is unknown. Each report ends with a line of what it did not see (shell-made edits, file reads, subagent work not marked in the transcript). A changed number is an observed edit, not a changed conclusion. "No warning" is never evidence of no drift. See [Focus and track changes](../focus-and-track-changes.md).
+**In track-changes.** Every item keeps three things apart: what was observed, what is only a potential analytical implication, and what is unknown. Each report ends with a line of what it did not see (shell-made edits, file reads, subagent work not marked in the transcript). A changed number is an observed edit, not a changed conclusion. "No warning" is never evidence of no drift. See [Focus and track changes](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/focus-and-track-changes.md).
 
 **In the gate.** A hook that failed open writes a record to `.mycelium-extra/gate-errors.jsonl` and says so. `verify` later turns that into a gap for the window it covers.
 

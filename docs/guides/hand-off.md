@@ -2,6 +2,8 @@
 
 `handoff` writes one short `HANDOFF.md` so a new session can resume from a single file instead of the old conversation.
 
+**Method habit 6** ([the method](../start/method.md)). Without the plugin: keep a short file with the goal, the next action, decisions locked, and dead ends.
+
 ## What you control here
 
 - **Your typed word:** the invocation, and whether to commit the file. It never commits for you and never changes `.gitignore`. You also type `/clear` (or open a new session) and paste the resume prompt.

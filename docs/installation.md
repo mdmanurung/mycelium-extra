@@ -1,51 +1,42 @@
-# Installation and host compatibility
+# Installation
 
-Install Mycelium Extra once, then choose which projects use its approval
-gate. Claude Code, Codex, and OpenCode all get the same planning skills. If your
-project already uses Mycelium, the plugin reads its decisions and conventions.
-In an ordinary repository, it starts with your existing documentation and code.
+Install once, then choose which projects use the approval gate. All three hosts get the same skills. Planning with `grill` needs no gate setup. Then follow [your first plan](start/first-plan.md).
 
-You can begin with a question such as:
+Needs Python 3.9 or later on every host (see [Requirements](#requirements)).
 
-> "Plan the next analysis using this project's sample table and previous decisions."
+::::{tab-set}
 
-Install for your host, then [choose a usage tier](usage.md). Planning with
-`grill` needs no gate setup; turn on the gate when you want covered execution checks.
-
-## Claude Code
-
-Add the marketplace and install the plugin:
+:::{tab-item} Claude Code
 
 ```bash
 claude plugin marketplace add mdmanurung/mycelium-extra
 claude plugin install mycelium-extra@mycelium-extra
 ```
 
-This makes the plugin's skills available as `/mycelium-extra:<skill>` commands.
-Restart Claude Code, then invoke `/mycelium-extra:grill <task>`.
-For a project-local install, run the install command in that project with
-`--scope local`. For a local checkout, pass its absolute path to
-`claude plugin marketplace add`, or try it without installing:
+Restart Claude Code, then run `/mycelium-extra:grill <task>`.
+
+- Project-local install: add `--scope local`.
+- Try a local checkout without installing: `claude --plugin-dir /absolute/path/to/mycelium-extra`. Claude caches plugins by manifest version, so use this to test edits.
+- Update: `claude plugin marketplace update mycelium-extra`, then `claude plugin update mycelium-extra@mycelium-extra`, then a new session.
+:::
+
+:::{tab-item} Codex
+
+Needs Codex CLI 0.160.0 or later.
 
 ```bash
-claude --plugin-dir /absolute/path/to/mycelium-extra
+codex plugin marketplace add mdmanurung/mycelium-extra
+codex plugin add mycelium-extra@mycelium-extra
 ```
 
-Update both the marketplace and plugin, then start a new session:
+Then open `/hooks`, trust every Mycelium Extra hook (five entries on four events), fully exit Codex and start a new task. Run `$mycelium-extra:grill <task>`. `/hooks` is a CLI command; the desktop app has no such trust step.
 
-```bash
-claude plugin marketplace update mycelium-extra
-claude plugin update mycelium-extra@mycelium-extra
-```
+Update with `codex plugin marketplace upgrade mycelium-extra` and `codex plugin add mycelium-extra@mycelium-extra`, then trust the hooks again: the plugin path and its trust record can change.
+:::
 
-Claude caches plugins by their manifest version. Editing an installed checkout
-without changing its version does not refresh the cached plugin; use
-`--plugin-dir` to test local changes.
+:::{tab-item} OpenCode
 
-## OpenCode
-
-OpenCode V2 discovers skills and loads plugins from configured directories, so
-point both settings at this checkout. Add to `~/.config/opencode/opencode.json(c)`:
+OpenCode V2 loads skills and plugins from configured folders, so point both at a checkout. In `~/.config/opencode/opencode.json(c)`:
 
 ```json
 {
@@ -55,148 +46,36 @@ point both settings at this checkout. Add to `~/.config/opencode/opencode.json(c
 }
 ```
 
-Start a new session and run a skill as a command:
+Start a new session and run `/mycelium-extra:grill <task>` (`@grill` also works). To update, pull the checkout and start a new session.
 
-```text
-/mycelium-extra:grill Plan a paired treatment-response analysis. Read the sample table and existing decisions first.
-```
+- Keep each skill folder inside the checkout: skills call `../../hooks/py.sh` relative to themselves. If you copy the plugin folder, pass `{ "package": ".../opencode", "options": { "root": "/path/to/mycelium-extra" } }`.
+- The plugin is inert in repositories without `.mycelium-extra/gate.json`. When the gate cannot answer, it adds a gate-error note and lets the call through, unless `gate.json` sets `"on_error": "deny"`.
+- Qualified on OpenCode 2.0.32. Receipts record the shell tool's exit code; a result with none is recorded `unknown` and verification reports a gap.
+:::
 
-The plugin registers one `/mycelium-extra:<skill>` command per skill folder, the
-same name Claude Code uses; mentioning a skill (`@grill`) also works. We checked
-plugin loading, the adapter's event and payload shapes, and its tool/prompt/stop
-behavior against OpenCode 2.0.32. The
-[development notes](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/development.md)
-record an end-to-end qualification (a denied run, approval card, approval, receipt,
-and a state-protection denial).
-The plugin is the gate's host adapter: it runs the shared
-Python gate and is inert in repositories without `.mycelium-extra/gate.json`.
-
-Keep each skill folder inside the checkout. Skills that run scripts call
-`../../hooks/py.sh` relative to their own folder, so a copied or symlinked
-skill folder elsewhere cannot find the hooks. The plugin resolves the checkout
-from its own location the same way. If you copy the plugin directory, pass
-`{ "package": ".../opencode", "options": { "root": "/path/to/mycelium-extra" } }`.
-For a project-local install, add the same two entries to that project's
-`opencode.json(c)`; relative paths resolve from OpenCode's working directory.
-
-When the gate cannot answer (a timeout, a spawn error, an unreadable reply, or a
-wrong `root` option), the plugin appends a plain-text gate-error note to the tool
-result, or posts it in the session for a prompt, and lets the call through. If
-`gate.json` sets `"on_error": "deny"`, it denies the call instead. The plugin
-also posts a typed `card`, `freeze`, or other blocked-prompt reply in the session
-directly, so you read it as the gate wrote it, not only through the agent.
-
-To update, pull or replace the checkout and start a new OpenCode session. The
-`plugins` and `skills` entries point at the folder, so there is no cache to refresh.
-OpenCode needs the same Python 3.9 or later as the other hosts (see
-[Requirements](#requirements)), because the plugin runs `hooks/py.sh`.
-
-Skill IDs are the folder names (`grill`, `init`, and so on). A `skills` entry is
-the highest-precedence source in OpenCode, so these generic IDs shadow
-same-named skills from other sources; see the
-[Skills reference](https://opencode.ai/v2/docs/skills/).
-
-OpenCode receipts record `host: opencode` and the shell tool's exit code
-(`exit_source: response`). A result without one — a background task, or a tool
-error — records `unknown`, and verification reports that as a gap; the gate
-never infers success from a finished command.
-
-## Codex
-
-Use Codex CLI 0.160.0 or later (`codex --version`, `codex plugin --help`):
-
-```bash
-codex plugin marketplace add mdmanurung/mycelium-extra
-codex plugin add mycelium-extra@mycelium-extra
-```
-
-This installs the shared skills under the `mycelium-extra` namespace.
-For local development, replace the marketplace source with
-`/absolute/path/to/mycelium-extra`. Open `/hooks` in the Codex CLI, trust every
-Mycelium Extra hook (five entries on four events: prompt, pre-tool, post-tool for
-shell and for `apply_patch`, and stop), fully exit Codex, and start a new task.
-Then invoke `$mycelium-extra:grill <task>`. The same skill folders are used by all
-three hosts.
-
-`/hooks` is a CLI command. The desktop app does not provide this trust step.
-
-Refresh the marketplace and reinstall the plugin, then start a new session:
-
-```bash
-codex plugin marketplace upgrade mycelium-extra
-codex plugin add mycelium-extra@mycelium-extra
-```
-
-Revisit `/hooks` after an upgrade, because the installed plugin path and its trust
-record can change. Trust the current hooks and restart before you rely on them.
-
-## Your first analysis
-
-Follow [Tier 2: Run with approval](usage.md#tier-2-run-with-approval): initialize
-the gate, plan, approve the displayed hash, and run. For reportable work, add
-[Tier 3: Verify reportable work](usage.md#tier-3-verify-reportable-work).
-
-Only want a plan? Start with [Tier 1](usage.md#tier-1-plan); you don't need `init`.
+::::
 
 ## Requirements
 
-- The approval gate and helper scripts need Python 3.9 or later, on every host. They run through `hooks/py.sh`.
-  Skill commands use `python3` if it is new enough, else the newest `python3.N` on `PATH`; hooks try the newest
-  `python3.N` first and fall back to `python3`. On RHEL 8, `python3` is 3.6 but `python3.11` or `python3.12`
-  usually exist. Set `MYCELIUM_EXTRA_PYTHON` to choose one yourself. A hook registration from before 0.9.76 that
-  still runs `python3` directly on an old Python hands the event to `py.sh` once. With only an older Python
-  left, a repository with `gate.json` gets the error on every hook and follows `on_error`; a repository without
-  it stays silent.
-- Scientific checks need the tools for the files you use: R and R scilintr,
-  Python scilintr, or h5py for H5AD inspection. A missing tool is reported as
-  a gap rather than a successful check. On a cluster, scilintr and an `Rscript` whose R has scilintr are
-  usually not on `PATH`; record where they are with `gate_init.py --tools` (see [Verification](verification.md)).
-- Independent plan review needs a Codex CLI and a connected Biomni MCP in the
-  Claude Code or OpenCode session; from Codex it gives the engineering critique
-  only. Missing reviewers are reported unavailable. Review packets leave the
-  machine only after the user agrees.
+- **Python 3.9 or later.** Hooks run through `hooks/py.sh`, which picks the newest `python3.N` on `PATH`. On RHEL 8, `python3` is 3.6 but `python3.11` or `python3.12` usually exist. Set `MYCELIUM_EXTRA_PYTHON` to choose one.
+- **Scientific checks** use the tools for the files you have: R with scilintr, Python scilintr, or h5py for H5AD. A missing tool is reported as a gap, never as a pass. On a cluster, record where they are with `gate_init.py --tools` (see [Verification](verification.md)).
+- **Independent plan review** needs a Codex CLI and a connected Biomni MCP in a Claude Code or OpenCode session. Missing reviewers are reported unavailable, and a packet leaves the machine only after you agree.
 
 ## Host compatibility
 
-| Feature | Claude Code | Codex CLI 0.160.0+ | OpenCode V2 |
+| Feature | Claude Code | Codex 0.160.0+ | OpenCode V2 |
 |---|---|---|---|
-| All skills: planning, data contracts, decision status, scaffolding, handoff, harden, ideas and triage, verify | Supported | Supported | Supported |
-| Independent plan review | Leads Codex + Biomni synthesis | Engineering critique only | Leads Codex + Biomni when both are available |
-| Init, approval gate, pinned inputs, exploration | Supported | Supported with enabled/trusted hooks | Supported (qualified on 2.0.32) |
-| Run receipts and verification | Success/failure hook events provide status | Records receipts; absent exit metadata is a verification gap | Records receipts; exit status from the shell result's exit code |
-| Gate state protection | Shell commands and file-edit tools | Shell commands and `apply_patch`, including move destinations | `shell`, `edit`, `write`, and `patch` tools |
+| All skills | Supported | Supported | Supported |
+| Independent plan review | Leads Codex + Biomni | Engineering critique only | Leads Codex + Biomni when both are available |
+| `init`, approval gate, pinned inputs, exploration | Supported | Needs enabled and trusted hooks | Supported |
+| Receipts and verification | Exit status from hook events | Exit status `unknown`: a verification gap | Exit status from the shell result |
+| Gate state protection | Shell and file-edit tools | Shell and `apply_patch` | `shell`, `edit`, `write`, `patch` |
 
-OpenCode V2 runs the planning skills through the `skills` setting and the
-approval gate through the `plugins` setting, both above. The adapter is
-qualified against OpenCode 2.0.32 (see the development notes for the record).
-Its receipts and exit-code handling are described in the OpenCode section.
-
-Codex 0.160.0's post hook supplies the command's output without an exit code.
-The gate records `unknown`; it never infers success from that event or parses
-command output as an exit status. Missing receipts remain missing. Upgrading
-does not reconstruct older runs. Standalone skill copies provide no hooks.
-
-The Codex payload contract was checked against its
-[0.160.0 shell hook implementation](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/core/src/tools/handlers/unified_exec.rs)
-and [post-tool response implementation](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/core/src/tools/context.rs).
+Codex's post hook gives the command's output without an exit code. The gate records `unknown` and never infers success from output. Standalone skill copies have no hooks.
 
 ## Troubleshooting
 
-If skills are missing, confirm that the plugin is enabled and restart the host.
-If a hook names a missing versioned cache path, refresh the installation and
-restart. Don't embed another cache path in a project to repair the error.
-
-If analysis runs are unexpectedly blocked, inspect the pending plan and approve
-its displayed hash. If pinned inputs changed, check them and present a revised
-plan. See [Approval gate](approval-gate.md) for exploration and gate settings.
-
-For verification gaps, read the report's missing evidence or tool before you
-re-run the analysis. See [Skills](skills.md#verify).
-
-## References
-
-The [Claude Code manifest reference](https://code.claude.com/docs/en/plugins-reference)
-describes plugin paths and validation. Codex install commands above were checked
-against `codex-cli 0.160.0`'s local command help. The OpenCode section follows
-the [OpenCode V2 skills guide](https://opencode.ai/v2/docs/skills/), checked on
-OpenCode 2.0.32.
+- **Skills missing:** confirm the plugin is enabled and restart the host.
+- **A hook names a missing cache path:** refresh the installation and restart. Do not paste a cache path into a project.
+- **A run is blocked:** read the pending plan and approve its displayed hash. If pinned inputs changed, check them and show a revised plan. See [the approval gate](approval-gate.md).
+- **Verification gaps:** read the report's missing evidence before re-running anything. See [Skills](skills.md#verify).

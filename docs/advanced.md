@@ -85,8 +85,8 @@ The match is on the launched words, not on what the script does with them: it do
 | `focus_notices` | `false` | `true` adds one plain line at turn end when scripts under another analysis folder ran while this session's `focus` was open, read from receipts already written and told once per focus and folder. It says the relationship is not established and points to `track-changes`; it blocks and approves nothing. See [Focus and track changes](focus-and-track-changes.md). |
 | `card_lint` | `true` | Lint the planned code when a plan is presented and show the result on the card. `false` turns it off. |
 | `lint_on_write` | `true` | Lint each gated script as it is written and tell the agent the open findings; the user sees what is left when the turn ends. `false` turns it off. |
-| `lint_before_run` | `false` | `"warn"` or `"block"`: before a gated run, tell about or deny a script whose findings lint-on-write recorded and that has not been edited since. See [Lint on write](approval-gate.md#lint-on-write). |
-| `lint_before_stop` | `false` | `true` blocks the Stop once per change while scripts written this session have open findings. See [Lint on write](approval-gate.md#lint-on-write). |
+| `lint_before_run` | `false` | `"warn"` or `"block"`: before a gated run, tell about or deny a script whose findings lint-on-write recorded and that has not been edited since. See [Lint on write](reference/approval-gate-full.md#lint-on-write). |
+| `lint_before_stop` | `false` | `true` blocks the Stop once per change while scripts written this session have open findings. See [Lint on write](reference/approval-gate-full.md#lint-on-write). |
 | `pin_scripts` | `true` | Block a run whose script changed since it was approved or first run. `false` turns it off. |
 
 ### Plan-review packets and consent

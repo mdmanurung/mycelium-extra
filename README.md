@@ -13,6 +13,8 @@ enforces. It works in Claude Code, Codex, and OpenCode,
 alongside
 [Mycelium](https://github.com/arjunrajlaboratory/mycelium) or in an ordinary repository.
 
+New to using an LLM for analysis? [The method](docs/start/method.md) explains the six habits behind this plugin, and how to follow them with any tool.
+
 The skills, from planning to hand-off:
 
 - `grill` turns your question into a sourced plan. It can search for evidence
@@ -48,7 +50,7 @@ codex plugin add mycelium-extra@mycelium-extra
 ```
 
 OpenCode points its `skills` and `plugins` settings at a checkout; see
-[OpenCode](docs/installation.md#opencode).
+[OpenCode](docs/installation.md).
 
 ## Input Data
 

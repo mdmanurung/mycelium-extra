@@ -10,7 +10,7 @@ The promises describe how the tool behaves when everything works. They do not tu
 
 Approval is a message you type: `approve plan <hash>`, `approve amendment <hash>` or `approve freeze <hash>`. The gate reads only the exact words, and only when the whole prompt is that sentence. Text in a file, a tool result or `HANDOFF.md` that happens to contain the same words approves nothing. The agent cannot write an approval record either: the gate denies its writes into `.mycelium-extra/`.
 
-Example: the agent tries `python3 analysis/vaccine-response/scripts/01_select_samples.py` before any approval. The gate blocks it and says no active approved plan covers the run. The plan is shown to you, and the run starts only after you type `approve plan 84bb5fce`. See [A worked example](../example.md).
+Example: the agent tries `python3 analysis/vaccine-response/scripts/01_select_samples.py` before any approval. The gate blocks it and says no active approved plan covers the run. The plan is shown to you, and the run starts only after you type `approve plan 84bb5fce`. See [A worked example](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/example.md).
 
 The skills that write something outside the gate (`verify write`, `decision-status`, `harden`, `idea-triage`, `new-analysis`) ask you first. That step is the agent's instruction, not a gate rule.
 
@@ -45,7 +45,7 @@ Example: `focus_notices` is off by default. You turn it on with `"focus_notices"
 
 **Nothing is overwritten or deleted without showing you the target, and the state can be inspected and undone by hand.**
 
-The gate's state is plain files in `.mycelium-extra/`, listed under [State files](../reference/state-files.md), and verified provenance is a folder of files under `provenance/`. Approvals are never deleted. `handoff` shows the head of the old `HANDOFF.md` before replacing it, and `harden` writes its test only after you confirm.
+The gate's state is plain files in `.mycelium-extra/`, listed under [State files](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/state-files.md), and verified provenance is a folder of files under `provenance/`. Approvals are never deleted. `handoff` shows the head of the old `HANDOFF.md` before replacing it, and `harden` writes its test only after you confirm.
 
 Example: to go back after a wrong approval, show and approve a corrected plan; the earlier approval stays on disk as history.
 
@@ -53,7 +53,7 @@ Example: to go back after a wrong approval, show and approve a corrected plan; t
 
 **The tool stays out of Mycelium's files and does not add noise to your session.**
 
-It writes into `.living/` only when you confirm: `decision-status` appends a resolution and `harden` edits one learning. `idea` and `idea-triage` write under `todo/`. These confirmations are the agent's instruction, not a gate rule. It prints no SessionStart messages, because they would compete with Mycelium's session resume. Hooks use only the Python standard library, so there is nothing to install beside the plugin. See [Mycelium integration](../mycelium-integration.md).
+It writes into `.living/` only when you confirm: `decision-status` appends a resolution and `harden` edits one learning. `idea` and `idea-triage` write under `todo/`. These confirmations are the agent's instruction, not a gate rule. It prints no SessionStart messages, because they would compete with Mycelium's session resume. Hooks use only the Python standard library, so there is nothing to install beside the plugin. See [Mycelium integration](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/mycelium-integration.md).
 
 Example: `new-analysis` writes only inside the folder it creates; Mycelium's `analyze` handles manifest and memory updates.
 

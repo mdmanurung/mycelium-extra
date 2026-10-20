@@ -2,6 +2,8 @@
 
 `grill` turns your question into a sourced plan before anything runs. It reads and asks; it writes nothing.
 
+**Method habits 1 and 2** ([the method](../start/method.md)). Without the plugin: write the question and claim in your own words, then a table of steps with who decided each choice and why.
+
 ## What you control here
 
 - **Your typed word:** your question and the claim you hope to make (asked first, in your words), and an answer to each consequential question. `grill` approves nothing.

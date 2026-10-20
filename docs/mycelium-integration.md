@@ -33,7 +33,7 @@ you need a new folder. After approval, `mycelium:analyze` continues that folder.
 For reportable work, freeze the finished code in a run plan, run it, and verify.
 
 Ask Mycelium's `review` to check the methods and code against the approved plan
-before the final freeze (see [Usage tiers](usage.md#two-checkpoints)). After
+before the final freeze (see [Usage tiers](guides/full-workflow.md#two-checkpoints)). After
 saving provenance, ask for another review only if `verify` leaves findings
 unresolved or a result needs a closer look; it can use
 `<analysis>/provenance/plan-<hash>.md` as the plan. Record the verification

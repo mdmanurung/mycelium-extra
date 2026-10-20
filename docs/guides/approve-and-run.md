@@ -2,6 +2,8 @@
 
 The gate denies a covered run until you approve a plan that names it. It then records each run as a receipt.
 
+**Method habits 3 and 4** ([the method](../start/method.md)). Without the plugin: commit the plan with a sign-off line, run only the scripts it lists, and keep experiments in a folder whose outputs you never cite.
+
 ## What you control here
 
 - **Your typed word:** `approve plan <hash>`, `approve amendment <hash>`, `approve freeze <hash>`, or bare `approve` when exactly one card is waiting and it is the one shown last. Only these exact words count. `ok, approve` is an ordinary prompt.

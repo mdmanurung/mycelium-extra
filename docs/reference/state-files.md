@@ -75,7 +75,7 @@ See also: [Gate](gate.md), [gate.json](gate-json.md).
 Confirmed `verify write` additionally publishes `provenance/evidence-<hash>.json`
 (`mycelium-extra.evidence-handoff.v1`), checksummed by the existing completion
 marker. Same-plan replacement still applies. See
-[portable evidence handoff](../verification.md#portable-evidence-handoff).
+[portable evidence handoff](verification-full.md#portable-evidence-handoff).
 
 Explicit `track-changes --journal --save-checkpoint` creates only
 `<analysis>/journal/checkpoints/<full-digest>.json` and its `.save.lock`, in

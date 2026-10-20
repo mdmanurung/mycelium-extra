@@ -2,6 +2,8 @@
 
 `verify` checks what ran against the approved plan. Once you confirm, it saves the plan, receipts and report with the analysis. It never re-runs anything.
 
+**Method habit 5** ([the method](../start/method.md)). Without the plugin: log each command, code version, input checksums and exit status, then compare them with the plan and list what you could not check.
+
 ## What you control here
 
 - **Your typed word:** which plan to check (its hash), and a yes before anything is written to `provenance/`. That yes is the agent's instruction, not a gate rule: nothing enforces it.

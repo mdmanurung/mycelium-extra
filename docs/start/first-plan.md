@@ -1,6 +1,6 @@
 # Your first plan in ten minutes
 
-You will plan, approve, run and verify one small analysis. Commands use Claude Code's `/mycelium-extra:` prefix; in Codex, use `$mycelium-extra:`. A complete real transcript is in [a worked example](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/example.md).
+You will plan, approve, run and verify one small analysis. This walks through [the method](method.md) once. Commands use Claude Code's `/mycelium-extra:` prefix; in Codex, use `$mycelium-extra:`. A complete real transcript is in [a worked example](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/example.md).
 
 ## What you control here
 
