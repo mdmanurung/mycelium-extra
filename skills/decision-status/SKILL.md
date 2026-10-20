@@ -39,7 +39,7 @@ An entry with no status is `unknown`, not `current`. You may say an entry looks 
 
 ## 4. Record the user's answer
 
-The agent asks first because this skill says so; nothing enforces it.
+The agent asks first because this skill says so; nothing enforces it unless `.mycelium-extra/gate.json` sets `confirm_writes` to true. Then, before the append, run `sh <skill-dir>/../../hooks/py.sh <skill-dir>/../../hooks/confirm_write.py prepare --kind decision-status --target .living/decisions.md`, show the user the `confirm write <id>` line it prints, and append only after they type it: the gate denies the write before.
 
 Once the user explicitly confirms a resolution in the conversation, append one new entry to the end of `.living/decisions.md`. Never edit, reorder, renumber, or delete an existing entry. Match the file's heading level (`###` unless the file uses `##`):
 

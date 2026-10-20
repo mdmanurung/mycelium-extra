@@ -58,6 +58,7 @@ Send each as the whole prompt. The hook answers these itself; the agent does not
 | `allow explore <hash>` | The same, bounded to that approved plan's analysis paths and protected files. | same, with a scope |
 | `stop explore` | Ends the explore permission. | removes the grant |
 | `send packet <12-64 hex>` | Records your consent to send one prepared review packet. The whole prompt must be this line. | `review-consent/<digest>.json` |
+| `confirm write <8 hex>` | With `confirm_writes` on: records your consent to one pending write (`verify write`, `harden`, `decision-status`, `idea-triage`) that a skill prepared with `hooks/confirm_write.py prepare`. The whole prompt must be this line; valid 1 hour. Cooperative: a skill that never prepares is not stopped, except `verify write`, which is always denied without consent. | `write-consent/<id>.json` |
 | `focus <folder>`, `focus <folder> plan <hash>`, `focus switch <folder>`, `focus status`, `focus end` | Declares which analysis this session is working on. See [focus](skills/focus.md). | `focus/<session>.json` |
 
 Rules that matter:

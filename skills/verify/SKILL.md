@@ -102,7 +102,7 @@ Never add, edit, or drop a claims line to make a failing check pass.
 
 Ask once whether to record this check, naming the analysis folder and the status. Only after an explicit yes:
 
-(This confirmation is the agent's instruction, not a gate rule: nothing enforces it, so `write` runs whenever the agent runs it.)
+(This confirmation is the agent's instruction, not a gate rule, so `write` runs whenever the agent runs it, unless `.mycelium-extra/gate.json` sets `confirm_writes` to true. Then first run `sh <skill-dir>/../../hooks/py.sh <skill-dir>/../../hooks/confirm_write.py prepare --kind verify-write --target <folder>`, show the user the `confirm write <id>` line it prints, and run `write` only after they type it: the gate denies it before.)
 
 
 ```bash

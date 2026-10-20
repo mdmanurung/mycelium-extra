@@ -36,7 +36,7 @@ Then, for the top idea only: the **cheapest go/no-go test** (the specific questi
 
 ## 4. After the user picks
 
-Waiting for the user's pick is the agent's instruction, not a gate rule: nothing enforces it.
+Waiting for the user's pick is the agent's instruction, not a gate rule: nothing enforces it, unless `.mycelium-extra/gate.json` sets `confirm_writes` to true. Then, before writing a triage block or a status, run `sh <skill-dir>/../../hooks/py.sh <skill-dir>/../../hooks/confirm_write.py prepare --kind idea-triage --target todo/TODO_REGISTRY.md --target <each item file>`, show the user the `confirm write <id>` line, and write only after they type it: the gate denies the write before.
 
 - `park all` changes nothing: stop without writing triage blocks or updating statuses.
 - Write a `## Triage <date>` block (pitch, impact, risk, go/no-go test) into each scored item's file. Never delete or reorder items.

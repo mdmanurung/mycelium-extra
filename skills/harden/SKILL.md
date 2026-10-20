@@ -42,4 +42,4 @@ Show the test path, both runs, and the exact edit, then ask. After the user conf
 - `**mitigation_type**: structural`
 - Append to the `**structural_mitigation_candidate**:` line: ` Shipped: \`<test path>\` (YYYY-MM-DD).`
 
-Change no other field or entry. Do not commit. This confirmation is the agent's instruction, not a gate rule: nothing enforces it. If Mycelium's Stop hook asks for `.living/` updates afterwards, follow it. End with one line: the learning, the test path, and how to run it.
+Change no other field or entry. Do not commit. This confirmation is the agent's instruction, not a gate rule: nothing enforces it, unless `.mycelium-extra/gate.json` sets `confirm_writes` to true. Then, before writing the test file (section 3), run `sh <skill-dir>/../../hooks/py.sh <skill-dir>/../../hooks/confirm_write.py prepare --kind harden --target <test path> --target .living/learnings.md`, show the user the `confirm write <id>` line, and write either file only after they type it: the gate denies both before. If Mycelium's Stop hook asks for `.living/` updates afterwards, follow it. End with one line: the learning, the test path, and how to run it.

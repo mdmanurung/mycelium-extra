@@ -26,6 +26,7 @@ To see the effective values, with invalid ones flagged, run `init --diagnose` ([
 | `lint_on_write` | boolean | `true` | `true` or `false` | After the agent writes or edits a gated script, lint it and hand the open findings to the agent. Never blocks. Only `false` turns it off. |
 | `card_lint` | boolean | `true` | `true` or `false` | Lint the planned code when the approval card is shown. The result is one line on the card and never blocks approval. Only `false` turns it off. |
 | `card_coverage` | boolean | `true` | `true` or `false` | Add the `Coverage` row and the `Not established before running` block to the approval card. The card shows it only when the value is exactly `true`; `false`, or any other value, leaves it out. |
+| `confirm_writes` | boolean | `false` | `true` or `false` | Deny `verify write`, and a `harden`, `decision-status` or `idea-triage` write that the skill prepared with `hooks/confirm_write.py prepare`, until you type `confirm write <id>`. Takes effect only when exactly `true`; any other value leaves it off with a notice. Cooperative: a skill that never prepares is not stopped, except `verify write`. |
 | `checkpoint_steps` | whole number | unset (off) | 1 or more; `0` or unset is off | A plan table with more than this many step rows asks one comprehension question before the first `approve`. Any other value is ignored, with a notice. |
 | `max_runs_per_approval` | whole number | unset (no limit) | 1 or more | After this many runs under one approval, the next gated run is denied until you approve the plan again. Any other value is ignored, with a notice. |
 | `focus_notices` | boolean | `false` | `true` or `false` | At turn end, one line to you when scripts under another analysis ran while a `focus` was open. Takes effect only when it is exactly `true`. |
@@ -36,7 +37,7 @@ To see the effective values, with invalid ones flagged, run `init --diagnose` ([
 - **`card_coverage`.** The shipped default changed from off to on in 0.14.0. Add `"card_coverage": false` to get the old card back.
 - **`lint_*` keys and `card_lint`.** They call scilintr when it is installed. When scilintr cannot check something, the gate says so and does not report a clean result. Paths of the linters come from `.mycelium-extra/tools.json` when `init --tools` recorded them, else `PATH`.
 - **`pin_hash_mb` and verify.** `verify` has its own budgets, `--hash-mb` (default 2000) and `--seconds` (default 120). They are command-line options of `verify`, not keys of `gate.json` ([verify](skills/verify.md)).
-- **Friction is opt-in.** `lint_before_run`, `lint_before_stop`, `checkpoint_steps`, `max_runs_per_approval`, `focus_notices` and `on_error: "deny"` are all off or unset by default.
+- **Friction is opt-in.** `lint_before_run`, `lint_before_stop`, `checkpoint_steps`, `max_runs_per_approval`, `focus_notices`, `confirm_writes` and `on_error: "deny"` are all off or unset by default.
 
 ### What the gate itself validates
 
