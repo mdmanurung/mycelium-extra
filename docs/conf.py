@@ -5,11 +5,12 @@ project = "Mycelium Extra"
 author = "Mikhael Manurung"
 release = json.loads((Path(__file__).resolve().parents[1] /
                       ".claude-plugin/plugin.json").read_text())["version"]
-extensions = ["myst_parser", "sphinxcontrib.mermaid", "sphinx.ext.githubpages"]
+extensions = ["myst_parser", "sphinxcontrib.mermaid", "sphinx.ext.githubpages", "sphinx_design",
+              "sphinx_copybutton"]
 source_suffix = {".md": "markdown", ".rst": "restructuredtext"}
 root_doc = "index"
 include_patterns = [
-    "index.rst",
+    "index.md",
     "docs/installation.md",
     "docs/usage.md",
     "docs/skills.md",
@@ -29,13 +30,7 @@ include_patterns = [
 exclude_patterns = ["docs/_build"]
 myst_heading_anchors = 6
 myst_fence_as_directive = ["mermaid"]
-html_theme = "sphinx_clarity_theme"
+myst_enable_extensions = ["colon_fence", "deflist"]
+html_theme = "scanpydoc"
 html_title = "Mycelium Extra"
 html_baseurl = "https://mdmanurung.github.io/mycelium-extra/"
-html_theme_options = {
-    "header_title": "Mycelium Extra",
-    "announcement": "Evidence before execution: plan, approve, verify.",
-    "header_menu": [
-        {"content": "GitHub", "url": "https://github.com/mdmanurung/mycelium-extra"},
-    ],
-}

@@ -1,18 +1,14 @@
 # What Mycelium Extra is
 
-Mycelium Extra is a plugin for Claude Code, Codex and OpenCode. It puts you in charge of three moments in an analysis: what is planned, what is allowed to run, and what the record shows afterwards.
+Mycelium Extra is a plugin for Claude Code, Codex and OpenCode. It gives you control over three moments in an analysis: what is planned, what is allowed to run, and what the record shows afterwards.
 
-## What you control here
+You stay in charge. Only you can approve a plan, a freeze or a review packet, by typing the approval yourself. The agent cannot type it for you.
 
-- **Your typed word** approves a plan (`approve plan <hash>`), a freeze, or sending a review packet. The agent cannot type these for you.
-- **Shown to you** are the plan, the approval card, any change to a script you approved, and the verify report.
-- **To say no**, do not approve: a covered run is then denied. To turn the gate off, remove `.mycelium-extra/gate.json`.
+## What it does
 
-## The five jobs
-
-| Job | Tool | You get |
+| Job | Tool | What you get |
 |---|---|---|
-| Plan before anything runs | `grill` | A sourced, step-by-step plan. Every consequential choice says who made it: the repository, you, or a labelled default. |
+| Plan before anything runs | `grill` | A step-by-step plan where every consequential choice says who made it: the repository, you, or a labelled default. |
 | Allow runs | the approval gate (`init`, then `approve`) | Covered scripts and job launchers are denied until you approve a plan that names them. |
 | Check afterwards | `verify` | What ran against the plan, what is a gap, and a `provenance/` record once you confirm. |
 | Stay oriented | `focus`, `track-changes` | Which analysis this session works on, and what moved away from what you approved. |
@@ -26,12 +22,12 @@ Mycelium manages project memory, conventions, review and reports. Mycelium Extra
 
 ## What it is not
 
-- Not a security boundary: an agent set on bypassing the gate through Bash can do so.
-- Not a judgement of the science. A run that matches its plan can still be the wrong analysis.
-- Not able to see code run through MCP notebook tools.
+- It is not a security boundary: an agent set on bypassing the gate through Bash can do so.
+- It does not judge the science. A run that matches its plan can still be the wrong analysis.
+- It cannot see code run through MCP notebook tools.
 
-The full list is in [what this does not guarantee](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/not-guaranteed.md). The control model in plain words is [here](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/control-model.md).
+The full list is in [what this does not guarantee](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/not-guaranteed.md).
 
 ## Next
 
-[Your first plan in ten minutes](first-plan.md).
+New here? Follow [your first plan](first-plan.md).

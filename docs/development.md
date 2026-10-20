@@ -275,7 +275,7 @@ The website and repository use the same Markdown pages. You can improve a
 guide without maintaining a second copy, and Sphinx checks the links when it
 builds the site.
 
-Use Python 3.12 for the website tooling. Every page is listed in `include_patterns` in `docs/conf.py`, and the site navigation is the toctrees in `index.rst`; add a new page to both.
+Use Python 3.12 for the website tooling. Every page is listed in `include_patterns` in `docs/conf.py`, and the site navigation is the toctrees in `index.md`; add a new page to both.
 
 ```bash
 python3.12 -m venv /tmp/mycelium-extra-docs
