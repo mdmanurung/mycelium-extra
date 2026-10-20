@@ -1,0 +1,15 @@
+{
+  "schema": "mycelium-extra.data_contract.v1",
+  "table": "tests/fixtures/sc-conventions/samples.tsv",
+  "checks": [
+    {
+      "id": "input-sample-keys",
+      "kind": "sample_alignment",
+      "key": "sample_id",
+      "reference": {
+        "path": "tests/fixtures/sc-conventions/keys_mismatch.tsv",
+        "column": "sample_id"
+      }
+    }
+  ]
+}

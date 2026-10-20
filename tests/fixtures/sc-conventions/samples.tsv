@@ -1,0 +1,5 @@
+sample_id	donor	cohort	condition	batch
+d1c	d1	trial	control	b1
+d1s	d1	trial	stimulated	b1
+d2c	d2	trial	control	b2
+d2s	d2	trial	stimulated	b2

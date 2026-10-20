@@ -174,3 +174,59 @@ An edit to a pinned expectation is a changed dependency, not automatically a con
 - A passing check is one observation. It is not scientific validation, and `defined_by` is a declaration, not authenticated authorship.
 - A standalone preflight followed by a separately permitted command is not prevented by bindings. To make an analysis conditional on a preflight, put both in one entry point that runs the analysis only when the preflight succeeds.
 - The fixture results show these checks work on the fixture project and the host and versions the tests ran on.
+
+## Single-cell R1–R3 bindings
+
+R1 and R2 compose the shipped `data-contract-check`; R3 adds recorded method fidelity. These are optional acceptance checks bound to approved intent, with no change to the gate or approval semantics. The runnable fixtures are in `tests/fixtures/sc-conventions/`. Run the commands below from the repository root; `/tmp` results demonstrate the check only. For a live approved project, copy the contracts into its checks directory, adapt input paths independently, and bind the actual checker and expectations before approval. The plan must use project-local evidence paths like the example below so existing run attribution can observe them.
+
+| Check | Independently specified expectation | Negative fixture | Benign control | What it establishes |
+|---|---|---|---|---|
+| R1 design | Two independent donors; each donor observed at control and stimulated; each batch overlaps conditions | `r1_missing_pair.json`, `r1_aliased.json` | `r1_design.json`; retain donor and condition identities | Declared pairing, replication and batch overlap, not design-matrix rank, covariance choice or convergence |
+| R2 input | Equal independent sample keys; declared count layer has nonnegative integer values | `r2_wrong_keys.json`; test-generated fractional/negative count layer | `r2_keys.json`, reordered metadata; test-generated integer count layer | Key agreement and declared sampled layer properties, not the analysis's join or normalization algorithm |
+| R3 recorded method | Exact approved formula, contrast numerator/denominator/sign, random effects, covariates, assay and exclusions | `r3_wrong_sign.json`; tests mutate every field | `r3_observed.json`; JSON key order and ordering within declared lists may vary | Agreement of the recorded model fields with approved expectations; no extraction or authentication of the actual fit |
+
+```bash
+python3 skills/data-contract-check/scripts/data_contract_check.py --contract tests/fixtures/sc-conventions/r1_missing_pair.json --root . --result-json /tmp/sc-r1-red.json
+# exit 2; missing donor pair blocks
+python3 skills/data-contract-check/scripts/data_contract_check.py --contract tests/fixtures/sc-conventions/r1_design.json --root . --result-json /tmp/sc-r1-green.json
+# exit 0; these declared design checks pass
+python3 skills/data-contract-check/scripts/data_contract_check.py --contract tests/fixtures/sc-conventions/r2_wrong_keys.json --root . --result-json /tmp/sc-r2-red.json
+# exit 2; independently listed sample keys differ
+python3 skills/data-contract-check/scripts/data_contract_check.py --contract tests/fixtures/sc-conventions/r2_keys.json --root . --result-json /tmp/sc-r2-green.json
+# exit 0; key sets agree
+python3 skills/verify/scripts/method_fidelity.py --expected tests/fixtures/sc-conventions/r3_expected.json --observed tests/fixtures/sc-conventions/r3_wrong_sign.json --result-json /tmp/sc-r3-red.json
+# exit 2; recorded contrast sign differs
+python3 skills/verify/scripts/method_fidelity.py --expected tests/fixtures/sc-conventions/r3_expected.json --observed tests/fixtures/sc-conventions/r3_observed.json --result-json /tmp/sc-r3-green.json
+# exit 0; recorded fields agree
+```
+
+R2's separate `r2_layer.json` names `tests/fixtures/sc-conventions/counts.h5ad`, `layers/counts`, and the shipped checker's `integer_valued` and `non_negative` properties. It needs the existing optional `h5py` reader. `tests/test_recipes.py` creates a two-value HDF5 fixture when that reader is installed and checks both fractional/negative rejection and integer acceptance. Without it, the test verifies an explicit backend gap and skips the layer red/green qualification. No HDF5 pass is claimed from a missing backend. Run the same checker invocation with `--contract tests/fixtures/sc-conventions/r2_layer.json` against the actual counts file in a live project. Keep the existing shuffle-invariance and known-answer transformation checks for the stronger join and transformation claims.
+
+The fixture plan below illustrates approval bindings for all three checks. It is an example to adapt and approve, not an approval event. Its checker and expected contract bytes are pinned; the observed model record is a runtime input rather than an expectation to freeze. Pin the actual execution/extractor code in the analysis plan as well, and use exact execution declarations when command identity matters.
+
+```text
+<!-- validation-bindings {"version": 1, "checks": [
+  {"id": "sc-design", "plan_row": "4", "required": true, "defined_by": "researcher-approved",
+   "test_paths": ["skills/data-contract-check/scripts/data_contract_check.py", "tests/fixtures/sc-conventions/r1_design.json"],
+   "invocation": ["python3", "skills/data-contract-check/scripts/data_contract_check.py", "--contract", "tests/fixtures/sc-conventions/r1_design.json", "--root", ".", "--result-json", "analysis/sc/outputs/r1.json"],
+   "evidence_path": "analysis/sc/outputs/r1.json"},
+  {"id": "sc-inputs", "plan_row": "5", "required": true, "defined_by": "researcher-approved",
+   "test_paths": ["skills/data-contract-check/scripts/data_contract_check.py", "tests/fixtures/sc-conventions/r2_keys.json"],
+   "invocation": ["python3", "skills/data-contract-check/scripts/data_contract_check.py", "--contract", "tests/fixtures/sc-conventions/r2_keys.json", "--root", ".", "--result-json", "analysis/sc/outputs/r2.json"],
+   "evidence_path": "analysis/sc/outputs/r2.json"},
+  {"id": "sc-method", "plan_row": "6", "required": true, "defined_by": "researcher-approved",
+   "test_paths": ["skills/verify/scripts/method_fidelity.py", "tests/fixtures/sc-conventions/r3_expected.json"],
+   "invocation": ["python3", "skills/verify/scripts/method_fidelity.py", "--expected", "tests/fixtures/sc-conventions/r3_expected.json", "--observed", "analysis/sc/outputs/executed-model.json", "--result-json", "analysis/sc/outputs/r3.json"],
+   "evidence_path": "analysis/sc/outputs/r3.json"}]} -->
+```
+
+R3 consumes `mycelium-extra.method_expectations.v1` and `mycelium-extra.executed_model.v1` JSON records; the two fixture files show their complete schemas. All six fields are mandatory. `contrast.sign` is the recorded coefficient multiplier (`1` or `-1`), not the estimated effect sign or a claim of statistical significance. Formula and assay strings compare exactly. Random effects, covariates and exclusions are explicit unique string lists compared without order; an explicit empty list means none, while an absent or null field is a gap. Unknown schemas, extra fields, malformed values, unreadable inputs and unavailable records also produce a gap, never a pass. This deliberately narrow checker does not parse formula equivalence or infer a method from prose.
+
+R3 emits the existing `mycelium-extra.contract_result.v1` envelope: exit `0` / `pass` for recorded agreement, `2` / `block` for field drift, and `3` / `gap` for unusable evidence. Its `contract.sha256` identifies the expected bytes; `inputs` identifies both files by path, byte size and SHA-256. Existing `verify` consumes the result without a new interface. `tests/test_recipes.py` executes R1/R2 and uses the real `verify.judge_check` to show that changing even whitespace in a pinned contract reports `changed`; `tests/test_method_fidelity.py` exercises the same result consumer for R3. These tests use fixture receipts and do not establish a native-host attributed run. A live run still needs a matched invocation under the actual approved plan and attributable evidence. Missing approval, invocation, output or exit evidence retains the existing gap/unattributable outcomes.
+
+```bash
+python3.12 tests/test_recipes.py
+python3.12 tests/test_method_fidelity.py
+```
+
+Both checker and tests use Python 3.6-compatible syntax and standard-library interfaces; optional HDF5 checks retain their existing reader requirement. A scientist must separately validate the fit extractor and establish that the runtime record actually came from the fitted model. Writing the approved settings back into a record can pass R3 without fitting anything; no generic JSON comparison can resolve that authenticity boundary.

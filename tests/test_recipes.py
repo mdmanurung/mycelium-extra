@@ -2,6 +2,8 @@
 `verify` records for a check command matches the return-code table the page documents."""
 
 import json
+import subprocess
+import shutil
 import os
 import re
 import sys
@@ -32,7 +34,7 @@ class Recipes(unittest.TestCase):
     def test_every_binding_in_the_page_is_valid(self):
         with open(PAGE, encoding="utf-8") as handle:
             blocks = BLOCK.findall(handle.read())
-        self.assertEqual(len(blocks), 3, "one binding block per recipe")
+        self.assertEqual(len(blocks), 4, "three original recipe blocks and one R1-R3 binding example")
         for text in blocks:
             checks = json.loads(re.search(r"\{.*\}", text, re.DOTALL).group(0))["checks"]
             with tempfile.TemporaryDirectory() as root:
@@ -112,6 +114,105 @@ class RecipeOutcomes(unittest.TestCase):
             self.assertIn(outcome, section, outcome + " is not documented")
         self.assertIn("never turn a non-zero exit into a pass", section)
         self.assertIn("random effect", page)
+
+
+class SingleCellRecipes(unittest.TestCase):
+    """Run shipped R1/R2 entry points and consume their actual results with verify."""
+    root = os.path.abspath(os.path.join(HERE, '..'))
+    fixtures = 'tests/fixtures/sc-conventions/'
+
+    def invoke(self, contract_name, folder, root=None):
+        result = os.path.join(folder, 'result.json')
+        contract = os.path.join(self.root, self.fixtures, contract_name)
+        command = [sys.executable, os.path.join(self.root, 'skills/data-contract-check/scripts/data_contract_check.py'),
+                   '--contract', contract, '--root', root or self.root, '--result-json', result, '--json']
+        proc = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        with open(result) as handle:
+            data = json.load(handle)
+        return proc, result, data
+
+    def test_design_red_green_with_real_checker_and_verify(self):
+        for contract, code in [('r1_missing_pair.json', 2), ('r1_aliased.json', 2), ('r1_design.json', 0)]:
+            with tempfile.TemporaryDirectory() as folder:
+                proc, path, data = self.invoke(contract, folder)
+                self.assertEqual(proc.returncode, code, proc.stderr)
+                self.assertEqual(verify.read_result(path, {'files': {}})[0], 'failed' if code else 'passed')
+                self.assertTrue(data['tables'])
+                self.assertTrue(all(t['sha256'] for t in data['tables']))
+
+    def test_keys_red_green_and_reordering_control_with_real_checker(self):
+        for contract, code in [('r2_wrong_keys.json', 2), ('r2_keys.json', 0)]:
+            with tempfile.TemporaryDirectory() as folder:
+                proc, path, _ = self.invoke(contract, folder)
+                self.assertEqual(proc.returncode, code, proc.stderr)
+                self.assertEqual(verify.read_result(path, {'files': {}})[0], 'failed' if code else 'passed')
+        with tempfile.TemporaryDirectory() as folder:
+            target = os.path.join(folder, self.fixtures)
+            os.makedirs(target)
+            for name in ('samples.tsv', 'keys.tsv'):
+                shutil.copyfile(os.path.join(self.root, self.fixtures, name), os.path.join(target, name))
+            samples = os.path.join(target, 'samples.tsv')
+            with open(samples) as handle:
+                lines = handle.readlines()
+            with open(samples, 'w') as handle:
+                handle.writelines(lines[:1] + list(reversed(lines[1:])))
+            proc, _, _ = self.invoke('r2_keys.json', folder, folder)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+
+    def test_existing_verify_judges_changed_approved_r1_and_r2_contracts(self):
+        for name in ('r1_design.json', 'r2_keys.json'):
+            with tempfile.TemporaryDirectory() as folder:
+                os.makedirs(os.path.join(folder, 'checks'))
+                script = 'checks/data_contract_check.py'
+                contract = 'checks/contract.json'
+                shutil.copyfile(os.path.join(self.root, 'skills/data-contract-check/scripts/data_contract_check.py'),
+                                os.path.join(folder, script))
+                shutil.copyfile(os.path.join(self.root, self.fixtures, name), os.path.join(folder, contract))
+                declaration = dict(CHECK, test_paths=[script, contract], evidence_path='result.json',
+                    invocation=[sys.executable, script, '--contract', contract, '--root', self.root,
+                                '--result-json', 'result.json'])
+                for key in ('files', 'definition_sha256'):
+                    declaration.pop(key)
+                text = '<!-- validation-bindings ' + json.dumps({'version': 1, 'checks': [declaration]}) + ' -->'
+                binding, errors = validation.read_bindings(text, ['4'], folder)
+                self.assertEqual(errors, [])
+                check = binding['checks'][0]
+                # A semantically harmless whitespace edit still changes the approved bytes.
+                with open(os.path.join(folder, contract), 'a') as target:
+                    target.write('\n')
+                proc = subprocess.run(check['invocation'], cwd=folder, stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE, universal_newlines=True)
+                self.assertEqual(proc.returncode, 0, proc.stderr)
+                run = {'attempt_id': 'b' * 16, 'ts': time.time() + 1, 'exit_status': proc.returncode,
+                       'outputs_observation': 'observed', 'outputs_changed': {'created': ['result.json']}}
+                judged = verify.judge_check(folder, check, [run], {}, False)
+                self.assertEqual(judged['outcome'], 'changed')
+                self.assertIn('not the pinned one', judged['reason'])
+
+    def test_layer_dependency_is_an_explicit_gap_or_real_red_green(self):
+        try:
+            import h5py
+            import numpy as np
+        except ImportError:
+            with tempfile.TemporaryDirectory() as folder:
+                target = os.path.join(folder, self.fixtures)
+                os.makedirs(target)
+                with open(os.path.join(target, 'counts.h5ad'), 'wb') as handle:
+                    handle.write(b'backend-unavailable-fixture')
+                proc, path, data = self.invoke('r2_layer.json', folder, folder)
+                self.assertNotEqual(proc.returncode, 0)
+                self.assertEqual(verify.read_result(path, {'files': {}})[0], 'not run')
+            self.skipTest('h5py unavailable: backend gap verified; real HDF5 red/green requires h5py')
+        with tempfile.TemporaryDirectory() as folder:
+            target = os.path.join(folder, self.fixtures)
+            os.makedirs(target)
+            matrix = os.path.join(target, 'counts.h5ad')
+            for values, code in (([1.5, -1], 2), ([1, 0], 0)):
+                with h5py.File(matrix, 'w') as handle:
+                    handle.create_dataset('layers/counts', data=np.asarray([values]))
+                proc, path, _ = self.invoke('r2_layer.json', folder, folder)
+                self.assertEqual(proc.returncode, code, proc.stderr)
+                self.assertEqual(verify.read_result(path, {'files': {}})[0], 'failed' if code else 'passed')
 
 
 if __name__ == "__main__":

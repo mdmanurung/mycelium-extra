@@ -1,0 +1,16 @@
+{
+  "schema": "mycelium-extra.data_contract.v1",
+  "table": "tests/fixtures/sc-conventions/counts.h5ad",
+  "checks": [
+    {
+      "id": "raw-count-layer",
+      "kind": "h5ad_layer",
+      "h5_path": "layers/counts",
+      "sample_values": 100,
+      "properties": {
+        "integer_valued": true,
+        "non_negative": true
+      }
+    }
+  ]
+}

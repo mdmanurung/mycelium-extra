@@ -1,0 +1,32 @@
+{
+  "schema": "mycelium-extra.data_contract.v1",
+  "table": "tests/fixtures/sc-conventions/samples.tsv",
+  "checks": [
+    {
+      "id": "independent-donors",
+      "kind": "unit_of_replication",
+      "unit": "donor",
+      "group": "cohort",
+      "within": [
+        "condition"
+      ],
+      "min_units_per_group": 2
+    },
+    {
+      "id": "paired-conditions",
+      "kind": "pairing",
+      "unit": "donor",
+      "within": "condition",
+      "levels": [
+        "control",
+        "stimulated"
+      ]
+    },
+    {
+      "id": "batch-overlap",
+      "kind": "batch_confounding",
+      "batch": "batch",
+      "contrast": "condition"
+    }
+  ]
+}
