@@ -4,6 +4,12 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.14.3] - 2026-10-20
+
+### Added
+
+- **grill:** for scientific and statistical plans, `grill` now reads the repository's *activated* convention packs (`.living/conventions.md`, `.living/conventions/ACTIVE_CONVENTIONS.yaml`) after it has the user's question and the project evidence. It picks the relevant guides by task (design, QC, replicate-aware inference, composition, integration, perturbation, pathway activity), and carries their rules, exceptions and falsifiable checks into the plan with a source. A pack that is only in a marketplace is not active, and a convention is never treated as proof. Read-only: no new skill, permission or gate rule (`skills/grill/references/scientific-conventions.md`).
+
 ## [0.14.2] - 2026-10-20
 
 ### Fixed
