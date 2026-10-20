@@ -2,6 +2,8 @@
 
 [Back to the usage tiers](usage.md)
 
+> Only partly regenerated: some blocks need scilintr and Rscript, so parts may predate the current release.
+
 One session on the fixture project (`tests/fixtures/mycelium-project`): plan, approve, run, verify. Every output block below is what the hooks and `verify` printed in a real run on 2026-10-19, at version 0.13.2. The two exceptions are the plan, which is written by hand because the model writes it in a real session (the file is `tests/e2e/plans/baseline_plan.md`), and Mycelium's lineage manifest, which the test harness writes where Mycelium's own hook would. Regenerate with Python 3.9 or later (for example `python3.12 tests/e2e/make_example.py`; see the top of that file for the tools it needs) when an output format changes.
 
 ## 1. Ask

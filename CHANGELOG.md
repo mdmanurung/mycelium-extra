@@ -7,6 +7,7 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 ### Fixed
 
 - **init:** `--hours 0` is accepted, matching the gate's `approval_hours: 0` (every approval expires at once); negative and non-finite values are still usage errors.
+- **init:** `--diagnose` now says what the gate does with each invalid value (for example `card_coverage: 1` is read as off), not only what it wants.
 
 ## [0.14.1] - 2026-10-19
 

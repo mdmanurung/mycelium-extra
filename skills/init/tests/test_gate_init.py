@@ -276,8 +276,9 @@ class DiagnoseTest(unittest.TestCase):
         self.state_file("gate.json", json.dumps({"approval_hours": -3, "lint_before_run": "sometimes",
                                                  "gated_pahts": ["x"], "pin_scripts": False}))
         out = self.diagnose()
-        self.assertIn("PROBLEM approval_hours: -3 is invalid; the gate wants a number of 0 or more.", out)
+        self.assertIn("PROBLEM approval_hours: -3 is invalid; the gate wants a number of 0 or more, and uses the default.", out)
         self.assertIn('PROBLEM lint_before_run: "sometimes" is invalid', out)
+        self.assertIn("and uses off.", out)
         self.assertIn("PROBLEM gated_pahts: not a key this gate reads", out)
         self.assertNotIn("PROBLEM pin_scripts", out)
         self.assertIn("gated_paths: [\"analysis/**\", \"nbs/**\"]  (default)", out)

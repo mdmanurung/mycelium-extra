@@ -253,6 +253,14 @@ CONFIG_RULES = {
 }
 
 
+# What the gate does with an invalid value (hooks/gate.py reads each key its own way); keep in step with it.
+INVALID_EFFECT = {
+    "pin_scripts": "pinning is on", "card_lint": "on", "lint_on_write": "on", "card_coverage": "off",
+    "focus_notices": "off", "lint_before_stop": "off", "lint_before_run": "off", "on_error": "allow",
+    "max_runs_per_approval": "no limit", "checkpoint_steps": "off",
+}
+
+
 def last_json_line(path):
     """The last parseable JSON line of a .jsonl file, else None (also when the file is absent)."""
     last = None
@@ -348,8 +356,8 @@ def diagnose(root, plugin_root):
         if rule is None:
             out.append("  PROBLEM {}: not a key this gate reads (typo?); ignored.".format(key))
         elif not rule[1](saved[key]):
-            out.append("  PROBLEM {}: {} is invalid; the gate wants {}.".format(
-                key, json.dumps(saved[key]), rule[0]))
+            out.append("  PROBLEM {}: {} is invalid; the gate wants {}, and uses {}.".format(
+                key, json.dumps(saved[key]), rule[0], INVALID_EFFECT.get(key, "the default")))
     diagnose_hooks(plugin_root, out)
     plugin, version = mycelium_version(gated or root)
     if plugin is None:
