@@ -3660,7 +3660,7 @@ class ValidationBindingsTest(unittest.TestCase):
         reply = self.prompt("approve plan " + entry["hash"])
         self.assertIn("Nothing was approved", reply)
         self.assertIn("Fix the block", reply)
-        card = self.prompt("card " + entry["hash"])  # C15: no card exists, and the reply must not claim one
+        card = self.hook("prompt", {"prompt": "card " + entry["hash"]}, session="s1")["reason"]  # C15: no card exists
         self.assertIn("no full card", card)
         self.assertNotIn("showed its full card", card)
         self.assertFalse(os.path.exists(self.path("approvals", entry["hash"] + ".json")))
