@@ -44,7 +44,7 @@ challenge row 2
 
 ## Worked example
 
-The plan below is from [a worked example](../example.md): hand-written, because the model writes it in a real session. The file is `tests/e2e/plans/baseline_plan.md`. The fixture project's names are synthetic.
+The plan below is from [a worked example](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/example.md): hand-written, because the model writes it in a real session. The file is `tests/e2e/plans/baseline_plan.md`. The fixture project's names are synthetic.
 
 ```markdown
 | # | Step | Choice | Source | Validation |
@@ -60,8 +60,8 @@ Row 3 has a `default:` source. That is the row to read twice and, if unsure, `ch
 
 ## What this does not guarantee
 
-A sourced plan shows where each choice came from, not that the choice is right. A source tag `repo:` means the repository says so; it does not mean the repository is correct. See [what this does not guarantee](../concepts/not-guaranteed.md).
+A sourced plan shows where each choice came from, not that the choice is right. A source tag `repo:` means the repository says so; it does not mean the repository is correct. See [what this does not guarantee](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/not-guaranteed.md).
 
 ## Reference
 
-[grill](../reference/skills/grill.md) · [gaps and passes](../concepts/gaps-and-passes.md) · next: [approve and run](approve-and-run.md)
+[grill](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/grill.md) · [gaps and passes](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/gaps-and-passes.md) · next: [approve and run](approve-and-run.md)

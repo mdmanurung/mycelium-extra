@@ -3,7 +3,7 @@
 **Start with Tier 1 if you only need a plan. Use Tier 2 for your first run.**
 Each tier adds to the previous one. These are workflow choices, not settings
 or pricing levels. Install the [plugin for your host](installation.md) first.
-For the whole thing in order, read [a day with Mycelium Extra](day.md).
+For the whole thing in order, read [a day with Mycelium Extra](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/day.md).
 
 | Tier | Use it when | Add these tools |
 |---|---|---|
@@ -53,7 +53,7 @@ include `snakemake`, `sbatch`, and `nextflow`.
 
 For setup problems, see [Installation](installation.md#troubleshooting).
 For coverage, exploration, or custom settings, see [Approval gate](approval-gate.md); for optional
-features, see [Advanced features](advanced.md).
+features, see [Advanced features](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/advanced.md).
 
 ## Tier 3: Verify reportable work
 
@@ -90,7 +90,7 @@ a matching number does not establish scientific validity.
 Codex CLI 0.160.0 receipts omit exit metadata, so run status remains a gap.
 An `sbatch` receipt records submission; job outcome needs `sacct` or job logs.
 See [Verification reference](verification.md) for report details and
-[Run plans](../skills/grill/references/run-plans.md) for freezing code.
+[Run plans](https://github.com/mdmanurung/mycelium-extra/blob/main/skills/grill/references/run-plans.md) for freezing code.
 
 ## Tier 4: Full project workflow
 
@@ -196,7 +196,7 @@ The gate does not check that a review happened or that a test passed, and no tes
 or review result is tied to an approval. After the run, `verify` compares the
 execution record with the plan; it does not re-run tests or review the methods.
 See [Approval gate](approval-gate.md#pinned-scripts) and the
-[run-plan reference](../skills/grill/references/run-plans.md).
+[run-plan reference](https://github.com/mdmanurung/mycelium-extra/blob/main/skills/grill/references/run-plans.md).
 
 Debugging inside an approved scope needs no second interview. After the first
 checkpoint, `allow explore <plan hash>` lets the agent fix and re-run code on the
@@ -209,4 +209,4 @@ Plain `allow explore` stays the broader, session-wide grant. See
 
 `handoff` can be used at any pause. `harden` is for a specific recurring mistake,
 not a mandatory finishing step. See [Skill reference](skills.md) for each tool's
-writes and [Mycelium integration](mycelium-integration.md) for ownership.
+writes and [Mycelium integration](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/mycelium-integration.md) for ownership.

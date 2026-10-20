@@ -40,7 +40,7 @@ stop explore
 
 ### Optional
 
-`hints on` and `hints off` turn on one-line command suggestions. Other `gate.json` settings (approval hours, run limit, `pin_scripts`) are on [Advanced features](../advanced.md).
+`hints on` and `hints off` turn on one-line command suggestions. Other `gate.json` settings (approval hours, run limit, `pin_scripts`) are on [Advanced features](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/advanced.md).
 
 ## Worked example
 
@@ -63,12 +63,12 @@ After you type the approval:
 mycelium-extra: plan 84bb5fce approved. Gated runs whose paths appear in that plan may run for 24 h. Pinned inputs: data/processed/vaccine-cohort/sample_metadata.tsv, data/processed/vaccine-cohort/counts.tsv. Pinned scripts: analysis/vaccine-response/scripts/01_select_samples.py, analysis/vaccine-response/scripts/02_paired_test.py, analysis/vaccine-response/scripts/03_summary.R.
 ```
 
-The three steps then run with no hook speaking. The full card is in [a worked example](../example.md#4-the-approval-card).
+The three steps then run with no hook speaking. The full card is in [a worked example](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/example.md#4-the-approval-card).
 
 ## What this does not guarantee
 
-The gate reads the words of a shell command. It does not trace `make`, `bash script.sh` outside the gated paths, `xargs python3`, or code run through MCP notebook tools. Exit status is inferred from which hook fired. It catches mistakes; it is not security. See [what this does not guarantee](../concepts/not-guaranteed.md).
+The gate reads the words of a shell command. It does not trace `make`, `bash script.sh` outside the gated paths, `xargs python3`, or code run through MCP notebook tools. Exit status is inferred from which hook fired. It catches mistakes; it is not security. See [what this does not guarantee](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/not-guaranteed.md).
 
 ## Reference
 
-[gate](../reference/gate.md) · [gate.json](../reference/gate-json.md) · [state files](../reference/state-files.md) · [control model](../concepts/control-model.md) · next: [verify and provenance](verify-and-provenance.md)
+[gate](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/gate.md) · [gate.json](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/gate-json.md) · [state files](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/state-files.md) · [control model](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/control-model.md) · next: [verify and provenance](verify-and-provenance.md)

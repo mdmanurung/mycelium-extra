@@ -46,8 +46,8 @@ Read HANDOFF.md, then <next action>.
 
 ## What this does not guarantee
 
-A handoff is the agent's summary of the session. It can omit or misstate something, so read it before relying on it. It points to code and decisions; it does not verify them. See [what this does not guarantee](../concepts/not-guaranteed.md).
+A handoff is the agent's summary of the session. It can omit or misstate something, so read it before relying on it. It points to code and decisions; it does not verify them. See [what this does not guarantee](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/not-guaranteed.md).
 
 ## Reference
 
-[handoff](../reference/skills/handoff.md) · [focus](stay-oriented.md) · next: [second-model review](second-model-review.md)
+[handoff](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/handoff.md) · [focus](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/guides/stay-oriented.md) · next: [second-model review](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/guides/second-model-review.md)

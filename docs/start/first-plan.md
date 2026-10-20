@@ -1,6 +1,6 @@
 # Your first plan in ten minutes
 
-Plan, approve, run and verify one small analysis. Commands use Claude Code's `/mycelium-extra:` prefix; in Codex use `$mycelium-extra:`. A complete real transcript is in [a worked example](../example.md).
+Plan, approve, run and verify one small analysis. Commands use Claude Code's `/mycelium-extra:` prefix; in Codex use `$mycelium-extra:`. A complete real transcript is in [a worked example](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/example.md).
 
 ## What you control here
 
@@ -38,7 +38,7 @@ The Stop hook shows the card. Check the science on it, then type:
 approve plan 84bb5fce
 ```
 
-(`84bb5fce` is the hash from [the example](../example.md); yours differs.) Type `card <hash> full` first to see every grant, file and check.
+(`84bb5fce` is the hash from [the example](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/example.md); yours differs.) Type `card <hash> full` first to see every grant, file and check.
 
 ## 5. Run
 
@@ -54,8 +54,8 @@ Read the five summary rows first (`Ran as planned`, `Numbers match`, `Code check
 
 ## What this does not guarantee
 
-`CONFORMS` means the record agrees with the plan. It does not mean the analysis is right. See [what this does not guarantee](../concepts/not-guaranteed.md).
+`CONFORMS` means the record agrees with the plan. It does not mean the analysis is right. See [what this does not guarantee](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/not-guaranteed.md).
 
 ## Next
 
-Guides by task: [plan](../guides/plan-an-analysis.md), [approve and run](../guides/approve-and-run.md), [verify](../guides/verify-and-provenance.md). Reference: [grill](../reference/skills/grill.md), [init](../reference/skills/init.md), [verify](../reference/skills/verify.md).
+Guides by task: [plan](../guides/plan-an-analysis.md), [approve and run](../guides/approve-and-run.md), [verify](../guides/verify-and-provenance.md). Reference: [grill](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/grill.md), [init](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/init.md), [verify](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/verify.md).

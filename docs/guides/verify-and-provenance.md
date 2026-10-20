@@ -43,7 +43,7 @@ To make your numbers checkable, declare them in a `<!-- claims -->` block that n
 
 ## Worked example
 
-Real harness output, fixture project (synthetic names), plan `84bb5fce` after its three steps ran. First the report's opening rows, from [a worked example](../example.md#7-verify):
+Real harness output, fixture project (synthetic names), plan `84bb5fce` after its three steps ran. First the report's opening rows, from [a worked example](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/example.md#7-verify):
 
 ```markdown
 # Verify plan 84bb5fce: CONFORMS
@@ -76,8 +76,8 @@ A `disclose` line shows how blanks are left for you rather than filled in:
 
 ## What this does not guarantee
 
-`CONFORMS` means the checked record agrees with the plan. A run proves a script ran, not that it implements the plan's choices (that is code review). A matching claim matches its cell, not the truth. A resolved citation shows the identifier exists, not that the paper supports the sentence. See [what this does not guarantee](../concepts/not-guaranteed.md).
+`CONFORMS` means the checked record agrees with the plan. A run proves a script ran, not that it implements the plan's choices (that is code review). A matching claim matches its cell, not the truth. A resolved citation shows the identifier exists, not that the paper supports the sentence. See [what this does not guarantee](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/not-guaranteed.md).
 
 ## Reference
 
-[verify](../reference/skills/verify.md) · [state files](../reference/state-files.md) · [gaps and passes](../concepts/gaps-and-passes.md) · next: [amend, freeze, re-scope](amend-freeze-rescope.md)
+[verify](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/verify.md) · [state files](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/state-files.md) · [gaps and passes](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/gaps-and-passes.md) · next: [amend, freeze, re-scope](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/guides/amend-freeze-rescope.md)

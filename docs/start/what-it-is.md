@@ -22,7 +22,7 @@ Planning alone needs no setup. The gate adds execution checks and receipts. See 
 
 ## How it relates to Mycelium
 
-Mycelium manages project memory, conventions, review and reports. Mycelium Extra plans, gates and verifies runs, and never overrides Mycelium. It reads Mycelium's `.living/` records when they exist and works in an ordinary repository without them. See [with Mycelium or in a plain repo](../guides/with-mycelium-or-plain-repo.md).
+Mycelium manages project memory, conventions, review and reports. Mycelium Extra plans, gates and verifies runs, and never overrides Mycelium. It reads Mycelium's `.living/` records when they exist and works in an ordinary repository without them. See [with Mycelium or in a plain repo](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/guides/with-mycelium-or-plain-repo.md).
 
 ## What it is not
 
@@ -30,7 +30,7 @@ Mycelium manages project memory, conventions, review and reports. Mycelium Extra
 - Not a judgement of the science. A run that matches its plan can still be the wrong analysis.
 - Not able to see code run through MCP notebook tools.
 
-The full list is in [what this does not guarantee](../concepts/not-guaranteed.md). The control model in plain words is [here](../concepts/control-model.md).
+The full list is in [what this does not guarantee](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/not-guaranteed.md). The control model in plain words is [here](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/control-model.md).
 
 ## Next
 

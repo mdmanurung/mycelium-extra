@@ -22,52 +22,52 @@ For the gate itself, see [the approval gate](approval-gate.md) and the [verifica
 
 ## grill
 
-Turn your question into a sourced, numbered plan; read-only. See [grill](reference/skills/grill.md).
+Turn your question into a sourced, numbered plan; read-only. See [grill](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/grill.md).
 
 ## init
 
-Turn on the approval gate for a repository. See [init](reference/skills/init.md).
+Turn on the approval gate for a repository. See [init](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/init.md).
 
 ## verify
 
-Check what ran against the approved plan; save provenance after you confirm. See [verify](reference/skills/verify.md).
+Check what ran against the approved plan; save provenance after you confirm. See [verify](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/verify.md).
 
 ## new-analysis
 
-Scaffold a new analysis folder. See [new-analysis](reference/skills/new-analysis.md).
+Scaffold a new analysis folder. See [new-analysis](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/new-analysis.md).
 
 ## plan-review
 
-Challenge a plan before approval, with consent before anything leaves the machine. See [plan-review](reference/skills/plan-review.md).
+Challenge a plan before approval, with consent before anything leaves the machine. See [plan-review](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/plan-review.md).
 
 ## decision-status
 
-Resolve which past Mycelium decision applies. See [decision-status](reference/skills/decision-status.md).
+Resolve which past Mycelium decision applies. See [decision-status](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/decision-status.md).
 
 ## data-contract-check
 
-Compare a plan's assumptions with sample tables or H5AD `obs`. See [data-contract-check](reference/skills/data-contract-check.md).
+Compare a plan's assumptions with sample tables or H5AD `obs`. See [data-contract-check](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/data-contract-check.md).
 
 ## focus
 
-Say which analysis this session works on. See [focus](reference/skills/focus.md).
+Say which analysis this session works on. See [focus](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/focus.md).
 
 ## track-changes
 
-Show what changed against the approved plan; read-only. See [track-changes](reference/skills/track-changes.md).
+Show what changed against the approved plan; read-only. See [track-changes](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/track-changes.md).
 
 ## handoff
 
-Write a short `HANDOFF.md` for a fresh session. See [handoff](reference/skills/handoff.md).
+Write a short `HANDOFF.md` for a fresh session. See [handoff](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/handoff.md).
 
 ## idea
 
-Park a passing idea without a question. See [idea](reference/skills/idea.md).
+Park a passing idea without a question. See [idea](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/idea.md).
 
 ## idea-triage
 
-Rank the open ideas so you can choose the next one. See [idea-triage](reference/skills/idea-triage.md).
+Rank the open ideas so you can choose the next one. See [idea-triage](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/idea-triage.md).
 
 ## harden
 
-Turn a learning's mitigation into a test. See [harden](reference/skills/harden.md).
+Turn a learning's mitigation into a test. See [harden](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/harden.md).

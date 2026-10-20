@@ -44,88 +44,37 @@ Claude Code and OpenCode use ``/mycelium-extra:<skill>``; Codex uses ``$mycelium
    docs/installation
    docs/start/first-plan
    docs/usage
-   docs/day
-   docs/example
-   docs/exercise
 
 .. toctree::
    :maxdepth: 1
-   :caption: Guides
+   :caption: Core guides
 
    docs/guides/plan-an-analysis
    docs/guides/approve-and-run
    docs/guides/verify-and-provenance
-   docs/guides/amend-freeze-rescope
-   docs/guides/stay-oriented
    docs/guides/hand-off
-   docs/guides/second-model-review
-   docs/guides/harden-against-repeats
-   docs/guides/with-mycelium-or-plain-repo
-   docs/validation-recipes
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Reference
+
+   docs/skills
+   docs/approval-gate
+   docs/verification
 
 .. toctree::
    :maxdepth: 1
    :caption: Examples
 
    docs/examples/index
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Reference
-
-   docs/reference/index
-   docs/skills
-   docs/reference/gate
-   docs/reference/gate-json
-   docs/reference/state-files
-   docs/approval-gate
-   docs/verification
-   docs/advanced
-   docs/focus-and-track-changes
-   docs/mycelium-integration
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Concepts
-
-   docs/concepts/control-model
-   docs/concepts/gaps-and-passes
-   docs/concepts/not-guaranteed
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Development
-
-   Development notes <https://github.com/mdmanurung/mycelium-extra/blob/main/docs/development.md>
-   Decisions <https://github.com/mdmanurung/mycelium-extra/blob/main/docs/decisions.md>
-   Changelog <https://github.com/mdmanurung/mycelium-extra/blob/main/CHANGELOG.md>
-
-.. toctree::
-   :hidden:
-
    docs/examples/E01-chat-yes-is-not-consent
-   docs/examples/E02-command-the-plan-did-not-name
    docs/examples/E03-sign-flipped-comparison
-   docs/examples/E04-duplicate-aliquots
-   docs/examples/E05-documented-folder-does-not-exist
-   docs/examples/E06-edited-script-repinned
    docs/examples/E07-verify-unplanned-and-unrecorded
-   docs/examples/E08-verify-blind-spot-failed-job
-   docs/examples/E09-python36-fail-open
-   docs/examples/E10-explore-is-session-scoped
-   docs/examples/E11-handoff-carries-the-lessons
-   docs/reference/skills/grill
-   docs/reference/skills/init
-   docs/reference/skills/verify
-   docs/reference/skills/new-analysis
-   docs/reference/skills/plan-review
-   docs/reference/skills/decision-status
-   docs/reference/skills/data-contract-check
-   docs/reference/skills/focus
-   docs/reference/skills/track-changes
-   docs/reference/skills/handoff
-   docs/reference/skills/idea
-   docs/reference/skills/idea-triage
-   docs/reference/skills/harden
-   skills/grill/references/run-plans
-   skills/track-changes/references/schema
+
+.. toctree::
+   :maxdepth: 1
+   :caption: More (on GitHub)
+
+   All docs <https://github.com/mdmanurung/mycelium-extra/tree/main/docs>
+   Development notes <https://github.com/mdmanurung/mycelium-extra/blob/main/docs/development.md>
+   Changelog <https://github.com/mdmanurung/mycelium-extra/blob/main/CHANGELOG.md>
