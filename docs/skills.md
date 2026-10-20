@@ -22,7 +22,7 @@ To learn how the gate works, read [the approval gate](approval-gate.md) and the 
 
 ## grill
 
-Turns your question into a sourced, numbered plan. It is read-only. See [grill](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/grill.md).
+Turns your question into a sourced, numbered plan. It is read-only. For scientific work, after asking your question and retrieving project evidence, it discovers activated Mycelium convention packs and reads the relevant guides selectively. Marketplace presence alone does not activate a pack. Applicable rules, exceptions, sources and falsifiable checks enter the plan; they provide neither scientific proof nor execution approval, and the five-question cap remains unchanged. See [grill](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/grill.md).
 
 ## init
 
