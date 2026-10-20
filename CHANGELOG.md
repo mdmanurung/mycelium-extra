@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [Unreleased]
+
+### Fixed
+
+- **init:** `--hours 0` is accepted, matching the gate's `approval_hours: 0` (every approval expires at once); negative and non-finite values are still usage errors.
+
 ## [0.14.1] - 2026-10-19
 
 Fixes from two independent reviews of 0.14.0 (one by Claude reviewers, one by OpenCode sessions; see `plans/1.0.0-review/`). The gate now denies more shell forms, so a command that ran silently before can be denied: the message says to write the path literally. `gate_diff` differs from 0.14.0 only by a `kind` field in the stored pending entry (reviewed oracle regenerated, 20 cases).

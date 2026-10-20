@@ -410,8 +410,8 @@ def main(argv):
         parser.error("--diagnose only reports; do not combine it with options that change or record anything")
     if args.plugin_root and not args.diagnose:
         parser.error("--plugin-root only applies to --diagnose")
-    if args.hours is not None and (not math.isfinite(args.hours) or args.hours <= 0):
-        parser.error("--hours must be finite and positive")
+    if args.hours is not None and (not math.isfinite(args.hours) or args.hours < 0):
+        parser.error("--hours must be finite and 0 or more")
 
     root = os.path.abspath(args.root) if args.root else repo_root(os.getcwd())
     if args.diagnose:

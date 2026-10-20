@@ -113,15 +113,20 @@ class GateInitTest(unittest.TestCase):
         run(self.root, "--dry-run")
         self.assertEqual(os.listdir(self.root), [])
 
+    def test_zero_hours_is_accepted(self):
+        run(self.root, "--hours", "0")
+        with open(os.path.join(self.root, ".mycelium-extra", "gate.json")) as handle:
+            self.assertEqual(json.load(handle)["approval_hours"], 0)
+
     def test_invalid_hours_are_usage_errors_without_writes(self):
-        for hours in ("nan", "inf", "-inf", "0", "-1"):
+        for hours in ("nan", "inf", "-inf", "-1"):
             with open(SCRIPT) as source:
                 proc = subprocess.run([sys.executable, "-", "--root", self.root,
                                        "--hours=" + hours], stdin=source,
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                       universal_newlines=True)
             self.assertEqual(proc.returncode, 2, hours)
-            self.assertIn("--hours must be finite and positive", proc.stderr)
+            self.assertIn("--hours must be finite and 0 or more", proc.stderr)
             self.assertNotIn("Traceback", proc.stderr)
             self.assertEqual(os.listdir(self.root), [], hours)
 

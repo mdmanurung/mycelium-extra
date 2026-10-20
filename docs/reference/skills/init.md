@@ -19,7 +19,7 @@ Invoke with `/mycelium-extra:init` (Claude Code, OpenCode) or `$mycelium-extra:i
 | `--root DIR` | Repository to gate. Default: the git top level of the current folder. |
 | `--paths GLOB ...` | Value of `gated_paths`. Default `analysis/** nbs/**`. |
 | `--commands CMD ...` | Value of `gated_commands`. Default `sbatch snakemake nextflow`. |
-| `--hours N` | Value of `approval_hours`. Default 24. Must be finite and positive. |
+| `--hours N` | Value of `approval_hours`. Default 24. Must be finite and 0 or more; 0 expires every approval. |
 | `--dry-run` | Report what would change; write nothing. |
 | `--tools` | Also record where `scilintr` and an `Rscript` whose R has scilintr are, in `tools.json`. Looks at `--scilintr` / `$MX_SCILINTR`, `--rscript` / `$MX_RSCRIPT`, then `PATH`, and checks that each works. |
 | `--scilintr PATH`, `--rscript PATH` | With `--tools`: the tool's path. |
