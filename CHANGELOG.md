@@ -4,6 +4,26 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.14.4] - 2026-10-20
+
+The gate now denies more shell spellings, so a command that ran silently before can be denied: the message says to write the path literally. `gate_diff` differs from 0.14.3 only by a `pins_unchecked` field in the stored launch record (reviewed oracle regenerated, 57 cases); no allow or deny decision changes in that comparison.
+
+### Added
+
+- **sc-conventions live-test tooling:** a recorded-method check (R3, `skills/verify/scripts/method_fidelity.py`), an offline M1 preparer and M3 readiness check (`tests/eval/sc_conventions.py`), and validation-recipe bindings for R1 to R3. The public scorer tests are split from the sealed-key leakage tests.
+- **OpenCode adapter:** a silent exit-0 gate run is read as allow, not as a gate failure.
+
+### Fixed
+
+- **gate (scan):** command substitution, heredoc and piped shell input, `env VAR=/path`, `srun` options that take a value, `cd` options, line continuations, `>|` and `>&` redirects, `sed --in-place`, package-manager runners, `python -m` of a gated command, bare folder names in inline code, quoted heredoc delimiters, subshell and `popd` scope, `timeout` durations and `$'...'` paths are read. Python and R stdin stay a documented limit. A huge number in `gate.json` no longer makes the gate fail open.
+- **gate (approval flow):** the last `Plan status` line of a reply governs; `card <hash>` on an invalid block says it has no full card; an amendment card with an expired or other-session baseline gets the whole card; an approval with no session id no longer says a run may follow; near-miss commands of four words or fewer get a notice; session ids that sanitise alike no longer share state.
+- **gate (receipts):** a denied command leaves no explore entry; a truncated receipts tail no longer swallows the next receipt; a duplicate Post is found for a receipt over 1 MB; a truncated launch record is reported unreadable and kept; the receipt says `pins_checked: false` and lists `pins_unchecked` when the time limit skipped a pin.
+- **runtime:** an event whose cwd is outside the repository still finds the gate; the state writer refuses a symlinked state file or folder, not a symlinked project root; `focus` refuses a symlink to the project root, a non-gated folder or the state folder; `hooks/py.sh` answers in the hook protocol when no interpreter exists; a non-object OpenCode `tool_input` is reported; a failed OpenCode tool call still shows the gate notice.
+- **verify:** a linter that never ran is not reported as clean; a wrong `--analysis-dir` is refused; git-ignored provenance is swept; the run id changes when a file is rewritten at the same size; a `status` that contradicts `superseded_by` is a finding; a write failure is a `verify:` error; the claims coverage line states how a claim matches its cell.
+- **plan-review:** `Inputs` as a bullet or in bold is read; delimiters `,;\t|` and wider ID column names are read, and a table with no ID-like column is reported; `--consent-unread-inputs` lets the user consent to an unread input on a run-plan packet.
+- **track-changes:** two analyses no longer share one report folder; the item cap keeps attention items; redaction covers URL passwords, JWTs, private-key bodies and quoted secrets.
+- **docs:** the README names the five skills built around Mycelium's files; `docs/reference/gate.md` states what a failed Codex call leaves in the receipts; `grill` names the track-changes brief folder and checks it is current.
+
 ## [0.14.3] - 2026-10-20
 
 ### Added
