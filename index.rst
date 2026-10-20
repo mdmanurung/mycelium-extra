@@ -65,6 +65,12 @@ Claude Code and OpenCode use ``/mycelium-extra:<skill>``; Codex uses ``$mycelium
 
 .. toctree::
    :maxdepth: 1
+   :caption: Examples
+
+   docs/examples/index
+
+.. toctree::
+   :maxdepth: 1
    :caption: Reference
 
    docs/reference/index
@@ -97,6 +103,17 @@ Claude Code and OpenCode use ``/mycelium-extra:<skill>``; Codex uses ``$mycelium
 .. toctree::
    :hidden:
 
+   docs/examples/E01-chat-yes-is-not-consent
+   docs/examples/E02-command-the-plan-did-not-name
+   docs/examples/E03-sign-flipped-comparison
+   docs/examples/E04-duplicate-aliquots
+   docs/examples/E05-documented-folder-does-not-exist
+   docs/examples/E06-edited-script-repinned
+   docs/examples/E07-verify-unplanned-and-unrecorded
+   docs/examples/E08-verify-blind-spot-failed-job
+   docs/examples/E09-python36-fail-open
+   docs/examples/E10-explore-is-session-scoped
+   docs/examples/E11-handoff-carries-the-lessons
    docs/reference/skills/grill
    docs/reference/skills/init
    docs/reference/skills/verify

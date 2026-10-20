@@ -33,6 +33,8 @@ include_patterns = [
     "docs/guides/second-model-review.md",
     "docs/guides/harden-against-repeats.md",
     "docs/guides/with-mycelium-or-plain-repo.md",
+    "docs/examples/index.md",
+    "docs/examples/E*.md",
     "docs/reference/index.md",
     "docs/reference/gate.md",
     "docs/reference/gate-json.md",
