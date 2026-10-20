@@ -106,7 +106,11 @@ def read_table(path, wanted=None):
         with open(path, newline="", encoding="utf-8-sig") as handle:
             reader = csv.reader(handle, delimiter=delimiter, strict=True)
             try:
-                records = list(reader)
+                records, starts, last = [], [], 0
+                for record in reader:
+                    records.append(record)
+                    starts.append(last + 1)  # physical line where this record begins
+                    last = reader.line_num
             except csv.Error as error:
                 raise TableShapeError("line {} cannot be parsed ({}), so later rows may be missing or "
                                       "merged".format(reader.line_num, error))
@@ -121,7 +125,7 @@ def read_table(path, wanted=None):
     if len(set(named)) != len(named):
         raise TableGap("the table has duplicate column headers")
     rows = []
-    for line_no, record in enumerate(records[1:], start=2):
+    for line_no, record in zip(starts[1:], records[1:]):
         if not record:
             continue  # a blank line, as csv.DictReader skips it
         # Any extra field is malformed, even an empty one: the extra field may be
@@ -133,6 +137,8 @@ def read_table(path, wanted=None):
             raise TableShapeError("line {} has more fields than the header ({} > {}), so its values "
                                   "cannot be assigned to columns{}".format(
                                       line_no, len(record), len(columns), hint))
+        if not any(field.strip() for field in record):
+            continue  # a ',,,' line (Excel padding) is no sample, so it must not count toward rows
         # A short row's absent trailing fields are missing values, never None.
         record = record + [""] * (len(columns) - len(record))
         rows.append(dict(zip(columns, record)))
@@ -809,6 +815,10 @@ def validate(check, index):
         raise ContractError("checks[{}] id must be a nonempty string".format(index))
     if kind in DECLARED:
         validate_declared(check, index)
+    elif set(check) - CLASSIC[kind] - {"kind", "id", "label", "table", "filters"}:
+        # a typo would drop the assumption and pass, so it is a usage error, as for the declared kinds
+        raise ContractError("checks[{}] {} does not accept: {}".format(
+            index, kind, ", ".join(sorted(set(check) - CLASSIC[kind] - {"kind", "id", "label", "table", "filters"}))))
     if check.get("kind") == "batch_confounding" and "max_share" in check:
         share = check["max_share"]
         if isinstance(share, bool) or not isinstance(share, (int, float)) or not 0 < share <= 1:
@@ -816,6 +826,13 @@ def validate(check, index):
                                 "share (0.7 for 70%): {}".format(index, json.dumps(share)))
 
 
+CLASSIC = {  # kind: the keys its check reads besides kind, id, label, table and filters
+    "schema": {"columns"},
+    "cohort": {"column", "levels", "min_rows", "rows", "no_missing"},
+    "unit_of_replication": {"unit", "group", "within", "min_units_per_group", "units_may_span_groups"},
+    "pairing": {"unit", "within", "levels"},
+    "batch_confounding": {"batch", "contrast", "max_share"},
+}
 DECLARED = {  # kind: the keys it accepts besides kind, id, label, table and filters; nothing else is read,
     # so a contract cannot carry a severity or a waiver that softens one of these checks
     "unique_key": {"columns"},

@@ -92,5 +92,18 @@ class DecisionThreadsTest(unittest.TestCase):
                          ["Actual decision", "Another actual decision"])
 
 
+    def test_bom_keeps_first_entry_and_unclosed_fence_is_a_stated_gap(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = os.path.join(root, "decisions.md")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("\ufeff### [2026-01-01] Use method A\n\n### [2026-02-01] B\n```\n"
+                             "### [2026-03-01] Hidden\n")
+            with open(SCRIPT) as source:
+                proc = subprocess.run([sys.executable, "-", "--living-dir", root, "--json"],
+                                      stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertEqual([e["title"] for e in json.loads(proc.stdout.decode())], ["Use method A", "B"])
+            self.assertIn("ends inside a code fence opened at line 4", proc.stderr.decode())
+
+
 if __name__ == "__main__":
     unittest.main()

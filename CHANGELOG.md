@@ -6,6 +6,12 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Fixed
 
+- **init:** a glob-free `--paths` folder (for example `analysis`) is warned about, since it gates only the folder itself. `--diagnose` now states what the gate does with an unchecked `gated_paths` or `gated_commands` value and no longer crashes on a huge integer. A non-UTF-8 `.gitignore` no longer aborts init after `gate.json` is written.
+- **new-analysis:** an analysis named `plan` or `tracker` is refused (its analysis doc was silently lost). The empty scaffold lock file in the parent folder is documented as the one write outside the new folder.
+- **idea:** the slug is capped at 60 characters; a corrupt recovery record is named.
+- **decision-status:** a UTF-8 BOM no longer drops the first entry; a file ending inside a code fence is a stated gap.
+- **data-contract-check:** all-empty rows are not samples; an unknown key in a classic check is a usage error (exit 1, was silently ignored); errors name the real file line; `None` and `<NA>` are listed as missing values.
+
 - **verify (E1b):** the per-rule conda env record was checked against a real `snakemake --use-conda` run (Snakemake 9.27.0, conda 24.9.2). Pip packages are listed once (conda-forge's `lib/python3.1` symlink to `python3.11` doubled them, in the plain conda snapshot too). `-d`, `-dDIR` and `--directory` are honoured for `.snakemake/` while the default Snakefile is still looked for in the starting folder. A `snakemake` run wrapped in a script (`sh run.sh`) is now a gap when its folder has built envs or a Snakefile with `conda:` rules. `rule-envs-<hash>.json` carries `layout_checked_against` in place of `synthetic_format_only`.
 
 - **init:** `--hours 0` is accepted, matching the gate's `approval_hours: 0` (every approval expires at once); negative and non-finite values are still usage errors.

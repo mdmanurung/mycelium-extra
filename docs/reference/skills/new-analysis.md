@@ -32,7 +32,7 @@ analysis/<name>/
   data/  code/  outputs/  logs/  reports/
 ```
 
-`data/` and `code/` hold symlinks only. The analysis doc is `<NAME>.md` (folder name in UPPER_SNAKE_CASE) in a Mycelium repository, `README.md` elsewhere. Stubs stop until implemented. It refuses a non-empty folder, a missing link target, and anything it would overwrite (`refused:` line, nothing written). A `WARNING: git ignores ...` line means that file would never be committed; stop and ask. It writes nothing outside the new folder: not `.living/`, not `analysis/ANALYSIS_MANIFEST.md` (it prints a suggested manifest entry).
+`data/` and `code/` hold symlinks only. The analysis doc is `<NAME>.md` (folder name in UPPER_SNAKE_CASE) in a Mycelium repository, `README.md` elsewhere. Stubs stop until implemented. It refuses a non-empty folder, a missing link target, and anything it would overwrite (`refused:` line, nothing written). A `WARNING: git ignores ...` line means that file would never be committed; stop and ask. It writes nothing outside the new folder except an empty `.<name>.scaffold.lock` file in its parent folder (the lock that keeps two runs from filling the same folder; delete it if you like): not `.living/`, not `analysis/ANALYSIS_MANIFEST.md` (it prints a suggested manifest entry).
 
 ## Afterwards
 

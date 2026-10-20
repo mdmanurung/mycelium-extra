@@ -22,9 +22,16 @@ def cell(text):
     return text.replace("|", "&#124;").replace("\r", " ").replace("\n", " ")
 
 
+def load(note):
+    try:
+        with open(note, encoding="utf-8") as handle:
+            return json.load(handle)
+    except ValueError as error:
+        raise ValueError("unreadable recovery record {} ({}); inspect it, then fix or remove it".format(note, error))
+
+
 def publish(todo, note, runtime, helper, write):
-    with open(note, encoding="utf-8") as handle:
-        record = json.load(handle)
+    record = load(note)
     name = record["file"]
     if not re.fullmatch(r"[a-z0-9-]+\.md", name):
         raise ValueError("invalid capture recovery filename")
@@ -85,9 +92,7 @@ def main(argv):
                 for name in sorted(os.listdir(todo)):
                     if name.startswith(".capture-") and name.endswith(".json"):
                         path = os.path.join(todo, name)
-                        with open(path, encoding="utf-8") as handle:
-                            record = json.load(handle)
-                        if not record.get("published"):
+                        if not load(path).get("published"):
                             notes.append(path)
             else:
                 with open(args.text_file, encoding="utf-8") as handle:
@@ -95,12 +100,12 @@ def main(argv):
                 if not idea.strip():
                     raise ValueError("idea text is empty")
                 title = " ".join(idea.split()[:8])
-                slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "idea"
+                # Bounded: one long token (a sequence, a URL) must not exceed the filename limit.
+                slug = re.sub(r"[^a-z0-9]+", "-", title.lower())[:60].strip("-") or "idea"
                 reserved = set()
                 for pending in os.listdir(todo):
                     if pending.startswith(".capture-") and pending.endswith(".json"):
-                        with open(os.path.join(todo, pending), encoding="utf-8") as handle:
-                            reserved.add(json.load(handle)["file"])
+                        reserved.add(load(os.path.join(todo, pending))["file"])
                 name, counter = slug + ".md", 2
                 while name in reserved or os.path.lexists(os.path.join(todo, name)):
                     name = "{}-{}.md".format(slug, counter)

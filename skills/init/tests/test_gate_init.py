@@ -109,6 +109,19 @@ class GateInitTest(unittest.TestCase):
                           "approval_hours": 8})
         self.assertIn("WARNING", out)
 
+    def test_glob_free_folder_pattern_is_warned_about(self):
+        os.makedirs(os.path.join(self.root, "analysis", "x"))
+        self.assertIn("without a glob", run(self.root, "--paths", "analysis", "--dry-run"))
+        self.assertNotIn("without a glob", run(self.root, "--paths", "analysis/**", "--dry-run"))
+
+    def test_non_utf8_gitignore_does_not_abort_init(self):
+        with open(self.ignore, "wb") as handle:
+            handle.write(b"# caf\xe9\n*.pyc")
+        run(self.root)
+        with open(self.ignore, "rb") as handle:
+            self.assertEqual(handle.read(), b"# caf\xe9\n*.pyc\n# mycelium-extra approval gate: "
+                             b"short-lived execution state\n.mycelium-extra/\n")
+
     def test_dry_run_writes_nothing(self):
         run(self.root, "--dry-run")
         self.assertEqual(os.listdir(self.root), [])
@@ -282,6 +295,14 @@ class DiagnoseTest(unittest.TestCase):
         self.assertIn("PROBLEM gated_pahts: not a key this gate reads", out)
         self.assertNotIn("PROBLEM pin_scripts", out)
         self.assertIn("gated_paths: [\"analysis/**\", \"nbs/**\"]  (default)", out)
+
+    def test_huge_integer_and_unchecked_list_keys_are_reported_honestly(self):
+        self.state_file("gate.json", '{"approval_hours": 1' + "0" * 400 + ', "gated_commands": 5}')
+        out = self.diagnose()
+        self.assertIn("PROBLEM approval_hours:", out)
+        self.assertIn("integer this large makes the gate error", out)
+        self.assertIn("PROBLEM gated_commands: 5 is invalid; the gate wants a list of strings, and uses nothing: "
+                      "the gate does not check it", out)
 
     def test_unreadable_gate_json_is_reported_with_exit_zero(self):
         self.state_file("gate.json", "[1]")

@@ -122,6 +122,13 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertIn("not empty", proc.stdout)
         self.assertEqual(os.listdir(self.dest), ["notes.txt"])
 
+    def test_folder_named_plan_or_tracker_is_refused_in_a_mycelium_repo(self):
+        for name in ("plan", "tracker"):
+            proc = run(self.root, "--dest=analysis/" + name)
+            self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+            self.assertIn("collide", proc.stdout)
+            self.assertFalse(os.path.exists(os.path.join(self.root, "analysis", name)))
+
     def test_empty_dest_is_filled(self):
         os.mkdir(self.dest)
         self.scaffold()

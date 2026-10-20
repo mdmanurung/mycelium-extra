@@ -57,7 +57,7 @@ def parse_entries(path):
     entries = []
     in_fence = None
     current = None
-    with open(path, encoding="utf-8", errors="replace") as handle:
+    with open(path, encoding="utf-8-sig", errors="replace") as handle:
         for number, line in enumerate(handle, start=1):
             fence = FENCE.match(line)
             if in_fence:
@@ -68,7 +68,7 @@ def parse_entries(path):
                     current["_body"].append(line)
                 continue
             if fence:
-                in_fence = fence.group(1)
+                in_fence, fence_line = fence.group(1), number
                 continue
             heading = HEADING.match(line)
             if heading:
@@ -99,6 +99,9 @@ def parse_entries(path):
                 if name == "status" and TEMPLATE_STATUS.fullmatch(value):
                     continue
                 current.setdefault(KEPT_FIELDS[name], value)
+    if in_fence:
+        print("gap: {} ends inside a code fence opened at line {}; entries after it are not listed".format(
+            os.path.basename(path), fence_line), file=sys.stderr)
     return entries
 
 

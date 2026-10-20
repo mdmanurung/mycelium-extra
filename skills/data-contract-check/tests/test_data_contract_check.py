@@ -99,8 +99,27 @@ class DataContractCheckTest(unittest.TestCase):
         self.assertEqual(observed, ["1 of 8 rows", "absent: C"])
 
     def test_contract_cannot_downgrade_severity(self):
-        code, _ = run([{"kind": "schema", "columns": ["donor"], "severity": "warning"}])
-        self.assertEqual(code, 2)
+        code, out = invoke([{"kind": "schema", "columns": ["donor"], "severity": "warning"}])
+        self.assertEqual(code, 1)  # rejected as an unknown key, never run as a softer check
+        self.assertIn("does not accept: severity", out)
+
+    def test_misspelled_key_in_a_classic_check_is_a_usage_error(self):
+        code, out = invoke([{"kind": "cohort", "column": "cohort", "levles": ["A", "Z"], "min_rows": 1}])
+        self.assertEqual(code, 1)
+        self.assertIn("does not accept: levles", out)
+
+    def test_all_empty_rows_are_no_samples_and_errors_name_the_file_line(self):
+        with tempfile.TemporaryDirectory() as root:
+            with open(os.path.join(root, "t.csv"), "w") as handle:
+                handle.write('id,g\ns1,A\ns2,None\ns3,B\n,\n,\n"q\nx",A,extra\n')
+            code, out = invoke([{"kind": "cohort", "column": "g", "min_rows": 4}], table="t.csv", root=root)
+            self.assertEqual(code, 2)
+            self.assertIn("line 7 has more fields", out)  # the physical line, not the record number
+            with open(os.path.join(root, "t.csv"), "w") as handle:
+                handle.write("id,g\ns1,A\ns2,None\ns3,B\n,\n,\n")
+            code, alerts = run([{"kind": "cohort", "column": "g", "min_rows": 4}], table="t.csv", root=root)
+            self.assertEqual(code, 2)
+            self.assertEqual(alerts[0]["observed"], "3")
 
     def test_zero_rows_after_filter_blocks(self):
         code, alerts = run([{"kind": "unit_of_replication", "unit": "participant", "group": "cohort"}],

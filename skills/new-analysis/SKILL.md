@@ -60,7 +60,7 @@ Use Edit; the files already exist.
   - Into `PLAN.md`: its Objective, Evidence, Inputs, Plan table, Assumptions and risk, Parked, and Decisions to record.
   - Into `TRACKER.md`: one row per plan row, using the same IDs.
 - If there is no approved brief, leave the headings for the user or for a later grill.
-- Do not write `.living/`, `analysis/ANALYSIS_MANIFEST.md`, or anything outside the new folder.
+- Do not write `.living/`, `analysis/ANALYSIS_MANIFEST.md`, or anything outside the new folder (the script leaves one empty `.<name>.scaffold.lock` in the parent; that is expected).
 
 ## 4. Where things go (tell the user once)
 

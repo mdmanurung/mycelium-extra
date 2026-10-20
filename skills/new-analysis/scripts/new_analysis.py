@@ -10,7 +10,8 @@ Creates <dest>/ with numbered step stubs at its root, a Snakefile that runs them
 order, run.sh, the analysis doc (Mycelium's analysis-readme template: <NAME>.md in a
 Mycelium repository, README.md elsewhere), PLAN.md, TRACKER.md, and data/ code/ outputs/
 logs/ reports/. data/ and code/ hold symlinks. Refuses a non-empty <dest>, never
-overwrites, and writes nothing outside <dest>. Stdlib-only; runs on Python 3.9+.
+overwrites, and writes nothing outside <dest> except an empty lock file, .<name>.scaffold.lock, that it
+leaves in the parent folder. Stdlib-only; runs on Python 3.9+.
 """
 
 import argparse
@@ -302,6 +303,9 @@ def scaffold(args):
     data_links = plan_links(args.data, "data", dest, root)
     code_links = plan_links(args.code, "code", dest, root)
     doc_name = name.upper().replace("-", "_") + ".md" if mycelium else "README.md"
+    if doc_name in ("PLAN.md", "TRACKER.md"):
+        raise Refusal("the analysis doc {} would collide with the {} this folder also holds; pick another "
+                      "name; nothing was changed".format(doc_name, doc_name))
     template_path, template_note = find_doc_template(args.doc_template, root, args.templates)
     templates = args.templates
     today = datetime.date.today().isoformat()

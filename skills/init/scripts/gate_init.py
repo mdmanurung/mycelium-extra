@@ -81,7 +81,7 @@ def is_ignored(root):
     if result is not None and result.returncode in (0, 1):
         return result.returncode == 0
     try:
-        with open(os.path.join(root, ".gitignore"), encoding="utf-8") as handle:
+        with open(os.path.join(root, ".gitignore"), encoding="utf-8", errors="replace") as handle:
             lines = [line.strip() for line in handle]
     except OSError:
         return False
@@ -91,11 +91,11 @@ def is_ignored(root):
 
 def add_ignore(root):
     path = os.path.join(root, ".gitignore")
-    text = ""
+    text = b""
     if os.path.exists(path):
-        with open(path, encoding="utf-8") as handle:
+        with open(path, "rb") as handle:  # bytes: a non-UTF-8 .gitignore must not abort init
             text = handle.read()
-    prefix = "\n" if text and not text.endswith("\n") else ""
+    prefix = "\n" if text and not text.endswith(b"\n") else ""
     with open(path, "a", encoding="utf-8") as handle:
         handle.write(prefix + "# mycelium-extra approval gate: short-lived execution state\n"
                      + IGNORE_LINE + "\n")
@@ -112,6 +112,12 @@ def glob_base(pattern):
 
 def missing_paths(root, patterns):
     return [p for p in patterns if not os.path.isdir(os.path.join(root, glob_base(p) or "."))]
+
+
+def bare_folders(root, patterns):
+    """Patterns with no glob that name a folder (or nothing): the gate matches such a pattern against the
+    folder itself, never against the files under it."""
+    return [p for p in patterns if glob_base(p) == p and os.path.isdir(os.path.join(root, p or "."))]
 
 
 def find_tool(flag, env, name):
@@ -221,7 +227,10 @@ def mycelium_notice(root):
 # ---------------------------------------------------------------- --diagnose (read-only)
 
 def _number(value):
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+    try:
+        return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+    except OverflowError:  # an integer too large for a float
+        return False
 
 
 def _strings(value):
@@ -259,6 +268,11 @@ INVALID_EFFECT = {
     "focus_notices": "off", "lint_before_stop": "off", "lint_before_run": "off", "on_error": "allow",
     "max_runs_per_approval": "no limit", "checkpoint_steps": "off",
 }
+# gated_paths and gated_commands are not type-checked by the gate, so there is no default to fall back to.
+UNCHECKED_EFFECT = ("nothing: the gate does not check it, so an int makes the gate error (the run is then "
+                    "allowed, or denied if on_error is deny) and a string is read one character at a time")
+HUGE_EFFECT = ("nothing: an integer this large makes the gate error before it runs (the run is then allowed, "
+               "or denied if on_error is deny) until gate.json is fixed")
 
 
 def last_json_line(path):
@@ -356,8 +370,11 @@ def diagnose(root, plugin_root):
         if rule is None:
             out.append("  PROBLEM {}: not a key this gate reads (typo?); ignored.".format(key))
         elif not rule[1](saved[key]):
+            huge = isinstance(saved[key], int) and not isinstance(saved[key], bool) and abs(saved[key]) > 10 ** 300
+            effect = (UNCHECKED_EFFECT if key in ("gated_paths", "gated_commands") else
+                      HUGE_EFFECT if huge else INVALID_EFFECT.get(key, "the default"))
             out.append("  PROBLEM {}: {} is invalid; the gate wants {}, and uses {}.".format(
-                key, json.dumps(saved[key]), rule[0], INVALID_EFFECT.get(key, "the default")))
+                key, json.dumps(saved[key]), rule[0], effect))
     diagnose_hooks(plugin_root, out)
     plugin, version = mycelium_version(gated or root)
     if plugin is None:
@@ -480,6 +497,10 @@ def main(argv):
               "blocked until they do.".format(", ".join(missing)))
     elif missing:
         print("note: not present yet: " + ", ".join(missing))
+    bare = bare_folders(root, effective["gated_paths"])
+    if bare:
+        print("WARNING: gated_paths without a glob match only the folder itself, not the files in it ({}); "
+              "write e.g. {}/** to cover them.".format(", ".join(repr(p) for p in bare), (bare[0] or ".").rstrip("/")))
     if args.tools:
         record_tools(root, (args.scilintr, args.rscript), args.dry_run)
     notice = mycelium_notice(root)

@@ -73,6 +73,22 @@ class CaptureTest(unittest.TestCase):
         with open(path) as handle:
             self.assertEqual(handle.read(), "human edits")
 
+    def test_long_single_token_is_parked_with_a_bounded_filename(self):
+        with open(self.idea, "w") as handle:
+            handle.write("a" * 300 + " b c")
+        result = self.run_capture()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        name = result.stdout.decode().strip().split("/")[-1]
+        self.assertLessEqual(len(name), 70)
+
+    def test_corrupt_recovery_record_is_named_not_a_bare_parser_error(self):
+        todo = os.path.join(self.root, "todo")
+        os.makedirs(todo)
+        open(os.path.join(todo, ".capture-bad.json"), "w").close()
+        result = self.run_capture()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(".capture-bad.json", result.stderr.decode())
+
 
 if __name__ == "__main__":
     unittest.main()
