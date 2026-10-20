@@ -24,6 +24,14 @@ The skills, from planning to hand-off:
 - `new-analysis`, `plan-review`, `handoff`, `harden`, `idea`, `idea-triage`,
   `decision-status` and `data-contract-check` cover structure, review, continuity, and checks.
 
+Five of these are built around Mycelium's files: `decision-status` and `harden`
+read `.living/` memory and stop when it is absent; `idea` and `idea-triage` read
+and write the `todo/` registry in Mycelium's format (they create it when it is
+absent); `new-analysis` writes Mycelium's analysis doc (a bundled copy serves a
+plain repository). The other skills work in an ordinary repository; with no
+`.living/`, `grill`, `plan-review`, `verify` and `track-changes` have less to
+read and say so.
+
 ## Installation
 
 Pick your host; full steps, updates, and requirements (Python 3.9 or later) are in

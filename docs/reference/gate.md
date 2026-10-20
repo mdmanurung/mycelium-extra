@@ -21,7 +21,7 @@ All hooks start through `hooks/py.sh --hook hooks/gate_run.py <event>`. `py.sh` 
 
 ### Codex (`hooks/codex.json`)
 
-The same events with `--host codex`, except that there is no `PostToolUseFailure`. Tool matchers are `Bash|apply_patch` for `PreToolUse`, and `Bash` and `apply_patch` as two `PostToolUse` entries. Timeouts are the same as above. Codex needs enabled and trusted hooks, and CLI 0.160.0 or later. In 0.160.0 the post hook gives no exit status, so every Codex receipt records exit status `unknown` and `verify` reports a gap.
+The same events with `--host codex`, except that there is no `PostToolUseFailure`. Tool matchers are `Bash|apply_patch` for `PreToolUse`, and `Bash` and `apply_patch` as two `PostToolUse` entries. Timeouts are the same as above. Codex needs enabled and trusted hooks, and CLI 0.160.0 or later. In 0.160.0 the post hook gives no exit status, so every Codex receipt records exit status `unknown` and `verify` reports a gap. A failed `Bash` or `apply_patch` call therefore never reads as a pass: when Codex sends the post event it is receipted `unknown`, and when it sends none the planned step has no receipt at all. Neither is recorded as a completed run (Claude Code, which does send `PostToolUseFailure`, records the exit code when the message carries one).
 
 ### OpenCode (`opencode/index.js`)
 
