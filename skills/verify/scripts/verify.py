@@ -595,7 +595,7 @@ def lint(root, files, report, scilintr, rscript, seconds, deadline=None, choices
     keeps its repository path there, so a `source()` between copied scripts still resolves.
     `choices` is (row text, Choice cell) for each plan row; a threshold finding whose numbers a Choice
     of a row naming that script states is info."""
-    result = {"findings": [], "waivers": [], "output": [], "notebooks": [], "approved": []}
+    result = {"findings": [], "waivers": [], "output": [], "notebooks": [], "approved": [], "checked": 0}
     by_language = collections.defaultdict(list)
     scratch = os.path.realpath(tempfile.mkdtemp(prefix="mycelium-extra-lint-"))  # R prints real paths
     cells = {}  # extracted notebook code path -> (notebook, first line of each code cell)
@@ -835,6 +835,8 @@ def lint_languages(root, by_language, cells, report, result, scilintr, r_lint, s
         else:
             report.add("gap", "scilintr ({}) not checked: exit {} with output it could not read: {}".format(
                 language, proc.returncode, cell((proc.stdout.strip().splitlines() or [""])[-1])[:200]))
+        if (proc.returncode, bool(found)) in ((1, True), (0, False)):
+            result["checked"] = result.get("checked", 0) + 1  # a language that ran and whose output was read
         if result["waivers"] and (proc.returncode, bool(found)) in ((1, True), (0, False)):
             unwaived_pass(root, language, paths, cells, result, report, command, seconds, {f[:4] for f in found},
                           deadline)
@@ -1580,8 +1582,9 @@ def number(text):
 
 
 def agrees(claim, qualifier, cell_value):
-    """The claim is the cell rounded (half-up or half-even) or truncated to the claim's last digit;
-    an inequality is compared raw."""
+    """The claim is the cell rounded (half-up or half-even) or truncated (its leading digits) to the
+    claim's last digit; an inequality is compared raw. A truncated match is a deliberate reading of the
+    cell's leading digits, not a claim that the cell equals the claim, and the claims line says so."""
     if qualifier in ("<", ">", "<=", ">="):
         return {"<": cell_value < claim, ">": cell_value > claim, "<=": cell_value <= claim,
                 ">=": cell_value >= claim}[qualifier]
@@ -2495,6 +2498,9 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     folders = [p for p in named if p not in planned and not os.path.isfile(os.path.join(root, p))]
     commands = [c for c in config["gated_commands"] if gate.names_command(c, table)]
     analysis_dir = rel_or_abs(root, analysis_dir) if analysis_dir else guess_analysis_dir(planned)
+    if analysis_dir and not os.path.isdir(os.path.join(root, analysis_dir)):
+        sys.exit("verify: --analysis-dir {} is not a folder, so the claims in its document cannot be checked. "
+                 "Pass the analysis folder that holds the document.".format(analysis_dir))
     budget = {"bytes": float(hash_mb) * 1024 * 1024, "deadline": time.time() + seconds}
 
     receipts, handed, invalid_receipts = [], [], []
@@ -3372,8 +3378,8 @@ def render_summary(result, saved=False):
         parts.append("{} waived".format(len(lint["waived"])))
     if skipped:
         parts.append("not checked: " + ", ".join(skipped))
-    if not lint["output"] and not skipped:
-        parts = ["n/a: no code was linted"]
+    if not lint.get("checked"):
+        parts = ["not checked: " + ", ".join(skipped) if skipped else "n/a: no code was linted"]
     if problem("code and input identity"):
         parts.append(problem("code and input identity").split("; ")[0])
     code = "; ".join(parts)
@@ -3510,10 +3516,12 @@ def render(result, all_outputs=False, saved=False):
         cov = doc.get("coverage")
         if cov:
             lines.append("  - Coverage: {} block(s), {} claim line(s){}; {} cell(s) checked, {} matched, {} mismatched, "
-                         "{} unverified; {} prose number(s) listed, not checked.".format(
+                         "{} unverified; {} prose number(s) listed, not checked.{}".format(
                              cov["blocks"], cov["claim_lines"], " ({} unparsed)".format(cov["unparsed_lines"])
                              if cov["unparsed_lines"] else "", cov["cells_checked"], cov["matched"], cov["mismatched"],
-                             cov["unverified"], cov["prose_numbers_listed"]))
+                             cov["unverified"], cov["prose_numbers_listed"],
+                             " A match is the cell rounded, or its leading digits, to the claim's last digit."
+                             if cov["matched"] else ""))
             if cov["registered"]:
                 lines.append("  - {} claim(s) cite a registered `numbers.json` value: it shows the file's current content, "
                              "not which run wrote it.".format(cov["registered"]))
@@ -3690,6 +3698,8 @@ def render_disclosure(root, result):
         lines.append("{0} lint finding(s) were open on the code this plan covers, {1} of them waived with a stated "
                      "reason in the code. {2}".format(
                          len(findings) + len(waived), len(waived), source(checked, "scilintr findings")))
+    elif not lint.get("checked"):
+        lines.append("[BLANK: scilintr did not run on the code this plan covers, so no lint finding was checked]")
     else:
         lines.append("No lint finding was open on the code this plan covers at the time of this check. {0}".format(
             source(checked, "scilintr findings")))
@@ -3876,8 +3886,13 @@ def provenance_receipts(root):
     listed = gate.git(root, "ls-files", "-co", "--exclude-standard", "--",
                       "*provenance/receipts-*.jsonl", "*provenance/complete-*.json",
                       "*provenance/.transactions/pending.json")
+    ignored = gate.git(root, "ls-files", "-o", "-i", "--exclude-standard", "--",
+                       "*provenance/receipts-*.jsonl", "*provenance/complete-*.json",
+                       "*provenance/.transactions/pending.json")
     if listed is not None:
+        # an analysis folder a repository ignores still holds provenance it wrote: list ignored files too
         paths = set(line for line in listed.splitlines() if line)
+        paths |= set(line for line in (ignored or "").splitlines() if line)
     else:
         paths = set()
         for folder, dirs, files in os.walk(root):
@@ -4635,8 +4650,9 @@ def parse_label(text):
 
 
 def scan_run(path):
-    """(newest file mtime or 0, 8-hex id) of a run folder. RUN.txt is left out of both, because labelling a run
-    must not change when it was updated or which run it is; the folder's own mtime is never used."""
+    """(newest file mtime or 0, 8-hex id) of a run folder: the id covers each file's path, size and mtime, so a
+    rewrite at the same size still changes it. RUN.txt is left out of both, because labelling a run must not
+    change when it was updated or which run it is; the folder's own mtime is never used."""
     entries, newest = [], 0
     for folder, dirs, names in os.walk(path):
         for name in names + [d for d in dirs if os.path.islink(os.path.join(folder, d))]:
@@ -4647,9 +4663,9 @@ def scan_run(path):
             except OSError:
                 continue
             if rel != "RUN.txt":
-                entries.append((rel, info.st_size))
+                entries.append((rel, info.st_size, info.st_mtime_ns))
                 newest = max(newest, info.st_mtime)
-    text = "\n".join("{}\t{}".format(rel, size) for rel, size in sorted(entries))
+    text = "\n".join("{}\t{}\t{}".format(rel, size, mtime) for rel, size, mtime in sorted(entries))
     return newest, hashlib.sha256(text.encode("utf-8", "surrogateescape")).hexdigest()[:8]
 
 
@@ -4694,6 +4710,10 @@ def run_findings(base, results, runs, pointers):
             add("info", name, "the name has a state word ({}); state belongs in the label, not the name.".format(
                 ", ".join(sorted(set(w.lower() for w in STATE_WORDS.findall(name))))))
         target = fields.get("superseded_by", "-")
+        if run["status"] == "superseded" and target == "-":
+            add("gap", name, "status `superseded` but no `superseded_by`, so nothing names the run that replaced it.")
+        elif run["status"] == "current" and target != "-":
+            add("gap", name, "status `current` but `superseded_by {}`, so it is not current.".format(target))
         if target != "-" and not os.path.isdir(os.path.join(results if "/" not in target else base, target)):
             add("gap", name, "superseded_by `{}` does not exist.".format(target))
         for entry in [e.strip() for e in fields.get("reads", "-").split(",") if e.strip() not in ("", "-")]:
@@ -5121,7 +5141,10 @@ def main(argv):
             sys.exit("verify: `write` records the current approval instance ({}); a bundle is keyed by the plan hash, "
                      "so writing an earlier instance would replace it. Use `report --instance` to read an earlier "
                      "freeze.".format(result["instance"]["current"]))
-        written = write(root, result)
+        try:
+            written = write(root, result)
+        except OSError as error:
+            sys.exit("verify: could not write the provenance bundle: {}.".format(error))
         for path in written:
             print("wrote " + path)
         if gate.git(root, "check-ignore", "-q", written[0]) is not None:

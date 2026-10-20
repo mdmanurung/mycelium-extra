@@ -1085,8 +1085,8 @@ class VerifyTest(unittest.TestCase):
         self.assertEqual(json.loads(self.verify("stale", "--json"))["stale"][0]["hash"], digest)
         subprocess.check_call(["git", "-C", self.root, "init", "-q"])  # git lists untracked provenance too
         self.assertIn("1 of 1 verified plans stale", self.verify("stale"))
-        self.write(".gitignore", "analysis/\n")  # ignored provenance is not swept
-        self.assertIn("No verified plans", self.verify("stale"))
+        self.write(".gitignore", "analysis/\n")  # provenance under an ignored folder is still the analysis's record
+        self.assertIn("1 of 1 verified plans stale", self.verify("stale"))
 
     def test_scilintr_findings_block_and_missing_linter_is_a_gap(self):
         digest = self.approve(plan("run `{}`".format(FIT), outputs=self.OUT))
