@@ -141,6 +141,18 @@ test("helpers turn gate replies into host behavior", () => {
   assert.match(__test__.blockedPromptText("done"), /done/)
 })
 
+test("a silent successful gate run is an allow, not a failure", async () => {
+  // hooks/gate.py prints nothing when it has no objection; only a non-zero exit or a
+  // signal means the gate did not run.
+  const dir = mkdtempSync(join(tmpdir(), "mx-silent-"))
+  const allow = join(dir, "allow.sh")
+  const crash = join(dir, "crash.sh")
+  writeFileSync(allow, "#!/bin/sh\nexit 0\n")
+  writeFileSync(crash, "#!/bin/sh\nexit 3\n")
+  assert.deepEqual(await __test__.runGate({ py: allow, gate: "unused" }, "tool", {}, 5000), {})
+  assert.equal(await __test__.runGate({ py: crash, gate: "unused" }, "tool", {}, 5000), null)
+})
+
 test("server events resolve session id and text from data or the flat shape", () => {
   assert.deepEqual(__test__.textEnded({ type: "session.text.ended", data: { sessionID: "s1", text: "hi" } }),
     { sessionID: "s1", text: "hi" })
@@ -314,7 +326,8 @@ test("the spawn contract drives deny, approve, receipts, and inertness", async (
   const hash = notice.systemMessage.split("approve plan ")[1].slice(0, 8)
   const approved = await __test__.runGate(PATHS, "prompt", { prompt: "approve plan " + hash, cwd: repo, session_id: "s" }, 10000)
   assert.match(approved.systemMessage, /approved/)
-  assert.equal(await __test__.runGate(PATHS, "tool", bash, 10000), null)
+  // An allowed run is silent and exits 0; the adapter must read that as allow, not failure.
+  assert.deepEqual(await __test__.runGate(PATHS, "tool", bash, 10000), {})
   await __test__.runGate(PATHS, "post", { ...bash, status: "completed", tool_response: { content: "ok" } }, 20000)
   await __test__.runGate(PATHS, "post", { ...bash, status: "completed",
     tool_response: { metadata: { status: "completed", exit: 5 }, output: { exit: 5 }, content: [] } }, 20000)
@@ -326,7 +339,7 @@ test("the spawn contract drives deny, approve, receipts, and inertness", async (
   assert.equal(receipts[1].exit_status, 5)        // the shell tool's metadata.exit, mapped
   assert.equal(receipts[1].exit_source, "response")
   const plain = mkdtempSync(join(tmpdir(), "mx-plain-"))
-  assert.equal(await __test__.runGate(PATHS, "tool", { ...bash, cwd: plain }, 10000), null)
+  assert.deepEqual(await __test__.runGate(PATHS, "tool", { ...bash, cwd: plain }, 10000), {})
 })
 
 /** A stand-in plugin root whose launcher prints `body` (a shell fragment) for every gate call. */
@@ -347,8 +360,8 @@ async function setupWith(root, repo) {
 
 const SHELL = (id) => ({ tool: "shell", input: { command: "ls" }, sessionID: "s", id })
 
-test("a null gate reply is shown to the human, not swallowed", async () => {
-  const { handlers } = await setupWith(fakeRoot("exit 0"), gatedRepo())
+test("a failed gate run is shown to the human, not swallowed", async () => {
+  const { handlers } = await setupWith(fakeRoot("exit 1"), gatedRepo())
   await handlers.before[0](SHELL("c1")) // fails open, as on Claude Code
   const event = { ...SHELL("c1"), status: "completed", result: { content: "out" } }
   await handlers.after[0](event)
@@ -386,9 +399,9 @@ test("a tool reply's systemMessage reaches the tool result", async () => {
 test("on_error deny blocks a call the gate could not check", async () => {
   const repo = gatedRepo()
   writeFileSync(join(repo, ".mycelium-extra", "gate.json"), JSON.stringify({ on_error: "deny" }))
-  const { handlers } = await setupWith(fakeRoot("exit 0"), repo)
+  const { handlers } = await setupWith(fakeRoot("exit 1"), repo)
   await assert.rejects(handlers.before[0](SHELL("c1")), /on_error to deny/)
-  const other = await setupWith(fakeRoot("exit 0"), gatedRepo())
+  const other = await setupWith(fakeRoot("exit 1"), gatedRepo())
   await other.handlers.before[0](SHELL("c2")) // default on_error allow
 })
 

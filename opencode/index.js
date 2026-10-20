@@ -69,10 +69,15 @@ function runGate(paths, action, payload, timeout) {
       }
     })
     child.on("error", () => finish(null))
-    child.on("close", () => {
+    child.on("close", (code) => {
       // concat before decoding: a multi-byte card glyph can straddle chunks
       const text = Buffer.concat(chunks).toString("utf8").trim()
-      if (!text) return finish(null)
+      if (!text) {
+        // hooks/gate.py's emit() prints nothing when the gate has no objection, and the
+        // Claude Code protocol reads that silence as allow. A non-zero exit or a signal
+        // still means the gate did not run.
+        return finish(code === 0 ? {} : null)
+      }
       try { finish(JSON.parse(text)) } catch { finish(null) }
     })
     child.stdin.on("error", () => {})
