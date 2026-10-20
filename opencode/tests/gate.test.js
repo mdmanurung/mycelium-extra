@@ -358,6 +358,15 @@ test("a null gate reply is shown to the human, not swallowed", async () => {
   assert.doesNotMatch(event.result.content, /[*#`]/)
 })
 
+test("a failed tool call still receives the gate's notice", async () => {
+  // There is no result to append to, so the notice must reach the session as a message instead of vanishing.
+  const { handlers, calls } = await setupWith(fakeRoot("exit 1"), gatedRepo())
+  await handlers.before[0](SHELL("c1"))
+  await handlers.after[0]({ ...SHELL("c1"), status: "failed", error: { message: "boom" } })
+  assert.deepEqual(calls.synthetic.map((message) => message.sessionID), ["s"])
+  assert.match(calls.synthetic[0].text, /gate error \(tool\).*not checked/)
+})
+
 test("a timed-out gate resolves null", async () => {
   const root = fakeRoot("sleep 5")
   const reply = await __test__.runGate({ py: join(root, "hooks", "py.sh"), gate: "g" }, "tool", {}, 200)

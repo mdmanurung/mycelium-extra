@@ -322,9 +322,9 @@ export default {
       const reply = await runGate(paths, "post", payload, TIMEOUTS.post)
       const extra = [notice, reply ? toolNotice(reply) : gateFailure("post")].filter(
         (text, i, all) => typeof text === "string" && text && all.indexOf(text) === i).join("\n\n")
-      if (extra && event.status === "completed") {
-        event.result = appendContent(event.result, extra)
-      }
+      // A failed call has no result to append to; the notice must still reach the session, not vanish.
+      if (extra && event.status === "completed") event.result = appendContent(event.result, extra)
+      else if (extra && typeof event.sessionID === "string" && event.sessionID) await tell(event.sessionID, extra)
     })
 
     // A message for the human: synthetic messages stay in the session without invoking the prompt hook.
