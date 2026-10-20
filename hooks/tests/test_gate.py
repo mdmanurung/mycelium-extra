@@ -3660,6 +3660,9 @@ class ValidationBindingsTest(unittest.TestCase):
         reply = self.prompt("approve plan " + entry["hash"])
         self.assertIn("Nothing was approved", reply)
         self.assertIn("Fix the block", reply)
+        card = self.prompt("card " + entry["hash"])  # C15: no card exists, and the reply must not claim one
+        self.assertIn("no full card", card)
+        self.assertNotIn("showed its full card", card)
         self.assertFalse(os.path.exists(self.path("approvals", entry["hash"] + ".json")))
         self.assertTrue(self.denied(self.bash("python analysis/x/fit.py")))
 
@@ -4150,7 +4153,7 @@ class ReviewConsentPromptTest(unittest.TestCase):
 
     def test_a_prefix_that_is_too_short_is_not_a_consent_prompt(self):
         digest = self.prepared()
-        self.assertIsNone(self.send("send packet " + digest[:11]))
+        self.assertIn("did not parse as a command", self.send("send packet " + digest[:11]))
         self.assertEqual(self.consent_files(), [])
 
     def test_an_ambiguous_prefix_records_nothing_and_says_why(self):

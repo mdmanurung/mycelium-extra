@@ -45,10 +45,12 @@ DEFAULTS = {
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call that never reported back
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
-APPROVE = re.compile(r"^\s*approve(?: (?:plan|amendment|freeze))?(?: ([0-9a-f]{8})(?: +(\d{1,4}))?)?\s*[.!]?\s*$", re.IGNORECASE)
-EXPLORE_GRANT = re.compile(r"^\s*(allow|stop) explore(?: ([0-9a-f]{8}))?\s*[.!]?\s*$", re.IGNORECASE)
+APPROVE = re.compile(r"^\s*approve(?:\s+(?:plan|amendment|freeze))?(?:\s+([0-9a-f]{8})(?:\s+(\d{1,4}))?)?\s*[.!]?\s*$", re.IGNORECASE)
+EXPLORE_GRANT = re.compile(r"^\s*(allow|stop)\s+explore(?:\s+([0-9a-f]{8}))?\s*[.!]?\s*$", re.IGNORECASE)
 SEND_PACKET = re.compile(r"send packet ([0-9a-f]{12,64})")  # no looser than review_packet.py's consent check
 HINTS_TOGGLE = re.compile(r"^\s*hints (on|off)\s*[.!]?\s*$", re.IGNORECASE)
+NEAR_COMMAND = re.compile(r"^\s*(approve|allow\s+explore|stop\s+explore|send\s+packet|hints|card)\b",
+                          re.IGNORECASE)  # a prompt that starts like a command but did not parse as one
 HANDOFF_TOKENS = 120000  # context size at which the Stop hint suggests a handoff
 # (pattern, command, condition); first match wins. "living": only where .living/ exists;
 # "unplanned": only with no active approval. Specific rules go before the broad analysis one.
@@ -79,7 +81,8 @@ SHELL_C = re.compile(r"^-[A-Za-z]*c[A-Za-z]*$")  # `-c`, `-lc`, `-ec`, `-ce`: th
 MYCELIUM_SEES = re.compile(r"^(python[\d.]*|Rscript|R|jupyter)$")  # Mycelium 0.7.2's run detector
 SCRIPT_EXT = re.compile(r"(\.(py|R|r|sh|ipynb|qmd|Rmd|rmd|jl|smk|pl)$|(^|/)Snakefile$)")
 WRAPPERS = {"env", "time", "nohup", "nice", "command", "exec", "stdbuf", "timeout", "srun",
-            "conda", "mamba", "micromamba", "pixi", "uv", "run", "xvfb-run"}
+            "conda", "mamba", "micromamba", "pixi", "uv", "uvx", "run", "xvfb-run",
+            "poetry", "pipx", "rye", "pdm", "hatch", "npx"}  # package-manager and process-launcher runners
 VALUE_FLAGS = {"-n", "-p", "--name", "--prefix", "-e", "--environment", "--env",
                "-J", "--job-name", "-t", "--time", "-A", "--account", "--partition"}
 # Value options of the wrappers that precede a command, and the ones that move the command's
@@ -158,6 +161,7 @@ JOB_ID = re.compile(r"Submitted batch job (\d+)")
 PARSABLE_ID = re.compile(r"^\s*(\d+)(?:;[\w.-]+)?\s*$", re.MULTILINE)
 NF_RUN_NAME = re.compile(r"Launching .*?\[([a-z]+_[a-z]+)\]")
 GIT_TIMEOUT = 3
+DURATION = re.compile(r"^\d+(?:\.\d+)?[smhd]?$")  # a `timeout` duration: 5, 1.5s, 2m, 1h
 
 
 # ---------------------------------------------------------------- setup
@@ -174,8 +178,12 @@ def find_root(cwd):
 
 
 def _number(value):  # 0 is allowed: `approval_hours: 0` expires every approval, `pin_seconds: 0` skips hashing
-    return (isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
-            and value >= 0)
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    try:  # a huge integer is finite but cannot be converted to a float
+        return math.isfinite(value) and value >= 0
+    except OverflowError:
+        return False
 
 
 # numeric key -> (what it accepts, test); an invalid value is replaced by its default and named in a notice, as
@@ -239,13 +247,30 @@ def emit(payload):
 
 
 def safe_session(session_id):
-    return re.sub(r"[^A-Za-z0-9_-]", "_", session_id or "unknown")
+    """A state-file name for a session id. Two ids that sanitise to one name must not share one file, so an id
+    with a character outside [A-Za-z0-9_-] keeps a short hash of the exact id. A missing id is `unknown`: its
+    state is shared by every session without one, which the approval message says rather than imply otherwise."""
+    if not session_id:
+        return "unknown"
+    name = re.sub(r"[^A-Za-z0-9_-]", "_", session_id)
+    return name if name == session_id else "{}-{}".format(name, sha256(session_id.encode("utf-8")).hexdigest()[:8])
 
 
 def append_line(path, record):
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    line = json.dumps(record, sort_keys=True) + "\n"
+    prefix = ""
+    try:  # a crash can leave a half-written last line; start a new one so this record is not swallowed
+        with open(path, "rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            if handle.tell():
+                handle.seek(-1, os.SEEK_END)
+                if handle.read(1) != b"\n":
+                    prefix = "\n"
+    except OSError:
+        pass
     with open(path, "a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record, sort_keys=True) + "\n")
+        handle.write(prefix + line)
 
 
 def hash_budget(config):
@@ -415,9 +440,18 @@ def tokenize(command, bodies=None, operators=None):
     while i < n:
         c = command[i]
         if c == "\\" and i + 1 < n:
+            if command[i + 1] == "\n":  # a line continuation joins the two lines; it is not a word or a separator
+                i += 2
+                continue
             word.append(command[i + 1])
             in_word = True
             i += 2
+        elif c == "$" and command.startswith("$'", i):
+            end = command.find("'", i + 2)  # `$'...'`: the quotes are syntax, the text between them is the word
+            end = n if end < 0 else end
+            word.append(command[i + 2:end])
+            in_word = True
+            i = end + 1
         elif c in "'\"":
             end = command.find(c, i + 1)
             end = n if end < 0 else end
@@ -468,6 +502,10 @@ def tokenize(command, bodies=None, operators=None):
                 j += 1
                 while j < n and (command[j].isdigit() or command[j] == "-"):
                     j += 1
+            elif c == ">" and command.startswith("|", j):  # `>|`: clobber redirect, one operator
+                j += 1
+            elif c == "&" and command.startswith(">", j):  # `&>`: stdout and stderr, one operator
+                j += 1
             tokens.append(command[i:j])
             if operators is not None:
                 operators.append(command[i:j])
@@ -475,9 +513,10 @@ def tokenize(command, bodies=None, operators=None):
             if op == "<<":
                 bodies.append("")
                 rest = command[i:].lstrip(" \t-")
-                m = re.match(r"""['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?""", rest)
-                if m:
-                    heredocs.append((m.group(1), len(bodies) - 1))
+                m = re.match(r"""'([^']*)'|"([^"]*)"|([A-Za-z_][A-Za-z0-9_]*)""", rest)
+                if m:  # a quoted delimiter may hold spaces (`<<'END OF FILE'`), and the quote is the delimiter
+                    delimiter = next(group for group in m.groups() if group is not None)
+                    heredocs.append((delimiter, len(bodies) - 1))
         else:
             word.append(c)
             in_word = True
@@ -534,7 +573,8 @@ def paths_in_text(root, cwd, text, config):
     loads = LOADS_FOLDER.search(text) is not None
     found = []
     for word in PATHLIKE.findall(text):
-        rel = gated_rel(root, cwd, word, config) if "/" in word or "." in word else None
+        # after a folder change a bare name names a folder too (`setwd("analysis")`); otherwise it needs a path shape
+        rel = gated_rel(root, cwd, word, config) if (loads or "/" in word or "." in word) else None
         if rel and (loads or SCRIPT_EXT.search(rel)):
             found.append(rel)
     return found
@@ -625,10 +665,11 @@ def _classify(tokens, root, cwd, config, info=None):
             return explore, None, [], cwd
         if RUNNERS.match(word) or word in config["gated_commands"]:
             break
-        if "/" in tokens[i] and not (word in WRAPPERS and gated_rel(root, cwd, tokens[i], config) is None):
-            break  # a path, unless it names a wrapper (`/usr/bin/env`) rather than a gated script
+        if "/" in tokens[i] and not is_assignment(tokens[i]) and not (
+                word in WRAPPERS and gated_rel(root, cwd, tokens[i], config) is None):
+            break  # a path, unless it is an assignment value or names a wrapper (`/usr/bin/env`)
         if (word in WRAPPERS or tokens[i].startswith("-") or previous in VALUE_FLAGS
-                or tokens[i].isdigit() or re.match(r"^\d+[smhd]?$", tokens[i])
+                or tokens[i].isdigit() or DURATION.match(tokens[i])
                 or is_assignment(tokens[i])):
             if tokens[i] == EXPLORE_VAR + "=1":
                 explore = True
@@ -645,13 +686,10 @@ def _classify(tokens, root, cwd, config, info=None):
         # when a runner or gated command follows with no other option between (`grep -rn python x/`
         # is a grep, not a hidden python), rather than call the segment ungated
         if unknown:
-            later = []
-            for t in tokens[i + 1:]:
-                if t.startswith("-"):
-                    break
-                later.append(os.path.basename(t))
-            if any(RUNNERS.match(t) or t in config["gated_commands"] for t in later):
-                unknown, i = False, i + 1
+            later = [j for j, t in enumerate(tokens[i + 1:], i + 1)
+                     if RUNNERS.match(os.path.basename(t)) or os.path.basename(t) in config["gated_commands"]]
+            if later:  # the wrapper's unknown options held values; the runner after them is the command
+                unknown, i = False, later[0]
                 continue
         return explore, None, [], cwd
     if i >= len(tokens):
@@ -699,8 +737,12 @@ def _classify(tokens, root, cwd, config, info=None):
                 skip = True
                 continue
             if token == "-m" and j + 1 < len(rest):
-                module = rest[j + 1].replace(".", "/")
-                rel = gated_rel(root, cwd, module + ".py", config) or gated_rel(root, cwd, module, config)
+                module = rest[j + 1]
+                dotted = module.replace(".", "/")
+                if word.startswith("python") and (module in config["gated_commands"]
+                                                 or module.split(".")[0] in config["gated_commands"]):
+                    return explore, module.split(".")[0], paths, cwd  # `python -m snakemake` runs the gated tool
+                rel = gated_rel(root, cwd, dotted + ".py", config) or gated_rel(root, cwd, dotted, config)
                 if rel:
                     paths.append(rel)
                 skip = True
@@ -735,19 +777,117 @@ def job_cwd(tokens, cwd):
 
 
 def cd_target(cwd, tokens):
-    target = tokens[1] if len(tokens) > 1 else os.path.expanduser("~")
-    if re.search(r"[$`]", target):  # `cd $(dirname ...)`: the folder is unresolved, as for a wrapper's folder option
+    rest = tokens[1:]
+    while rest and rest[0] != "-" and rest[0].startswith("-") and rest[0] in ("-P", "-L", "-e", "-@", "--"):
+        rest.pop(0)  # `cd -P -- DIR`: options come before the folder
+    target = rest[0] if rest else os.path.expanduser("~")
+    if target == "-" or re.match(r"^[+-]\d+$", target):  # OLDPWD or the directory stack: not tracked here
+        return move_folder(cwd, "$OLDPWD")
+    if re.search(r"[$`]", target):
         return move_folder(cwd, target)
     return os.path.normpath(os.path.join(cwd, os.path.expanduser(target)))
 
 
+def substitutions(text):
+    """The commands inside `$(...)` and backticks in one shell word."""
+    found, i, n = [], 0, len(text)
+    while i < n:
+        if text.startswith("$(", i):
+            depth, j = 0, i
+            while j < n:
+                if text[j] == "(":
+                    depth += 1
+                elif text[j] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                j += 1
+            found.append(text[i + 2:j])
+            i = j + 1
+        elif text[i] == "`":
+            end = text.find("`", i + 1)
+            if end < 0:
+                break
+            found.append(text[i + 1:end])
+            i = end + 1
+        else:
+            i += 1
+    return found
+
+
+def scoped_segments(command, bodies=None):
+    """Like segments(), with parentheses kept as scope: yield (tokens, opened, closed, heredocs).
+
+    `closed` parentheses end before this segment and `opened` ones start before it, so
+    `(cd D); cmd` reads cmd in the outer folder and `popd` is never mistaken for a plain cd.
+    `heredocs` holds this segment's `<<` bodies, in order.
+    """
+    bodies = [] if bodies is None else bodies
+    current, opened, closed, own, used = [], 0, 0, [], 0
+    for token in tokenize(command, bodies):
+        if token in ("<<", "<<-"):
+            own.append(bodies[used])
+            used += 1
+        if token == "(":
+            if current:
+                yield current, opened, closed, own
+                current, opened, closed, own = [], 0, 0, []
+            opened += 1
+        elif token == ")":
+            if current:
+                yield current, opened, closed, own
+                current, opened, closed, own = [], 0, 0, []
+            closed += 1
+        elif is_separator(token):
+            if current:
+                yield current, opened, closed, own
+                current, opened, closed, own = [], 0, 0, []
+        else:
+            current.append(token)
+    if current:
+        yield current, opened, closed, own
+
+
+def reads_code(tokens):
+    """Whether this segment runs code from stdin as shell: a shell, not an interpreter of another language.
+
+    A heredoc or pipe into `python3` or `Rscript` is that language's code, which the shell reader
+    cannot parse: scanning it as shell would deny harmless data, so only a shell's stdin is read.
+    """
+    return os.path.basename(tokens[0]) in SHELLS
+
+
 def analyse_command(command, root, cwd, config):
     """Yield (explore, label, paths, segment, tokens, cwd) for each gated segment."""
-    virtual_cwd = cwd
-    for tokens in segments(command):
-        if tokens[0] in ("cd", "pushd"):
+    bodies = []
+    parts = list(scoped_segments(command, bodies))
+    virtual_cwd, stack, dirs = cwd, [], []  # stack: folders saved on `(`; dirs: folders saved on `pushd`
+    for index, (tokens, opened, closed, own) in enumerate(parts):
+        for _ in range(closed):
+            virtual_cwd = stack.pop() if stack else virtual_cwd
+        for _ in range(opened):
+            stack.append(virtual_cwd)
+        if tokens[0] == "cd":
             virtual_cwd = cd_target(virtual_cwd, tokens)
             continue
+        if tokens[0] == "pushd":
+            dirs.append(virtual_cwd)
+            virtual_cwd = move_folder(virtual_cwd, "$OLDPWD") if len(tokens) == 1 else cd_target(virtual_cwd, tokens)
+            continue
+        if tokens[0] == "popd":
+            virtual_cwd = dirs.pop() if dirs else move_folder(virtual_cwd, "$OLDPWD")
+            continue
+        for inner in substitutions(" ".join(tokens)):  # `x=$(Rscript analysis/a.R)` runs that script
+            for result in analyse_command(inner, root, virtual_cwd, config):
+                yield result
+        # code that arrives on stdin: a heredoc or a pipe into a shell or a runner reading `-`
+        following = parts[index + 1][0] if index + 1 < len(parts) else None
+        code = list(own) if reads_code(tokens) else []
+        if following is not None and reads_code(following):
+            code += [" ".join(tokens[1:])] + own
+        for text in code:
+            for result in analyse_command(text, root, virtual_cwd, config):
+                yield result
         explore, label, paths, run_cwd = classify(tokens, root, virtual_cwd, config)
         if label == "recurse":
             for inner in analyse_command(paths[0], root, run_cwd, config):
@@ -966,7 +1106,7 @@ def git_wipes_state(args, ancestor):
 
 def segment_writes(tokens, bodies, command, inside, root, cwd, ancestor=lambda token: False):
     for j, token in enumerate(tokens[:-1]):
-        if token in (">", ">>") and inside(tokens[j + 1]):
+        if (token.startswith(">") or token == "&>") and inside(tokens[j + 1]):  # >, >>, >|, >&, &>, 1>&2
             return True
     i, previous = 0, ""
     while i < len(tokens) and (tokens[i] in WRAPPERS or tokens[i] in HEAD_SKIP or is_assignment(tokens[i])
@@ -1021,7 +1161,7 @@ def segment_writes(tokens, bodies, command, inside, root, cwd, ancestor=lambda t
                 and STATE_DIR not in " ".join(args) and any(ancestor(t) for t in positional[-1:]))
     if head == "dd":
         return any(t.startswith("of=") and inside(t[3:]) for t in args)
-    if head in ("sed", "perl") and any(re.match(r"^-\w*i", t) for t in args):
+    if head in ("sed", "perl") and any(re.match(r"^(--in-place|-\w*i)", t) for t in args):
         if head == "sed" and not any(t in ("-f", "--expression", "--file") or t.startswith(
                 ("--expression=", "--file=")) for t in args + code):
             positional = positional[1:] if not code else positional  # the first word is the script
@@ -1160,10 +1300,11 @@ def create_exclusive(path, data):
             pass
 
 
-def write_launch(root, event, runs, attempt_id=None):
+def write_launch(root, event, runs, attempt_id=None, pins_unchecked=None):
     """Save this call's attempt: the approvals that let it launch and the pins checked, so its receipt keeps them
-    after expiry. Without a call id, a second identical launch while the first record exists makes the key
-    ambiguous: both attempts are stored and no Post is matched to either."""
+    after expiry. `pins_unchecked` names the pins the time limit kept from being re-checked, so the receipt does
+    not report them as checked. Without a call id, a second identical launch while the first record exists makes
+    the key ambiguous: both attempts are stored and no Post is matched to either."""
     folder = state_path(root, "launches")
     if os.path.isdir(folder):  # records of calls that never reported back
         for name in os.listdir(folder):
@@ -1175,7 +1316,8 @@ def write_launch(root, event, runs, attempt_id=None):
                 pass
     now = time.time()
     attempt = {"ts": now, "started": now, "attempt_id": attempt_id or os.urandom(8).hex(), "call_id": call_id(event),
-               "cwd": repo_relative(root, root, event.get("cwd") or root) or ".", "runs": runs}
+               "cwd": repo_relative(root, root, event.get("cwd") or root) or ".", "runs": runs,
+               "pins_unchecked": list(pins_unchecked or [])}
     focus = open_focus(root, event)
     if focus:  # what the session said at launch; the receipt copies it, never today's focus
         attempt.update(focus_id=focus[0], focus_folder=focus[1])
@@ -1216,12 +1358,24 @@ def reported_call(root, event):
     try:
         with open(state_path(root, "receipts.jsonl"), "rb") as handle:
             handle.seek(0, os.SEEK_END)
-            handle.seek(max(0, handle.tell() - (1 << 20)))
-            tail = handle.read().decode("utf-8", "replace")
+            end = handle.tell()
+            carry = b""
+            # Scan backwards in 1 MB chunks: one receipt can be larger than the old single-chunk window.
+            while end > 0:
+                step = min(1 << 20, end)
+                handle.seek(end - step)
+                block = handle.read(step) + carry
+                end -= step
+                lines = block.split(b"\n")
+                carry = lines.pop(0)  # may continue into the earlier chunk
+                for line in lines:
+                    text = line.decode("utf-8", "replace")
+                    if '"call_id": ' + json.dumps(call) in text and json.dumps(event.get("session_id")) in text:
+                        return True
+            text = carry.decode("utf-8", "replace")
+            return '"call_id": ' + json.dumps(call) in text and json.dumps(event.get("session_id")) in text
     except OSError:
         return False
-    return any('"call_id": ' + json.dumps(call) in line and json.dumps(event.get("session_id")) in line
-               for line in tail.splitlines())
 
 
 def take_attempt(root, event):
@@ -1236,8 +1390,24 @@ def take_attempt(root, event):
         note = ("duplicate callback: this call id already reported" if reported_call(root, event)
                 else "no launch record for this call")
         return {"match": "unmatched", "attempt": None, "note": note, "candidates": []}
-    record = read_json(claim, {})
-    record = record if isinstance(record, dict) else {}
+    try:
+        with open(claim, encoding="utf-8") as handle:
+            raw = handle.read()
+        loaded = json.loads(raw)
+    except (OSError, ValueError):
+        loaded = None
+    if not isinstance(loaded, dict) or not isinstance(loaded.get("ts"), (int, float)) or isinstance(loaded.get("ts"), bool):
+        # A truncated or malformed record is not an old one: keep its bytes and say it could not be read,
+        # instead of reporting "older than 24 h" and losing what it said.
+        folder = os.path.dirname(path)
+        os.makedirs(os.path.join(folder, "abandoned"), exist_ok=True)
+        try:
+            os.replace(claim, os.path.join(folder, "abandoned", "unreadable-" + os.path.basename(path)))
+        except OSError:
+            pass
+        return {"match": "unmatched", "attempt": None, "candidates": [],
+                "note": "launch record unreadable (kept in launches/abandoned/)"}
+    record = loaded
     try:
         os.remove(claim)
     except OSError:
@@ -1888,9 +2058,10 @@ def state_unignored(root):
     return git(root, "check-ignore", "-q", STATE_DIR + "/gate.json") is None
 
 
-def approval_card(root, text, config, digest, pins, outside, previous, scripts=None, blocks=None):
+def approval_card(root, text, config, digest, pins, outside, previous, scripts=None, blocks=None, session_id=None):
     """(the card to show, the parts `card <hash> checks|diff|full` shows on request)."""
-    card, details = procedure_card(root, text, config, digest, pins, outside, previous, scripts or {}, blocks or {})
+    card, details = procedure_card(root, text, config, digest, pins, outside, previous, scripts or {}, blocks or {},
+                                   session_id=session_id)
     if not card:
         card = "\n".join(["mycelium-extra \u00b7 plan ready for approval",
                           "  \u25b6 approve plan {}".format(digest), ""]
@@ -2332,11 +2503,18 @@ def lint_bullets(root, rows, config):
     return out
 
 
-def amendment_card(root, config, digest, text, record, paths, commands, outputs, pins, scripts, rows, short, quote):
+def amendment_card(root, config, digest, text, record, paths, commands, outputs, pins, scripts, rows, short, quote,
+                   session_id=None):
     """The change-only card for a plan that adds to an earlier approval and changes nothing else, else None. A
     changed, removed or reordered row, another objective or question, a new or changed input, an edited script,
-    a folder or command grant, or other blocks all give the normal card, so the delta never hides a change."""
+    a folder or command grant, or other blocks all give the normal card, so the delta never hides a change. A
+    baseline that is no longer active in this session (expired, or approved in another session) also gives the
+    normal card: "unchanged ... as approved" would otherwise present steps an approval no longer covers."""
     if record is None or record["hash"] == digest:
+        return None
+    if record.get("approved_at", 0) < time.time() - float(config["approval_hours"]) * 3600:
+        return None
+    if session_id != record.get("session_id"):
         return None
     before = plan_rows(record["plan"])
     diff = compare_rows(before, rows) if before else None
@@ -2439,7 +2617,7 @@ def coverage_gaps(rows, pins, scripts, blocks):
     return compact, full
 
 
-def procedure_card(root, text, config, digest, pins, outside, previous, scripts, blocks=None):
+def procedure_card(root, text, config, digest, pins, outside, previous, scripts, blocks=None, session_id=None):
     """The card for a plan whose table has Step and Choice or Validation columns, else None."""
     rows = plan_rows(text)
     if not rows:
@@ -2560,7 +2738,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
     details = {"full": full, "checks": "\n".join(checks), "diff": "\n".join(
         ["Diff of changed scripts"] + script_diff_lines) if script_diff_lines else "No script diff on this card."}
     amended = amendment_card(root, config, digest, text, found[0], paths, commands, outputs, pins, scripts, rows,
-                             short, quote)
+                             short, quote, session_id=session_id)
     if amended:  # an amendment shows only its delta; the whole card stays behind `card <hash> full`
         return amended, details
     # The compact card: what a researcher checks first (the question, each choice and who made it, the
@@ -3144,6 +3322,7 @@ def on_tool(event, root, config):
     scope = explore_scope_of(root, event.get("session_id")) if granted else None
     attempt_id, scope_notes = os.urandom(8).hex(), []
     run_scripts, launched = [], {}
+    explore_logs = []  # logged only once the whole command is allowed, so a denied run leaves no entry
     unresolved, wrap_blocked = [], []
     stale_validation, exact_refused = [], []
     for explore, label, paths, segment, tokens, run_cwd in analyse_command(command, root,
@@ -3163,7 +3342,7 @@ def on_tool(event, root, config):
                 # one launch entry, so the receipt names the attempt; no plan pins are checked, no output snapshot
                 launched.setdefault(segment, []).append(dict(
                     extra, paths=paths, plans=[scope["hash"]], pins={}, outputs_skipped="exploratory run"))
-            log_explore(root, event, segment, paths, extra)
+            explore_logs.append((segment, paths, extra))
             continue
         if explore:
             return deny("mycelium-extra gate: the exploratory-run prefix works only after the user "
@@ -3285,8 +3464,10 @@ def on_tool(event, root, config):
         if scope_notes:
             messages += scope_notes
             agent_note = "\n".join([agent_note] * bool(agent_note) + scope_notes)
+        for segment, paths, extra in explore_logs:
+            log_explore(root, event, segment, paths, extra)
         if launched:
-            write_launch(root, event, launched, attempt_id)
+            write_launch(root, event, launched, attempt_id, unchecked)
         result = {"systemMessage": "\n".join(messages)} if messages else None
         if agent_note:
             result = result or {}
@@ -3849,6 +4030,10 @@ def prompt_commands(event, root, config):
         part = (ask.group(2) or "full").lower()
         if plan is None:
             shown = "mycelium-extra: no pending plan {} in this session.".format(ask.group(1))
+        elif plan.get("invalid"):  # it has no approvable card: do not claim it showed one
+            shown = ("mycelium-extra: plan {} has an invalid validation-bindings or exact-execution block ({}), so "
+                     "it has no full card. Nothing was approved.".format(
+                         plan["hash"], clean(plan["invalid"][0], 160)))
         else:
             shown = (plan.get("card") or {}).get(part) or "mycelium-extra: plan {} showed its full card.".format(
                 plan["hash"])
@@ -3860,6 +4045,14 @@ def prompt_commands(event, root, config):
             message = ("mycelium-extra: nothing approved. To approve, send only `approve plan <hash>` "
                        "(pending in this session: {}).".format(known))
             return {"systemMessage": message}
+        near = NEAR_COMMAND.match(prompt)
+        if near and len(prompt.split()) <= 4:  # a near-miss command must not be ignored in silence; longer is prose
+            message = ("mycelium-extra: `{}` did not parse as a command, so nothing changed. Use `approve plan "
+                       "<8-hex>` (or `approve`, `approve amendment <hash>`, `approve freeze <hash>`), `allow explore` "
+                       "or `allow explore <8-hex>`, `stop explore`, `send packet <hash>`, `hints on|off`, or `card "
+                       "<hash> [full|checks|diff]`.".format(clean(prompt.strip(), 40)))
+            return {"systemMessage": message,
+                    "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
         return prompt_hint(prompt, root, config)
     # Without a hash, `approve` takes the newest card of this session if it is the only one still waiting.
     def approved_since_shown(p):
@@ -3920,6 +4113,10 @@ def prompt_commands(event, root, config):
             message = ("mycelium-extra: plan {} frozen: the scripts as reviewed are pinned ({}). Run the plan's "
                        "steps again under this approval, then verify. Edits after this re-pin with a notice, as "
                        "before.".format(wanted, listing(scripts)))
+        if not event.get("session_id"):  # runs are matched by session, so this approval cannot authorize one
+            message = ("mycelium-extra: plan {} is recorded, but this event carried no session id, so no gated run "
+                       "can be authorized by it: a run is matched to its approval by session. Approve again from a "
+                       "session that carries one.".format(wanted))
         if steps_notice:
             message += " " + steps_notice
     return {"systemMessage": message,
@@ -3929,7 +4126,10 @@ def prompt_commands(event, root, config):
 def on_stop(event, root, config):
     notices = []
     text = (event.get("last_assistant_message") or "").strip()
-    status = PLAN_STATUS.search(text)
+    # The reply's own status governs: a READY quoted mid-message does not outrank a closing
+    # DECISION_REQUIRED, and a READY that closes the reply outranks an earlier DECISION_REQUIRED.
+    statuses = list(PLAN_STATUS.finditer(text))
+    status = statuses[-1] if statuses else None
     if status and status.group(1).upper() != "DECISION_REQUIRED":
         digest = sha256(text.encode("utf-8")).hexdigest()[:8]
         session = safe_session(event.get("session_id"))
@@ -3950,7 +4150,8 @@ def on_stop(event, root, config):
             card, details = invalid_card(digest, errors), None
         else:
             entry.update(blocks)
-            card, details = approval_card(root, text, config, digest, pins, outside, previous, entry["scripts"], blocks)
+            card, details = approval_card(root, text, config, digest, pins, outside, previous, entry["scripts"], blocks,
+                                          session_id=event.get("session_id"))
         if details:
             entry["card"] = details
         entry["kind"] = "amendment" if "approve amendment {}".format(digest) in card else "plan"
@@ -4308,7 +4509,9 @@ def on_post(event, root, config):
             "explore": explore,
             "plans": [record["hash"] for record in records],
             "pins": pins_of(launch, records[-1]) if records else {},
-            "pins_checked": launch_match == "matched" and bool(records) and not explore,
+            "pins_checked": (launch_match == "matched" and bool(records) and not explore
+                             and not (attempt or {}).get("pins_unchecked")),
+            "pins_unchecked": list((attempt or {}).get("pins_unchecked") or []),
             "launch_match": launch_match,
             "attempt_id": attempt["attempt_id"] if launch_match == "matched" else None,
             "started": attempt.get("started") if launch_match == "matched" else None,  # when the launch began
@@ -4631,8 +4834,9 @@ def launch_details(root, cwd, label, paths, tokens, output, budget):
 HANDLERS = {"tool": on_tool, "prompt": on_prompt, "stop": on_stop, "post": on_post}
 
 
-def main(argv, text=None):
-    """`text` is the event when gate_run.py has already read stdin."""
+def main(argv, text=None, root=None):
+    """`text` is the event when gate_run.py has already read stdin; `root` is the gate root it found, which may
+    differ from the event cwd when the call names a repository the cwd is outside."""
     if len(argv) != 2 or argv[1] not in HANDLERS:
         print("usage: gate.py stop|prompt|tool|post", file=sys.stderr)
         return 0
@@ -4640,7 +4844,7 @@ def main(argv, text=None):
     try:
         event = json.loads(text if text is not None else sys.stdin.buffer.read().decode("utf-8", "replace"))
         cwd = event.get("cwd") or cwd
-        root = find_root(cwd)
+        root = root or find_root(cwd)
         if root is None:
             return 0
         config = load_config(root)
