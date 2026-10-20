@@ -102,9 +102,12 @@ def resolve_target(root, name, roots):
                          "of them.".format(rel, ", ".join(r + "/" for r in roots)))
     real_root = os.path.realpath(root)
     real = os.path.realpath(os.path.join(root, rel))
-    if not (real == real_root or real.startswith(real_root + os.sep)) or real.startswith(
-            os.path.join(real_root, ".mycelium-extra") + os.sep):
-        raise FocusError("mycelium-extra: no focus: `{}` resolves outside the project.".format(rel))
+    gated = [os.path.join(real_root, r) for r in roots]
+    if real == real_root or not any(real == g or real.startswith(g + os.sep) for g in gated):
+        raise FocusError("mycelium-extra: no focus: `{}` resolves outside the gated folders ({}).".format(
+            rel, ", ".join(r + "/" for r in roots)))
+    if real.startswith(os.path.join(real_root, ".mycelium-extra") + os.sep):
+        raise FocusError("mycelium-extra: no focus: `{}` is the gate's own state folder.".format(rel))
     if not os.path.isdir(real):
         found = analyses(root, roots)
         raise FocusError("mycelium-extra: no focus: `{}` is not a folder. Type the exact path{}.".format(

@@ -8,10 +8,28 @@ import tempfile
 import time
 
 
+def _refuses_symlink(path):
+    """Whether the state file, or any folder from it up to the `.mycelium-extra` state folder, is a symlink.
+    A symlink above the state folder (a project root that is a link, a mounted path) is normal and must not
+    stop the gate from writing its own state."""
+    if os.path.islink(path):
+        return True
+    folder = os.path.dirname(path)
+    links = []
+    while True:
+        links.append(os.path.islink(folder))
+        if os.path.basename(folder) == ".mycelium-extra":
+            return any(links)
+        parent = os.path.dirname(folder)
+        if parent == folder:  # no state folder above: the file's own folder decides
+            return links[0]
+        folder = parent
+
+
 def atomic(path, text):
     parent = os.path.dirname(path)
     os.makedirs(parent, exist_ok=True)
-    if os.path.realpath(parent) != os.path.abspath(parent) or os.path.islink(path):
+    if _refuses_symlink(path):
         raise ValueError("refusing a symlinked state target")
     fd, tmp = tempfile.mkstemp(prefix=".tmp-", dir=parent)
     try:
@@ -38,7 +56,7 @@ def write(path, value):
 def locked(path):
     import fcntl
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    if os.path.realpath(path) != os.path.abspath(path):
+    if _refuses_symlink(path):
         raise ValueError("refusing a symlinked lock")
     fd = os.open(path, os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600)
     try:

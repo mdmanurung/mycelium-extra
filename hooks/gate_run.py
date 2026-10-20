@@ -17,6 +17,10 @@ EVENT = {}
 HOOK_EVENT = {"prompt": "UserPromptSubmit", "tool": "PreToolUse", "post": "PostToolUse", "stop": "Stop"}
 
 
+class Unreadable(Exception):
+    """The event cannot be decoded, so the gate did not run; error_output decides what that means."""
+
+
 def find_root(cwd):  # gate.find_root, copied so the gate need not load; a test checks they agree
     path = os.path.abspath(cwd or ".")
     while True:
@@ -26,6 +30,44 @@ def find_root(cwd):  # gate.find_root, copied so the gate need not load; a test 
         if parent == path:
             return None
         path = parent
+
+
+def targets(event):
+    """The paths a tool call names, so its gate root can be found when the event cwd has none."""
+    data = event.get("tool_input") if isinstance(event.get("tool_input"), dict) else {}
+    found = []
+    for key in ("file_path", "path", "notebook_path"):
+        value = data.get(key)
+        if isinstance(value, str) and value:
+            found.append(value)
+    command = data.get("command") or data.get("cmd") or ""
+    if isinstance(command, list):
+        command = " ".join(str(word) for word in command)
+    if isinstance(command, str):
+        for word in command.replace("'", " ").replace('"', " ").split():
+            if "/" in word and not word.startswith("-"):
+                found.append(word)
+    return found
+
+
+def event_root(event):
+    """The gate root for this event: the event cwd's, else the root of a path the call names.
+
+    An agent whose shell sits outside the repository but runs `/repo/analysis/a.R` is still
+    checked: the gate loads from the repository the run aims at, and relative paths keep
+    resolving against the event's own cwd.
+    """
+    cwd = event.get("cwd") or os.getcwd()
+    root = find_root(cwd)
+    if root is not None:
+        return root
+    for target in targets(event):
+        target = os.path.expanduser(target)
+        path = target if os.path.isabs(target) else os.path.join(cwd, target)
+        root = find_root(path if os.path.isdir(path) else os.path.dirname(path))
+        if root is not None:
+            return root
+    return None
 
 
 def identity(event, host=None):
@@ -98,6 +140,8 @@ def opencode_event(event):
     rest of this file, it stays parseable by Python 3.6.
     """
     data = event.get("tool_input") if isinstance(event.get("tool_input"), dict) else {}
+    if event.get("tool_input") is not None and not isinstance(event.get("tool_input"), dict):
+        raise Unreadable("the OpenCode tool_input is not an object, so the tool call cannot be read")
     name = event.get("tool_name", "")
     if name == "shell":
         event["tool_name"] = "Bash"
@@ -150,10 +194,11 @@ def run(argv):
     # Everything up to here stays parseable by Python 3.6, so an old interpreter is reported, not a SyntaxError.
     if sys.version_info < (3, 9):
         try:
-            cwd = json.loads(text).get("cwd")
+            decoded = json.loads(text)
         except Exception:
-            cwd = None
-        if find_root(cwd or os.getcwd()) is None:
+            decoded = None
+        if find_root((decoded.get("cwd") if isinstance(decoded, dict) else None) or os.getcwd()) is None and not (
+                isinstance(decoded, dict) and event_root(decoded)):
             return 0
         # A hooks.json registered before 0.9.76 runs python3 directly, and a directory marketplace keeps that
         # registration until the plugin is updated: hand the event to py.sh once instead of failing open.
@@ -193,17 +238,23 @@ def run(argv):
                 decoded.setdefault("hook_event_name", HOOK_EVENT.get(argv[-1]))
                 decoded = opencode_event(decoded)
             text = json.dumps(decoded)
+    except Unreadable:
+        raise
     except (ValueError, TypeError, AttributeError):
         pass
+    root = None
     try:
-        if len(argv) == 2 and find_root(json.loads(text).get("cwd") or os.getcwd()) is None:
-            return 0
-    except Exception:
+        decoded = json.loads(text)
+        if isinstance(decoded, dict):
+            root = event_root(decoded)
+            if len(argv) == 2 and root is None:
+                return 0
+    except (ValueError, TypeError):
         pass
     if len(argv) == 2 and argv[1] not in ("prompt", "tool", "post", "stop"):
         return 0
     import gate
-    return gate.main(argv, text)
+    return gate.main(argv, text, root)
 
 
 def main(argv):

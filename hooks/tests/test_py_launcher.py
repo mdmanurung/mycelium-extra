@@ -50,6 +50,28 @@ class LauncherTest(unittest.TestCase):
         for args in (["-"], ["--hook", "-"]):
             self.assertEqual(self.launch(args, {"PATH": self.bin}).stdout, "new -\n", args)
 
+    # X23: a hook with no interpreter at all must answer in the hook protocol, not exit 127 with no JSON
+    def test_no_interpreter_still_answers_in_the_hook_protocol(self):
+        out = self.launch(["--hook", "PreToolUse", "-"], {"PATH": self.bin})
+        self.assertEqual(out.returncode, 0, out.stderr)
+        payload = json.loads(out.stdout)
+        self.assertIn("no Python interpreter was found", payload["systemMessage"])
+        self.assertNotIn("hookSpecificOutput", payload)  # no gate.json here: say it, do not deny
+
+    def test_no_interpreter_with_on_error_deny_denies_the_tool_call(self):
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        os.makedirs(os.path.join(root, ".mycelium-extra"))
+        with open(os.path.join(root, ".mycelium-extra", "gate.json"), "w") as handle:
+            handle.write('{"on_error": "deny"}')
+        os.symlink(shutil.which("grep"), os.path.join(self.bin, "grep"))
+        out = self.launch(["--hook", "PreToolUse", "-"],
+                          {"PATH": self.bin, "CLAUDE_PROJECT_DIR": root})
+        self.assertEqual(out.returncode, 0, out.stderr)
+        payload = json.loads(out.stdout)
+        self.assertEqual(payload["hookSpecificOutput"]["permissionDecision"], "deny")
+        self.assertIn("Do not work around this block", payload["hookSpecificOutput"]["permissionDecisionReason"])
+
 
 class OldPythonGateTest(unittest.TestCase):
     @unittest.skipIf(sys.version_info < (3, 8), "ast.parse(feature_version=) needs Python 3.8+; the 3.6 run below is the real check")
