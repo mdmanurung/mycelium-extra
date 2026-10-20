@@ -269,6 +269,12 @@ class DiagnoseTest(unittest.TestCase):
         self.assertIn("card_coverage: true  (default)", out)
         self.assertIn("focus_notices: false  (default)", out)
 
+    def test_an_invalid_confirm_writes_is_flagged_and_false_is_the_default(self):
+        self.assertIn("confirm_writes: false  (default)", self.diagnose())
+        self.state_file("gate.json", json.dumps({"confirm_writes": "yes"}))
+        self.assertIn('PROBLEM confirm_writes: "yes" is invalid; the gate wants true or false, and uses off.',
+                      self.diagnose())
+
     def test_diagnose_writes_nothing_with_or_without_state(self):
         before = self.listing()
         out = self.diagnose()

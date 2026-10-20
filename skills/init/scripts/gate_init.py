@@ -40,6 +40,7 @@ DEFAULTS = {
     "card_lint": True,
     "card_coverage": True,
     "focus_notices": False,
+    "confirm_writes": False,
     "lint_on_write": True,
     "lint_before_stop": False,
     "lint_before_run": False,
@@ -253,6 +254,7 @@ CONFIG_RULES = {
     "card_lint": ("true or false", lambda v: isinstance(v, bool)),
     "card_coverage": ("true or false", lambda v: isinstance(v, bool)),
     "focus_notices": ("true or false", lambda v: isinstance(v, bool)),
+    "confirm_writes": ("true or false", lambda v: isinstance(v, bool)),
     "lint_on_write": ("true or false", lambda v: isinstance(v, bool)),
     "lint_before_stop": ("true or false", lambda v: isinstance(v, bool)),
     "lint_before_run": ('false, "warn" or "block"', lambda v: v is False or v in ("warn", "block")),
@@ -265,7 +267,7 @@ CONFIG_RULES = {
 # What the gate does with an invalid value (hooks/gate.py reads each key its own way); keep in step with it.
 INVALID_EFFECT = {
     "pin_scripts": "pinning is on", "card_lint": "on", "lint_on_write": "on", "card_coverage": "off",
-    "focus_notices": "off", "lint_before_stop": "off", "lint_before_run": "off", "on_error": "allow",
+    "focus_notices": "off", "confirm_writes": "off", "lint_before_stop": "off", "lint_before_run": "off", "on_error": "allow",
     "max_runs_per_approval": "no limit", "checkpoint_steps": "off",
 }
 # gated_paths and gated_commands are not type-checked by the gate, so there is no default to fall back to.
