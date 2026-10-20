@@ -8,6 +8,7 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Added
 
+- **gate:** opt-in `confirm_writes`. A skill prepares a pending write with `hooks/confirm_write.py prepare`, and the write waits for the user to type `confirm write <id>` (valid 1 hour); `verify write` is denied without it. It is skill-scoped, so Mycelium's own `.living/` writes are never stopped, and it is cooperative for harden, decision-status and idea-triage. `init --diagnose` flags an invalid `confirm_writes`.
 - **track-changes:** an Analysis Journal (`--journal`) with overview, detail and evidence views, explicit portable checkpoints (`--save-checkpoint`), inert note references (`--note`), a `mycelium-extra.evidence-handoff.v1` export written by verify, and a read-only consumer example. No gate, approval or oracle semantics change.
 
 ## [0.14.4] - 2026-10-20
