@@ -26,6 +26,7 @@ include_patterns = [
     "docs/examples/E01-chat-yes-is-not-consent.md",
     "docs/examples/E03-sign-flipped-comparison.md",
     "docs/examples/E07-verify-unplanned-and-unrecorded.md",
+    "docs/examples/track-changes.md",
 ]
 exclude_patterns = ["docs/_build"]
 myst_heading_anchors = 6
@@ -34,3 +35,4 @@ myst_enable_extensions = ["colon_fence", "deflist"]
 html_theme = "scanpydoc"
 html_title = "Mycelium Extra"
 html_baseurl = "https://mdmanurung.github.io/mycelium-extra/"
+html_extra_path = ["examples/track-changes-report.html"]

@@ -92,6 +92,7 @@ docs/examples/index
 docs/examples/E01-chat-yes-is-not-consent
 docs/examples/E03-sign-flipped-comparison
 docs/examples/E07-verify-unplanned-and-unrecorded
+docs/examples/track-changes
 ```
 
 ```{toctree}
