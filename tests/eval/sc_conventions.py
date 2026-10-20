@@ -57,6 +57,9 @@ def fixture(workspace, case, skill):
         dest = workspace / '.agents' / name
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(content)
+    if not PACK.is_dir():
+        raise SystemExit('sc_conventions: the convention pack is not at {} (plans/ is local-only and not '
+                         'committed); copy the single-cell-analysis pack there first'.format(PACK))
     pack = workspace / '.living/conventions/single-cell-analysis'
     shutil.copytree(str(PACK), str(pack))
     active = not (case['variant'] == 'inactive' and case['kind'] == 'defect')

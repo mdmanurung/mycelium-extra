@@ -39,6 +39,7 @@ def adjudications(schedule, arm='integrated'):
             'records': records}
 
 
+@unittest.skipUnless(sc.PACK.is_dir(), 'the local-only convention pack under plans/ is absent')
 class ManualPreparation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -177,6 +178,7 @@ class Readiness(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'symlink'):
                 sc.inventory(root)
 
+    @unittest.skipUnless(sc.PACK.is_dir(), 'the local-only convention pack under plans/ is absent')
     def test_preparation_and_readiness_never_open_sealed_keys(self):
         original = io.open
         def guarded(file, *args, **kwargs):
