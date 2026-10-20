@@ -2,7 +2,7 @@
 
 Control point: **honesty**
 
-Anonymised from a real project. Source: a real saved `verify` report in project A (status CONFORMS_WITH_GAPS): the plan named the workflow tool but no run of it was recorded, two scripts ran after approval that the plan table did not name, and the plan had no `Outputs:` line. The report below is regenerated on the fixture with the same shapes.
+Anonymised from a real project. Source: a real saved `verify` report in project A (status CONFORMS_WITH_GAPS). The plan named the workflow tool but no run of it was recorded, two scripts the plan table did not name ran after approval, and the plan had no `Outputs:` line. The report below is regenerated on the fixture with the same shapes.
 
 ## 1. Socratic: ask these first
 
@@ -40,6 +40,6 @@ Keep the status as written (no upgrade to "conforms"), write provenance with the
 
 ## 6. Without the tool
 
-The folder would read as "ran as planned". The unplanned scripts' results could have been cited with no flag.
+The folder would read as "ran as planned". Anyone could have cited the unplanned scripts' results with no flag.
 
 Basis: project A: 3 provenance bundles; this episode is one of them.

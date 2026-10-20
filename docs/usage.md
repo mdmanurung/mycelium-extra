@@ -1,9 +1,9 @@
 # Usage tiers
 
 **Start with Tier 1 if you only need a plan. Use Tier 2 for your first run.**
-Each tier adds to the previous one. These are workflow choices, not settings
+Each tier builds on the previous one. They are workflow choices, not settings
 or pricing levels. Install the [plugin for your host](installation.md) first.
-For the whole thing in order, read [a day with Mycelium Extra](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/day.md).
+Want the whole thing in order? Read [a day with Mycelium Extra](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/day.md).
 
 | Tier | Use it when | Add these tools |
 |---|---|---|
@@ -28,10 +28,10 @@ One tool: **`grill`**.
 
 Answer the questions that affect the plan, then read its steps, assumptions,
 and input files. Planning writes nothing and runs no analysis. When needed,
-`grill` calls `decision-status` and `data-contract-check` itself; you do not
+`grill` calls `decision-status` and `data-contract-check` itself, so you don't
 need to memorize those commands.
 
-This tier needs no gate setup. Planning alone provides no execution receipts
+This tier needs no gate setup. Planning alone gives you no execution receipts
 or enforcement. If the repository already has a gate, its rules still apply.
 
 ## Tier 2: Run with approval
@@ -94,8 +94,8 @@ See [Verification reference](verification.md) for report details and
 
 ## Tier 4: Full project workflow
 
-Add tools **when the project needs them**; there is no requirement to invoke
-all thirteen skills for every analysis.
+Add tools **when the project needs them**. You don't have to invoke all
+thirteen skills for every analysis.
 
 | Need | Tool | When to use it |
 |---|---|---|
@@ -207,6 +207,6 @@ reported to you, and the reportable run then needs the second checkpoint again.
 Plain `allow explore` stays the broader, session-wide grant. See
 [Exploratory runs](approval-gate.md#exploratory-runs).
 
-`handoff` can be used at any pause. `harden` is for a specific recurring mistake,
+Use `handoff` at any pause. `harden` is for a specific recurring mistake,
 not a mandatory finishing step. See [Skill reference](skills.md) for each tool's
 writes and [Mycelium integration](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/mycelium-integration.md) for ownership.

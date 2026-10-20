@@ -1,18 +1,18 @@
 # Approve and run
 
-The gate denies a covered run until you approve a plan that names it, then records each run as a receipt.
+The gate denies a covered run until you approve a plan that names it. It then records each run as a receipt.
 
 ## What you control here
 
-- **Your typed word:** `approve plan <hash>`, `approve amendment <hash>`, `approve freeze <hash>`, or bare `approve` when exactly one card is waiting and it is the one shown last. Only these exact words count; `ok, approve` is an ordinary prompt.
+- **Your typed word:** `approve plan <hash>`, `approve amendment <hash>`, `approve freeze <hash>`, or bare `approve` when exactly one card is waiting and it is the one shown last. Only these exact words count. `ok, approve` is an ordinary prompt.
 - **Shown to you:** the approval card, a denial with its reason, and a notice when a pinned input changes or a script is re-pinned after an edit.
-- **To say no:** do not approve. To turn the gate off, remove `.mycelium-extra/gate.json`. Exploration is a separate, typed grant (below).
+- **To say no:** don't approve. To turn the gate off, remove `.mycelium-extra/gate.json`. Exploration is a separate, typed grant (below).
 
 ## Steps
 
-1. Turn the gate on once (`init`, see [your first plan](../start/first-plan.md)). Check the gated paths cover your analysis folders.
+1. Turn the gate on once (`init`, see [your first plan](../start/first-plan.md)). Check that the gated paths cover your analysis folders.
 2. Get a plan from [grill](plan-an-analysis.md). Its status line makes the Stop hook show a card with the hash.
-3. Check the science on the card. For more, type any of:
+3. Check the science on the card. To see more, type any of:
 
    ```text
    card 84bb5fce full
@@ -26,7 +26,7 @@ The gate denies a covered run until you approve a plan that names it, then recor
    approve plan 84bb5fce
    ```
 
-   With none, or two or more cards waiting, nothing is approved and the reply lists the pending hashes.
+   With no card waiting, or two or more, nothing is approved and the reply lists the pending hashes.
 5. Run the steps. The gate stays silent for a covered run and records a receipt.
 
 ### Debugging without a new approval
@@ -36,15 +36,15 @@ allow explore 84bb5fce
 stop explore
 ```
 
-`allow explore <hash>` lets the agent fix and re-run code on that plan's own analysis paths with the `MYCELIUM_EXTRA_EXPLORE=1` prefix. A path outside them is denied. Plain `allow explore` is the broader, session-wide grant. Explore runs are logged, are not reportable, and never become results; to report them, ask grill to promote them to a plan.
+`allow explore <hash>` lets the agent fix and re-run code on that plan's own analysis paths with the `MYCELIUM_EXTRA_EXPLORE=1` prefix. The gate denies any path outside them. Plain `allow explore` is the broader, session-wide grant. Explore runs are logged, are not reportable, and never become results. To report them, ask grill to promote them to a plan.
 
 ### Optional
 
-`hints on` and `hints off` turn on one-line command suggestions. Other `gate.json` settings (approval hours, run limit, `pin_scripts`) are on [Advanced features](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/advanced.md).
+`hints on` and `hints off` switch one-line command suggestions on and off. Other `gate.json` settings (approval hours, run limit, `pin_scripts`) are on [Advanced features](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/advanced.md).
 
 ## Worked example
 
-Real output from the harness on the fixture project (synthetic names). Before approval, the agent tries step 1:
+This is real harness output on the fixture project (synthetic names). Before approval, the agent tries step 1:
 
 ```text
 $ python3 analysis/vaccine-response/scripts/01_select_samples.py
@@ -67,7 +67,7 @@ The three steps then run with no hook speaking. The full card is in [a worked ex
 
 ## What this does not guarantee
 
-The gate reads the words of a shell command. It does not trace `make`, `bash script.sh` outside the gated paths, `xargs python3`, or code run through MCP notebook tools. Exit status is inferred from which hook fired. It catches mistakes; it is not security. See [what this does not guarantee](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/not-guaranteed.md).
+The gate reads the words of a shell command. It does not trace `make`, `bash script.sh` outside the gated paths, `xargs python3`, or code run through MCP notebook tools. It infers exit status from which hook fired. It catches mistakes; it is not security. See [what this does not guarantee](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/not-guaranteed.md).
 
 ## Reference
 

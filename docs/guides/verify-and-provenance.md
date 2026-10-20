@@ -1,16 +1,16 @@
 # Verify and record provenance
 
-`verify` checks what ran against the approved plan, then saves the plan, receipts and report with the analysis once you confirm. It never re-runs anything.
+`verify` checks what ran against the approved plan. Once you confirm, it saves the plan, receipts and report with the analysis. It never re-runs anything.
 
 ## What you control here
 
 - **Your typed word:** which plan to check (its hash), and a yes before anything is written to `provenance/`. That yes is the agent's instruction, not a gate rule: nothing enforces it.
 - **Shown to you:** five summary rows, a status, and every block and gap. Gaps are never shown as passes.
-- **To say no:** do not confirm the write. `report` and the other subcommands are read-only.
+- **To say no:** don't confirm the write. `report` and the other subcommands are read-only.
 
 ## Steps
 
-1. List approved plans if you do not have the hash: `/mycelium-extra:verify list`.
+1. Don't have the hash? List approved plans: `/mycelium-extra:verify list`.
 2. Check one plan:
 
    ```text
@@ -19,7 +19,7 @@
 
    Add `--resolve-citations` to resolve DOI, PMID and arXiv identifiers online; offline they stay a gap.
 3. Read the rows `Ran as planned`, `Numbers match`, `Code checks`, `Not checked`, `Next`, then the `Verify status:` line.
-4. Fix blocks outside `verify`: re-run under the plan, re-check a changed input and approve a new plan, or correct a claim. The choice is yours.
+4. Fix blocks outside `verify`: re-run under the plan, re-check a changed input and approve a new plan, or correct a claim. You choose.
 5. Save the check:
 
    ```text
@@ -39,11 +39,11 @@
 | A draft AI-use methods paragraph | `verify disclose <hash>` |
 | One line per plan row, with its evidence | `verify report <hash> --trace` |
 
-To make your numbers checkable, declare them in a `<!-- claims -->` block that names each output cell (see the format in `skills/verify/SKILL.md`).
+To make your numbers checkable, declare them in a `<!-- claims -->` block that names each output cell. The format is in `skills/verify/SKILL.md`.
 
 ## Worked example
 
-Real harness output, fixture project (synthetic names), plan `84bb5fce` after its three steps ran. First the report's opening rows, from [a worked example](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/example.md#7-verify):
+This is real harness output on the fixture project (synthetic names), for plan `84bb5fce` after its three steps ran. First, the report's opening rows, from [a worked example](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/example.md#7-verify):
 
 ```markdown
 # Verify plan 84bb5fce: CONFORMS
@@ -68,7 +68,7 @@ Next            confirm saving provenance to analysis/vaccine-response/provenanc
 | 2026-10-19 19:58 | run | `Rscript analysis/vaccine-response/scripts/03_summary.R` | 0 |
 ```
 
-A `disclose` line shows how blanks are left for you rather than filled in:
+A `disclose` line shows how it leaves blanks for you instead of filling them in:
 
 ```text
 [BLANK: no conda environment was recorded for these runs, so tool versions other than the plugin's are not in the records]
@@ -76,7 +76,7 @@ A `disclose` line shows how blanks are left for you rather than filled in:
 
 ## What this does not guarantee
 
-`CONFORMS` means the checked record agrees with the plan. A run proves a script ran, not that it implements the plan's choices (that is code review). A matching claim matches its cell, not the truth. A resolved citation shows the identifier exists, not that the paper supports the sentence. See [what this does not guarantee](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/not-guaranteed.md).
+`CONFORMS` means the checked record agrees with the plan. A run proves a script ran, not that it implements the plan's choices (that is code review). A matching claim matches its cell, not the truth. A resolved citation shows the identifier exists, not that the paper supports your sentence. See [what this does not guarantee](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/not-guaranteed.md).
 
 ## Reference
 

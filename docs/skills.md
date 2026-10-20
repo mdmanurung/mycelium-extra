@@ -1,8 +1,8 @@
 # Skill reference
 
-Start with [Usage tiers](usage.md) to choose a workflow. This page is an index: each skill has its own reference page with its synopsis, subcommands, what it writes, defaults and how to switch it off. You do not need to learn them all.
+New here? Start with [Usage tiers](usage.md) to choose a workflow. This page indexes the skills. Each one has a reference page with its synopsis, subcommands, what it writes, its defaults and how to switch it off. You don't need to learn them all.
 
-Commands use Claude Code syntax. In Codex, replace `/mycelium-extra:` with `$mycelium-extra:`. In OpenCode, use the same `/mycelium-extra:` commands (`@grill` also works). See [Host compatibility](installation.md#host-compatibility).
+Commands use Claude Code syntax. In Codex, use `$mycelium-extra:` instead of `/mycelium-extra:`. OpenCode takes the same `/mycelium-extra:` commands (`@grill` also works). See [Host compatibility](installation.md#host-compatibility).
 
 ## Common prompts
 
@@ -18,35 +18,35 @@ Commands use Claude Code syntax. In Codex, replace `/mycelium-extra:` with `$myc
 | Park a passing idea | `/mycelium-extra:idea <idea>` |
 | Choose the next idea | `/mycelium-extra:idea-triage` |
 
-For the gate itself, see [the approval gate](approval-gate.md) and the [verification reference](verification.md).
+To learn how the gate works, read [the approval gate](approval-gate.md) and the [verification reference](verification.md).
 
 ## grill
 
-Turn your question into a sourced, numbered plan; read-only. See [grill](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/grill.md).
+Turns your question into a sourced, numbered plan. It is read-only. See [grill](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/grill.md).
 
 ## init
 
-Turn on the approval gate for a repository. See [init](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/init.md).
+Turns on the approval gate for a repository. See [init](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/init.md).
 
 ## verify
 
-Check what ran against the approved plan; save provenance after you confirm. See [verify](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/verify.md).
+Checks what ran against the approved plan and saves provenance once you confirm. See [verify](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/verify.md).
 
 ## new-analysis
 
-Scaffold a new analysis folder. See [new-analysis](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/new-analysis.md).
+Scaffolds a new analysis folder. See [new-analysis](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/new-analysis.md).
 
 ## plan-review
 
-Challenge a plan before approval, with consent before anything leaves the machine. See [plan-review](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/plan-review.md).
+Challenges a plan before you approve it. Nothing leaves the machine without your consent. See [plan-review](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/plan-review.md).
 
 ## decision-status
 
-Resolve which past Mycelium decision applies. See [decision-status](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/decision-status.md).
+Finds which past Mycelium decision applies. See [decision-status](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/decision-status.md).
 
 ## data-contract-check
 
-Compare a plan's assumptions with sample tables or H5AD `obs`. See [data-contract-check](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/data-contract-check.md).
+Compares a plan's assumptions with your sample tables or H5AD `obs`. See [data-contract-check](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/data-contract-check.md).
 
 ## focus
 
@@ -54,20 +54,20 @@ Say which analysis this session works on. See [focus](https://github.com/mdmanur
 
 ## track-changes
 
-Show what changed against the approved plan; read-only. See [track-changes](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/track-changes.md).
+Shows what changed against the approved plan. It is read-only. See [track-changes](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/track-changes.md).
 
 ## handoff
 
-Write a short `HANDOFF.md` for a fresh session. See [handoff](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/handoff.md).
+Writes a short `HANDOFF.md` for a fresh session. See [handoff](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/handoff.md).
 
 ## idea
 
-Park a passing idea without a question. See [idea](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/idea.md).
+Parks a passing idea without a question. See [idea](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/idea.md).
 
 ## idea-triage
 
-Rank the open ideas so you can choose the next one. See [idea-triage](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/idea-triage.md).
+Ranks the open ideas so you can pick the next one. See [idea-triage](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/idea-triage.md).
 
 ## harden
 
-Turn a learning's mitigation into a test. See [harden](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/harden.md).
+Turns a learning's mitigation into a test. See [harden](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/harden.md).

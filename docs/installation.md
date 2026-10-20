@@ -1,10 +1,9 @@
 # Installation and host compatibility
 
-Install Mycelium Extra once, then choose which projects should use its approval
-gate. The same planning skills are available in Claude Code, Codex, and
-OpenCode. If your project already uses Mycelium, the plugin reads its decisions
-and conventions; in an ordinary repository, it starts with your existing
-documentation and code.
+Install Mycelium Extra once, then choose which projects use its approval
+gate. Claude Code, Codex, and OpenCode all get the same planning skills. If your
+project already uses Mycelium, the plugin reads its decisions and conventions.
+In an ordinary repository, it starts with your existing documentation and code.
 
 You can begin with a question such as:
 
@@ -45,9 +44,8 @@ without changing its version does not refresh the cached plugin; use
 
 ## OpenCode
 
-OpenCode V2 discovers skills from configured directories and loads plugins from
-configured plugin directories, so point both settings at this checkout. Add to
-`~/.config/opencode/opencode.json(c)`:
+OpenCode V2 discovers skills and loads plugins from configured directories, so
+point both settings at this checkout. Add to `~/.config/opencode/opencode.json(c)`:
 
 ```json
 {
@@ -64,19 +62,19 @@ Start a new session and run a skill as a command:
 ```
 
 The plugin registers one `/mycelium-extra:<skill>` command per skill folder, the
-same name Claude Code uses; mentioning a skill (`@grill`) also works. Plugin
-loading, the adapter's event and payload shapes, and its tool/prompt/stop
-behavior were checked against OpenCode 2.0.32, and an end-to-end qualification
-(a denied run, approval card, approval, receipt, and a state-protection denial)
-is recorded in the
-[development notes](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/development.md).
+same name Claude Code uses; mentioning a skill (`@grill`) also works. We checked
+plugin loading, the adapter's event and payload shapes, and its tool/prompt/stop
+behavior against OpenCode 2.0.32. The
+[development notes](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/development.md)
+record an end-to-end qualification (a denied run, approval card, approval, receipt,
+and a state-protection denial).
 The plugin is the gate's host adapter: it runs the shared
 Python gate and is inert in repositories without `.mycelium-extra/gate.json`.
 
 Keep each skill folder inside the checkout. Skills that run scripts call
 `../../hooks/py.sh` relative to their own folder, so a copied or symlinked
 skill folder elsewhere cannot find the hooks. The plugin resolves the checkout
-from its own location the same way; if you copy the plugin directory, pass
+from its own location the same way. If you copy the plugin directory, pass
 `{ "package": ".../opencode", "options": { "root": "/path/to/mycelium-extra" } }`.
 For a project-local install, add the same two entries to that project's
 `opencode.json(c)`; relative paths resolve from OpenCode's working directory.
@@ -84,11 +82,11 @@ For a project-local install, add the same two entries to that project's
 When the gate cannot answer (a timeout, a spawn error, an unreadable reply, or a
 wrong `root` option), the plugin appends a plain-text gate-error note to the tool
 result, or posts it in the session for a prompt, and lets the call through. If
-`gate.json` sets `"on_error": "deny"`, it denies the call instead. A typed
-`card`, `freeze`, or other blocked-prompt reply is also posted in the session
-directly, so you read it as the gate wrote it and not only through the agent.
+`gate.json` sets `"on_error": "deny"`, it denies the call instead. The plugin
+also posts a typed `card`, `freeze`, or other blocked-prompt reply in the session
+directly, so you read it as the gate wrote it, not only through the agent.
 
-To update, pull or replace the checkout and start a new OpenCode session; the
+To update, pull or replace the checkout and start a new OpenCode session. The
 `plugins` and `skills` entries point at the folder, so there is no cache to refresh.
 OpenCode needs the same Python 3.9 or later as the other hosts (see
 [Requirements](#requirements)), because the plugin runs `hooks/py.sh`.
@@ -129,8 +127,8 @@ codex plugin marketplace upgrade mycelium-extra
 codex plugin add mycelium-extra@mycelium-extra
 ```
 
-Revisit `/hooks` after an upgrade: the installed plugin path and its trust
-record can change. Trust the current hooks and restart before relying on them.
+Revisit `/hooks` after an upgrade, because the installed plugin path and its trust
+record can change. Trust the current hooks and restart before you rely on them.
 
 ## Your first analysis
 
@@ -138,7 +136,7 @@ Follow [Tier 2: Run with approval](usage.md#tier-2-run-with-approval): initializ
 the gate, plan, approve the displayed hash, and run. For reportable work, add
 [Tier 3: Verify reportable work](usage.md#tier-3-verify-reportable-work).
 
-Only planning? Start with [Tier 1](usage.md#tier-1-plan); no `init` needed.
+Only want a plan? Start with [Tier 1](usage.md#tier-1-plan); you don't need `init`.
 
 ## Requirements
 
@@ -186,14 +184,14 @@ and [post-tool response implementation](https://github.com/openai/codex/blob/rus
 
 If skills are missing, confirm that the plugin is enabled and restart the host.
 If a hook names a missing versioned cache path, refresh the installation and
-restart. Do not repair the error by embedding another cache path in a project.
+restart. Don't embed another cache path in a project to repair the error.
 
 If analysis runs are unexpectedly blocked, inspect the pending plan and approve
 its displayed hash. If pinned inputs changed, check them and present a revised
 plan. See [Approval gate](approval-gate.md) for exploration and gate settings.
 
-For verification gaps, read the report's missing evidence or tool rather than
-re-running the analysis immediately. See [Skills](skills.md#verify).
+For verification gaps, read the report's missing evidence or tool before you
+re-run the analysis. See [Skills](skills.md#verify).
 
 ## References
 

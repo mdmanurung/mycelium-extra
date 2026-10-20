@@ -1,19 +1,14 @@
 # Verification reference
 
-Use this page when you need to interpret a `verify` report or record provenance.
-For the everyday workflow, start with [Usage tiers](usage.md#tier-3-verify-reportable-work).
+Use this page to read a `verify` report or record provenance.
+New to verify? Start with [Usage tiers](usage.md#tier-3-verify-reportable-work).
 
 
-A finished job is only the beginning of checking an analysis. Did every planned step run? Did an input change? Does the number in the write-up match the saved table? After execution, `verify <hash>` compares the approved plan with the records that can answer those questions.
+A finished job doesn't tell you the analysis is right. Did every planned step run? Did an input change? Does the number in the write-up match the saved table? `verify <hash>` compares the approved plan with the records that answer those questions.
 
-It uses the gate's own table parser, so the scripts covered by verification are the same ones covered by approval. It reads the record without re-running the analysis. In Codex 0.160.0, missing hook exit metadata remains a gap even when the command appeared to finish successfully; an OpenCode receipt whose shell result carries no exit code (a background task, or a tool error) is the same gap.
+It uses the gate's own table parser, so verification covers the same scripts as approval. It reads the record and never re-runs the analysis. In Codex 0.160.0, missing hook exit metadata stays a gap even when the command appeared to finish. An OpenCode receipt whose shell result carries no exit code (a background task, or a tool error) is the same gap.
 
-Damaged receipt lines or workflow metadata are reported as evidence gaps, rather
-than silently discarded as a complete history. Malformed approval records produce
-an explicit error. A compound shell command does not prove each named step ran:
-individual outcomes remain gaps, while a failed aggregate command blocks.
-Claim tables with duplicate column headers or no data rows are unverified;
-unrepresentable numeric values are also gaps, never verified by accident.
+Damaged receipt lines or workflow metadata show up as evidence gaps, not as a silently complete history. Malformed approval records produce an explicit error. A compound shell command does not prove each named step ran: individual outcomes remain gaps, while a failed aggregate command blocks. Claim tables with duplicate column headers or no data rows are unverified. Unrepresentable numeric values are gaps too, never verified by accident.
 
 **In this section:** [What the report shows](#what-the-report-shows) · [Output producers](#output-producers) · [Recovery](#recovery) · [Status](#status) · [Qualification](#qualification) · [Rerun evidence](#rerun-evidence) · [Citations](#citations) · [Disclosure draft](#disclosure-draft) · [What it writes](#what-it-writes) · [Recoverable provenance publication](#recoverable-provenance-publication) · [Advanced features](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/advanced.md#verify-features)
 
@@ -21,7 +16,7 @@ Validation bindings in the report, `verify diff`, `verify stale`, `verify status
 
 ## What the report shows
 
-The report opens with the status and five rows, each one line, so you can stop reading there when the answer is yes:
+The report opens with the status and five one-line rows. When the answer is yes, you can stop reading there:
 
 ```text
 # Verify plan 84bb5fce: CONFORMS
@@ -141,11 +136,11 @@ When the plan table names an entry point (a `run.sh` or a Snakefile), the report
 - **rerun attempted**: a matched run of it that began after verify saved the outputs table (`provenance/outputs-<hash>.tsv`). A run before the first `write` is the original run, not a rerun.
 - **rerun reproduced specified artifacts**: the rerun exited 0, its attempt saw every output named with a saved SHA256 created or rewritten, and each file's content hash now equals the hash saved before the attempt. Anything less is "reproduction not established" with the reason. A table written after the rerun cannot show reproduction, and a re-saved table loses the earlier baseline.
 
-Whether a frozen entry point can be rerun without the agent is the researcher's to try. Verify only reads what a rerun left behind.
+Whether a frozen entry point reruns without the agent is yours to try. Verify only reads what a rerun left behind.
 
 ## Citations
 
-A write-up cites papers; an agent can invent an identifier, or attach a real one to the wrong sentence. Verify reads every DOI (`10.<4-9 digits>/<suffix>`), `PMID: <n>` and `arXiv: <id>` in the same documents it checks claims in, one entry per identifier, and, under a `References`, `Bibliography`, `Literature cited` or `Works cited` heading, each reference-shaped line that carries no identifier (reported `no identifier`: listed, never resolvable).
+An agent can invent an identifier, or attach a real one to the wrong sentence. Verify reads every DOI (`10.<4-9 digits>/<suffix>`), `PMID: <n>` and `arXiv: <id>` in the same documents it checks claims in, one entry per identifier, and, under a `References`, `Bibliography`, `Literature cited` or `Works cited` heading, each reference-shaped line that carries no identifier (reported `no identifier`: listed, never resolvable).
 
 Resolution is opt-in and offline by default:
 
@@ -188,7 +183,7 @@ After you confirm, `verify` writes `<analysis>/provenance/`:
 - for a `snakemake --use-conda` run, each rule's env (`rule-envs-<hash>.json`): the sha256 of the literal `conda:` env file and, when exactly one built env under `.snakemake/conda/` is a byte-identical copy of it, that env's `conda-meta` packages and pip packages. A rule env it cannot match or read, a `--conda-prefix` run (the built envs are not read), a `--use-conda` run whose Snakefile (`-s`, `Snakefile` or `workflow/Snakefile`) was not found, a `conda:` or `include:` that is not a string literal, or a run that does not show `--use-conda` is a gap, never "recorded". **Synthetic format, not validated against a real Snakemake run:** no built `.snakemake/conda` folder existed to check it against (the ones found were empty), so the layout is an assumption until one is read;
 - the report, and a `PROVENANCE.md` index.
 
-Commit it with the analysis. It never writes `PLAN.md`, `TRACKER.md`, or `specification.md`, so the analysis keeps one plan file. It then names the review command, `/mycelium:review <folder> — check the code against the approved plan in <folder>/provenance/plan-<hash>.md`.
+Commit it with the analysis. Verify never writes `PLAN.md`, `TRACKER.md`, or `specification.md`, so the analysis keeps one plan file. It then names the review command, `/mycelium:review <folder> — check the code against the approved plan in <folder>/provenance/plan-<hash>.md`.
 
 ## Recoverable provenance publication
 
