@@ -3799,6 +3799,17 @@ def _write_bundle(root, result, folder):
     with open(os.path.join(folder, paths["report"]), "w", encoding="utf-8", errors="surrogateescape") as handle:
         handle.write("Written {} by mycelium-extra verify.\n\n".format(stamp))
         handle.write(render(result, all_outputs=True, saved=True))
+    import evidence
+    try:
+        with open(os.path.join(PLUGIN_ROOT, ".claude-plugin", "plugin.json"), encoding="utf-8") as handle:
+            version = json.load(handle)["version"]
+    except (OSError, ValueError, KeyError, TypeError):
+        version = "unknown"
+    handoff = evidence.project(result, version, references=dict(paths))
+    paths["evidence"] = "evidence-{}.json".format(digest)
+    with open(os.path.join(folder, paths["evidence"]), "w", encoding="utf-8") as handle:
+        json.dump(handoff, handle, indent=2, sort_keys=True)
+        handle.write("\n")
     index = os.path.join(folder, "PROVENANCE.md")
     row = "| {} | {} | {} | {} | [plan]({}) - [receipts]({}) - [outputs]({}) - [lint]({}) - [report]({}){} |".format(
         digest, when(result["approved_at"]), stamp, result["status"], paths["plan"], paths["receipts"],

@@ -192,3 +192,49 @@ Commit it with the analysis. Verify never writes `PLAN.md`, `TRACKER.md`, or `sp
 Under the same lock, the next `write` finalizes a fully matching publication or restores the previous snapshot before saving again. An unexpected edit or damaged backup stops recovery and retains evidence. Do not remove a pending marker to make a report look complete. `report`, `stale`, and `status` distinguish complete, legacy (no checksummed record), and interrupted/damaged bundles. Legacy files are read without automatic rewriting; the next confirmed save retains their prior bytes.
 
 Timestamp-compatible outputs with competing writers, and outputs with an overlapping attempt, remain attribution gaps. A Slurm job is judged by its state and its exit code: `COMPLETED` with an `ExitCode` other than `0:0` blocks, an unreadable code is a gap, and a pending, running, unknown or partly finished array job is a gap. A metadata-only input or script fingerprint does not verify content. Shell/wrapper and notebook-tool visibility remains bounded by the recorded receipts.
+
+## Portable evidence handoff
+
+Every confirmed `verify write` also saves `evidence-<hash>.json`, schema
+`mycelium-extra.evidence-handoff.v1`, from the already computed result. It never
+reruns verification or parses the Markdown report. The existing completion marker
+checksums this member through the existing recoverable transaction; legacy
+bundles keep their prior meanings. Handoff references name original bundle
+members relative to the provenance directory. There are no self-checksums or
+completion checksums inside the handoff.
+
+The explicit export allowlist contains producer name/version, schema,
+generated_at, repository-relative analysis_path, plan_hash, nullable
+approval_instance, snapshot_digest, exact conformity, full qualification
+(overall/dimensions/limitation), output paths and recorded fingerprints,
+producer_attempt, evidence_method, strength, explore, findings, observation
+coverage and limitations. A missing qualification/instance remains null; it is
+never reconstructed from prose. Conformity stays `CONFORMS`,
+`CONFORMS_WITH_GAPS` or `DOES_NOT_CONFORM`; independent qualification stays
+`qualified` or `not qualified`. No scientific-validity verdict is added.
+
+Fingerprint values are copied only when recorded. Without SHA256, size+mtime
+is weak metadata, never a fabricated content digest. Commands/arguments,
+transcripts, environment values, raw data and non-relative paths are withheld.
+Known commands/environment values and absolute paths inside explanatory text are
+replaced with labelled withheld text; `withheld` lists the export exclusions.
+Outcome/dimension/evidence-method/attribution-strength values retain their
+upstream meaning. Review original members for withheld context.
+
+Semantic snapshot identity is SHA256 of ASCII-escaped sorted-key compact JSON
+with no NaN, excluding generated_at, snapshot_digest itself, producer presentation
+metadata and relative member references. Everything else in the projection is
+semantic. Completion bytes are never an input. Re-export time alone cannot
+create a new verification observation. The generated time is when the saved
+projection was made, not an attested analysis production or computation time.
+
+A standalone consumer uses only the standard library and never triggers recovery:
+
+```bash
+python3.12 examples/read_evidence.py path/to/analysis/provenance 84bb5fce
+```
+
+It validates required members, checksums, index row, pending marker, handoff
+schema/semantic identity and an unchanged completion marker across its read.
+On interruption it refuses and leaves recovery to the next confirmed writer.
+The example is included in the repository under `examples/read_evidence.py`.

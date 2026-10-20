@@ -80,3 +80,36 @@ The HTML report has Review, Diff, Timeline and Evidence tabs, filters and search
 - Reports hold code diffs. Strings that look like keys, tokens or passwords are replaced by `[redacted]`, which is a heuristic, not a guarantee. They live under `.mycelium-extra/`, which should be git-ignored; the command warns if it is not.
 - Reports are regenerable views, not records. `verify` stays the authority on what the runs establish.
 - The viewer was exercised in Node against a DOM stub, not in a browser. Open `report.html` once from disk on your own machine.
+
+## Historical Journal and durable checkpoints
+
+Use the same track-changes command with `--journal --analysis analysis/name`.
+The Journal opens with the recorded objective, a period, separate saved conformity
+and qualification lines, up to three concerns, and persistent coverage/freshness.
+`Explore history` reveals records; select one and open `Evidence and provenance`
+to inspect it. Back to overview preserves period, search, selection and list state.
+Global search covers all loaded records, including collapsed routine history.
+Review, Diff and Evidence remain available for the ordinary endpoint comparison.
+
+To explicitly retain this observation, add `--save-checkpoint`. Repeating an
+unchanged save reuses the checkpoint and first save time. Commit
+`analysis/name/journal/checkpoints/*.json` for portable history, including earlier
+verification projections after a same-plan provenance replacement. Use repeatable
+`--note notes/interpretation.md#anchor` for inert researcher-owned references.
+`--journal --no-write --json` prints the entire journal without writing repository
+state. Saving conflicts with `--no-write` and `--explain`.
+
+The default period is changes since the latest saved checkpoint, else the latest
+recorded session, else available history. All available history is an explicit
+choice. Missing local records remain coverage gaps; a fresh clone never becomes
+fully observed because it holds checkpoints. Saved observations are not scientific
+summaries, complete-history attestations or another approval system.
+
+Regenerate the large synthetic and missing-source demonstration with
+`python3.12 tests/e2e/make_journal_example.py`. It uses the acceptance-test fixture:
+two sessions, three plans, two instances sharing a hash, retries, repinning,
+submission without completion, over 40 receipts, legacy/malformed/conflicting
+records and two saved verifications. No real data or scheduler is used. The
+standalone [handoff consumer](../examples/read_evidence.py) validates saved bundles
+without plugin imports. Contract details are in the
+[journal schema](../skills/track-changes/references/schema.md#analysis-journal-v1).

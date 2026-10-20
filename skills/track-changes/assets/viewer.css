@@ -161,3 +161,25 @@ tr.pick td { background: var(--paper-2); }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* Journal: bounded overview and evidence disclosure, native keyboard controls. */
+.journal { max-width: 920px; margin: 16px auto; overflow-wrap: anywhere; }
+.journal p { margin: 8px 0; }
+.journal h2 { font-size: 1.1rem; margin-top: 16px; }
+.journal-controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.journal select { max-width: 100%; padding: 6px; font: inherit; color: inherit; background: var(--paper); }
+.journal-coverage { border-left: 3px solid var(--rule-strong); padding: 4px 12px; margin: 12px 0; }
+.journal-disclosure { border-top: 1px solid var(--rule); margin: 10px 0; padding: 8px 0; }
+.journal summary { cursor: pointer; }
+.journal-concern, .journal-event { display: block; width: 100%; text-align: left; padding: 10px; margin: 6px 0; border: 1px solid var(--rule); background: var(--paper-2); border-radius: 4px; }
+.journal-flow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 24px; }
+.journal-list { max-height: 65vh; overflow: auto; }
+.journal-detail { min-width: 0; }
+.journal pre { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; overflow: auto; font-size: .85rem; }
+.journal [aria-pressed="true"] { border: 2px solid var(--accent); }
+@media (max-width: 750px) { .journal-flow { display: block; } .journal-list { max-height: 35vh; } }
+
+.views { flex-wrap: wrap; }
+.journal .search { max-width: 100%; min-width: 0; }
+
+.journal-context { position: sticky; top: 0; z-index: 2; background: var(--paper); padding: 6px 0; }

@@ -1,0 +1,12 @@
+{
+  "hash": "84fcb531",
+  "index_row": "| 84fcb531 | 2026-10-21 00:00 | 2026-10-21 00:00 | CONFORMS_WITH_GAPS | [plan](plan-84fcb531.md) - [receipts](receipts-84fcb531.jsonl) - [outputs](outputs-84fcb531.tsv) - [lint](lint-84fcb531.txt) - [report](verify-84fcb531.md) |",
+  "sha256": {
+    "evidence-84fcb531.json": "0a9fda63ee6d28d248799eb3f765e7dae5c3d9912dff047a7db9416094cf8786",
+    "lint-84fcb531.txt": "0586e53bea018b24b74b03dc6dba6e4c3cf40cd55234f6a81c9a62ee551b4e84",
+    "outputs-84fcb531.tsv": "1c2531f5e5743f393082678356b24c1e01a89843d9d8af5e7a4cab620e621e5f",
+    "plan-84fcb531.md": "8ad4c62c946e7958a57fccff18187754411b657364002d9b5b47426ad37e719e",
+    "receipts-84fcb531.jsonl": "c2f2456ea7ca524408ee016ef3b791aa6083b715103640c11b19ae7347f787cb",
+    "verify-84fcb531.md": "9b59c90d642565f30eb34cd87bf3bbb4c3b96e0773bf290bb7fccf5641211b69"
+  }
+}

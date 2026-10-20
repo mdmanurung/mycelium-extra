@@ -1,0 +1,211 @@
+{
+  "analysis_path": "analysis/a",
+  "approval_instance": "f4f5bc001b240862",
+  "conformity": "CONFORMS_WITH_GAPS",
+  "coverage": {
+    "candidate": 0,
+    "launch": {
+      "ambiguous": 0,
+      "legacy": 0,
+      "matched": 1,
+      "unmatched": 0
+    },
+    "observation": {
+      "gate_errors": 0,
+      "off_contract": 0,
+      "open_attempts": 0,
+      "steps": [
+        {
+          "complete": true,
+          "step": "[withheld step label; see original report]",
+          "why": "ran"
+        },
+        {
+          "complete": false,
+          "step": "[withheld step label; see original report]",
+          "why": "no receipt"
+        }
+      ]
+    },
+    "outputs": 0,
+    "runs": 1,
+    "supported": 0,
+    "unresolved": 0
+  },
+  "findings": [
+    [
+      "gap",
+      "Saved provenance bundle is legacy; no checksummed completion established."
+    ],
+    [
+      "gap",
+      "`analysis/a/job.sh` is a wrapper, and no Snakemake records show which steps ran inside it."
+    ],
+    [
+      "gap",
+      "`analysis/a/scripts/01_fit.py`: no run under this plan was recorded."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "gap",
+      "scilintr (Python) not checked: `[withheld path]` not found. Install it (`[withheld command/arguments]`) and re-verify, or record its path with the init skill (`[withheld command/arguments]`)."
+    ],
+    [
+      "info",
+      "No DOI, PMID or arXiv ID in the checked document(s)."
+    ],
+    [
+      "info",
+      "2 Validation cells are prose only; nothing checks them."
+    ]
+  ],
+  "generated_at": "2026-10-20T22:00:15Z",
+  "limitations": [
+    "Evidence linkage is not scientific validity.",
+    "Missing SHA256 is not content identity; size/mtime is weak."
+  ],
+  "outputs": [],
+  "plan_hash": "84fcb531",
+  "producer": {
+    "name": "mycelium-extra",
+    "version": "0.14.4"
+  },
+  "qualification": {
+    "dimensions": [
+      {
+        "dimension": "authorization",
+        "reason": "1 of 1 run(s) are matched launches under approval instance f4f5bc001b240862",
+        "state": "established"
+      },
+      {
+        "dimension": "completion",
+        "reason": "`analysis/a/scripts/01_fit.py` (no receipt)",
+        "state": "not established"
+      },
+      {
+        "dimension": "code and input identity",
+        "reason": "1 script(s) and input(s) unchanged, compared by content hash",
+        "state": "established"
+      },
+      {
+        "dimension": "lineage",
+        "reason": "the plan declares no output (`Outputs: none`)",
+        "state": "not applicable"
+      },
+      {
+        "dimension": "required validation",
+        "reason": "the plan binds no check (its Validation cells are prose)",
+        "state": "not applicable"
+      },
+      {
+        "dimension": "claim linkage",
+        "reason": "no checked claim",
+        "state": "not applicable"
+      },
+      {
+        "dimension": "no blocking finding",
+        "reason": "no finding blocks this plan",
+        "state": "established"
+      },
+      {
+        "dimension": "no open gap",
+        "reason": "4 gap finding(s) open, listed under Findings",
+        "state": "not established"
+      }
+    ],
+    "limitation": "completion not established: let each planned step finish with exit 0 (a submitted batch job must reach COMPLETED), then report again. 2 of 8 dimensions are not established. 4 gap finding(s) open.",
+    "overall": "not qualified"
+  },
+  "references": {
+    "lint": "lint-84fcb531.txt",
+    "outputs": "outputs-84fcb531.tsv",
+    "plan": "plan-84fcb531.md",
+    "receipts": "receipts-84fcb531.jsonl",
+    "report": "verify-84fcb531.md"
+  },
+  "schema": "mycelium-extra.evidence-handoff.v1",
+  "snapshot_digest": "93c2ac4dd0051893539b759134dbee0fb20db1a522761a1a24cb6e419c4de8ec",
+  "withheld": [
+    "commands and arguments",
+    "environment values",
+    "raw data",
+    "step labels may contain command arguments",
+    "text containing commands, environment values or absolute paths",
+    "transcripts"
+  ]
+}

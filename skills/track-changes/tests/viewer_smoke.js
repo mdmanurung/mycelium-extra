@@ -34,6 +34,39 @@ document.execCommand = () => { copied.push(document.lastCopy); return true; };
 global.setTimeout = () => 0; global.clearTimeout = () => {};
 
 new Function(code)();
+const payload = JSON.parse(data);
+if (payload.journal) {
+  const walk = el => [el].concat(...el.children.map(walk));
+  const nodes = cls => walk(byId.app).filter(e => e.className.split(" ").includes(cls));
+  const click = e => { if (!e) throw Error("missing control"); (e.listeners.click || []).forEach(f => f()); };
+  const button = prefix => walk(byId.app).find(e => e.tag === "button" && e.textContent.startsWith(prefix));
+  if (nodes("journal-concern").length > 3 || nodes("journal-event").length) throw Error("overview budget exceeded");
+  if (!byId.app.textContent.includes("Coverage:")) throw Error("coverage hidden");
+  const original = byId.data.textContent;
+  const first = nodes("journal-concern")[0];
+  if (first) {
+    click(first);
+    if (!nodes("journal-detail").length) throw Error("concern does not reveal detail");
+    if (!walk(byId.app).some(e => e.tag === "summary" && e.textContent.startsWith("Evidence and provenance"))) throw Error("missing evidence disclosure");
+    click(button("Back to overview"));
+  }
+  click(button("Show all "));
+  const count = nodes("journal-concern").length;
+  if (count < (first ? 1 : 0)) throw Error("concerns lost");
+  click(button("Back to overview")); click(button("Explore history"));
+  const target = payload.journal.events.filter(e => e.kind === "attempt" && e.summary === "exit 0 recorded").pop();
+  const search = walk(byId.app).find(e => e.tag === "input" && e.type === "search");
+  search.value = target.id; search.listeners.input.forEach(f => f());
+  if (nodes("journal-event").length !== 1) throw Error("search missed loaded, collapsed record");
+  click(nodes("journal-event")[0]);
+  if (!nodes("journal-detail")[0].textContent.includes(target.id)) throw Error("wrong search selection");
+  click(button("Collapse detail")); click(button("Expand detail"));
+  click(button("Back to overview")); click(button("Explore history"));
+  const restored = walk(byId.app).find(e => e.tag === "input" && e.type === "search");
+  if (restored.value !== target.id) throw Error("search context lost");
+  if (byId.data.textContent !== original) throw Error("presentation changed exported evidence");
+  console.log("OK journal events=" + payload.journal.events.length + " concerns=" + count);
+} else {
 // the first draw is the Review view: its filters sit directly under the view tabs, not beside them
 const order = byId.app.children.map(c => c.className.split(" ")[0]);
 const v = order.indexOf("views"), f = order.indexOf("filters");
@@ -44,7 +77,9 @@ for (let round = 0; round < 3; round++) {
   for (const el of clickable(byId.app).slice()) { for (const fn of el.listeners.click) { fn(); clicks++; } }
 }
 const text = byId.app.textContent;
-const payload = JSON.parse(data);
+
 if (!text.includes("Track changes")) throw new Error("page did not draw");
 if (clicks < 10) throw new Error("too few controls clicked: " + clicks);
 console.log("OK clicks=" + clicks + " items=" + payload.items.length + " chars=" + text.length);
+
+}

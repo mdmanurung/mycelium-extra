@@ -32,5 +32,7 @@ def render(data, brief=""):
         css = handle.read()
     with open(os.path.join(ASSETS, "viewer.js"), encoding="utf-8") as handle:
         js = handle.read()
+    with open(os.path.join(ASSETS, "journal.js"), encoding="utf-8") as handle:
+        js = js.replace("__JOURNAL__", handle.read())
     # the data goes in last: nothing inside it can be mistaken for a marker
     return PAGE.replace("__CSS__", css).replace("__JS__", js).replace("__DATA__", embed(dict(data, brief_md=brief)))

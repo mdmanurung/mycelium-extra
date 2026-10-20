@@ -46,3 +46,30 @@ Offer the brief to Mycelium's review before a freeze: it is one file, `brief.md`
 - Not an attribution of who edited a file: only direct editor tool calls in a transcript are listed; shell-made edits and unmarked subagent work are not observed.
 - The plans' inputs, outputs and validation blocks are not compared here; `verify diff <old> <new>` does that.
 - Field meanings and the axes: `references/schema.md`.
+
+## Historical Analysis Journal (explicit)
+
+Add `--journal` to collect historical records across sessions and open the offline
+Journal at its overview. It does not execute verify, a scheduler or analysis code.
+`--journal --json` prints the journal payload only, with all loaded events;
+`--journal --no-write` creates no repository state. Normal reporting still writes
+only the existing snapshot/brief/report paths.
+
+When the user explicitly requests a durable observation, add
+`--journal --save-checkpoint`. This is separate from ordinary display: never save
+one automatically per invocation. It writes a validated compact checkpoint under
+`<analysis>/journal/checkpoints/<digest>.json` and a short lock. Unchanged saves
+reuse the first record. Never use `--no-write` or read-only `--explain` with saving.
+Commit checkpoints for a fresh clone. They retain projections, not whole logs,
+transcripts or diffs, and certify neither scientific validity nor complete history.
+
+Repeat `--note notes/path.md#anchor` to attach researcher-owned references relative
+to the repository root. Do not create or modify notes; their bytes and anchors are
+references, never authorization. Changed/missing references remain explicit.
+
+The overview defaults to the latest checkpoint baseline, else latest recorded
+session, else available history. Use the period control for all history. Keep
+conformity and qualification separate; show coverage even when no concern is
+found. `Explore history` reveals searchable records, then `Evidence and provenance`
+opens the selected source projection. No routine feed or raw dump starts open.
+For exact identity/time/privacy contracts see `references/schema.md`.

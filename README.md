@@ -122,6 +122,12 @@ focus <folder>                               # say which analysis this session w
 /mycelium-extra:handoff                      # resume in a fresh session
 ```
 
+For historical orientation, add `--journal` to track-changes. Its overview keeps
+saved conformity and qualification separate and shows coverage before the event
+history. Add `--save-checkpoint` only when you explicitly want a durable
+observation; commit the checkpoint with the analysis. Confirmed verify saves also
+include a portable evidence-handoff JSON. See [Journal and checkpoints](docs/focus-and-track-changes.md#historical-journal-and-durable-checkpoints).
+
 ### Learn more
 
 - **Start:** [What it is](docs/start/what-it-is.md), [Installation](docs/installation.md), and

@@ -69,3 +69,19 @@ Written only by `verify write <hash> --analysis-dir <folder>`, after you confirm
 | the new analysis folder | `new-analysis` | never overwrites |
 
 See also: [Gate](gate.md), [gate.json](gate-json.md).
+
+## Analysis Journal records
+
+Confirmed `verify write` additionally publishes `provenance/evidence-<hash>.json`
+(`mycelium-extra.evidence-handoff.v1`), checksummed by the existing completion
+marker. Same-plan replacement still applies. See
+[portable evidence handoff](../verification.md#portable-evidence-handoff).
+
+Explicit `track-changes --journal --save-checkpoint` creates only
+`<analysis>/journal/checkpoints/<full-digest>.json` and its `.save.lock`, in
+addition to the usual generated report paths. Commit these compact observations;
+they retain earlier events and verification projections without ignored local
+state. A lock is working coordination, not evidence. Checkpoint files are
+immutable to the writer, validated on read and reused for unchanged content.
+See the [journal schema](../../skills/track-changes/references/schema.md#analysis-journal-v1)
+for identities, note containment, time semantics, source gaps and limitations.

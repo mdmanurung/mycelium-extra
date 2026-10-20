@@ -745,11 +745,59 @@ def main(argv):
     parser.add_argument("--transcript")
     parser.add_argument("--json", action="store_true", help="print the snapshot instead of the card")
     parser.add_argument("--no-write", action="store_true", help="print only; write no files")
+    parser.add_argument("--journal", action="store_true", help="collect historical Analysis Journal")
+    parser.add_argument("--save-checkpoint", action="store_true", help="explicitly save an immutable journal checkpoint")
+    parser.add_argument("--note", action="append", default=[], metavar="RELATIVE_PATH[#ANCHOR]")
     parser.add_argument("--explain", metavar="ITEM_ID", help="print the bounded evidence block for one item (read-only; writes no files)")
     args = parser.parse_args(argv)
+    if (args.save_checkpoint or args.note) and not args.journal:
+        parser.error("--save-checkpoint and --note require --journal")
+    if args.save_checkpoint and (args.no_write or args.explain):
+        parser.error("--save-checkpoint conflicts with --no-write and --explain")
+    if args.journal and args.explain:
+        parser.error("--explain selects ordinary report items; use the Journal's evidence controls")
     gate, focus, verify = load(args.plugin_root)
     try:
-        data = collect(args, gate, focus, verify)
+        if args.journal:
+            scripts = os.path.join(args.plugin_root, "skills", "track-changes", "scripts")
+            if scripts not in sys.path:
+                sys.path.insert(0, scripts)
+            import journal
+            root = gate.find_root(args.repo) or os.path.abspath(args.repo)
+            episode = session_episode(root, focus, args.session or os.environ.get("CLAUDE_CODE_SESSION_ID"))
+            target = args.analysis or (episode or {}).get("analysis_path")
+            if not target:
+                raise Stop("Journal needs --analysis or this session's open focus")
+            config = gate.load_config(root) if os.path.isfile(os.path.join(root, ".mycelium-extra", "gate.json")) else dict(gate.DEFAULTS)
+            rel = focus.resolve_target(root, target, focus.roots_of(config))
+            history = journal.collect(root, rel, gate, focus, args.note)
+            # The Journal has an explicit historical scope; ordinary Review retains its endpoint selection.
+            ordinary_args = argparse.Namespace(**vars(args))
+            approvals = [e for e in history["events"] if e["kind"] == "approval"]
+            journal_baseline = not ordinary_args.original and bool(approvals)
+            if journal_baseline:
+                ordinary_args.original = approvals[0]["references"]["plan"]
+            try:
+                data = collect(ordinary_args, gate, focus, verify)
+                if journal_baseline:
+                    data["baselines"]["relation"] = "journal_history_display"
+                    data["baselines"]["original_selection"] = "earliest_available_for_display"
+                    data["coverage"]["limitations"].append(
+                        "Journal Review starts at the earliest available approval for display; this does not "
+                        "establish original intent. Pass --original to choose the comparison baseline.")
+            except (Stop, ValueError, OSError, KeyError, TypeError) as error:
+                data = {"schema": SCHEMA, "generated_at": history["refreshed_at"], "analysis_path": rel,
+                        "objective": history["objective"], "focus": {"active_at_snapshot": False},
+                        "baselines": {"original_plan": None, "current_plan": None},
+                        "coverage": {"limitations": [str(error)], "not_observed": ["ordinary comparison unavailable"]},
+                        "counts": {"attention": 0, "authorized": 0, "routine": 0},
+                        "items": [], "evidence": [], "timeline": []}
+            data["journal"] = history
+            if args.save_checkpoint:
+                saved = journal.save(root, history)
+                data["journal"]["saved_checkpoint"] = {"digest": saved["digest"], "saved_at": saved["saved_at"]}
+        else:
+            data = collect(args, gate, focus, verify)
     except (Stop, focus.FocusError, ValueError, OSError) as error:  # a malformed approval record is a ValueError
         print("track-changes: {}".format(error), file=sys.stderr)
         return 2
@@ -771,9 +819,18 @@ def main(argv):
         except (ValueError, OSError) as error:  # still show what was found
             write_error = error
     if args.json:
-        print(json.dumps(data, indent=1))
+        print(json.dumps(data["journal"] if args.journal else data, indent=1))
     else:
-        print(card(data))
+        if args.journal:
+            j = data["journal"]
+            print("Analysis Journal · {} · {} recorded events · refreshed {}".format(
+                j["analysis_path"], len(j["events"]), j["refreshed_at"]))
+            print("Coverage: " + "; ".join("{}: {}".format(k, v) for k, v in sorted(j["coverage"].items())))
+            if j.get("saved_checkpoint"):
+                print("Checkpoint: {}/journal/checkpoints/{}.json (first saved {})".format(
+                    j["analysis_path"], j["saved_checkpoint"]["digest"], j["saved_checkpoint"]["saved_at"]))
+        else:
+            print(card(data))
         if write_error:
             print("Files      none written: {}".format(write_error))
         if paths:

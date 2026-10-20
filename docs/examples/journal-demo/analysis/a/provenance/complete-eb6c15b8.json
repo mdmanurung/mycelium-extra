@@ -1,0 +1,12 @@
+{
+  "hash": "eb6c15b8",
+  "index_row": "| eb6c15b8 | 2026-10-20 23:59 | 2026-10-21 00:00 | CONFORMS_WITH_GAPS | [plan](plan-eb6c15b8.md) - [receipts](receipts-eb6c15b8.jsonl) - [outputs](outputs-eb6c15b8.tsv) - [lint](lint-eb6c15b8.txt) - [report](verify-eb6c15b8.md) |",
+  "sha256": {
+    "evidence-eb6c15b8.json": "60b08e9a329e3579616722fbacc4af92bc12765723a4e09460d9d2d2ce90de0f",
+    "lint-eb6c15b8.txt": "0586e53bea018b24b74b03dc6dba6e4c3cf40cd55234f6a81c9a62ee551b4e84",
+    "outputs-eb6c15b8.tsv": "1c2531f5e5743f393082678356b24c1e01a89843d9d8af5e7a4cab620e621e5f",
+    "plan-eb6c15b8.md": "b02f6fb0f609fe952c33a6939906638dd38f5824fd66fe160b356e2cedbda417",
+    "receipts-eb6c15b8.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verify-eb6c15b8.md": "bd807034bd9b5da98949f8e5eff881e3b716e5fe7f1659107ee6eb4c67022db9"
+  }
+}

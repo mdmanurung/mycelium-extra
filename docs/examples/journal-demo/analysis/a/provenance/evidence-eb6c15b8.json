@@ -1,0 +1,726 @@
+{
+  "analysis_path": "analysis/a",
+  "approval_instance": "b78c5ecd51194eb3",
+  "conformity": "CONFORMS_WITH_GAPS",
+  "coverage": {
+    "candidate": 0,
+    "launch": {
+      "ambiguous": 0,
+      "legacy": 0,
+      "matched": 0,
+      "unmatched": 0
+    },
+    "observation": {
+      "gate_errors": 0,
+      "off_contract": 0,
+      "open_attempts": 0,
+      "steps": [
+        {
+          "complete": false,
+          "step": "[withheld step label; see original report]",
+          "why": "no receipt"
+        }
+      ]
+    },
+    "outputs": 0,
+    "runs": 0,
+    "supported": 0,
+    "unresolved": 0
+  },
+  "findings": [
+    [
+      "info",
+      "3 run(s) of this plan ran under other approval instance(s) (6dbeaba178496189: 3); they are history and do not establish instance b78c5ecd51194eb3. Of these, 1 failed: `[withheld command/arguments]` failed (exit 1) at 2026-10-20 23:59 (instance 6dbeaba178496189)."
+    ],
+    [
+      "gap",
+      "No run is recorded under approval instance b78c5ecd51194eb3 (approved 2026-10-20 23:59); runs under an earlier instance do not establish this freeze."
+    ],
+    [
+      "gap",
+      "`analysis/a/scripts/01_fit.py`: no run under this plan was recorded."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-20 23:59 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan c9f9973e)."
+    ],
+    [
+      "info",
+      "Run under another plan: `[withheld command/arguments]` at 2026-10-21 00:00 (under plan 84fcb531)."
+    ],
+    [
+      "gap",
+      "`analysis/a/job.sh` ran since the approval but is not in the plan table."
+    ],
+    [
+      "gap",
+      "scilintr (Python) not checked: `[withheld path]` not found. Install it (`[withheld command/arguments]`) and re-verify, or record its path with the init skill (`[withheld command/arguments]`)."
+    ],
+    [
+      "info",
+      "No DOI, PMID or arXiv ID in the checked document(s)."
+    ],
+    [
+      "info",
+      "1 Validation cell is prose only; nothing checks it."
+    ]
+  ],
+  "generated_at": "2026-10-20T22:00:15Z",
+  "limitations": [
+    "Evidence linkage is not scientific validity.",
+    "Missing SHA256 is not content identity; size/mtime is weak."
+  ],
+  "outputs": [],
+  "plan_hash": "eb6c15b8",
+  "producer": {
+    "name": "mycelium-extra",
+    "version": "0.14.4"
+  },
+  "qualification": {
+    "dimensions": [
+      {
+        "dimension": "authorization",
+        "reason": "no run is recorded under this approval instance",
+        "state": "not established"
+      },
+      {
+        "dimension": "completion",
+        "reason": "`analysis/a/scripts/01_fit.py` (no receipt)",
+        "state": "not established"
+      },
+      {
+        "dimension": "code and input identity",
+        "reason": "no script or input fingerprint is recorded",
+        "state": "not established"
+      },
+      {
+        "dimension": "lineage",
+        "reason": "the plan declares no output (`Outputs: none`)",
+        "state": "not applicable"
+      },
+      {
+        "dimension": "required validation",
+        "reason": "the plan binds no check (its Validation cells are prose)",
+        "state": "not applicable"
+      },
+      {
+        "dimension": "claim linkage",
+        "reason": "no checked claim",
+        "state": "not applicable"
+      },
+      {
+        "dimension": "no blocking finding",
+        "reason": "no finding blocks this plan",
+        "state": "established"
+      },
+      {
+        "dimension": "no open gap",
+        "reason": "4 gap finding(s) open, listed under Findings",
+        "state": "not established"
+      }
+    ],
+    "limitation": "authorization not established: run the planned steps again under this approval so the gate records matched launches, or approve a plan for what actually ran. 4 of 8 dimensions are not established. 4 gap finding(s) open.",
+    "overall": "not qualified"
+  },
+  "references": {
+    "lint": "lint-eb6c15b8.txt",
+    "outputs": "outputs-eb6c15b8.tsv",
+    "plan": "plan-eb6c15b8.md",
+    "receipts": "receipts-eb6c15b8.jsonl",
+    "report": "verify-eb6c15b8.md"
+  },
+  "schema": "mycelium-extra.evidence-handoff.v1",
+  "snapshot_digest": "55c4713e3fd00c6cae877ea59fc5822e7b27c7db2e633086d8f17c5a1fa2dbe2",
+  "withheld": [
+    "commands and arguments",
+    "environment values",
+    "raw data",
+    "step labels may contain command arguments",
+    "text containing commands, environment values or absolute paths",
+    "transcripts"
+  ]
+}

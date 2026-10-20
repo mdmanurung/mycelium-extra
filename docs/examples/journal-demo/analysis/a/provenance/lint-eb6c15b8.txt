@@ -1,0 +1,7 @@
+scilintr did not run.
+
+# ANALYSIS_OK waivers (0)
+
+# Waived findings (0)
+
+# Approved thresholds (0)

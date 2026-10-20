@@ -9,3 +9,27 @@ The report lists what needs your attention first, such as a changed plan choice,
 New to this? See the [`track-changes` reference](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/track-changes.md) for the options and what it compares.
 
 To regenerate the file, run `python3 tests/e2e/make_track_changes_example.py`.
+
+
+## Analysis Journal example
+
+Open [the multi-session Journal](analysis-journal.html) or
+[its missing-source view](analysis-journal-missing.html). Both are generated,
+self-contained offline reports. The synthetic portable records live under
+`docs/examples/journal-demo/`; no real research data or scheduler was used.
+
+The overview shows three concerns at most; all six concerns and 167 loaded
+records remain discoverable. Search covers collapsed and paged records across
+periods. Open a concern, then `Evidence and provenance`, to inspect one record;
+`Back to overview` preserves navigation context. Coverage remains visible even
+when the selected period has no new events.
+
+![Journal overview in Firefox](analysis-journal-overview.png)
+
+![Selected record with evidence expanded in Firefox](analysis-journal-evidence.png)
+
+Regenerate the fixture with `python3.12 tests/e2e/make_journal_example.py`.
+Real browser checks use `node skills/track-changes/tests/journal_browser.mjs
+REPORT.html SCREENSHOT_PREFIX`, with `--zoom200` for a disposable Firefox profile
+at actual 200% browser zoom. This browser test is separate from CI's Node DOM
+smoke check. No installed browser/plugin settings are changed.

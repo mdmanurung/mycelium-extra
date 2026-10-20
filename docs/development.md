@@ -294,3 +294,15 @@ The Documentation workflow builds every pull request and publishes pushes to
 as the source before the first deployment. The published URL will be
 `https://mdmanurung.github.io/mycelium-extra/`. A local build does not publish it.
 See [Sphinx's deployment guide](https://www.sphinx-doc.org/en/master/tutorial/deploying.html).
+
+### Journal regression and demonstration
+
+`python3.12 skills/track-changes/tests/test_journal.py` runs through the normal
+CI skill-test glob. It drives the real gate hooks on synthetic records and checks
+full history, manifest parity/publication faults, checkpoint concurrency and
+relocation, malformed sources, note containment and no-write behavior.
+Regenerate `docs/examples/analysis-journal.html`, its missing-source companion
+and the portable `journal-demo/` fixture with
+`python3.12 tests/e2e/make_journal_example.py`. Keep Journal browser acceptance
+separate from DOM-only smoke tests; record viewport, zoom, keyboard, navigation,
+search, coverage and presentation/export invariance checks honestly.

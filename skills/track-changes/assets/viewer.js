@@ -1,7 +1,7 @@
 (function () {
   "use strict";
   var data = JSON.parse(document.getElementById("data").textContent);
-  var state = {view: "review", filter: "attention", query: "", sel: null};
+  var state = {view: data.journal ? "journal" : "review", filter: "attention", query: "", sel: null};
   var app = document.getElementById("app");
   var BUCKET = {attention: "Needs attention", authorized: "Authorized change", routine: "Routine"};
   var byEvidence = {};
@@ -172,7 +172,7 @@
                                             h("p", "sub", "Track changes · snapshot " + data.generated_at)), tools));
     var meta = h("dl", "meta");
     [["Objective", (data.objective.text || "not stated") + (data.objective.source ? " (" + data.objective.source + ")" : ""), true],
-     ["Original plan", b.original_plan || "none"], ["Current plan", b.current_plan || "none"],
+     [b.original_selection === "earliest_available_for_display" ? "Comparison start (earliest available)" : "Original plan", b.original_plan || "none"], ["Current plan", b.current_plan || "none"],
      ["Focus", data.focus.active_at_snapshot ? "open" : "none"]].forEach(function (p) {
       var cell = h("div", p[2] ? "wide" : "");
       cell.appendChild(h("dt", "", p[0]));
@@ -191,9 +191,10 @@
     return frag;
   }
 
+  __JOURNAL__
   var VIEWS = [["review", "Review", function () { return data.items.length; }],
                ["diff", "Diff", function () { return data.items.filter(function (i) { return i.diff.length; }).length; }],
-               ["timeline", "Timeline", function () { return data.timeline.length; }],
+               [data.journal ? "journal" : "timeline", data.journal ? "Journal" : "Timeline", function () { return data.journal ? data.journal.events.length : data.timeline.length; }],
                ["evidence", "Evidence", function () { return data.evidence.length; }]];
 
   // level 1: the four views
@@ -229,12 +230,12 @@
   var mount = h("div");
   function renderBody() {
     clear(mount);
-    mount.appendChild({review: review, diff: diffs, timeline: timeline, evidence: evidence}[state.view]());
+    mount.appendChild({review: review, diff: diffs, timeline: timeline, journal: journal, evidence: evidence}[state.view]());
   }
   function draw() {
     clear(app);
     document.title = "Track changes · " + data.analysis_path;
-    app.appendChild(header());
+    if (state.view !== "journal") app.appendChild(header());
     app.appendChild(views());
     if (state.view === "review") app.appendChild(filters());
     app.appendChild(mount);
