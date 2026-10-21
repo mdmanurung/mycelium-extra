@@ -9,7 +9,7 @@ on:
 jobs:
   tests:
     name: tests (${{ matrix.image }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -24,7 +24,7 @@ jobs:
     env:
       LC_ALL: ${{ matrix.locale }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Trust the checkout (the container runs as root)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Unit and end-to-end tests
@@ -47,10 +47,10 @@ jobs:
     # Pull requests get it automatically; `gh workflow run CI` (or the Actions button) does it on
     # demand, because the base is fixed and a push to main can drift from the oracle unnoticed.
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container: python:3.14-bookworm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -61,10 +61,10 @@ jobs:
 
   opencode-plugin:
     name: OpenCode adapter (node)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Adapter tests
