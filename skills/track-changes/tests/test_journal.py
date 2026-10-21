@@ -290,6 +290,17 @@ class JournalTest(Base):
         self.collect_journal()  # must not raise
         data = self.collect_journal()
         self.assertTrue(data["events"])
+        self.assertEqual(data["coverage"]["launches"], "partial")
+        self.assertFalse(any(e["kind"] == "launch" for e in data["events"]))
+        self.write(".mycelium-extra/launches/bad-attempts.json",
+                   json.dumps({"ambiguous": True, "attempts": 42}))
+        self.assertEqual(self.collect_journal()["coverage"]["launches"], "partial")
+        os.remove(os.path.join(self.root, ".mycelium-extra/launches/bad-attempts.json"))
+        for invalid_runs in (None, {"python": [42]}, {"python": [{"plans": [42]}]}):
+            record["runs"] = invalid_runs
+            with open(launch, "w") as handle:
+                json.dump(record, handle)
+            self.assertEqual(self.collect_journal()["coverage"]["launches"], "partial")
         cp = journal.save(self.root, data)
         bad = json.loads(json.dumps(cp))
         bad["payload"]["events"] = [dict(e, kind="verification", detail={"projection": {"findings": "gap"}}) for e in bad["payload"]["events"][:1]]

@@ -407,16 +407,26 @@ def collect(root, rel, gate, focus, notes=()):
         for path in paths(pattern, "launches"):
             for r in read(path, "launches"):
                 candidates = r.get("attempts") if r.get("ambiguous") else [r]
-                for a in candidates or []:
+                if not isinstance(candidates, list):
+                    coverage["launches"] = "partial"
+                    continue
+                for a in candidates:
                     if not isinstance(a, dict):
                         coverage["launches"] = "partial"
                         continue
-                    runs = a.get("runs") or {}
+                    runs = a.get("runs")
                     if not isinstance(runs, dict) or not all(isinstance(rows, list) for rows in runs.values()):
                         coverage["launches"] = "partial"
                         continue
-                    entries = [r for rows in runs.values() for r in rows if isinstance(r, dict)]
-                    text_plans = {h for run in entries for h in (run.get("plans") if isinstance(run.get("plans"), list) else []) if isinstance(h, str)}
+                    entries = []
+                    for rows in runs.values():
+                        for run in rows:
+                            if (not isinstance(run, dict) or not isinstance(run.get("plans"), list)
+                                    or not all(isinstance(h, str) for h in run["plans"])):
+                                coverage["launches"] = "partial"
+                                continue
+                            entries.append(run)
+                    text_plans = {h for run in entries for h in run["plans"]}
                     if a.get("focus_folder") != rel and not text_plans.intersection(relations):
                         continue
                     matched = sorted(text_plans.intersection(relations))
