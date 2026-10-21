@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360" role="img" aria-labelledby="title desc">
+  <title id="title">A chat agreement and a typed plan approval mean different things</title>
+  <desc id="desc">A conversational yes records no plan approval. The exact approve plan command can approve the displayed plan when accepted. These examples are schematic, not captured messages.</desc>
+  <defs><style>text{font-family:system-ui,sans-serif;fill:#263238;font-size:24px}.human{fill:#f5f1f7;stroke:#786389;stroke-width:2}.record{fill:#f1f6f8;stroke:#527b8b;stroke-width:2}.gap{fill:#fcf8ee;stroke:#9c7e34;stroke-width:2;stroke-dasharray:6 4}.arrow{stroke:#626b70;stroke-width:2;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="#626b70"/></marker></defs>
+  <rect width="480" height="360" rx="12" fill="#fff"/>
+  <g text-anchor="middle">
+    <rect class="human" x="20" y="12" width="440" height="56" rx="8"/><text x="240" y="48">“Yes, go ahead.”</text>
+    <path class="arrow" d="M240 72v19"/>
+    <rect class="gap" x="20" y="96" width="440" height="56" rx="8"/><text x="240" y="132">No plan approval recorded</text>
+    <rect class="human" x="20" y="190" width="440" height="56" rx="8"/><text x="240" y="226">approve plan &lt;hash&gt;</text>
+    <path class="arrow" d="M240 250v19"/>
+    <rect class="record" x="20" y="274" width="440" height="74" rx="8"/><text x="240" y="305">Displayed plan approved</text><text x="240" y="333">when the command is accepted</text>
+  </g>
+</svg>

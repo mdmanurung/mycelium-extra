@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="420" viewBox="0 0 480 420" role="img" aria-labelledby="title desc">
+  <title id="title">Read the Journal from overview to one item to its evidence</title>
+  <desc id="desc">Coverage and freshness remain visible as you move from objective, period and concerns to a selected observation, then its original sources and exact outcomes. Returning preserves navigation context. Saving a checkpoint is separate from viewing.</desc>
+  <defs><style>text{font-family:system-ui,sans-serif;fill:#263238;font-size:22px}.head{font-size:25px;font-weight:650}.box{fill:#f1f6f8;stroke:#527b8b;stroke-width:2}.coverage{fill:#fcf8ee;stroke:#9c7e34;stroke-width:2;stroke-dasharray:6 4}.arrow{stroke:#626b70;stroke-width:2;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="#626b70"/></marker></defs>
+  <rect width="480" height="420" rx="12" fill="#fff"/>
+  <g text-anchor="middle">
+    <rect class="coverage" x="20" y="10" width="440" height="47" rx="8"/><text x="240" y="41">Coverage and freshness stay visible</text>
+    <rect class="box" x="20" y="76" width="440" height="77" rx="8"/><text class="head" x="240" y="108">1. Overview</text><text x="240" y="137">Objective · period · concerns</text>
+    <path class="arrow" d="M240 157v18"/>
+    <rect class="box" x="20" y="180" width="440" height="77" rx="8"/><text class="head" x="240" y="212">2. Selected item</text><text x="240" y="241">Observation · implication · unknowns</text>
+    <path class="arrow" d="M240 261v18"/>
+    <rect class="box" x="20" y="284" width="440" height="77" rx="8"/><text class="head" x="240" y="316">3. Evidence and provenance</text><text x="240" y="345">Recorded outcome · original source</text>
+    <text x="240" y="399">Back to overview preserves context</text>
+  </g>
+</svg>

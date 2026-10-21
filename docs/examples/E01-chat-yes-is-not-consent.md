@@ -4,6 +4,19 @@ Control point: **consent**
 
 Anonymised from a real project. Source: the approved plan text of the first session of project A (the agent's own account of the block). That project had no `denies.jsonl`, so the deny itself is quoted from a regenerated run on the synthetic fixture, not from a record.
 
+![A conversational yes records no plan approval; the exact approve plan command can approve the displayed plan when accepted.](../figures/approval-messages.svg)
+
+This schematic contrasts agreement in chat with an accepted approval command;
+it is not a captured exchange. Read the displayed card and scope before approving.
+
+<details>
+<summary>Check your understanding: does “yes, go ahead” approve the plan?</summary>
+
+No. In this example the conversational agreement records no plan approval. The
+researcher must type an accepted approval command for the displayed plan.
+
+</details>
+
 ## 1. Socratic: ask these first
 
 - What exactly did I say yes to: the work, or a specific plan the gate can hash?

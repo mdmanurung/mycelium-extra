@@ -2,6 +2,11 @@
 
 You will plan, approve, run and verify one small analysis. This walks through [the method](method.md) once. Commands use Claude Code's `/mycelium-extra:` prefix; in Codex, use `$mycelium-extra:`. A complete real transcript is in [a worked example](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/example.md).
 
+![Six steps: install, enable the gate, plan, type approval, run covered steps, and verify recorded evidence.](../figures/first-plan.svg)
+
+Setup comes first; your typed approval separates a proposed plan from an approved
+run. Verification checks its recorded evidence, not whether the science is right.
+
 ## What you control here
 
 - **Your typed word:** `approve plan <hash>` (or bare `approve` when exactly one card is waiting). Nothing covered runs before you type it.

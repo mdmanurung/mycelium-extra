@@ -4,6 +4,20 @@ Control point: **honesty**
 
 Anonymised from a real project. Source: a real saved `verify` report in project A (status CONFORMS_WITH_GAPS). The plan named the workflow tool but no run of it was recorded, two scripts the plan table did not name ran after approval, and the plan had no `Outputs:` line. The report below is regenerated on the fixture with the same shapes.
 
+![Planned and recorded are separate axes: inspect recorded outcomes and approvals; an absent record leaves occurrence unknown and does not establish that a step never ran.](../figures/planned-recorded.svg)
+
+The matrix is a reading aid, not another verifier. A planned step with no record
+is an evidence gap; a recorded run still needs its outcome and approval context.
+The unrecorded cells contain no inferred events.
+
+<details>
+<summary>Check your understanding: does “no receipt” mean the step did not run?</summary>
+
+No. It means no run was recorded in the inspected evidence. Computation outside
+the hooks may remain unobserved; submission also does not establish completion.
+
+</details>
+
 ## 1. Socratic: ask these first
 
 - Which steps does "conforms" cover, and which words in the status say gaps remain?

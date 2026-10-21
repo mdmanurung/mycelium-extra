@@ -2,6 +2,12 @@
 
 `track-changes` shows how one analysis moved from what you approved. It reads the gate's and `verify`'s records, writes a short brief and an HTML report, and changes nothing.
 
+![Read the Journal from overview to a selected item to evidence and provenance, with coverage and freshness visible throughout; returning preserves context.](../figures/journal-reading.svg)
+
+In Journal mode, orient yourself before opening one concern and its evidence.
+This schematic illustrates navigation; opening a report saves no checkpoint.
+The generated screenshots below show the actual synthetic report.
+
 [Open the example report](https://mdmanurung.github.io/mycelium-extra/track-changes-report.html) to see it. It is the real output on a synthetic analysis: invented names, no data. It is a single offline file, so you can also open it from disk.
 
 The report lists what needs your attention first, such as a changed plan choice, a script edited since approval, or work in another analysis while this one was in focus. It then lists what was authorised and what it could not see. You review the diffs, then type `freeze <hash>` or ask `grill` to amend the plan.
@@ -28,7 +34,11 @@ when the selected period has no new events.
 
 ![Selected record with evidence expanded in Firefox](analysis-journal-evidence.png)
 
-Regenerate the fixture with `python3.12 tests/e2e/make_journal_example.py`.
+Regenerate the fixture with:
+
+```bash
+python3.12 tests/e2e/make_journal_example.py
+```
 To inspect the portable records, copy them outside a gated ancestor so the demo
 does not inherit that repository's gate configuration:
 
@@ -40,7 +50,12 @@ python3.12 -B skills/track-changes/scripts/track_changes.py \
   --journal --no-write --json
 ```
 
-Real browser checks use `node skills/track-changes/tests/journal_browser.mjs
-REPORT.html SCREENSHOT_PREFIX`, with `--zoom200` for a disposable Firefox profile
-at actual 200% browser zoom. This browser test is separate from CI's Node DOM
+Real browser checks use:
+
+```bash
+node skills/track-changes/tests/journal_browser.mjs REPORT.html SCREENSHOT_PREFIX
+```
+
+Add `--zoom200` for a disposable Firefox profile at actual 200% browser zoom.
+This browser test is separate from CI's Node DOM
 smoke check. No installed browser/plugin settings are changed.

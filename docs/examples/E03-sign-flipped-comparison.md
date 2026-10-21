@@ -4,6 +4,20 @@ Control point: **honesty**
 
 Anonymised from a real project. Source: an approved one-step plan in project A. The gate blocked the job submission because it read the submit command's option values as paths. The agent proposed a narrow plan instead of working around the block. Deny text regenerated on the fixture.
 
+![The correction plan compares the signed difference with its scores, recomputes score 1 minus score 0, checks unchanged magnitudes, then regenerates the final table and sentence.](../figures/sign-correction.svg)
+
+This schematic shows the planned report-stage correction, not a new model fit or
+a claim that its checks have already passed. No research values are illustrated.
+
+<details>
+<summary>Check your understanding: does this sign error require refitting every model?</summary>
+
+The plan in this episode targets only the report stage. It recomputes the signed
+difference from the score columns and requires a check that magnitudes did not
+change. That is specific to the diagnosed error, not a rule for every sign error.
+
+</details>
+
 ## 1. Socratic: ask these first
 
 - Which number in the report did this plan come from, and what would show it is wrong?

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="390" viewBox="0 0 480 390" role="img" aria-labelledby="title desc">
+  <title id="title">Planning and observation are independent questions</title>
+  <desc id="desc">For a planned recorded step, inspect outcome and attribution. A planned step without a record is an evidence gap, not proof it never ran. For an unplanned recorded run, inspect approval and context. No observed event can be placed in the unplanned unrecorded cell.</desc>
+  <defs><style>text{font-family:system-ui,sans-serif;fill:#263238;font-size:23px}.record{fill:#f1f6f8;stroke:#527b8b;stroke-width:2}.gap{fill:#fcf8ee;stroke:#9c7e34;stroke-width:2;stroke-dasharray:6 4}.head{font-weight:650}</style></defs>
+  <rect width="480" height="390" rx="12" fill="#fff"/>
+  <g text-anchor="middle">
+    <text class="head" x="193" y="35">Recorded</text><text class="head" x="380" y="35">Not recorded</text>
+    <text class="head" x="51" y="133" style="font-size:21px">Planned</text>
+    <text class="head" x="51" y="287" style="font-size:21px">Not</text><text class="head" x="51" y="314" style="font-size:21px">planned</text>
+    <rect class="record" x="106" y="57" width="174" height="146" rx="8"/><text x="193" y="105">Inspect</text><text x="193" y="135">outcome and</text><text x="193" y="165">attribution</text>
+    <rect class="gap" x="293" y="57" width="174" height="146" rx="8"/><text x="380" y="105">Evidence gap</text><text x="380" y="135">Occurrence</text><text x="380" y="165">unknown</text>
+    <rect class="record" x="106" y="226" width="174" height="146" rx="8"/><text x="193" y="274">Inspect</text><text x="193" y="304">approval</text><text x="193" y="334">and context</text>
+    <rect class="gap" x="293" y="226" width="174" height="146" rx="8"/><text x="380" y="274">No observed</text><text x="380" y="304">event to</text><text x="380" y="334">place here</text>
+  </g>
+</svg>

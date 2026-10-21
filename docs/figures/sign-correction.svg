@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="390" viewBox="0 0 480 390" role="img" aria-labelledby="title desc">
+  <title id="title">A narrow plan to correct the report's signed difference</title>
+  <desc id="desc">The proposed correction compares the difference with its score columns, recomputes score one minus score zero, asserts unchanged magnitudes, then regenerates the table and sentence. It does not refit the models or assert that these checks already passed.</desc>
+  <defs><style>text{font-family:system-ui,sans-serif;fill:#263238;font-size:23px}.box{fill:#f1f6f8;stroke:#527b8b;stroke-width:2}.human{fill:#f5f1f7;stroke:#786389;stroke-width:2}.arrow{stroke:#626b70;stroke-width:2;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="#626b70"/></marker></defs>
+  <rect width="480" height="390" rx="12" fill="#fff"/>
+  <g text-anchor="middle">
+    <rect class="box" x="20" y="12" width="440" height="64" rx="8"/><text x="240" y="40">Compare the signed difference</text><text x="240" y="66">with its two score columns</text>
+    <path class="arrow" d="M240 80v20"/>
+    <rect class="human" x="20" y="105" width="440" height="64" rx="8"/><text x="240" y="133">Correction plan:</text><text x="240" y="159">compute score 1 − score 0</text>
+    <path class="arrow" d="M240 173v20"/>
+    <rect class="box" x="20" y="198" width="440" height="64" rx="8"/><text x="240" y="226">Required check:</text><text x="240" y="252">assert magnitudes unchanged</text>
+    <path class="arrow" d="M240 266v20"/>
+    <rect class="box" x="20" y="291" width="440" height="84" rx="8"/><text x="240" y="326">Regenerate the final table,</text><text x="240" y="354">then correct the sentence</text>
+  </g>
+</svg>
