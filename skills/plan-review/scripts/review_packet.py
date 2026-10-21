@@ -31,6 +31,7 @@ import argparse
 import hashlib
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -243,7 +244,8 @@ def check_consent(root, digest, manifest):
         rec = json.loads(read_bytes(path).decode("utf-8"))
         ok = (rec["schema"] == CONSENT_SCHEMA and rec["digest"] == digest and
               isinstance(rec["session_id"], str) and rec["session_id"] and
-              isinstance(rec["ts"], (int, float)) and not isinstance(rec["ts"], bool))
+              isinstance(rec["ts"], (int, float)) and not isinstance(rec["ts"], bool) and
+              (isinstance(rec["ts"], int) or math.isfinite(rec["ts"])))
         typed = re.fullmatch(r"send packet ([0-9a-f]{%d,64})" % MIN_PREFIX, rec["prompt"].strip().lower())
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         raise Refuse("consent record is malformed")

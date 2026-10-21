@@ -28,6 +28,8 @@ def _refuses_symlink(path):
 
 def atomic(path, text):
     parent = os.path.dirname(path)
+    if _refuses_symlink(path):
+        raise ValueError("refusing a symlinked state target")
     os.makedirs(parent, exist_ok=True)
     if _refuses_symlink(path):
         raise ValueError("refusing a symlinked state target")
@@ -55,6 +57,8 @@ def write(path, value):
 @contextlib.contextmanager
 def locked(path):
     import fcntl
+    if _refuses_symlink(path):
+        raise ValueError("refusing a symlinked lock")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     if _refuses_symlink(path):
         raise ValueError("refusing a symlinked lock")

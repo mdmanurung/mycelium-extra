@@ -8,7 +8,7 @@ A finished job doesn't tell you the analysis is right. Did every planned step ru
 
 It uses the gate's own table parser, so verification covers the same scripts as approval. It reads the record and never re-runs the analysis. In Codex 0.160.0, missing hook exit metadata stays a gap even when the command appeared to finish. An OpenCode receipt whose shell result carries no exit code (a background task, or a tool error) is the same gap.
 
-Damaged receipt lines or workflow metadata show up as evidence gaps, not as a silently complete history. Malformed approval records produce an explicit error. A compound shell command does not prove each named step ran: individual outcomes remain gaps, while a failed aggregate command blocks. Claim tables with duplicate column headers or no data rows are unverified. Unrepresentable numeric values are gaps too, never verified by accident.
+Damaged receipt lines or workflow metadata show up as evidence gaps, not as a silently complete history. Malformed approval records produce an explicit error. A compound shell command does not prove each named step ran: individual outcomes remain gaps, while a failed aggregate command blocks. Claim tables with duplicate column headers, no data rows, unclosed quotes or inconsistent field counts are unverified, including claims about their row count. Unrepresentable numeric values are gaps too, never verified by accident.
 
 **In this section:** [What the report shows](#what-the-report-shows) · [Output producers](#output-producers) · [Recovery](#recovery) · [Status](#status) · [Qualification](#qualification) · [Rerun evidence](#rerun-evidence) · [Citations](#citations) · [Disclosure draft](#disclosure-draft) · [What it writes](#what-it-writes) · [Recoverable provenance publication](#recoverable-provenance-publication) · [Advanced features](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/advanced.md#verify-features)
 
@@ -216,8 +216,10 @@ never reconstructed from prose. Conformity stays `CONFORMS`,
 Fingerprint values are copied only when recorded. Without SHA256, size+mtime
 is weak metadata, never a fabricated content digest. Commands/arguments,
 transcripts, environment values, raw data and non-relative paths are withheld.
-Known commands/environment values and absolute paths inside explanatory text are
-replaced with labelled withheld text; `withheld` lists the export exclusions.
+Known commands/environment values and absolute paths in exported strings are
+replaced with labelled withheld text. Analysis, output and reference paths that
+would need redaction become null, so a redacted filename cannot look like a real
+coordinate; `withheld` lists the export exclusions.
 Outcome/dimension/evidence-method/attribution-strength values retain their
 upstream meaning. Review original members for withheld context.
 

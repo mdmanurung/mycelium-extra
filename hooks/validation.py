@@ -158,7 +158,8 @@ def read_bindings(text, rows, root):
             errors.append("{}: `id` must be letters, digits, `.`, `_` or `-` (at most 64)".format(what))
         elif check["id"] in seen:
             errors.append("{}: duplicate check id".format(what))
-        seen.add(check["id"])
+        else:
+            seen.add(check["id"])
         if not isinstance(check["required"], bool):
             errors.append("{}: `required` must be true or false".format(what))
         if "plan_row" in item:

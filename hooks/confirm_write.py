@@ -14,6 +14,8 @@ import os
 import sys
 import time
 
+from stateio import write
+
 KINDS = ("verify-write", "harden", "decision-status", "idea-triage")
 
 
@@ -38,9 +40,7 @@ def prepare(root, kind, targets):
     now = time.time()
     ident = hashlib.sha256(json.dumps([kind, rels, now]).encode("utf-8")).hexdigest()[:8]
     path = os.path.join(root, ".mycelium-extra", "write-pending", ident + ".json")
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as handle:
-        json.dump({"schema": "mycelium-extra.write-pending.v1", "id": ident, "kind": kind, "targets": rels, "ts": now}, handle)
+    write(path, {"schema": "mycelium-extra.write-pending.v1", "id": ident, "kind": kind, "targets": rels, "ts": now})
     return ident
 
 
@@ -55,7 +55,11 @@ def main(argv):
     if not root:
         print("confirm_write: no .mycelium-extra/gate.json found; the gate is not enabled here, so nothing to confirm")
         return 0
-    ident = prepare(root, args.kind, args.target)
+    try:
+        ident = prepare(root, args.kind, args.target)
+    except (OSError, ValueError) as error:
+        print("confirm_write: {}".format(error), file=sys.stderr)
+        return 1
     print("pending {} write to: {}".format(args.kind, ", ".join(args.target)))
     print("Ask the user to type exactly: confirm write {}".format(ident))
     print("The gate denies this write until they do (valid 1 hour).")

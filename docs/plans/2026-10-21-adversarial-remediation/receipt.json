@@ -1,0 +1,897 @@
+{
+  "generated_at": "2026-10-21T17:46:09.310692+00:00",
+  "base_commit": "ec58e1ee8ebef011a364b9461fab6de0b25b5dd1",
+  "candidate_worktree": "/tmp/mycelium-extra-fixes-20261021",
+  "production_and_test_source_sha256": {
+    "hooks/confirm_write.py": "c0eec6464b466113fb87e35476a5a254f78bf957f5f50d4e2af044749299a495",
+    "hooks/evidence.py": "4a76b3ba88f722b476586fb93ab7df29da9b85a415aa3cd16790c147e7ee6585",
+    "hooks/gate.py": "45ad23ac4077c1b2ca4b3b077bd5bea4b8c3d34525daa48a29469d4969b5098c",
+    "hooks/stateio.py": "f02f9a0ef03a6dab3bf51ef4fae46e5e658678a7c43e124a732bff7f783a1a81",
+    "hooks/tests/test_gate_scan_fixes.py": "899cae2453dc3633e7b4736dd1d9d51fd4e7845111620c5858bdd8ea24773724",
+    "hooks/validation.py": "e035c161ffcb97b57c109f9dcafea5fe7e66bfc8f31a72de1cd6691cf2752e18",
+    "skills/data-contract-check/scripts/data_contract_check.py": "c2a9c83e0d320f8f84e537737a7136feb16862bd2af4c10a1ae1109f2cc89053",
+    "skills/data-contract-check/tests/test_data_contract_check.py": "98dc9c3c11da9ab716a015878b223e9f113f4433f49a98482c1bdb20a8577180",
+    "skills/plan-review/scripts/review_packet.py": "5289dccef6d459ae8b9339d3dd43c8a5c09b57e1a81dad8bc8c32fd03d5fb02a",
+    "skills/verify/scripts/verify.py": "c4f44a917e0671d91f201c5e21802515f4c149b5c5cf5bd52f0e6d10eb599511",
+    "tests/test_adversarial_regressions.py": "9ee4a75600115edfe299e7edc73cfed0f2bce5f890c8c231c7ba294978b2c555"
+  },
+  "audit_runner_sha256": "bbb8525c73917b9346616b9db750b91f7440687d8db261a24c32d334e6319d9b",
+  "suite": {
+    "programs": 40,
+    "tests": 1365,
+    "passed": 1331,
+    "skipped": 34,
+    "failed_programs": 0,
+    "program_results": [
+      {
+        "file": "hooks/tests/test_approval_flow_fixes.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/hooks/tests/test_approval_flow_fixes.py"
+        ],
+        "exit": 0,
+        "seconds": 5.04,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/hooks__tests__test_approval_flow_fixes.py.log",
+          "sha256": "7fe6b8aefa57f0afaf618f4e9805bdc886ae29e0dccc40e94ae5b1cf4017ac0a",
+          "bytes": 1707,
+          "tail": "test_another_sessions_baseline_gets_the_whole_card (__main__.ApprovalFlowFixTest.test_another_sessions_baseline_gets_the_whole_card) ... ok\ntest_command_spacing_is_tolerated (__main__.ApprovalFlowFixTest.test_command_spacing_is_tolerated) ... ok\ntest_session_names_do_not_collide (__main__.ApprovalFlowFixTest.test_session_names_do_not_collide) ... ok\n\n----------------------------------------------------------------------\nRan 11 tests in 4.861s\n\nOK"
+        },
+        "tests": 11,
+        "skipped": 0,
+        "passed": 11
+      },
+      {
+        "file": "hooks/tests/test_codex_gate.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/hooks/tests/test_codex_gate.py"
+        ],
+        "exit": 0,
+        "seconds": 1.22,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/hooks__tests__test_codex_gate.py.log",
+          "sha256": "9be98fa7922f85f8cab8385acdb8e58ece9be684f6c2ab28befe9b7a70581f06",
+          "bytes": 104,
+          "tail": "......\n----------------------------------------------------------------------\nRan 6 tests in 1.133s\n\nOK"
+        },
+        "tests": 6,
+        "skipped": 0,
+        "passed": 6
+      },
+      {
+        "file": "hooks/tests/test_focus.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/hooks/tests/test_focus.py"
+        ],
+        "exit": 0,
+        "seconds": 18.17,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/hooks__tests__test_focus.py.log",
+          "sha256": "e7baf5260fbb0b96807f2d08d7f02fdb2ae2ffbebcb692b2b6142b7eeee6a74e",
+          "bytes": 126,
+          "tail": "..........................\n----------------------------------------------------------------------\nRan 26 tests in 18.092s\n\nOK"
+        },
+        "tests": 26,
+        "skipped": 0,
+        "passed": 26
+      },
+      {
+        "file": "hooks/tests/test_gate.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/hooks/tests/test_gate.py"
+        ],
+        "exit": 0,
+        "seconds": 275.38,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/hooks__tests__test_gate.py.log",
+          "sha256": "9728a8dc6c4174031ab06629482638d56e11aa74d63ca6d5fa8d4f86eb7a831d",
+          "bytes": 591,
+          "tail": "........................................................................................................................................................................................................................................s....................................................................................................................................................s...............................................................................................\n----------------------------------------------------------------------\nRan 477 tests in 275.191s\n\nOK (skipped=2)"
+        },
+        "tests": 477,
+        "skipped": 2,
+        "passed": 475
+      },
+      {
+        "file": "hooks/tests/test_gate_diff.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/hooks/tests/test_gate_diff.py"
+        ],
+        "exit": 0,
+        "seconds": 0.08,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/hooks__tests__test_gate_diff.py.log",
+          "sha256": "a6707d4eff38012da33ddc34bc6dc076a3b17151cfc9aef223c8790cbe64c3da",
+          "bytes": 100,
+          "tail": "..\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK"
+        },
+        "tests": 2,
+        "skipped": 0,
+        "passed": 2
+      },
+      {
+        "file": "hooks/tests/test_gate_scan_fixes.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/hooks/tests/test_gate_scan_fixes.py"
+        ],
+        "exit": 0,
+        "seconds": 12.7,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/hooks__tests__test_gate_scan_fixes.py.log",
+          "sha256": "10255a66c14967e85614f1db5cb5ca780641fa0287cc1cf521b5d6dfd40e69bb",
+          "bytes": 2770,
+          "tail": "test_timeout_durations (__main__.ScanFixTest.test_timeout_durations) ... ok\ntest_truncated_receipt_tail_does_not_swallow_the_next (__main__.ScanFixTest.test_truncated_receipt_tail_does_not_swallow_the_next) ... ok\ntest_unreadable_opencode_tool_input_is_reported (__main__.ScanFixTest.test_unreadable_opencode_tool_input_is_reported) ... ok\n\n----------------------------------------------------------------------\nRan 24 tests in 12.615s\n\nOK"
+        },
+        "tests": 24,
+        "skipped": 0,
+        "passed": 24
+      },
+      {
+        "file": "hooks/tests/test_opencode_gate.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/hooks/tests/test_opencode_gate.py"
+        ],
+        "exit": 0,
+        "seconds": 1.08,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/hooks__tests__test_opencode_gate.py.log",
+          "sha256": "0a31c14cb09b98b79fc8607d8ea2624f2b487d44b07fe25746619773f4e9c34d",
+          "bytes": 106,
+          "tail": "........\n----------------------------------------------------------------------\nRan 8 tests in 0.996s\n\nOK"
+        },
+        "tests": 8,
+        "skipped": 0,
+        "passed": 8
+      },
+      {
+        "file": "hooks/tests/test_provenance.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/hooks/tests/test_provenance.py"
+        ],
+        "exit": 0,
+        "seconds": 0.52,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/hooks__tests__test_provenance.py.log",
+          "sha256": "47716846555b26012a792247d04fe9451d24a23890d38337cc8db94e25dad417",
+          "bytes": 103,
+          "tail": ".....\n----------------------------------------------------------------------\nRan 5 tests in 0.437s\n\nOK"
+        },
+        "tests": 5,
+        "skipped": 0,
+        "passed": 5
+      },
+      {
+        "file": "hooks/tests/test_py_launcher.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/hooks/tests/test_py_launcher.py"
+        ],
+        "exit": 0,
+        "seconds": 0.24,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/hooks__tests__test_py_launcher.py.log",
+          "sha256": "7c72f6eb06e3633a1de2698f56570c5b7e9c74fadc12b18af5a9dd25993384ea",
+          "bytes": 106,
+          "tail": "........\n----------------------------------------------------------------------\nRan 8 tests in 0.176s\n\nOK"
+        },
+        "tests": 8,
+        "skipped": 0,
+        "passed": 8
+      },
+      {
+        "file": "hooks/tests/test_runtime_fixes.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/hooks/tests/test_runtime_fixes.py"
+        ],
+        "exit": 0,
+        "seconds": 0.08,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/hooks__tests__test_runtime_fixes.py.log",
+          "sha256": "371609f0d5010a651090150afdcfb3d29cb78a2173f8879f47f7043860cb5ca3",
+          "bytes": 880,
+          "tail": "test_a_symlink_to_the_project_root_is_refused (__main__.FocusTargetTest.test_a_symlink_to_the_project_root_is_refused) ... ok\ntest_a_symlinked_state_folder_is_still_refused (__main__.SymlinkRootTest.test_a_symlinked_state_folder_is_still_refused) ... ok\ntest_state_writes_work_under_a_symlinked_root (__main__.SymlinkRootTest.test_state_writes_work_under_a_symlinked_root) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.005s\n\nOK"
+        },
+        "tests": 6,
+        "skipped": 0,
+        "passed": 6
+      },
+      {
+        "file": "hooks/tests/test_validation.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/hooks/tests/test_validation.py"
+        ],
+        "exit": 0,
+        "seconds": 0.09,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/hooks__tests__test_validation.py.log",
+          "sha256": "792bfb5dcc675ca0b840b7e3d7f4448f9b8523b9116662fb32ac74caa260a4a6",
+          "bytes": 126,
+          "tail": "...........................\n----------------------------------------------------------------------\nRan 27 tests in 0.021s\n\nOK"
+        },
+        "tests": 27,
+        "skipped": 0,
+        "passed": 27
+      },
+      {
+        "file": "skills/data-contract-check/tests/test_data_contract_check.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/data-contract-check/tests/test_data_contract_check.py"
+        ],
+        "exit": 0,
+        "seconds": 10.05,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__data-contract-check__tests__test_data_contract_check.py.log",
+          "sha256": "5909e8cfc486043783dba27287433b393376e476db91dfeca6f70f707e4bebe9",
+          "bytes": 215,
+          "tail": ".............................sssssssssssssssssssss....................................................\n----------------------------------------------------------------------\nRan 102 tests in 9.959s\n\nOK (skipped=21)"
+        },
+        "tests": 102,
+        "skipped": 21,
+        "passed": 81
+      },
+      {
+        "file": "skills/decision-status/tests/test_decision_threads.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/decision-status/tests/test_decision_threads.py"
+        ],
+        "exit": 0,
+        "seconds": 0.49,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__decision-status__tests__test_decision_threads.py.log",
+          "sha256": "dd02dd7b801c0e20f5d27c7605b67ce0b3ebaf3835ee412c14a500ac8c372d83",
+          "bytes": 110,
+          "tail": "...........\n----------------------------------------------------------------------\nRan 11 tests in 0.427s\n\nOK"
+        },
+        "tests": 11,
+        "skipped": 0,
+        "passed": 11
+      },
+      {
+        "file": "skills/grill/tests/test_grill_references.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/grill/tests/test_grill_references.py"
+        ],
+        "exit": 0,
+        "seconds": 0.07,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__grill__tests__test_grill_references.py.log",
+          "sha256": "f196bef0973ff999dcbcf679ca035393cbb4be84e582dd7f9d09005e1f656ac4",
+          "bytes": 113,
+          "tail": "..............\n----------------------------------------------------------------------\nRan 14 tests in 0.007s\n\nOK"
+        },
+        "tests": 14,
+        "skipped": 0,
+        "passed": 14
+      },
+      {
+        "file": "skills/idea/tests/test_capture.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/idea/tests/test_capture.py"
+        ],
+        "exit": 0,
+        "seconds": 0.65,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__idea__tests__test_capture.py.log",
+          "sha256": "41216f98966468e3515f5629534033360d77d0e1779c3122b4a23ead66ad5f2b",
+          "bytes": 103,
+          "tail": ".....\n----------------------------------------------------------------------\nRan 5 tests in 0.575s\n\nOK"
+        },
+        "tests": 5,
+        "skipped": 0,
+        "passed": 5
+      },
+      {
+        "file": "skills/init/tests/test_gate_init.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/init/tests/test_gate_init.py"
+        ],
+        "exit": 0,
+        "seconds": 3.15,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__init__tests__test_gate_init.py.log",
+          "sha256": "e32010ced8b5ee40d1b0695339b2efaa57053bbf3bad8ddb43f7f8e8a1181b4a",
+          "bytes": 132,
+          "tail": ".................................\n----------------------------------------------------------------------\nRan 33 tests in 3.073s\n\nOK"
+        },
+        "tests": 33,
+        "skipped": 0,
+        "passed": 33
+      },
+      {
+        "file": "skills/new-analysis/tests/test_new_analysis.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/new-analysis/tests/test_new_analysis.py"
+        ],
+        "exit": 0,
+        "seconds": 2.15,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__new-analysis__tests__test_new_analysis.py.log",
+          "sha256": "b30ae09f8ce2c30a251fae32b1695628d29343378c5c0fa9235d8b502befcf95",
+          "bytes": 131,
+          "tail": ".............s......\n----------------------------------------------------------------------\nRan 20 tests in 2.081s\n\nOK (skipped=1)"
+        },
+        "tests": 20,
+        "skipped": 1,
+        "passed": 19
+      },
+      {
+        "file": "skills/plan-review/tests/test_default_reasons.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/plan-review/tests/test_default_reasons.py"
+        ],
+        "exit": 0,
+        "seconds": 0.21,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__plan-review__tests__test_default_reasons.py.log",
+          "sha256": "b47837459067d21d4dd8eae06886e9136d71e6634acc4f24e218e31a883c404f",
+          "bytes": 107,
+          "tail": ".........\n----------------------------------------------------------------------\nRan 9 tests in 0.144s\n\nOK"
+        },
+        "tests": 9,
+        "skipped": 0,
+        "passed": 9
+      },
+      {
+        "file": "skills/plan-review/tests/test_plan_review.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/plan-review/tests/test_plan_review.py"
+        ],
+        "exit": 0,
+        "seconds": 0.06,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__plan-review__tests__test_plan_review.py.log",
+          "sha256": "698d16d7b93c4bd9707d3cfacda6fb1e0fea99ed0cda6e69bedc42772940540a",
+          "bytes": 106,
+          "tail": "........\n----------------------------------------------------------------------\nRan 8 tests in 0.001s\n\nOK"
+        },
+        "tests": 8,
+        "skipped": 0,
+        "passed": 8
+      },
+      {
+        "file": "skills/plan-review/tests/test_presend_check.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/plan-review/tests/test_presend_check.py"
+        ],
+        "exit": 0,
+        "seconds": 0.49,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__plan-review__tests__test_presend_check.py.log",
+          "sha256": "da64aee7a6b2ed55ad647284bdc8c9144b7757bd39c71beba8e40f33c16e28cf",
+          "bytes": 116,
+          "tail": ".................\n----------------------------------------------------------------------\nRan 17 tests in 0.413s\n\nOK"
+        },
+        "tests": 17,
+        "skipped": 0,
+        "passed": 17
+      },
+      {
+        "file": "skills/plan-review/tests/test_presend_fixes.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/plan-review/tests/test_presend_fixes.py"
+        ],
+        "exit": 0,
+        "seconds": 0.28,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__plan-review__tests__test_presend_fixes.py.log",
+          "sha256": "638aba5246489860016784baba5751bcb51714d41e2878af0fcf3bb3603c9caa",
+          "bytes": 1284,
+          "tail": "test_spaced_identifier_column_is_recognised (__main__.InputTableTest.test_spaced_identifier_column_is_recognised) ... ok\ntest_table_with_no_recognisable_delimiter_is_reported_unchecked (__main__.InputTableTest.test_table_with_no_recognisable_delimiter_is_reported_unchecked) ... ok\ntest_table_without_an_id_column_is_reported_not_checked (__main__.InputTableTest.test_table_without_an_id_column_is_reported_not_checked) ... ok\n\n----------------------------------------------------------------------\nRan 9 tests in 0.207s\n\nOK"
+        },
+        "tests": 9,
+        "skipped": 0,
+        "passed": 9
+      },
+      {
+        "file": "skills/plan-review/tests/test_review_packet.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/plan-review/tests/test_review_packet.py"
+        ],
+        "exit": 0,
+        "seconds": 1.79,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__plan-review__tests__test_review_packet.py.log",
+          "sha256": "ff3dce6d5032b52ac8c448fffeeda1017963f158e8daaf2a8b6deed287d61323",
+          "bytes": 113,
+          "tail": "..............\n----------------------------------------------------------------------\nRan 14 tests in 1.721s\n\nOK"
+        },
+        "tests": 14,
+        "skipped": 0,
+        "passed": 14
+      },
+      {
+        "file": "skills/track-changes/tests/test_journal.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/track-changes/tests/test_journal.py"
+        ],
+        "exit": 0,
+        "seconds": 63.5,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__track-changes__tests__test_journal.py.log",
+          "sha256": "49ddddf01d4ab07e94d9098ee9734c0ed64260285b49acf073271e4e754aad1a",
+          "bytes": 112,
+          "tail": "............\n----------------------------------------------------------------------\nRan 12 tests in 63.216s\n\nOK"
+        },
+        "tests": 12,
+        "skipped": 0,
+        "passed": 12
+      },
+      {
+        "file": "skills/track-changes/tests/test_report_fixes.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/track-changes/tests/test_report_fixes.py"
+        ],
+        "exit": 0,
+        "seconds": 0.09,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__track-changes__tests__test_report_fixes.py.log",
+          "sha256": "48a0f6bead00a7f42df8a3d330d4a61c3a0ea07c3b38410731bc39163446ec15",
+          "bytes": 660,
+          "tail": "test_two_analyses_that_spell_one_folder_name_keep_both (__main__.FolderTest.test_two_analyses_that_spell_one_folder_name_keep_both) ... ok\ntest_a_harmless_line_is_left_alone (__main__.RedactionTest.test_a_harmless_line_is_left_alone) ... ok\ntest_secret_shapes_in_a_diff_are_redacted (__main__.RedactionTest.test_secret_shapes_in_a_diff_are_redacted) ... ok\n\n----------------------------------------------------------------------\nRan 5 tests in 0.002s\n\nOK"
+        },
+        "tests": 5,
+        "skipped": 0,
+        "passed": 5
+      },
+      {
+        "file": "skills/track-changes/tests/test_track_changes.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/track-changes/tests/test_track_changes.py"
+        ],
+        "exit": 0,
+        "seconds": 34.26,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__track-changes__tests__test_track_changes.py.log",
+          "sha256": "d22a394faff66c546660eb67458a15bdadebeb01dc5ad61d9bf814465a54cbe5",
+          "bytes": 141,
+          "tail": ".........................................\n----------------------------------------------------------------------\nRan 41 tests in 34.151s\n\nOK"
+        },
+        "tests": 41,
+        "skipped": 0,
+        "passed": 41
+      },
+      {
+        "file": "skills/verify/tests/test_audit_fixes.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/verify/tests/test_audit_fixes.py"
+        ],
+        "exit": 0,
+        "seconds": 3.97,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__verify__tests__test_audit_fixes.py.log",
+          "sha256": "524dca124c8aaf5a43f9fd3338a2f456422cce20e8f41f62016f06d7713c32d8",
+          "bytes": 863,
+          "tail": "test_status_contradictions_are_findings (__main__.AuditFixTest.test_status_contradictions_are_findings) ... ok\ntest_write_failure_is_a_verify_error (__main__.AuditFixTest.test_write_failure_is_a_verify_error) ... ok\ntest_wrong_analysis_dir_is_refused (__main__.AuditFixTest.test_wrong_analysis_dir_is_refused) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 3.787s\n\nOK"
+        },
+        "tests": 7,
+        "skipped": 0,
+        "passed": 7
+      },
+      {
+        "file": "skills/verify/tests/test_default_reasons.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/verify/tests/test_default_reasons.py"
+        ],
+        "exit": 0,
+        "seconds": 3.86,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__verify__tests__test_default_reasons.py.log",
+          "sha256": "c3f4eba3dfb3e34fce52a1dbe67368998121f7b82a01ba0a425f89eec91dd055",
+          "bytes": 102,
+          "tail": "....\n----------------------------------------------------------------------\nRan 4 tests in 3.779s\n\nOK"
+        },
+        "tests": 4,
+        "skipped": 0,
+        "passed": 4
+      },
+      {
+        "file": "skills/verify/tests/test_verify.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/skills/verify/tests/test_verify.py"
+        ],
+        "exit": 0,
+        "seconds": 301.9,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/skills__verify__tests__test_verify.py.log",
+          "sha256": "f799686834e1ca07c11fc6d0a3ace544ee5f7d84d95359582d4d33b3e3f8bb58",
+          "bytes": 776,
+          "tail": "....................................................................................................................................................................................................................................................../tmp/mycelium-extra-fixes-20261021/skills/verify/tests/test_verify.py:2924: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp2_jk_bfn/analysis/a/provenance/PROVENANCE.md' mode='r' encoding='UTF-8'>\n  self.assertIn(\"[validation](validation-{}.json)\".format(digest), open(os.path.join(folder, \"PROVENANCE.md\")).read())\nResourceWarning: Enable tracemalloc to get the object allocation traceback\n.....................\n----------------------------------------------------------------------\nRan 267 tests in 301.702s\n\nOK"
+        },
+        "tests": 267,
+        "skipped": 0,
+        "passed": 267
+      },
+      {
+        "file": "tests/test_adversarial_regressions.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/tests/test_adversarial_regressions.py"
+        ],
+        "exit": 0,
+        "seconds": 1.77,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/tests__test_adversarial_regressions.py.log",
+          "sha256": "c0f30077dff38abf5ed1df66ed34950fd4222ae7ba83a69b2971b75db0dfe5b4",
+          "bytes": 1855,
+          "tail": "test_result_writer_cleans_up_when_publication_fails (__main__.AdversarialRegressionTest.test_result_writer_cleans_up_when_publication_fails) ... ok\ntest_result_writer_does_not_follow_a_predictable_temporary_symlink (__main__.AdversarialRegressionTest.test_result_writer_does_not_follow_a_predictable_temporary_symlink) ... ok\ntest_unhashable_validation_ids_return_structured_errors_and_hook_notice (__main__.AdversarialRegressionTest.test_unhashable_validation_ids_return_structured_errors_and_hook_notice) ... ok\n\n----------------------------------------------------------------------\nRan 10 tests in 1.519s\n\nOK"
+        },
+        "tests": 10,
+        "skipped": 0,
+        "passed": 10
+      },
+      {
+        "file": "tests/test_ci_pins.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/tests/test_ci_pins.py"
+        ],
+        "exit": 0,
+        "seconds": 0.06,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/tests__test_ci_pins.py.log",
+          "sha256": "c346f1228fe88f4ab3cb336ffa610dc3a34ec7c7bb7d05df7a1c222f2d928881",
+          "bytes": 98,
+          "tail": ".\n----------------------------------------------------------------------\nRan 1 test in 0.002s\n\nOK"
+        },
+        "tests": 1,
+        "skipped": 0,
+        "passed": 1
+      },
+      {
+        "file": "tests/test_contract_compatibility.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/tests/test_contract_compatibility.py"
+        ],
+        "exit": 0,
+        "seconds": 0.11,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/tests__test_contract_compatibility.py.log",
+          "sha256": "9e3618c465353a9e4a6828d5e621fa61c3754bf90d19d768cd975a69fc4289e2",
+          "bytes": 101,
+          "tail": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.048s\n\nOK"
+        },
+        "tests": 3,
+        "skipped": 0,
+        "passed": 3
+      },
+      {
+        "file": "tests/test_end_to_end.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/tests/test_end_to_end.py"
+        ],
+        "exit": 0,
+        "seconds": 117.76,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/tests__test_end_to_end.py.log",
+          "sha256": "8b4637a8ca0341b2c64729333d70b0f6705ce7adf046562ab0f7989c04ae36e8",
+          "bytes": 22645,
+          "tail": "  return datetime.datetime.utcfromtimestamp(epoch).strftime(\"%Y-%m-%dT%H:%M:%S.%fZ\")\n.s/tmp/mycelium-extra-fixes-20261021/tests/e2e/harness.py:101: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).\n  return datetime.datetime.utcfromtimestamp(epoch).strftime(\"%Y-%m-%dT%H:%M:%S.%fZ\")\n..\n----------------------------------------------------------------------\nRan 111 tests in 117.678s\n\nOK (skipped=2)"
+        },
+        "tests": 111,
+        "skipped": 2,
+        "passed": 109
+      },
+      {
+        "file": "tests/test_eval_score.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/tests/test_eval_score.py",
+          "Schema",
+          "Totals",
+          "Banner"
+        ],
+        "exit": 0,
+        "seconds": 0.18,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/tests__test_eval_score.py.log",
+          "sha256": "eff6c85f42d36e39c333f01f57f9562427ec9fd5749ad4a2417d24693fbf71ee",
+          "bytes": 120,
+          "tail": ".....................\n----------------------------------------------------------------------\nRan 21 tests in 0.108s\n\nOK"
+        },
+        "tests": 21,
+        "skipped": 0,
+        "passed": 21
+      },
+      {
+        "file": "tests/test_example.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/tests/test_example.py"
+        ],
+        "exit": 0,
+        "seconds": 0.06,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/tests__test_example.py.log",
+          "sha256": "e73c3805f810fdcf3d0167ced7085c48306c9482a952ffb710551d230cdb3e51",
+          "bytes": 102,
+          "tail": "....\n----------------------------------------------------------------------\nRan 4 tests in 0.005s\n\nOK"
+        },
+        "tests": 4,
+        "skipped": 0,
+        "passed": 4
+      },
+      {
+        "file": "tests/test_fixture_data.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/tests/test_fixture_data.py"
+        ],
+        "exit": 0,
+        "seconds": 0.8,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/tests__test_fixture_data.py.log",
+          "sha256": "02dbebafb385addab99bce42402bd4dd76726d5a752c882e7b97baaeb6f820dd",
+          "bytes": 101,
+          "tail": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.746s\n\nOK"
+        },
+        "tests": 3,
+        "skipped": 0,
+        "passed": 3
+      },
+      {
+        "file": "tests/test_method_fidelity.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/tests/test_method_fidelity.py"
+        ],
+        "exit": 0,
+        "seconds": 0.44,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/tests__test_method_fidelity.py.log",
+          "sha256": "51e043dd7512ad4bc4f58dfcfc7548b9827c186780fd55f5de1e3bac2d6b7dca",
+          "bytes": 106,
+          "tail": "........\n----------------------------------------------------------------------\nRan 8 tests in 0.253s\n\nOK"
+        },
+        "tests": 8,
+        "skipped": 0,
+        "passed": 8
+      },
+      {
+        "file": "tests/test_recipes.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/tests/test_recipes.py"
+        ],
+        "exit": 0,
+        "seconds": 0.76,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/tests__test_recipes.py.log",
+          "sha256": "18eab18aa9f5af2bd0d2a5679b155aa5530ca403e916d1d3d9f6785eb0754109",
+          "bytes": 124,
+          "tail": "............s\n----------------------------------------------------------------------\nRan 13 tests in 0.571s\n\nOK (skipped=1)"
+        },
+        "tests": 13,
+        "skipped": 1,
+        "passed": 12
+      },
+      {
+        "file": "tests/test_sc_conventions_eval.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/tests/test_sc_conventions_eval.py"
+        ],
+        "exit": 0,
+        "seconds": 0.14,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/tests__test_sc_conventions_eval.py.log",
+          "sha256": "54e8613954ac91eb811de4f628a78bf4cbacbc9b16d516b063aaa14bf6106590",
+          "bytes": 121,
+          "tail": "ssssss...s\n----------------------------------------------------------------------\nRan 10 tests in 0.021s\n\nOK (skipped=7)"
+        },
+        "tests": 10,
+        "skipped": 7,
+        "passed": 3
+      },
+      {
+        "file": "tests/test_verify_frontmatter.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/tests/test_verify_frontmatter.py"
+        ],
+        "exit": 0,
+        "seconds": 0.06,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/tests__test_verify_frontmatter.py.log",
+          "sha256": "a6707d4eff38012da33ddc34bc6dc076a3b17151cfc9aef223c8790cbe64c3da",
+          "bytes": 100,
+          "tail": "..\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK"
+        },
+        "tests": 2,
+        "skipped": 0,
+        "passed": 2
+      },
+      {
+        "file": "tests/test_versions.py",
+        "command": [
+          "/usr/bin/python3.12",
+          "/tmp/mycelium-extra-fixes-20261021/tests/test_versions.py"
+        ],
+        "exit": 0,
+        "seconds": 0.06,
+        "log": {
+          "path": "/tmp/mx-fixes-validation/tests__test_versions.py.log",
+          "sha256": "d10ffbd9f0faa72cd6837063279524e199b59fbc3d035051302a1e8dbc4b36ad",
+          "bytes": 98,
+          "tail": ".\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nOK"
+        },
+        "tests": 1,
+        "skipped": 0,
+        "passed": 1
+      }
+    ]
+  },
+  "excluded_checks": [
+    "tests/test_eval_score.py Leakage (5 sealed-key tests); public Schema/Totals/Banner ran"
+  ],
+  "probes": {
+    "before": {
+      "path": "/tmp/mx-fixes-before.json",
+      "sha256": "a30ccb160c5ab83afe397fc8311905e1eef9210e14ba7ac814b142d991f8fc60",
+      "cases": 137,
+      "passed": 119,
+      "failed": 18,
+      "python": "3.12.15 (main, Oct  7 2026, 04:52:47) [GCC 8.5.0 20210514 (Red Hat 8.5.0-29)]"
+    },
+    "after_py312": {
+      "path": "/tmp/mx-fixes-after.json",
+      "sha256": "489c7c347ccdba6adae7e262f54ab86bdd3938d55578783b02b8904e81e836bd",
+      "cases": 137,
+      "passed": 137,
+      "failed": 0,
+      "python": "3.12.15 (main, Oct  7 2026, 04:52:47) [GCC 8.5.0 20210514 (Red Hat 8.5.0-29)]"
+    },
+    "after_py314_C": {
+      "path": "/tmp/mx-fixes-py314-after.json",
+      "sha256": "bfd1514b5c9cbe36d292a2f0c6f6c2e38bc2816a9b31ed7ee1b832af4ffba2ff",
+      "cases": 137,
+      "passed": 137,
+      "failed": 0,
+      "python": "3.14.5 (main, May 10 2026, 19:28:16) [Clang 22.1.3 ]"
+    },
+    "h5ad_after": {
+      "path": "/tmp/mx-fixes-h5ad-after.json",
+      "sha256": "f4d662ba520c782ae0ebcab1c170e38c796c5e030503b78e130613e598457e08",
+      "cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "python": "3.11.13 (main, Apr 28 2026, 13:06:52) [GCC 8.5.0 20210514 (Red Hat 8.5.0-28)]"
+    }
+  },
+  "supplemental": {
+    "gate_before": {
+      "path": "/tmp/mx-fixes-gate-before.log",
+      "sha256": "284ef23400e76bd605fdf60fb4082b1e39914545c6dedaf2db9e6206b35d0927",
+      "bytes": 439,
+      "tail": "/tmp/mycelium-extra-fixes-20261021/hooks/tests/gate_diff.py:338: RuntimeWarning: The default behavior of tarfile extraction has been changed to disallow common exploits (including CVE-2007-4559). By default, absolute/parent paths are disallowed and some mode bits are cleared. See https://access.redhat.com/articles/7004769 for more details.\n  source.extractall(folder)\npython3.12 3.12.15: 173/173 identical (base HEAD, new hooks/gate.py)",
+      "expected_marker": "173/173 identical"
+    },
+    "gate_after": {
+      "path": "/tmp/mx-fixes-gate-after.log",
+      "sha256": "284ef23400e76bd605fdf60fb4082b1e39914545c6dedaf2db9e6206b35d0927",
+      "bytes": 439,
+      "tail": "/tmp/mycelium-extra-fixes-20261021/hooks/tests/gate_diff.py:338: RuntimeWarning: The default behavior of tarfile extraction has been changed to disallow common exploits (including CVE-2007-4559). By default, absolute/parent paths are disallowed and some mode bits are cleared. See https://access.redhat.com/articles/7004769 for more details.\n  source.extractall(folder)\npython3.12 3.12.15: 173/173 identical (base HEAD, new hooks/gate.py)",
+      "expected_marker": "173/173 identical"
+    },
+    "gate_pinned": {
+      "path": "/tmp/mx-fixes-gate-pinned.log",
+      "sha256": "891409efc07431de1f1ff4ef810cadce542fc126e602217fbd250e2e65c3a7e7",
+      "bytes": 130654,
+      "tail": "FAIL  fuzz #111 (state)\n   command: \"MYCELIUM_EXTRA_EXPLORE=1 conda run -n scanpy papermill import sys; open('analysis/x.py','w') | snakemake --configfile 4 /etc/passwd | python3.11\"\n   state old: [('.mycelium-extra/gate.json', '{}'), ('.mycelium-extra/receipts.jsonl', '{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"started\": null, \"ts\": 0}\\n{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"snakemake --configfile 4 <OUT>/fixture.dat\", \"command_env\": null, \"command_exit_source\": null, \"command_exit_status\": \"unknown\", \"cwd\": \".\", \"engine\": {\"configfiles\": [\"4\", \"<OUT>/fixture.dat\"], \"files\": [{\"in_repo\": true, \"missing\": true, \"path\": \"4\"}, {\"in_repo\": false, \"mtime\": 0, \"path\": \"<OUT>/fixture.dat\", \"sha256\": \"5039d2f9c0183f5093217361486b04efa6d3c631eab8af3c58d7fba98fc71d8e\", \"size\": 25}], \"profile\": null, \"record\": \".snakemake/metadata\", \"report\": null}, \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"snakemake\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [], \"pins\":\nFAIL  fuzz #117 (state)\n   command: \"cat ../outside.py import sys; open('analysis/x.py','w')\"\n   state old: [('.mycelium-extra/explore.log', '{\"command\": \"python a.py\", \"paths\": [], \"session_id\": \"sess-\\\\u00e9\", \"ts\": 0}\\n'), ('.mycelium-extra/gate.json', '{}'), ('.mycelium-extra/receipts.jsonl', '{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"analysis/x.py,w\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": null, \"hook_env\": {}, \"kind\": \"analysis/x.py,w\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py,w\"], \"pins\": {}, \"pins_checked\": false, \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"started\": null, \"ts\": 0}\\n'), ('.mycelium-extra/approvals/00000001.json', '{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\\\n| # | step | Source | check |\\\\n| --- | --- | --- | --- |\\\\n| 7 | import sys; open(\\'analysis/x.py\\',\\'w\\') | repo: `repo:` x | ok |\\\\n| 5 | snakemake | repo: `repo:` x | ok |\\\\n| 6 | -o | repo: `repo:` x | ok |\\\\nPlan status: READY\", \"session_id\": \"s2\"}'), ('.mycelium-extra/approvals/00000002.json', '{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\\\n| # | step | Source | check |\\\\n| --- | --- | --- | --- |\\\\n| 3 | x.dat | repo: `repo:` x | ok |\\\\n| 1 | config/c.yaml | repo: `repo:` x | ok |\\\\n| 3 | - | repo: `repo:` x | ok |\\\\n\\\\nno status here\", \"session_id\": \"s2\"}'), ('.mycelium-extra/approvals/00000003.json', '{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\\\n| # | step | Source | check |\\\\n| --- | --- | --- | --- |\\\\n| 7 | main.nf | re\npython3.12 3.12.15: 116/173 identical (base 267d9e244d1f50abef2d024c9632c50df1911823, new hooks/gate.py)\nExact intentional differences: 57 checked",
+      "expected_marker": "Exact intentional differences: 57 checked"
+    },
+    "regressions_before": {
+      "path": "/tmp/mx-fixes-regressions-before.log",
+      "sha256": "50409933f67482bf961d82d0a40905fdbd54e0dd0e02419d1f4151727c8113fe",
+      "bytes": 30354,
+      "tail": "- }\n- \n\n\n----------------------------------------------------------------------\nRan 10 tests in 1.220s\n\nFAILED (failures=27, errors=2)",
+      "expected_marker": "FAILED (failures=27, errors=2)"
+    },
+    "shell_regressions_before": {
+      "path": "/tmp/mx-fixes-scan-before.log",
+      "sha256": "ad3f56baef337c9cb10b8be2b6bd11054a30ad895f56ac1ae3e7bd27fde05d11",
+      "bytes": 1558,
+      "tail": "  File \"/tmp/mx-fixes-regression-baseline/hooks/tests/test_gate_scan_fixes.py\", line 74, in test_ionice_and_setsid_wrappers_do_not_hide_the_run\n    self.assertTrue(self.denied(self.bash(wrapper + \" python analysis/x.py\")), wrapper)\nAssertionError: False is not true : ionice\n\n----------------------------------------------------------------------\nRan 2 tests in 0.238s\n\nFAILED (failures=2)",
+      "expected_marker": "FAILED (failures=2)"
+    },
+    "h5ad_regressions_before": {
+      "path": "/tmp/mx-fixes-h5ad-before.log",
+      "sha256": "0744801670845c91815e58b20e6ddd6ca3d7dd43ba56428c31f5fdb96395fcc8",
+      "bytes": 5240,
+      "tail": "  File \"<stdin>\", line 213, in decode_codes\nTypeError: 'int' object is not iterable\n\n\n----------------------------------------------------------------------\nRan 1 test in 1.616s\n\nFAILED (failures=5)",
+      "expected_marker": "FAILED (failures=5)"
+    },
+    "regressions_py314_C": {
+      "path": "/tmp/mx-fixes-regressions-py314.log",
+      "sha256": "cc1569eafab138e521e85105942060f7d4c0455d76d649286f5c39906166cd6e",
+      "bytes": 1855,
+      "tail": "test_result_writer_cleans_up_when_publication_fails (__main__.AdversarialRegressionTest.test_result_writer_cleans_up_when_publication_fails) ... ok\ntest_result_writer_does_not_follow_a_predictable_temporary_symlink (__main__.AdversarialRegressionTest.test_result_writer_does_not_follow_a_predictable_temporary_symlink) ... ok\ntest_unhashable_validation_ids_return_structured_errors_and_hook_notice (__main__.AdversarialRegressionTest.test_unhashable_validation_ids_return_structured_errors_and_hook_notice) ... ok\n\n----------------------------------------------------------------------\nRan 10 tests in 5.023s\n\nOK",
+      "expected_marker": "Ran 10 tests"
+    },
+    "h5ad_suite": {
+      "path": "/tmp/mx-fixes-h5ad-suite.log",
+      "sha256": "cb921470eca9a2fbcc2fa8a24e08e3f46da60565d33382b11afded5df02e006b",
+      "bytes": 203,
+      "tail": "......................................................................................................\n----------------------------------------------------------------------\nRan 102 tests in 21.133s\n\nOK",
+      "expected_marker": "Ran 102 tests"
+    },
+    "ablations": {
+      "path": "/tmp/mx-fixes-ablations.log",
+      "sha256": "af1555bc3c8f5bfd6ae08b02e2c1ac457bd72d016a8f5d8c737b01efbbff4d87",
+      "bytes": 847,
+      "tail": "ok   A-11: G-10 fails without its guard in gate\nok   A-12: G-11 fails without its guard in gate\nok   A-13: G-11 fails without its guard in gate\nok   A-14: G-12 fails without its guard in gate\nok   A-15: G-03 fails without its guard in gate\nok   A-16: G-13 fails without its guard in gate_run\nok   A-17: G-14 fails without its guard in gate\n17 of 17 ablations bite.",
+      "expected_marker": "17 of 17 ablations bite."
+    },
+    "node_adapter": {
+      "path": "/tmp/mx-fixes-node-direct.log",
+      "sha256": "72a7c73320cbe14921d4aa4cff9bafc9a779aefbdbbc6276c01426bea965e11a",
+      "bytes": 1719,
+      "tail": "\u2139 tests 22\n\u2139 suites 0\n\u2139 pass 22\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 5999.403671",
+      "expected_marker": "tests 22"
+    },
+    "links": {
+      "path": "/tmp/mx-fixes-links.log",
+      "sha256": "152b3307c4bb0176d5f8bd35555b52f7e2f4e5ed172cd5114cc98bb41b9fe985",
+      "bytes": 30,
+      "tail": "links checked: 482, broken: 0",
+      "expected_marker": "links checked: 482, broken: 0"
+    }
+  },
+  "limitations": [
+    "Local fixtures do not establish native host dispatch or scientific validity.",
+    "No real-browser accessibility or adversarial concurrent symlink-swap qualification.",
+    "Python 3.9 syntax checked; no Python 3.9 runtime was available.",
+    "No commit, push, release or plugin installation."
+  ],
+  "delivery": {
+    "checkout": "/exports/para-lipg-hpc/mdmanurung/mycelium-extra",
+    "head": "ec58e1ee8ebef011a364b9461fab6de0b25b5dd1",
+    "production_and_test_source_matches_candidate": true,
+    "original_artifacts_verified": 17,
+    "current_handoff_updated": true,
+    "original_handoff_preserved_as_historical_suffix": true,
+    "smoke": {
+      "regression_tests": 10,
+      "standard_library_probes": 137,
+      "h5ad_probes": 3,
+      "failed": 0
+    },
+    "markdown_links": {
+      "checked": 483,
+      "broken": 0
+    },
+    "log_sha256": {
+      "regressions": "10ab3a075b411bf4f4bd6a2ce2092c7bd4b51cd8981419f48b25ae4755a75ac3",
+      "probes": "49eec0cb301a3c57b567b831393c654942217f5437b5ffe3c5f025cf3b535eb6",
+      "h5ad": "eea70258c39ae687c1502459a91fe438d054d75e1fa95763cbf781124df968cc",
+      "links": "438e0e471ea6c7839283180233d79a9c7a7f8753dc944ceca0de8e7377867bf8"
+    }
+  }
+}

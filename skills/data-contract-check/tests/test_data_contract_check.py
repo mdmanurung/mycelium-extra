@@ -341,6 +341,22 @@ class H5adTest(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.root)
 
+    def test_malformed_categorical_codes_are_unreadable_gaps(self):
+        import h5py
+        import numpy as np
+        path = os.path.join(self.root, "samples.h5ad")
+        for codes in ([0.5], ["x"], [True], [-2], [2], [[0]], 0):
+            with self.subTest(codes=codes):
+                write_h5ad(path, ("sample", ["s1"]), [("cohort", "categorical", ["A"])])
+                with h5py.File(path, "a") as handle:
+                    del handle["obs/cohort/codes"]
+                    handle["obs/cohort"].create_dataset("codes", data=np.array(codes,
+                        dtype=h5py.string_dtype() if codes == ["x"] else None))
+                code, out = invoke([{"kind": "cohort", "column": "cohort", "levels": ["A"]}],
+                                   table="samples.h5ad", root=self.root)
+                self.assertEqual(code, 3, out)
+                self.assertEqual(json.loads(out)["alerts"][0]["severity"], "gap")
+
     def test_existing_checks_run_unchanged_on_h5ad(self):
         shutil.copy(os.path.join(FIXTURES, "samples.tsv"), self.root)
         samples_h5ad(os.path.join(self.root, "samples.h5ad"))

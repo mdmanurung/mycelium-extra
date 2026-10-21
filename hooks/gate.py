@@ -84,7 +84,7 @@ PLUGIN_ROOT_VAR = re.compile(r"^\$\{?(MYC\w*|MYCELIUM\w*|CLAUDE_\w+|\w*PLUGIN_RO
 SHELL_C = re.compile(r"^-[A-Za-z]*c[A-Za-z]*$")  # `-c`, `-lc`, `-ec`, `-ce`: the shell runs inline code
 MYCELIUM_SEES = re.compile(r"^(python[\d.]*|Rscript|R|jupyter)$")  # Mycelium 0.7.2's run detector
 SCRIPT_EXT = re.compile(r"(\.(py|R|r|sh|ipynb|qmd|Rmd|rmd|jl|smk|pl)$|(^|/)Snakefile$)")
-WRAPPERS = {"env", "time", "nohup", "nice", "command", "exec", "stdbuf", "timeout", "srun",
+WRAPPERS = {"env", "time", "nohup", "nice", "ionice", "setsid", "command", "exec", "stdbuf", "timeout", "srun",
             "conda", "mamba", "micromamba", "pixi", "uv", "uvx", "run", "xvfb-run",
             "poetry", "pipx", "rye", "pdm", "hatch", "npx"}  # package-manager and process-launcher runners
 VALUE_FLAGS = {"-n", "-p", "--name", "--prefix", "-e", "--environment", "--env",
@@ -94,6 +94,7 @@ VALUE_FLAGS = {"-n", "-p", "--name", "--prefix", "-e", "--environment", "--env",
 _CONDA_OPTIONS = ({"-n", "--name", "-p", "--prefix", "-r", "--root-prefix", "-a", "--attach", "--label",
                    "-e", "--environment", "--manifest-path", "--config", "--cwd"}, {"--cwd"})
 WRAPPER_OPTIONS = {
+    "ionice": ({"-c", "--class", "-n", "--classdata", "-p", "--pid", "-P", "--pgid", "-u", "--uid"}, set()),
     "env": ({"-u", "--unset", "-C", "--chdir", "-S", "--split-string"}, {"-C", "--chdir"}),
     "srun": (VALUE_FLAGS | {"-D", "--chdir"}, {"-D", "--chdir"}),
     "conda": _CONDA_OPTIONS, "mamba": _CONDA_OPTIONS, "micromamba": _CONDA_OPTIONS, "pixi": _CONDA_OPTIONS,
@@ -111,6 +112,8 @@ WRAPPER_OPTIONS = {
 _CONDA_FLAGS = {"-v", "--verbose", "--dev", "--debug-wrapper-scripts", "--no-capture-output",
                 "--live-stream", "-h", "--help"}
 WRAPPER_FLAGS = {
+    "ionice": {"-t", "--ignore", "-h", "--help", "-V", "--version"},
+    "setsid": {"-c", "--ctty", "-f", "--fork", "-w", "--wait", "-h", "--help", "-V", "--version"},
     "env": {"-i", "--ignore-environment", "-0", "--null", "-v", "--debug", "-h", "--help"},
     "srun": {"-v", "-q", "--quiet", "-O", "--overcommit", "-s", "--oversubscribe", "-u", "--unbuffered",
              "-k", "--no-kill", "-l", "--label", "-Q", "--exact", "--exclusive", "--overlap", "--pty",
@@ -424,6 +427,28 @@ def unchanged(pin, now):
 
 # ---------------------------------------------------------------- command parsing
 
+def ansi_literal(value):
+    """Decode literal ANSI-C escapes; unsupported spellings stay visibly unresolved."""
+    escapes = {"a": "\a", "b": "\b", "e": "\x1b", "E": "\x1b", "f": "\f", "n": "\n",
+               "r": "\r", "t": "\t", "v": "\v", "\\": "\\", "'": "'", '"': '"', "?": "?"}
+
+    def escape(match):
+        token = match.group(1)
+        if token in escapes:
+            return escapes[token]
+        base = 8 if token[0] in "01234567" else 16
+        number = int(token if base == 8 else token[1:], base)
+        if (token[0] in "01234567x" and number > 127) or 0xD800 <= number <= 0xDFFF:
+            raise ValueError("non-text byte or surrogate")
+        return chr(number)
+
+    try:
+        return re.sub(r"\\(x[0-9a-fA-F]{1,2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|[0-7]{1,3}|.)",
+                      escape, value, flags=re.S).split("\x00", 1)[0]
+    except (ValueError, OverflowError):
+        return "$<unresolved-ansi-c>"
+
+
 def tokenize(command, bodies=None, operators=None):
     """Split a shell command into words and operator tokens.
 
@@ -452,11 +477,10 @@ def tokenize(command, bodies=None, operators=None):
             in_word = True
             i += 2
         elif c == "$" and command.startswith("$'", i):
-            end = command.find("'", i + 2)  # `$'...'`: the quotes are syntax, the text between them is the word
-            end = n if end < 0 else end
-            word.append(command[i + 2:end])
+            literal = re.match(r"\$'((?:\\[\s\S]|[^'\\])*)'", command[i:])
+            word.append(ansi_literal(literal.group(1)) if literal else "$<unresolved-ansi-c>")
             in_word = True
-            i = end + 1
+            i += literal.end() if literal else n - i
         elif c in "'\"":
             end = command.find(c, i + 1)
             end = n if end < 0 else end
@@ -673,7 +697,8 @@ def _classify(tokens, root, cwd, config, info=None):
         if "/" in tokens[i] and not is_assignment(tokens[i]) and not (
                 word in WRAPPERS and gated_rel(root, cwd, tokens[i], config) is None):
             break  # a path, unless it is an assignment value or names a wrapper (`/usr/bin/env`)
-        if (word in WRAPPERS or tokens[i].startswith("-") or previous in VALUE_FLAGS
+        if (word in WRAPPERS or tokens[i].startswith("-") or
+                (previous in VALUE_FLAGS and previous not in WRAPPER_FLAGS.get(wrapper, ()))
                 or tokens[i].isdigit() or DURATION.match(tokens[i])
                 or is_assignment(tokens[i])):
             if tokens[i] == EXPLORE_VAR + "=1":

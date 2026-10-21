@@ -4,6 +4,15 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- **data-contract-check:** result publication refuses the contract and every declared table, reference or namespace input, including symlink aliases and invalid contracts. Result files use unique temporary files with cleanup on failure. Malformed H5AD categorical codes produce unreadable-column gaps.
+- **gate:** ANSI-C quoted script paths decode supported escapes; unsupported escapes remain unresolved. `ionice` and `setsid` wrappers no longer hide unapproved runs. Invalid validation IDs return structured errors.
+- **state writes:** pending-write preparation uses the guarded atomic writer. State writes and locks reject symlinked ancestors before creating directories.
+- **evidence:** sensitive analysis, output and reference paths are withheld; other exported strings use the existing sensitive-value policy.
+- **verify:** malformed CSV quoting and inconsistent field counts cannot verify a numeric cell or row count.
+- **plan-review:** non-finite consent timestamps are refused.
+
 ## [0.15.0] - 2026-10-21
 
 ### Added

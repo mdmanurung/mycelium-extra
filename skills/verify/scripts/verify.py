@@ -1614,9 +1614,14 @@ def claim_cell(path, column, row, max_bytes):
     except (OSError, ValueError, KeyError, IndexError, TypeError) as error:
         return None, "`{}` could not be read ({})".format(column, type(error).__name__)
     first = text.split("\n", 1)[0]
-    rows = [r for r in csv.reader(io.StringIO(text), delimiter="\t" if "\t" in first else ",") if r]
+    try:
+        rows = [r for r in csv.reader(io.StringIO(text), delimiter="\t" if "\t" in first else ",", strict=True) if r]
+    except csv.Error as error:
+        return None, "the table is malformed ({})".format(error)
     if not rows:
         return None, "the file is empty"
+    if any(len(r) != len(rows[0]) for r in rows[1:]):
+        return None, "the table has rows with a different number of fields than the header"
     if column == "rows":
         return str(len(rows) - 1), None
     if column not in rows[0]:

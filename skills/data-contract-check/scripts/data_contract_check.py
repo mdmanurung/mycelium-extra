@@ -24,6 +24,7 @@ import hashlib
 import os
 import re
 import sys
+import tempfile
 from collections import Counter, defaultdict
 
 SCHEMA = "mycelium-extra.data_contract.v1"
@@ -210,8 +211,9 @@ def obs_values(h5file, node, h5py):
 
 
 def decode_codes(codes, categories):
-    if any(c >= len(categories) for c in codes):
-        raise TableGap("a categorical code has no category")
+    if (not isinstance(codes, list) or not isinstance(categories, list) or
+            any(type(c) is not int or c < -1 or c >= len(categories) for c in codes)):
+        raise TableGap("categorical codes must be integers naming a category, or -1 for missing")
     return ["" if c < 0 else categories[c] for c in codes]
 
 
@@ -1174,11 +1176,17 @@ def build_result(contract_path, root, contract_bytes, summaries, alerts, inputs,
 
 
 def write_result(path, result):
-    tmp = "{}.{}.tmp".format(path, os.getpid())
-    with open(tmp, "w", encoding="utf-8") as handle:
-        json.dump(result, handle, indent=1, sort_keys=True)
-        handle.write("\n")
-    os.replace(tmp, path)
+    tmp = None
+    try:
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=os.path.dirname(os.path.abspath(path)),
+                                         delete=False) as handle:
+            tmp = handle.name
+            json.dump(result, handle, indent=1, sort_keys=True)
+            handle.write("\n")
+        os.replace(tmp, path)
+    finally:
+        if tmp and os.path.exists(tmp):
+            os.unlink(tmp)
 
 
 def main(argv=None):
@@ -1189,7 +1197,7 @@ def main(argv=None):
     parser.add_argument("--result-json", metavar="PATH",
                         help="also write a machine-readable result (identities, per-check status, exit code) here")
     args = parser.parse_args(argv)
-    contract_bytes, summaries, alerts, inputs, error = None, [], [], [], None
+    contract, contract_bytes, summaries, alerts, inputs, error = None, None, [], [], [], None
     try:
         with open(args.contract, "rb") as handle:
             contract_bytes = handle.read()
@@ -1199,6 +1207,22 @@ def main(argv=None):
         error = str(caught)
     code = 1 if error else exit_code(alerts)
     if args.result_json:
+        # Protect declared inputs even when validation stopped before recording their identities.
+        paths = [args.contract]
+        if isinstance(contract, dict):
+            checks = contract.get("checks")
+            for check in [contract] + (checks if isinstance(checks, list) else []):
+                if not isinstance(check, dict):
+                    continue
+                if isinstance(check.get("table"), str):
+                    paths.append(resolve(args.root, check["table"]))
+                for role in ("reference", "namespace"):
+                    spec = check.get(role)
+                    if isinstance(spec, dict) and isinstance(spec.get("path"), str):
+                        paths.append(resolve(args.root, spec["path"]))
+        if os.path.realpath(args.result_json) in {os.path.realpath(p) for p in paths}:
+            print("result path must differ from the contract and all input paths", file=sys.stderr)
+            return 1
         try:
             write_result(args.result_json, build_result(args.contract, args.root, contract_bytes, summaries,
                                                         alerts, inputs, code, error))

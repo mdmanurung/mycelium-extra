@@ -56,6 +56,32 @@ class ScanFixTest(unittest.TestCase):
     def denied(self, result):
         return bool(result) and result.get("hookSpecificOutput", {}).get("permissionDecision") == "deny"
 
+    def test_ansi_c_escapes_name_the_same_unapproved_script(self):
+        for operand in [r"$'analys\151s/x.py'", r"$'\x61nalysis/x.py'", r"$'analysis/\170.py'",
+                        r"$'\u0061nalysis/x.py'", r"$'\U00000061nalysis/x.py'",
+                        r"$'analysis/x.py\0ignored'", r"$'analysis/it\'s.py'",
+                        r"$'analysis/\cA.py'", r"$'analysis/\xff.py'"]:
+            self.assertTrue(self.denied(self.bash("python " + operand)), operand)
+        self.assertEqual(gate.tokenize(r"python $'analys\151s/x.py'"), ["python", "analysis/x.py"])
+        self.assertEqual(gate.tokenize(r"echo $'it\'s café'"), ["echo", "it's café"])
+        for command in [r"echo $'python analys\151s/x.py'", r"python $'tools/\170.py'"]:
+            self.assertIsNone(self.bash(command), command)
+
+    def test_ionice_and_setsid_wrappers_do_not_hide_the_run(self):
+        for wrapper in ["ionice", "ionice -c 3", "ionice --class idle", "ionice -c2 -n7",
+                        "ionice -t", "setsid", "setsid -f", "setsid --wait",
+                        "setsid ionice -c 3", "/usr/bin/setsid /usr/bin/ionice -c 3"]:
+            self.assertTrue(self.denied(self.bash(wrapper + " python analysis/x.py")), wrapper)
+            self.assertIsNone(self.bash(wrapper + " echo analysis/x.py"), wrapper)
+
+    @unittest.skipUnless(shutil.which("bash"), "Bash required for ANSI-C equivalence")
+    def test_supported_ansi_c_literals_match_bash_bytes(self):
+        for operand in [r"$'analys\151s/x.py'", r"$'\x61nalysis/x.py'", r"$'\u0061nalysis/x.py'",
+                        r"$'\U00000061nalysis/x.py'", r"$'analysis/x.py\0ignored'",
+                        r"$'it\'s café'", r"$'a\nb\tc\\d'", r"pre$'\141'post"]:
+            actual = subprocess.check_output(["bash", "-c", "printf '%s' " + operand])
+            self.assertEqual(gate.tokenize(operand), [actual.decode("utf-8")], operand)
+
     # C0: command substitution runs the command inside it
     def test_command_substitution_is_read(self):
         for command in [

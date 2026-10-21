@@ -59,7 +59,7 @@ def project(result, version="unknown", generated_at=None, references=None):
 
     def path(value):
         if relative(value):
-            return value
+            return value if text(value) == value else None
         if value is not None:
             withheld.add("non-relative paths")
         return None
@@ -101,7 +101,9 @@ def project(result, version="unknown", generated_at=None, references=None):
              "coverage": clean(coverage),
              "limitations": ["Evidence linkage is not scientific validity.",
                               "Missing SHA256 is not content identity; size/mtime is weak."],
-             "references": references or {},
+             "references": {k: path(v) for k, v in (references or {}).items()},
              "withheld": sorted(withheld | {"transcripts", "commands and arguments", "environment values", "raw data"})}
+    value = clean(value)
+    value["withheld"] = sorted(set(value["withheld"]) | withheld)
     value["snapshot_digest"] = identity(value)
     return value
