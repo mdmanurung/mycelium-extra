@@ -98,14 +98,13 @@ class AuditFixTest(Harness):
     def test_write_failure_is_a_verify_error(self):
         digest = self.approve(test_verify.plan("run `{}`".format(test_verify.FIT)))
         self.run_cmd("python " + test_verify.FIT)
-        folder = os.path.join(self.root, "analysis", "a")
-        os.chmod(folder, 0o555)
-        try:
-            error = self.verify("write", digest, "--analysis-dir", "analysis/a", fails=True)
-        finally:
-            os.chmod(folder, 0o755)  # before tearDown removes the tree
+        # CI containers run as root, which can write through chmod(0555).
+        path = self.write("analysis/a/provenance", "existing file\n")
+        error = self.verify("write", digest, "--analysis-dir", "analysis/a", fails=True)
         self.assertIn("verify: could not write", error)
         self.assertNotIn("Traceback", error)
+        with open(path) as handle:
+            self.assertEqual(handle.read(), "existing file\n")
 
 
 if __name__ == "__main__":
