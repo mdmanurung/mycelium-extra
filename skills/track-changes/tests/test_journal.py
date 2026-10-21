@@ -275,6 +275,15 @@ class JournalTest(Base):
         self.assertIn("without a completion", launches[0]["summary"])
         self.assertEqual(data["coverage"]["receipts"], "absent")
 
+    def test_demo_generation_inside_a_gated_repository(self):
+        output = os.path.join(self.root, "generated-demo")
+        result = subprocess.run([sys.executable, os.path.join(PLUGIN, "tests/e2e/make_journal_example.py"),
+                                 "--output-dir", output, "--receipts", "1"],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(os.path.isfile(os.path.join(output, "analysis-journal-missing.html")))
+        self.assertFalse(os.path.exists(os.path.join(output, "journal-demo/.mycelium-extra")))
+
     def test_malformed_nested_fields_degrade_instead_of_crashing(self):
         from test_track_changes import plan
         h = self.approve(plan("nested", outputs="none"))

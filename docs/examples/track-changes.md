@@ -29,6 +29,17 @@ when the selected period has no new events.
 ![Selected record with evidence expanded in Firefox](analysis-journal-evidence.png)
 
 Regenerate the fixture with `python3.12 tests/e2e/make_journal_example.py`.
+To inspect the portable records, copy them outside a gated ancestor so the demo
+does not inherit that repository's gate configuration:
+
+```bash
+journal_demo=$(mktemp -d /tmp/mycelium-journal-demo.XXXXXX)
+cp -R docs/examples/journal-demo/. "$journal_demo/"
+python3.12 -B skills/track-changes/scripts/track_changes.py \
+  --plugin-root "$PWD" --repo "$journal_demo" --analysis analysis/a \
+  --journal --no-write --json
+```
+
 Real browser checks use `node skills/track-changes/tests/journal_browser.mjs
 REPORT.html SCREENSHOT_PREFIX`, with `--zoom200` for a disposable Firefox profile
 at actual 200% browser zoom. This browser test is separate from CI's Node DOM

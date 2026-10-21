@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import shutil
 import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "skills/track-changes/tests"))
@@ -45,9 +46,12 @@ def main():
                         ignore=shutil.ignore_patterns(".save.lock", ".publish.lock", ".transactions"))
         shutil.copytree(Path(case.root) / "notes", demo / "notes")
         (demo / ".gitignore").write_text(".mycelium-extra/\n")
-        result = case.cli("--journal", "--analysis", "analysis/a", repo=str(demo))
-        shutil.copyfile(demo / ".mycelium-extra/track-changes/analysis__a/report.html", out / "analysis-journal-missing.html")
-        shutil.rmtree(demo / ".mycelium-extra")
+        # A demo nested in a live gated checkout would inherit its ancestor's gate.
+        with tempfile.TemporaryDirectory(prefix="journal-portable-") as portable:
+            shutil.copytree(demo, portable, dirs_exist_ok=True)
+            result = case.cli("--journal", "--analysis", "analysis/a", repo=portable)
+            shutil.copyfile(Path(portable) / ".mycelium-extra/track-changes/analysis__a/report.html",
+                            out / "analysis-journal-missing.html")
         print("Generated", out / "analysis-journal.html")
         print("Fresh-clone report:", result.strip())
         print("First checkpoint", checkpoint["digest"], "saved", checkpoint["saved_at"])

@@ -74,6 +74,23 @@ the zoom run confirmed DPR 2, a 640 CSS-pixel viewport and no page overflow.
 The missing-source overview retained six incomplete/absent source groups and
 missing-completion/conflict notices even with no new concerns in its period.
 
+## Local completion, 2026-10-21
+
+The validated follow-up `cd253dc` was fast-forwarded into local main. Its
+11-test Journal suite passed again from that checkout (55.7 seconds); version
+and all 446 Markdown link checks passed. No live gate hook or oracle changed.
+
+That checkout's live gate exposed a demonstration-only issue: an example nested
+under a gated ancestor inherits that ancestor's root. The generator now renders
+its portable copy in a temporary directory outside the gated checkout. A new
+regression generates the examples beneath an existing gated repository and
+requires the missing-source HTML to exist without local state in the delivered
+demo. The documented standalone-copy command was also exercised: 167 events,
+two checkpoints. Root discovery and approval behavior remain unchanged.
+The final Journal suite passed all 12 tests on Python 3.12 (57.4 seconds) and
+3.14 (92.9 seconds). All 446 links and the warning-as-error Sphinx build passed
+again. These demonstration changes do not alter the renderer or gate sources.
+
 ## Screenshots
 
 `../examples/analysis-journal-overview.png`, `../examples/analysis-journal-evidence.png`; receipts for narrow and 200% zoom are in `../examples/qa/`.
