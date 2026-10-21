@@ -4,6 +4,10 @@
 
 You stay in charge. Only you can approve a plan, a freeze or a review packet, by typing the approval yourself. The agent cannot type it for you.
 
+![The researcher decides, the agent proposes and executes within approved work, and the saved records show what was observed and what could not be checked.](../figures/roles.svg)
+
+These roles are complementary: records expose what was checked, while methods and interpretation still need your judgement.
+
 ## What it does
 
 | Moment | Tool | What you get |

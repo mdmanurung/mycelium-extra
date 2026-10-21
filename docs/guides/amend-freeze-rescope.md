@@ -2,6 +2,10 @@
 
 An approval is a working scope: you and the agent may keep editing the scripts it lists. Three typed actions change what is approved: an amendment, a freeze, and a re-scope through `grill`.
 
+![An additive plan revision may use an amendment card. A freeze pins reviewed scripts for reportable work. A changed question, choice, input or threshold calls for a revised plan and approval.](../figures/change-options.svg)
+
+These actions change different things and are not interchangeable. The table below names the correct route, including a separate exploration option for debugging.
+
 ## What you control here
 
 - **Your typed word:** `approve amendment <hash>`, `freeze <hash>` then `approve freeze <hash>`, and `approve plan <hash>` for a re-scoped plan. Each verb works only on its own kind of card.

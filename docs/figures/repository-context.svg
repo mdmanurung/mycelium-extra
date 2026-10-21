@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="244" viewBox="0 0 480 244" role="img" aria-labelledby="title desc">
+<title id="title">The same approval method with different project context</title>
+<desc id="desc">A Mycelium repository provides project decisions, findings and memory. A plain repository provides its README, documentation, configuration and code. Both use explicit approvals; project-specific tools remain different.</desc>
+<defs><style>svg{--paper:#fff;--ink:#263238;--record:#f1f6f8;--record-edge:#527b8b;--human:#f5f1f7;--human-edge:#786389;--gap:#fcf8ee;--gap-edge:#9c7e34;--arrow:#626b70}
+@media(prefers-color-scheme:dark){svg{--paper:#18222a;--ink:#e8edf0;--record:#253a45;--record-edge:#8dbbc9;--human:#352c40;--human-edge:#b9a3c9;--gap:#3b3324;--gap-edge:#d4b263;--arrow:#c2ccd2}}
+text{font-family:system-ui,sans-serif;fill:var(--ink);font-size:22px}.head{font-size:24px;font-weight:650}.box{fill:var(--record);stroke:var(--record-edge);stroke-width:2}.human{fill:var(--human);stroke:var(--human-edge)}.gap{fill:var(--gap);stroke:var(--gap-edge);stroke-dasharray:6 4}.arrow{stroke:var(--arrow);stroke-width:2;fill:none;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="var(--arrow)"/></marker></defs>
+<rect width="480" height="244" rx="12" fill="var(--paper)"/>
+<g text-anchor="middle">
+<rect class="box" x="12" y="12" width="222" height="214" rx="8"/>
+<text x="123" y="44" class="head" style="font-size:22px">With Mycelium</text>
+<text x="123" y="77" style="font-size:21px">Project decisions</text>
+<text x="123" y="106" style="font-size:21px">Findings and</text>
+<text x="123" y="135" style="font-size:21px">memory</text>
+<text x="123" y="164" style="font-size:21px">Mycelium review</text>
+<text x="123" y="193" style="font-size:21px">tools</text>
+<rect class="box" x="246" y="12" width="222" height="214" rx="8"/>
+<text x="357" y="44" class="head" style="font-size:22px">Plain repository</text>
+<text x="357" y="77" style="font-size:21px">README and docs</text>
+<text x="357" y="106" style="font-size:21px">Tests and code</text>
+<text x="357" y="135" style="font-size:21px">Your own review</text>
+<text x="357" y="164" style="font-size:21px">tools</text>
+</g></svg>

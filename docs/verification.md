@@ -4,6 +4,10 @@ A finished job does not tell you the analysis is right. Did every planned step r
 
 New to it? Start with [Tier 3](usage.md#tier-3-verify-reportable-work). **Full detail** on every check is in the [complete verification reference](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/verification-full.md).
 
+![Conformity uses CONFORMS, CONFORMS_WITH_GAPS or DOES_NOT_CONFORM. Qualification separately uses qualified or not qualified and lists its dimensions. Neither assesses scientific validity.](figures/independent-assessments.svg)
+
+These are the exact recorded vocabularies, not a combined health score. Read the reasons and missing evidence even when the conformity line reads CONFORMS.
+
 ## What the report shows
 
 The report opens with the status and five one-line rows. When every answer is yes, you can stop reading there:

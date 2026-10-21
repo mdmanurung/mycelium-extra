@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="503" viewBox="0 0 480 503" role="img" aria-labelledby="title desc">
+<title id="title">Start with the task, then choose the skill</title>
+<desc id="desc">Planning, execution, inspection, continuity and retained lessons are different tasks. The skill reference below gives their actual read/write behavior and prerequisites.</desc>
+<defs><style>svg{--paper:#fff;--ink:#263238;--record:#f1f6f8;--record-edge:#527b8b;--human:#f5f1f7;--human-edge:#786389;--gap:#fcf8ee;--gap-edge:#9c7e34;--arrow:#626b70}
+@media(prefers-color-scheme:dark){svg{--paper:#18222a;--ink:#e8edf0;--record:#253a45;--record-edge:#8dbbc9;--human:#352c40;--human-edge:#b9a3c9;--gap:#3b3324;--gap-edge:#d4b263;--arrow:#c2ccd2}}
+text{font-family:system-ui,sans-serif;fill:var(--ink);font-size:22px}.head{font-size:24px;font-weight:650}.box{fill:var(--record);stroke:var(--record-edge);stroke-width:2}.human{fill:var(--human);stroke:var(--human-edge)}.gap{fill:var(--gap);stroke:var(--gap-edge);stroke-dasharray:6 4}.arrow{stroke:var(--arrow);stroke-width:2;fill:none;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="var(--arrow)"/></marker></defs>
+<rect width="480" height="503" rx="12" fill="var(--paper)"/>
+<g text-anchor="middle">
+<rect class="box human" x="20" y="12" width="440" height="122" rx="8"/>
+<text x="240" y="44" class="head">Plan</text>
+<text x="240" y="75">grill; decision-status;</text>
+<text x="240" y="104">data-contract-check</text>
+<rect class="box human" x="20" y="160" width="440" height="93" rx="8"/>
+<text x="240" y="192" class="head">Prepare and run</text>
+<text x="240" y="223">init; new-analysis; plan-review</text>
+<rect class="box" x="20" y="279" width="440" height="93" rx="8"/>
+<text x="240" y="311" class="head">Inspect the record</text>
+<text x="240" y="342">verify; focus; track-changes</text>
+<rect class="box" x="20" y="398" width="440" height="93" rx="8"/>
+<text x="240" y="430" class="head">Continue and retain lessons</text>
+<text x="240" y="461">handoff; idea; idea-triage; harden</text>
+</g></svg>

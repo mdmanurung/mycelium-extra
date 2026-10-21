@@ -1,0 +1,6 @@
+/* Inline paths wrap; executable examples retain their scrollable code blocks. */
+.bd-article code.literal,
+.bd-article code.literal .pre {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}

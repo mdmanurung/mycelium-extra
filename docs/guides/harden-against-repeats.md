@@ -2,6 +2,10 @@
 
 `harden` turns one Mycelium learning your project keeps having to remember into a test that remembers it. One learning per run. It needs `.living/learnings.md`.
 
+![Select one concrete learning, confirm a reproduction, demonstrate that the test fails on that reproduction and passes on current code, then confirm updating the learning. A passing test covers only its reproduction.](../figures/regression-lesson.svg)
+
+This diagram shows required steps, not a captured hardening run. A test guards its demonstrated failure mode and does not certify the analysis.
+
 ## What you control here
 
 - **Your typed word:** which learning to harden, a yes that the reproduction really is the problem, and a yes before the entry is edited. Those confirmations are the agent's instructions; nothing enforces them.

@@ -4,6 +4,10 @@ Control point: **visibility**
 
 Anonymised from a real project. Source: an approved figure plan in project B. Cards regenerated on the fixture.
 
+![The notes describe a figures folder, while inspection finds that folder absent. A prose intention to match figure numbers is not an executed or bound validation check.](../figures/document-versus-inspection.svg)
+
+This schematic draws on the anonymised plan and regenerated card below. A written intention is not evidence that its validation ran or passed.
+
 ## 1. Socratic: ask these first
 
 - In my words, what must be true of every number on a figure?

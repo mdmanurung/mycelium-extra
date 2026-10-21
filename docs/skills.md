@@ -4,6 +4,10 @@ New here? Start with [Usage tiers](usage.md) to choose a workflow. This page ind
 
 Commands use Claude Code syntax. In Codex, use `$mycelium-extra:` instead of `/mycelium-extra:`. OpenCode takes the same `/mycelium-extra:` commands (`@grill` also works). See [Host compatibility](installation.md#host-compatibility).
 
+![Planning, execution, inspection, continuity and retained lessons are different tasks. The skill reference below gives their actual read/write behavior and prerequisites.](figures/task-skills.svg)
+
+This is a task map, not a list of commands to execute in sequence. Read the skill entry for its prerequisites, confirmations and write behavior.
+
 ## Common prompts
 
 | Need | Command |

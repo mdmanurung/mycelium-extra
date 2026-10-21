@@ -12,6 +12,10 @@ It is a plugin for Claude Code, Codex and OpenCode, and it works alongside [Myce
 
 **Scope.** It catches execution mistakes and shows gaps. It is not a security boundary and it does not judge the science. See [what it does not guarantee](docs/concepts/not-guaranteed.md).
 
+![A researcher states a question, an agent proposes a sourced plan, the researcher approves, covered work leaves records, and verification compares the records with the plan.](docs/figures/overview.svg)
+
+The researcher makes the decisions; the agent proposes and helps execute them. A matching execution record does not establish scientific validity.
+
 ::::{grid} 1 2 2 2
 :gutter: 3
 

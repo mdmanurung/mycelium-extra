@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="532" viewBox="0 0 480 532" role="img" aria-labelledby="title desc">
+<title id="title">Compare recorded evidence before saving a check</title>
+<desc id="desc">Verification reads the approved plan, receipts and output evidence; reports outcomes and missing evidence; then explicit confirmation precedes publication of saved provenance.</desc>
+<defs><style>svg{--paper:#fff;--ink:#263238;--record:#f1f6f8;--record-edge:#527b8b;--human:#f5f1f7;--human-edge:#786389;--gap:#fcf8ee;--gap-edge:#9c7e34;--arrow:#626b70}
+@media(prefers-color-scheme:dark){svg{--paper:#18222a;--ink:#e8edf0;--record:#253a45;--record-edge:#8dbbc9;--human:#352c40;--human-edge:#b9a3c9;--gap:#3b3324;--gap-edge:#d4b263;--arrow:#c2ccd2}}
+text{font-family:system-ui,sans-serif;fill:var(--ink);font-size:22px}.head{font-size:24px;font-weight:650}.box{fill:var(--record);stroke:var(--record-edge);stroke-width:2}.human{fill:var(--human);stroke:var(--human-edge)}.gap{fill:var(--gap);stroke:var(--gap-edge);stroke-dasharray:6 4}.arrow{stroke:var(--arrow);stroke-width:2;fill:none;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="var(--arrow)"/></marker></defs>
+<rect width="480" height="532" rx="12" fill="var(--paper)"/>
+<g text-anchor="middle">
+<rect class="box" x="20" y="12" width="440" height="122" rx="8"/>
+<text x="240" y="44" class="head">Read the existing evidence</text>
+<text x="240" y="75">Approved plan, receipts and</text>
+<text x="240" y="104">outputs</text>
+<path class="arrow" d="M240 138v16"/>
+<rect class="box" x="20" y="160" width="440" height="122" rx="8"/>
+<text x="240" y="192" class="head">Compare it with the plan</text>
+<text x="240" y="223">Keep conformity and qualification</text>
+<text x="240" y="252">separate</text>
+<path class="arrow" d="M240 286v16"/>
+<rect class="box gap" x="20" y="308" width="440" height="93" rx="8"/>
+<text x="240" y="340" class="head">Read failures and gaps</text>
+<text x="240" y="371">Missing evidence remains missing</text>
+<path class="arrow" d="M240 405v16"/>
+<rect class="box human" x="20" y="427" width="440" height="93" rx="8"/>
+<text x="240" y="459" class="head">Confirm saving provenance</text>
+<text x="240" y="490">Save the recorded status as it is</text>
+</g></svg>

@@ -9,6 +9,10 @@
 | 3. Verify reportable work | Outputs will go into a finding or report | `freeze`, `verify` |
 | 4. Full project workflow | You need structure, review and continuity | `new-analysis`, `plan-review`, `handoff`, and more |
 
+![Planning is the first tier. Add approval and receipts for execution, freeze and verification for reportable work, and project continuity tools when needed.](figures/usage-tiers.svg)
+
+Each tier builds on the previous one. These are workflow choices, not settings, prices or measures of research quality.
+
 ## Tier 1: Plan
 
 ```text

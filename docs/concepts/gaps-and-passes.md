@@ -2,6 +2,10 @@
 
 A clean result and a missing result look the same if you only count the failures. Mycelium Extra counts them apart. The rule is short: **a gap is never clean.** When the tool could not check something, it says "gap" and keeps it visible. It does not call it a pass.
 
+![A supported check says what the inspected evidence establishes. A gap says evidence is absent or too weak. A blocking finding records a contradiction or failure. Scientific validity is a separate question.](../figures/evidence-states.svg)
+
+A gap is absence of evidence, while a block is evidence of a problem. Exact verification statuses and qualification remain separate from scientific judgement.
+
 ## What counts as a gap
 
 A gap is evidence the records could not establish. It is not a failure (nothing was found wrong) and not a pass (nothing was found right). The usual causes:

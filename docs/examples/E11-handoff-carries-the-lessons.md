@@ -4,6 +4,10 @@ Control point: **reversibility**
 
 Anonymised from a real project. Source: the HANDOFF.md files of projects A and B (both dated the same day).
 
+![A handoff carries next action, locked decisions, dead ends and source pointers. A fresh session must recheck the current approval and files; historical advice in a handoff is not automatically current authorization.](../figures/handoff-relay.svg)
+
+This schematic summarizes the recorded handoff sections, not a new approval. Historical notes can become stale; the new session checks current files and approval rules.
+
 ## 1. Socratic: ask these first
 
 - If this conversation ended now, what would the next session have to rediscover?

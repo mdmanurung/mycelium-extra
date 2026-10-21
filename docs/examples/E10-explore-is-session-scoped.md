@@ -4,6 +4,10 @@ Control point: **override**
 
 Anonymised from a real project. Source: project A's `explore.log`, `explore-grants/` and receipts (12 explore runs, 3 grants, 367 gated runs), and the handoff line "explore is allowed this session only; a new session needs `allow explore` again; a smoke run is not a result, do not quote its estimates". Notices regenerated on the fixture.
 
+![Session A has an explicit explore grant and logged nonreportable attempts. Session B inherits no grant. Reporting requires a normal approved rerun rather than promotion of an exploratory output.](../figures/session-exploration.svg)
+
+This schematic distinguishes sessions, not elapsed time or productivity. An exploratory output does not become reportable; plan and approve a normal rerun.
+
 ## 1. Socratic: ask these first
 
 - Do I want this try to be reportable? If not, who says so, and where is it recorded?

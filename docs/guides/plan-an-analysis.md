@@ -4,6 +4,10 @@
 
 **Method habits 1 and 2** ([the method](../start/method.md)). Without the plugin: write the question and claim in your own words, then a table of steps with who decided each choice and why.
 
+![The researcher states the question first. Repository evidence, user choices and labelled defaults inform each plan row; each row names a check rather than silently assuming its choice is right.](../figures/sourced-plan.svg)
+
+The source tag explains where a choice came from, not whether it is right. Nothing in this planning overview approves or runs an analysis.
+
 ## What you control here
 
 - **Your typed word:** your question and the claim you hope to make (asked first, in your words), and an answer to each consequential question. `grill` approves nothing.

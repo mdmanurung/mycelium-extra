@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="532" viewBox="0 0 480 532" role="img" aria-labelledby="title desc">
+<title id="title">Read the request, approval and pins together</title>
+<desc id="desc">Covered execution needs a matching approval in the session. Changed pinned inputs block. Ordinary script edits re-pin with a notice. Exploration needs its own typed grant. More exact execution contracts can add constraints.</desc>
+<defs><style>svg{--paper:#fff;--ink:#263238;--record:#f1f6f8;--record-edge:#527b8b;--human:#f5f1f7;--human-edge:#786389;--gap:#fcf8ee;--gap-edge:#9c7e34;--arrow:#626b70}
+@media(prefers-color-scheme:dark){svg{--paper:#18222a;--ink:#e8edf0;--record:#253a45;--record-edge:#8dbbc9;--human:#352c40;--human-edge:#b9a3c9;--gap:#3b3324;--gap-edge:#d4b263;--arrow:#c2ccd2}}
+text{font-family:system-ui,sans-serif;fill:var(--ink);font-size:22px}.head{font-size:24px;font-weight:650}.box{fill:var(--record);stroke:var(--record-edge);stroke-width:2}.human{fill:var(--human);stroke:var(--human-edge)}.gap{fill:var(--gap);stroke:var(--gap-edge);stroke-dasharray:6 4}.arrow{stroke:var(--arrow);stroke-width:2;fill:none;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="var(--arrow)"/></marker></defs>
+<rect width="480" height="532" rx="12" fill="var(--paper)"/>
+<g text-anchor="middle">
+<rect class="box human" x="20" y="12" width="440" height="93" rx="8"/>
+<text x="240" y="44" class="head">Covered run</text>
+<text x="240" y="75">Needs a matching session approval</text>
+<rect class="box" x="20" y="131" width="440" height="122" rx="8"/>
+<text x="240" y="163" class="head">Pinned input changed</text>
+<text x="240" y="194">Recheck it and approve the revised</text>
+<text x="240" y="223">plan</text>
+<rect class="box" x="20" y="279" width="440" height="122" rx="8"/>
+<text x="240" y="311" class="head">Ordinary script edited</text>
+<text x="240" y="342">Re-pin notice; inspect before</text>
+<text x="240" y="371">freezing</text>
+<rect class="box human" x="20" y="427" width="440" height="93" rx="8"/>
+<text x="240" y="459" class="head">Exploration</text>
+<text x="240" y="490">Needs its separate session grant</text>
+</g></svg>

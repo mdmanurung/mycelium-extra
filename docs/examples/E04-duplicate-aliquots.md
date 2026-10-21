@@ -4,6 +4,10 @@ Control point: **visibility**
 
 Anonymised from a real project. Source: the approved "check the plan against the data" brief in project B (no analysis ran; docs only). The card is regenerated on the fixture. The librarian block is illustrative: the dossier feature post-dates that session, nothing external was searched, and no researcher answer is recorded.
 
+![An illustrative donor A has one aliquot; donor B has two aliquots at the same visit. These are teaching tokens, not cohort counts. Duplicate rows contradict an assumption that each donor appears only once.](../figures/duplicate-aliquots.svg)
+
+The donor and aliquot tokens are illustrative, not research counts. In the recorded case, the sample table contradicted a documentation assumption; no model had run yet.
+
 ## 1. Socratic: ask these first
 
 - What does the planning document say about one sample per donor at the first visit, and who checked it against the sample table?

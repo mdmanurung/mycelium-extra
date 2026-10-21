@@ -2,6 +2,10 @@
 
 Mycelium Extra works in both. With Mycelium it reads the project's records; without, it starts from your README, docs, tests, config and code.
 
+![A Mycelium repository provides project decisions, findings and memory. A plain repository provides its README, documentation, configuration and code. Both use explicit approvals; project-specific tools remain different.](../figures/repository-context.svg)
+
+Both routes use the same explicit approval method. Mycelium-specific records and skills remain optional; the table below says which ones need that project structure.
+
 ## What you control here
 
 - **Your typed word:** the same approvals in both cases. Mycelium never approves anything for Extra, and Extra never approves for Mycelium.

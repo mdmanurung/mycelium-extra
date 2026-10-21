@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="741" viewBox="0 0 480 741" role="img" aria-labelledby="title desc">
+<title id="title">Six habits that also work without the plugin</title>
+<desc id="desc">State your question, source choices, approve explicitly, separate exploration, check the execution record, and hand off in writing. Each habit has a plain-file equivalent.</desc>
+<defs><style>svg{--paper:#fff;--ink:#263238;--record:#f1f6f8;--record-edge:#527b8b;--human:#f5f1f7;--human-edge:#786389;--gap:#fcf8ee;--gap-edge:#9c7e34;--arrow:#626b70}
+@media(prefers-color-scheme:dark){svg{--paper:#18222a;--ink:#e8edf0;--record:#253a45;--record-edge:#8dbbc9;--human:#352c40;--human-edge:#b9a3c9;--gap:#3b3324;--gap-edge:#d4b263;--arrow:#c2ccd2}}
+text{font-family:system-ui,sans-serif;fill:var(--ink);font-size:22px}.head{font-size:24px;font-weight:650}.box{fill:var(--record);stroke:var(--record-edge);stroke-width:2}.human{fill:var(--human);stroke:var(--human-edge)}.gap{fill:var(--gap);stroke:var(--gap-edge);stroke-dasharray:6 4}.arrow{stroke:var(--arrow);stroke-width:2;fill:none;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="var(--arrow)"/></marker></defs>
+<rect width="480" height="741" rx="12" fill="var(--paper)"/>
+<g text-anchor="middle">
+<rect class="box human" x="20" y="12" width="440" height="122" rx="8"/>
+<text x="240" y="44" class="head">1. State your question</text>
+<text x="240" y="75">Write the question and hoped-for</text>
+<text x="240" y="104">claim</text>
+<path class="arrow" d="M240 138v16"/>
+<rect class="box human" x="20" y="160" width="440" height="93" rx="8"/>
+<text x="240" y="192" class="head">2. Source each choice</text>
+<text x="240" y="223">Mark user, repository or default</text>
+<path class="arrow" d="M240 257v16"/>
+<rect class="box human" x="20" y="279" width="440" height="93" rx="8"/>
+<text x="240" y="311" class="head">3. Approve explicitly</text>
+<text x="240" y="342">Name what may run</text>
+<path class="arrow" d="M240 376v16"/>
+<rect class="box" x="20" y="398" width="440" height="93" rx="8"/>
+<text x="240" y="430" class="head">4. Separate exploration</text>
+<text x="240" y="461">Keep quick tries out of results</text>
+<path class="arrow" d="M240 495v16"/>
+<rect class="box" x="20" y="517" width="440" height="93" rx="8"/>
+<text x="240" y="549" class="head">5. Check the record</text>
+<text x="240" y="580">Compare evidence with the plan</text>
+<path class="arrow" d="M240 614v16"/>
+<rect class="box" x="20" y="636" width="440" height="93" rx="8"/>
+<text x="240" y="668" class="head">6. Hand off in writing</text>
+<text x="240" y="699">Keep a short continuation file</text>
+</g></svg>

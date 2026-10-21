@@ -1,8 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="480" height="390" viewBox="0 0 480 390" role="img" aria-labelledby="title desc">
   <title id="title">A narrow plan to correct the report's signed difference</title>
   <desc id="desc">The proposed correction compares the difference with its score columns, recomputes score one minus score zero, asserts unchanged magnitudes, then regenerates the table and sentence. It does not refit the models or assert that these checks already passed.</desc>
-  <defs><style>text{font-family:system-ui,sans-serif;fill:#263238;font-size:23px}.box{fill:#f1f6f8;stroke:#527b8b;stroke-width:2}.human{fill:#f5f1f7;stroke:#786389;stroke-width:2}.arrow{stroke:#626b70;stroke-width:2;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="#626b70"/></marker></defs>
-  <rect width="480" height="390" rx="12" fill="#fff"/>
+  <defs><style>svg{--paper:#fff;--ink:#263238;--record:#f1f6f8;--record-edge:#527b8b;--human:#f5f1f7;--human-edge:#786389;--gap:#fcf8ee;--gap-edge:#9c7e34;--arrow:#626b70}
+@media(prefers-color-scheme:dark){svg{--paper:#18222a;--ink:#e8edf0;--record:#253a45;--record-edge:#8dbbc9;--human:#352c40;--human-edge:#b9a3c9;--gap:#3b3324;--gap-edge:#d4b263;--arrow:#c2ccd2}}
+text{font-family:system-ui,sans-serif;fill:var(--ink);font-size:23px}.box{fill:var(--record);stroke:var(--record-edge);stroke-width:2}.human{fill:var(--human);stroke:var(--human-edge);stroke-width:2}.arrow{stroke:var(--arrow);stroke-width:2;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="var(--arrow)"/></marker></defs>
+  <rect width="480" height="390" rx="12" fill="var(--paper)"/>
   <g text-anchor="middle">
     <rect class="box" x="20" y="12" width="440" height="64" rx="8"/><text x="240" y="40">Compare the signed difference</text><text x="240" y="66">with its two score columns</text>
     <path class="arrow" d="M240 80v20"/>

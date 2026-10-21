@@ -2,6 +2,10 @@
 
 This page says what Mycelium Extra does not promise. It is the threat model in plain words. Read it before you rely on a status line in a write-up.
 
+![The tool can inspect covered runs, recorded receipts and declared evidence. Unobserved tools, unchecked method choices and scientific validity remain outside what those records establish.](../figures/observation-boundary.svg)
+
+This is an observation boundary, not a security boundary. A matching record can coexist with an incorrect analysis or activity the hooks never observed.
+
 ## The threat model
 
 The gate is built for an agent that is careless, over-eager, or steered by text in its context: a file, a tool result or an old handoff that says "approve". Against that, it asks three questions. Can consent be forged by accident or by injected text? Can a covered run slip past unseen? Does every failure show up as a visible gap?

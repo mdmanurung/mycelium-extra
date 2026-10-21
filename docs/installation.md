@@ -55,6 +55,10 @@ Start a new session and run `/mycelium-extra:grill <task>` (`@grill` also works)
 
 ::::
 
+![Claude Code uses a marketplace plugin, Codex uses its plugin plus enabled and trusted hooks, and OpenCode points skills and plugins to a checkout. Python is shared, but host capabilities differ.](figures/host-routes.svg)
+
+Pick the matching host tab below, then check that its hooks are active. The compatibility table describes differences; shared skills do not imply identical host evidence.
+
 ## Requirements
 
 - **Python 3.9 or later.** Hooks run through `hooks/py.sh`, which picks the newest `python3.N` on `PATH`. On RHEL 8, `python3` is 3.6 but `python3.11` or `python3.12` usually exist. Set `MYCELIUM_EXTRA_PYTHON` to choose one.

@@ -1,8 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="480" height="390" viewBox="0 0 480 390" role="img" aria-labelledby="title desc">
   <title id="title">Planning and observation are independent questions</title>
   <desc id="desc">For a planned recorded step, inspect outcome and attribution. A planned step without a record is an evidence gap, not proof it never ran. For an unplanned recorded run, inspect approval and context. No observed event can be placed in the unplanned unrecorded cell.</desc>
-  <defs><style>text{font-family:system-ui,sans-serif;fill:#263238;font-size:23px}.record{fill:#f1f6f8;stroke:#527b8b;stroke-width:2}.gap{fill:#fcf8ee;stroke:#9c7e34;stroke-width:2;stroke-dasharray:6 4}.head{font-weight:650}</style></defs>
-  <rect width="480" height="390" rx="12" fill="#fff"/>
+  <defs><style>svg{--paper:#fff;--ink:#263238;--record:#f1f6f8;--record-edge:#527b8b;--human:#f5f1f7;--human-edge:#786389;--gap:#fcf8ee;--gap-edge:#9c7e34;--arrow:#626b70}
+@media(prefers-color-scheme:dark){svg{--paper:#18222a;--ink:#e8edf0;--record:#253a45;--record-edge:#8dbbc9;--human:#352c40;--human-edge:#b9a3c9;--gap:#3b3324;--gap-edge:#d4b263;--arrow:#c2ccd2}}
+text{font-family:system-ui,sans-serif;fill:var(--ink);font-size:23px}.record{fill:var(--record);stroke:var(--record-edge);stroke-width:2}.gap{fill:var(--gap);stroke:var(--gap-edge);stroke-width:2;stroke-dasharray:6 4}.head{font-weight:650}</style></defs>
+  <rect width="480" height="390" rx="12" fill="var(--paper)"/>
   <g text-anchor="middle">
     <text class="head" x="193" y="35">Recorded</text><text class="head" x="380" y="35">Not recorded</text>
     <text class="head" x="51" y="133" style="font-size:21px">Planned</text>

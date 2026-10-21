@@ -2,6 +2,10 @@
 
 Mycelium Extra is one implementation of a method for working with an LLM on analysis. The method does not depend on the plugin or on any one model. Use these six habits with another tool, or by hand, and you keep most of the benefit.
 
+![State your question, source choices, approve explicitly, separate exploration, check the execution record, and hand off in writing. Each habit has a plain-file equivalent.](../figures/six-habits.svg)
+
+Follow the same habits with ordinary files or another tool. The table below gives the plain-file equivalent of each habit.
+
 ## Why a method
 
 An agent is fluent and fast, and it fails in quiet ways. These are the failures the habits below are built for:

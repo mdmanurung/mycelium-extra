@@ -4,6 +4,10 @@
 
 **Method habit 6** ([the method](../start/method.md)). Without the plugin: keep a short file with the goal, the next action, decisions locked, and dead ends.
 
+![Session A writes a compact handoff with the goal, next action, locked decisions and dead ends. Session B reads it and checks the current state; it does not inherit approval or focus from the file.](../figures/session-handoff.svg)
+
+A handoff carries a continuation plan, not an authorization. The next session checks the referenced files and any approval that is still needed.
+
 ## What you control here
 
 - **Your typed word:** the invocation, and whether to commit the file. It never commits for you and never changes `.gitignore`. You also type `/clear` (or open a new session) and paste the resume prompt.

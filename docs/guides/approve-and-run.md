@@ -4,6 +4,10 @@ The gate denies a covered run until you approve a plan that names it. It then re
 
 **Method habits 3 and 4** ([the method](../start/method.md)). Without the plugin: commit the plan with a sign-off line, run only the scripts it lists, and keep experiments in a folder whose outputs you never cite.
 
+![The agent presents a plan and card, the researcher reads their scope and types approval, the gate checks covered execution, and the recorded outcome becomes evidence rather than scientific proof.](../figures/approval-roles.svg)
+
+A displayed card or an agreement in chat grants no execution approval by itself. Read the steps below for exact commands and the separate exploration grant.
+
 ## What you control here
 
 - **Your typed word:** `approve plan <hash>`, `approve amendment <hash>`, `approve freeze <hash>`, or bare `approve` when exactly one card is waiting and it is the one shown last. Only these exact words count. `ok, approve` is an ordinary prompt.

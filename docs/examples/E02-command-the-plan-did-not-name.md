@@ -4,6 +4,10 @@ Control point: **consent**
 
 Anonymised from a real project. Source: the amended plan in the same first session as E01 ("the gate rejected a `snakemake` check: the approval covered scaffolding but did not name `snakemake`"). The notices below are regenerated on the synthetic fixture.
 
+![The earlier plan named scripts but not the workflow command. The amended plan included the command and a broader grant that needed inspection, not merely an assumed dry-run permission.](../figures/workflow-grant.svg)
+
+This schematic summarizes the anonymised episode and regenerated card below. A broad command grant can cover more than one dry run, so read its scope before approving.
+
 ## 1. Socratic: ask these first
 
 - What did the approved table let run, word for word? Is the workflow tool in it?

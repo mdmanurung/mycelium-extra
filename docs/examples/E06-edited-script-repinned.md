@@ -4,6 +4,10 @@ Control point: **override**
 
 Anonymised from a real project. Source: a revised plan in project B ("step 1 ran once, passed its check, then crashed; one line now builds a numeric matrix first; the script is gate-pinned, so the edit needs re-approval"). At that time (0.9.44 behaviour) the gate blocked the run until re-approval. Since the release that reversed this (see CHANGELOG, "An edit to a script the plan lists no longer blocks a run") the gate re-pins and shows the change. The notices below are the current ones, regenerated on the fixture.
 
+![In the historical 0.9.44 episode an edited script blocked until reapproval. Current ordinary approved-script behavior is a re-pin notice; review and freeze remain explicit steps for reportable work.](../figures/repin-history.svg)
+
+The left panel is historical; the right describes ordinary approved-script re-pinning today. Exact-execution contracts and changed inputs have additional constraints; read the current reference before acting.
+
 ## 1. Socratic: ask these first
 
 - What did the plan say this step does, and which line moved?

@@ -2,6 +2,10 @@
 
 `focus` says which analysis this session is working on. `track-changes` shows what moved away from what you approved. Neither approves, freezes, runs or validates anything.
 
+![Focus names the analysis for the current session. Track changes compares approved intent and observations. The Journal exposes historical records and explicit coverage; none of these judges scientific impact.](../figures/orientation.svg)
+
+Focus supplies context, not ownership or approval. Open one observation to inspect evidence; whether a change matters scientifically remains your decision.
+
 ## What you control here
 
 - **Your typed word:** every `focus` line. The agent has no command that changes a focus. `freeze <hash>` after reading a report is also yours.

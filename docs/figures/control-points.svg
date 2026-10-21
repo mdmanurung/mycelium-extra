@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="505" viewBox="0 0 480 505" role="img" aria-labelledby="title desc">
+<title id="title">Seven places where the researcher retains control</title>
+<desc id="desc">Consent, visibility, honesty, override, reversibility, boundary and attention name the control principles. They describe cooperative behavior, not an enforced security perimeter.</desc>
+<defs><style>svg{--paper:#fff;--ink:#263238;--record:#f1f6f8;--record-edge:#527b8b;--human:#f5f1f7;--human-edge:#786389;--gap:#fcf8ee;--gap-edge:#9c7e34;--arrow:#626b70}
+@media(prefers-color-scheme:dark){svg{--paper:#18222a;--ink:#e8edf0;--record:#253a45;--record-edge:#8dbbc9;--human:#352c40;--human-edge:#b9a3c9;--gap:#3b3324;--gap-edge:#d4b263;--arrow:#c2ccd2}}
+text{font-family:system-ui,sans-serif;fill:var(--ink);font-size:22px}.head{font-size:24px;font-weight:650}.box{fill:var(--record);stroke:var(--record-edge);stroke-width:2}.human{fill:var(--human);stroke:var(--human-edge)}.gap{fill:var(--gap);stroke:var(--gap-edge);stroke-dasharray:6 4}.arrow{stroke:var(--arrow);stroke-width:2;fill:none;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="var(--arrow)"/></marker></defs>
+<rect width="480" height="505" rx="12" fill="var(--paper)"/>
+<g text-anchor="middle">
+<rect class="box human" x="12" y="12" width="222" height="98" rx="8"/>
+<text x="123" y="44" class="head" style="font-size:22px">Consent</text>
+<text x="123" y="77" style="font-size:21px">You approve</text>
+<rect class="box" x="246" y="12" width="222" height="98" rx="8"/>
+<text x="357" y="44" class="head" style="font-size:22px">Visibility</text>
+<text x="357" y="77" style="font-size:21px">See the scope</text>
+<rect class="box gap" x="12" y="128" width="222" height="98" rx="8"/>
+<text x="123" y="160" class="head" style="font-size:22px">Honesty</text>
+<text x="123" y="193" style="font-size:21px">Gaps stay gaps</text>
+<rect class="box human" x="246" y="128" width="222" height="98" rx="8"/>
+<text x="357" y="160" class="head" style="font-size:22px">Override</text>
+<text x="357" y="193" style="font-size:21px">Refuse or revise</text>
+<rect class="box" x="12" y="244" width="222" height="127" rx="8"/>
+<text x="123" y="276" class="head" style="font-size:22px">Reversibility</text>
+<text x="123" y="309" style="font-size:21px">Inspect records</text>
+<rect class="box" x="246" y="244" width="222" height="127" rx="8"/>
+<text x="357" y="276" class="head" style="font-size:22px">Boundary</text>
+<text x="357" y="309" style="font-size:21px">Respect project</text>
+<text x="357" y="338" style="font-size:21px">roles</text>
+<rect class="box human" x="12" y="389" width="222" height="98" rx="8"/>
+<text x="123" y="421" class="head" style="font-size:22px">Attention</text>
+<text x="123" y="454" style="font-size:21px">Read one decision</text>
+</g></svg>

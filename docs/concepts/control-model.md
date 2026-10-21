@@ -4,6 +4,10 @@ Mycelium Extra is built around one question: does every function leave you, the 
 
 The promises describe how the tool behaves when everything works. They do not turn it into a lock. See [What is not guaranteed](not-guaranteed.md) for what they leave out.
 
+![Consent, visibility, honesty, override, reversibility, boundary and attention name the control principles. They describe cooperative behavior, not an enforced security perimeter.](../figures/control-points.svg)
+
+Read each principle with its concrete limits below. Some confirmations are instructions to the agent; these principles are not a security perimeter.
+
 ## 1. Consent
 
 **Nothing that runs, writes or records happens until you say so in your own words.**

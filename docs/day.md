@@ -6,6 +6,10 @@ This follows one researcher through one working day on a reportable analysis, in
 
 The question for the day: *does the day 28 minus day 0 change in gene expression differ between vaccine and placebo?* The repository already has the gate turned on (`/mycelium-extra:init`, once). Examples use Claude Code's `/mycelium-extra:` prefix; Codex uses `$mycelium-extra:`, and OpenCode uses `/mycelium-extra:` too.
 
+![Resume and plan, approve and implement, review and freeze before a reportable run, check the execution evidence, then retain a handoff. The clock times below are illustrative, not measured durations.](figures/working-day.svg)
+
+This is a teaching sequence, not a measured schedule. The clock times below are illustrative; submission, completion and verification remain different events.
+
 ## 09:00 Pick up where you stopped
 
 Yesterday ended with `handoff`, so the repository holds a short `HANDOFF.md`: the goal, the exact next action, decisions you locked in, and dead ends not to redo. Start a fresh session and paste the resume prompt `handoff` printed. Nothing needs re-explaining, and a plan that was still waiting for approval comes back word for word.
@@ -44,7 +48,7 @@ The first run is the plan's step 1. It is allowed, because the plan names the sc
 
 ## 11:30 Something breaks: debug without ceremony
 
-Step 2 fails on a sample ID mismatch. Fixing a script that has already run would normally need the plan approved again, since approved scripts are pinned. For a debugging loop, grant exploration for this plan:
+Step 2 fails on a sample ID mismatch. An ordinary edit to a script the plan names is re-pinned with a notice, rather than blocked. For a separate, nonreportable debugging loop, grant exploration for this plan:
 
 ```text
 allow explore 84bb5fce
@@ -103,7 +107,8 @@ Tomorrow's first session starts from the file it writes.
 | You see | It means | You type |
 |---|---|---|
 | "blocked because no active approved plan covers this run" | The run is not in an approved plan, or the approval is older than 24 hours | Ask `grill` for a plan that names it, then `approve` |
-| A pinned input or script changed | The file differs from what you approved | Approve the revised plan; the card shows what changed |
+| A pinned input changed | The input differs from what you approved | Recheck it and approve the revised plan |
+| An ordinary script was re-pinned | Its code differs from the earlier pin | Inspect the notice; review and freeze before a reportable rerun |
 | An explore run was denied | It touches a path outside the plan | Approve a plan that names it, or `allow explore` for the session |
 | `approve` approved nothing and listed hashes | Several plans, or an older one, are waiting | `approve plan <hash>` |
 

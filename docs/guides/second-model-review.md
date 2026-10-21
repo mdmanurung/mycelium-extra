@@ -2,6 +2,10 @@
 
 `plan-review` is an optional, read-only challenge of a grill plan by independent reviewers (Codex for engineering, Biomni for biomedicine) before you approve. It approves nothing.
 
+![Inspect an immutable packet and named reviewers, type consent for that packet, read which reviewers ran and their disagreements, and decide whether to revise the plan. Review does not approve execution.](../figures/review-consent.svg)
+
+This is a conceptual sequence, not a captured review. No packet leaves the machine from this page, and a review grants no execution approval.
+
 ## What you control here
 
 - **Your typed word:** `send packet <digest>`, typed by you as a prompt of its own. Without it nothing leaves the machine. The agent does not type it or write the consent record.

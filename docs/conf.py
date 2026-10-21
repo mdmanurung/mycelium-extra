@@ -40,4 +40,6 @@ myst_enable_extensions = ["colon_fence", "deflist"]
 html_theme = "scanpydoc"
 html_title = "Mycelium Extra"
 html_baseurl = "https://mdmanurung.github.io/mycelium-extra/"
+html_static_path = ["_static"]
+html_css_files = ["overviews.css"]
 html_extra_path = ["examples/track-changes-report.html"]

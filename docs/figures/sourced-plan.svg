@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="532" viewBox="0 0 480 532" role="img" aria-labelledby="title desc">
+<title id="title">Turn a question into a sourced and checkable plan</title>
+<desc id="desc">The researcher states the question first. Repository evidence, user choices and labelled defaults inform each plan row; each row names a check rather than silently assuming its choice is right.</desc>
+<defs><style>svg{--paper:#fff;--ink:#263238;--record:#f1f6f8;--record-edge:#527b8b;--human:#f5f1f7;--human-edge:#786389;--gap:#fcf8ee;--gap-edge:#9c7e34;--arrow:#626b70}
+@media(prefers-color-scheme:dark){svg{--paper:#18222a;--ink:#e8edf0;--record:#253a45;--record-edge:#8dbbc9;--human:#352c40;--human-edge:#b9a3c9;--gap:#3b3324;--gap-edge:#d4b263;--arrow:#c2ccd2}}
+text{font-family:system-ui,sans-serif;fill:var(--ink);font-size:22px}.head{font-size:24px;font-weight:650}.box{fill:var(--record);stroke:var(--record-edge);stroke-width:2}.human{fill:var(--human);stroke:var(--human-edge)}.gap{fill:var(--gap);stroke:var(--gap-edge);stroke-dasharray:6 4}.arrow{stroke:var(--arrow);stroke-width:2;fill:none;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="var(--arrow)"/></marker></defs>
+<rect width="480" height="532" rx="12" fill="var(--paper)"/>
+<g text-anchor="middle">
+<rect class="box human" x="20" y="12" width="440" height="93" rx="8"/>
+<text x="240" y="44" class="head">Your question comes first</text>
+<text x="240" y="75">State it before a drafted answer</text>
+<path class="arrow" d="M240 109v16"/>
+<rect class="box" x="20" y="131" width="440" height="93" rx="8"/>
+<text x="240" y="163" class="head">Inspect repository evidence</text>
+<text x="240" y="194">Read the relevant records and data</text>
+<path class="arrow" d="M240 228v16"/>
+<rect class="box human" x="20" y="250" width="440" height="122" rx="8"/>
+<text x="240" y="282" class="head">Make each choice visible</text>
+<text x="240" y="313">Source: repository, user or</text>
+<text x="240" y="342">default</text>
+<path class="arrow" d="M240 376v16"/>
+<rect class="box" x="20" y="398" width="440" height="122" rx="8"/>
+<text x="240" y="430" class="head">Name a falsifiable check</text>
+<text x="240" y="461">Say what would expose a wrong</text>
+<text x="240" y="490">choice</text>
+</g></svg>

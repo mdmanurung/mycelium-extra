@@ -4,6 +4,10 @@ Control point: **honesty**
 
 Anonymised from a real project. Source: a hand-written addendum beside a real `verify` report in project B, plus CHANGELOG defect V-30 (the later fix). Output blocks regenerated on the fixture with the current release.
 
+![A submit receipt records invocation or submission, while a scheduler record can establish a job outcome. Missing attribution remains a gap; the historical missed failure and current regenerated handling are distinguished in the text.](../figures/submission-outcome.svg)
+
+These are evidence types, not newly queried job results. The case below separates the historical blind spot from current regenerated failed-job and unattributed-loop reports.
+
 ## 1. Socratic: ask these first
 
 - The report says no receipt for two planned scripts. Does "no receipt" mean "did not run"?

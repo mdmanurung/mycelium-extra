@@ -6,6 +6,10 @@ Turn it on per repository with `/mycelium-extra:init` (Codex: `$mycelium-extra:i
 
 **Full detail** for every section below, including card fields, receipt fields and edge cases, is in the [complete gate reference](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/approval-gate-full.md).
 
+![Covered execution needs a matching approval in the session. Changed pinned inputs block. Ordinary script edits re-pin with a notice. Exploration needs its own typed grant. More exact execution contracts can add constraints.](figures/gate-checks.svg)
+
+These are distinct checks, not alternative scientific verdicts. The full reference explains exact-execution contracts, time limits, unsupported tools and error policy.
+
 ## Approving a plan
 
 When a reply ends with `Plan status: READY` or `READY_WITH_ASSUMPTIONS`, the Stop hook hashes the plan and shows a **card**: the question, each choice and who decided it (`[you]`, `[repo: ...]`, `[default: reason]*`), the checks, what changed since the last approval, and exactly what the plan lets run. Check the science on the card, then type:

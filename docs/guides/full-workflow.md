@@ -49,9 +49,12 @@ flowchart TD
 ```
 
 The first approval covers implementation and test runs; the second freezes
-finished code for the reportable run. Once a script has run under an approval,
-an edit to it needs that plan approved again (see [Pinned scripts](../approval-gate.md#pinned-scripts)),
-so use `allow explore` for a debugging loop. Dry runs still need approval. Use one
+finished code for the reportable run. An ordinary edit to a script the plan names
+is re-pinned with a notice, rather than blocked; freeze the reviewed code again
+before a reportable rerun (see [Pinned scripts](../approval-gate.md#pinned-scripts)).
+Use `allow explore` for a separate, nonreportable debugging loop. Changed pinned
+inputs and exact-execution contracts can require a revised approval. Dry runs
+still need approval. Use one
 `PLAN.md`, revised in place, and record revisions in `TRACKER.md`.
 
 Verification reports missing evidence separately from failures; saving provenance
@@ -60,6 +63,10 @@ code review assesses methods and interpretation, which is why the principal revi
 comes before the freeze and verification does not replace it. If the final report introduces
 new or changed claims, run `verify` again with that document included before
 sharing it. See [Verification reference](../verification.md#what-the-report-shows).
+
+![Plan and approve scientific intent, implement and review before freezing code for the reportable run, then verify evidence and retain provenance and a handoff. The detailed workflow below includes optional branches.](../figures/workflow-overview.svg)
+
+Intent approval and the final execution freeze are separate checkpoints. This is an overview of the method; the detailed diagram below distinguishes the main path from optional steps.
 
 ## Two checkpoints
 

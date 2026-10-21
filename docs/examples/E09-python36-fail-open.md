@@ -4,6 +4,10 @@ Control point: **visibility**
 
 Anonymised from a real project. Source: `gate-errors.jsonl` of project A (21 lines) and the CHANGELOG entries for `hooks/py.sh`. No receipt exists for any call in the failing windows.
 
+![When a hook fails, the default allow policy permits the unchecked call and the optional deny policy blocks it. Neither policy makes the failed inspection complete; the error record remains important.](../figures/hook-error-policy.svg)
+
+This policy comparison is schematic. The anonymised error records below show fail-open behavior; neither permission outcome turns a failed inspection into evidence that a check passed.
+
 ## 1. Socratic: ask these first
 
 - When the gate cannot check a call, does it block or allow? Which setting decides?

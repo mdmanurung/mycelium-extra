@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="215" viewBox="0 0 480 215" role="img" aria-labelledby="title desc">
+<title id="title">Separate the historical episode from current re-pinning</title>
+<desc id="desc">In the historical 0.9.44 episode an edited script blocked until reapproval. Current ordinary approved-script behavior is a re-pin notice; review and freeze remain explicit steps for reportable work.</desc>
+<defs><style>svg{--paper:#fff;--ink:#263238;--record:#f1f6f8;--record-edge:#527b8b;--human:#f5f1f7;--human-edge:#786389;--gap:#fcf8ee;--gap-edge:#9c7e34;--arrow:#626b70}
+@media(prefers-color-scheme:dark){svg{--paper:#18222a;--ink:#e8edf0;--record:#253a45;--record-edge:#8dbbc9;--human:#352c40;--human-edge:#b9a3c9;--gap:#3b3324;--gap-edge:#d4b263;--arrow:#c2ccd2}}
+text{font-family:system-ui,sans-serif;fill:var(--ink);font-size:22px}.head{font-size:24px;font-weight:650}.box{fill:var(--record);stroke:var(--record-edge);stroke-width:2}.human{fill:var(--human);stroke:var(--human-edge)}.gap{fill:var(--gap);stroke:var(--gap-edge);stroke-dasharray:6 4}.arrow{stroke:var(--arrow);stroke-width:2;fill:none;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="var(--arrow)"/></marker></defs>
+<rect width="480" height="215" rx="12" fill="var(--paper)"/>
+<g text-anchor="middle">
+<rect class="box human" x="12" y="12" width="222" height="185" rx="8"/>
+<text x="123" y="44" class="head" style="font-size:22px">Then: 0.9.44</text>
+<text x="123" y="77" style="font-size:21px">Edit blocked the</text>
+<text x="123" y="106" style="font-size:21px">run</text>
+<text x="123" y="135" style="font-size:21px">Reapproval was</text>
+<text x="123" y="164" style="font-size:21px">needed</text>
+<rect class="box" x="246" y="12" width="222" height="185" rx="8"/>
+<text x="357" y="44" class="head" style="font-size:20px">Current behavior</text>
+<text x="357" y="77" style="font-size:21px">Ordinary edit</text>
+<text x="357" y="106" style="font-size:21px">re-pins</text>
+<text x="357" y="135" style="font-size:21px">Read the change</text>
+<text x="357" y="164" style="font-size:21px">notice</text>
+</g></svg>
