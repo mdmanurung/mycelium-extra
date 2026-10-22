@@ -1,0 +1,470 @@
+[
+  {
+    "file": "hooks/tests/test_approval_flow_fixes.py",
+    "exit": 0,
+    "seconds": 5.43,
+    "tail": "in_time_is_still_reported_as_checked) ... ok\ntest_a_pin_the_time_limit_skipped_is_not_reported_as_checked (__main__.ApprovalFlowFixTest.test_a_pin_the_time_limit_skipped_is_not_reported_as_checked) ... ok\ntest_a_truncated_launch_record_is_reported_unreadable_and_kept (__main__.ApprovalFlowFixTest.test_a_truncated_launch_record_is_reported_unreadable_and_kept) ... ok\ntest_an_approval_without_a_session_id_does_not_claim_a_run_may_follow (__main__.ApprovalFlowFixTest.test_an_approval_without_a_session_id_does_not_claim_a_run_may_follow) ... ok\ntest_an_expired_baseline_gets_the_whole_card (__main__.ApprovalFlowFixTest.test_an_expired_baseline_gets_the_whole_card) ... ok\ntest_an_explore_grant_is_not_shared_with_an_id_that_sanitises_alike (__main__.ApprovalFlowFixTest.test_an_explore_grant_is_not_shared_with_an_id_that_sanitises_alike) ... ok\ntest_another_sessions_baseline_gets_the_whole_card (__main__.ApprovalFlowFixTest.test_another_sessions_baseline_gets_the_whole_card) ... ok\ntest_command_spacing_is_tolerated (__main__.ApprovalFlowFixTest.test_command_spacing_is_tolerated) ... ok\ntest_session_names_do_not_collide (__main__.ApprovalFlowFixTest.test_session_names_do_not_collide) ... ok\n\n----------------------------------------------------------------------\nRan 11 tests in 4.890s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "hooks/tests/test_approval_flow_fixes.py"
+    ],
+    "tests": 11,
+    "skipped": 0
+  },
+  {
+    "file": "hooks/tests/test_codex_gate.py",
+    "exit": 0,
+    "seconds": 7.43,
+    "tail": "......\n----------------------------------------------------------------------\nRan 6 tests in 6.961s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "hooks/tests/test_codex_gate.py"
+    ],
+    "tests": 6,
+    "skipped": 0
+  },
+  {
+    "file": "hooks/tests/test_focus.py",
+    "exit": 0,
+    "seconds": 19.13,
+    "tail": "........................Error in sitecustomize; set PYTHONVERBOSE for traceback:\nModuleNotFoundError: No module named 'coverage'\n..\n----------------------------------------------------------------------\nRan 26 tests in 18.773s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "hooks/tests/test_focus.py"
+    ],
+    "tests": 26,
+    "skipped": 0
+  },
+  {
+    "file": "hooks/tests/test_gate.py",
+    "exit": 0,
+    "seconds": 282.18,
+    "tail": "undError: No module named 'coverage'\n.Error in sitecustomize; set PYTHONVERBOSE for traceback:\nModuleNotFoundError: No module named 'coverage'\n.Error in sitecustomize; set PYTHONVERBOSE for traceback:\nModuleNotFoundError: No module named 'coverage'\n.Error in sitecustomize; set PYTHONVERBOSE for traceback:\nModuleNotFoundError: No module named 'coverage'\n..Error in sitecustomize; set PYTHONVERBOSE for traceback:\nModuleNotFoundError: No module named 'coverage'\n........................................................................Error in sitecustomize; set PYTHONVERBOSE for traceback:\nModuleNotFoundError: No module named 'coverage'\n.............Error in sitecustomize; set PYTHONVERBOSE for traceback:\nModuleNotFoundError: No module named 'coverage'\nError in sitecustomize; set PYTHONVERBOSE for traceback:\nModuleNotFoundError: No module named 'coverage'\n...............................................................................s....................................................................................................................................................s...............................................................................................\n----------------------------------------------------------------------\nRan 477 tests in 281.674s\n\nOK (skipped=2)\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "hooks/tests/test_gate.py"
+    ],
+    "tests": 477,
+    "skipped": 2
+  },
+  {
+    "file": "hooks/tests/test_gate_diff.py",
+    "exit": 0,
+    "seconds": 0.37,
+    "tail": "..\n----------------------------------------------------------------------\nRan 2 tests in 0.001s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "hooks/tests/test_gate_diff.py"
+    ],
+    "tests": 2,
+    "skipped": 0
+  },
+  {
+    "file": "hooks/tests/test_gate_scan_fixes.py",
+    "exit": 0,
+    "seconds": 10.48,
+    "tail": "tatus_governs) ... ok\ntest_line_continuation_is_not_a_separator (__main__.ScanFixTest.test_line_continuation_is_not_a_separator) ... ok\ntest_package_manager_runners_are_wrappers (__main__.ScanFixTest.test_package_manager_runners_are_wrappers) ... ok\ntest_python_dash_m_reads_gated_commands (__main__.ScanFixTest.test_python_dash_m_reads_gated_commands) ... ok\ntest_quoted_heredoc_delimiter_with_spaces (__main__.ScanFixTest.test_quoted_heredoc_delimiter_with_spaces) ... ok\ntest_srun_unknown_options_do_not_hide_the_run (__main__.ScanFixTest.test_srun_unknown_options_do_not_hide_the_run) ... ok\ntest_state_folder_writes_are_read (__main__.ScanFixTest.test_state_folder_writes_are_read) ... ok\ntest_stdin_code_is_read (__main__.ScanFixTest.test_stdin_code_is_read) ... ok\ntest_subshell_and_popd_scope (__main__.ScanFixTest.test_subshell_and_popd_scope) ... ok\ntest_timeout_durations (__main__.ScanFixTest.test_timeout_durations) ... ok\ntest_truncated_receipt_tail_does_not_swallow_the_next (__main__.ScanFixTest.test_truncated_receipt_tail_does_not_swallow_the_next) ... ok\ntest_unreadable_opencode_tool_input_is_reported (__main__.ScanFixTest.test_unreadable_opencode_tool_input_is_reported) ... ok\n\n----------------------------------------------------------------------\nRan 21 tests in 10.051s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "hooks/tests/test_gate_scan_fixes.py"
+    ],
+    "tests": 21,
+    "skipped": 0
+  },
+  {
+    "file": "hooks/tests/test_opencode_gate.py",
+    "exit": 0,
+    "seconds": 7.63,
+    "tail": "........\n----------------------------------------------------------------------\nRan 8 tests in 7.150s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "hooks/tests/test_opencode_gate.py"
+    ],
+    "tests": 8,
+    "skipped": 0
+  },
+  {
+    "file": "hooks/tests/test_provenance.py",
+    "exit": 0,
+    "seconds": 0.87,
+    "tail": ".....\n----------------------------------------------------------------------\nRan 5 tests in 0.511s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "hooks/tests/test_provenance.py"
+    ],
+    "tests": 5,
+    "skipped": 0
+  },
+  {
+    "file": "hooks/tests/test_py_launcher.py",
+    "exit": 0,
+    "seconds": 0.82,
+    "tail": "........\n----------------------------------------------------------------------\nRan 8 tests in 0.453s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "hooks/tests/test_py_launcher.py"
+    ],
+    "tests": 8,
+    "skipped": 0
+  },
+  {
+    "file": "hooks/tests/test_runtime_fixes.py",
+    "exit": 0,
+    "seconds": 0.37,
+    "tail": "test_a_link_inside_the_gated_folder_is_still_a_target (__main__.FocusTargetTest.test_a_link_inside_the_gated_folder_is_still_a_target) ... ok\ntest_a_symlink_into_the_state_folder_is_refused (__main__.FocusTargetTest.test_a_symlink_into_the_state_folder_is_refused) ... ok\ntest_a_symlink_to_a_non_gated_folder_is_refused (__main__.FocusTargetTest.test_a_symlink_to_a_non_gated_folder_is_refused) ... ok\ntest_a_symlink_to_the_project_root_is_refused (__main__.FocusTargetTest.test_a_symlink_to_the_project_root_is_refused) ... ok\ntest_a_symlinked_state_folder_is_still_refused (__main__.SymlinkRootTest.test_a_symlinked_state_folder_is_still_refused) ... ok\ntest_state_writes_work_under_a_symlinked_root (__main__.SymlinkRootTest.test_state_writes_work_under_a_symlinked_root) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.007s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "hooks/tests/test_runtime_fixes.py"
+    ],
+    "tests": 6,
+    "skipped": 0
+  },
+  {
+    "file": "hooks/tests/test_validation.py",
+    "exit": 0,
+    "seconds": 0.37,
+    "tail": "...........................\n----------------------------------------------------------------------\nRan 27 tests in 0.038s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "hooks/tests/test_validation.py"
+    ],
+    "tests": 27,
+    "skipped": 0
+  },
+  {
+    "file": "skills/data-contract-check/tests/test_data_contract_check.py",
+    "exit": 0,
+    "seconds": 49.73,
+    "tail": ".............................ssssssssssssssssssss....................................................\n----------------------------------------------------------------------\nRan 101 tests in 49.367s\n\nOK (skipped=20)\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/data-contract-check/tests/test_data_contract_check.py"
+    ],
+    "tests": 101,
+    "skipped": 20
+  },
+  {
+    "file": "skills/decision-status/tests/test_decision_threads.py",
+    "exit": 0,
+    "seconds": 3.52,
+    "tail": "...........\n----------------------------------------------------------------------\nRan 11 tests in 3.224s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/decision-status/tests/test_decision_threads.py"
+    ],
+    "tests": 11,
+    "skipped": 0
+  },
+  {
+    "file": "skills/grill/tests/test_grill_references.py",
+    "exit": 0,
+    "seconds": 0.42,
+    "tail": "..............\n----------------------------------------------------------------------\nRan 14 tests in 0.078s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/grill/tests/test_grill_references.py"
+    ],
+    "tests": 14,
+    "skipped": 0
+  },
+  {
+    "file": "skills/idea/tests/test_capture.py",
+    "exit": 0,
+    "seconds": 4.57,
+    "tail": ".....\n----------------------------------------------------------------------\nRan 5 tests in 4.232s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/idea/tests/test_capture.py"
+    ],
+    "tests": 5,
+    "skipped": 0
+  },
+  {
+    "file": "skills/init/tests/test_gate_init.py",
+    "exit": 0,
+    "seconds": 17.86,
+    "tail": ".................................\n----------------------------------------------------------------------\nRan 33 tests in 17.521s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/init/tests/test_gate_init.py"
+    ],
+    "tests": 33,
+    "skipped": 0
+  },
+  {
+    "file": "skills/new-analysis/tests/test_new_analysis.py",
+    "exit": 0,
+    "seconds": 9.24,
+    "tail": ".............s......\n----------------------------------------------------------------------\nRan 20 tests in 8.904s\n\nOK (skipped=1)\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/new-analysis/tests/test_new_analysis.py"
+    ],
+    "tests": 20,
+    "skipped": 1
+  },
+  {
+    "file": "skills/plan-review/tests/test_default_reasons.py",
+    "exit": 0,
+    "seconds": 1.47,
+    "tail": ".........\n----------------------------------------------------------------------\nRan 9 tests in 1.127s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/plan-review/tests/test_default_reasons.py"
+    ],
+    "tests": 9,
+    "skipped": 0
+  },
+  {
+    "file": "skills/plan-review/tests/test_plan_review.py",
+    "exit": 0,
+    "seconds": 0.37,
+    "tail": "........\n----------------------------------------------------------------------\nRan 8 tests in 0.033s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/plan-review/tests/test_plan_review.py"
+    ],
+    "tests": 8,
+    "skipped": 0
+  },
+  {
+    "file": "skills/plan-review/tests/test_presend_check.py",
+    "exit": 0,
+    "seconds": 3.27,
+    "tail": ".................\n----------------------------------------------------------------------\nRan 17 tests in 2.947s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/plan-review/tests/test_presend_check.py"
+    ],
+    "tests": 17,
+    "skipped": 0
+  },
+  {
+    "file": "skills/plan-review/tests/test_presend_fixes.py",
+    "exit": 0,
+    "seconds": 1.72,
+    "tail": "test_a_missing_input_refuses_then_prepares_with_consent (__main__.ConsentTest.test_a_missing_input_refuses_then_prepares_with_consent) ... ok\ntest_clean_packet_records_no_consent (__main__.ConsentTest.test_clean_packet_records_no_consent) ... ok\ntest_consent_does_not_cover_an_undisclosed_flag (__main__.ConsentTest.test_consent_does_not_cover_an_undisclosed_flag) ... ok\ntest_a_bulleted_inputs_line_still_yields_identifier_flags (__main__.InputLineTest.test_a_bulleted_inputs_line_still_yields_identifier_flags) ... ok\ntest_inputs_line_is_read_as_a_bullet_or_in_bold (__main__.InputLineTest.test_inputs_line_is_read_as_a_bullet_or_in_bold) ... ok\ntest_semicolon_delimited_table_is_read (__main__.InputTableTest.test_semicolon_delimited_table_is_read) ... ok\ntest_spaced_identifier_column_is_recognised (__main__.InputTableTest.test_spaced_identifier_column_is_recognised) ... ok\ntest_table_with_no_recognisable_delimiter_is_reported_unchecked (__main__.InputTableTest.test_table_with_no_recognisable_delimiter_is_reported_unchecked) ... ok\ntest_table_without_an_id_column_is_reported_not_checked (__main__.InputTableTest.test_table_without_an_id_column_is_reported_not_checked) ... ok\n\n----------------------------------------------------------------------\nRan 9 tests in 1.342s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/plan-review/tests/test_presend_fixes.py"
+    ],
+    "tests": 9,
+    "skipped": 0
+  },
+  {
+    "file": "skills/plan-review/tests/test_review_packet.py",
+    "exit": 0,
+    "seconds": 11.79,
+    "tail": "..............\n----------------------------------------------------------------------\nRan 14 tests in 11.456s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/plan-review/tests/test_review_packet.py"
+    ],
+    "tests": 14,
+    "skipped": 0
+  },
+  {
+    "file": "skills/track-changes/tests/test_journal.py",
+    "exit": 0,
+    "seconds": 76.23,
+    "tail": "............\n----------------------------------------------------------------------\nRan 12 tests in 75.507s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/track-changes/tests/test_journal.py"
+    ],
+    "tests": 12,
+    "skipped": 0
+  },
+  {
+    "file": "skills/track-changes/tests/test_report_fixes.py",
+    "exit": 0,
+    "seconds": 0.37,
+    "tail": "test_the_cap_keeps_attention_items (__main__.CapTest.test_the_cap_keeps_attention_items) ... ok\ntest_the_same_analysis_keeps_its_folder (__main__.FolderTest.test_the_same_analysis_keeps_its_folder) ... ok\ntest_two_analyses_that_spell_one_folder_name_keep_both (__main__.FolderTest.test_two_analyses_that_spell_one_folder_name_keep_both) ... ok\ntest_a_harmless_line_is_left_alone (__main__.RedactionTest.test_a_harmless_line_is_left_alone) ... ok\ntest_secret_shapes_in_a_diff_are_redacted (__main__.RedactionTest.test_secret_shapes_in_a_diff_are_redacted) ... ok\n\n----------------------------------------------------------------------\nRan 5 tests in 0.004s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/track-changes/tests/test_report_fixes.py"
+    ],
+    "tests": 5,
+    "skipped": 0
+  },
+  {
+    "file": "skills/track-changes/tests/test_track_changes.py",
+    "exit": 0,
+    "seconds": 38.1,
+    "tail": ".........................................\n----------------------------------------------------------------------\nRan 41 tests in 37.708s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/track-changes/tests/test_track_changes.py"
+    ],
+    "tests": 41,
+    "skipped": 0
+  },
+  {
+    "file": "skills/verify/tests/test_audit_fixes.py",
+    "exit": 0,
+    "seconds": 4.92,
+    "tail": "test_how_a_claim_matches_is_stated (__main__.AuditFixTest.test_how_a_claim_matches_is_stated) ... ok\ntest_lint_that_did_not_run_is_not_clean (__main__.AuditFixTest.test_lint_that_did_not_run_is_not_clean) ... ok\ntest_provenance_in_an_ignored_folder_is_found (__main__.AuditFixTest.test_provenance_in_an_ignored_folder_is_found) ... ok\ntest_run_id_covers_mtime_as_well_as_size (__main__.AuditFixTest.test_run_id_covers_mtime_as_well_as_size) ... ok\ntest_status_contradictions_are_findings (__main__.AuditFixTest.test_status_contradictions_are_findings) ... ok\ntest_write_failure_is_a_verify_error (__main__.AuditFixTest.test_write_failure_is_a_verify_error) ... ok\ntest_wrong_analysis_dir_is_refused (__main__.AuditFixTest.test_wrong_analysis_dir_is_refused) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 4.295s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/verify/tests/test_audit_fixes.py"
+    ],
+    "tests": 7,
+    "skipped": 0
+  },
+  {
+    "file": "skills/verify/tests/test_default_reasons.py",
+    "exit": 0,
+    "seconds": 5.17,
+    "tail": "....\n----------------------------------------------------------------------\nRan 4 tests in 4.667s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/verify/tests/test_default_reasons.py"
+    ],
+    "tests": 4,
+    "skipped": 0
+  },
+  {
+    "file": "skills/verify/tests/test_verify.py",
+    "exit": 0,
+    "seconds": 412.25,
+    "tail": "....................................................................................................................................................................................................................................................../exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/verify/tests/test_verify.py:2924: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpwg56_h8e/analysis/a/provenance/PROVENANCE.md' mode='r' encoding='UTF-8'>\n  self.assertIn(\"[validation](validation-{}.json)\".format(digest), open(os.path.join(folder, \"PROVENANCE.md\")).read())\nResourceWarning: Enable tracemalloc to get the object allocation traceback\n.....................\n----------------------------------------------------------------------\nRan 267 tests in 411.620s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "skills/verify/tests/test_verify.py"
+    ],
+    "tests": 267,
+    "skipped": 0
+  },
+  {
+    "file": "tests/test_ci_pins.py",
+    "exit": 0,
+    "seconds": 0.36,
+    "tail": ".\n----------------------------------------------------------------------\nRan 1 test in 0.007s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "tests/test_ci_pins.py"
+    ],
+    "tests": 1,
+    "skipped": 0
+  },
+  {
+    "file": "tests/test_contract_compatibility.py",
+    "exit": 0,
+    "seconds": 0.42,
+    "tail": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.094s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "tests/test_contract_compatibility.py"
+    ],
+    "tests": 3,
+    "skipped": 0
+  },
+  {
+    "file": "tests/test_end_to_end.py",
+    "exit": 0,
+    "seconds": 274.82,
+    "tail": "ports/para-lipg-hpc/mdmanurung/mycelium-extra/tests/e2e/harness.py:101: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).\n  return datetime.datetime.utcfromtimestamp(epoch).strftime(\"%Y-%m-%dT%H:%M:%S.%fZ\")\n.s./exports/para-lipg-hpc/mdmanurung/mycelium-extra/tests/e2e/harness.py:101: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).\n  return datetime.datetime.utcfromtimestamp(epoch).strftime(\"%Y-%m-%dT%H:%M:%S.%fZ\")\n.s/exports/para-lipg-hpc/mdmanurung/mycelium-extra/tests/e2e/harness.py:101: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).\n  return datetime.datetime.utcfromtimestamp(epoch).strftime(\"%Y-%m-%dT%H:%M:%S.%fZ\")\n..\n----------------------------------------------------------------------\nRan 111 tests in 274.421s\n\nOK (skipped=2)\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "tests/test_end_to_end.py"
+    ],
+    "tests": 111,
+    "skipped": 2
+  },
+  {
+    "file": "tests/test_eval_score.py",
+    "exit": 0,
+    "seconds": 2.07,
+    "tail": "..........................\n----------------------------------------------------------------------\nRan 26 tests in 1.698s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "tests/test_eval_score.py"
+    ],
+    "tests": 26,
+    "skipped": 0
+  },
+  {
+    "file": "tests/test_example.py",
+    "exit": 0,
+    "seconds": 0.36,
+    "tail": "....\n----------------------------------------------------------------------\nRan 4 tests in 0.028s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "tests/test_example.py"
+    ],
+    "tests": 4,
+    "skipped": 0
+  },
+  {
+    "file": "tests/test_fixture_data.py",
+    "exit": 0,
+    "seconds": 192.96,
+    "tail": "...\n----------------------------------------------------------------------\nRan 3 tests in 192.629s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "tests/test_fixture_data.py"
+    ],
+    "tests": 3,
+    "skipped": 0
+  },
+  {
+    "file": "tests/test_method_fidelity.py",
+    "exit": 0,
+    "seconds": 2.67,
+    "tail": "........\n----------------------------------------------------------------------\nRan 8 tests in 2.015s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "tests/test_method_fidelity.py"
+    ],
+    "tests": 8,
+    "skipped": 0
+  },
+  {
+    "file": "tests/test_recipes.py",
+    "exit": 0,
+    "seconds": 3.95,
+    "tail": "............s\n----------------------------------------------------------------------\nRan 13 tests in 3.194s\n\nOK (skipped=1)\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "tests/test_recipes.py"
+    ],
+    "tests": 13,
+    "skipped": 1
+  },
+  {
+    "file": "tests/test_sc_conventions_eval.py",
+    "exit": 0,
+    "seconds": 9.33,
+    "tail": "..........\n----------------------------------------------------------------------\nRan 10 tests in 8.919s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "tests/test_sc_conventions_eval.py"
+    ],
+    "tests": 10,
+    "skipped": 0
+  },
+  {
+    "file": "tests/test_verify_frontmatter.py",
+    "exit": 0,
+    "seconds": 0.31,
+    "tail": "..\n----------------------------------------------------------------------\nRan 2 tests in 0.003s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "tests/test_verify_frontmatter.py"
+    ],
+    "tests": 2,
+    "skipped": 0
+  },
+  {
+    "file": "tests/test_versions.py",
+    "exit": 0,
+    "seconds": 0.31,
+    "tail": ".\n----------------------------------------------------------------------\nRan 1 test in 0.013s\n\nOK\n",
+    "command": [
+      "/usr/bin/python3.12",
+      "tests/test_versions.py"
+    ],
+    "tests": 1,
+    "skipped": 0
+  }
+]

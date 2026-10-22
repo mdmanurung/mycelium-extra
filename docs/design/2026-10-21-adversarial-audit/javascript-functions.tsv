@@ -1,0 +1,160 @@
+script	start_utf16	end_utf16	function	observed_calls
+opencode/index.js	0	18006		1
+opencode/index.js	1571	1800	findRoot	34
+opencode/index.js	1802	3259	runGate	29
+opencode/index.js	1875	3256		29
+opencode/index.js	2190	2296	finish	30
+opencode/index.js	2326	2386		1
+opencode/index.js	2425	2585		15
+opencode/index.js	2609	2627		0
+opencode/index.js	2651	3168		29
+opencode/index.js	3198	3206		1
+opencode/index.js	3261	3342	hookOutput	17
+opencode/index.js	3563	3945	promptMessage	7
+opencode/index.js	3763	3813		4
+opencode/index.js	4046	4255	onErrorDeny	5
+opencode/index.js	4257	4592	gateFailure	9
+opencode/index.js	4695	4932	toolNotice	2
+opencode/index.js	4839	4916		4
+opencode/index.js	4934	5126	denyReason	5
+opencode/index.js	5128	5401	contentText	1
+opencode/index.js	5268	5339		2
+opencode/index.js	5352	5371		1
+opencode/index.js	5403	5901	appendContent	6
+opencode/index.js	5903	6177	blockedPromptText	4
+opencode/index.js	6179	6353	toolEvent	11
+opencode/index.js	6617	6747	gateCwd	16
+opencode/index.js	6936	7802	skillCommands	16
+opencode/index.js	7144	7223		104
+opencode/index.js	7234	7753		104
+opencode/index.js	7765	7799		96
+opencode/index.js	7804	8039	commandText	3
+opencode/index.js	8123	8233	eventData	14
+opencode/index.js	8235	8399	eventLocation	10
+opencode/index.js	8401	8544	samePlace	5
+opencode/index.js	8546	8872	textEnded	11
+opencode/index.js	8874	9047	idleSession	3
+opencode/index.js	9205	9474	executionEnded	8
+opencode/index.js	9519	17656	setup	14
+opencode/index.js	10275	10347	gated	8
+opencode/index.js	10786	11214		7
+opencode/index.js	10974	11182	execute	1
+opencode/index.js	11265	12364		9
+opencode/index.js	12408	13754		4
+opencode/index.js	13339	13416		8
+opencode/index.js	13866	14099	tell	6
+opencode/index.js	14138	14950		5
+opencode/index.js	15252	15416	remember	6
+opencode/index.js	15472	16688		14
+opencode/index.js	16697	17615	stop	3
+opencode/index.js	17628	17652		0
+rendered viewer.js + journal.js	0	27923		1
+rendered viewer.js + journal.js	1	27922		1
+rendered viewer.js + journal.js	26	27915		1
+rendered viewer.js + journal.js	419	457		9
+rendered viewer.js + journal.js	536	829	h	1395
+rendered viewer.js + journal.js	914	1096	rich	30
+rendered viewer.js + journal.js	976	1075		46
+rendered viewer.js + journal.js	1099	1174	attr	215
+rendered viewer.js + journal.js	1177	1304	btn	56
+rendered viewer.js + journal.js	1307	1382	clear	40
+rendered viewer.js + journal.js	1475	2253	copy	4
+rendered viewer.js + journal.js	1545	1820	settle	4
+rendered viewer.js + journal.js	1725	1806		0
+rendered viewer.js + journal.js	1825	2090	fallback	4
+rendered viewer.js + journal.js	2187	2216		0
+rendered viewer.js + journal.js	2256	2383	copyButton	23
+rendered viewer.js + journal.js	2333	2363		4
+rendered viewer.js + journal.js	2387	2446	dot	12
+rendered viewer.js + journal.js	2449	2753	visible	4
+rendered viewer.js + journal.js	2538	2747		16
+rendered viewer.js + journal.js	2756	2916	field	32
+rendered viewer.js + journal.js	2920	5243	detail	4
+rendered viewer.js + journal.js	3850	3910		32
+rendered viewer.js + journal.js	4320	4572		4
+rendered viewer.js + journal.js	4439	4530		4
+rendered viewer.js + journal.js	4755	4941		6
+rendered viewer.js + journal.js	4868	4932		2
+rendered viewer.js + journal.js	5010	5054		0
+rendered viewer.js + journal.js	5247	6117	review	4
+rendered viewer.js + journal.js	5550	5593		16
+rendered viewer.js + journal.js	5676	6030		8
+rendered viewer.js + journal.js	5720	5767		2
+rendered viewer.js + journal.js	6120	6701	diffs	3
+rendered viewer.js + journal.js	6208	6512		12
+rendered viewer.js + journal.js	6425	6478		12
+rendered viewer.js + journal.js	6704	7081	table	14
+rendered viewer.js + journal.js	6794	6842		53
+rendered viewer.js + journal.js	6885	7061		75
+rendered viewer.js + journal.js	6978	7027		291
+rendered viewer.js + journal.js	7084	7411	timeline	3
+rendered viewer.js + journal.js	7354	7403		9
+rendered viewer.js + journal.js	7414	7617	evidence	11
+rendered viewer.js + journal.js	7540	7598		66
+rendered viewer.js + journal.js	7621	9520	header	19
+rendered viewer.js + journal.js	7866	8120		3
+rendered viewer.js + journal.js	8774	8994		76
+rendered viewer.js + journal.js	9391	9439		38
+rendered viewer.js + journal.js	9798	25369	journal	10
+rendered viewer.js + journal.js	9913	10035	disclosure	31
+rendered viewer.js + journal.js	10038	10130	para	249
+rendered viewer.js + journal.js	10213	10256		610
+rendered viewer.js + journal.js	10522	10838	periodEvents	10
+rendered viewer.js + journal.js	10620	10677		0
+rendered viewer.js + journal.js	10721	10816		610
+rendered viewer.js + journal.js	10841	11430	concern	885
+rendered viewer.js + journal.js	10890	10944		16
+rendered viewer.js + journal.js	11490	11966		550
+rendered viewer.js + journal.js	11685	11954		0
+rendered viewer.js + journal.js	12011	12201		0
+rendered viewer.js + journal.js	12251	12374		130
+rendered viewer.js + journal.js	12503	12602		610
+rendered viewer.js + journal.js	12544	12598		20
+rendered viewer.js + journal.js	12642	12709		610
+rendered viewer.js + journal.js	13260	13367		20
+rendered viewer.js + journal.js	13433	13501		0
+rendered viewer.js + journal.js	14255	14318		130
+rendered viewer.js + journal.js	14457	14511		40
+rendered viewer.js + journal.js	14538	14708		0
+rendered viewer.js + journal.js	14882	14932		244
+rendered viewer.js + journal.js	14939	15033		0
+rendered viewer.js + journal.js	15185	15246		0
+rendered viewer.js + journal.js	15258	15504	outcomes	0
+rendered viewer.js + journal.js	16575	17070		4
+rendered viewer.js + journal.js	16884	17029		1
+rendered viewer.js + journal.js	17182	17281		1
+rendered viewer.js + journal.js	17366	17445		2
+rendered viewer.js + journal.js	17659	17707		3
+rendered viewer.js + journal.js	17794	17855		2
+rendered viewer.js + journal.js	18341	25238	results	8
+rendered viewer.js + journal.js	18465	18543		470
+rendered viewer.js + journal.js	18585	18650		170
+rendered viewer.js + journal.js	18775	18855		0
+rendered viewer.js + journal.js	18995	19100		170
+rendered viewer.js + journal.js	19746	20017		2
+rendered viewer.js + journal.js	19862	19978		0
+rendered viewer.js + journal.js	20100	20448		6
+rendered viewer.js + journal.js	20216	20348		1
+rendered viewer.js + journal.js	20613	20700		0
+rendered viewer.js + journal.js	20740	20786		0
+rendered viewer.js + journal.js	20847	20891		488
+rendered viewer.js + journal.js	22223	22286		0
+rendered viewer.js + journal.js	22954	23172		0
+rendered viewer.js + journal.js	23680	23868		7
+rendered viewer.js + journal.js	24164	24222		32
+rendered viewer.js + journal.js	24830	25015		0
+rendered viewer.js + journal.js	25274	25338		1
+rendered viewer.js + journal.js	25407	25448	VIEWS	19
+rendered viewer.js + journal.js	25483	25571	VIEWS	19
+rendered viewer.js + journal.js	25522	25560		76
+rendered viewer.js + journal.js	25668	25756	VIEWS	19
+rendered viewer.js + journal.js	25799	25843	VIEWS	19
+rendered viewer.js + journal.js	25879	26307	views	19
+rendered viewer.js + journal.js	25974	26285		76
+rendered viewer.js + journal.js	26209	26251		12
+rendered viewer.js + journal.js	26405	27404	filters	4
+rendered viewer.js + journal.js	26763	27045		16
+rendered viewer.js + journal.js	26967	27011		4
+rendered viewer.js + journal.js	27235	27287		0
+rendered viewer.js + journal.js	27432	27603	renderBody	21
+rendered viewer.js + journal.js	27606	27903	draw	19

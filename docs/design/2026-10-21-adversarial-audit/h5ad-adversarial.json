@@ -1,0 +1,40 @@
+{
+  "python": "3.11.13 (main, Apr 28 2026, 13:06:52) [GCC 8.5.0 20210514 (Red Hat 8.5.0-28)]",
+  "cases": [
+    {
+      "case": "valid categorical codes",
+      "area": "data-contract-check",
+      "expected": "exit 0 without traceback",
+      "holds": true,
+      "actual": {
+        "exit": 0,
+        "stdout": "{\n \"checks\": [\n  {\n   \"check\": \"checks[0] cohort\",\n   \"kind\": \"cohort\",\n   \"table\": \"valid.h5ad\",\n   \"rows_checked\": 1,\n   \"status\": \"pass\",\n   \"relaxations\": [],\n   \"id\": \"checks[0]\",\n   \"runnable\": \"ran\",\n   \"message\": \"passed on 1 rows\"\n  }\n ],\n \"alerts\": []\n}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "case": "float categorical codes",
+      "area": "data-contract-check",
+      "expected": "exit 3 without traceback",
+      "holds": false,
+      "actual": {
+        "exit": 1,
+        "stdout": "",
+        "stderr": "Traceback (most recent call last):\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 1222, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 1197, in main\n    summaries, alerts = run_contract(contract, args.root, inputs)\n                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 1038, in run_contract\n    cache[path] = read_table(path, wanted[path])\n                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 93, in read_table\n    return read_h5ad_obs(path, wanted)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 248, in read_h5ad_obs\n    values[column] = obs_values(h5file, obs[column], h5py)\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 195, in obs_values\n    return decode_codes(node[\"codes\"][()].tolist(), obs_values(h5file, node[\"categories\"], h5py))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 215, in decode_codes\n    return [\"\" if c < 0 else categories[c] for c in codes]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 215, in <listcomp>\n    return [\"\" if c < 0 else categories[c] for c in codes]\n                             ~~~~~~~~~~^^^\nTypeError: list indices must be integers or slices, not float\n"
+      }
+    },
+    {
+      "case": "string categorical codes",
+      "area": "data-contract-check",
+      "expected": "exit 3 without traceback",
+      "holds": false,
+      "actual": {
+        "exit": 1,
+        "stdout": "",
+        "stderr": "Traceback (most recent call last):\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 1222, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 1197, in main\n    summaries, alerts = run_contract(contract, args.root, inputs)\n                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 1038, in run_contract\n    cache[path] = read_table(path, wanted[path])\n                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 93, in read_table\n    return read_h5ad_obs(path, wanted)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 248, in read_h5ad_obs\n    values[column] = obs_values(h5file, obs[column], h5py)\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 195, in obs_values\n    return decode_codes(node[\"codes\"][()].tolist(), obs_values(h5file, node[\"categories\"], h5py))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 213, in decode_codes\n    if any(c >= len(categories) for c in codes):\n       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/exports/para-lipg-hpc/mdmanurung/mycelium-extra/skills/data-contract-check/scripts/data_contract_check.py\", line 213, in <genexpr>\n    if any(c >= len(categories) for c in codes):\n           ^^^^^^^^^^^^^^^^^^^^\nTypeError: '>=' not supported between instances of 'bytes' and 'int'\n"
+      }
+    }
+  ],
+  "passed": 1,
+  "failed": 2
+}

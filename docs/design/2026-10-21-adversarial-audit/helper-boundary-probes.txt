@@ -1,0 +1,24 @@
+import sys
+from pathlib import Path
+import tempfile
+root=Path('/exports/para-lipg-hpc/mdmanurung/mycelium-extra')
+sys.path[:0]=[str(root/'hooks'),str(root/'skills/plan-review/scripts')]
+import gate,confirm_write,review_packet,default_reasons
+for text,expected in [('', ''),('First. Second', 'First.'),('One; two', 'One;'),('No punctuation', 'No punctuation'),('é. 次', 'é.')]:
+    assert gate.first_sentence(text)==expected
+assert 'not checked' in default_reasons.render(0,0,[])
+assert 'each with a reason' in default_reasons.render(1,0,[])
+assert 'advisory' in default_reasons.render(1,1,[{'row':'1','step':'x','text':'default: standard','problem':'an empty phrase'}])
+with tempfile.TemporaryDirectory(prefix='mx-gap-probes-') as tmp:
+    path=Path(tmp); child=path/'child';child.mkdir()
+    assert confirm_write.find_root(str(child)) is None
+    assert review_packet.find_root(str(child)) == str(child)
+    (path/'.mycelium-extra').mkdir();(path/'.mycelium-extra/gate.json').write_text('{}')
+    assert confirm_write.find_root(str(child)) == str(path)
+    assert review_packet.find_root(str(child)) == str(path)
+import importlib.util
+spec=importlib.util.spec_from_file_location('audit_init',root/'skills/init/scripts/gate_init.py')
+init=importlib.util.module_from_spec(spec);spec.loader.exec_module(init)
+for value,minimum,expected in [(0,1,False),(1,1,True),(-1,0,False),(True,0,False),(1.0,0,False),('1',0,False),(10**1000,1,True),(0,0,True)]:
+    assert init._whole(value,minimum) is expected
+print('20 helper boundary assertions passed')

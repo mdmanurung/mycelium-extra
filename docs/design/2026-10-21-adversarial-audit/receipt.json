@@ -1,0 +1,344 @@
+{
+  "generated_at": "2026-10-21T12:14:04.803830+00:00",
+  "audit_script_sha256": "bbb8525c73917b9346616b9db750b91f7440687d8db261a24c32d334e6319d9b",
+  "baseline_interpreter": "3.12.15 (main, Oct  7 2026, 04:52:47) [GCC 8.5.0 20210514 (Red Hat 8.5.0-29)]",
+  "baseline_environment": {
+    "MYCELIUM_EXTRA_PYTHON": "/usr/bin/python3.12",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "instrumentation": "coverage subprocess startup plus supplemental normalized function-entry profiling"
+  },
+  "source_commit": "ec58e1ee8ebef011a364b9461fab6de0b25b5dd1",
+  "production_source_unchanged": true,
+  "baseline": {
+    "programs": 39,
+    "tests": 1356,
+    "skipped": 26,
+    "passed": 1330,
+    "failed": 0
+  },
+  "adversarial": {
+    "cases": 137,
+    "passed": 119,
+    "violations": 18,
+    "cross_version_decisions_identical": true
+  },
+  "adversarial_total": {
+    "cases": 140,
+    "passed": 120,
+    "violations": 20,
+    "distinct_findings": 9,
+    "optional_h5ad_python": "3.11"
+  },
+  "functions": {
+    "inventoried": 676,
+    "observed": 676,
+    "not_observed": [],
+    "modules": {
+      "examples/read_evidence.py": {
+        "functions": 2,
+        "observed": 2
+      },
+      "hooks/confirm_write.py": {
+        "functions": 3,
+        "observed": 3
+      },
+      "hooks/evidence.py": {
+        "functions": 7,
+        "observed": 7
+      },
+      "hooks/focus.py": {
+        "functions": 18,
+        "observed": 18
+      },
+      "hooks/gate.py": {
+        "functions": 240,
+        "observed": 240
+      },
+      "hooks/gate_run.py": {
+        "functions": 9,
+        "observed": 9
+      },
+      "hooks/provenance.py": {
+        "functions": 7,
+        "observed": 7
+      },
+      "hooks/stateio.py": {
+        "functions": 5,
+        "observed": 5
+      },
+      "hooks/validation.py": {
+        "functions": 14,
+        "observed": 14
+      },
+      "skills/data-contract-check/scripts/data_contract_check.py": {
+        "functions": 49,
+        "observed": 49
+      },
+      "skills/decision-status/scripts/decision_threads.py": {
+        "functions": 6,
+        "observed": 6
+      },
+      "skills/idea/scripts/capture.py": {
+        "functions": 5,
+        "observed": 5
+      },
+      "skills/init/scripts/gate_init.py": {
+        "functions": 25,
+        "observed": 25
+      },
+      "skills/new-analysis/scripts/new_analysis.py": {
+        "functions": 18,
+        "observed": 18
+      },
+      "skills/plan-review/scripts/default_reasons.py": {
+        "functions": 7,
+        "observed": 7
+      },
+      "skills/plan-review/scripts/presend_check.py": {
+        "functions": 10,
+        "observed": 10
+      },
+      "skills/plan-review/scripts/review_packet.py": {
+        "functions": 14,
+        "observed": 14
+      },
+      "skills/track-changes/scripts/journal.py": {
+        "functions": 13,
+        "observed": 13
+      },
+      "skills/track-changes/scripts/render.py": {
+        "functions": 2,
+        "observed": 2
+      },
+      "skills/track-changes/scripts/track_changes.py": {
+        "functions": 34,
+        "observed": 34
+      },
+      "skills/verify/scripts/method_fidelity.py": {
+        "functions": 4,
+        "observed": 4
+      },
+      "skills/verify/scripts/verify.py": {
+        "functions": 184,
+        "observed": 184
+      }
+    }
+  },
+  "javascript": {
+    "opencode/index.js": {
+      "v8_functions": 49,
+      "observed": 47
+    },
+    "rendered viewer.js + journal.js": {
+      "v8_functions": 110,
+      "observed": 91
+    }
+  },
+  "coverage_lower_bound": {
+    "examples/read_evidence.py": {
+      "covered_statements": 34,
+      "total_statements": 47,
+      "covered_branches": 13,
+      "total_branches": 22
+    },
+    "hooks/confirm_write.py": {
+      "covered_statements": 31,
+      "total_statements": 48,
+      "covered_branches": 6,
+      "total_branches": 12
+    },
+    "hooks/evidence.py": {
+      "covered_statements": 61,
+      "total_statements": 62,
+      "covered_branches": 24,
+      "total_branches": 26
+    },
+    "hooks/focus.py": {
+      "covered_statements": 110,
+      "total_statements": 223,
+      "covered_branches": 28,
+      "total_branches": 74
+    },
+    "hooks/gate.py": {
+      "covered_statements": 2029,
+      "total_statements": 3473,
+      "covered_branches": 753,
+      "total_branches": 1672
+    },
+    "hooks/gate_run.py": {
+      "covered_statements": 153,
+      "total_statements": 199,
+      "covered_branches": 64,
+      "total_branches": 90
+    },
+    "hooks/provenance.py": {
+      "covered_statements": 108,
+      "total_statements": 114,
+      "covered_branches": 40,
+      "total_branches": 46
+    },
+    "hooks/stateio.py": {
+      "covered_statements": 59,
+      "total_statements": 64,
+      "covered_branches": 11,
+      "total_branches": 14
+    },
+    "hooks/validation.py": {
+      "covered_statements": 228,
+      "total_statements": 239,
+      "covered_branches": 121,
+      "total_branches": 128
+    },
+    "skills/data-contract-check/scripts/data_contract_check.py": {
+      "covered_statements": 507,
+      "total_statements": 812,
+      "covered_branches": 220,
+      "total_branches": 426
+    },
+    "skills/decision-status/scripts/decision_threads.py": {
+      "covered_statements": 69,
+      "total_statements": 124,
+      "covered_branches": 22,
+      "total_branches": 58
+    },
+    "skills/idea/scripts/capture.py": {
+      "covered_statements": 103,
+      "total_statements": 107,
+      "covered_branches": 30,
+      "total_branches": 34
+    },
+    "skills/init/scripts/gate_init.py": {
+      "covered_statements": 115,
+      "total_statements": 332,
+      "covered_branches": 24,
+      "total_branches": 120
+    },
+    "skills/new-analysis/scripts/new_analysis.py": {
+      "covered_statements": 238,
+      "total_statements": 286,
+      "covered_branches": 81,
+      "total_branches": 124
+    },
+    "skills/plan-review/scripts/default_reasons.py": {
+      "covered_statements": 81,
+      "total_statements": 102,
+      "covered_branches": 39,
+      "total_branches": 48
+    },
+    "skills/plan-review/scripts/presend_check.py": {
+      "covered_statements": 153,
+      "total_statements": 169,
+      "covered_branches": 71,
+      "total_branches": 78
+    },
+    "skills/plan-review/scripts/review_packet.py": {
+      "covered_statements": 182,
+      "total_statements": 209,
+      "covered_branches": 56,
+      "total_branches": 70
+    },
+    "skills/track-changes/scripts/journal.py": {
+      "covered_statements": 284,
+      "total_statements": 342,
+      "covered_branches": 146,
+      "total_branches": 184
+    },
+    "skills/track-changes/scripts/render.py": {
+      "covered_statements": 17,
+      "total_statements": 17,
+      "covered_branches": 2,
+      "total_branches": 2
+    },
+    "skills/track-changes/scripts/track_changes.py": {
+      "covered_statements": 421,
+      "total_statements": 586,
+      "covered_branches": 163,
+      "total_branches": 252
+    },
+    "skills/verify/scripts/method_fidelity.py": {
+      "covered_statements": 87,
+      "total_statements": 89,
+      "covered_branches": 34,
+      "total_branches": 36
+    },
+    "skills/verify/scripts/verify.py": {
+      "covered_statements": 1473,
+      "total_statements": 3516,
+      "covered_branches": 544,
+      "total_branches": 1754
+    }
+  },
+  "coverage_limitations": [
+    "Function entry or traced statements do not establish edge-case completeness.",
+    "Some subprocesses sanitize environment or use stdin; statement coverage is a lower bound.",
+    "Early tests with tests/../ source paths were supplemented by a normalized function-entry pass.",
+    "JavaScript lists V8-observed compiled functions and includes anonymous callbacks; it is not a complete static AST inventory."
+  ],
+  "supplemental_checks": {
+    "node-direct-final.log": {
+      "sha256": "9f1bbd8dfefafc8f79ef25a0df5db36389e24a6992277eac215e9b93691fb8e8",
+      "tail": "steers the model instead of notifying it (124.32733ms)\n\u2714 gateCwd prefers a cwd under a gate and falls back to the location (0.959382ms)\n\u2714 an open focus line reaches the prompt even beside a hint (0.447502ms)\n\u2714 skill commands come from the skills folder (22.995647ms)\n\u2714 command entry points submit the skill with the user's request (23.613949ms)\n\u2714 handlers block covered runs and leave other tools alone (85.165709ms)\n\u2714 an ungated repository stays inert (22.847588ms)\n\u2714 gate context is appended and a blocked prompt is rewritten (152.084168ms)\n\u2714 the spawn contract drives deny, approve, receipts, and inertness (472.337058ms)\n\u2714 a failed gate run is shown to the human, not swallowed (15.360968ms)\n\u2714 a failed tool call still receives the gate's notice (10.57891ms)\n\u2714 a timed-out gate resolves null (203.223923ms)\n\u2714 a tool reply's systemMessage reaches the tool result (9.909521ms)\n\u2714 on_error deny blocks a call the gate could not check (11.062856ms)\n\u2714 a wrong root option warns visibly instead of going inert (9.374773ms)\n\u2714 a blocked prompt reaches the human through a synthetic message (4.905615ms)\n\u2139 tests 22\n\u2139 suites 0\n\u2139 pass 22\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 6321.255549\n"
+    },
+    "h5ad-profile.log": {
+      "sha256": "70bd3a364c967b3f45d6818fb844c14a929aaafa9541713ccde9c687820e500c",
+      "tail": ".....................................................................................................\n----------------------------------------------------------------------\nRan 101 tests in 23.357s\n\nOK\n"
+    },
+    "gate-self-check.log": {
+      "sha256": "de7a93a13d95d36cbd8751d099b5a1fcefcc30030e1820659ce7cab408b32b7c",
+      "tail": "/exports/para-lipg-hpc/mdmanurung/mycelium-extra/hooks/tests/gate_diff.py:338: RuntimeWarning: The default behavior of tarfile extraction has been changed to disallow common exploits (including CVE-2007-4559). By default, absolute/parent paths are disallowed and some mode bits are cleared. See https://access.redhat.com/articles/7004769 for more details.\n  source.extractall(folder)\npython3.12 3.12.15: 173/173 identical (base HEAD, new hooks/gate.py)\n"
+    },
+    "gate-diff.log": {
+      "sha256": "59c233a4cf1c892bdfed14371df7fdc952e2ade7045a4d3d4bc79e74ae20d528",
+      "tail": "\"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"in_repo\": true, \"missing\": true, \"path\": \"analysis/x.py,w\"}, \"session_id\": \"s2\", \"started\": null, \"ts\": 0}\\n'), ('.mycelium-extra/approvals/00000001.json', '{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\\\n| # | step | Source | check |\\\\n| --- | --- | --- | --- |\\\\n| 7 | import sys; open(\\'analysis/x.py\\',\\'w\\') | repo: `repo:` x | ok |\\\\n| 5 | snakemake | repo: `repo:` x | ok |\\\\n| 6 | -o | repo: `repo:` x | ok |\\\\nPlan status: READY\", \"session_id\": \"s2\"}'), ('.mycelium-extra/approvals/00000002.json', '{\"hash\": \"00000002\", \"approved_at\": 0, \"plan\": \"## Plan\\\\n| # | step | Source | check |\\\\n| --- | --- | --- | --- |\\\\n| 3 | x.dat | repo: `repo:` x | ok |\\\\n| 1 | config/c.yaml | repo: `repo:` x | ok |\\\\n| 3 | - | repo: `repo:` x | ok |\\\\n\\\\nno status here\", \"session_id\": \"s2\"}'), ('.mycelium-extra/approvals/00000003.json', '{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\\\n| # | step | Source | check |\\\\n| --- | --- | --- | --- |\\\\n| 7 | main.nf | re\npython3.12 3.12.15: 116/173 identical (base 267d9e244d1f50abef2d024c9632c50df1911823, new hooks/gate.py)\nExact intentional differences: 57 checked\n"
+    },
+    "ablations.log": {
+      "sha256": "af1555bc3c8f5bfd6ae08b02e2c1ac457bd72d016a8f5d8c737b01efbbff4d87",
+      "tail": "ok   A-1: V-03 fails without its guard in verify\nok   A-2: V-06 fails without its guard in verify\nok   A-3: G-02 fails without its guard in gate\nok   A-4: V-31 fails without its guard in verify\nok   A-5: V-02c fails without its guard in verify\nok   A-6: F-02 fails without its guard in gate\nok   A-7: F-03 fails without its guard in gate\nok   A-8: V-33 fails without its guard in verify\nok   A-9: G-04 fails without its guard in gate\nok   A-10: G-09 fails without its guard in gate\nok   A-11: G-10 fails without its guard in gate\nok   A-12: G-11 fails without its guard in gate\nok   A-13: G-11 fails without its guard in gate\nok   A-14: G-12 fails without its guard in gate\nok   A-15: G-03 fails without its guard in gate\nok   A-16: G-13 fails without its guard in gate_run\nok   A-17: G-14 fails without its guard in gate\n17 of 17 ablations bite.\n"
+    },
+    "hooks-profile-final.log": {
+      "sha256": "a3ba74772a9bdd7322984de445ef38b55dfb305a0e640189446965132cd5fa5f",
+      "tail": "........................................................................................................................................................................................................................................s....................................................................................................................................................s...............................................................................................\n----------------------------------------------------------------------\nRan 477 tests in 391.669s\n\nOK (skipped=2)\n"
+    },
+    "viewer-v8.log": {
+      "sha256": "5c12c1830e378a5324ba18c3505b2417c6f29d1087978c6b105afc2cd77252dc",
+      "tail": "..\n----------------------------------------------------------------------\nRan 2 tests in 1.467s\n\nOK\n"
+    },
+    "journal-viewer-v8.log": {
+      "sha256": "4cffd1a256387a885df9c34f70322d5beef29b088155ba13c4ca9e39b5105df9",
+      "tail": ".\n----------------------------------------------------------------------\nRan 1 test in 16.083s\n\nOK\n"
+    },
+    "init-profile-final.log": {
+      "sha256": "9dfc5740aa73565d8579be170fc964e284d189e573f9411d3536f01193929c7d",
+      "tail": ".................................\n----------------------------------------------------------------------\nRan 33 tests in 14.340s\n\nOK\n"
+    },
+    "focus-profile-final.log": {
+      "sha256": "dd0d86054bcedbadb13f1a08ecbbbcaa727a29645e0e97e9f75b76589f7f7f23",
+      "tail": "..........................\n----------------------------------------------------------------------\nRan 26 tests in 25.308s\n\nOK\n"
+    },
+    "h5ad-profile-final.log": {
+      "sha256": "3deed90a93360670e88e94b7b45fed93519759644853aac69b6545e2bbbeea23",
+      "tail": ".....................................................................................................\n----------------------------------------------------------------------\nRan 101 tests in 23.466s\n\nOK\n"
+    },
+    "fidelity-profile-final.log": {
+      "sha256": "49482d455b422d7b8ba555b5725a0c159b5e19339f2a718ee9ffa89f7b9bfe79",
+      "tail": "........\n----------------------------------------------------------------------\nRan 8 tests in 1.247s\n\nOK\n"
+    },
+    "function-gap-checks.log": {
+      "sha256": "35cae8d70555c5146ef54365a7263fa6d426107cb59ba30d91f28091b44bfdc3",
+      "tail": "20 helper boundary assertions passed\n"
+    },
+    "adapter-boundary-probes.log": {
+      "sha256": "e4adf12d2e5ea4bf43b12bef20bf01d2a8e376de1ebbdb5910089d3932466ec2",
+      "tail": "2 adapter boundary assertions passed\n"
+    }
+  },
+  "raw_logs": "/tmp/mycelium-adversarial-20261021",
+  "unverified": [
+    "native host dispatch",
+    "live LLM skill compliance",
+    "real scheduler/workflow execution",
+    "live citations and external reviewers",
+    "real browser/accessibility behavior",
+    "Python 3.9"
+  ]
+}

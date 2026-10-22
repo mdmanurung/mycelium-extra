@@ -1,0 +1,29 @@
+{
+  "python_alias": "/usr/bin/python3.12",
+  "cases": [
+    {
+      "command": "python $'analys\\151s/x.py'",
+      "exit": 0,
+      "stdout": "synthetic-audit-ran\n",
+      "stderr": ""
+    },
+    {
+      "command": "python $'\\x61nalysis/x.py'",
+      "exit": 0,
+      "stdout": "synthetic-audit-ran\n",
+      "stderr": ""
+    },
+    {
+      "command": "ionice -c 3 python analysis/x.py",
+      "exit": 0,
+      "stdout": "synthetic-audit-ran\n",
+      "stderr": ""
+    },
+    {
+      "command": "setsid python analysis/x.py",
+      "exit": 0,
+      "stdout": "synthetic-audit-ran\n",
+      "stderr": ""
+    }
+  ]
+}

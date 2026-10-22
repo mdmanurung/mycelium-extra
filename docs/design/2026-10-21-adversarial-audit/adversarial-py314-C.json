@@ -1,0 +1,1472 @@
+{
+  "python": "3.14.5 (main, May 10 2026, 19:28:16) [Clang 22.1.3 ]",
+  "cases": [
+    {
+      "case": "numeric setting rejects None",
+      "area": "gate",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "numeric setting rejects True",
+      "area": "gate",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "numeric setting rejects -1",
+      "area": "gate",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "numeric setting rejects nan",
+      "area": "gate",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "numeric setting rejects inf",
+      "area": "gate",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "numeric setting rejects '2'",
+      "area": "gate",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "numeric setting rejects []",
+      "area": "gate",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "numeric setting rejects {}",
+      "area": "gate",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "numeric setting rejects 10000000000000000000000000000000000",
+      "area": "gate",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "numeric setting accepts 0",
+      "area": "gate",
+      "holds": true,
+      "expected": "True",
+      "actual": true
+    },
+    {
+      "case": "numeric setting accepts 1",
+      "area": "gate",
+      "holds": true,
+      "expected": "True",
+      "actual": true
+    },
+    {
+      "case": "numeric setting accepts 0.01",
+      "area": "gate",
+      "holds": true,
+      "expected": "True",
+      "actual": true
+    },
+    {
+      "case": "unapproved plain Python",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved relative cd",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved shell wrapper",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved env wrapper",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved timeout wrapper",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved command builtin",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved exec builtin",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved substitution",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved ANSI escaped path",
+      "area": "gate",
+      "holds": false,
+      "expected": "permissionDecision=deny",
+      "actual": {}
+    },
+    {
+      "case": "unapproved variable script",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python $p\nA script path that holds a shell expansion (`$VAR`, `$(...)`, a loop variable) cannot be resolved by the gate, so it is read as written and no plan covers it. Write each script path literally.\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved process substitution",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved absolute env cwd",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved nice -n 5 wrapper",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved ionice -c 3 wrapper",
+      "area": "gate",
+      "holds": false,
+      "expected": "permissionDecision=deny",
+      "actual": {}
+    },
+    {
+      "case": "unapproved stdbuf -oL wrapper",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved nohup wrapper",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved setsid wrapper",
+      "area": "gate",
+      "holds": false,
+      "expected": "permissionDecision=deny",
+      "actual": {}
+    },
+    {
+      "case": "unapproved command -p wrapper",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved path character escape anal\"\"ysis/x.py",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved path character escape analysis\\/x.py",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/x.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "unapproved path character escape $'\\x61nalysis/x.py'",
+      "area": "gate",
+      "holds": false,
+      "expected": "permissionDecision=deny",
+      "actual": {}
+    },
+    {
+      "case": "unapproved path character escape $'analysis/\\170.py'",
+      "area": "gate",
+      "holds": true,
+      "expected": "permissionDecision=deny",
+      "actual": {
+        "hookSpecificOutput": {
+          "hookEventName": "PreToolUse",
+          "permissionDecision": "deny",
+          "permissionDecisionReason": "mycelium-extra gate: blocked because no active approved plan covers this run.\n  - python analysis/\\170.py\nActive approved plans (last 24 h): none.\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so."
+        }
+      }
+    },
+    {
+      "case": "benign plain echo",
+      "area": "gate",
+      "holds": true,
+      "expected": "no permission denial",
+      "actual": []
+    },
+    {
+      "case": "benign quoted command as data",
+      "area": "gate",
+      "holds": true,
+      "expected": "no permission denial",
+      "actual": []
+    },
+    {
+      "case": "benign read state",
+      "area": "gate",
+      "holds": true,
+      "expected": "no permission denial",
+      "actual": []
+    },
+    {
+      "case": "portable path rejects '../escape'",
+      "area": "evidence",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "portable path rejects '/absolute'",
+      "area": "evidence",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "portable path rejects 'C:\\\\private'",
+      "area": "evidence",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "portable path rejects 'a/../b'",
+      "area": "evidence",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "portable path rejects 'x\\x00y'",
+      "area": "evidence",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "portable path rejects 'x\\ny'",
+      "area": "evidence",
+      "holds": true,
+      "expected": "False",
+      "actual": false
+    },
+    {
+      "case": "portable path accepts analysis/a",
+      "area": "evidence",
+      "holds": true,
+      "expected": "True",
+      "actual": true
+    },
+    {
+      "case": "portable path accepts a b/c.md",
+      "area": "evidence",
+      "holds": true,
+      "expected": "True",
+      "actual": true
+    },
+    {
+      "case": "portable path accepts a/\u00e9.md",
+      "area": "evidence",
+      "holds": true,
+      "expected": "True",
+      "actual": true
+    },
+    {
+      "case": "stable semantic digest ignores clock",
+      "area": "evidence",
+      "holds": true,
+      "expected": "equal identities",
+      "actual": true
+    },
+    {
+      "case": "projection withholds environment value synthetic-sensi",
+      "area": "evidence",
+      "holds": false,
+      "expected": "no environment value anywhere",
+      "actual": false
+    },
+    {
+      "case": "projection withholds environment value Bearer syntheti",
+      "area": "evidence",
+      "holds": false,
+      "expected": "no environment value anywhere",
+      "actual": false
+    },
+    {
+      "case": "projection withholds environment value https://user:sy",
+      "area": "evidence",
+      "holds": false,
+      "expected": "no environment value anywhere",
+      "actual": false
+    },
+    {
+      "case": "track-changes redacts password=synthetic-sensitive",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "secret removed",
+      "actual": true
+    },
+    {
+      "case": "track-changes redacts Bearer synthetic-sensitive",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "secret removed",
+      "actual": true
+    },
+    {
+      "case": "track-changes redacts https",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "secret removed",
+      "actual": true
+    },
+    {
+      "case": "atomic refuses linked state parent",
+      "area": "stateio",
+      "holds": true,
+      "expected": "ValueError",
+      "actual": true
+    },
+    {
+      "case": "atomic refusal creates no external directories",
+      "area": "stateio",
+      "holds": false,
+      "expected": "outside/new absent",
+      "actual": false
+    },
+    {
+      "case": "confirm-write refuses linked pending directory",
+      "area": "confirm-write",
+      "holds": false,
+      "expected": "refusal, no pending file outside root",
+      "actual": false
+    },
+    {
+      "case": "confirm-write target escape refused",
+      "area": "confirm-write",
+      "holds": true,
+      "expected": "SystemExit",
+      "actual": true
+    },
+    {
+      "case": "table valid",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "exit 0",
+      "actual": 0
+    },
+    {
+      "case": "table empty",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "exit 2",
+      "actual": 2
+    },
+    {
+      "case": "table header only",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "exit 2",
+      "actual": 2
+    },
+    {
+      "case": "table duplicate header",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "exit 3",
+      "actual": 3
+    },
+    {
+      "case": "table extra field",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "exit 2",
+      "actual": 2
+    },
+    {
+      "case": "table unclosed quote",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "exit 2",
+      "actual": 2
+    },
+    {
+      "case": "table invalid UTF8",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "exit 3",
+      "actual": 3
+    },
+    {
+      "case": "missing trailing value blocks no_missing",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "exit 2",
+      "actual": 2
+    },
+    {
+      "case": "duplicate keys block",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "exit 2",
+      "actual": 2
+    },
+    {
+      "case": "filter cannot pass vacuously",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "exit 2",
+      "actual": 2
+    },
+    {
+      "case": "invalid cohort rows=True",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "ContractError",
+      "actual": true
+    },
+    {
+      "case": "invalid cohort rows=-1",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "ContractError",
+      "actual": true
+    },
+    {
+      "case": "invalid cohort rows=1.5",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "ContractError",
+      "actual": true
+    },
+    {
+      "case": "invalid cohort min_rows='2'",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "ContractError",
+      "actual": true
+    },
+    {
+      "case": "result cannot overwrite samples.tsv",
+      "area": "data-contract-check",
+      "holds": false,
+      "expected": "input unchanged and nonzero exit",
+      "actual": {
+        "unchanged": false,
+        "exit": 0
+      }
+    },
+    {
+      "case": "result cannot overwrite contract.json",
+      "area": "data-contract-check",
+      "holds": false,
+      "expected": "input unchanged and nonzero exit",
+      "actual": {
+        "unchanged": false,
+        "exit": 0
+      }
+    },
+    {
+      "case": "ambiguous claim cell b'id,value\\nx,1\\nx,2\\n'",
+      "area": "verify",
+      "holds": true,
+      "expected": "unreadable/ambiguous",
+      "actual": [
+        null,
+        "2 rows are labelled `x`; name one by its first-column label"
+      ]
+    },
+    {
+      "case": "ambiguous claim cell b'id,value,value\\nx,1,2\\n'",
+      "area": "verify",
+      "holds": true,
+      "expected": "unreadable/ambiguous",
+      "actual": [
+        null,
+        "2 columns are named `value`; the cell is ambiguous"
+      ]
+    },
+    {
+      "case": "malformed extra-column claim table",
+      "area": "verify",
+      "holds": false,
+      "expected": "claim unavailable",
+      "actual": [
+        "0.05",
+        null
+      ]
+    },
+    {
+      "case": "unterminated-quote claim table",
+      "area": "verify",
+      "holds": false,
+      "expected": "claim unavailable",
+      "actual": [
+        "0.05\n",
+        null
+      ]
+    },
+    {
+      "case": "malformed CSV cannot verify a numeric claim",
+      "area": "verify",
+      "holds": false,
+      "expected": "unverified claim",
+      "actual": [
+        {
+          "doc": "claims.md",
+          "claims": [
+            {
+              "doc": "claims.md",
+              "line": 2,
+              "claim": "0.05",
+              "file": "claim.csv",
+              "column": "value",
+              "row": "x",
+              "observed": "0.05\n",
+              "registered": false,
+              "verdict": "verified"
+            }
+          ],
+          "counts": {
+            "verified": 1
+          },
+          "not_claims": 0,
+          "coverage": {
+            "blocks": 1,
+            "claim_lines": 1,
+            "unparsed_lines": 0,
+            "cells_checked": 1,
+            "matched": 1,
+            "mismatched": 0,
+            "unverified": 0,
+            "registered": 0,
+            "prose_numbers_listed": 0
+          }
+        }
+      ]
+    },
+    {
+      "case": "packet consent rejects timestamp nan",
+      "area": "plan-review",
+      "holds": false,
+      "expected": "Refuse",
+      "actual": false
+    },
+    {
+      "case": "packet consent rejects timestamp inf",
+      "area": "plan-review",
+      "holds": false,
+      "expected": "Refuse",
+      "actual": false
+    },
+    {
+      "case": "packet consent rejects timestamp True",
+      "area": "plan-review",
+      "holds": true,
+      "expected": "Refuse",
+      "actual": true
+    },
+    {
+      "case": "packet consent rejects timestamp -1",
+      "area": "plan-review",
+      "holds": true,
+      "expected": "Refuse",
+      "actual": true
+    },
+    {
+      "case": "presend redactions b'redactions: []\\n'",
+      "area": "plan-review",
+      "holds": true,
+      "expected": "0 for one empty list, otherwise 3",
+      "actual": 0
+    },
+    {
+      "case": "presend redactions b'redactions: []\\nredactions: []\\n'",
+      "area": "plan-review",
+      "holds": true,
+      "expected": "0 for one empty list, otherwise 3",
+      "actual": 3
+    },
+    {
+      "case": "presend redactions b'redactions: null\\n'",
+      "area": "plan-review",
+      "holds": true,
+      "expected": "0 for one empty list, otherwise 3",
+      "actual": 3
+    },
+    {
+      "case": "presend detects password",
+      "area": "plan-review",
+      "holds": true,
+      "expected": "flag(s)",
+      "actual": true
+    },
+    {
+      "case": "presend detects person@example.invalid",
+      "area": "plan-review",
+      "holds": true,
+      "expected": "flag(s)",
+      "actual": true
+    },
+    {
+      "case": "presend detects /home/synthetic/work",
+      "area": "plan-review",
+      "holds": true,
+      "expected": "flag(s)",
+      "actual": true
+    },
+    {
+      "case": "empty default reason flagged",
+      "area": "plan-review",
+      "holds": true,
+      "expected": "at least one finding",
+      "actual": true
+    },
+    {
+      "case": "validation binding rejects id []",
+      "area": "validation",
+      "holds": false,
+      "expected": "errors returned without exception",
+      "actual": {
+        "exception": "TypeError",
+        "message": "cannot use 'list' as a set element (unhashable type: 'list')"
+      }
+    },
+    {
+      "case": "validation binding rejects id {}",
+      "area": "validation",
+      "holds": false,
+      "expected": "errors returned without exception",
+      "actual": {
+        "exception": "TypeError",
+        "message": "cannot use 'dict' as a set element (unhashable type: 'dict')"
+      }
+    },
+    {
+      "case": "validation binding rejects id 5",
+      "area": "validation",
+      "holds": true,
+      "expected": "errors returned without exception",
+      "actual": [
+        null,
+        [
+          "check #1: `id` must be letters, digits, `.`, `_` or `-` (at most 64)"
+        ]
+      ]
+    },
+    {
+      "case": "validation binding rejects id None",
+      "area": "validation",
+      "holds": true,
+      "expected": "errors returned without exception",
+      "actual": [
+        null,
+        [
+          "check #1: `id` must be letters, digits, `.`, `_` or `-` (at most 64)"
+        ]
+      ]
+    },
+    {
+      "case": "validation binding rejects id True",
+      "area": "validation",
+      "holds": true,
+      "expected": "errors returned without exception",
+      "actual": [
+        null,
+        [
+          "check #1: `id` must be letters, digits, `.`, `_` or `-` (at most 64)"
+        ]
+      ]
+    },
+    {
+      "case": "validation binding rejects id 'bad id'",
+      "area": "validation",
+      "holds": true,
+      "expected": "errors returned without exception",
+      "actual": [
+        null,
+        [
+          "check bad id: `id` must be letters, digits, `.`, `_` or `-` (at most 64)"
+        ]
+      ]
+    },
+    {
+      "case": "journal tolerates malformed receipt timestamp nan",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "journal returned with an explicit gap or unknown time",
+      "actual": {
+        "schema": "mycelium-extra.analysis-journal.v1",
+        "analysis_path": "analysis",
+        "refreshed_at": "2026-10-21T12:08:41Z",
+        "objective": {
+          "text": null,
+          "source": null
+        },
+        "events": [],
+        "coverage": {
+          "approvals": "absent",
+          "checkpoints": "absent",
+          "saved_plans": "absent",
+          "handoffs": "absent",
+          "instances": "absent",
+          "saved_receipts": "absent",
+          "receipts": "partial",
+          "repins": "absent",
+          "focus": "absent",
+          "launches": "absent",
+          "transcripts": "not inspected",
+          "scheduler": "not inspected",
+          "gate_errors": "not inspected"
+        },
+        "checkpoints": [],
+        "notes": [],
+        "note_observations": [],
+        "limitations": [
+          "Only available recorded history is inspected; absence is not evidence of no activity.",
+          "Order and equal timestamps establish no causality. File mtime is not an occurrence time.",
+          "Checkpoints are observations, not tamper-proof attestations or complete-history certificates.",
+          "No scheduler, verifier, analysis script, transcript or network service is queried."
+        ],
+        "collection": {
+          "loaded": 0,
+          "omitted": 0,
+          "limit": null
+        },
+        "snapshot_digest": "61d3b9a502cf94c489502a567d14107448f42d9917d3ef455a52ab67f486935f"
+      }
+    },
+    {
+      "case": "journal tolerates malformed receipt timestamp inf",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "journal returned with an explicit gap or unknown time",
+      "actual": {
+        "schema": "mycelium-extra.analysis-journal.v1",
+        "analysis_path": "analysis",
+        "refreshed_at": "2026-10-21T12:08:41Z",
+        "objective": {
+          "text": null,
+          "source": null
+        },
+        "events": [],
+        "coverage": {
+          "approvals": "absent",
+          "checkpoints": "absent",
+          "saved_plans": "absent",
+          "handoffs": "absent",
+          "instances": "absent",
+          "saved_receipts": "absent",
+          "receipts": "partial",
+          "repins": "absent",
+          "focus": "absent",
+          "launches": "absent",
+          "transcripts": "not inspected",
+          "scheduler": "not inspected",
+          "gate_errors": "not inspected"
+        },
+        "checkpoints": [],
+        "notes": [],
+        "note_observations": [],
+        "limitations": [
+          "Only available recorded history is inspected; absence is not evidence of no activity.",
+          "Order and equal timestamps establish no causality. File mtime is not an occurrence time.",
+          "Checkpoints are observations, not tamper-proof attestations or complete-history certificates.",
+          "No scheduler, verifier, analysis script, transcript or network service is queried."
+        ],
+        "collection": {
+          "loaded": 0,
+          "omitted": 0,
+          "limit": null
+        },
+        "snapshot_digest": "61d3b9a502cf94c489502a567d14107448f42d9917d3ef455a52ab67f486935f"
+      }
+    },
+    {
+      "case": "journal tolerates malformed receipt timestamp []",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "journal returned with an explicit gap or unknown time",
+      "actual": {
+        "schema": "mycelium-extra.analysis-journal.v1",
+        "analysis_path": "analysis",
+        "refreshed_at": "2026-10-21T12:08:41Z",
+        "objective": {
+          "text": null,
+          "source": null
+        },
+        "events": [
+          {
+            "kind": "attempt",
+            "source_identity": "attempt:synthetic",
+            "source_digest": "21d6daa8f52a48bf0ba4ffea77729d16f077f5b3cef2ddc7a3c6115ea47df030",
+            "summary": "exit 0 recorded",
+            "occurred_at": null,
+            "observed_at": null,
+            "timestamp_basis": "occurrence time not recorded",
+            "references": {
+              "plan": null,
+              "plans": [],
+              "instance": null,
+              "attempt": "synthetic",
+              "session": null
+            },
+            "detail": {
+              "exit_status": 0,
+              "kind": "python",
+              "launch_match": null,
+              "started_at": null,
+              "submission": false,
+              "not_a_run": false
+            },
+            "limitations": [],
+            "attribution": "focus only; plan attribution unknown",
+            "difference": "recorded",
+            "authorization_relation": "not_reassessed",
+            "unknown": "Unrecorded activity and scientific implications are not assessed.",
+            "sources": [
+              ".mycelium-extra/receipts.jsonl"
+            ],
+            "original_evidence": "available",
+            "id": "journal:attempt:e93fd9faacebf4b1632399522d1c064068656038c798d7a2ba08b7fecb65ac8c"
+          }
+        ],
+        "coverage": {
+          "approvals": "absent",
+          "checkpoints": "absent",
+          "saved_plans": "absent",
+          "handoffs": "absent",
+          "instances": "absent",
+          "saved_receipts": "absent",
+          "receipts": "available",
+          "repins": "absent",
+          "focus": "absent",
+          "launches": "absent",
+          "transcripts": "not inspected",
+          "scheduler": "not inspected",
+          "gate_errors": "not inspected"
+        },
+        "checkpoints": [],
+        "notes": [],
+        "note_observations": [],
+        "limitations": [
+          "Only available recorded history is inspected; absence is not evidence of no activity.",
+          "Order and equal timestamps establish no causality. File mtime is not an occurrence time.",
+          "Checkpoints are observations, not tamper-proof attestations or complete-history certificates.",
+          "No scheduler, verifier, analysis script, transcript or network service is queried."
+        ],
+        "collection": {
+          "loaded": 1,
+          "omitted": 0,
+          "limit": null
+        },
+        "snapshot_digest": "9a9fe6a3af868160e43f418be101c2fb6ea34446beb845f51f4cfbd128f18b73"
+      }
+    },
+    {
+      "case": "journal tolerates malformed receipt timestamp {}",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "journal returned with an explicit gap or unknown time",
+      "actual": {
+        "schema": "mycelium-extra.analysis-journal.v1",
+        "analysis_path": "analysis",
+        "refreshed_at": "2026-10-21T12:08:41Z",
+        "objective": {
+          "text": null,
+          "source": null
+        },
+        "events": [
+          {
+            "kind": "attempt",
+            "source_identity": "attempt:synthetic",
+            "source_digest": "cd74f737a55b66f9211360bcb42636009ed7ee5963404e5be5622226a4754d94",
+            "summary": "exit 0 recorded",
+            "occurred_at": null,
+            "observed_at": null,
+            "timestamp_basis": "occurrence time not recorded",
+            "references": {
+              "plan": null,
+              "plans": [],
+              "instance": null,
+              "attempt": "synthetic",
+              "session": null
+            },
+            "detail": {
+              "exit_status": 0,
+              "kind": "python",
+              "launch_match": null,
+              "started_at": null,
+              "submission": false,
+              "not_a_run": false
+            },
+            "limitations": [],
+            "attribution": "focus only; plan attribution unknown",
+            "difference": "recorded",
+            "authorization_relation": "not_reassessed",
+            "unknown": "Unrecorded activity and scientific implications are not assessed.",
+            "sources": [
+              ".mycelium-extra/receipts.jsonl"
+            ],
+            "original_evidence": "available",
+            "id": "journal:attempt:22d19764a739481fc5ac1e83108c2b466acc43f10a8b5821a1d441ef511f817f"
+          }
+        ],
+        "coverage": {
+          "approvals": "absent",
+          "checkpoints": "absent",
+          "saved_plans": "absent",
+          "handoffs": "absent",
+          "instances": "absent",
+          "saved_receipts": "absent",
+          "receipts": "available",
+          "repins": "absent",
+          "focus": "absent",
+          "launches": "absent",
+          "transcripts": "not inspected",
+          "scheduler": "not inspected",
+          "gate_errors": "not inspected"
+        },
+        "checkpoints": [],
+        "notes": [],
+        "note_observations": [],
+        "limitations": [
+          "Only available recorded history is inspected; absence is not evidence of no activity.",
+          "Order and equal timestamps establish no causality. File mtime is not an occurrence time.",
+          "Checkpoints are observations, not tamper-proof attestations or complete-history certificates.",
+          "No scheduler, verifier, analysis script, transcript or network service is queried."
+        ],
+        "collection": {
+          "loaded": 1,
+          "omitted": 0,
+          "limit": null
+        },
+        "snapshot_digest": "15d91dceac147ef85971fa3023c754f1d980cf4dbd893813d7f278cdde5618a9"
+      }
+    },
+    {
+      "case": "fenced fake decision ignored",
+      "area": "decision-status",
+      "holds": true,
+      "expected": "one confirmed real entry",
+      "actual": [
+        {
+          "file": "decisions.md",
+          "line": 1,
+          "level": 2,
+          "date": "2026-01-01",
+          "title": "Real",
+          "positional_ids": [],
+          "tags": [],
+          "hints": [],
+          "_body": [
+            "**Status:** confirmed\n",
+            "## 2026-01-02 Fake\n",
+            "**Status:** superseded\n"
+          ],
+          "status": "confirmed"
+        }
+      ]
+    },
+    {
+      "case": "scaffold rejects ''",
+      "area": "new-analysis",
+      "holds": true,
+      "expected": "Refusal",
+      "actual": true
+    },
+    {
+      "case": "scaffold rejects '../01_x.py'",
+      "area": "new-analysis",
+      "holds": true,
+      "expected": "Refusal",
+      "actual": true
+    },
+    {
+      "case": "scaffold rejects '01_a.py,01_b.R'",
+      "area": "new-analysis",
+      "holds": true,
+      "expected": "Refusal",
+      "actual": true
+    },
+    {
+      "case": "scaffold rejects '02_b.R,01_a.py'",
+      "area": "new-analysis",
+      "holds": true,
+      "expected": "Refusal",
+      "actual": true
+    },
+    {
+      "case": "scaffold rejects '01_a.sh'",
+      "area": "new-analysis",
+      "holds": true,
+      "expected": "Refusal",
+      "actual": true
+    },
+    {
+      "case": "scaffold supports mixed ordered steps",
+      "area": "new-analysis",
+      "holds": true,
+      "expected": "3 linked steps",
+      "actual": [
+        {
+          "file": "01_a.R",
+          "num": "01",
+          "stem": "01_a",
+          "kind": "R",
+          "rule": "step01_a",
+          "output": "outputs/01_a.rds",
+          "input": null
+        },
+        {
+          "file": "02_b.py",
+          "num": "02",
+          "stem": "02_b",
+          "kind": "py",
+          "rule": "step02_b",
+          "output": "outputs/02_b.parquet",
+          "input": "outputs/01_a.rds"
+        },
+        {
+          "file": "03_c.ipynb",
+          "num": "03",
+          "stem": "03_c",
+          "kind": "ipynb",
+          "rule": "step03_c",
+          "output": "logs/03_c.ipynb",
+          "input": "outputs/02_b.parquet"
+        }
+      ]
+    },
+    {
+      "case": "idea registry escapes cell metacharacters",
+      "area": "idea",
+      "holds": true,
+      "expected": "no raw bars or line breaks",
+      "actual": "x&#124;y  z"
+    },
+    {
+      "case": "focus rejects ../outside",
+      "area": "focus",
+      "holds": true,
+      "expected": "FocusError",
+      "actual": true
+    },
+    {
+      "case": "focus rejects analysis/../../outside",
+      "area": "focus",
+      "holds": true,
+      "expected": "FocusError",
+      "actual": true
+    },
+    {
+      "case": "focus rejects /tmp/outside",
+      "area": "focus",
+      "holds": true,
+      "expected": "FocusError",
+      "actual": true
+    },
+    {
+      "case": "session names avoid sanitize collisions",
+      "area": "focus",
+      "holds": true,
+      "expected": "different names",
+      "actual": true
+    },
+    {
+      "case": "journal note rejects ../outside/n.md",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "ValueError",
+      "actual": true
+    },
+    {
+      "case": "journal note rejects /tmp/n.md",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "ValueError",
+      "actual": true
+    },
+    {
+      "case": "HTML embedded data cannot close script",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "no raw markup",
+      "actual": "{\"text\":\"\\u003c/script\\u003e\\u003cimg src=x onerror=alert(1)\\u003e\\u0026\\u2028\"}"
+    },
+    {
+      "case": "journal rejects timestamp nan",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "None",
+      "actual": null
+    },
+    {
+      "case": "journal rejects timestamp inf",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "None",
+      "actual": null
+    },
+    {
+      "case": "journal rejects timestamp True",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "None",
+      "actual": null
+    },
+    {
+      "case": "journal rejects timestamp '2026'",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "None",
+      "actual": null
+    },
+    {
+      "case": "exact invocation ['python', 'analysis/x.py', '--new']",
+      "area": "validation",
+      "holds": true,
+      "expected": "only exact argv matches",
+      "actual": false
+    },
+    {
+      "case": "exact invocation ['python', '$SCRIPT']",
+      "area": "validation",
+      "holds": true,
+      "expected": "only exact argv matches",
+      "actual": false
+    },
+    {
+      "case": "exact invocation ['python', 'analysis/x.py']",
+      "area": "validation",
+      "holds": true,
+      "expected": "only exact argv matches",
+      "actual": true
+    },
+    {
+      "case": "fidelity rejects duplicate JSON keys",
+      "area": "method-fidelity",
+      "holds": true,
+      "expected": "ValueError",
+      "actual": true
+    },
+    {
+      "case": "provenance invalid digest writes nothing",
+      "area": "provenance",
+      "holds": true,
+      "expected": "ValueError",
+      "actual": true
+    },
+    {
+      "case": "CLI help skills/data-contract-check/scripts/data_contract_check.py",
+      "area": "data-contract-check",
+      "holds": true,
+      "expected": "exit 0, usage, no traceback",
+      "actual": {
+        "exit": 0,
+        "usage": true,
+        "traceback": false
+      }
+    },
+    {
+      "case": "CLI help skills/decision-status/scripts/decision_threads.py",
+      "area": "decision-status",
+      "holds": true,
+      "expected": "exit 0, usage, no traceback",
+      "actual": {
+        "exit": 0,
+        "usage": true,
+        "traceback": false
+      }
+    },
+    {
+      "case": "CLI help skills/idea/scripts/capture.py",
+      "area": "idea",
+      "holds": true,
+      "expected": "exit 0, usage, no traceback",
+      "actual": {
+        "exit": 0,
+        "usage": true,
+        "traceback": false
+      }
+    },
+    {
+      "case": "CLI help skills/init/scripts/gate_init.py",
+      "area": "init",
+      "holds": true,
+      "expected": "exit 0, usage, no traceback",
+      "actual": {
+        "exit": 0,
+        "usage": true,
+        "traceback": false
+      }
+    },
+    {
+      "case": "CLI help skills/new-analysis/scripts/new_analysis.py",
+      "area": "new-analysis",
+      "holds": true,
+      "expected": "exit 0, usage, no traceback",
+      "actual": {
+        "exit": 0,
+        "usage": true,
+        "traceback": false
+      }
+    },
+    {
+      "case": "CLI help skills/plan-review/scripts/default_reasons.py",
+      "area": "plan-review",
+      "holds": true,
+      "expected": "exit 0, usage, no traceback",
+      "actual": {
+        "exit": 0,
+        "usage": true,
+        "traceback": false
+      }
+    },
+    {
+      "case": "CLI help skills/plan-review/scripts/presend_check.py",
+      "area": "plan-review",
+      "holds": true,
+      "expected": "exit 0, usage, no traceback",
+      "actual": {
+        "exit": 0,
+        "usage": true,
+        "traceback": false
+      }
+    },
+    {
+      "case": "CLI help skills/plan-review/scripts/review_packet.py",
+      "area": "plan-review",
+      "holds": true,
+      "expected": "exit 0, usage, no traceback",
+      "actual": {
+        "exit": 0,
+        "usage": true,
+        "traceback": false
+      }
+    },
+    {
+      "case": "CLI help skills/track-changes/scripts/track_changes.py",
+      "area": "track-changes",
+      "holds": true,
+      "expected": "exit 0, usage, no traceback",
+      "actual": {
+        "exit": 0,
+        "usage": true,
+        "traceback": false
+      }
+    },
+    {
+      "case": "CLI help skills/verify/scripts/method_fidelity.py",
+      "area": "verify",
+      "holds": true,
+      "expected": "exit 0, usage, no traceback",
+      "actual": {
+        "exit": 0,
+        "usage": true,
+        "traceback": false
+      }
+    },
+    {
+      "case": "CLI help skills/verify/scripts/verify.py",
+      "area": "verify",
+      "holds": true,
+      "expected": "exit 0, usage, no traceback",
+      "actual": {
+        "exit": 0,
+        "usage": true,
+        "traceback": false
+      }
+    },
+    {
+      "case": "CLI help hooks/confirm_write.py",
+      "area": "mycelium-extra",
+      "holds": true,
+      "expected": "exit 0, usage, no traceback",
+      "actual": {
+        "exit": 0,
+        "usage": true,
+        "traceback": false
+      }
+    },
+    {
+      "case": "init dry run writes no files",
+      "area": "init",
+      "holds": true,
+      "expected": "empty directory and exit 0",
+      "actual": {
+        "exit": 0,
+        "files": []
+      }
+    },
+    {
+      "case": "focus list CLI on ungated project",
+      "area": "focus",
+      "holds": true,
+      "expected": "exit 0 and no traceback",
+      "actual": 0
+    }
+  ],
+  "passed": 119,
+  "failed": 18
+}
