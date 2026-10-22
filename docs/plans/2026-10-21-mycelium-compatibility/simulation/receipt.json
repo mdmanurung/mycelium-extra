@@ -1,0 +1,25 @@
+{
+  "synthetic": true,
+  "seed": 1729,
+  "donors": 8,
+  "samples": 16,
+  "cells": 1440,
+  "genes": 60,
+  "formula": "~condition + (1 | donor)",
+  "raw_counts_unchanged": true,
+  "pseudobulk_sums_checked": true,
+  "pseudobulk_cell_order_invariant": true,
+  "composition_denominator": "all 90 simulated cells per sample",
+  "fitted_methods": [
+    "dreamlet: ~condition + (1 | donor)",
+    "crumblr/dream: ~condition + (1 | donor)",
+    "negative control dream: ~condition"
+  ],
+  "versions": {
+    "dreamlet": "1.8.0",
+    "variancePartition": "1.40.2",
+    "crumblr": "1.2.0",
+    "limma": "3.66.0"
+  },
+  "limitations": "Synthetic execution probe; no power, error-rate or scientific-effectiveness claim."
+}

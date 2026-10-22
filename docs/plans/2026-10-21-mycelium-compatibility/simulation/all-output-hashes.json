@@ -1,0 +1,50 @@
+{
+  "cell-counts.tsv": {
+    "sha256": "8e85d0c7db5b3dd7c0c467f0dabc03dca7aee5d04c2d7720bb0cef7c17222516",
+    "bytes": 370
+  },
+  "cells.tsv": {
+    "sha256": "af8db17f544c82dc7daa7c1c8228adf36a055efafc76d44c696c70209abdb8d8",
+    "bytes": 56143
+  },
+  "composition.tsv": {
+    "sha256": "cd5243205b44469ffa149e59ad33784d635eca438e51606274eca131738b7280",
+    "bytes": 449
+  },
+  "counts.tsv": {
+    "sha256": "e09061312b6b0b9b59be7687946d4ed17978724ae8c9f8610d3899b623b6748f",
+    "bytes": 187034
+  },
+  "expression.tsv": {
+    "sha256": "2de6c40d15c6fdb9bbb78d1a36f301222fbebf362c3a75aa2ca7043d78477110",
+    "bytes": 24531
+  },
+  "method-expected.json": {
+    "sha256": "a410c00b71295eb9408e111148d6df15f647e65fdbb354978b193dcf6de2a0b4",
+    "bytes": 318
+  },
+  "method-observed.json": {
+    "sha256": "aa599f9ef6b356ba3e85448f7676f62753e711d3331daaf466fd51818e1f75ec",
+    "bytes": 313
+  },
+  "method-omitted-donor.json": {
+    "sha256": "ed5a5364460a3a3302793fcea5fc73190af6cf1333ee90bb8ce6ea14b714de7c",
+    "bytes": 278
+  },
+  "receipt.json": {
+    "sha256": "063cb068ac8846db69d87ea30113a11a673d10b5fede60bac47977c3e4d6ca20",
+    "bytes": 708
+  },
+  "samples.tsv": {
+    "sha256": "260ae4da0a425e15d7961e4a06d200de2b6114e3fe4139c3f5810fb9c6bf92ab",
+    "bytes": 512
+  },
+  "sessionInfo.txt": {
+    "sha256": "c5babdfa4b24eb3201ade8a12c085c47a628e9e7b8bb7b4b49d1146c27bc3b6c",
+    "bytes": 5686
+  },
+  "simulation.rds": {
+    "sha256": "5d596d512d0ee1bccddad08bef06d04a360b43a404efa54053c79060be3e31b3",
+    "bytes": 213149
+  }
+}

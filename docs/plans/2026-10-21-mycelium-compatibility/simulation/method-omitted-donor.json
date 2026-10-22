@@ -1,0 +1,15 @@
+{
+  "schema": "mycelium-extra.executed_model.v1",
+  "formula": "~condition",
+  "contrast": {
+    "numerator": "stimulated",
+    "denominator": "control",
+    "sign": 1
+  },
+  "random_effects": [],
+  "covariates": [
+    "condition"
+  ],
+  "assay": "counts",
+  "exclusions": []
+}

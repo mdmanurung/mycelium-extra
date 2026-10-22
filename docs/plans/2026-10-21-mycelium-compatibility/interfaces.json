@@ -1,0 +1,44 @@
+[
+  {
+    "path": "skills/core/scripts/data_contract_check.py",
+    "sha256": "97a02cfada18d6028f48f5a291c47a70e6f6f1419c3091a527eb192411faf66e",
+    "same_as_0_9_1": true,
+    "same_as_installed_cache": true
+  },
+  {
+    "path": "skills/core/scripts/extract_data_lineage.py",
+    "sha256": "7a410cbedaffdd18fe71b148320291a9148a186e580eac844b9198a1f98261fe",
+    "same_as_0_9_1": true,
+    "same_as_installed_cache": true
+  },
+  {
+    "path": "skills/core/scripts/upsert_table_row.py",
+    "sha256": "57adb5b272bc4fe2d0d1a51ada96bec0a5a1afa7ef770177c4b69c6615f4f1c6",
+    "same_as_0_9_1": true,
+    "same_as_installed_cache": true
+  },
+  {
+    "path": "skills/core/scripts/install_convention.py",
+    "sha256": "67f28ee4d955ec3032fa4910b9be959d5ca10472d40f14fec4882b0dd5f34e84",
+    "same_as_0_9_1": true,
+    "same_as_installed_cache": true
+  },
+  {
+    "path": "skills/core/templates/analysis-readme.md",
+    "sha256": "aac6644ed06f950a5495dc12b6fb662c0d92a6c65fe6e097432e899051905ff8",
+    "same_as_0_9_1": true,
+    "same_as_installed_cache": true
+  },
+  {
+    "path": "skills/analyze/SKILL.md",
+    "sha256": "dacec4efbb7cf5b48775eb3e27972ec7d7d39de07f25ab219d52e083130fe97f",
+    "same_as_0_9_1": true,
+    "same_as_installed_cache": true
+  },
+  {
+    "path": "skills/core/references/folder-structure.md",
+    "sha256": "52ee77db4f8611a532d361490940e907666d94975127ab34078afd81e25ad805",
+    "same_as_0_9_1": true,
+    "same_as_installed_cache": true
+  }
+]

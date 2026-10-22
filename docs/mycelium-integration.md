@@ -13,6 +13,31 @@ reads the version that `.mycelium/plugin-root` points at and prints one line whe
 version, or cannot be read. It never writes Mycelium's files, and says nothing in a repository
 without Mycelium.
 
+**File interfaces checked against Mycelium 0.9.2 (`2c9d7a4`) on 2026-10-21.**
+The data-contract corpus passes, and disposable projects exercise the real upstream
+todo updater, analysis template, lineage writer, and convention installer. The
+revised single-cell pack and its bioinformatics dependency install with exact file
+parity and update the registry and project guidance. These checks do not extend
+the native-host hook qualification above. See the
+[compatibility and simulation report](plans/2026-10-21-mycelium-compatibility.md).
+
+To repeat the upstream checks against a checkout you have inspected:
+
+```bash
+MYCELIUM_UPSTREAM=/path/to/mycelium python3.12 tests/test_contract_compatibility.py
+MYCELIUM_UPSTREAM=/path/to/mycelium python3.12 tests/test_mycelium_integration.py
+```
+
+The installer check also needs the local reviewed pack at
+`plans/sc-conventions-revised/network/conventions/single-cell-analysis/`.
+Missing upstream or pack inputs produce explicit test skips.
+
+The integration test also replays a complete synthetic lifecycle through both
+plugins' actual Claude and Codex hook commands, sequentially and with concurrent
+PostToolUse callbacks. Extra's approval gate and Mycelium's reflection/lineage
+state remain independent in these cases. This tests the commands and event
+shapes; native host trust and dispatch still require a fresh live session.
+
 ## Who does what
 
 | Task | Use |

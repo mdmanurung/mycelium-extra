@@ -1,0 +1,17 @@
+{
+  "schema": "mycelium-extra.method_expectations.v1",
+  "formula": "~condition + (1 | donor)",
+  "contrast": {
+    "numerator": "stimulated",
+    "denominator": "control",
+    "sign": 1
+  },
+  "random_effects": [
+    "(1 | donor)"
+  ],
+  "covariates": [
+    "condition"
+  ],
+  "assay": "counts",
+  "exclusions": []
+}

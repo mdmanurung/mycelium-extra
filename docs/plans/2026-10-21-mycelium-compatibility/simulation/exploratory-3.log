@@ -1,0 +1,9 @@
+There were 11 warnings (use warnings() to see them)
+Warning messages:
+1: the ‘findbars’ function has moved to the reformulas package. Please update your imports, or ask an upstream package maintainer to do so. 
+2: the ‘nobars’ function has moved to the reformulas package. Please update your imports, or ask an upstream package maintainer to do so. 
+Warning message:
+In .ebayes(fit = fit, proportion = proportion, stdev.coef.lim = stdev.coef.lim,  :
+  Estimation of var.prior failed - set to default value
+Error: all(is.finite(composition$P.Value)) is not TRUE
+Execution halted

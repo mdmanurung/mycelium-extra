@@ -1,0 +1,10 @@
+test_hooks_keep_approval_and_reflection_independent (__main__.MyceliumInterfaces.test_hooks_keep_approval_and_reflection_independent) ... ok
+test_idea_uses_upstream_updater_without_losing_duplicate_titles (__main__.MyceliumInterfaces.test_idea_uses_upstream_updater_without_losing_duplicate_titles) ... ok
+test_install_revised_pack_and_dependency (__main__.MyceliumInterfaces.test_install_revised_pack_and_dependency) ... ok
+test_new_analysis_reads_upstream_template (__main__.MyceliumInterfaces.test_new_analysis_reads_upstream_template) ... ok
+test_verify_consumes_actual_upstream_lineage_manifest (__main__.MyceliumInterfaces.test_verify_consumes_actual_upstream_lineage_manifest) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 44.381s
+
+OK

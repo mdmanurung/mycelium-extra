@@ -1,0 +1,8 @@
+test_actual_counts_survive_h5ad_and_normalized_X_is_rejected_as_counts (__main__.RealPackageSimulation) ... ok
+test_actual_fitted_formula_passes_and_fitted_omitted_donor_blocks (__main__.RealPackageSimulation) ... ok
+test_actual_metadata_passes_and_missing_pair_or_aliased_batch_blocks (__main__.RealPackageSimulation) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 3.384s
+
+OK

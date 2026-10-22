@@ -1,0 +1,156 @@
+{
+  "generated_at": "2026-10-21T19:49:26.427393+00:00",
+  "base_commit": "fc4efa3a2d594e4fcf1fc1b76be5026f471302a7",
+  "upstream_commit": "2c9d7a461b75b93020c274bff2a508697dc05caa",
+  "upstream_version": "0.9.2",
+  "candidate": "/tmp/mycelium-sc-qualification-20261021/checkout",
+  "initial_receipt": "initial-receipt.json",
+  "initial_report": "initial-report.md",
+  "changed_files_sha256": {
+    "docs/mycelium-integration.md": "64d522c9532071c31aa31602b3a4bfe2d6f29b20e1ac757f3b8aefa026ccaed1",
+    "tests/eval/README.md": "726817acd9b42c43ea0360a0d38139079137e9854c155fc29c66693f0a6fa447",
+    "tests/eval/sc_conventions.py": "3ed4c3fba9eff9891646d0e7fefed7db9898c0006bd6e6a60eff6a08fc32e8af",
+    "tests/test_sc_conventions_eval.py": "5523805a12a4765af122259cacb8ad93a85d5fae342f6786de66575f863ca006",
+    "tests/test_mycelium_integration.py": "c643ca6db9d1b0d38dde0ba162c4aded18fc5ac94c22af9396eeb2d15d0a8e44",
+    "docs/plans/2026-10-21-mycelium-compatibility.md": "807d20842c10275f749d6e5cb286316b5f8f7f6a24eb5da83bbb3748c24b3f2b",
+    "tests/eval/sc_analysis_simulation.R": "ebacd177ca3513c513015c26363292701e1b03cacf33a01e16aabe8636b4c3ea",
+    "tests/test_sc_analysis_simulation.py": "943a448d4503be1e487766539a0e35f7f88c8cd81428dbb13e055063cd169302"
+  },
+  "followup_validation": [
+    {
+      "argv": [
+        "python3.12",
+        "tests/test_mycelium_integration.py",
+        "-v"
+      ],
+      "environment": {
+        "MYCELIUM_UPSTREAM": "/tmp/mycelium-compat-20261021"
+      },
+      "result": "pass",
+      "tests": 5,
+      "lifecycle_subcases": 4,
+      "log": "coexistence-py312.log"
+    },
+    {
+      "argv": [
+        "python3.14",
+        "tests/test_mycelium_integration.py",
+        "-v"
+      ],
+      "environment": {
+        "MYCELIUM_UPSTREAM": "/tmp/mycelium-compat-20261021"
+      },
+      "result": "pass",
+      "tests": 5,
+      "lifecycle_subcases": 4,
+      "log": "coexistence-py314.log"
+    },
+    {
+      "argv": [
+        "/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/R4_51/bin/Rscript",
+        "--vanilla",
+        "tests/eval/sc_analysis_simulation.R",
+        "/tmp/mycelium-sc-qualification-20261021/real-package-simulation-final"
+      ],
+      "environment": {
+        "OPENBLAS_NUM_THREADS": "1",
+        "OMP_NUM_THREADS": "1"
+      },
+      "exit_code": 0,
+      "log": "simulation/R-final.log"
+    },
+    {
+      "argv": [
+        "/exports/para-lipg-hpc/mdmanurung/conda/envs/scanpy/bin/python",
+        "tests/test_sc_analysis_simulation.py",
+        "-v"
+      ],
+      "environment": {
+        "MX_SC_SIMULATION": "/tmp/mycelium-sc-qualification-20261021/real-package-simulation-final"
+      },
+      "result": "pass",
+      "tests": 3,
+      "skipped": 0,
+      "log": "simulation/contracts-final.log"
+    }
+  ],
+  "simulation": {
+    "synthetic": true,
+    "seed": 1729,
+    "donors": 8,
+    "samples": 16,
+    "cells": 1440,
+    "genes": 60,
+    "formula": "~condition + (1 | donor)",
+    "raw_counts_unchanged": true,
+    "pseudobulk_sums_checked": true,
+    "pseudobulk_cell_order_invariant": true,
+    "composition_denominator": "all 90 simulated cells per sample",
+    "fitted_methods": [
+      "dreamlet: ~condition + (1 | donor)",
+      "crumblr/dream: ~condition + (1 | donor)",
+      "negative control dream: ~condition"
+    ],
+    "versions": {
+      "dreamlet": "1.8.0",
+      "variancePartition": "1.40.2",
+      "crumblr": "1.2.0",
+      "limma": "3.66.0"
+    },
+    "limitations": "Synthetic execution probe; no power, error-rate or scientific-effectiveness claim."
+  },
+  "simulation_comparison": {
+    "byte_identical_artifacts": 9,
+    "scope": "Final run versus completed v4 across harness finalization; no cross-version or broad error-rate claim."
+  },
+  "output_preservation_control": {
+    "existing_output_directory": "refused",
+    "all_existing_file_hashes_unchanged": true
+  },
+  "limits": [
+    "Native host trust, hook dispatch and model routing remain unqualified; tests replay actual commands and event shapes.",
+    "32 planning observations remain NOT_RUN. No independent adjudication or M3 evaluation has run.",
+    "No scientific-effectiveness or error-rate-calibration claim.",
+    "No model calls, sealed keys, scheduler jobs, real-project installation, commit or push."
+  ],
+  "evidence_sha256": {
+    "coexistence-py312.log": "a816274b8c3d13fd07480dc25bda879479642752c331ee03458e47f59393607f",
+    "coexistence-py314.log": "f416a29096a052c2de9a31492829621523690e9167c6c7eba8fc61c0c06ca6c3",
+    "end-to-end.log": "0447d2266801447b3d9ddf900843241421e09043a989d6c4ebc09d3663200b79",
+    "initial-receipt.json": "b00b3cb8bd6a1e161e6e0a2279ddb6ab5d36bb42a5019289e046158e3c2a5efa",
+    "initial-report.md": "aa3eacd4b691ec340316f464ea2d6a6623c93949e4675f5cce2a12cd4269d24d",
+    "integration-py314.log": "3f286b2be950e690cae4af0f6dda7bc157d3916d512e16903fdccdfbcb990224",
+    "interfaces.json": "018c9498620846dbb1a256ca45865bf0cf4620b708cc3fabdcb1f20176a21f94",
+    "plans__sc-conventions-revised__dev__prototypes__test_route_candidate.py.log": "3275147f25369a68e9d0d4f28cce619fa9c36dfd7e6d0d3df2c1f3e89b17d2c5",
+    "plans__sc-conventions-revised__tests__test_bundle.py.log": "d16b54aba9ed69efc27bdf00fa5949e210465ad9436d22397a7c343b4abdd6cb",
+    "recipes-h5py.log": "a04c194409e3edf46e3c720d5a76b671993262dd896ca7e928402b956b55cc76",
+    "regression-before.json": "041ccb4154bd1f9acf5b8a7d902ceed33ee0f24b5cfa4212f56693e8539cf247",
+    "sc-eval-py314.log": "ec364aa4af8a1f12c5273f14f182ecc3a44a80808544f9b4ec8f9345ca8b0cf8",
+    "simulation/R-final.log": "c7a9c02ad04768f01fb02a16b00bdbe607b5bb75207ba560877c0594208701f1",
+    "simulation/all-output-hashes.json": "30c8dc1e021bd95f269d0cf7ae7e6de5fc23456fd154f7602d2ddb1e10d6986d",
+    "simulation/cell-counts.tsv": "8e85d0c7db5b3dd7c0c467f0dabc03dca7aee5d04c2d7720bb0cef7c17222516",
+    "simulation/comparison.json": "8addad77f29d247b4b1657aea4a2ae37216ca5dee283e98b2792fa36c512acd1",
+    "simulation/completed-v4.log": "c7a9c02ad04768f01fb02a16b00bdbe607b5bb75207ba560877c0594208701f1",
+    "simulation/composition.tsv": "cd5243205b44469ffa149e59ad33784d635eca438e51606274eca131738b7280",
+    "simulation/contracts-final.log": "e1d81d86e44361d0fe1cb34c8fe9e633ebee394cc8d0ec93acbad46fef61e49e",
+    "simulation/exploratory-1.log": "ba1f0bf908fcf3b133b00ef87758bb353f2e34c4280638fe3f63134d3702198b",
+    "simulation/exploratory-2.log": "93171d2f828d4e73d5e765042bad367489706a57a96103c03b241c91dab44203",
+    "simulation/exploratory-3.log": "aa4777e21299e3ccf45b16fa48f6edadcce2fb2ee5f06e7bcbf56d5eee82c039",
+    "simulation/expression.tsv": "2de6c40d15c6fdb9bbb78d1a36f301222fbebf362c3a75aa2ca7043d78477110",
+    "simulation/method-expected.json": "a410c00b71295eb9408e111148d6df15f647e65fdbb354978b193dcf6de2a0b4",
+    "simulation/method-observed.json": "aa599f9ef6b356ba3e85448f7676f62753e711d3331daaf466fd51818e1f75ec",
+    "simulation/method-omitted-donor.json": "ed5a5364460a3a3302793fcea5fc73190af6cf1333ee90bb8ce6ea14b714de7c",
+    "simulation/receipt.json": "063cb068ac8846db69d87ea30113a11a673d10b5fede60bac47977c3e4d6ca20",
+    "simulation/samples.tsv": "260ae4da0a425e15d7961e4a06d200de2b6114e3fe4139c3f5810fb9c6bf92ab",
+    "simulation/sessionInfo.txt": "c5babdfa4b24eb3201ade8a12c085c47a628e9e7b8bb7b4b49d1146c27bc3b6c",
+    "skills__grill__tests__test_grill_references.py.log": "f196bef0973ff999dcbcf679ca035393cbb4be84e582dd7f9d09005e1f656ac4",
+    "skills__init__tests__test_gate_init.py.log": "2801d1d7da082c3df94d5a6a23fe7a1b4d6ee71d79a70a1774921a9181b46081",
+    "skills__new-analysis__tests__test_new_analysis.py.log": "4e835089c2a525a41d13660039d31b216f823261d7bd7d2cec9acbc1aa9819de",
+    "tests.json": "b90ca1865d7c78b8699085c0f5810edba4a9b540dc4a80dde7283eda528c04ed",
+    "tests__test_contract_compatibility.py.log": "b64db9b0c10c2c0a9c56ac5b1d70090fc35e117c2f7a55a50772be27d7f9b7a9",
+    "tests__test_method_fidelity.py.log": "60c91dae27bd6ebd4dc177d3b670547cd03d4dd6acd7ea3155779b18e27a5891",
+    "tests__test_mycelium_integration.py.log": "537d72014d9ac51e07b9490abd2a54f2344639944cbeeeab4930ee9cd848e912",
+    "tests__test_recipes.py.log": "f5987af6616b49ed3b10b4104c2ee4cbd476db134e3d49a4ec93317807aeb911",
+    "tests__test_sc_conventions_eval.py.log": "6d08c3bf18bd2dc94ef56fd3c2da67aa4ee10a300fb9e027cac9c9997a36fb1a"
+  }
+}

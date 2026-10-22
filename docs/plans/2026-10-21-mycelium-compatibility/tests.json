@@ -1,0 +1,73 @@
+[
+  {
+    "program": "tests/test_mycelium_integration.py",
+    "exit_code": 0,
+    "log": "docs/plans/2026-10-21-mycelium-compatibility/tests__test_mycelium_integration.py.log",
+    "log_sha256": "537d72014d9ac51e07b9490abd2a54f2344639944cbeeeab4930ee9cd848e912",
+    "tests": 4
+  },
+  {
+    "program": "tests/test_contract_compatibility.py",
+    "exit_code": 0,
+    "log": "docs/plans/2026-10-21-mycelium-compatibility/tests__test_contract_compatibility.py.log",
+    "log_sha256": "b64db9b0c10c2c0a9c56ac5b1d70090fc35e117c2f7a55a50772be27d7f9b7a9",
+    "tests": 3
+  },
+  {
+    "program": "tests/test_sc_conventions_eval.py",
+    "exit_code": 0,
+    "log": "docs/plans/2026-10-21-mycelium-compatibility/tests__test_sc_conventions_eval.py.log",
+    "log_sha256": "6d08c3bf18bd2dc94ef56fd3c2da67aa4ee10a300fb9e027cac9c9997a36fb1a",
+    "tests": 12
+  },
+  {
+    "program": "tests/test_method_fidelity.py",
+    "exit_code": 0,
+    "log": "docs/plans/2026-10-21-mycelium-compatibility/tests__test_method_fidelity.py.log",
+    "log_sha256": "60c91dae27bd6ebd4dc177d3b670547cd03d4dd6acd7ea3155779b18e27a5891",
+    "tests": 8
+  },
+  {
+    "program": "tests/test_recipes.py",
+    "exit_code": 0,
+    "log": "docs/plans/2026-10-21-mycelium-compatibility/tests__test_recipes.py.log",
+    "log_sha256": "f5987af6616b49ed3b10b4104c2ee4cbd476db134e3d49a4ec93317807aeb911",
+    "tests": 13,
+    "skipped": 1
+  },
+  {
+    "program": "skills/grill/tests/test_grill_references.py",
+    "exit_code": 0,
+    "log": "docs/plans/2026-10-21-mycelium-compatibility/skills__grill__tests__test_grill_references.py.log",
+    "log_sha256": "f196bef0973ff999dcbcf679ca035393cbb4be84e582dd7f9d09005e1f656ac4",
+    "tests": 14
+  },
+  {
+    "program": "skills/init/tests/test_gate_init.py",
+    "exit_code": 0,
+    "log": "docs/plans/2026-10-21-mycelium-compatibility/skills__init__tests__test_gate_init.py.log",
+    "log_sha256": "2801d1d7da082c3df94d5a6a23fe7a1b4d6ee71d79a70a1774921a9181b46081",
+    "tests": 33
+  },
+  {
+    "program": "skills/new-analysis/tests/test_new_analysis.py",
+    "exit_code": 0,
+    "log": "docs/plans/2026-10-21-mycelium-compatibility/skills__new-analysis__tests__test_new_analysis.py.log",
+    "log_sha256": "4e835089c2a525a41d13660039d31b216f823261d7bd7d2cec9acbc1aa9819de",
+    "tests": 20,
+    "skipped": 1
+  },
+  {
+    "program": "plans/sc-conventions-revised/tests/test_bundle.py",
+    "exit_code": 0,
+    "log": "docs/plans/2026-10-21-mycelium-compatibility/plans__sc-conventions-revised__tests__test_bundle.py.log",
+    "log_sha256": "d16b54aba9ed69efc27bdf00fa5949e210465ad9436d22397a7c343b4abdd6cb",
+    "tests": 4
+  },
+  {
+    "program": "plans/sc-conventions-revised/dev/prototypes/test_route_candidate.py",
+    "exit_code": 0,
+    "log": "docs/plans/2026-10-21-mycelium-compatibility/plans__sc-conventions-revised__dev__prototypes__test_route_candidate.py.log",
+    "log_sha256": "3275147f25369a68e9d0d4f28cce619fa9c36dfd7e6d0d3df2c1f3e89b17d2c5"
+  }
+]

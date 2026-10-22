@@ -1,0 +1,50 @@
+{
+  "scope": "Equality across final harness changes, not cross-version calibration.",
+  "files": [
+    {
+      "file": "samples.tsv",
+      "byte_identical_to_completed_v4": true,
+      "sha256": "260ae4da0a425e15d7961e4a06d200de2b6114e3fe4139c3f5810fb9c6bf92ab"
+    },
+    {
+      "file": "cells.tsv",
+      "byte_identical_to_completed_v4": true,
+      "sha256": "af8db17f544c82dc7daa7c1c8228adf36a055efafc76d44c696c70209abdb8d8"
+    },
+    {
+      "file": "counts.tsv",
+      "byte_identical_to_completed_v4": true,
+      "sha256": "e09061312b6b0b9b59be7687946d4ed17978724ae8c9f8610d3899b623b6748f"
+    },
+    {
+      "file": "cell-counts.tsv",
+      "byte_identical_to_completed_v4": true,
+      "sha256": "8e85d0c7db5b3dd7c0c467f0dabc03dca7aee5d04c2d7720bb0cef7c17222516"
+    },
+    {
+      "file": "expression.tsv",
+      "byte_identical_to_completed_v4": true,
+      "sha256": "2de6c40d15c6fdb9bbb78d1a36f301222fbebf362c3a75aa2ca7043d78477110"
+    },
+    {
+      "file": "composition.tsv",
+      "byte_identical_to_completed_v4": true,
+      "sha256": "cd5243205b44469ffa149e59ad33784d635eca438e51606274eca131738b7280"
+    },
+    {
+      "file": "method-expected.json",
+      "byte_identical_to_completed_v4": true,
+      "sha256": "a410c00b71295eb9408e111148d6df15f647e65fdbb354978b193dcf6de2a0b4"
+    },
+    {
+      "file": "method-observed.json",
+      "byte_identical_to_completed_v4": true,
+      "sha256": "aa599f9ef6b356ba3e85448f7676f62753e711d3331daaf466fd51818e1f75ec"
+    },
+    {
+      "file": "method-omitted-donor.json",
+      "byte_identical_to_completed_v4": true,
+      "sha256": "ed5a5364460a3a3302793fcea5fc73190af6cf1333ee90bb8ce6ea14b714de7c"
+    }
+  ]
+}

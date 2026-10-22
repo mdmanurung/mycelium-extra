@@ -1,0 +1,84 @@
+{
+  "generated_at": "2026-10-21T19:29:06.306168+00:00",
+  "base_commit": "fc4efa3a2d594e4fcf1fc1b76be5026f471302a7",
+  "upstream_commit": "2c9d7a461b75b93020c274bff2a508697dc05caa",
+  "upstream_version": "0.9.2",
+  "candidate": "/tmp/mycelium-sc-qualification-20261021/checkout",
+  "changed_files_sha256": {
+    "docs/mycelium-integration.md": "79bc973907e5d6e9d41daf9ef8f28d2ae78c1b0a0715d0bee01539fc48862895",
+    "tests/eval/README.md": "cfe92d50e51e208db5aa00ac159ad3bf7042e0c8b377507ecff525b8c8575a70",
+    "tests/eval/sc_conventions.py": "3ed4c3fba9eff9891646d0e7fefed7db9898c0006bd6e6a60eff6a08fc32e8af",
+    "tests/test_sc_conventions_eval.py": "5523805a12a4765af122259cacb8ad93a85d5fae342f6786de66575f863ca006",
+    "tests/test_mycelium_integration.py": "e237cbd4a30b072f7ae5aabd8870fc859b00003025705ca04ecf56d45d23c99c",
+    "docs/plans/2026-10-21-mycelium-compatibility.md": "aa3eacd4b691ec340316f464ea2d6a6623c93949e4675f5cce2a12cd4269d24d"
+  },
+  "focused_tests": {
+    "total": 111,
+    "skipped": 2,
+    "programs": 9,
+    "router_rules": 10,
+    "result": "pass"
+  },
+  "optional_hdf5_recipes": {
+    "total": 13,
+    "skipped": 0,
+    "result": "pass",
+    "interpreter": "/exports/para-lipg-hpc/mdmanurung/conda/envs/scanpy/bin/python"
+  },
+  "end_to_end": {
+    "total": 111,
+    "skipped": 2,
+    "result": "pass"
+  },
+  "prepared_schedule": {
+    "path": "/tmp/mycelium-sc-qualification-20261021/current-main-scenarios",
+    "baseline": "fd714898",
+    "integrated": "fc4efa3a2d594e4fcf1fc1b76be5026f471302a7",
+    "entries": 32,
+    "status": "NOT_RUN"
+  },
+  "bundle_manifest": {
+    "revised": {
+      "entries": 48,
+      "mismatches": []
+    },
+    "original": {
+      "entries": 42,
+      "mismatches": [
+        "AGENT_PROMPT.md"
+      ],
+      "action": "preserved"
+    }
+  },
+  "limits": [
+    "No native host co-dispatch: Mycelium is disabled in current Codex config.",
+    "No live model runs, independent adjudication, fitted production models or empirical scientific-benefit evidence.",
+    "No sealed keys, paid model calls, scheduler jobs, real-project installation, commit or push."
+  ],
+  "evidence_sha256": {
+    "end-to-end.log": "0447d2266801447b3d9ddf900843241421e09043a989d6c4ebc09d3663200b79",
+    "integration-py314.log": "3f286b2be950e690cae4af0f6dda7bc157d3916d512e16903fdccdfbcb990224",
+    "interfaces.json": "018c9498620846dbb1a256ca45865bf0cf4620b708cc3fabdcb1f20176a21f94",
+    "plans__sc-conventions-revised__dev__prototypes__test_route_candidate.py.log": "3275147f25369a68e9d0d4f28cce619fa9c36dfd7e6d0d3df2c1f3e89b17d2c5",
+    "plans__sc-conventions-revised__tests__test_bundle.py.log": "d16b54aba9ed69efc27bdf00fa5949e210465ad9436d22397a7c343b4abdd6cb",
+    "recipes-h5py.log": "a04c194409e3edf46e3c720d5a76b671993262dd896ca7e928402b956b55cc76",
+    "regression-before.json": "041ccb4154bd1f9acf5b8a7d902ceed33ee0f24b5cfa4212f56693e8539cf247",
+    "sc-eval-py314.log": "ec364aa4af8a1f12c5273f14f182ecc3a44a80808544f9b4ec8f9345ca8b0cf8",
+    "skills__grill__tests__test_grill_references.py.log": "f196bef0973ff999dcbcf679ca035393cbb4be84e582dd7f9d09005e1f656ac4",
+    "skills__init__tests__test_gate_init.py.log": "2801d1d7da082c3df94d5a6a23fe7a1b4d6ee71d79a70a1774921a9181b46081",
+    "skills__new-analysis__tests__test_new_analysis.py.log": "4e835089c2a525a41d13660039d31b216f823261d7bd7d2cec9acbc1aa9819de",
+    "tests.json": "b90ca1865d7c78b8699085c0f5810edba4a9b540dc4a80dde7283eda528c04ed",
+    "tests__test_contract_compatibility.py.log": "b64db9b0c10c2c0a9c56ac5b1d70090fc35e117c2f7a55a50772be27d7f9b7a9",
+    "tests__test_method_fidelity.py.log": "60c91dae27bd6ebd4dc177d3b670547cd03d4dd6acd7ea3155779b18e27a5891",
+    "tests__test_mycelium_integration.py.log": "537d72014d9ac51e07b9490abd2a54f2344639944cbeeeab4930ee9cd848e912",
+    "tests__test_recipes.py.log": "f5987af6616b49ed3b10b4104c2ee4cbd476db134e3d49a4ec93317807aeb911",
+    "tests__test_sc_conventions_eval.py.log": "6d08c3bf18bd2dc94ef56fd3c2da67aa4ee10a300fb9e027cac9c9997a36fb1a"
+  },
+  "cross_version": {
+    "python": "3.14.5",
+    "scenario_tests": 12,
+    "upstream_interface_tests": 4,
+    "skipped": 0,
+    "result": "pass"
+  }
+}

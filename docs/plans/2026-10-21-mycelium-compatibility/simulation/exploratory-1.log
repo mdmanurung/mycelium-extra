@@ -1,0 +1,53 @@
+There were 11 warnings (use warnings() to see them)
+Warning messages:
+1: the ‘findbars’ function has moved to the reformulas package. Please update your imports, or ask an upstream package maintainer to do so. 
+2: the ‘nobars’ function has moved to the reformulas package. Please update your imports, or ask an upstream package maintainer to do so. 
+DataFrame with 6 rows and 9 columns
+        assay          ID     logFC   AveExpr         t     P.Value   adj.P.Val
+  <character> <character> <numeric> <numeric> <numeric>   <numeric>   <numeric>
+1           T      gene03  2.041377   15.3210  24.21642 1.24864e-14 2.24755e-12
+2           T      gene01  1.969590   14.7322  23.46048 1.03108e-13 7.06296e-12
+3           T      gene04  1.847488   14.6176  23.32000 1.17716e-13 7.06296e-12
+4           T      gene05  1.981667   15.3182  19.55817 4.01894e-13 1.80852e-11
+5           T      gene02  1.921185   14.7455  19.90937 1.16523e-12 4.19481e-11
+6        Mono      gene31 -0.404672   12.0941  -3.20744 5.51470e-03 1.50009e-01
+          B     z.std
+  <numeric> <numeric>
+1  34.06174   7.71097
+2  33.24662   7.43686
+3  29.42881   7.41933
+4  28.71202   7.25492
+5  29.13720   7.10943
+6  -1.87391  -2.77532
+FIT_NAMES
+ [1] "coefficients"          "design"                "rdf"                  
+ [4] "df.residual"           "hatvalues"             "edf"                  
+ [7] "logLik"                "Amean"                 "method"               
+[10] "sigma"                 "contrasts"             "stdev.unscaled"       
+[13] "residuals"             "cov.coefficients"      "cov.coefficients.list"
+[16] "t"                     "p.value"               "formula"              
+[19] "data"                  "df.total"              "df.prior"             
+[22] "s2.prior"              "var.prior"             "proportion"           
+[25] "s2.post"               "lods"                  "F"                    
+[28] "F.p.value"            
+FIT_FORMULA
+~condition + (1 | donor)
+FIT_DESIGN
+               (Intercept) conditionstimulated
+D01_control              1                   0
+D01_stimulated           1                   1
+D02_control              1                   0
+D02_stimulated           1                   1
+D03_control              1                   0
+D03_stimulated           1                   1
+FIT_DETAILS
+  assay n_retain                  formula formDropsTerms n_genes n_errors
+1     B       16 ~condition + (1 | donor)          FALSE      60        0
+2  Mono       16 ~condition + (1 | donor)          FALSE      60        0
+3     T       16 ~condition + (1 | donor)          FALSE      60        0
+  error_initial
+1         FALSE
+2         FALSE
+3         FALSE
+Error: unable to find an inherited method for function ‘crumblr’ for signature ‘counts = "table"’
+Execution halted
