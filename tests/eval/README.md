@@ -84,6 +84,9 @@ python3.12 tests/eval/sc_conventions.py prepare --out /tmp/sc-m1-review
 ```
 
 The output must not exist and must be outside this repository. The default source
+pack is the reviewed `plans/sc-conventions-revised/network/conventions/single-cell-analysis/`
+bundle, which must be supplied locally because `plans/` is not committed. Its
+development prototypes and roadmap are excluded from evaluated workspaces. The source
 revisions are pre-merge `fd714898` and integrated `3776d32`; optional `--baseline`
 and `--integrated` arguments select existing local commits without network access.
 The tool resolves full commit IDs, copies that revision's actual `grill` Markdown
@@ -127,6 +130,30 @@ complete valid coverage exits 0, without claiming behavioral success. Duplicate,
 unknown or cross-revision records and changed scorer/catalogue snapshots are
 refused. Repeats require a separately frozen schedule, not unplanned pooling.
 The 32 M1 observations are separate from M3's 56.
+
+### Executable analysis simulation (separate from M1/M3)
+
+The optional R fixture fits real dreamlet and crumblr/dream models on synthetic
+single-cell counts: eight paired donors, sixteen samples, three cell types and
+sixty genes. Use R4_51 with the dependencies already installed. It runs serially,
+preserves raw counts, checks aggregation and cell-order invariance, and writes
+actual fitted-method records including an intentionally omitted donor effect.
+It refuses an existing output directory.
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /path/to/R4_51/bin/Rscript --vanilla \
+  tests/eval/sc_analysis_simulation.R /tmp/sc-analysis-simulation
+MX_SC_SIMULATION=/tmp/sc-analysis-simulation /path/to/scanpy/bin/python \
+  tests/test_sc_analysis_simulation.py -v
+```
+
+The Python checks need an existing AnnData/h5py environment for the H5AD case.
+They reuse the shipped R1/R2/R3 checkers: valid metadata versus missing pairs or
+aliased batch; exact raw-count H5AD round trip versus normalized `X`; actual
+donor-aware fit versus an actual fit omitting donor. These are synthetic
+computational checks, not evidence of live-agent routing, independent
+adjudication, false-positive-rate calibration or biological validity. Missing
+run artifacts or optional interoperability dependencies produce explicit skips.
 
 ### M3 readiness without keys or model dispatch
 

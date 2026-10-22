@@ -11,7 +11,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
-PACK = ROOT / 'plans/sc-conventions/network/conventions/single-cell-analysis'
+PACK = ROOT / 'plans/sc-conventions-revised/network/conventions/single-cell-analysis'
 FORBIDDEN = re.compile(r'answer.?key|rubric|adjudicat|scenarios\.json|truth\.json|expectation', re.I)
 ROLES = ('author', 'custodian', 'adjudicator', 'secondary_adjudicator', 'run_owner')
 

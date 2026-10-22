@@ -82,6 +82,34 @@ class ManualPreparation(unittest.TestCase):
         self.assertIn('20/80', (self.workspace('m1-02-probe') / 'project.md').read_text())
         self.assertNotIn('20/80', (self.workspace('m1-02-control') / 'project.md').read_text())
 
+    def test_revised_pack_excludes_development_artifacts(self):
+        for row in self.schedule['schedule']:
+            pack = Path(row['workspace']) / '.living/conventions/single-cell-analysis'
+            self.assertFalse((pack / 'ROADMAP.md').exists())
+            self.assertFalse((pack / 'prototypes').exists())
+            self.assertFalse(any(p.suffix in ('.py', '.pyc') for p in pack.rglob('*')))
+            policy = sc.read(pack / 'method-policy.json')
+            self.assertTrue(all('candidate_kind' in rule for rule in policy['rules']))
+
+    def test_prepared_designs_through_shipped_contract_checker(self):
+        checker = ROOT / 'skills/data-contract-check/scripts/data_contract_check.py'
+        module = importlib.util.spec_from_file_location('m1_contract_checker', str(checker))
+        contract_checker = importlib.util.module_from_spec(module)
+        module.loader.exec_module(contract_checker)
+        checks = {
+            'm1-01': {'kind': 'pairing', 'unit': 'donor', 'within': 'visit', 'levels': ['pre', 'post']},
+            'm1-03': {'kind': 'batch_confounding', 'batch': 'batch', 'contrast': 'condition'},
+        }
+        for arm in ('baseline', 'integrated'):
+            for case, check in checks.items():
+                for kind, expected in (('probe', 'block'), ('control', 'pass')):
+                    with self.subTest(arm=arm, case=case, kind=kind):
+                        workspace = self.workspace(case + '-' + kind, arm)
+                        contract = {'schema': contract_checker.SCHEMA, 'table': 'samples.tsv',
+                                    'checks': [check]}
+                        summaries, _ = contract_checker.run_contract(contract, str(workspace))
+                        self.assertEqual([s['status'] for s in summaries], [expected])
+
     def test_matched_source_inputs_except_grill_revision(self):
         for row in self.schedule['schedule'][:16]:
             other = next(r for r in self.schedule['schedule'][16:] if r['scenario_id'] == row['scenario_id'])
