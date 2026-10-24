@@ -128,6 +128,87 @@ class Base(unittest.TestCase):
         return found
 
 
+def bound(*checks, outputs="analysis/a/outputs/", choice="min_cells 500"):
+    """plan() plus a validation-bindings block; a check is (id, command argument)."""
+    entries = [{"id": i, "plan_row": "1", "required": True, "defined_by": "researcher-approved",
+                "test_paths": ["analysis/a/checks/c1.py"], "invocation": ["python3", "analysis/a/checks/c1.py", arg],
+                "evidence_path": "analysis/a/outputs/{}.json".format(i)} for i, arg in checks]
+    return plan(choice, outputs=outputs) + "\n\n<!-- validation-bindings " + json.dumps({"version": 1, "checks": entries}) + " -->"
+
+
+class LostCoverageTest(Base):
+    """A4: one attention item when an approved revision drops or redefines validation coverage (acceptance C4-04 to C4-13)."""
+
+    def setUp(self):
+        super().setUp()
+        self.write("analysis/a/checks/c1.py", "print(1)\n")
+
+    def lost(self, first_text, second_text):
+        first = self.approve(first_text)
+        self.write(FIT, "min_cells = 200\n", mtime=time.time() - 1800)
+        second = self.approve(second_text)
+        data = self.collect(analysis="analysis/a", original=first, current=second)
+        return data, [i for i in self.items(data, "plan") if i["title"].startswith("Possible lost plan coverage")], first, second
+
+    def test_a_removed_required_binding_is_one_potential_loss_not_an_unauthorized_run(self):  # C4-04, C4-08
+        data, found, first, second = self.lost(bound(("PAIRING_01", "a"), ("JOIN_01", "b")), bound(("JOIN_01", "b"), outputs="analysis/a/outputs/ "))
+        self.assertEqual(len(found), 1)
+        item = found[0]
+        self.assertIn("PAIRING_01", item["observed"])
+        self.assertNotIn("JOIN_01", item["observed"])
+        self.assertEqual((item["bucket"], item["authorization_relation"], item["historical"]), ("attention", "covered_current", "different_original"))
+        self.assertIn("no longer be tested", item["potential"])
+        self.assertIn("verify diff {} {}".format(first, second), " ".join(item["next"]))
+        self.assertNotIn("unauthorized", json.dumps(item).lower())
+        self.assertIn("later authorized revision", item["authorization"])
+
+    def test_the_same_id_with_another_command_is_a_changed_definition_not_a_removal(self):  # C4-13
+        data, found, _, _ = self.lost(bound(("PAIRING_01", "a")), bound(("PAIRING_01", "different")))
+        self.assertEqual(len(found), 1)
+        self.assertIn("definition changed", found[0]["observed"])
+        self.assertNotIn("no longer in the plan", found[0]["observed"])
+
+    def test_a_replacement_is_reported_beside_the_removal_and_never_called_equivalent(self):  # C4-05
+        data, found, _, _ = self.lost(bound(("OLD_01", "a")), bound(("NEW_01", "a")))
+        self.assertIn("OLD_01", found[0]["observed"])
+        self.assertIn("NEW_01", found[0]["observed"])
+        self.assertIn("not assessed", found[0]["observed"])
+
+    def test_a_dropped_output_is_a_literal_change_not_a_missing_file(self):  # C4-04
+        data, found, _, _ = self.lost(bound(("A_01", "a"), outputs="analysis/a/outputs/ analysis/a/summary.tsv"),
+                                      bound(("A_01", "a"), outputs="analysis/a/outputs/"))
+        self.assertEqual(len(found), 1)
+        self.assertIn("summary.tsv", found[0]["observed"])
+        self.assertNotIn("missing", found[0]["observed"])
+
+    def test_a_changed_choice_with_the_same_checks_raises_no_coverage_item(self):  # C4-06
+        data, found, _, _ = self.lost(bound(("A_01", "a")), bound(("A_01", "a"), choice="min_cells 200"))
+        self.assertEqual(found, [])
+        self.assertTrue(any(i["kind"] == "plan" for i in data["items"]))  # the row change is still reported
+
+    def test_the_item_id_is_the_same_on_every_scan(self):  # C4-11
+        first = self.approve(bound(("A_01", "a")))
+        self.write(FIT, "min_cells = 200\n", mtime=time.time() - 1800)
+        second = self.approve(plan("min_cells 500"))
+        ids = [[i["id"] for i in self.items(self.collect(analysis="analysis/a", original=first, current=second), "plan")
+                if i["title"].startswith("Possible lost")] for _ in range(2)]
+        self.assertEqual(len(ids[0]), 1)
+        self.assertEqual(ids[0], ids[1])
+
+    def test_an_unreadable_or_absent_block_is_a_limitation_never_zero_losses(self):  # C4-07, C4-09
+        gate, _, verify = tc.load(PLUGIN)
+        good = bound(("A_01", "a"))
+        for bad, text in (("not valid JSON", good.split("<!--")[0] + "<!-- validation-bindings {nope -->"),
+                          ("unsupported version", good.replace('"version": 1', '"version": 9'))):
+            snap = tc.Snapshot()
+            tc.lost_coverage(gate, snap, {"hash": "aaaaaaaa", "plan": good}, {"hash": "bbbbbbbb", "plan": text}, "E1", "E2", [])
+            self.assertEqual(snap.items, [], bad)
+            self.assertTrue(any("could not be compared" in line for line in snap.limitations), bad)
+        snap = tc.Snapshot()  # no block on either side: nothing to compare, nothing to claim
+        tc.lost_coverage(gate, snap, {"hash": "aaaaaaaa", "plan": plan("x")}, {"hash": "bbbbbbbb", "plan": plan("y")}, "E1", "E2", [])
+        self.assertEqual((snap.items, snap.limitations), ([], []))
+
+
 class PlansAndCodeTest(Base):
     def test_two_plans_name_the_folder_so_the_original_must_be_chosen(self):  # F10
         first, second = self.two_plans()

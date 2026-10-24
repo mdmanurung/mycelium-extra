@@ -44,7 +44,7 @@ Offer the brief to Mycelium's review before a freeze: it is one file, `brief.md`
 
 - Not an approval, a gate, or a check of scientific correctness.
 - Not an attribution of who edited a file: only direct editor tool calls in a transcript are listed; shell-made edits and unmarked subagent work are not observed.
-- The plans' inputs, outputs and validation blocks are not compared here; `verify diff <old> <new>` does that.
+- Between two approved plans it shows one attention item when a required validation binding is gone or redefined, or a declared output is no longer named. It does not judge whether a replacement is equivalent, and it says nothing about a plan whose bindings it cannot read. Inputs and exact-execution blocks are not compared here; `verify diff <old> <new>` lists every difference.
 - Field meanings and the axes: `references/schema.md`.
 
 ## Historical Analysis Journal (explicit)

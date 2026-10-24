@@ -163,6 +163,64 @@ def choose_baselines(gate, focus, verify, root, rel, episode, args, approvals, s
     return original, current, relation
 
 
+def binding_checks(gate, text):
+    """({id: required, definition}, None) from a plan's validation-bindings block, ({}, None) without one,
+    (None, reason) when the block cannot be read. The strict reader of hooks/validation.py decides what is readable."""
+    data, errors = gate.blocks_module().read_block(text, "validation-bindings", "checks")
+    if errors:
+        return None, errors[0]
+    found = {}
+    for item in (data or {}).get("checks", []):
+        if not isinstance(item, dict) or not isinstance(item.get("id"), str) or item["id"] in found:
+            return None, "a check has no usable, unique id"
+        definition = {key: item.get(key) for key in ("plan_row", "test_paths", "invocation", "evidence_path")}
+        found[item["id"]] = (item.get("required", True), json.dumps(definition, sort_keys=True))
+    return found, None
+
+
+def lost_coverage(gate, snap, original, current, ev, ev2, ask):
+    """One attention item when an approved revision drops or redefines a validation binding or a declared output.
+    An unreadable block is a limitation, never "no losses". Equivalence of checks is never judged."""
+    old, new = original["plan"], current["plan"]
+    before, why_old = binding_checks(gate, old)
+    after, why_new = binding_checks(gate, new)
+    for side, why in (("original", why_old), ("current", why_new)):
+        if why:
+            snap.limitations.append("validation bindings of the {} plan could not be compared: {}".format(side, why))
+    removed = changed = added = []
+    if before is not None and after is not None:
+        removed = sorted(i for i, (required, _) in before.items() if required and i not in after)
+        changed = sorted(i for i in before if i in after and before[i][1] != after[i][1])
+        added = sorted(i for i in after if i not in before)
+    was, now = [gate.output_words(text) or [] for text in (old, new)]
+    dropped = [w for w in was if w not in now]
+    if not (removed or changed or dropped):
+        return
+    parts, potential = [], []
+    if removed:
+        parts.append("required validation binding{} {} no longer in the plan".format("s" if len(removed) > 1 else "", ", ".join(removed)))
+        potential.append("what the removed check tested may no longer be tested")
+    if changed:
+        parts.append("binding{} {}: definition changed (rows, test files, command or evidence path)".format(
+            "s" if len(changed) > 1 else "", ", ".join(changed)))
+        potential.append("a redefined check may test something else")
+    if dropped:
+        parts.append("output{} no longer declared: {}".format("s" if len(dropped) > 1 else "", ", ".join(dropped[:5]) + (" \u2026" if len(dropped) > 5 else "")))
+        potential.append("a declared output the plan no longer names may no longer be produced or checked")
+    if added and (removed or changed):
+        parts.append("new binding{} present: {}; whether {} replaces anything is not assessed".format(
+            "s" if len(added) > 1 else "", ", ".join(added), "it" if len(added) == 1 else "they"))
+    snap.item("plan", (original["hash"], current["hash"], "lost-coverage"),
+              "Possible lost plan coverage between plans {} and {}".format(original["hash"], current["hash"]), "attention",
+              file="plan " + current["hash"], authorization_relation="covered_current", historical="different_original",
+              semantic_relation="unassessed", summary="Observed: the approved revision drops or redefines validation coverage.",
+              observed="; ".join(parts) + ".", potential="Potential: " + "; ".join(potential) + ".",
+              unknown="Whether an equivalent check or output exists elsewhere, or the change was intended, is not recorded here.",
+              authorization="The current plan was approved by the researcher, so this is a later authorized revision, not an unexplained deviation.",
+              next=ask + ["`verify diff {} {}` lists every difference".format(original["hash"], current["hash"])],
+              evidence=[ev, ev2], consequence="potential")
+
+
 def plan_items(gate, verify, snap, original, current, redact):
     if not original or not current or original["hash"] == current["hash"]:
         return
@@ -196,7 +254,8 @@ def plan_items(gate, verify, snap, original, current, redact):
                       short(redact(before), 200) or "(none)", short(redact(after), 200) or "(none)"),
                   potential="Potential analytical implication: the question being answered may have moved.",
                   unknown="Whether the analysis still answers the original question.", next=ask, evidence=[ev, ev2])
-    snap.limitations.append("inputs, outputs and validation blocks of the two plans are not compared here; `verify diff` does")
+    lost_coverage(gate, snap, original, current, ev, ev2, ask)
+    snap.limitations.append("inputs and exact-execution blocks of the two plans are not compared here, and bindings and outputs only for removal or redefinition; `verify diff` shows everything")
 
 
 def code_items(gate, verify, snap, root, config, original, current, redact, budget_cache):

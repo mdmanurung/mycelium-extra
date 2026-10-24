@@ -34,7 +34,7 @@ Order is by value, then risk. Each item is one feature in its own PR. Version bu
 |---|---|---|---|---|
 | A1 | Validation recipes 4 to 8 with runnable checks and synthetic fixtures | `docs/validation-recipes.md`, `tests/test_recipes.py`, `tests/fixtures/validation-recipes/` | low: docs and tests | built 2026-10-24, worktree `feat/newplans-m1`, uncommitted |
 | A2 | `data-contract-check --profile-only`: bounded, descriptive, small-cell suppressed | `data_contract_check.py`, its tests, `SKILL.md` | low to medium: new CLI mode, old mode must stay byte-equal | built 2026-10-24, same worktree, uncommitted |
-| A4 | Sharper `discriminating_check` wording; one lost-coverage item in `track-changes` | `plan-review` references, `track_changes.py`, tests | medium: read-only, but journal identities must stay stable | todo (M2) |
+| A4 | Sharper `discriminating_check` wording; one lost-coverage item in `track-changes` | `plan-review` references, `track_changes.py`, tests | medium: read-only, but journal identities must stay stable | built 2026-10-25, committed on `feat/newplans-m1` |
 | A3 | Input/output overlap advisory on the full approval and freeze cards | `hooks/validation.py` or adjacent helper, `gate.py` card path, `test_gate.py` | highest: `gate.py`, needs `gate_diff` before and after | todo (M3) |
 | B1 | `science` skill, guides, packs, source index | new `science/`, `skills/science/`, docs | blocked by S1 to S3 | blocked |
 
@@ -82,9 +82,18 @@ M1 ships the two items that need no hook edit and change no default behavior. A 
 - A2 hides the whole group breakdown when any cell is below the limit. Complementary suppression of single cells is deferred until someone needs the finer table.
 - Evidence (2026-10-25): `tests/test_recipes.py` (17) and the checker tests (116) pass on Python 3.9 (C locale), 3.12 and 3.14. The full test sweep passes on 3.12. 17 of 17 ablations bite. `check_links.py` reports 0 broken of 504 after one relative link in `docs/plans/2026-10-21-mycelium-compatibility/initial-report.md` was fixed (it was broken on `main` too). `sphinx -b html -W` builds. `git diff main -- hooks opencode` is empty.
 
+## M2 build notes (A4)
+
+- `track_changes.lost_coverage` adds one `plan` attention item when an approved revision removes a required binding, redefines one (rows, test files, command or evidence path), or stops declaring an output. It reads bindings with `hooks/validation.read_block` and outputs with `gate.output_words`, so there is no second parser. The item id comes from the two plan hashes, so rescans give the same id.
+- An unreadable block on either side is a limitation line, never "no losses". A new binding beside a removed one is listed with "not assessed".
+- Deferred from the plan: removed table rows (category 3) and removed inputs (category 4). Rows already get their own per-step items, and `verify diff` shows inputs.
+- `plan-review` wording only: `review-contract.md` now says what a `discriminating_check` should contain and that it grants nothing. No new field.
+- The limitation text in the generated `docs/examples/*.html` is now stale; regenerate with `tests/e2e/make_track_changes_example.py` and `tests/e2e/make_journal_example.py` when you next refresh the examples.
+- Evidence: 7 new tests, 48 track-changes tests in all, pass on 3.9, 3.12 and 3.14. With the new call disabled, 4 of the new tests fail and 1 errors.
+
 ## Later milestones
 
-- **M2, A4**: `plan-review` wording only (no new field, no `disconfirming_test`). One attention item in `track-changes` for a removed or changed validation binding, a dropped output, or a removed row between two approved plans. It reuses `verify.plan_changes` and the strict binding reader. A missing baseline reads `not established`, never "no losses". Acceptance: bundle A ids C4-01 to C4-13.
+- **M2, A4** (built, see above): `plan-review` wording only (no new field, no `disconfirming_test`). One attention item in `track-changes` for a removed or changed validation binding, a dropped output, or a removed row between two approved plans. It reuses `verify.plan_changes` and the strict binding reader. A missing baseline reads `not established`, never "no losses". Acceptance: bundle A ids C4-01 to C4-13.
 - **M3, A3**: literal declared overlap only, shown on the full card, never on `on_tool` or `on_post`. Run `gate_diff` before and after; show any decision that differs. Acceptance: bundle A ids I3-01 to I3-10.
 - **M4, B1**: blocked on S1 to S3. If the user approves, apply bundle B's script to a clean worktree, run its `tests/test_science_registry.py`, and add it to the CI sweep by name.
 

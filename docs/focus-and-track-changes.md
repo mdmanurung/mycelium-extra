@@ -76,7 +76,7 @@ The HTML report has Review, Diff, Timeline and Evidence tabs, filters and search
 
 - **No warning is not evidence of no drift.** Shell-made edits, file reads and subagent work not marked in the transcript are not observed; every report says so.
 - Cross-analysis edits need the transcript recorded at the focus start (or `--transcript`); other hosts have none.
-- Plan inputs, outputs and validation blocks are not compared here; use `verify diff <old> <new>`.
+- Between two approved plans the report raises one item for a validation binding that was removed or redefined, or an output that is no longer declared. That is a historical change in scope, not an unauthorized run, and the report does not say whether a new check replaces the old one. A plan whose bindings cannot be read gets a limitation, never "no losses". Plan inputs and exact-execution blocks are not compared here; use `verify diff <old> <new>`.
 - Reports hold code diffs. Strings that look like keys, tokens or passwords are replaced by `[redacted]`, which is a heuristic, not a guarantee. They live under `.mycelium-extra/`, which should be git-ignored; the command warns if it is not.
 - Reports are regenerable views, not records. `verify` stays the authority on what the runs establish.
 - The viewer was exercised in Node against a DOM stub, not in a browser. Open `report.html` once from disk on your own machine.

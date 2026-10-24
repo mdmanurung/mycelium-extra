@@ -102,6 +102,8 @@ Statuses, applied by the lead host with evidence, never by vote or severity:
 - `unresolved` — the concern stands and the discriminating check cannot settle it before execution.
 - `out_of_scope` — it concerns a choice this plan does not make (a later milestone, a different deliverable). Name where it belongs instead of arguing it.
 
+A `discriminating_check` is plain text in that one field, not a new schema. When it matters, say in it: what outcome would challenge the plan's assumption, which source is independent of the analysis, what a pass would still not establish, and whether it was run (`proposed, not run` is the usual state). If nothing could discriminate before execution, write `not available` and leave the status `unresolved`; do not invent a check that passes. A reviewer's check grants nothing: if the researcher accepts it, it becomes an ordinary Validation cell or `validation-bindings` entry in a revised plan and is approved there. Do not call it passed, resolved or verified until a recorded result exists.
+
 Non-material issues — wording, style, optional improvements — stay in the reviewer's own list and are never promoted to cruxes.
 
 The synthesis leads with the strongest `unresolved` crux: the material objection with the largest inferential consequence that the check cannot settle. Exactly one. Then list the rest. When every material objection is `refuted` or `out_of_scope`, say `no substantiated material concern` in the summary line — that is a statement about the objections raised, never about the plan's correctness, and it does not replace any reviewer's status.
