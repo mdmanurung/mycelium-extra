@@ -299,6 +299,63 @@ class GateTest(unittest.TestCase):
         self.assertIn("plan {} approved".format(other),
                       self.hook("prompt", {"prompt": "approve " + other})["systemMessage"], "no verb: any card")
 
+    def io_plan(self, inputs, outputs):
+        plan = self.CARD_PLAN.replace("Inputs: data/in.tsv", inputs) if inputs else self.CARD_PLAN.replace("Inputs: data/in.tsv\n", "")
+        return plan.replace("Outputs: analysis/a/out/res.tsv", outputs) if outputs else plan.replace("Outputs: analysis/a/out/res.tsv\n", "")
+
+    def test_a_declared_input_that_is_also_an_output_is_flagged_on_the_cards_only(self):  # I3-01, I3-02
+        for exists in (True, False):  # the output need not exist yet: the declarations alone collide
+            if exists:
+                self.write_file("data/in.tsv", "a\n")
+            plan = self.io_plan("Inputs: data/in.tsv", "Outputs: data/in.tsv")
+            notice = self.card(plan)
+            self.assertIn("input/output overlap: HIGH 1 (`card ", notice)
+            full = self.asked(notice, "full")
+            self.assertIn("Data writes  HIGH: both declarations resolve to the same path\n  Input:   data/in.tsv\n  Output:  data/in.tsv\n"
+                          "  Not established: whether the launched code would overwrite it", full)
+            self.assertNotIn("safe", full.lower().replace("not established", ""))
+            digest, _ = self.approve(plan.replace("12 donors", "12 donors, again") if exists else plan)  # approval is unchanged
+            self.assertIsNone(self.bash("python analysis/a/02_fit.py"))
+
+    def test_an_alias_of_an_input_is_the_same_path_after_resolving(self):  # I3-03, I3-04
+        self.write_file("data/in.tsv", "a\n")
+        os.symlink("in.tsv", os.path.join(self.root, "data", "link.tsv"))
+        for out in ("data/sub/../in.tsv", "data/link.tsv"):
+            full = self.full(self.io_plan("Inputs: data/in.tsv", "Outputs: " + out))
+            self.assertIn("HIGH: both declarations resolve to the same path (after resolving `..` or a link)", full, out)
+
+    def test_a_folder_or_pattern_that_could_cover_an_input_is_a_review_note_not_a_verdict(self):  # I3-05, I3-07
+        for out in ("data/", "data/*.tsv"):
+            notice = self.card(self.io_plan("Inputs: data/in.tsv", "Outputs: " + out))
+            self.assertIn("input/output overlap: REVIEW 1", notice, out)
+            self.assertNotIn("HIGH", notice, out)
+        self.assertIn("REVIEW: the output folder contains this input", self.full(self.io_plan("Inputs: data/in.tsv", "Outputs: data/")))
+
+    def test_an_output_nested_under_an_input_folder_is_information_on_the_full_card_only(self):  # I3-06
+        notice = self.card(self.io_plan("Inputs: data/", "Outputs: data/processed/res.tsv"))
+        self.assertNotIn("overlap", notice)
+        full = self.asked(notice, "full")
+        self.assertIn("INFO: the output sits inside the input folder", full)
+        self.assertIn("Not a finding of overwrite", full)
+
+    def test_distinct_paths_and_missing_declarations_make_no_claim(self):  # I3-08, I3-09
+        for inputs, outputs in (("Inputs: data/in.tsv", "Outputs: analysis/a/out/res.tsv"), (None, "Outputs: data/in.tsv"),
+                                ("Inputs: data/in.tsv", None), ("Inputs: data/in.tsv", "Outputs: $OUT")):
+            notice = self.card(self.io_plan(inputs, outputs))
+            self.assertNotIn("overlap", notice, (inputs, outputs))
+            self.assertNotIn("Data writes", self.asked(notice, "full"), (inputs, outputs))
+        self.assertIn("Writes none named (no `Outputs:` line)", self.full(self.io_plan("Inputs: data/in.tsv", None)))
+
+    def test_the_overlap_check_reads_names_only(self):
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        self.write_file("data/in.tsv", "a\n")
+        before = os.stat(os.path.join(self.root, "data", "in.tsv"))
+        found = gate.overlap_findings(self.root, "Inputs: data/in.tsv\nOutputs: data/in.tsv\n")
+        self.assertEqual([(f[0], f[1]) for f in found], [("HIGH", "same_path")])
+        self.assertEqual(gate.overlap_findings(self.root, "Inputs: data/in.tsv\nOutputs: /elsewhere/in.tsv\n"), [])  # outside the repository
+        self.assertEqual(os.stat(os.path.join(self.root, "data", "in.tsv")).st_mtime, before.st_mtime)
+
     def card(self, plan):
         return self.hook("stop", {"last_assistant_message": plan})["systemMessage"]
 

@@ -37,6 +37,10 @@ A host that never runs the hook cannot be controlled by it. A gate that fails op
 
 An edit to a script the plan lists is re-pinned with a notice, not blocked. A covered run can therefore execute code newer than the code you approved. Your approval is for the plan and its pins as shown. `freeze` and `verify` show what changed, and a reportable run of code no approval froze is a gap.
 
+## Overlap notes compare names, not writes
+
+The card's input/output overlap note reads the plan's `Inputs:` and `Outputs:` lines and nothing else. A script can still write over an input it never declared, or write through a path the plan did not name. No note on a card is not a statement that the raw data are safe; keep the raw files read-only if that matters.
+
 ## Weak fingerprints
 
 A pin by size and time, or by folder listing, misses an edit that keeps both (for example `cp -p`). The notice says which fingerprint each input got. A receipt records the environment a job declares, not the one it resolved. A job ID records a submission, not its outcome; check `sacct` or the job log. On Codex 0.160.0 the exit status is `unknown`, which `verify` shows as a gap.

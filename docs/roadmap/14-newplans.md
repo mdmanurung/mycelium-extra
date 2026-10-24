@@ -35,7 +35,7 @@ Order is by value, then risk. Each item is one feature in its own PR. Version bu
 | A1 | Validation recipes 4 to 8 with runnable checks and synthetic fixtures | `docs/validation-recipes.md`, `tests/test_recipes.py`, `tests/fixtures/validation-recipes/` | low: docs and tests | built 2026-10-24, worktree `feat/newplans-m1`, uncommitted |
 | A2 | `data-contract-check --profile-only`: bounded, descriptive, small-cell suppressed | `data_contract_check.py`, its tests, `SKILL.md` | low to medium: new CLI mode, old mode must stay byte-equal | built 2026-10-24, same worktree, uncommitted |
 | A4 | Sharper `discriminating_check` wording; one lost-coverage item in `track-changes` | `plan-review` references, `track_changes.py`, tests | medium: read-only, but journal identities must stay stable | built 2026-10-25, committed on `feat/newplans-m1` |
-| A3 | Input/output overlap advisory on the full approval and freeze cards | `hooks/validation.py` or adjacent helper, `gate.py` card path, `test_gate.py` | highest: `gate.py`, needs `gate_diff` before and after | todo (M3) |
+| A3 | Input/output overlap advisory on the full approval and freeze cards | `hooks/validation.py` or adjacent helper, `gate.py` card path, `test_gate.py` | highest: `gate.py`, needs `gate_diff` before and after | built 2026-10-25, see M3 notes |
 | B1 | `science` skill, guides, packs, source index | new `science/`, `skills/science/`, docs | blocked by S1 to S3 | blocked |
 
 PR-D in bundle B (route one or two methods as their own skills) stays `parked` until B1 exists and routing accuracy is measured.
@@ -91,10 +91,16 @@ M1 ships the two items that need no hook edit and change no default behavior. A 
 - The limitation text in the generated `docs/examples/*.html` is now stale; regenerate with `tests/e2e/make_track_changes_example.py` and `tests/e2e/make_journal_example.py` when you next refresh the examples.
 - Evidence: 7 new tests, 48 track-changes tests in all, pass on 3.9, 3.12 and 3.14. With the new call disabled, 4 of the new tests fail and 1 errors.
 
+## M3 build notes (A3)
+
+- `gate.overlap_findings(root, text)` compares declared names after `repo_relative` (which resolves `..` and links) and reads no file. `procedure_card` shows the detail on the full card and one `Data writes` line on the compact card, only for HIGH or REVIEW. Nothing changed in `on_tool`, `on_post`, `on_prompt` or any decision.
+- Not done: the freeze card and the amendment card get no overlap line; an amendment shows only its delta.
+- Evidence: 6 new tests; `GateTest` passes (151); with `overlap_findings` returning nothing, 5 of the 6 fail and the control test passes. `gate_diff.py` against HEAD: 173 of 173 identical. Against the pinned base with the reviewed oracle: 116 of 173 identical, 57 expected differences, exit 0. The oracle file is unchanged.
+
 ## Later milestones
 
 - **M2, A4** (built, see above): `plan-review` wording only (no new field, no `disconfirming_test`). One attention item in `track-changes` for a removed or changed validation binding, a dropped output, or a removed row between two approved plans. It reuses `verify.plan_changes` and the strict binding reader. A missing baseline reads `not established`, never "no losses". Acceptance: bundle A ids C4-01 to C4-13.
-- **M3, A3**: literal declared overlap only, shown on the full card, never on `on_tool` or `on_post`. Run `gate_diff` before and after; show any decision that differs. Acceptance: bundle A ids I3-01 to I3-10.
+- **M3, A3** (built, see above): literal declared overlap only, shown on the full card, never on `on_tool` or `on_post`. Run `gate_diff` before and after; show any decision that differs. Acceptance: bundle A ids I3-01 to I3-10.
 - **M4, B1**: blocked on S1 to S3. If the user approves, apply bundle B's script to a clean worktree, run its `tests/test_science_registry.py`, and add it to the CI sweep by name.
 
 ## Questions for the user

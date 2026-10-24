@@ -2647,6 +2647,52 @@ def coverage_gaps(rows, pins, scripts, blocks):
     return compact, full
 
 
+def overlap_findings(root, text):
+    """[(severity, kind, input, output, what)] for each way a plan's declared `Outputs:` meet its declared
+    `Inputs:`. Names only: no file is read, no pattern is expanded, and a path outside the repository or
+    given as a pattern on the input side is left alone. HIGH is one canonical path, REVIEW a folder or
+    pattern that could cover an input, INFO an output nested under an input folder. No finding is not a
+    safety claim: the code the plan runs can write anywhere."""
+    inputs, outputs = read_inputs(text, root)[0] or [], output_words(text) or []
+    found = []
+    for out in outputs:
+        if PATTERN.search(out):
+            hit = [w for w in inputs if fnmatch.fnmatch(w, out)]
+            if hit:
+                found.append(("REVIEW", "pattern", hit[0], out, "the output pattern could match this input"))
+            continue
+        out_rel = repo_relative(root, root, out)
+        for word in inputs:
+            in_rel = None if PATTERN.search(word) else repo_relative(root, root, word)
+            if out_rel is None or in_rel is None:
+                continue
+            if in_rel == out_rel:
+                alias = word != out
+                found.append(("HIGH", "same_path", word, out, "both declarations resolve to the same path" + (
+                    " (after resolving `..` or a link)" if alias else "")))
+            elif in_rel.startswith(out_rel + "/"):
+                found.append(("REVIEW", "folder_contains_input", word, out, "the output folder contains this input"))
+            elif out_rel.startswith(in_rel + "/"):
+                found.append(("INFO", "nested", word, out, "the output sits inside the input folder"))
+    return found[:MAX_PATHS]
+
+
+def overlap_lines(findings):
+    """The full-card block for overlap_findings, one entry per finding; empty without any."""
+    lines = []
+    for severity, kind, word, out, what in findings:
+        lines += ["Data writes  {}: {}".format(severity, what), "  Input:   " + word, "  Output:  " + out,
+                  "  Not established: whether the launched code would overwrite it"
+                  if kind != "nested" else "  Not a finding of overwrite: only the declared paths were compared"]
+    return lines
+
+
+def overlap_summary(findings):
+    """The compact-card line: only HIGH and REVIEW findings count, and never a verdict on safety."""
+    counts = collections.Counter(f[0] for f in findings if f[0] != "INFO")
+    return ", ".join("{} {}".format(k, counts[k]) for k in ("HIGH", "REVIEW") if counts[k])
+
+
 def procedure_card(root, text, config, digest, pins, outside, previous, scripts, blocks=None, session_id=None):
     """The card for a plan whose table has Step and Choice or Validation columns, else None."""
     rows = plan_rows(text)
@@ -2747,6 +2793,8 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
         lines.append("Outside the Step column, not authorised" + names(outside_prose, short))
     lines += validation_lines(root, config, text, (blocks or {}).get("validation"))
     cover_at = len(lines)  # the compact card stops copying here; its own short block comes after the Coverage row
+    overlaps = overlap_findings(root, text)
+    lines += overlap_lines(overlaps)  # full card only; the compact card carries one summary line
     gaps, detail = [], []
     if config.get("card_coverage", True) is True:
         try:
@@ -2809,6 +2857,9 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
             compact += ["Not established before running"] + ["  - " + item for item in gaps[:3]] + (
                 ["  (+{} more: `card {} full`)".format(len(gaps) - 3, digest)] if len(gaps) > 3 else [])
     compact += baseline
+    summary = overlap_summary(overlaps)
+    if summary:
+        compact += labelled("Data writes", "input/output overlap: {} (`card {} full`)".format(summary, digest))
     kinds = collections.Counter(
         ("script" if SCRIPT_EXT.search(path) else "file") if os.path.isfile(os.path.join(root, path)) or SCRIPT_EXT.search(path)
         else "folder" for path in paths)
