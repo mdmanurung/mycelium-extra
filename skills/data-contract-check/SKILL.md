@@ -75,3 +75,23 @@ Output is one line per check (`PASS`, `WARN`, `GAP`, or `BLOCK`, with the rows i
 ## 4. Report
 
 One line per check: the kind, the assumption, pass / warn / gap / block, and the observed counts. In grill, a passing contract is `repo` evidence for the plan's rows it covers; cite the table path and the contract's checks. Record the contract with the plan's "Decisions to record" so the executing workflow can re-run it.
+
+## 5. Describe a table before you plan (optional)
+
+When a plan rests on a metadata table nobody has looked at, offer one descriptive profile. It is a look, not a check: it asserts nothing, produces no `contract_result`, and never counts toward a pass. Take no expectation from it; the plan's expectations still come from outside the table.
+
+```bash
+sh <skill-dir>/../../hooks/py.sh - --profile-only --profile-spec <(cat <<'EOF'
+{"schema": "mycelium-extra.data-profile-request.v1", "table": "data/processed/<dataset>/sample_metadata.tsv",
+ "unit_key": "participant_id", "row_key": "sample_id", "group_by": ["group", "visit"],
+ "missingness_columns": ["response", "batch"]}
+EOF
+) [--root DIR] [--json] < <skill-dir>/scripts/data_contract_check.py
+```
+
+- The spec takes only `schema`, `table`, `unit_key`, `row_key`, `group_by` (up to 4 columns, never the unit or row key), `missingness_columns`, and three limits that are resource and privacy settings, not scientific thresholds: `max_rows_inspected` (default 250000), `max_groups` (default 24) and `small_cell_suppression` (default 5). An unknown key or an out-of-range limit is exit 1.
+- The table is a CSV or TSV read once, with the same strict UTF-8 and quoting rules as a contract. A `.h5ad` is not profiled (its `obs` cannot be read within a row budget): the profile is `unavailable`, exit 3. So are an unreadable table and an absent column.
+- `inspection` is `complete`, `partial` or `unavailable`. When the row budget stops the read, the profile is `partial`, `rows_total` is null, and counts cover the inspected rows only; nothing is extrapolated.
+- It reports aggregates only, never a row or an identifier. If any group is smaller than `small_cell_suppression`, the whole group breakdown is left out, so a hidden count cannot be recovered by subtraction. The same holds for per-group missing counts. More groups than `max_groups`, or one group per unit, also leaves the breakdown out.
+- Output is about ten lines headed "descriptive, not a validation result", or the `mycelium-extra.data-profile.v1` JSON with `--json`. Exit 0 is complete or partial, 3 is unavailable, 1 is a usage error. It writes nothing.
+

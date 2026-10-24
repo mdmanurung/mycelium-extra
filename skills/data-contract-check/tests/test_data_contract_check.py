@@ -453,6 +453,152 @@ class H5adTest(unittest.TestCase):
         self.assertEqual(alerts[0]["evidence"], ["b1 holds 8 of 10 A rows (80%)"])
 
 
+class ProfileOnlyTest(unittest.TestCase):
+    """--profile-only describes one table. It is not a check: no pass word, no contract result, bounded, private."""
+    META = os.path.join(HERE, "..", "..", "..", "tests", "fixtures", "validation-recipes", "sample_metadata.tsv")
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.dir)
+        shutil.copy(self.META, os.path.join(self.dir, "meta.tsv"))
+
+    def write(self, name, data):
+        with open(os.path.join(self.dir, name), "wb") as handle:
+            handle.write(data if isinstance(data, bytes) else data.encode("utf-8"))
+
+    def profile(self, table="meta.tsv", as_json=True, **spec):
+        spec = dict({"schema": "mycelium-extra.data-profile-request.v1", "table": table}, **spec)
+        self.write("spec.json", json.dumps(spec))
+        with open(SCRIPT) as source:
+            proc = subprocess.Popen([sys.executable, "-", "--profile-only", "--profile-spec",
+                                     os.path.join(self.dir, "spec.json"), "--root", self.dir] + (["--json"] if as_json else []),
+                                    stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            out, err = proc.communicate()
+        self.assertNotIn(b"Traceback", err)
+        return proc.returncode, out.decode("utf-8"), err.decode("utf-8")
+
+    def test_a_complete_table_is_described_with_true_totals(self):  # P2-01
+        code, out, _ = self.profile(unit_key="participant_id", row_key="sample_id", group_by=["group"],
+                                    missingness_columns=["response", "batch"])
+        result = json.loads(out)
+        self.assertEqual(code, 0)
+        self.assertEqual((result["inspection"], result["coverage"]["rows_total"]), ("complete", 12))
+        self.assertEqual(result["descriptive"]["distinct_units_inspected"], 6)
+        self.assertEqual(result["descriptive"]["group_counts"], [{"group": "Control", "count": 6}, {"group": "Vaccine", "count": 6}])
+        self.assertEqual([m["missing"] for m in result["descriptive"]["missingness"]], [1, 0])
+        self.assertNotIn("status", result)
+
+    def test_a_profile_never_says_passed_and_the_text_is_short(self):
+        code, out, _ = self.profile(as_json=False, unit_key="participant_id", group_by=["group"], missingness_columns=["response"])
+        self.assertEqual(code, 0)
+        self.assertIn("descriptive, not a validation result", out)
+        for word in ("pass", "CONFORMS", "qualified"):
+            self.assertNotIn(word, out)
+        self.assertLessEqual(len(out.splitlines()), 12)
+
+    def test_a_row_budget_makes_the_profile_partial_and_the_total_unknown(self):  # P2-02
+        result = json.loads(self.profile(max_rows_inspected=5, group_by=["group"])[1])
+        self.assertEqual((result["inspection"], result["coverage"]["rows_inspected"], result["coverage"]["rows_total"]),
+                         ("partial", 5, None))
+        self.assertIn("PARTIAL", self.profile(as_json=False, max_rows_inspected=5)[1])
+
+    def test_a_budget_equal_to_the_row_count_is_still_complete(self):
+        self.assertEqual(json.loads(self.profile(max_rows_inspected=12)[1])["inspection"], "complete")
+
+    def test_a_large_table_stops_at_the_budget(self):
+        self.write("big.tsv", "id\tgroup\n" + "".join("s{}\tA\n".format(i) for i in range(50000)))
+        result = json.loads(self.profile("big.tsv", max_rows_inspected=100, group_by=["group"])[1])
+        self.assertEqual((result["inspection"], result["coverage"]["rows_inspected"]), ("partial", 100))
+
+    def test_more_groups_than_the_cap_is_not_a_group_table(self):  # P2-03
+        result = json.loads(self.profile(group_by=["sample_id"], max_groups=3)[1])
+        self.assertIsNone(result["descriptive"]["group_counts"])
+        self.assertIn("more than 3 groups", result["descriptive"]["group_counts_omitted"])
+
+    def test_small_cells_and_the_group_names_behind_them_are_not_shown(self):  # P2-04
+        code, out, _ = self.profile(as_json=False, group_by=["group", "visit"], missingness_columns=["response"])
+        self.assertEqual(code, 0)
+        for name in ("Control", "Vaccine"):
+            self.assertNotIn(name, out)
+        self.assertIn("omitted", out)
+
+    def test_the_suppression_limit_is_what_hides_the_cells(self):
+        shown = json.loads(self.profile(group_by=["group", "visit"], small_cell_suppression=1)[1])
+        self.assertEqual(len(shown["descriptive"]["group_counts"]), 4)  # the guard removed: three-row cells appear
+        self.assertIsNone(json.loads(self.profile(group_by=["group", "visit"], small_cell_suppression=5)[1])["descriptive"]["group_counts"])
+
+    def test_one_hidden_cell_is_not_left_to_subtraction(self):
+        rows = "id\tgroup\n" + "".join("a{}\tA\n".format(i) for i in range(20)) + "".join("b{}\tB\n".format(i) for i in range(2))
+        self.write("t.tsv", rows)
+        result = json.loads(self.profile("t.tsv", group_by=["group"])[1])
+        self.assertIsNone(result["descriptive"]["group_counts"])
+        self.assertNotIn('"B"', json.dumps(result))
+
+    def test_missing_by_group_shows_only_when_no_count_is_small(self):
+        rows = "id\tgroup\tresp\n" + "".join("a{}\tA\t1\n".format(i) for i in range(10)) + \
+               "".join("b{}\tB\t{}\n".format(i, "NA" if i < 6 else "2") for i in range(10))
+        self.write("t.tsv", rows)
+        entry = json.loads(self.profile("t.tsv", group_by=["group"], missingness_columns=["resp"])[1])["descriptive"]["missingness"][0]
+        self.assertEqual(entry["by_group"], [{"group": "A", "missing": 0}, {"group": "B", "missing": 6}])
+        self.write("u.tsv", rows.replace("b0\tB\tNA", "b0\tB\t2").replace("b1\tB\tNA", "b1\tB\t2"))  # 4 missing is shown; fewer than 5 is not
+        entry = json.loads(self.profile("u.tsv", group_by=["group"], missingness_columns=["resp"])[1])["descriptive"]["missingness"][0]
+        self.assertIsNone(entry["by_group"])
+
+    def test_a_group_per_unit_is_an_identifier_and_is_not_shown(self):  # P2-12
+        self.write("t.tsv", "pid\tcopy\n" + "".join("p{}\tp{}\n".format(i % 4, i % 4) for i in range(40)))
+        result = json.loads(self.profile("t.tsv", unit_key="pid", group_by=["copy"])[1])
+        self.assertIsNone(result["descriptive"]["group_counts"])
+        self.assertNotIn("p0", json.dumps(result))
+        code, _, err = self.profile("t.tsv", unit_key="pid", group_by=["pid"])
+        self.assertEqual(code, 1)
+        self.assertIn("identify individuals", err)
+
+    def test_nothing_unreadable_is_a_clean_profile(self):  # P2-05, P2-06, P2-07, P2-08
+        self.write("bad_utf8.tsv", b"id\tg\nS\xff\tA\n")
+        self.write("ragged.tsv", "id\tg\nS1\tA\tEXTRA\n")
+        self.write("quote.tsv", 'id\tg\nS1\t"A\nS2\tB\n')
+        self.write("dup.tsv", "id\tid\nS1\tA\n")
+        self.write("empty.tsv", "")
+        self.write("x.h5ad", b"not hdf5")
+        self.write("x.xlsx", b"PK")
+        for table in ("bad_utf8.tsv", "ragged.tsv", "quote.tsv", "dup.tsv", "empty.tsv", "x.h5ad", "x.xlsx", "absent.tsv"):
+            code, out, _ = self.profile(table, group_by=["g"])
+            result = json.loads(out)
+            self.assertEqual((code, result["inspection"]), (3, "unavailable"), table)
+            self.assertIn("reason", result)
+            self.assertNotIn("descriptive", result)
+        code, out, _ = self.profile(group_by=["nope"])
+        self.assertEqual((code, json.loads(out)["inspection"]), (3, "unavailable"))
+        self.assertIn("nope", json.loads(out)["reason"])
+
+    def test_a_bad_request_is_a_usage_error_that_reads_nothing(self):  # P2-11
+        for spec in ({"bogus": 1}, {"max_rows_inspected": -1}, {"max_rows_inspected": True}, {"max_rows_inspected": 10 ** 12},
+                     {"max_groups": 0}, {"small_cell_suppression": "5"}, {"group_by": "group"}, {"group_by": ["a"] * 2},
+                     {"group_by": list("abcde")}, {"table": ""}):
+            code, out, err = self.profile(**spec)
+            self.assertEqual((code, out), (1, ""), spec)
+            self.assertIn("profile error", err)
+        self.write("spec.json", json.dumps({"schema": "wrong", "table": "meta.tsv"}))
+        self.write("notjson.json", "{")
+        for name in ("spec.json", "notjson.json", "missing.json"):
+            with open(SCRIPT) as source:
+                proc = subprocess.run([sys.executable, "-", "--profile-only", "--profile-spec", os.path.join(self.dir, name)],
+                                      stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertEqual(proc.returncode, 1, name)
+
+    def test_the_ordinary_command_line_is_unchanged(self):  # P2-10
+        with open(SCRIPT) as source:
+            proc = subprocess.run([sys.executable, "-", "--root", self.dir], stdin=source,
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        self.assertEqual(proc.returncode, 2)
+        self.assertEqual(proc.stderr.splitlines()[0], "usage: - [-h] --contract CONTRACT [--root ROOT] [--json]"
+                         " [--result-json PATH]")
+        self.assertIn("the following arguments are required: --contract", proc.stderr)
+        code, out = invoke([{"kind": "cohort", "column": "cohort", "levels": ["A", "B"]}])
+        self.assertIn(code, (0, 2, 3))
+        self.assertEqual(set(json.loads(out)), {"checks", "alerts"})
+
+
 class TableReaderTest(unittest.TestCase):
     """CSV/TSV shape handling follows Mycelium's checker: malformed shape blocks, unreadable bytes are gaps."""
 

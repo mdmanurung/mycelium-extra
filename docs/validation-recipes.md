@@ -2,11 +2,11 @@
 
 [Back to the advanced features](advanced.md)
 
-Three small acceptance checks that catch a wrong analysis a plain run would not, and how to correct a wrong expectation afterwards. Each recipe is built from what the repository already has: a [validation binding](advanced.md#validation-bindings), the [data-contract checks](skills.md), and a development fixture that proves the check fails when it should. Nothing here adds a mandatory step; a plan without a `validation-bindings` block is approved and run as before.
+Eight small acceptance checks that catch a wrong analysis a plain run would not, and how to correct a wrong expectation afterwards. Each recipe is built from what the repository already has: a [validation binding](advanced.md#validation-bindings), the [data-contract checks](skills.md), and a development fixture that proves the check fails when it should. Nothing here adds a mandatory step; a plan without a `validation-bindings` block is approved and run as before.
 
 A bound check is one claim, not a certificate. `verify` reads the check's result file and reports `passed`, `failed`, `not run`, `changed`, `unsupported`, `unattributable` or `stale` (see [Validation in the report](advanced.md#validation-in-the-report)). It does not run the check and does not say the analysis is right.
 
-**On this page:** [How a recipe is written](#how-a-recipe-is-written) · [How a result is read](#how-a-result-is-read) · [Contract kinds, and what they cannot show](#contract-kinds-and-what-they-cannot-show) · [Running a step that takes paths on the command line](#running-a-step-that-takes-paths-on-the-command-line) · [1. Sample and key join](#1-sample-and-key-join) · [2. Contrast direction](#2-contrast-direction) · [3. Complete result table](#3-complete-result-table) · [Correcting a wrong expectation](#correcting-a-wrong-expectation) · [Limits](#limits)
+**On this page:** [How a recipe is written](#how-a-recipe-is-written) · [How a result is read](#how-a-result-is-read) · [Contract kinds, and what they cannot show](#contract-kinds-and-what-they-cannot-show) · [Running a step that takes paths on the command line](#running-a-step-that-takes-paths-on-the-command-line) · [1. Sample and key join](#1-sample-and-key-join) · [2. Contrast direction](#2-contrast-direction) · [3. Complete result table](#3-complete-result-table) · [4. Missing values and type conversion](#4-missing-values-and-type-conversion) · [5. Join cardinality and denominator](#5-join-cardinality-and-denominator) · [6. Identifier normalization](#6-identifier-normalization) · [7. Output invariants](#7-output-invariants) · [8. Negative controls](#8-negative-controls) · [Correcting a wrong expectation](#correcting-a-wrong-expectation) · [Limits](#limits)
 
 ## How a result is read
 
@@ -156,6 +156,89 @@ The contract is the same `sample_alignment` kind used in recipe 1, pointed at th
 ```
 
 Renamed columns need an explicit mapping in the check (for example comparing the `gene_symbol` column to the reference `gene` column). Meaning that no check compares, such as the unit of an effect size, stays your judgement.
+
+## 4. Missing values and type conversion
+
+| | |
+|---|---|
+| **Claim** | No value that was present before a conversion step is missing, non-finite or filled in afterwards, unless the plan says so. |
+| **Inputs** | the table before the step, the table after it, the row key, the columns under review |
+| **Expected answer** | Declared by the researcher: which columns are converted, and whether missing values may be filled (`--allow-fill`). The check never decides that missing means zero. |
+| **Invocation** | `python3 recipe_checks.py --out RESULT missingness --before B --after A --key ID --columns af` |
+| **Pass / fail / unavailable** | Pass: no new `NA`, `Inf`, `-Inf` or unparsable value, no unplanned fill, no key lost. Fail: any of those, with up to five keys. Unavailable: a missing file or column, or an unreadable table, gives `unsupported`. |
+| **Deliberate failure** | `af_raw.tsv` holds `` `4.968e-6 ``; `as.numeric` turns it into `NA` (`af_bad.tsv`), a `-Inf` appears (`af_inf.tsv`), or the `NA` becomes `0` (`af_zero.tsv`). |
+| **Benign control** | `af_good.tsv`: the tick is removed on purpose and a value that was `NA` stays `NA`. A group with more missing values is a description for [`--profile-only`](reference/skills/data-contract-check.md#profile-a-table-optional), not a failure here. |
+| **Limit** | It compares two tables by key. It does not say the conversion rule was right, or that a value that stayed present is correct. |
+
+## 5. Join cardinality and denominator
+
+| | |
+|---|---|
+| **Claim** | A join has the cardinality the plan declared, and a count is taken over the units the question is about. |
+| **Inputs** | the left and right tables and the key; for a denominator, the table of every unit the question covers and the table the analysis counts from |
+| **Expected answer** | Declared: `many_to_one`, `one_to_one` or `one_to_many`, and the universe of units. A one-to-many join passes when the plan says so. |
+| **Invocation** | `python3 recipe_checks.py --out RESULT join --left L --right R --key ID --relation many_to_one` and `... denominator --universe ALL --table T --key ID` |
+| **Pass / fail / unavailable** | Pass: the right keys fit the relation (and, with `--require-all-left`, every left key matches); every unit of the universe is in the table. Fail: a repeated right key multiplies rows, or a universe unit is missing. Unavailable: as in recipe 4. |
+| **Deliberate failure** | `annotations_duplicate.tsv` repeats `v1`, so a many-to-one join doubles that variant. `variants.tsv` has no row for `P003`, so a prevalence over `participants_all.tsv` drops one participant. |
+| **Benign control** | `annotations_unique.tsv` fits `many_to_one`; the duplicate table fits a declared `one_to_many`. A variant-only denominator is right for a question about observed variants. |
+| **Limit** | It reads the keys of the inputs, not the join the analysis ran. Pair it with recipe 1's shuffle check when the join itself is the claim. |
+
+## 6. Identifier normalization
+
+| | |
+|---|---|
+| **Claim** | Two raw keys merge into one normalized key only where the plan lists them as one entity. |
+| **Inputs** | the table of raw key and normalized key per row; optionally a crosswalk of raw key and canonical key |
+| **Expected answer** | The crosswalk comes from a source outside the analysis. The check never normalizes, and never decides that `chr1` and `1` are the same. |
+| **Invocation** | `python3 recipe_checks.py --out RESULT collide --map M --raw raw_id --norm norm_id [--crosswalk X]` |
+| **Pass / fail / unavailable** | Pass: no normalized key has several raw keys, or every such raw key is in the crosswalk with that canonical key. Fail: an unlisted merge. Unavailable: as in recipe 4. |
+| **Deliberate failure** | `keys_collide.tsv`: `V1` and `v1` both become `v1`, with no crosswalk. |
+| **Benign control** | The same map with `crosswalk.tsv`, which lists both spellings; and `keys_ok.tsv`, which has no merge. |
+| **Limit** | It shows the merges match the list. It does not show the list is right or that unmerged keys are distinct entities. |
+
+## 7. Output invariants
+
+| | |
+|---|---|
+| **Claim** | A chosen output has no repeated observational unit, its keys equal the metadata keys, and named columns hold counts. |
+| **Inputs** | the output table, its key, the columns that name a unit (for example participant and visit), optionally the metadata table and the count columns |
+| **Expected answer** | Declared by the researcher. Row order is ignored, so a keyed table passes after a shuffle. Value ranges never reveal how a step normalized. |
+| **Invocation** | `python3 recipe_checks.py --out RESULT invariants --table T --key sample_id --unit participant_id,visit --meta M --integer gene_a,gene_b` |
+| **Pass / fail / unavailable** | Pass: every declared invariant holds. Fail: a repeated key or unit, a key on one side only, or a count column with a fraction or a negative value. Unavailable: as in recipe 4. |
+| **Deliberate failure** | `units_duplicate.tsv` repeats participant `P1` at visit `0`; `counts_logged.tsv` holds log values where counts belong. |
+| **Benign control** | `counts_ok.tsv` passes; a metadata table with the same keys in another order passes. |
+| **Limit** | A log transform that happens to give integers passes. When the transform is the claim, use a known-answer test on a tiny input instead. |
+
+## 8. Negative controls
+
+| | |
+|---|---|
+| **Claim** | A check detects the defect it exists for. |
+| **Inputs** | a copy of a small fixture with one change: a sample id broken, one visit removed, a comparison sign flipped |
+| **Expected answer** | The mutated copy fails the named check and the original passes. Run it when you write the check, not at every analysis. |
+| **Invocation** | the check from recipes 1, 2 or 7 (or the `pairing` data-contract check) on the mutated copy |
+| **Pass / fail / unavailable** | Pass: the mutated copy fails and the original passes. A mutated copy that passes means the check is blind to that defect. |
+| **Deliberate failure** | `sample_metadata.tsv` with one `sample_id` renamed fails recipe 7; `sample_metadata_dropout.tsv` fails a `pairing` contract; a flipped sign fails recipe 2. |
+| **Benign control** | The unmutated fixture passes all three. |
+| **Limit** | It tests the check, not the analysis. A check that catches every planted defect can still miss a real one you did not think of. |
+
+```text
+<!-- validation-bindings {"version": 1, "checks": [
+  {"id": "no-new-missing", "plan_row": "4", "required": true, "defined_by": "researcher-approved",
+   "test_paths": ["analysis/variants/checks/recipe_checks.py"],
+   "invocation": ["python3", "analysis/variants/checks/recipe_checks.py", "--out", "analysis/variants/outputs/missingness.json",
+                  "missingness", "--before", "analysis/variants/data/af_raw.tsv", "--after", "analysis/variants/outputs/af.tsv",
+                  "--key", "variant_id", "--columns", "af"],
+   "evidence_path": "analysis/variants/outputs/missingness.json"},
+  {"id": "join-cardinality", "plan_row": "5", "required": true, "defined_by": "researcher-approved",
+   "test_paths": ["analysis/variants/checks/recipe_checks.py"],
+   "invocation": ["python3", "analysis/variants/checks/recipe_checks.py", "--out", "analysis/variants/outputs/join.json",
+                  "join", "--left", "analysis/variants/data/variants.tsv", "--right", "analysis/variants/data/annotations.tsv",
+                  "--key", "variant_id", "--relation", "many_to_one"],
+   "evidence_path": "analysis/variants/outputs/join.json"}]} -->
+```
+
+`--out` goes before the subcommand. The script is the check, so list it in `test_paths` to pin it at approval; the expected answers are in the invocation, which is pinned too. Copy `tests/fixtures/validation-recipes/recipe_checks.py` into the project; it uses only the standard library. The fixtures in that folder are synthetic and show that the checks work, not that they suit your data. `tests/test_recipes.py` runs every red and green case.
 
 ## Correcting a wrong expectation
 

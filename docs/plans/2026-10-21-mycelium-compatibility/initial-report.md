@@ -15,7 +15,7 @@ and scientific effectiveness remain unverified.**
   0.9.1 checkout (`8f8b167`) and this machine's installed Codex cache
   (`0.9.2+codex.20261017115753`): contract checker, lineage writer, todo updater,
   installer, analysis template, analyze skill and folder-structure reference.
-  Hashes: [interfaces.json](2026-10-21-mycelium-compatibility/interfaces.json).
+  Hashes: [interfaces.json](interfaces.json).
 - The Codex configuration currently disables `mycelium@mycelium` and enables
   `mycelium-extra@mycelium-extra`. Cache parity does not establish simultaneous
   hook dispatch. Configuration was inspected, not changed.

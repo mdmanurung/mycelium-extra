@@ -34,7 +34,7 @@ class Recipes(unittest.TestCase):
     def test_every_binding_in_the_page_is_valid(self):
         with open(PAGE, encoding="utf-8") as handle:
             blocks = BLOCK.findall(handle.read())
-        self.assertEqual(len(blocks), 4, "three original recipe blocks and one R1-R3 binding example")
+        self.assertEqual(len(blocks), 5, "three original recipe blocks, one R1-R3 example, one for recipes 4 to 8")
         for text in blocks:
             checks = json.loads(re.search(r"\{.*\}", text, re.DOTALL).group(0))["checks"]
             with tempfile.TemporaryDirectory() as root:
@@ -114,6 +114,101 @@ class RecipeOutcomes(unittest.TestCase):
             self.assertIn(outcome, section, outcome + " is not documented")
         self.assertIn("never turn a non-zero exit into a pass", section)
         self.assertIn("random effect", page)
+
+
+class ReferenceChecks(unittest.TestCase):
+    """Recipes 4 to 8: each red fixture fails, each benign control passes, and a gap is never a pass."""
+    folder = os.path.join(HERE, "fixtures", "validation-recipes")
+    script = os.path.join(folder, "recipe_checks.py")
+
+    def run_check(self, *args, folder=None):
+        proc = subprocess.run([sys.executable, self.script] + list(args), cwd=folder or self.folder,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        return proc.returncode, proc.stdout.split(":")[0]
+
+    def test_red_fixtures_fail_and_benign_controls_pass(self):
+        miss = ["missingness", "--before", "af_raw.tsv", "--key", "variant_id", "--columns", "af", "--after"]
+        join = ["join", "--left", "variants.tsv", "--key", "variant_id", "--right"]
+        collide = ["collide", "--map", "keys_collide.tsv", "--raw", "raw_id", "--norm", "norm_id"]
+        units = ["invariants", "--key", "sample_id", "--table"]
+        for name, args, status in [
+                ("R1-01 tick becomes NA", miss + ["af_bad.tsv"], "failed"),
+                ("R1-02 value becomes -Inf", miss + ["af_inf.tsv"], "failed"),
+                ("R1-04 NA filled with 0", miss + ["af_zero.tsv"], "failed"),
+                ("R1 control: tick removed, NA kept", miss + ["af_good.tsv"], "passed"),
+                ("R1 control: fill declared", miss + ["af_zero.tsv", "--allow-fill"], "passed"),
+                ("R2-01 duplicate annotation", join + ["annotations_duplicate.tsv", "--relation", "many_to_one"], "failed"),
+                ("R2 control: declared one-to-many", join + ["annotations_duplicate.tsv", "--relation", "one_to_many"], "passed"),
+                ("R2 control: unique annotation", join + ["annotations_unique.tsv", "--relation", "many_to_one",
+                                                         "--require-all-left"], "passed"),
+                ("R2-02 denominator drops P003", ["denominator", "--universe", "participants_all.tsv", "--table",
+                                                  "variants.tsv", "--key", "participant_id"], "failed"),
+                ("R2 control: universe is its own table", ["denominator", "--universe", "participants_all.tsv", "--table",
+                                                          "participants_all.tsv", "--key", "participant_id"], "passed"),
+                ("R3-01 merge without crosswalk", collide, "failed"),
+                ("R3 control: crosswalk lists both", collide + ["--crosswalk", "crosswalk.tsv"], "passed"),
+                ("R3 control: no merge", ["collide", "--map", "keys_ok.tsv", "--raw", "raw_id", "--norm", "norm_id"], "passed"),
+                ("R4-02 repeated donor and visit", units + ["units_duplicate.tsv", "--unit", "participant_id,visit"], "failed"),
+                ("R4-03 log values for counts", units + ["counts_logged.tsv", "--integer", "gene_a,gene_b"], "failed"),
+                ("R4 control: counts", units + ["counts_ok.tsv", "--integer", "gene_a,gene_b"], "passed"),
+                ("missing file is a gap", units + ["nope.tsv"], "unsupported"),
+                ("missing column is a gap", units + ["counts_ok.tsv", "--integer", "gene_z"], "unsupported")]:
+            code, got = self.run_check(*args)
+            self.assertEqual(got, status, name)
+            self.assertEqual(code, 2 if status == "failed" else 0, name)
+
+    def test_removing_the_guard_lets_the_red_fixture_pass(self):
+        import argparse
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("recipe_checks", self.script)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        args = argparse.Namespace(before=os.path.join(self.folder, "af_raw.tsv"), after=os.path.join(self.folder, "af_bad.tsv"),
+                                  key="variant_id", columns=["af"], allow_fill=False)
+        self.assertEqual(module.missingness(args)[0], "failed")
+        module.bad = lambda text: False
+        self.assertEqual(module.missingness(args)[0], "passed", "the test must notice a check that stopped looking")
+
+    def test_a_mutated_copy_fails_and_the_original_passes_recipe_8(self):
+        with tempfile.TemporaryDirectory() as work:
+            with open(os.path.join(self.folder, "sample_metadata.tsv"), encoding="utf-8") as handle:
+                lines = handle.read().splitlines()
+            def write(name, rows):
+                with open(os.path.join(work, name), "w", encoding="utf-8") as out:
+                    out.write("\n".join(rows) + "\n")
+            write("meta.tsv", lines)
+            write("shuffled.tsv", [lines[0]] + lines[1:][::-1])  # same keys, other order: a keyed check must pass
+            write("broken.tsv", [lines[0]] + [lines[1].replace("S001_D0", "S001_X0")] + lines[2:])
+            base = ["invariants", "--key", "sample_id", "--unit", "participant_id,visit", "--meta", "meta.tsv", "--table"]
+            self.assertEqual(self.run_check(*base + ["meta.tsv"], folder=work)[1], "passed")
+            self.assertEqual(self.run_check(*base + ["shuffled.tsv"], folder=work)[1], "passed")
+            self.assertEqual(self.run_check(*base + ["broken.tsv"], folder=work), (2, "failed"))
+            contract = {"schema": "mycelium-extra.data_contract.v1", "table": "dropout.tsv", "checks": [
+                {"id": "paired", "kind": "pairing", "unit": "participant_id", "within": "visit", "levels": ["0", "28"]}]}
+            for name, expected in [("meta.tsv", 0), ("dropout.tsv", 2)]:
+                if name == "dropout.tsv":
+                    with open(os.path.join(self.folder, "sample_metadata_dropout.tsv"), encoding="utf-8") as src:
+                        write(name, src.read().splitlines())
+                contract["table"] = name
+                with open(os.path.join(work, "c.json"), "w") as out:
+                    json.dump(contract, out)
+                checker = os.path.join(HERE, "..", "skills", "data-contract-check", "scripts", "data_contract_check.py")
+                proc = subprocess.run([sys.executable, checker, "--contract", "c.json", "--root", work, "--json"],
+                                      cwd=work, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+                self.assertEqual(proc.returncode, expected, proc.stdout + proc.stderr)
+
+    def test_a_result_file_is_judged_by_verify_like_any_other_check(self):
+        with tempfile.TemporaryDirectory() as work:
+            for args, outcome in [(["missingness", "--before", "af_raw.tsv", "--after", "af_bad.tsv", "--key", "variant_id",
+                                    "--columns", "af"], "failed"),
+                                  (["invariants", "--table", "nope.tsv", "--key", "k"], "unsupported"),
+                                  (["missingness", "--before", "af_raw.tsv", "--after", "af_good.tsv", "--key", "variant_id",
+                                    "--columns", "af"], "passed")]:
+                out = os.path.join(work, "r.json")
+                code, _ = self.run_check("--out", out, *args)
+                with open(out) as handle:
+                    self.assertIn(json.load(handle)["status"], ("passed", "failed", "unsupported"))
+                self.assertEqual(verify.read_result(out, {"files": {}})[0], outcome if code == 0 else "failed")
 
 
 class SingleCellRecipes(unittest.TestCase):

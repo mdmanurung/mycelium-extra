@@ -14,6 +14,8 @@ more fields than the header, or a quote that never closes, blocks. Exit codes: 0
 blocking, 1 usage or input error. `--result-json PATH` also writes a machine-readable result
 (contract and table identities, each check's status and message, the exit code, and whether each
 check could run at all) so a later step can read what happened without parsing text.
+
+`--profile-only --profile-spec SPEC` instead prints a descriptive profile of one table (rows read, group counts,\nmissing values) and checks nothing; see the skill's section 5. Exit 0 complete or partial, 3 unavailable, 1 usage error.
 """
 
 import argparse
@@ -1189,7 +1191,229 @@ def write_result(path, result):
             os.unlink(tmp)
 
 
+# ---------------------------------------------------------------- descriptive profile
+
+PROFILE_REQUEST = "mycelium-extra.data-profile-request.v1"
+PROFILE_RESULT = "mycelium-extra.data-profile.v1"
+PROFILE_KEYS = {"schema", "table", "unit_key", "row_key", "group_by", "missingness_columns",
+                "max_rows_inspected", "max_groups", "small_cell_suppression"}
+# name: (smallest, largest, default). Resource and privacy limits, not scientific thresholds.
+PROFILE_LIMITS = {"max_rows_inspected": (1, 5000000, 250000), "max_groups": (1, 1000, 24),
+                  "small_cell_suppression": (1, 1000, 5)}
+PROFILE_NOT_ESTABLISHED = ["eligibility or correctness of the identifiers", "biological plausibility",
+                           "that any expectation the plan makes holds", "statistical inference"]
+
+
+def read_profile_spec(path):
+    """The request as a dict with every limit filled in; anything else is a usage error."""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            spec = json.load(handle)
+    except (OSError, ValueError) as error:
+        raise ContractError("cannot read the profile spec: {}".format(error))
+    if not isinstance(spec, dict) or spec.get("schema") != PROFILE_REQUEST:
+        raise ContractError("the profile spec must be an object with schema '{}'".format(PROFILE_REQUEST))
+    unknown = sorted(set(spec) - PROFILE_KEYS)
+    if unknown:
+        raise ContractError("unknown profile spec key(s): {}".format(", ".join(unknown)))
+    if not isinstance(spec.get("table"), str) or not spec["table"]:
+        raise ContractError("the profile spec needs a 'table' path")
+    for name in ("unit_key", "row_key"):
+        if spec.get(name) is not None and (not isinstance(spec[name], str) or not spec[name]):
+            raise ContractError("'{}' must be a column name".format(name))
+    for name in ("group_by", "missingness_columns"):
+        value = spec.get(name, [])
+        if not isinstance(value, list) or not all(isinstance(c, str) and c for c in value) or len(set(value)) != len(value):
+            raise ContractError("'{}' must be a list of distinct column names".format(name))
+        if name == "group_by" and len(value) > 4:
+            raise ContractError("'group_by' takes at most 4 columns")
+        if name == "group_by" and {spec.get("unit_key"), spec.get("row_key")} & set(value):
+            raise ContractError("'group_by' cannot name the unit or row key: its values identify individuals")
+        spec[name] = value
+    for name, (low, high, default) in PROFILE_LIMITS.items():
+        value = spec.get(name, default)
+        if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+            raise ContractError("'{}' must be an integer from {} to {}".format(name, low, high))
+        spec[name] = value
+    return spec
+
+
+def profile_table(path, spec):
+    """Stream a CSV/TSV once, with the strict settings of read_table, and keep only bounded aggregates."""
+    lower = path.lower()
+    if lower.endswith(".h5ad"):
+        raise TableGap("an .h5ad obs table cannot be read within a row budget here; export obs to CSV or TSV")
+    if lower.endswith(".csv"):
+        delimiter = ","
+    elif lower.endswith(TAB_SEPARATED):
+        delimiter = "\t"
+    else:
+        raise TableGap("unsupported table format '{}'; export it to CSV or TSV".format(
+            os.path.splitext(path)[1] or path))
+    group_by, miss = spec["group_by"], spec["missingness_columns"]
+    unit_key, row_key = spec.get("unit_key"), spec.get("row_key")
+    wanted = group_by + miss + [c for c in (unit_key, row_key) if c]
+    rows, partial = 0, False
+    groups, overflow = Counter(), False
+    group_missing = {c: Counter() for c in miss}
+    missing = Counter()
+    units, row_keys = set(), set()
+    try:
+        with open(path, newline="", encoding="utf-8-sig") as handle:
+            reader = csv.reader(handle, delimiter=delimiter, strict=True)
+            columns = next(reader, None)
+            if columns is None:
+                raise TableGap("the table is empty")
+            named = [c for c in columns if c.strip()]
+            if len(set(named)) != len(named):
+                raise TableGap("the table has duplicate column headers")
+            absent = [c for c in wanted if c not in columns]
+            if absent:
+                raise TableGap("column(s) absent from the table: {}".format(", ".join(absent)))
+            at = {c: columns.index(c) for c in wanted}
+            for record in reader:
+                if len(record) > len(columns):
+                    raise TableShapeError("line {} has more fields than the header, so its values cannot be "
+                                          "assigned to columns".format(reader.line_num))
+                if not any(field.strip() for field in record):
+                    continue
+                if rows >= spec["max_rows_inspected"]:
+                    partial = True
+                    break
+                rows += 1
+                record = record + [""] * (len(columns) - len(record))
+                group = tuple(record[at[c]] for c in group_by)
+                if group_by and not overflow:
+                    groups[group] += 1
+                    if len(groups) > spec["max_groups"]:
+                        groups, overflow = Counter(), True
+                for column in miss:
+                    if is_missing(record[at[column]]):
+                        missing[column] += 1
+                        if group_by and not overflow:
+                            group_missing[column][group] += 1
+                if unit_key:
+                    units.add(record[at[unit_key]])
+                if row_key:
+                    row_keys.add(record[at[row_key]])
+    except UnicodeDecodeError as error:
+        raise TableGap("the table is not valid UTF-8 (byte {} at offset {})".format(
+            error.object[error.start:error.start + 1], error.start))
+    except csv.Error as error:
+        raise TableShapeError("line {} cannot be parsed ({}), so later rows may be missing or merged".format(
+            reader.line_num, error))
+    return {"rows": rows, "partial": partial, "groups": groups, "overflow": overflow, "missing": missing,
+            "group_missing": group_missing, "units": len(units) if unit_key else None,
+            "row_keys": len(row_keys) if row_key else None}
+
+
+def profile_result(spec, stats, error=None):
+    """The mycelium-extra.data-profile.v1 record. Counts below the suppression limit are never named."""
+    limit = spec["small_cell_suppression"]
+    result = {"schema": PROFILE_RESULT, "table": spec["table"], "not_established": PROFILE_NOT_ESTABLISHED}
+    if error:
+        result.update(inspection="unavailable", reason=error)
+        return result
+    partial = stats["partial"]
+    result["inspection"] = "partial" if partial else "complete"
+    result["coverage"] = {"rows_inspected": stats["rows"], "rows_total": None if partial else stats["rows"],
+                          "rows_total_basis": "row budget reached" if partial else "fully_read",
+                          "max_rows_inspected": spec["max_rows_inspected"]}
+    descriptive = {"distinct_units_inspected": stats["units"], "distinct_row_keys_inspected": stats["row_keys"]}
+    privacy = {"small_cell_suppression": limit, "applied": False, "identifiable_rows_exported": False}
+    groups = stats["groups"]
+    if spec["group_by"]:
+        if stats["overflow"]:
+            descriptive["group_counts"] = None
+            descriptive["group_counts_omitted"] = "more than {} groups".format(spec["max_groups"])
+        elif stats["units"] and stats["units"] > 1 and len(groups) == stats["units"]:
+            descriptive["group_counts"] = None  # one group per unit: the labels are identifiers in disguise
+            descriptive["group_counts_omitted"] = "there is one group per unit"
+            privacy["applied"] = True
+        elif any(n < limit for n in groups.values()):
+            # One hidden cell is recoverable from the total and a shown cell, so hide the whole breakdown.
+            descriptive["group_counts"] = None
+            descriptive["group_counts_omitted"] = "a group is smaller than {}".format(limit)
+            privacy["applied"] = True
+        else:
+            descriptive["group_counts"] = [dict(zip(spec["group_by"], key), count=n) for key, n in sorted(groups.items())]
+    descriptive["missingness"] = []
+    for column in spec["missingness_columns"]:
+        entry = {"column": column, "inspected": stats["rows"], "missing": stats["missing"][column]}
+        by_group = stats["group_missing"][column]
+        if spec["group_by"] and descriptive.get("group_counts") is not None:
+            if any(0 < n < limit for n in by_group.values()):
+                entry["by_group"] = None
+                entry["by_group_omitted"] = "a count is smaller than {}".format(limit)
+                privacy["applied"] = True
+            else:
+                entry["by_group"] = [dict(zip(spec["group_by"], key), missing=by_group[key]) for key in sorted(groups)]
+        descriptive["missingness"].append(entry)
+    result["descriptive"], result["privacy"] = descriptive, privacy
+    return result
+
+
+def render_profile(result):
+    """About ten lines of text; never a pass or fail word."""
+    unit = "descriptive, not a validation result"
+    if result["inspection"] == "unavailable":
+        return "DATA REALITY \u00b7 {}\nTable    {}\nCoverage unavailable: {}\nNot established: {}".format(
+            unit, result["table"], result["reason"], "everything about this table")
+    cov, desc = result["coverage"], result["descriptive"]
+    lines = ["DATA REALITY \u00b7 {}{}".format(unit, "; PARTIAL" if result["inspection"] == "partial" else ""),
+             "Table    {}".format(result["table"])]
+    if result["inspection"] == "complete":
+        lines.append("Coverage complete: {0} of {0} rows read".format(cov["rows_inspected"]))
+    else:
+        lines.append("Coverage {} rows inspected; row budget reached; total rows not established".format(cov["rows_inspected"]))
+    if desc["distinct_units_inspected"] is not None:
+        lines.append("Units    {} distinct unit key values (among inspected rows)".format(desc["distinct_units_inspected"]))
+    if "group_counts" in desc:
+        if desc["group_counts"] is None:
+            lines.append("Groups   omitted: {}".format(desc["group_counts_omitted"]))
+        else:
+            lines.append("Groups   " + "; ".join("{} {}".format(" / ".join(str(v) for k, v in g.items() if k != "count"), g["count"])
+                                                for g in desc["group_counts"]) + (" (inspected rows only)" if result["inspection"] == "partial" else ""))
+    for entry in desc["missingness"]:
+        line = "Missing  {}: {} / {}".format(entry["column"], entry["missing"], entry["inspected"])
+        if entry.get("by_group"):
+            line += "; " + ", ".join("{} {}".format(" / ".join(str(v) for k, v in g.items() if k != "missing"), g["missing"])
+                                     for g in entry["by_group"])
+        elif "by_group_omitted" in entry:
+            line += "; by-group breakdown omitted ({})".format(entry["by_group_omitted"])
+        lines.append(line)
+    lines.append("Not established: " + ", ".join(result["not_established"]))
+    return "\n".join(lines)
+
+
+def profile_main(argv):
+    parser = argparse.ArgumentParser(prog="data_contract_check.py --profile-only",
+                                     description="Describe a table's size, groups and missing values, read-only. Not a check.")
+    parser.add_argument("--profile-only", action="store_true", required=True)
+    parser.add_argument("--profile-spec", required=True, help="path to the profile request JSON")
+    parser.add_argument("--root", default=".", help="directory a relative table path resolves from")
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args(argv)
+    try:
+        spec = read_profile_spec(args.profile_spec)
+    except ContractError as caught:
+        print("profile error: {}".format(caught), file=sys.stderr)
+        return 1
+    try:
+        result = profile_result(spec, profile_table(resolve(args.root, spec["table"]), spec))
+    except (TableGap, TableShapeError, OSError) as caught:
+        result = profile_result(spec, None, error=str(caught))
+    if args.json:
+        json.dump(result, sys.stdout, indent=1)
+        print()
+    else:
+        print(render_profile(result))
+    return 3 if result["inspection"] == "unavailable" else 0
+
+
 def main(argv=None):
+    if "--profile-only" in (sys.argv[1:] if argv is None else argv):
+        return profile_main(sys.argv[1:] if argv is None else argv)  # a separate parser: ordinary usage text is untouched
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--contract", required=True, help="path to the contract JSON")
     parser.add_argument("--root", default=".", help="directory relative table paths resolve from")

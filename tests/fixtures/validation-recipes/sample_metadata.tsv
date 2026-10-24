@@ -1,0 +1,13 @@
+sample_id	participant_id	group	visit	response	batch
+S001_D0	P001	Control	0	0.2	B1
+S001_D28	P001	Control	28	0.48	B2
+S002_D0	P002	Control	0	0.4	B1
+S002_D28	P002	Control	28	0.68	B2
+S003_D0	P003	Control	0	0.6	B1
+S003_D28	P003	Control	28	0.88	B2
+S004_D0	P004	Vaccine	0	0.8	B1
+S004_D28	P004	Vaccine	28	1.08	B2
+S005_D0	P005	Vaccine	0	1.0	B1
+S005_D28	P005	Vaccine	28	1.28	B2
+S006_D0	P006	Vaccine	0	1.2	B1
+S006_D28	P006	Vaccine	28	NA	B2

@@ -36,6 +36,7 @@ These come from decisions already locked in this repository. A task that would b
 | 11 | Coverage exceptions, decision trace, recipe gaps, evidence assistance | [11-coverage-and-evidence.md](11-coverage-and-evidence.md) |
 | 12 | Agentic reasoning: heuristics, objection classification, post-report reading | [12-agentic-reasoning.md](12-agentic-reasoning.md) |
 | 13 | Function audit: 2026-10-20 coherence and ultracode findings, E1b real-run follow-ups | [13-function-audit.md](13-function-audit.md) |
+| 14 | New plans: recipes, data profile, scope-loss summary, overlap advisory, science library | [14-newplans.md](14-newplans.md) |
 
 Phases are a suggested order, not a gate; a task may start once its dependencies are done. B5 is a decision for the maintainer, not a build task, and has no phase.
 
@@ -81,6 +82,7 @@ Every task uses these fields, under a `### <ID>: <title>` heading:
 - [11-coverage-and-evidence.md](11-coverage-and-evidence.md): CT-1, DT-1, VR-1 gap fill and ER-1, the tracker for opt-in coverage exceptions, the decision trace, recipe gaps and evidence assistance.
 - [12-agentic-reasoning.md](12-agentic-reasoning.md): M0 to M4 reasoning contracts in grill, plan-review and verify; M5 (live Socratic study) parked.
 - [13-function-audit.md](13-function-audit.md): every finding of the 2026-10-20 audits (6 coherence, 40 confirmed and 25 contested candidates) with a status per row; E1b real-run follow-ups.
+- [14-newplans.md](14-newplans.md): the unified roadmap for the two 2026-10-23 plan bundles; M1 (recipes 4 to 8 and `--profile-only`) first, science library blocked on three user questions.
 
 ## Updating this roadmap
 

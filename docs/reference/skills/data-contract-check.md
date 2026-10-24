@@ -40,6 +40,10 @@ Common fields: `filters` (`equals`, `in`, `not_in`) at contract or check level, 
 
 Tables: `.csv` (comma), `.tsv`, `.tab`, `.txt` (tab) or `.h5ad` (its `obs`, through h5py). Strict UTF-8 and quoting. Any other extension is an unreadable-table gap.
 
+## Profile a table (optional)
+
+`--profile-only --profile-spec PATH [--root DIR] [--json]` describes one CSV or TSV instead of checking it: rows read, group counts and missing values. It is not a validation result and is never read by `verify`. Counts below `small_cell_suppression` (default 5) are never shown; the group breakdown is left out whole. A table cut off by `max_rows_inspected` (default 250000) is `partial` and gives no total. An `.h5ad`, an unreadable table or an absent column is `unavailable` (exit 3). A bad spec is exit 1. The ordinary `--contract` command line is unchanged. The spec fields are in the skill's section 5.
+
 ## Output and exit codes
 
 One line per check: `PASS`, `WARN`, `GAP` or `BLOCK`, with the rows it ran on; a `note:` line naming what passing does not show; the batch-by-contrast table for `batch_confounding`; then the alerts.
