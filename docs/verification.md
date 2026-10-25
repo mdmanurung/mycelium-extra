@@ -37,6 +37,7 @@ Below the rows, the report lists:
 - **Lint** of the analysis code, with every waiver listed.
 - **Claims:** each `<!-- claims -->` value is checked against the output cell it names, after rounding.
 - **Citations:** DOI, PMID and arXiv identifiers, resolved only when you ask with `--resolve-citations`. Offline they stay a gap.
+- **Plan evidence:** each read-only command the plan recorded in its `<!-- plan-evidence -->` block, re-run now. A row reads `still true` (the output is unchanged), `changed` (a gap, with the first line that differs) or `not checked` (a gap, with the reason: a command that may write, a timeout, an exit status of 2 or more). `< file` reads and is allowed; `>`, `>>` and `2>` are not.
 - **Gate errors:** a hook that failed open did not check what it saw, and the report says so.
 
 ## Status

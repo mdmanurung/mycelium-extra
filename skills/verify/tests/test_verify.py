@@ -3071,6 +3071,77 @@ sys.exit(1 if hits else 0)
         self.assertNotIn("## Recovery", self.verify("report", digest))
 
 
+    # E1: plan evidence is re-run, and a writing command never runs
+
+    def evidence_plan(self, rows):
+        text = plan("run `{}`".format(FIT), outputs=self.OUT) + "\n\n<!-- plan-evidence " + json.dumps(
+            {"version": 1, "rows": rows}) + " -->"
+        return self.approve(text)
+
+    def test_plan_evidence_is_rechecked_and_drift_is_a_gap(self):
+        self.write("data/samples.tsv", "S1\tA\nS2\tB\n")
+        digest = self.evidence_plan([{"row": "1", "depends_on": [], "evidence": [
+            {"claim": "2 samples", "cmd": "wc -l < data/samples.tsv", "out": "2"}]}])
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        out = self.verify("report", digest)
+        self.assertIn("row 1: `wc -l < data/samples.tsv` - still true", out)
+        self.assertIn("Plan evidence: 1 entry re-ran, output unchanged", out)
+        self.ends(out, "CONFORMS")
+
+        self.write("data/samples.tsv", "S1\tA\nS2\tB\nS3\tC\n")
+        out = self.verify("report", digest)
+        self.assertIn("row 1: `wc -l < data/samples.tsv` - changed: line 1 differs", out)
+        self.assertIn("**gap**: Plan evidence for row 1 changed since approval", out)
+        self.ends(out, "CONFORMS_WITH_GAPS")
+
+    def test_plan_evidence_never_runs_a_writing_command(self):
+        self.write("data/keep.txt", "safe\n")
+        self.write("data/samples.tsv", "S1\n")
+        digest = self.evidence_plan([{"row": "2", "evidence": [
+            {"claim": "clean up", "cmd": "rm -rf data/keep.txt", "out": ""},
+            {"claim": "git state", "cmd": "git checkout main", "out": ""},
+            {"claim": "two files", "cmd": "uniq data/samples.tsv data/other.tsv", "out": ""},
+            {"claim": "a log", "cmd": "git log --output=data/log.txt", "out": ""},
+            {"claim": "a config", "cmd": "git -c diff.external=sh diff", "out": ""},
+            {"claim": "pre", "cmd": "rg --pre 'cat' data", "out": ""}]}])
+        out = self.verify("report", digest)
+        self.assertTrue(os.path.isfile(os.path.join(self.root, "data/keep.txt")))
+        self.assertIn("not checked: not re-run: `rm` is not a read-only command", out)
+        self.assertIn("`git checkout` can write", out)
+        self.assertIn("`uniq` writes its second file argument", out)
+        self.assertIn("`git log --output=data/log.txt` writes or runs a program", out)
+        self.assertIn("`git diff.external=sh` can write", out)
+        self.assertIn("`rg --pre` can write", out)
+        self.assertFalse(os.path.exists(os.path.join(self.root, "data/log.txt")))
+        self.ends(out, "CONFORMS_WITH_GAPS")
+
+    def test_exit_one_still_compares_and_a_new_output_line_is_a_change(self):
+        # `grep -c` exits 1 when nothing matches yet prints 0: a fact, not a failure. A longer output is a
+        # change even when every recorded line still matches, so lines past the recorded ones are compared.
+        self.write("data/empty.tsv", "")
+        digest = self.evidence_plan([{"row": "1", "evidence": [
+            {"claim": "0 samples", "cmd": "grep -c '^S' data/empty.tsv", "out": "0"},
+            {"claim": "one file", "cmd": "ls data", "out": "empty.tsv"}]}])
+        self.run_cmd("python " + FIT, writes={self.OUT: "x\n"})
+        out = self.verify("report", digest)
+        self.assertIn("`grep -c '^S' data/empty.tsv` - still true", out)
+        self.assertIn("`ls data` - still true", out)
+        self.ends(out, "CONFORMS")
+
+        self.write("data/second.tsv", "")
+        out = self.verify("report", digest)
+        self.assertIn("`ls data` - changed: line 2 differs (recorded `(no line)`, now `second.tsv`)", out)
+        self.assertIn("`grep -c '^S' data/empty.tsv` - still true", out)
+        self.ends(out, "CONFORMS_WITH_GAPS")
+
+    def test_a_malformed_evidence_block_is_a_gap_and_the_report_still_prints(self):
+        text = plan("run `{}`".format(FIT), outputs=self.OUT) + "\n\n<!-- plan-evidence {not json} -->"
+        out = self.verify("report", self.approve(text))
+        self.assertIn("`<!-- plan-evidence -->` block did not parse", out)
+        self.assertIn("Ran as planned", out)
+        self.ends(out, "CONFORMS_WITH_GAPS")
+
+
 class LineageAndExploreHistoryTest(unittest.TestCase):
     """C05 lineage join and C09 verify side: Mycelium's lineage is candidate producer evidence only, never
     `supported`; explore history keeps every attempt, and an explore run never owns an output or validates."""
@@ -3989,7 +4060,7 @@ class DecisionTraceTest(unittest.TestCase):
             "hash", "approved_at", "start", "session_id", "instance", "scope", "analysis_dir", "git", "git_repo", "runs", "scripts",
             "folders", "commands", "inputs", "outputs", "outputs_named", "findings", "lint", "envs", "rule_envs", "claims",
             "citations", "recovery", "validation", "validation_binding", "status", "plan", "plan_intact", "receipts",
-            "qualification", "rerun"})
+            "qualification", "rerun", "evidence"})
         # Calling the trace must not perturb what the plain report and --json print, byte for byte.
         self.trace(digest)
         self.trace(digest, "1")

@@ -1510,6 +1510,174 @@ def default_reasons(plan, report):
         report.add("info", "Default without a usable reason (advisory): " + cell(module.describe(flag)))
 
 
+# ---------------------------------------------------------------- plan evidence (E1)
+
+EVIDENCE_BLOCK = re.compile(r"<!--\s*plan-evidence\b(.*?)-->", re.S)
+EVIDENCE_MAX_ENTRIES = 40
+EVIDENCE_MAX_FINDINGS = 12  # gaps printed; the report table still lists every entry
+EVIDENCE_MAX_LINES = 40     # output lines the reader is shown in a plan (track-changes caps to this)
+EVIDENCE_MAX_CHARS = 500
+EVIDENCE_SECONDS = 10.0  # one command
+EVIDENCE_BUDGET = 60.0   # all of them, so a slow `rg` cannot hold the report
+# The programs an evidence entry may run. Every one reads to stdout and writes nothing; `git` is
+# restricted to its readers below. `sed`, `awk` and `find -exec` are out: each can write from
+# inside its own script or action, and a guard on their arguments is guesswork.
+EVIDENCE_PROGRAMS = frozenset((
+    "rg", "grep", "egrep", "fgrep", "cat", "head", "tail", "wc", "nl", "ls", "find", "diff", "sort", "uniq",
+    "cut", "tr", "comm", "paste", "basename", "dirname", "realpath", "stat", "file", "sha256sum",
+    "shasum", "md5sum", "jq", "git"))
+EVIDENCE_GIT = frozenset((
+    "log", "show", "diff", "status", "blame", "rev-parse", "ls-files", "ls-tree", "cat-file",
+    "describe", "shortlog", "grep", "show-ref"))
+EVIDENCE_WRITERS = {"find": ("-exec", "-execdir", "-ok", "-okdir", "-delete", "-fprint", "-fprint0", "-fprintf",
+                             "-fls"),
+                    "sort": ("-o", "--output", "--compress-program"),  # -o writes; --compress-program runs a program
+                    "rg": ("--pre",),                                  # --pre runs a program on each file
+                    "file": ("-C", "--compile")}                       # -C writes the compiled magic database
+
+
+def evidence_command(command):
+    """(True, "") if a recorded command reads only, else (False, the reason it may not run). Every
+    program in every pipeline segment, and every redirection or substitution, is checked: the block is
+    written by an agent, and re-running it must not be able to change the repository."""
+    if not isinstance(command, str) or not command.strip():
+        return False, "empty command"
+    if len(command) > EVIDENCE_MAX_CHARS:
+        return False, "longer than {} characters".format(EVIDENCE_MAX_CHARS)
+    for bad in ("`", "$(", "${", "<(", ">(", "\n", "\r"):
+        if bad in command:
+            return False, "contains a substitution, a newline or a redirect from a script"
+    for segment in gate.segments(command):
+        if not segment:
+            continue
+        program = os.path.basename(segment[0])
+        if program not in EVIDENCE_PROGRAMS:
+            return False, "`{}` is not a read-only command".format(program)
+        args = segment[1:]
+        for token in args:
+            # `< file` reads; only an output redirection can write.
+            if token in (">", ">>", ">|", ">&", "&>", "&>>") or re.match(r"^\d*>>?$", token):
+                return False, "contains an output redirection"
+        if program == "git":
+            readers = [t for t in args if not t.startswith("-")]
+            if not readers or readers[0] not in EVIDENCE_GIT:
+                return False, "`git {}` can write".format(readers[0] if readers else "")
+            for token in args:  # a reader flag that writes or runs a program
+                if token in ("--output", "--open-files-in-pager", "-O") \
+                        or token.startswith(("--output=", "--open-files-in-pager=")):
+                    return False, "`git {} {}` writes or runs a program".format(readers[0], token)
+            for token in args[:args.index(readers[0])]:  # global options can name a program git runs
+                if token in ("--config-env", "--paginate") or token.startswith(("--config-env=", "-c", "-p")):
+                    return False, "`git {} {}` writes or runs a program".format(readers[0], token)
+        if program in EVIDENCE_WRITERS:
+            for token in args:
+                for flag in EVIDENCE_WRITERS[program]:
+                    if token == flag or token.startswith(flag + "=") or (
+                            flag.startswith("-") and not flag.startswith("--") and token.startswith(flag)
+                            and len(flag) == 2):  # a short flag may carry its value: `sort -oFILE`
+                        return False, "`{} {}` can write".format(program, token)
+        if program == "uniq" and len([t for t in args if not t.startswith("-")]) > 1:
+            return False, "`uniq` writes its second file argument"
+    return True, ""
+
+
+def evidence_lines(text):
+    """The output as compared: trailing whitespace and trailing blank lines dropped. No line cap: a cap
+    would hide new lines past it and report `still true` for a longer output."""
+    lines = [line.rstrip() for line in str(text or "").splitlines()]
+    while lines and not lines[-1]:
+        lines.pop()
+    return lines
+
+
+def plan_evidence(root, plan, report, seconds):
+    """E1: re-run each command recorded in the plan's `<!-- plan-evidence -->` block and compare its
+    output with what the plan recorded. A command that may write never runs. Returns one row per entry
+    for the report. `still true` says the output is unchanged, not that the claim it supports is right."""
+    blocks = EVIDENCE_BLOCK.findall(plan or "")
+    if not blocks:
+        return []
+    if len(blocks) > 1:
+        report.add("gap", "The plan has {} `<!-- plan-evidence -->` blocks; only the first was read.".format(
+            len(blocks)))
+    try:
+        payload = json.loads(blocks[0])
+        rows = payload["rows"]
+        if payload.get("version") != 1 or not isinstance(rows, list):
+            raise ValueError("version 1 with a `rows` list")
+    except (ValueError, KeyError, TypeError) as error:
+        report.add("gap", "The plan's `<!-- plan-evidence -->` block did not parse ({}), so none of its "
+                          "evidence was re-run.".format(cell(str(error))[:120]))
+        return []
+    entries = []
+    for row in rows:
+        if not isinstance(row, dict):
+            report.add("gap", "A `plan-evidence` row is not an object and was skipped.")
+            continue
+        for entry in row.get("evidence") or []:
+            entries.append((row, entry))
+    if len(entries) > EVIDENCE_MAX_ENTRIES:
+        report.add("gap", "The plan records {} evidence entries; only the first {} were re-run.".format(
+            len(entries), EVIDENCE_MAX_ENTRIES))
+        entries = entries[:EVIDENCE_MAX_ENTRIES]
+    deadline, results = time.time() + min(EVIDENCE_BUDGET, max(0.0, float(seconds))), []
+    for row, entry in entries:
+        row_id = str(row.get("row", ""))
+        depends = [str(d) for d in row.get("depends_on") or []]
+        if not isinstance(entry, dict):
+            results.append({"row": row_id, "claim": "", "cmd": "", "depends_on": depends,
+                            "verdict": "not checked", "reason": "the entry is not an object"})
+            continue
+        claim, command = str(entry.get("claim") or ""), entry.get("cmd")
+        old = evidence_lines(entry.get("out"))
+        record = {"row": row_id, "claim": cut(claim, 120), "cmd": cut(str(command or ""), 200),
+                  "depends_on": depends}
+        allowed, why = evidence_command(command)
+        if not allowed:
+            record.update(verdict="not checked", reason="not re-run: " + why)
+        elif time.time() >= deadline:
+            record.update(verdict="not checked", reason="not re-run: the evidence time budget ran out")
+        else:
+            try:
+                proc = subprocess.run(["/bin/sh", "-c", command], cwd=root, stdin=subprocess.DEVNULL,
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=min(
+                                          EVIDENCE_SECONDS, max(0.1, deadline - time.time())),
+                                      env=dict(os.environ, GIT_PAGER="cat", PAGER="cat"))
+                new = evidence_lines(proc.stdout.decode("utf-8", "replace"))
+                if proc.returncode not in (0, 1):  # 1 is a reader saying "nothing matched" or "differs": still comparable
+                    record.update(verdict="not checked", reason="not re-run: exit {}".format(proc.returncode))
+                elif new == old:
+                    record.update(verdict="still true", reason="")
+                else:
+                    first = next((i for i, (a, b) in enumerate(zip(old, new)) if a != b), min(len(old), len(new)))
+                    record.update(verdict="changed", old=cut(old[first], 120) if first < len(old) else "(no line)",
+                                  new=cut(new[first], 120) if first < len(new) else "(no line)",
+                                  reason="line {} differs".format(first + 1))
+            except subprocess.TimeoutExpired:
+                record.update(verdict="not checked", reason="not re-run: timed out")
+            except OSError as error:
+                record.update(verdict="not checked", reason="not re-run: " + cell(str(error))[:80])
+        results.append(record)
+    changed = [r for r in results if r["verdict"] == "changed"]
+    unchecked = [r for r in results if r["verdict"] == "not checked"]
+    findings = changed + unchecked
+    for record in findings[:EVIDENCE_MAX_FINDINGS]:
+        if record["verdict"] == "changed":
+            report.add("gap", "Plan evidence for row {} changed since approval ({}): `{}` recorded `{}`, now `{}`."
+                       .format(record["row"] or "?", record["reason"], record["cmd"],
+                               cell(record["old"]), cell(record["new"])))
+        else:
+            report.add("gap", "Plan evidence for row {} was {} (`{}`).".format(
+                record["row"] or "?", record["reason"], record["cmd"]))
+    if len(findings) > EVIDENCE_MAX_FINDINGS:
+        report.add("gap", "And {} more plan-evidence finding(s); every entry is in the `## Plan evidence` table."
+                   .format(len(findings) - EVIDENCE_MAX_FINDINGS))
+    if results and not changed and not unchecked:
+        report.add("info", "Plan evidence: {0} entr{1} re-ran, output unchanged.".format(
+            len(results), "y" if len(results) == 1 else "ies"))
+    return results
+
+
 # ---------------------------------------------------------------- fact tags (D7)
 
 FACT_TAG = re.compile(r"\[(human-stated|agent-derived|agent-asserted)(?::\s*([^\]]*))?\][\s.;,]*$")
@@ -2932,6 +3100,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                            "probes are typical, and they are not checked.".format(inline))
 
     default_reasons(plan, report)
+    evidence_checked = plan_evidence(root, plan, report, seconds)
     fact_tags("the plan's Evidence", section_bullets(plan, "Evidence"), report)
     if analysis_dir:
         doc = os.path.join(analysis_dir, os.path.basename(analysis_dir).upper().replace("-", "_") + ".md")
@@ -2964,7 +3133,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             "scripts": scripts, "folders": folders, "commands": commands, "inputs": inputs,
             "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted, "envs": envs, "rule_envs": rule_env_list,
             "claims": claimed, "citations": cited, "recovery": recovery, "validation": validated,
-            "validation_binding": binding,
+            "validation_binding": binding, "evidence": evidence_checked,
             "status": report.status(), "plan": plan, "plan_intact": plan_intact,
             # Kept for the record (a scaffolder call can explain a moved input), marked as not runs.
             "receipts": sorted(mine + [dict(r, not_a_run="only passed planned paths to other code")
@@ -3489,6 +3658,16 @@ def render(result, all_outputs=False, saved=False):
                 if one["outcome"] == "passed" and one["warnings"] else
                 "passed ({})".format(cell(one["reason"])) if one["outcome"] == "passed" else
                 "{} - {}".format(one["outcome"], cell(one["reason"]))))
+    if result.get("evidence"):
+        lines += ["", "## Plan evidence", "", "Each command the plan recorded in its `<!-- plan-evidence -->` block, re-run now "
+                  "and compared with the output the plan recorded. Every command is a read-only reader; `still true` means "
+                  "the output is unchanged, not that the claim it supports is right."]
+        for entry in result["evidence"]:
+            detail = ": " + cell(entry["reason"]) if entry.get("reason") else ""
+            if "old" in entry:
+                detail += " (recorded `{}`, now `{}`)".format(cell(entry["old"]), cell(entry["new"]))
+            lines.append("- row {}: `{}` - {}{}".format(
+                cell(entry["row"]) or "?", cell(entry["cmd"]) or "(none)", entry["verdict"], detail))
     if result.get("rerun"):
         lines += ["", "## Rerun evidence", "", "Entry points the plan names, never launched by verify: `declared`, `rerun attempted` "
                   "(a matched run after the outputs were saved) and `rerun reproduced specified artifacts` (equal content hashes) "
