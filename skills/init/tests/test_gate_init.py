@@ -275,6 +275,27 @@ class DiagnoseTest(unittest.TestCase):
         self.assertIn('PROBLEM confirm_writes: "yes" is invalid; the gate wants true or false, and uses off.',
                       self.diagnose())
 
+    def test_optional_limits_accept_null_and_explain_off(self):
+        for config in ({}, {"max_runs_per_approval": None, "checkpoint_steps": None},
+                       {"max_runs_per_approval": 2, "checkpoint_steps": 0}):
+            with self.subTest(config=config):
+                self.state_file("gate.json", json.dumps(config))
+                before = self.listing()
+                out = self.diagnose()
+                self.assertNotIn("PROBLEM", out)
+                self.assertIn("null means no run limit for max_runs_per_approval", out)
+                self.assertIn("no checkpoint for checkpoint_steps", out)
+                self.assertIn("checkpoint_steps: 0 also turns checkpoints off", out)
+                self.assertEqual(self.listing(), before)
+
+    def test_optional_limits_still_flag_invalid_values(self):
+        for key, values in (("max_runs_per_approval", [0, -1, True, 1.5, "2"]),
+                            ("checkpoint_steps", [-1, False, 1.5, "2"])):
+            for value in values:
+                with self.subTest(key=key, value=value):
+                    self.state_file("gate.json", json.dumps({key: value}))
+                    self.assertIn("PROBLEM " + key + ":", self.diagnose())
+
     def test_diagnose_writes_nothing_with_or_without_state(self):
         before = self.listing()
         out = self.diagnose()
@@ -306,7 +327,12 @@ class DiagnoseTest(unittest.TestCase):
         self.state_file("gate.json", '{"approval_hours": 1' + "0" * 400 + ', "gated_commands": 5}')
         out = self.diagnose()
         self.assertIn("PROBLEM approval_hours:", out)
-        self.assertIn("integer this large makes the gate error", out)
+        self.assertIn("the gate wants a number of 0 or more, and uses the default.", out)
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("gate_huge_number", GATE)
+        gate = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gate)
+        self.assertEqual(gate.load_config(self.root)["approval_hours"], gate.DEFAULTS["approval_hours"])
         self.assertIn("PROBLEM gated_commands: 5 is invalid; the gate wants a list of strings, and uses nothing: "
                       "the gate does not check it", out)
 

@@ -259,8 +259,8 @@ CONFIG_RULES = {
     "lint_before_stop": ("true or false", lambda v: isinstance(v, bool)),
     "lint_before_run": ('false, "warn" or "block"', lambda v: v is False or v in ("warn", "block")),
     "on_error": ('"allow" or "deny"', lambda v: v in ("allow", "deny")),
-    "max_runs_per_approval": ("a whole number of 1 or more (or unset)", lambda v: _whole(v, 1)),
-    "checkpoint_steps": ("a whole number of 1 or more, or 0 for off (or unset)", lambda v: _whole(v, 0)),
+    "max_runs_per_approval": ("a whole number of 1 or more (or null/unset)", lambda v: v is None or _whole(v, 1)),
+    "checkpoint_steps": ("a whole number of 1 or more, or 0 for off (or null/unset)", lambda v: v is None or _whole(v, 0)),
 }
 
 
@@ -273,8 +273,6 @@ INVALID_EFFECT = {
 # gated_paths and gated_commands are not type-checked by the gate, so there is no default to fall back to.
 UNCHECKED_EFFECT = ("nothing: the gate does not check it, so an int makes the gate error (the run is then "
                     "allowed, or denied if on_error is deny) and a string is read one character at a time")
-HUGE_EFFECT = ("nothing: an integer this large makes the gate error before it runs (the run is then allowed, "
-               "or denied if on_error is deny) until gate.json is fixed")
 
 
 def last_json_line(path):
@@ -367,14 +365,15 @@ def diagnose(root, plugin_root):
     out.append("effective config (defaults merged with gate.json):")
     for key in sorted(config):
         out.append("  {}: {}{}".format(key, json.dumps(config[key]), "" if key in saved else "  (default)"))
+    out.append("  null means no run limit for max_runs_per_approval and no checkpoint for checkpoint_steps; "
+               "checkpoint_steps: 0 also turns checkpoints off.")
     for key in sorted(saved):
         rule = CONFIG_RULES.get(key)
         if rule is None:
             out.append("  PROBLEM {}: not a key this gate reads (typo?); ignored.".format(key))
         elif not rule[1](saved[key]):
-            huge = isinstance(saved[key], int) and not isinstance(saved[key], bool) and abs(saved[key]) > 10 ** 300
             effect = (UNCHECKED_EFFECT if key in ("gated_paths", "gated_commands") else
-                      HUGE_EFFECT if huge else INVALID_EFFECT.get(key, "the default"))
+                      INVALID_EFFECT.get(key, "the default"))
             out.append("  PROBLEM {}: {} is invalid; the gate wants {}, and uses {}.".format(
                 key, json.dumps(saved[key]), rule[0], effect))
     diagnose_hooks(plugin_root, out)
