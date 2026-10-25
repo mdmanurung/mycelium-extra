@@ -13,9 +13,9 @@ Both were checked against `630fc30` (0.15.0) and [decisions](../decisions.md) on
 - Bundle A's PR-2 says to reuse the strict table reader. `read_table` (`skills/data-contract-check/scripts/data_contract_check.py:85`) reads the whole file before it returns, so a row budget cannot be honest with it. A2 needs its own streaming loop with the same strict `csv` settings.
 - Bundle A's recipe names R1 to R5 clash with the existing single-cell R1 to R3 on `docs/validation-recipes.md`. The new recipes are numbered 4 to 8 on that page.
 - `discriminating_check` already exists in `skills/plan-review/references/review-contract.md`, and `track_changes.plan_items` already hands inputs, outputs and validation blocks to `verify diff` (`track_changes.py:199`). Bundle A's revision 2 matches both. A4 is wording plus one summary item.
-- Bundle B adds a 14th skill. Bundle A's ADR-01 says "extend skills; do not add skills". The two bundles disagree, and the user must pick (S1).
-- Bundle B's 16 guides and 13 packs are summaries of archives that include CC-BY-NC-SA and unlicensed sources. Its own `SOURCES.md` asks for a rights review before any publish (S2).
-- Bundle B's `single-cell-analysis` pack overlaps `tests/fixtures/sc-conventions/` and the pack the user installed. Its own text says not to replace the richer one (S3).
+- Bundle B adds a 14th skill. Bundle A's ADR-01 says "extend skills; do not add skills". The two bundles disagree, and resolved: fold (Q4).
+- Bundle B's 16 guides and 13 packs are summaries of archives that include CC-BY-NC-SA and unlicensed sources. Its own `SOURCES.md` asks for a rights review before any publish; resolved: rewrite a subset from scratch (Q2).
+- Bundle B's `single-cell-analysis` pack overlaps `tests/fixtures/sc-conventions/` and the pack the user installed. Resolved: it may ship beside them, never replace them (Q5).
 - Bundle B read-through (all 16 guides, 13 packs, registry, index, both docs pages, both test files, the apply script):
   - Each guide is about 3 KB of the same template. Only the input contract, three steps and two blocking checks differ, so the method depth is thin.
   - Every guide says original archives are "retained separately in the private v4 bundle". That line must not ship in a public repo.
@@ -36,7 +36,7 @@ Order is by value, then risk. Each item is one feature in its own PR. Version bu
 | A2 | `data-contract-check --profile-only`: bounded, descriptive, small-cell suppressed | `data_contract_check.py`, its tests, `SKILL.md` | low to medium: new CLI mode, old mode must stay byte-equal | built 2026-10-24, same worktree, uncommitted |
 | A4 | Sharper `discriminating_check` wording; one lost-coverage item in `track-changes` | `plan-review` references, `track_changes.py`, tests | medium: read-only, but journal identities must stay stable | built 2026-10-25, committed on `feat/newplans-m1` |
 | A3 | Input/output overlap advisory on the full approval and freeze cards | `hooks/validation.py` or adjacent helper, `gate.py` card path, `test_gate.py` | highest: `gate.py`, needs `gate_diff` before and after | built 2026-10-25, see M3 notes |
-| B1 | `science` skill, guides, packs, source index | new `science/`, `skills/science/`, docs | blocked by S1 to S3 | blocked |
+| B1 | Folded method guidance for 2 or 3 methods (no new skill) | `skills/grill/references/` | low: docs and a static test | blocked: Q6 |
 
 PR-D in bundle B (route one or two methods as their own skills) stays `parked` until B1 exists and routing accuracy is measured.
 
@@ -101,13 +101,26 @@ M1 ships the two items that need no hook edit and change no default behavior. A 
 
 - **M2, A4** (built, see above): `plan-review` wording only (no new field, no `disconfirming_test`). One attention item in `track-changes` for a removed or changed validation binding, a dropped output, or a removed row between two approved plans. It reuses `verify.plan_changes` and the strict binding reader. A missing baseline reads `not established`, never "no losses". Acceptance: bundle A ids C4-01 to C4-13.
 - **M3, A3** (built, see above): literal declared overlap only, shown on the full card, never on `on_tool` or `on_post`. Run `gate_diff` before and after; show any decision that differs. Acceptance: bundle A ids I3-01 to I3-10.
-- **M4, B1**: blocked on S1 to S3. If the user approves, apply bundle B's script to a clean worktree, run its `tests/test_science_registry.py`, and add it to the CI sweep by name.
+- **M4, B1**: see the section above. Bundle B's apply script and registry are not used.
 
-## Questions for the user
+## Decisions (2026-10-25)
 
-- **S1**: Add a 14th `science` skill, or fold the 16 guides into existing skills? Bundle A's ADR-01 says no new skills.
-- **S2**: Are the guide and pack summaries cleared for an MIT repository? Their sources include CC-BY-NC-SA and unlicensed material.
-- **S3**: May bundle B ship a `single-cell-analysis` pack beside the one already installed and the `sc-conventions` fixtures?
+- **Q1** one feature commit per item, no version bump yet. Done: `015b9b6`, `e759059`, `8d83a27`.
+- **Q2 (c)** the science guides are rewritten from scratch for a small subset of methods, with no archive text and no archive license. Bundle B's guide, pack and index text is not copied. The 264-row index is dropped.
+- **Q3 (a)** A4 then A3. Done.
+- **Q4 fold** there is no 14th `science` skill and no `skills/science/`. Method guidance goes into existing skills: `grill` reads it as a lower-priority reference after the repository's own conventions.
+- **Q5 yes** a `single-cell-analysis` convention may ship beside the user's installed pack and the `sc-conventions` fixtures. It never replaces either; `grill` cites it as a plugin reference, not as an active `repo:` convention.
+
+## M4: folded method guidance (B1, reshaped)
+
+- **Scope**: 2 or 3 short method guides, written fresh, under `skills/grill/references/methods/`, and one line in `skills/grill/references/scientific-conventions.md` saying when to consult one. Each guide has an input contract, blocking conditions, an output contract and what a pass would not show. No registry, no `science/` tree, no apply script.
+- **Out of scope**: the other 13 methods, any new command, any change to hooks, an installer for packs.
+- **Acceptance**: a test that every guide has the three sections and no link to a missing file; `check_links.py` clean; `git diff main -- hooks opencode skills/science` empty; the existing `grill` reference tests pass.
+- **Status**: blocked: which 2 or 3 methods (see the open question below).
+
+## Open question
+
+- **Q6**: which methods go first? Recommended: single-cell analysis (donor-level pseudobulk), longitudinal analysis, Bayesian modelling.
 
 ## Limits
 
