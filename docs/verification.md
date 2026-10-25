@@ -8,6 +8,8 @@ New to it? Start with [Tier 3](usage.md#tier-3-verify-reportable-work). **Full d
 
 These are the exact recorded vocabularies, not a combined health score. Read the reasons and missing evidence even when the conformity line reads CONFORMS.
 
+For an optional practice exercise, use `/mycelium-extra:verify exercise`, then `exercise reveal` after your answer. These labelled synthetic records are printed only; nothing is saved. See [the exercise](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/exercise.md#quick-synthetic-review).
+
 ## What the report shows
 
 The report opens with the status and five one-line rows. When every answer is yes, you can stop reading there:

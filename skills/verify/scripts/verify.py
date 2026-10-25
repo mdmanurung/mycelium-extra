@@ -5054,6 +5054,34 @@ def render_trace(root, result, wanted=None, sacct="sacct"):
     return "\n".join(lines + [""] + TRACE_LIMITS) + "\n"
 
 
+def review_exercise(reveal=False):
+    """A labelled, in-memory rehearsal of C1's V-23 claim mismatch; never a real verify report."""
+    text = """SYNTHETIC REVIEW EXERCISE - invented records; no analysis was run.
+Source case: C1 V-23 (a claim disagrees with its output cell).
+
+Fixture plan: compare vaccine minus placebo; check the MX1 log2fc claim against its saved cell.
+Fixture receipt: planned step completed, exit_status: 0.
+Fixture output: de_results.tsv
+gene\tlog2fc
+MX1\t-1.4455
+
+Fixture write-up: MX1 log2fc is 1.4455.
+Fixture report excerpt: Numbers match: yes, the MX1 claim matches its output cell.
+
+Find the discrepancy. What does the receipt establish, and what needs review?
+No approval, receipt, report, provenance or personal score is saved.
+"""
+    if reveal:
+        return text + """
+ANSWER - SYNTHETIC EXERCISE ONLY
+The write-up claims 1.4455; the MX1 output cell holds -1.4455.
+The fixture report's claim-match verdict is wrong. Exit 0 shows completion only.
+Review the contrast, output and write-up to decide which is wrong; change no record to force a pass.
+This rehearsal measures neither scientific validity nor a person's ability to detect errors.
+"""
+    return text + "After your answer, run `verify exercise reveal` in this session to see the known answer.\n"
+
+
 def main(argv):
     parser = argparse.ArgumentParser(prog="verify")
     parser.add_argument("--plugin-root", required=True)
@@ -5064,7 +5092,7 @@ def main(argv):
     parser.add_argument("--hash-mb", type=float, default=2000)
     parser.add_argument("--seconds", type=float, default=120)
     parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore",
-                                           "multiplicity", "runs", "refs", "disclose"])
+                                           "multiplicity", "runs", "refs", "disclose", "exercise"])
     parser.add_argument("hash", nargs="?")
     parser.add_argument("new_hash", nargs="?")
     parser.add_argument("--sha", help="refs: the SHA256 (or at least 8 hex) of the file that was wrong")
@@ -5089,6 +5117,14 @@ def main(argv):
                         help="report: the decision trace, one line per plan row, or one row's evidence links with ROW "
                         "(put the hash first: `report <hash> --trace [ROW]`). A text view; nothing is written")
     args = parser.parse_args(argv)
+    if args.action == "exercise":
+        if args.hash not in (None, "reveal") or args.new_hash or any((
+                args.json, args.trace is not None, args.analysis_dir, args.instance, args.claims,
+                args.session, args.all, args.content, args.require_reportable, args.resolve_citations,
+                args.contact, args.sha, args.scilintr, args.rscript)):
+            parser.error("exercise takes only an optional `reveal`; it reads no project state and writes nothing")
+        sys.stdout.write(review_exercise(args.hash == "reveal"))
+        return 0
     if args.trace is not None and (args.action != "report" or args.json):
         sys.exit("verify: --trace is a text view of report only (not --json, write or the other actions); nothing was written.")
     if args.json and args.action == "disclose":

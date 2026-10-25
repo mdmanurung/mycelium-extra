@@ -38,17 +38,17 @@ Every oversight step can turn into a reflex: approve without reading, answer the
 - **Effort:** S.
 - **Status:** done (0.9.71), and optional: it is off unless set and is not part of the default journey. `max_runs_per_approval` in `gate.json`; the denial lists the commit and script changes since the first counted run, the approval file is untouched, and `verify list`/`status` mark an approval that reached the limit. The count lags by runs in flight.
 
-## D12: Synthetic review exercises (reshaped; not implemented)
+## D12: Synthetic review exercise
 
 The earlier proposal planted a known false claim in the researcher's genuine verification report and recorded whether it was caught. That is dropped: a genuine verification report must not contain an invented discrepancy, even briefly.
 
 - **Why:** the only ground truth for "does the user still catch errors?" is an error whose presence is known. A synthetic exercise gives that ground truth without touching real work.
-- **Scope:** an opt-in command, off by default, that shows a clearly labelled synthetic exercise: a fixture plan, receipts, and report with one known discrepancy, built from the fixture project's defect cases (C1). It says at the start that it is an exercise, asks what the user finds, and then reveals the known answer. A personal summary in `verify status` (exercises caught versus missed, over the last 30 days and the 30 before) may follow, kept in `.mycelium-extra/` only.
+- **Scope:** `verify exercise` prints a labelled synthetic plan, receipt, output cell and report excerpt with one mismatch based on C1 V-23. The skill asks what the user finds, then shows `verify exercise reveal` after their answer in the same session. Nothing is written. A personal summary stays deferred until there is a measured need.
 - **Out of scope:** any change to a genuine plan, receipt, report, provenance file, `.living/` entry, or claims check; seeding errors in the user's data or code; comparing users; exporting metrics; scheduled or covert exercises.
 - **Depends on:** C1, D1.
-- **Constraints:** every exercise carries an unmistakable label and lives in its own folder, never next to or inside real provenance. Nothing it writes can be mistaken for, or read by `verify`, `status`, or `stale` as, a real run. Metrics live in `.mycelium-extra/` only. Off by default and switchable off at any time.
+- **Constraints:** every exercise carries an unmistakable label. The exercise reads no project state and writes nothing, so `verify`, `status` and `stale` cannot collect it as a real run. No score, metrics, scheduled exercise or model call.
 - **Grill prompt:** `/mycelium-extra:grill Plan opt-in synthetic review exercises built from the fixture project's defect cases. They must be labelled as exercises, kept out of real reports and provenance, and revealed in the same session. Show where an exercise lives so that verify cannot mistake it for a real run.`
 - **Acceptance:** an exercise is created only on request; its files are labelled and never appear in `verify list`, `status`, or `stale`; the real result of any genuine verify run is unchanged by it; with the feature off, nothing changes.
-- **Tests:** unit tests for labelling and isolation, and a test that no exercise file is written outside its own folder under `.mycelium-extra/`.
+- **Tests:** `skills/verify/tests/test_exercise.py` checks the numerical mismatch, answer reveal, CLI validation, no gate loading, and unchanged project bytes, mtimes and file inventory.
 - **Effort:** M.
-- **Status:** reshaped, not implemented. The seeded-discrepancy design is replaced; no code exists.
+- **Status:** done locally 2026-10-25: 3 exercise tests pass on Python 3.9, 3.12 and 3.14. The command prints its fixture directly instead of creating an exercise folder; there is no synthetic state to confuse with real evidence. Personal habit summaries remain deferred.

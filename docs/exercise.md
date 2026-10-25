@@ -12,6 +12,10 @@ Do all of it in a scratch copy, so the fixture stays as it is:
 cp -r tests/fixtures/mycelium-project /tmp/mx-exercise && cd /tmp/mx-exercise
 ```
 
+## Quick synthetic review
+
+For a text-only exercise, ask `/mycelium-extra:verify exercise`. It shows an invented plan, receipt, output cell and report excerpt based on C1's V-23 claim-mismatch case. Find the discrepancy, then ask `/mycelium-extra:verify exercise reveal` in the same session. No analysis runs, project reads, files or personal scores are saved. The exercise needs no gate. The longer scratch-project rehearsal below is separate.
+
 ## 1. Read the plan before you approve it
 
 Open the worked example's [plan and card](example.md#2-the-brief). Find, on the card or in the plan table:
