@@ -33,6 +33,14 @@ HTML comments in the plan you present, not nested inside this one. See the grill
 Without them a path in the Step column is a broad grant (any arguments). `defined_by` is recorded, not verified.
 -->
 
+## Plot deliverables
+
+Plots are the primary artifacts for interpreting results. For each question, name
+the saved figure path, source output, comparison, and visual check. Include figure
+scripts in the Plan table and figure paths on the approved brief's `Outputs:` line.
+Every conclusion must link its inspected figure and panel. Use an interpretive
+table only with an explicit reason a plot cannot convey the evidence.
+
 ## Assumptions and risk
 
 - [Each default in one line, then the key failure mode and how the plan detects it.]

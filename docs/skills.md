@@ -16,6 +16,7 @@ This is a task map, not a list of commands to execute in sequence. Read the skil
 | Enable execution checks | `/mycelium-extra:init` |
 | Check a completed run | `/mycelium-extra:verify <hash>` |
 | Create an analysis folder | `/mycelium-extra:new-analysis analysis/<name>: <question>` |
+| Tie conclusions to plots | `/mycelium-extra:plot-first <analysis folder>` |
 | Resume in a fresh session | `/mycelium-extra:handoff` |
 | Say which analysis this session works on | type `focus <folder>` |
 | See what changed against the approved plan | `/mycelium-extra:track-changes` |
@@ -39,6 +40,10 @@ Checks what ran against the approved plan and saves provenance once you confirm.
 ## new-analysis
 
 Scaffolds a new analysis folder. See [new-analysis](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/new-analysis.md).
+
+## plot-first
+
+Makes saved plots the primary artifacts for interpreting analysis results. Each conclusion links an inspected figure and panel. An interpretive table needs a stated reason a plot is inadequate. `grill` loads this guidance for analysis plans; `new-analysis` carries it into the analysis doc and plan. Existing numeric provenance and workflow status tables stay in place. This is agent guidance, not a gate-enforced check. See the [skill instructions](https://github.com/mdmanurung/mycelium-extra/blob/main/skills/plot-first/SKILL.md).
 
 ## plan-review
 

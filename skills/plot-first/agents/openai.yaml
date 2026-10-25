@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra Plot First"
+  short_description: "Tie analysis conclusions to saved, inspected plots"
+  default_prompt: "Use $mycelium-extra:plot-first to make plots the primary analysis outputs and link every conclusion to visual evidence."

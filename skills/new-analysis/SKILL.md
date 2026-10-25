@@ -55,6 +55,8 @@ The analysis doc comes from Mycelium's `skills/core/templates/analysis-readme.md
 
 Use Edit; the files already exist.
 
+Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and conclusions. Carry its figure deliverables into `PLAN.md` and the analysis doc. Keep this rule in the analysis doc so `/mycelium:analyze` reads it when continuing.
+
 - **`<NAME>.md`.** Write the Purpose from the scope, and the "Does" column of the Steps table.
 - **`PLAN.md` and `TRACKER.md`.** If this conversation holds an approved mycelium-extra grill brief for this analysis, copy it in:
   - Into `PLAN.md`: its Objective, Evidence, Inputs, Plan table, Assumptions and risk, Parked, and Decisions to record.
@@ -66,7 +68,7 @@ Use Edit; the files already exist.
 
 - **`<NAME>.md`** is Mycelium's entry point.
   - It holds the purpose, status, datasets, steps, open questions, and outputs.
-  - **Key Findings** is where results go: each bullet gives the claim and its `.living/findings` ID once crystallized, and ends with ``[agent-derived: `outputs/<file>`]`` naming the file behind it; `verify` counts these tags.
+  - **Key Findings** is where results go: each conclusion links its inspected plot and panel, gives its `.living/findings` ID once crystallized, and ends with ``[agent-derived: `outputs/<file>`]`` naming the file behind it; `verify` counts these tags. An interpretive table needs an explicit fallback reason.
   - `/mycelium:analyze` reads this file, and its post-action hook updates it.
 - **`PLAN.md`** is the one plan. Revise it in place and log each change in `TRACKER.md`. Never start a second plan file.
 - **`TRACKER.md`** holds each item's status and a dated log. Project-wide todos stay in `todo/`.

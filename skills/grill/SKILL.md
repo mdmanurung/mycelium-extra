@@ -23,6 +23,8 @@ Before reading any file or data, and before proposing anything, ask the user in 
 
 ## 2. Reconstruct and challenge
 
+For analysis work, read [../plot-first/SKILL.md](../plot-first/SKILL.md). Make plots the primary interpretive outputs. Carry each question's figure path, source data, and visual check into the existing plan; use tables only with a stated fallback reason. This remains read-only and adds no interview questions.
+
 For scientific and statistical work, use [references/scientific-conventions.md](references/scientific-conventions.md) **after** obtaining the user's question and retrieving project evidence. Identify only *activated* domain guidance, selectively read its relevant sections, and carry consequential scientific rules, exceptions, sources, and falsifiable checks into the existing plan. Never mistake a convention for proof that a dataset or implementation satisfies it. This adds no interview questions, approval authority, execution, or external retrieval.
 
 Keep a compact internal evidence map: claim, source/path, date or commit if material, status (`intended`, `implemented`, `observed`, `proposed`), applicability, and confidence. Distinguish current user intent from repository evidence and from your inference. A file's existence does not prove its outputs are current; a past decision does not prove the current implementation follows it.

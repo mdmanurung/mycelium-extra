@@ -100,12 +100,15 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertTrue(doc.rstrip().endswith("| 03 | `03_explore_model.ipynb` | [what it does] "
                                               "| `logs/03_explore_model.ipynb` |"))
         self.assertIn(".living/findings ID", doc)
+        self.assertIn("saved, inspected plot and panel", doc)
+        self.assertIn("explicit fallback", doc)
 
     def test_doc_from_bundled_template(self):
         out = self.scaffold("--data=data/anndatas/cells.h5ad")
         self.assertIn("bundled copy", out)
         doc = read(os.path.join(self.dest, "DEMO_RUN.md"))
         self.assertTrue(doc.startswith("# demo-run\n"))
+        self.assertIn("saved, inspected plot and panel", doc)
         self.assertNotIn("NAMING:", doc)
         self.assertNotIn("[analysis-name]", doc)
         self.assertIn("cd analysis/demo-run\nbash run.sh", doc)

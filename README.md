@@ -22,6 +22,7 @@ The skills, from planning to hand-off:
   answer `explain row N` or `challenge row N`, all read-only.
 - `init` and `approve plan <hash>` turn on execution checks, input pins, and run receipts.
 - `verify` checks what ran against the approved plan and writes provenance after you confirm.
+- `plot-first` makes plots the primary analysis outputs. Conclusions cite inspected figures; interpretive tables need a fallback reason. `grill` and `new-analysis` load this guidance for analysis work.
 - `focus` and `track-changes` say which analysis a session works on and show what changed against the approved plan.
 - `new-analysis`, `plan-review`, `handoff`, `harden`, `idea`, `idea-triage`,
   `decision-status` and `data-contract-check` cover structure, review, continuity, and checks.
