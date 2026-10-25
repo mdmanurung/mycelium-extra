@@ -54,13 +54,14 @@
   },
   "files": {
     "scheduler-plan.md": "290e1c233766f3106e402cc08da69e148579dd30bf05a88b21ee96fcb2ba565c",
-    "README.md": "654597910d2c8f85e8357989fe8a5a726dd9b5af0b5d9daa48359b8a58944248",
-    "journeys.md": "928a40df197ad30a7238ffb22391f60acf01e977d1d2f886ab32a2bc4e121177",
+    "README.md": "f983db8ebcf71ff25ac5ada5cc7c961208ae7fd3673b7077378ac8c721fdfb63",
+    "journeys.md": "d5264c6ce1b203f1031043d0aab5ce14da1a73300160b9f914caa32420f70725",
     "review-packet.txt": "4c797ab33b348378e2bbc0b29f21f1507cec365bb8d939f6b04c760c2a8d6d08",
     "cancel.sh": "f06d5ee0a35f1476b67a1cd9de880e3359550d45a35ecfad3d6ba6d90ac86dab",
     "success.sh": "51dd3216228406bb2b2c91f726d7b1ddf7db43c310964ee16b6286e8250d32ac",
     "failure.sh": "6a95e64cde05e9525a90119faa72d31a328d3d92535a435fa9d6f0f96ef3f7e7",
     "review-prompt.txt": "be6f8254cb6776cf9c26d8789005b3049e00466b712d2882213dfeb63bd2f000",
     "array.sh": "562536b062bdfb16cafae2252291021a2a82e5f9b68c325b420e2a5ebd8fc00e"
-  }
+  },
+  "manifest_sha256": "f9c626e39e1319c538024172e72fe1d41a103de19b4fd6554b66b26e931d17b7"
 }
