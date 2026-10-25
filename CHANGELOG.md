@@ -4,6 +4,10 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-25
+
+Live-host validation and the single-cell convention study have not been performed; see [the live-validation packet](docs/plans/2026-10-16-live-validation/README.md).
+
 ### Added
 
 - **verify:** `exercise` prints a labelled synthetic claim-mismatch rehearsal; `exercise reveal` shows the answer. It reads no project state and saves no files or scores.
