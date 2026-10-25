@@ -2592,6 +2592,7 @@ def amendment_card(root, config, digest, text, record, paths, commands, outputs,
     lines.append("Reads".ljust(10) + ("{} pinned input{}, none new or changed".format(len(old_pins), "" if len(old_pins) == 1 else "s")
                                        if old_pins else "no pinned inputs"))
     lines.append("Writes".ljust(10) + ("new: " + names_plain(fresh, short) if fresh else "nothing new"))
+    lines += [fit(line) for line in overlap_lines(overlap_findings(root, text))]
     lines.append("Grant".ljust(10) + ("{}; any arguments; no folder or command grant added".format(
         ", ".join("script {}".format(short(p)) if SCRIPT_EXT.search(p) else "file " + short(p) for p in added))
         if added else "nothing added"))
@@ -4014,6 +4015,7 @@ def freeze_card(root, config, record, scripts, changed, new, deleted):
     else:
         lines.append("Rerun      every step: none names a changed script, so it runs inside a folder or command grant")
     outputs = output_words(plan) or []
+    lines += [fit(line) for line in overlap_lines(overlap_findings(root, plan))]
     lines.append("Stale      " + ("declared outputs may be out of date until the rerun: " + names_plain(outputs, str)
                                   if outputs else "the plan declares no outputs"))
     receipts = [r for r in read_receipts(root) if digest in (r.get("plans") or []) and not r.get("explore")

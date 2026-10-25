@@ -276,6 +276,17 @@ class GateTest(unittest.TestCase):
             self.assertNotIn("amendment to", card, name)
             self.assertIn("Choices", card, name)
 
+    def test_an_amendment_shows_overlap_before_approval(self):
+        self.write_file("analysis/a/04_plot.py", "print(1)\n")
+        self.approve(self.CARD_PLAN)
+        plan = self.amended(outputs="analysis/a/out/res.tsv, data/in.tsv")
+        card = self.card(plan)
+        self.assertIn("amendment to", card)
+        self.assertIn("Data writes  HIGH: both declarations resolve to the same path", card)
+        self.assertIn("  Input:   data/in.tsv", card)
+        self.assertIn("  Output:  data/in.tsv", card)
+        self.assertIn("Not established: whether the launched code would overwrite it", card)
+
     def test_the_same_plan_shown_again_is_not_an_amendment(self):
         self.approve(self.CARD_PLAN)
         self.assertNotIn("amendment to", self.card(self.CARD_PLAN))
@@ -1679,6 +1690,19 @@ class GateTest(unittest.TestCase):
         self.write("analysis/x.py", "print(2)\n")
         self.write("data/samples.tsv", "changed")
         self.assertIn("A freeze covers scripts only", self.freeze(digest)["reason"])
+
+    def test_freeze_shows_declared_overlap_without_changing_approval(self):
+        self.write("analysis/x.py", "print(1)\n")
+        self.write("data/samples.tsv", "x\n")
+        plan = "Inputs: data/samples.tsv\nOutputs: data/samples.tsv\n" + self.FREEZE_PLAN
+        digest, _ = self.approve(plan)
+        approved = self.approval(digest)
+        self.write("analysis/x.py", "print(2)\n")
+        card = self.freeze(digest)["reason"]
+        self.assertIn("Data writes  HIGH: both declarations resolve to the same path", card)
+        self.assertIn("  Input:   data/samples.tsv", card)
+        self.assertIn("  Output:  data/samples.tsv", card)
+        self.assertEqual(self.approval(digest), approved)
 
     def test_a_script_changed_after_the_freeze_card_is_not_approved(self):
         self.write("analysis/x.py", "print(1)\n")
