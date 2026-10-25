@@ -70,7 +70,7 @@ It reads, and only reads:
 
 Every item separates what was **observed**, what is only a **potential analytical implication**, and what is **unknown**, and carries independent labels (difference, focus relation, authorization, consequence, attribution, currency; see [the schema](../skills/track-changes/references/schema.md)). A changed number is an observed edit, not a changed conclusion. Another analysis's folder may be a supporting dependency, so it is called "relationship not established", not "off task".
 
-The HTML report has Review, Diff, Timeline and Evidence tabs, filters and search. It is one offline file: no network, no scripts from elsewhere, and its buttons only copy text (for example `freeze aabbccdd`). Nothing in it can run a command.
+The HTML report has Review, Plan, Diff, Timeline and Evidence tabs, filters and search. The Plan tab walks the approved plan's steps in order and shows, for each, the read-only command it recorded and that command's output, as recorded; the page never runs one, and `verify report` is what re-runs them. It is one offline file: no network, no scripts from elsewhere, and its buttons only copy text (for example `freeze aabbccdd`). Nothing in it can run a command.
 
 ### Limits
 

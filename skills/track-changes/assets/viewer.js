@@ -158,6 +158,32 @@
     return h("div", "block", "", table(["Id", "Source", "Reference", "Detail"],
       data.evidence.map(function (e) { return [e.id, e.source, e.ref, e.detail]; }), state.sel));
   }
+  // The plan's steps in order, with the command and output each recorded. Nothing here runs: this is the
+  // text the approval pinned, so a recorded output is not a fresh check. `verify report` re-runs commands.
+  function walk() {
+    var w = data.walkthrough, box = h("div", "block");
+    box.appendChild(h("p", "fine", "Steps of the " + w.plan + ", in the order they run. Each shows the command the plan recorded and that command's output, as recorded: nothing on this page ran it. `verify report` re-runs read-only commands and reports drift."));
+    if (w.note) box.appendChild(h("p", "fine", w.note));
+    if (!w.rows.length) box.appendChild(h("div", "empty", "No plan table was read, so there is no step to walk through."));
+    w.rows.forEach(function (r) {
+      var card = h("div", "wrow");
+      card.appendChild(h("div", "whead", "", h("span", "wid", "row " + r.row), rich(h("span", "wstep"), r.step || "(no step text)")));
+      if (r.choice) card.appendChild(h("p", "wchoice", "", h("span", "mute", "Choice "), rich(h("span"), r.choice)));
+      if (r.depends_on.length) card.appendChild(h("p", "fine", "Consumes the result of row " + r.depends_on.join(", ") + "."));
+      if (!r.evidence.length) card.appendChild(h("p", "mute", "No evidence recorded for this row."));
+      r.evidence.forEach(function (e) {
+        if (e.claim) card.appendChild(rich(h("p", "wclaim"), e.claim));
+        var row = h("div", "wcmd");
+        row.appendChild(h("code", "", e.cmd || "(no command)"));
+        if (e.cmd) row.appendChild(copyButton("Copy", e.cmd, "btn small"));
+        card.appendChild(row);
+        card.appendChild(h("pre", "wout", e.out || "(no output recorded)"));
+        if (e.more) card.appendChild(h("p", "fine", e.more + " more recorded line(s), not shown."));
+      });
+      box.appendChild(card);
+    });
+    return box;
+  }
 
   function header() {
     var b = data.baselines, c = data.coverage, frag = h("div");
@@ -196,8 +222,11 @@
                ["diff", "Diff", function () { return data.items.filter(function (i) { return i.diff.length; }).length; }],
                [data.journal ? "journal" : "timeline", data.journal ? "Journal" : "Timeline", function () { return data.journal ? data.journal.events.length : data.timeline.length; }],
                ["evidence", "Evidence", function () { return data.evidence.length; }]];
+  // Only when a plan table was read; a tab for a report with no approved plan would say nothing.
+  if (data.walkthrough && data.walkthrough.rows.length)
+    VIEWS.splice(1, 0, ["walk", "Plan", function () { return data.walkthrough.rows.length; }]);
 
-  // level 1: the four views
+  // level 1: the view strip
   function views() {
     var bar = attr(h("div", "views"), "role", "tablist");
     VIEWS.forEach(function (v) {
@@ -230,7 +259,7 @@
   var mount = h("div");
   function renderBody() {
     clear(mount);
-    mount.appendChild({review: review, diff: diffs, timeline: timeline, journal: journal, evidence: evidence}[state.view]());
+    mount.appendChild({review: review, diff: diffs, walk: walk, timeline: timeline, journal: journal, evidence: evidence}[state.view]());
   }
   function draw() {
     clear(app);

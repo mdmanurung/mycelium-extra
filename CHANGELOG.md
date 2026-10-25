@@ -10,6 +10,7 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 - **validation:** recipes 4 to 8 cover missing values, join cardinality, key collisions, keyed output invariants and negative controls, with runnable synthetic checks.
 - **data-contract-check:** opt-in `--profile-only --profile-spec SPEC` streams descriptive metadata summaries within row, byte and time budgets. Small groups are suppressed; partial scans stay labelled.
 - **track-changes:** an attention item names removed or redefined validation bindings and dropped outputs between approved plans.
+- **plan evidence:** a plan can record a `<!-- plan-evidence -->` block of read-only commands and their verbatim output. `verify report` re-runs each one through an allowlist guard and reports `still true`, `changed` (a gap, with the first differing line) or `not checked` (a gap, with the reason). A command that may write never runs. `grill` explains it in `references/plan-evidence.md` and `explain plan` quotes it; track-changes gains a **Plan** tab with the steps and their recorded evidence.
 - **gate cards:** declared input/output overlap is advisory on approval, amendment and freeze cards. The compact approval card shows HIGH and REVIEW counts; no run decision changes.
 - **grill:** original longitudinal and Bayesian planning references extend the existing skill.
 

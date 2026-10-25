@@ -29,6 +29,8 @@ Wording to keep, because it is what the evidence supports: *Observed code change
 
 `--explain <item_id>` (a unique id prefix is enough; ids are in `snapshot.json` and `brief.md`) prints one bounded block with five headings: Observed, Potential, Unknown, Authorization, Evidence. It is read-only and writes no files. Relay it as printed and keep its wording: it says what was seen, what is only potential and what was not observed, never whether the change is safe, validated, or in scope.
 
+For the plan itself, point the user to the **Plan** tab: the approved plan's steps in order, each with the read-only command it recorded and that command's output, as recorded. That page never runs one; `verify report` re-runs them and reports drift.
+
 ## 3. Offer next steps, as drafts
 
 Each item lists what the user could do; none of it runs from here and none of it is an approval.

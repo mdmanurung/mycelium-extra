@@ -413,6 +413,59 @@ class ExplainTest(Base):
         self.assertLess(len(out), 3000)
 
 
+class PlanWalkthroughTest(Base):
+    """The Plan view: the approved plan's steps in order, each with the command it recorded and that
+    command's output. It is text only; collecting a report never runs one."""
+
+    def evidence_plan(self, rows, text=None):
+        block = "<!-- plan-evidence " + json.dumps({"version": 1, "rows": rows}) + " -->"
+        return self.approve((text or plan("min_cells 500")) + "\n\n" + block)
+
+    def test_the_walkthrough_joins_the_block_to_the_plan_rows(self):
+        digest = self.evidence_plan([
+            {"row": "1", "depends_on": [], "evidence": [
+                {"claim": "one script", "cmd": "ls analysis/a/scripts", "out": "01_fit.py"}]},
+            {"row": "2", "depends_on": ["1"], "evidence": [
+                {"claim": "the threshold", "cmd": "head -n 1 analysis/a/scripts/01_fit.py",
+                 "out": "min_cells = 500"}]}], text=plan("min_cells 500", "fit the model"))
+        walk = self.collect(analysis="analysis/a")["walkthrough"]
+        self.assertEqual(walk["plan"], "current approved plan " + digest)
+        self.assertEqual([r["row"] for r in walk["rows"]], ["1", "2"])
+        self.assertEqual(walk["rows"][1]["step"], "fit the model")
+        self.assertEqual(walk["rows"][1]["depends_on"], ["1"])
+        self.assertEqual(walk["rows"][1]["evidence"][0]["cmd"], "head -n 1 analysis/a/scripts/01_fit.py")
+        self.assertEqual(walk["rows"][1]["evidence"][0]["out"], "min_cells = 500")
+
+    def test_collecting_never_runs_a_recorded_command(self):  # the page shows text; verify re-runs
+        self.evidence_plan([{"row": "1", "evidence": [
+            {"claim": "would write", "cmd": "touch analysis/a/ran.txt", "out": ""}]}])
+        self.collect(analysis="analysis/a")
+        self.assertFalse(os.path.exists(os.path.join(self.root, "analysis/a/ran.txt")))
+
+    def test_a_secret_like_command_never_reaches_the_page(self):
+        self.write("analysis/a/A.md", "Objective: Characterize interferon response.\n")
+        self.evidence_plan([{"row": "1", "evidence": [
+            {"claim": "api", "cmd": "curl --token=hunter2 https://example.test", "out": "ok"}]}])
+        data = self.collect(analysis="analysis/a")
+        self.assertNotIn("hunter2", json.dumps(data))
+        self.assertIn("[redacted]", data["walkthrough"]["rows"][0]["evidence"][0]["cmd"])
+
+    def test_a_block_that_does_not_parse_is_a_note_and_the_rows_still_show(self):
+        text = plan("min_cells 500") + "\n\n<!-- plan-evidence {not json} -->"
+        self.approve(text)
+        walk = self.collect(analysis="analysis/a")["walkthrough"]
+        self.assertIn("did not parse", walk["note"])
+        self.assertEqual([r["row"] for r in walk["rows"]], ["1"])
+        self.assertEqual(walk["rows"][0]["evidence"], [])
+
+    def test_a_plan_without_a_block_still_walks_its_rows(self):
+        self.approve(plan("min_cells 500"))
+        walk = self.collect(analysis="analysis/a")["walkthrough"]
+        self.assertEqual(walk["note"], "")
+        self.assertEqual([r["row"] for r in walk["rows"]], ["1"])
+        self.assertEqual(walk["rows"][0]["evidence"], [])
+
+
 class ExecutionAndOutputsTest(Base):
     def test_failed_then_successful_retry_keeps_both(self):  # F17
         digest = self.approve(plan("min_cells 500"))
@@ -609,6 +662,27 @@ class SafetyTest(Base):
         self.write(FIT, "min_cells = 50\nalpha = 0.01\n", mtime=time.time())
         self.cli("--analysis", "analysis/a", "--original", first)
         page = os.path.join(self.root, ".mycelium-extra", "track-changes", "analysis__a", "report.html")
+        proc = subprocess.run([node, os.path.join(HERE, "viewer_smoke.js"), page], stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, universal_newlines=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("OK clicks=", proc.stdout)
+
+    def test_viewer_draws_the_plan_walkthrough(self):
+        node = shutil.which("node")
+        if not node and os.environ.get("MX_REQUIRE_NODE"):  # set by the CI job that has Node: the viewer must not go untested
+            self.fail("node is required here (MX_REQUIRE_NODE is set)")
+        if not node:
+            self.skipTest("node not installed")
+        block = "<!-- plan-evidence " + json.dumps({"version": 1, "rows": [
+            {"row": "1", "depends_on": [], "evidence": [
+                {"claim": "one script", "cmd": "ls analysis/a/scripts", "out": "01_fit.py"}]}]}) + " -->"
+        self.approve(plan("min_cells 500") + "\n\n" + block)
+        self.cli("--analysis", "analysis/a")
+        page = os.path.join(self.root, ".mycelium-extra", "track-changes", "analysis__a", "report.html")
+        with open(page, encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertIn("ls analysis/a/scripts", text)  # the recorded command and its output reach the page
+        self.assertIn("01_fit.py", text)
         proc = subprocess.run([node, os.path.join(HERE, "viewer_smoke.js"), page], stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE, universal_newlines=True)
         self.assertEqual(proc.returncode, 0, proc.stderr)

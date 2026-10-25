@@ -24,13 +24,20 @@ FIT = "analysis/pbmc-ifn/scripts/01_fit.py"
 PLOT = "analysis/pbmc-ifn/scripts/02_plot.py"
 
 
-def plan(choice, outputs):
+def plan(choice, outputs, min_cells):
     rows = ["| 1 | run `{}` | {} | user | counts per donor, 12 donors |".format(FIT, choice),
             "| 2 | run `{}` | volcano of the contrast | default: standard figure | file written |".format(PLOT)]
+    evidence = {"version": 1, "rows": [
+        {"row": "1", "depends_on": [], "evidence": [
+            {"claim": "the threshold this plan approved", "cmd": "rg -n '^min_cells' " + FIT,
+             "out": "1:min_cells = {}".format(min_cells)}]},
+        {"row": "2", "depends_on": ["1"], "evidence": [
+            {"claim": "the plotting entry point", "cmd": "head -n 1 " + PLOT, "out": "print('volcano')"}]}]}
     return "\n".join(["> Question (user's words): \"Does the interferon response differ between arms?\"", "",
                       "**Objective.** Compare the interferon response between arms.", "", "Outputs: " + outputs, "",
                       "| # | Step | Choice | Source | Validation |", "|---|---|---|---|---|"] + rows
-                     + ["", "Plan status: READY"])
+                     + ["", "Plan status: READY", "",
+                        "<!-- plan-evidence " + json.dumps(evidence) + " -->"])
 
 
 class Session:
@@ -79,11 +86,11 @@ def main():
         session.write(FIT, "min_cells = 500\n", age=7200)
         session.write(PLOT, "print('volcano')\n", age=7200)
         session.write("analysis/pbmc-ifn/PBMC_IFN.md", "Objective: Characterize the interferon response.\n")
-        first = session.approve(plan("minimum 500 cells per donor", "analysis/pbmc-ifn/outputs/"))
+        first = session.approve(plan("minimum 500 cells per donor", "analysis/pbmc-ifn/outputs/", 500))
         session.run("python " + FIT, code=1)  # a failed run stays visible, with its retry
         session.run("python " + FIT)
         session.write(FIT, "min_cells = 200\n", age=1800)  # edited after the approval
-        session.approve(plan("minimum 200 cells per donor", "analysis/pbmc-ifn/outputs_v2/"))
+        session.approve(plan("minimum 200 cells per donor", "analysis/pbmc-ifn/outputs_v2/", 200))
         session.run("python " + FIT)
         with open(SCRIPT) as source:
             proc = subprocess.run([sys.executable, "-", "--plugin-root", REPO, "--repo", root, "--analysis",

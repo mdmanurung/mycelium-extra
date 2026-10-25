@@ -36,7 +36,7 @@ Focus supplies context, not ownership or approval. Open one observation to inspe
 4. For the evidence behind one item, ask for it by id (ids are in `brief.md`; a unique prefix works):
 
    ```text
-   /mycelium-extra:track-changes analysis/pbmc-ifn --explain P-9bfd9b23
+   /mycelium-extra:track-changes analysis/pbmc-ifn --explain P-512a94d6
    ```
 
    It prints Observed, Potential, Unknown, Authorization and Evidence, reads the same records, and writes nothing. Under the hood the flag is `track_changes.py --explain <item_id>`.
@@ -49,9 +49,10 @@ An [example report.html](../examples/track-changes-report.html) shows the report
 Real output from `tests/e2e/make_track_changes_example.py`, regenerated for this page on a synthetic analysis (`analysis/pbmc-ifn`, invented names, no data). The plan's cell threshold was changed from 500 to 200 and re-approved, with one failed run and its retry. The card:
 
 ```text
-mycelium-extra · track-changes analysis/pbmc-ifn · snapshot 10-19 21:58
-Baseline   original 5b50b8f9 · current 813cc324 (instance ad3c02c6) (newest approved plan naming this folder; --current to choose)
-Attention  2
+mycelium-extra · track-changes analysis/pbmc-ifn · snapshot 10-25 11:47
+Baseline   original d587f5e7 · current 5a8c61c8 (instance ea5a44dc) (newest approved plan naming this folder; --current to choose)
+Attention  3
+  ⚠ Possible lost plan coverage between plans d587f5e7 and 5a8c61c8
   ⚠ Plan step 1 choice: minimum 500 cells per donor → minimum 200 cells per donor
   ⚠ Execution record: 3 run(s), 1 failed, 0 unmatched
 Also       1 authorized change(s) · 1 routine
@@ -60,7 +61,7 @@ Unknown    shell-made edits; file reads; scripts no approval pinned and no run t
 Files      .mycelium-extra/track-changes/analysis__pbmc-ifn (brief.md, report.html: open the HTML in a browser)
 ```
 
-And `--explain P-9bfd9b23` on the first item (ids differ from run to run):
+And `--explain P-512a94d6` on the plan-change item (ids differ from run to run):
 
 ```text
 Observed
@@ -77,8 +78,8 @@ Authorization
   The current plan was approved by the researcher, so this is a later authorized revision, not an unexplained deviation.; focus relation within_path; difference observed
 
 Evidence
-  E-35956ef1 approval 5b50b8f9 original plan approved 10-19 21:58
-  E-63898f96 approval 813cc324 current plan approved 10-19 21:58
+  E-3d02e922 approval d587f5e7 original plan approved 10-25 11:47
+  E-cd84657c approval 5a8c61c8 current plan approved 10-25 11:47
 This block approves, freezes and validates nothing; it does not say whether the change matters.
 ```
 

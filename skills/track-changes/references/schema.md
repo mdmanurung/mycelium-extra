@@ -12,6 +12,7 @@
 | `baselines` | `original_plan`, `current_plan`, `current_instance`, `relation` (`explicit`, `single_candidate`, `none`). A plan is a candidate only when its table names a path inside the folder. |
 | `coverage` | What was and was not read: `focus_events`, `approvals`, `snapshots`, `receipts`, `claude_transcript` (`not_requested`, `available`, `partial`, `unavailable`), `limitations[]`, `not_observed[]`. |
 | `counts` | Items per bucket. |
+| `walkthrough` | `{plan, note, rows[]}`: the current (else original) approved plan's table joined to its `<!-- plan-evidence -->` block. Each row is `{row, step, choice, depends_on[], evidence[{claim, cmd, out, more}]}`; `out` is the recorded output, capped at 40 lines, with `more` counting the rest. Nothing here ran: `verify report` re-runs the commands. |
 | `items`, `evidence`, `timeline` | See below. |
 
 ## Item

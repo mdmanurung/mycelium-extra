@@ -573,6 +573,55 @@ def prioritize(snap):
         snap.items = snap.items[:CAP_ITEMS]
 
 
+def walkthrough(gate, verify, plan, source, redact):
+    """The plan's `<!-- plan-evidence -->` block joined to its table rows: each step, the rows it consumes,
+    and the command and output the plan recorded. Nothing here runs: the page shows the text the approval
+    pinned, and `verify report` is what re-runs the commands."""
+    blocks = verify.EVIDENCE_BLOCK.findall(plan or "")
+    note, entries = "", {}
+    if len(blocks) > 1:
+        note = "the plan has {} plan-evidence blocks; only the first is shown".format(len(blocks))
+    if blocks:
+        try:
+            payload = json.loads(blocks[0])
+            rows = payload["rows"]
+            if payload.get("version") != 1 or not isinstance(rows, list):
+                raise ValueError("not version 1")
+            for row in rows:
+                if isinstance(row, dict) and str(row.get("row") or ""):
+                    entries.setdefault(str(row["row"]), row)
+        except (ValueError, KeyError, TypeError):
+            note = "the plan-evidence block did not parse, so no command or output is shown"
+
+    def text(value, limit=200):
+        return short(redact(str(value if value is not None else "")), limit)
+
+    def read(entry):
+        """Each recorded command, its claim, and its output, capped for the page."""
+        found = []
+        for item in entry.get("evidence") or []:
+            if not isinstance(item, dict):
+                continue
+            lines = redact(str(item.get("out") if item.get("out") is not None else "")).splitlines()
+            found.append({"claim": text(item.get("claim")), "cmd": text(item.get("cmd"), 300),
+                          "out": "\n".join(lines[:verify.EVIDENCE_MAX_LINES]),
+                          "more": max(0, len(lines) - verify.EVIDENCE_MAX_LINES)})
+        return found
+
+    out, matched = [], set()
+    for position, row in enumerate(gate.plan_rows(plan or "") or [], 1):
+        key = str(row.get("id") or row.get("num") or position)
+        matched.add(key)
+        entry = entries.get(key) or {}
+        out.append({"row": key, "step": text(row.get("step")), "choice": text(row.get("choice")),
+                    "depends_on": [str(d) for d in entry.get("depends_on") or []], "evidence": read(entry)})
+    for key in sorted(set(entries) - matched):  # recorded evidence for a row the table no longer has
+        out.append({"row": key, "step": "not in the plan table", "choice": "",
+                    "depends_on": [str(d) for d in entries[key].get("depends_on") or []],
+                    "evidence": read(entries[key])})
+    return {"plan": source, "note": note, "rows": out}
+
+
 def collect(args, gate, focus, verify):
     now = time.time()
     snap, redact = Snapshot(), Redactor()
@@ -633,6 +682,10 @@ def collect(args, gate, focus, verify):
     for e in snap.items:
         e["evidence"] = [x for x in dict.fromkeys(e["evidence"]) if x in snap.evidence]
     manifest = os.path.isdir(os.path.join(root, ".living"))
+    base = current or original
+    source = ("current approved plan " + current["hash"] if current else
+              "original approved plan " + original["hash"] if original else "no approved plan")
+    walk = walkthrough(gate, verify, (base or {}).get("plan"), source, redact)
     return {
         "schema": SCHEMA, "generated_at": iso(now), "root": os.path.basename(root), "analysis_path": rel,
         "objective": {"text": redact(objective) if objective else objective, "source": doc},
@@ -652,6 +705,7 @@ def collect(args, gate, focus, verify):
                          else ["edits to other analyses (no transcript read)"])},
         "counts": {b: sum(1 for i in snap.items if i["bucket"] == b) for b in ("attention", "authorized", "routine")},
         "items": snap.items, "evidence": sorted(snap.evidence.values(), key=lambda e: e["id"]), "timeline": snap.timeline,
+        "walkthrough": walk,
     }
 
 
