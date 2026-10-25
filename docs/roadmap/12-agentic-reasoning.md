@@ -13,7 +13,7 @@ Statuses: **done**, **parked**, **dropped**.
 | M2 | Material-objection classification in `skills/plan-review/`: four fields and a status per material objection, synthesis leading with the single strongest undecided crux | done | `skills/plan-review/references/review-contract.md`, `synthesis.md` |
 | M3 | Focus and track-changes (typed `focus`, read-only `track-changes`) | done (`0.13.0`) | [10-focus-track-changes.md](10-focus-track-changes.md) |
 | M4 | Three-line post-report interpretation template (*Established / Still uncertain / Next insight*) in `skills/verify/SKILL.md`; opt-in evidence lookup inside one grill question (`ER-1`) | done (`0.13.2`, `0d5bfa8`) | `skills/verify/SKILL.md`, `skills/grill/references/evidence-assistance.md` |
-| M5a | Opt-in Socratic probe, read-only `explain row N` / `challenge row N`, and the librarian dossier for evidence lookup, as grill references (no hook, skill or adapter) | done on branch `v0132-socratic`, unlanded; reopened by the user 2026-10-19 | `skills/grill/references/socratic.md`, `evidence-assistance.md`, `skills/grill/tests/test_grill_references.py` |
+| M5a | Opt-in Socratic probe, read-only `explain row N` / `challenge row N`, and the librarian dossier for evidence lookup, as grill references (no hook, skill or adapter) | done (`6b4feb7`; `explain plan` added in `20efbb8`) | `skills/grill/references/socratic.md`, `evidence-assistance.md`, `plan-evidence.md`, `skills/grill/tests/test_grill_references.py` |
 | M5b | Live Socratic study with real researchers | **parked** | needs the ~2026-10-31 usage measurement first; see [00-parked.md](00-parked.md) |
 
 ## What the reasoning additions may not do
