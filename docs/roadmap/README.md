@@ -53,7 +53,7 @@ Phases are a suggested order, not a gate; a task may start once its dependencies
 - D3 depends on D1 (cites the claims summary) and on A3 (cites the plugin version).
 - D4 depends on C1 (needs explore and gated receipts to test against).
 - E4 depends on C1 (real-use tests run against the fixture project).
-- D10, D11, D12 depend on C1 and D1. D10 shipped without D12 (the user approved its log and opt-in checkpoint on 2026-10-16); D12 is reshaped and not built.
+- D10, D11, D12 depend on C1 and D1. D10 shipped without D12 (the user approved its log and opt-in checkpoint on 2026-10-16); D12 shipped as a labelled synthetic review exercise in 0.16.0.
 
 ## Task template
 
@@ -72,7 +72,7 @@ Every task uses these fields, under a `### <ID>: <title>` heading:
 
 ## Workstreams
 
-- [00-parked.md](00-parked.md): T0, work drafted but not landed.
+- [00-parked.md](00-parked.md): T0, the completed README and documentation split.
 - [01-packaging.md](01-packaging.md): A1 to A6, license, CI, releases, discoverability.
 - [02-docs-hygiene.md](02-docs-hygiene.md): B1 to B5, documentation fixes.
 - [03-robustness.md](03-robustness.md): C1 to C3, fixture project, fail-closed mode, packet redaction. C1's design: [../design/c1-fixture-project.md](../design/c1-fixture-project.md).
@@ -84,7 +84,7 @@ Every task uses these fields, under a `### <ID>: <title>` heading:
 - [11-coverage-and-evidence.md](11-coverage-and-evidence.md): CT-1, DT-1, VR-1 gap fill and ER-1, the tracker for opt-in coverage exceptions, the decision trace, recipe gaps and evidence assistance.
 - [12-agentic-reasoning.md](12-agentic-reasoning.md): M0 to M4 reasoning contracts in grill, plan-review and verify; M5 (live Socratic study) parked.
 - [13-function-audit.md](13-function-audit.md): every finding of the 2026-10-20 audits (6 coherence, 40 confirmed and 25 contested candidates) with a status per row; E1b real-run follow-ups.
-- [14-newplans.md](14-newplans.md): the unified roadmap for the two 2026-10-23 plan bundles; M1 to M4 landed on main; two original method guides extend `grill`. Release version awaits the user.
+- [14-newplans.md](14-newplans.md): the unified roadmap for the two 2026-10-23 plan bundles; M1 to M4 shipped in `0.16.0`; original method guides extend `grill`.
 
 ## Updating this roadmap
 

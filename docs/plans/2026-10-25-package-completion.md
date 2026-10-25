@@ -1,6 +1,6 @@
 # Package completion, 2026-10-25
 
-Local implementation is complete for the active build tasks. Version 0.16.0 is cut, tagged and pushed; live-study tasks remain open below.
+The active build tasks shipped in 0.16.0, which is cut, tagged and pushed. The completion pass below adds a local, unreleased guide; live-study tasks remain open.
 
 ## Completed work
 
@@ -38,13 +38,20 @@ Final reruns passed:
 - End-to-end Catalog: 5 tests; version agreement: 1 test; verify frontmatter: 2 tests.
 - `git diff --check`: clean. Passing fixture tests does not establish native-host delivery or scientific validity. Skipped dependency-dependent tests remain gaps; the sweep is not a new real-analysis qualification.
 
+## Completion pass, 2026-10-25
+
+The request to finish remaining work reopened F8/Q6. A short [single-cell routing pointer](../../skills/grill/references/methods/single-cell.md) now defers to the existing pack activation and routing rules. It copies no method policy. The guide, its routing link and contract test are local and unreleased. The release and roadmap summaries were reconciled with the existing 0.16.0 release records.
+
+The guide checks pass: 5 method-guide tests and 15 grill-reference tests. These static checks establish the reference contract, not native routing or scientific validity. Fresh local sweep and build logs are in `/tmp/mycelium-extra-remaining-20261025/`; no hosted CI, push, tag or release was performed during this pass. The final Python 3.12 sweep covers 44 programs and 1442 tests, with 30 skips. Two initial harness timeouts were recovered by complete extended runs; `final-summary.json` records the reconciliation. The adapter, 17 ablations, 518 links and strict Sphinx build pass.
+
 ## Still open
 
 | Task | What is needed |
 |---|---|
 | C12, native-host checks, sc-conventions live M1/M3 | The approved packet, resolved provider/billing bounds, real host sessions and independent human adjudication. The packet remains NOT APPROVED; no paid calls or scheduler jobs ran. |
+| R1–R3 live plan binding (M2) | A named real project, its approved plan and inspected inputs. Synthetic contracts cannot stand in for that analysis. |
 | Track R / M5b and usage measurement | The planned ~2026-10-31 measurement and researcher participation. No future observations were invented. |
 | Parked model benchmark | Paid provider quota and its existing run authorization; no substitute model was selected. |
-| ED-1, additional method routing and personal habit summaries | Deferred product ideas with unmet return conditions, not active build tasks. |
+| ED-1 and personal habit summaries | Deferred product ideas with unmet return conditions, not active build tasks. |
 
 For the authoritative boundaries, see [decisions](../decisions.md), [the live-validation packet](2026-10-16-live-validation/README.md), and [the newplans tracker](../roadmap/14-newplans.md).

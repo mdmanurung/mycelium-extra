@@ -15,7 +15,7 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Acceptance:** `LICENSE` exists at the root; GitHub detects it; MYCELIUM_LICENSE stays in place for the template it covers.
 - **Tests:** none.
 - **Effort:** S.
-- **Status:** done. GitHub detects MIT on the pushed repository, and the maintainer's confirmation was given on 2026-10-25. The copyright holder's name is settled: "Mikhael Manurung", the spelling the plugin manifests carry (user, 2026-10-04). `LICENSE` is the standard MIT text (Copyright (c) 2026 Mikhael Manurung, the year of the first commit); both `plugin.json` files gain `"license": "MIT"` (both schemas document the field); the README gains a License section that points to MYCELIUM_LICENSE, which is unchanged. GitHub detection can only be confirmed after a push.
+- **Status:** done. GitHub detects MIT on the pushed repository, and the maintainer's confirmation was given on 2026-10-25. The copyright holder's name is settled: "Mikhael Manurung", the spelling the plugin manifests carry (user, 2026-10-04). `LICENSE` is the standard MIT text (Copyright (c) 2026 Mikhael Manurung, the year of the first commit); both `plugin.json` files gain `"license": "MIT"` (both schemas document the field); the README gains a License section that points to MYCELIUM_LICENSE, which is unchanged.
 
 ## A2: Continuous integration
 
@@ -28,7 +28,9 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Acceptance:** a PR shows green checks for both Python versions; deliberately breaking one gate decision makes `gate_diff.py` fail the PR.
 - **Tests:** the workflow is the test. Record one intentionally failing run as evidence.
 - **Effort:** M.
-- **Status:** done 2026-10-16: CI has run green on every push since 0.9.66 (the Python 3.6 and 3.14 containers and the Documentation workflow). `.github/workflows/ci.yml` runs every test file, `tests/e2e/ablate.py` (5 s, so on every run rather than weekly), `tests/test_versions.py` (A3's manifest check) and `tests/check_links.py` in the containers `python:3.6-bullseye` (under `LC_ALL=C`) and `python:3.14-bookworm`; non-slim images, because `-slim` has no git and the git tests would skip. A `gate-diff` job runs on pull requests only. `check_links.py` moved in from the staging folder: with no file it now exits 2, and it skips `@@...@@` template placeholders. Checked locally in a fresh clone on 3.6 (also under `LC_ALL=C`) and 3.12: all 13 test files pass, 3 of 3 ablations bite, 45 links resolve; `gate_diff.py --base main` is 160/160, and dropping `rm` from the gate's write commands makes it exit 1 with 3 cases. Not yet run on GitHub: the repository is kept local until the maintainer pushes.
+- **Status:** done. Initial evidence from 2026-10-16: CI ran green for 0.9.66 (the Python 3.6 and 3.14 containers and the Documentation workflow). `.github/workflows/ci.yml` runs every test file, `tests/e2e/ablate.py` (5 s, so on every run rather than weekly), `tests/test_versions.py` (A3's manifest check) and `tests/check_links.py` in the containers `python:3.6-bullseye` (under `LC_ALL=C`) and `python:3.14-bookworm`; non-slim images, because `-slim` has no git and the git tests would skip. A `gate-diff` job runs on pull requests only. `check_links.py` moved in from the staging folder: with no file it now exits 2, and it skips `@@...@@` template placeholders. Checked locally in a fresh clone on 3.6 (also under `LC_ALL=C`) and 3.12: all 13 test files pass, 3 of 3 ablations bite, 45 links resolve; `gate_diff.py --base main` is 160/160, and dropping `rm` from the gate's write commands makes it exit 1 with 3 cases.
+
+Current workflow (`.github/workflows/ci.yml`): Python 3.9, 3.12 and 3.14, plus the Node adapter job; gate comparison runs for pull requests and manual dispatch. The counts above describe the initial validation, not the current suite.
 
 ## A3: Changelog and tagged releases
 
