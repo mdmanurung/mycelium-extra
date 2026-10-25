@@ -33,7 +33,7 @@ When the repository cannot settle a methodological choice (which test family, wh
 
 The dossier is at most eight lines in chat: `Question:`, `Searched:`, `Found:`, `Alternatives:`, `Not found:`, `Disagreement:`, `Yours to decide:`. Once the plan is shown, you can ask the same for any row, for example "what is the evidence for row 3?". Details: `skills/grill/references/evidence-assistance.md`.
 
-### Socratic mode, `explain row N`, `challenge row N`
+### Socratic mode, `explain row N`, `explain plan`, `challenge row N`
 
 ```text
 /mycelium-extra:grill socratic Plan the day 28 comparison.
@@ -43,10 +43,11 @@ The dossier is at most eight lines in chat: `Question:`, `Searched:`, `Found:`, 
 
 ```text
 explain row 2
+explain plan
 challenge row 2
 ```
 
-`explain row N` answers in at most six lines: what the step does, the choice and its source, the assumption, one alternative, and what the check shows if the choice is right. `challenge row N` gives the strongest reason the row could be wrong and the cheapest check, or says `no strong objection found`. Both are read-only, count against no cap, and approve nothing. Details: `skills/grill/references/socratic.md`.
+`explain row N` answers in at most six lines: what the step does, the choice and its source, the assumption, one alternative, and what the check shows if the choice is right. `explain plan` widens that to the whole table in row order and closes with the two or three rows to check first. `challenge row N` gives the strongest reason the row could be wrong and the cheapest check, or says `no strong objection found`. All are read-only, count against no cap, and approve nothing. Details: `skills/grill/references/socratic.md`.
 
 ## Worked example
 

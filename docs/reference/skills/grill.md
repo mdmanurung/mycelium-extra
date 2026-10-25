@@ -12,6 +12,7 @@ Read-only planning before anything runs. Asks for your question in your words, s
 |---|---|
 | the task | The skill first asks, in one free-text message, for your question and the claim you hope to make. It offers no drafted answers. If you decline, it goes on and records that. |
 | `explain row N` | Ordinary prompt (the hook does not act on it), available any time after the plan is shown. The agent answers in at most six lines: what the step does, the choice and its source, the assumption, one alternative, and what the check would show. Read-only. |
+| `explain plan` | The same prompt widened to the whole table in row order: each step, what it assumes about the rows it consumes, one alternative, and what its check would show, quoting the plan's recorded evidence verbatim. It closes with the two or three rows to check first. Read-only. |
 | `challenge row N` | Same, for the strongest reason that row could be wrong and the cheapest check that would settle it; or `no strong objection found`. Read-only; a real plan change ends in an amendment draft, never an edit. |
 | `socratic`, "walk me through it", "help me decide", "quiz me" | Socratic mode: one neutral probe inside each question that is yours to answer. Your answer becomes that row's Validation cell, tagged `[human-stated]`. Off unless you ask; ends on "stop socratic"; keeps no state. Reference: `skills/grill/references/socratic.md`. |
 | "promote explore runs" | Lists this session's explore runs (`verify explore`, read-only) and drafts a normal plan that re-runs them without the explore prefix, with fresh `Outputs:` paths. Explore outputs are never relabelled as results. |
@@ -52,6 +53,7 @@ A status describes the plan. None grants permission to run.
 | `Outputs:` | files the runs will write; `verify` checks each was written after the approval by a run of this plan |
 | plan table | the only table; columns for step, choice, source (`repo: <path>`, `user`, `default: <reason>`) and validation check |
 | optional `<!-- exact-execution -->`, `<!-- validation-bindings -->` blocks | for reportable runs; syntax in `references/run-plans.md` and [Advanced features](../../advanced.md) |
+| optional `<!-- plan-evidence -->` block | read-only commands and their verbatim output, one entry per fact the plan rests on; `verify` re-runs them and reports drift; syntax in `references/plan-evidence.md` |
 | Assumptions and risk, Parked, Decisions to record, Next action | brief, at most 150 words outside the protected parts |
 
 The gate reads only the plan table's Step column to decide what a plan lets through. A script named only in a Choice or Validation cell, in prose, or in Evidence approves nothing.

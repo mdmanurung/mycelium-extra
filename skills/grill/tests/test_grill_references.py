@@ -194,12 +194,32 @@ class GrillReferenceContractTest(unittest.TestCase):
         self.assertIn("Both are read-only", socratic)
         self.assertIn("never with an edit", socratic)
         self.assertIn("Do not close either answer by asking whether to approve", socratic)
+        # Explain plan widens the same read-only prompt to the whole table, in row order.
+        self.assertIn("## Explain plan (the linear walkthrough)", socratic)
+        self.assertIn("`explain plan`", socratic)
+        self.assertIn("`not recorded`", socratic)
+        self.assertIn("the shortest reading order", socratic)
         # The librarian dossier shows what left the machine and what was not found.
         self.assertIn("## The librarian dossier", assistance)
         self.assertIn("`Searched:`", assistance)
         self.assertIn("`Not found:`", assistance)
         self.assertIn("`Yours to decide:`", assistance)
         self.assertIn("## After the plan is shown", assistance)
+
+
+    def test_plan_evidence_block_is_json_in_a_comment(self):
+        # The block is JSON in a comment, never a Markdown table: the gate reads every table row beside the
+        # plan as a plan row, which would widen what an approval grants.
+        evidence = read(os.path.join(SKILL, "references", "plan-evidence.md"))
+        skill = read(os.path.join(SKILL, "SKILL.md"))
+        self.assertIn("references/plan-evidence.md", skill)
+        self.assertIn('<!-- plan-evidence {"version": 1', evidence)
+        self.assertIn("never a table", skill)
+        for required in ("Paste the output you got", "Read-only programs only", "At most 40 entries",
+                         "no output redirection", "`sed` and `awk` are not allowed"):
+            self.assertIn(required, evidence, required)
+        # The walkthrough quotes the block verbatim rather than retyping a number.
+        self.assertIn("plan-evidence.md", read(os.path.join(SKILL, "references", "socratic.md")))
 
 
     def test_scientific_convention_route_is_linked_and_bounded(self):

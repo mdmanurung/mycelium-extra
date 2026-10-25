@@ -29,6 +29,30 @@ Two ordinary prompts the user may type after the plan is shown. The hook does no
 
 Both are read-only. They do not count toward the cap, change the plan status, edit a file, or approve anything. A challenge that exposes a real plan change ends with an amendment draft the user can accept through the normal route, never with an edit. Do not close either answer by asking whether to approve; the user types `approve plan <hash>` when they decide.
 
+## Explain plan (the linear walkthrough)
+
+`explain plan` answers the whole table at once, in row order, so a reader can go from the top down
+instead of piecing the plan together from separate rows. It is the same read-only prompt as
+`explain row N`, widened: no file, no state, no approval.
+
+Per row, in order:
+
+- what the step does and the choice it makes, with its source tag;
+- what it assumes about its `depends_on` rows, named by row;
+- the strongest alternative and when that alternative would be better;
+- what its Validation cell would show if the choice is right;
+- what breaks downstream if it is wrong, naming the rows.
+
+Budget about 50 words per row, and after ten rows give one line per remaining row. Quote the output
+recorded in the plan's `<!-- plan-evidence -->` block verbatim (see
+[plan-evidence.md](plan-evidence.md)); never retype a number from memory, and say `not recorded` where
+the block has no entry rather than filling the gap.
+
+Open with one sentence naming what the plan is for, and close with the shortest reading order: which
+two or three rows to check first, and why those. Do not restate the whole table, do not add a verdict,
+and do not end by asking whether to approve.
+
+
 ## What it may not do
 
 - No leading: no probe that contains its own answer, no pressure toward the recommended default.
