@@ -41,7 +41,7 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Acceptance:** the changelog covers every version from 0.9.16 to the current one; each has a tag; the development rules mention the changelog.
 - **Tests:** a small check that the newest changelog heading matches `version` in all three manifests (fits into A2).
 - **Effort:** S.
-- **Status:** in-progress. CHANGELOG.md covers 0.9.16 to 0.9.29 (earlier versions summarised) and `docs/development.md` adds the changelog to the version-bump rule. Tags are not created yet: the `git tag -a` commands are ready for the maintainer to run and push.
+- **Status:** local changelog and manifest check done through 0.15.0; new features are listed under Unreleased. Release tags remain pending explicit authorization. `tests/test_versions.py` checks all four version sites and the newest released changelog heading.
 
 ## A4: Repository description and topics
 

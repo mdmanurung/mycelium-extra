@@ -1,6 +1,6 @@
 # 10 · Focus and track changes (0.13.0 tracker)
 
-Objective: build milestones M0 to M2 of the focus and track-changes spec (2026-10-18, archived with this tracker's bundle at `plans/_DONE/mycelium_extra_focus_track_changes_complete_bundle/`) against the real code: a typed `focus` command and a read-only `track-changes` report. M3 (turn-end notice, `focus_id` in launches and receipts) is built; M4 (AI explanation, usability evaluation) is parked with its trigger in "Not done, on purpose" below.
+Objective: build milestones M0 to M2 of the focus and track-changes spec (2026-10-18, archived with this tracker's bundle at `plans/_DONE/mycelium_extra_focus_track_changes_complete_bundle/`) against the real code: a typed `focus` command and a read-only `track-changes` report. M3 (turn-end notice, `focus_id` in launches and receipts) and M4 (bounded evidence explanation) are built. The human usability study stays parked.
 
 Statuses: **done**, **parked**, **dropped**.
 
@@ -67,7 +67,7 @@ Statuses: **done**, **parked**, **dropped**.
 - **Cross-analysis edits come from the transcript on demand**, not from a new hook log: the gate records nothing about edits outside the plan's scripts, and adding a log would change `on_post` inside the `gate_diff` oracle for a signal only this report uses.
 - **The collector never calls** `freeze_state`, `keep_snapshot`, `pin_scripts`, `verify stale` or `status` (they take locks or write), nor `verify report`.
 - **`focus` has no CLI that changes state**, so an agent cannot start, switch or end a focus (spec F1).
-- **Plan inputs, outputs and validation blocks are not compared**; `verify diff` already does.
+- **Plan inputs, outputs and validation blocks use `verify diff`**. The new scope-loss attention item also names removed or redefined bindings and dropped outputs (`e759059`).
 
 ## Not done, on purpose (parked)
 

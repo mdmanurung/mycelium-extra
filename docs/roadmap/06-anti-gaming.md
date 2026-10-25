@@ -51,4 +51,4 @@ The earlier proposal planted a known false claim in the researcher's genuine ver
 - **Acceptance:** an exercise is created only on request; its files are labelled and never appear in `verify list`, `status`, or `stale`; the real result of any genuine verify run is unchanged by it; with the feature off, nothing changes.
 - **Tests:** `skills/verify/tests/test_exercise.py` checks the numerical mismatch, answer reveal, CLI validation, no gate loading, and unchanged project bytes, mtimes and file inventory.
 - **Effort:** M.
-- **Status:** done locally 2026-10-25: 3 exercise tests pass on Python 3.9, 3.12 and 3.14. The command prints its fixture directly instead of creating an exercise folder; there is no synthetic state to confuse with real evidence. Personal habit summaries remain deferred.
+- **Status:** done (`9441ee6`), 2026-10-25: 3 exercise tests pass on Python 3.9, 3.12 and 3.14. The command prints its fixture directly instead of creating an exercise folder; there is no synthetic state to confuse with real evidence. Personal habit summaries remain deferred.

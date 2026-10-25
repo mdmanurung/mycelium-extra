@@ -4,8 +4,19 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Added
+
+- **verify:** `exercise` prints a labelled synthetic claim-mismatch rehearsal; `exercise reveal` shows the answer. It reads no project state and saves no files or scores.
+- **validation:** recipes 4 to 8 cover missing values, join cardinality, key collisions, keyed output invariants and negative controls, with runnable synthetic checks.
+- **data-contract-check:** opt-in `--profile-only --profile-spec SPEC` streams descriptive metadata summaries within row, byte and time budgets. Small groups are suppressed; partial scans stay labelled.
+- **track-changes:** an attention item names removed or redefined validation bindings and dropped outputs between approved plans.
+- **gate cards:** declared input/output overlap is advisory on approval, amendment and freeze cards. The compact approval card shows HIGH and REVIEW counts; no run decision changes.
+- **grill:** original longitudinal and Bayesian planning references extend the existing skill.
+
 ### Fixed
 
+- **init:** `--diagnose` accepts explicit `null` for optional run limits and checkpoints, and explains the off settings. Oversized numeric settings correctly report the gate's default fallback.
+- **examples:** regenerated track-changes and journal reports carry the current scope-loss summary and limits.
 - **data-contract-check:** result publication refuses the contract and every declared table, reference or namespace input, including symlink aliases and invalid contracts. Result files use unique temporary files with cleanup on failure. Malformed H5AD categorical codes produce unreadable-column gaps.
 - **gate:** ANSI-C quoted script paths decode supported escapes; unsupported escapes remain unresolved. `ionice` and `setsid` wrappers no longer hide unapproved runs. Invalid validation IDs return structured errors.
 - **state writes:** pending-write preparation uses the guarded atomic writer. State writes and locks reject symlinked ancestors before creating directories.

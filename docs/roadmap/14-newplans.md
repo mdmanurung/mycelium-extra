@@ -33,11 +33,11 @@ Order is by value, then risk. Each item is one feature in its own PR. Version bu
 
 | ID | Item | Touches | Risk | Status |
 |---|---|---|---|---|
-| A1 | Validation recipes 4 to 8 with runnable checks and synthetic fixtures | `docs/validation-recipes.md`, `tests/test_recipes.py`, `tests/fixtures/validation-recipes/` | low: docs and tests | built 2026-10-24, worktree `feat/newplans-m1`, uncommitted |
-| A2 | `data-contract-check --profile-only`: bounded, descriptive, small-cell suppressed | `data_contract_check.py`, its tests, `SKILL.md` | low to medium: new CLI mode, old mode must stay byte-equal | built 2026-10-24, same worktree, uncommitted |
-| A4 | Sharper `discriminating_check` wording; one lost-coverage item in `track-changes` | `plan-review` references, `track_changes.py`, tests | medium: read-only, but journal identities must stay stable | built 2026-10-25, committed on `feat/newplans-m1` |
-| A3 | Input/output overlap advisory on the full approval and freeze cards | `hooks/validation.py` or adjacent helper, `gate.py` card path, `test_gate.py` | highest: `gate.py`, needs `gate_diff` before and after | built 2026-10-25, see M3 notes |
-| B1 | Folded method guidance for 2 or 3 methods (no new skill) | `skills/grill/references/` | low: docs and a static test | built 2026-10-25 for two methods, committed on `feat/newplans-m1` |
+| A1 | Validation recipes 4 to 8 with runnable checks and synthetic fixtures | `docs/validation-recipes.md`, `tests/test_recipes.py`, `tests/fixtures/validation-recipes/` | low: docs and tests | done on main (`015b9b6`) |
+| A2 | `data-contract-check --profile-only`: bounded, descriptive, small-cell suppressed | `data_contract_check.py`, its tests, `SKILL.md` | low to medium: new CLI mode, old mode must stay byte-equal | done on main (`015b9b6`) |
+| A4 | Sharper `discriminating_check` wording; one lost-coverage item in `track-changes` | `plan-review` references, `track_changes.py`, tests | medium: read-only, but journal identities must stay stable | done on main (`e759059`) |
+| A3 | Input/output overlap advisory on the full approval and freeze cards | `hooks/validation.py` or adjacent helper, `gate.py` card path, `test_gate.py` | highest: `gate.py`, needs `gate_diff` before and after | done on main (`8d83a27`, `79757ac`) |
+| B1 | Folded method guidance for 2 or 3 methods (no new skill) | `skills/grill/references/` | low: docs and a static test | done on main (`acc21ef`) |
 
 PR-D in bundle B (route one or two methods as their own skills) stays `parked` until B1 exists and routing accuracy is measured.
 
@@ -89,19 +89,19 @@ M1 ships the two items that need no hook edit and change no default behavior. A 
 - An unreadable block on either side is a limitation line, never "no losses". A new binding beside a removed one is listed with "not assessed".
 - Deferred from the plan: removed table rows (category 3) and removed inputs (category 4). Rows already get their own per-step items, and `verify diff` shows inputs.
 - `plan-review` wording only: `review-contract.md` now says what a `discriminating_check` should contain and that it grants nothing. No new field.
-- The limitation text in the generated `docs/examples/*.html` is now stale; regenerate with `tests/e2e/make_track_changes_example.py` and `tests/e2e/make_journal_example.py` when you next refresh the examples.
+- The generated `docs/examples/*.html` reports were refreshed on 2026-10-25 with `tests/e2e/make_track_changes_example.py` and `tests/e2e/make_journal_example.py`. The portable journal demo keeps its existing independent synthetic history; the HTML pages come from fresh synthetic sessions. No real analysis was run.
 - Evidence: 7 new tests, 48 track-changes tests in all, pass on 3.9, 3.12 and 3.14. With the new call disabled, 4 of the new tests fail and 1 errors.
 
 ## M3 build notes (A3)
 
 - `gate.overlap_findings(root, text)` compares declared names after `repo_relative` (which resolves `..` and links) and reads no file. `procedure_card` shows the detail on the full card and one `Data writes` line on the compact card, only for HIGH or REVIEW. Nothing changed in `on_tool`, `on_post`, `on_prompt` or any decision.
-- Not done: the freeze card and the amendment card get no overlap line; an amendment shows only its delta.
+- Completed 2026-10-25 (`79757ac`): freeze and amendment cards reuse the same declared-path overlap block. Existing non-overlap cards stay unchanged. Gate comparison: 173 of 173 identical before and after; candidate suite: 493 tests, 2 skipped.
 - Evidence: 6 new tests; `GateTest` passes (151); with `overlap_findings` returning nothing, 5 of the 6 fail and the control test passes. `gate_diff.py` against HEAD: 173 of 173 identical. Against the pinned base with the reviewed oracle: 116 of 173 identical, 57 expected differences, exit 0. The oracle file is unchanged.
 
 ## Later milestones
 
-- **M2, A4** (built, see above): `plan-review` wording only (no new field, no `disconfirming_test`). One attention item in `track-changes` for a removed or changed validation binding, a dropped output, or a removed row between two approved plans. It reuses `verify.plan_changes` and the strict binding reader. A missing baseline reads `not established`, never "no losses". Acceptance: bundle A ids C4-01 to C4-13.
-- **M3, A3** (built, see above): literal declared overlap only, shown on the full card, never on `on_tool` or `on_post`. Run `gate_diff` before and after; show any decision that differs. Acceptance: bundle A ids I3-01 to I3-10.
+- **M2, A4** (done, see above): `plan-review` wording only (no new field, no `disconfirming_test`). One attention item in `track-changes` for a removed or changed validation binding, a dropped output, or a removed row between two approved plans. It reuses `verify.plan_changes` and the strict binding reader. A missing baseline reads `not established`, never "no losses". Acceptance: bundle A ids C4-01 to C4-13.
+- **M3, A3** (done, see above): literal declared overlap only, shown on the full card, never on `on_tool` or `on_post`. Run `gate_diff` before and after; show any decision that differs. Acceptance: bundle A ids I3-01 to I3-10.
 - **M4, B1**: see the section above. Bundle B's apply script and registry are not used.
 
 ## Decisions (2026-10-25)
@@ -117,7 +117,7 @@ M1 ships the two items that need no hook edit and change no default behavior. A 
 - **Scope**: 2 or 3 short method guides, written fresh, under `skills/grill/references/methods/`, and one line in `skills/grill/references/scientific-conventions.md` saying when to consult one. Each guide has an input contract, blocking conditions, an output contract and what a pass would not show. No registry, no `science/` tree, no apply script.
 - **Out of scope**: the other 13 methods, any new command, any change to hooks, an installer for packs.
 - **Acceptance**: a test that every guide has the three sections and no link to a missing file; `check_links.py` clean; `git diff main -- hooks opencode skills/science` empty; the existing `grill` reference tests pass.
-- **Status**: built for longitudinal analysis and Bayesian modelling (`skills/grill/references/methods/longitudinal.md`, `bayesian.md`, section 6 of `scientific-conventions.md`, `skills/grill/tests/test_method_guides.py`). Single-cell analysis is not duplicated: `scientific-conventions.md` section 2 and the installed pack already route it, and Q5 only permits a pack beside them, so none was written. The choice of methods was the recommended default for Q6, which the user had not answered; swapping a method is one file.
+- **Status**: done on main (`acc21ef`) for longitudinal analysis and Bayesian modelling (`skills/grill/references/methods/longitudinal.md`, `bayesian.md`, section 6 of `scientific-conventions.md`, `skills/grill/tests/test_method_guides.py`). Single-cell analysis is not duplicated: `scientific-conventions.md` section 2 and the installed pack already route it, and Q5 only permits a pack beside them, so none was written. The choice of methods was the recommended default for Q6, which the user had not answered; swapping a method is one file.
 
 ## Open question
 

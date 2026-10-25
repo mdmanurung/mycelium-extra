@@ -4,6 +4,8 @@ Where mycelium-extra goes next, as tasks small enough to grill, approve, build, 
 
 This is a plan, not a promise. Tasks are dropped or reshaped when grilling shows a better design; mark them `dropped` with a one-line reason rather than deleting them.
 
+Current local closure and remaining owner-dependent tasks: [package completion, 2026-10-25](../plans/2026-10-25-package-completion.md).
+
 ## Guiding principles
 
 These come from decisions already locked in this repository. A task that would break one says so in its Constraints line and needs that decision revisited first.
@@ -78,11 +80,11 @@ Every task uses these fields, under a `### <ID>: <title>` heading:
 - [05-mindfulness-core.md](05-mindfulness-core.md): D1 to D9, keeping LLM output honest.
 - [06-anti-gaming.md](06-anti-gaming.md): D10 to D12, checking that oversight stays real.
 - [07-execution-fidelity.md](07-execution-fidelity.md): C01 to C13, the implementation tracker for execution fidelity: no false assurance from incomplete evidence.
-- [10-focus-track-changes.md](10-focus-track-changes.md): M0 to M2 built in `0.13.0`/`0.13.1`; M3 and M4 parked behind the ~2026-10-31 usage measurement.
+- [10-focus-track-changes.md](10-focus-track-changes.md): M0 to M2 built in `0.13.0`/`0.13.1`; M3 and M4 also built; the human usability study stays parked.
 - [11-coverage-and-evidence.md](11-coverage-and-evidence.md): CT-1, DT-1, VR-1 gap fill and ER-1, the tracker for opt-in coverage exceptions, the decision trace, recipe gaps and evidence assistance.
 - [12-agentic-reasoning.md](12-agentic-reasoning.md): M0 to M4 reasoning contracts in grill, plan-review and verify; M5 (live Socratic study) parked.
 - [13-function-audit.md](13-function-audit.md): every finding of the 2026-10-20 audits (6 coherence, 40 confirmed and 25 contested candidates) with a status per row; E1b real-run follow-ups.
-- [14-newplans.md](14-newplans.md): the unified roadmap for the two 2026-10-23 plan bundles; M1 (recipes 4 to 8 and `--profile-only`) first, science library blocked on three user questions.
+- [14-newplans.md](14-newplans.md): the unified roadmap for the two 2026-10-23 plan bundles; M1 to M4 landed on main; two original method guides extend `grill`. Release version awaits the user.
 
 ## Updating this roadmap
 
