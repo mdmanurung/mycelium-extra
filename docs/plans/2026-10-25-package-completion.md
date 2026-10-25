@@ -1,6 +1,6 @@
 # Package completion, 2026-10-25
 
-Local implementation is complete for the active build tasks. Release and live-study tasks remain open below. Nothing was pushed or tagged.
+Local implementation is complete for the active build tasks. Version 0.16.0 is cut, tagged and pushed; live-study tasks remain open below.
 
 ## Completed work
 
@@ -11,6 +11,9 @@ Local implementation is complete for the active build tasks. Release and live-st
 - [x] Track-changes and journal HTML examples regenerated. The portable journal scratch-project keeps its existing independent synthetic history.
 - [x] Unreleased changelog now records the landed recipes, profile, scope-loss notice, method guides and completion fixes.
 - [x] Roadmap summaries reconciled: E1b is already validated; focus M3/M4 are already built.
+- [x] Three merged worktrees removed and their branches deleted; loose handoff artifacts archived under `plans/_DONE/handoff-archive-20261025/`.
+- [x] 0.16.0 cut across the four manifests and `CHANGELOG.md` (`d810aaf`), pushed, tagged `v0.16.0`, and released. The live packet was requalified to 0.16.0 (`db32b05`) with approval bound to `manifest_sha256` (`1313328`).
+- [x] GitHub detects MIT; the description and ten topics are set, including `opencode`.
 
 ## Verification
 
@@ -39,12 +42,9 @@ Final reruns passed:
 
 | Task | What is needed |
 |---|---|
-| Version bump | The handoff reserves the version number for the user. Suggested number: 0.16.0. All four version sites remain 0.15.0 until answered. |
-| Packaging A1 MIT confirmation, A3 release tags and A4 GitHub description/topics | Explicit release/publication authorization; no external metadata was changed. |
 | C12, native-host checks, sc-conventions live M1/M3 | The approved packet, resolved provider/billing bounds, real host sessions and independent human adjudication. The packet remains NOT APPROVED; no paid calls or scheduler jobs ran. |
 | Track R / M5b and usage measurement | The planned ~2026-10-31 measurement and researcher participation. No future observations were invented. |
 | Parked model benchmark | Paid provider quota and its existing run authorization; no substitute model was selected. |
-| ED-1, additional method routing and personal habit summaries | These stay deferred product ideas with unmet return conditions, not unfinished active build tasks. |
-| Old worktrees and handoff archive cleanup | Left intact. Deletion was not needed to finish the package code. |
+| ED-1, additional method routing and personal habit summaries | Deferred product ideas with unmet return conditions, not active build tasks. |
 
 For the authoritative boundaries, see [decisions](../decisions.md), [the live-validation packet](2026-10-16-live-validation/README.md), and [the newplans tracker](../roadmap/14-newplans.md).

@@ -41,7 +41,7 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Acceptance:** the changelog covers every version from 0.9.16 to the current one; each has a tag; the development rules mention the changelog.
 - **Tests:** a small check that the newest changelog heading matches `version` in all three manifests (fits into A2).
 - **Effort:** S.
-- **Status:** local changelog and manifest check done through 0.15.0; new features are listed under Unreleased. Release tags remain pending explicit authorization. `tests/test_versions.py` checks all four version sites and the newest released changelog heading.
+- **Status:** done. `v0.16.0` is tagged at the green commit and published as a release on 2026-10-25. The changelog covers 0.9.16 onward; tags for 0.9.x to 0.15.0 were not backfilled (maintainer decision, 2026-10-25), so those entries are history, not releases. `tests/test_versions.py` checks all four version sites and the newest released changelog heading.
 
 ## A4: Repository description and topics
 
@@ -54,7 +54,7 @@ Small tasks that decide whether anyone else can use the plugin.
 - **Acceptance:** the description and topics show on the repository page.
 - **Tests:** none.
 - **Effort:** S.
-- **Status:** todo (maintainer action). The description, topics, and a `gh repo edit` command are drafted; a patch cannot set them.
+- **Status:** done 2026-10-25. The description names Claude Code, Codex and OpenCode, and ten topics are set, including `opencode`. Read back with `gh repo view --json description,repositoryTopics`.
 
 ## A5: Check Mycelium compatibility
 
