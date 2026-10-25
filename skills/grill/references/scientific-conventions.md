@@ -54,3 +54,8 @@ For existing approved work, inspect applicable approved Plan A / Plan B, actual 
 **Expression:** "Treatment increases IFN-response genes in stimulated PBMCs." Check donor pairing, raw counts, independent biological replicates, design matrix rank, and treatment/batch aliasing **before** proposing donor-aware pseudobulk/dreamlet. A per-cell test without donor-aware inference must not be presented as donor-level proof. A failed design check means descriptive claims or a redesigned experiment, not silent model substitution.
 
 **Composition:** "Myeloid cells increase after vaccination." Check per-donor numerator, denominator and cell-type annotation stability. Route to sample-level composition, with crumblr as a candidate when assumptions/data support it. dreamlet gene DE and cell-type counts answer different estimands. Report uncertainty and an appropriate low-count/denominator sensitivity check.
+
+## 6. Methods with no active pack (plugin reference, lower priority)
+
+After the repository's own conventions, and only when the question is a longitudinal or repeated-measures analysis, or a Bayesian model, and no active pack covers it, read at most one short guide: [methods/longitudinal.md](methods/longitudinal.md) or [methods/bayesian.md](methods/bayesian.md). Cite it as `plugin reference: methods/<name>.md`, never as `repo:`. It does not activate a pack, replace the `single-cell-analysis` guides above, add a question, or show that any check ran. Where it and an active pack differ, follow the pack and say what differs.
+

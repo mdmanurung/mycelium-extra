@@ -37,7 +37,7 @@ Order is by value, then risk. Each item is one feature in its own PR. Version bu
 | A2 | `data-contract-check --profile-only`: bounded, descriptive, small-cell suppressed | `data_contract_check.py`, its tests, `SKILL.md` | low to medium: new CLI mode, old mode must stay byte-equal | built 2026-10-24, same worktree, uncommitted |
 | A4 | Sharper `discriminating_check` wording; one lost-coverage item in `track-changes` | `plan-review` references, `track_changes.py`, tests | medium: read-only, but journal identities must stay stable | built 2026-10-25, committed on `feat/newplans-m1` |
 | A3 | Input/output overlap advisory on the full approval and freeze cards | `hooks/validation.py` or adjacent helper, `gate.py` card path, `test_gate.py` | highest: `gate.py`, needs `gate_diff` before and after | built 2026-10-25, see M3 notes |
-| B1 | Folded method guidance for 2 or 3 methods (no new skill) | `skills/grill/references/` | low: docs and a static test | blocked: Q6 |
+| B1 | Folded method guidance for 2 or 3 methods (no new skill) | `skills/grill/references/` | low: docs and a static test | built 2026-10-25 for two methods, committed on `feat/newplans-m1` |
 
 PR-D in bundle B (route one or two methods as their own skills) stays `parked` until B1 exists and routing accuracy is measured.
 
@@ -117,11 +117,11 @@ M1 ships the two items that need no hook edit and change no default behavior. A 
 - **Scope**: 2 or 3 short method guides, written fresh, under `skills/grill/references/methods/`, and one line in `skills/grill/references/scientific-conventions.md` saying when to consult one. Each guide has an input contract, blocking conditions, an output contract and what a pass would not show. No registry, no `science/` tree, no apply script.
 - **Out of scope**: the other 13 methods, any new command, any change to hooks, an installer for packs.
 - **Acceptance**: a test that every guide has the three sections and no link to a missing file; `check_links.py` clean; `git diff main -- hooks opencode skills/science` empty; the existing `grill` reference tests pass.
-- **Status**: blocked: which 2 or 3 methods (see the open question below).
+- **Status**: built for longitudinal analysis and Bayesian modelling (`skills/grill/references/methods/longitudinal.md`, `bayesian.md`, section 6 of `scientific-conventions.md`, `skills/grill/tests/test_method_guides.py`). Single-cell analysis is not duplicated: `scientific-conventions.md` section 2 and the installed pack already route it, and Q5 only permits a pack beside them, so none was written. The choice of methods was the recommended default for Q6, which the user had not answered; swapping a method is one file.
 
 ## Open question
 
-- **Q6**: which methods go first? Recommended: single-cell analysis (donor-level pseudobulk), longitudinal analysis, Bayesian modelling.
+- **Q6** (defaulted): the method choice. Built with the recommendation, minus single-cell. Say so if you want a different method, or the single-cell summary after all.
 
 ## Limits
 
