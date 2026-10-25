@@ -4,9 +4,17 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-10-26
+
 ### Added
 
+- **plot-first:** plots are the primary artifacts for interpreting analysis results. Each conclusion cites a saved, inspected figure; interpretive tables require a fallback reason. `grill` and `new-analysis` carry this guidance into plans and analysis docs. Numeric provenance remains unchanged. This is agent guidance, not hook enforcement.
+
 - **grill:** a single-cell planning pointer reads the active pack through the existing routing reference, without copying its method policy.
+
+### Fixed
+
+- **plot-first:** illustrative figure links are fenced as example code so the Markdown link check does not treat them as shipped outputs.
 
 ## [0.16.0] - 2026-10-25
 
