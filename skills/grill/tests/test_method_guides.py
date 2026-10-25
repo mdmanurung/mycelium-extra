@@ -57,8 +57,18 @@ class MethodGuideTest(unittest.TestCase):
             self.assertIsNone(re.search(r"\b(R-hat|ESS|p)\s*[<>≥≤]=?\s*\d", text), name)
             self.assertIsNone(re.search(r"\b\d+(\.\d+)?\s*(%|percent)\b", text), name)
 
-    def test_the_single_cell_routing_is_not_duplicated_here(self):
-        self.assertEqual([n for n in self.guides() if "single" in n or "scanpy" in n], [])
+    def test_single_cell_guide_defers_to_existing_routing_and_activation(self):
+        text = read(os.path.join(METHODS, "single-cell.md"))
+        self.assertIn("[scientific-conventions.md](../scientific-conventions.md)", text)
+        for boundary in ("This pointer holds no method policy", "pack activation",
+                         "An inactive or missing pack supplies no `repo:` evidence",
+                         "do not install or activate a pack", "five-question cap",
+                         "adds no questions or approvals", "actual installed guide and version"):
+            self.assertIn(boundary, text)
+        # Scientific choices belong to the active pack and its existing routing table.
+        self.assertNotIn("|", text)
+        for candidate in ("dreamlet", "crumblr", "scanpy"):
+            self.assertNotIn(candidate, text.lower())
 
 
 if __name__ == "__main__":

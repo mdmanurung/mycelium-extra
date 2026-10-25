@@ -117,11 +117,11 @@ M1 ships the two items that need no hook edit and change no default behavior. A 
 - **Scope**: 2 or 3 short method guides, written fresh, under `skills/grill/references/methods/`, and one line in `skills/grill/references/scientific-conventions.md` saying when to consult one. Each guide has an input contract, blocking conditions, an output contract and what a pass would not show. No registry, no `science/` tree, no apply script.
 - **Out of scope**: the other 13 methods, any new command, any change to hooks, an installer for packs.
 - **Acceptance**: a test that every guide has the three sections and no link to a missing file; `check_links.py` clean; `git diff main -- hooks opencode skills/science` empty; the existing `grill` reference tests pass.
-- **Status**: done on main (`acc21ef`) for longitudinal analysis and Bayesian modelling (`skills/grill/references/methods/longitudinal.md`, `bayesian.md`, section 6 of `scientific-conventions.md`, `skills/grill/tests/test_method_guides.py`). Single-cell analysis is not duplicated: `scientific-conventions.md` section 2 and the installed pack already route it, and Q5 only permits a pack beside them, so none was written. The choice of methods was the recommended default for Q6, which the user had not answered; swapping a method is one file.
+- **Status**: longitudinal analysis and Bayesian modelling shipped on main (`acc21ef`). The requested single-cell pointer is now implemented in `skills/grill/references/methods/single-cell.md`, linked from section 6 of `scientific-conventions.md`. It defers to the existing activation rules and pack routing rather than copying method policy. `skills/grill/tests/test_method_guides.py` checks the guide contracts and inactive-pack boundary.
 
-## Open question
+## Method choice
 
-- **Q6** (defaulted): the method choice. Built with the recommendation, minus single-cell. Say so if you want a different method, or the single-cell summary after all.
+- **Q6**: longitudinal and Bayesian guides, plus the single-cell routing pointer requested by the 2026-10-25 completion task. The pointer adds no scientific policy or pack activation.
 
 ## Limits
 

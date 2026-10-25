@@ -59,3 +59,5 @@ For existing approved work, inspect applicable approved Plan A / Plan B, actual 
 
 After the repository's own conventions, and only when the question is a longitudinal or repeated-measures analysis, or a Bayesian model, and no active pack covers it, read at most one short guide: [methods/longitudinal.md](methods/longitudinal.md) or [methods/bayesian.md](methods/bayesian.md). Cite it as `plugin reference: methods/<name>.md`, never as `repo:`. It does not activate a pack, replace the `single-cell-analysis` guides above, add a question, or show that any check ran. Where it and an active pack differ, follow the pack and say what differs.
 
+For single-cell work with no active pack, [methods/single-cell.md](methods/single-cell.md) points back to the activation and routing rules above. It adds no method policy; an active pack remains the source for its scientific guidance.
+

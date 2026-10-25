@@ -4,6 +4,10 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Added
+
+- **grill:** a single-cell planning pointer reads the active pack through the existing routing reference, without copying its method policy.
+
 ## [0.16.0] - 2026-10-25
 
 Live-host validation and the single-cell convention study have not been performed; see [the live-validation packet](docs/plans/2026-10-16-live-validation/README.md).
