@@ -22,7 +22,8 @@ Both were checked against `630fc30` (0.15.0) and [decisions](../decisions.md) on
   - The `multimodal-immunology` pack has an empty "Routing and authority" list: no guide is named.
   - Every pack depends on Mycelium's `robust-analysis` pack. A project without it gets a dependency it cannot resolve.
   - Its apply-script test builds a fake repo, so it shows the script works, not that the guides are right. All 16 `scientific_validation` fields read `pending`.
-  - `REFERENCE_INDEX.csv` has 264 rows of third-party skill names and descriptions, with no content.
+  - `REFERENCE_INDEX.csv` has 264 rows (206 `specialized-tool-reference`, 32 `preferred-biomni-domain-reference`, 26 `secondary-legacy`; 232 from `skills_deduplicated.zip`, 32 from `biomni-codex-skills.zip`). Each row is a third-party skill name, path and description, with no skill content. Most rows are outside this plugin's field: quantum computing, astronomy, CAD, manufacturing, market research, battery models, fluid dynamics. 36 descriptions are empty and 17 hold a YAML artifact (`>-` or `>`) instead of text. `pkpd-modeling` appears twice. The index is not worth shipping, which matches dropping it under Q2.
+  - `registry.json` lists 16 methods and 13 packs, every `scientific_validation` is `pending`, and `references` says `count: 264, mode: index-only`.
 - Both bundles append to `skills/grill/references/scientific-conventions.md`; they touch different files otherwise. Land B after A and rebase the one reference.
 - Neither bundle needs `hooks/` except A3, which edits card rendering in `hooks/gate.py` only.
 
