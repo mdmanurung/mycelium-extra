@@ -4,6 +4,10 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- **new-analysis:** step scripts now go in `code/` (beside any linked shared code), `PLAN.md` and `TRACKER.md` in `plans/`, and the root keeps only `<NAME>.md`, `Snakefile`, `run.sh` and a new `run.sbatch`. Step paths in the Snakefile, plan table, tracker and Steps table use `code/`, and the notebook stub moves to the analysis folder before it runs. The `plan`/`tracker` folder-name refusal is gone because the collision is gone. Existing folders are not moved.
+
 ### Added
 
 - **handoff:** `HANDOFF.md` records the time and commit copied from `date` and `git rev-parse`, and opens with a Check first step: the next session runs `git log <hash>..HEAD` and `git status` and says so first when work happened since. An old handoff from another branch is flagged before anything is carried forward. A stale handoff once led sessions to report finished work as blocked.

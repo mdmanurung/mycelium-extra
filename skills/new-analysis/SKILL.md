@@ -1,19 +1,19 @@
 ---
 name: new-analysis
 disable-model-invocation: true
-description: Scaffold a new analysis folder that plugs into Mycelium (step stubs, Snakefile, run.sh, analysis doc, PLAN.md, TRACKER.md).
+description: Scaffold a new analysis folder that plugs into Mycelium (stubs in code/, plan and tracker in plans/, Snakefile, run.sh, run.sbatch).
 ---
 
 # Mycelium Extra: New analysis
 
-Create the folder a new analysis lives in. Use Mycelium's own pieces wherever they exist: its analysis doc template, `outputs/`, `reports/`, and the `run.sh` entry point. Add only what Mycelium lacks: numbered steps run by a Snakefile, a single plan, a tracker, and symlinked `data/` and `code/`.
+Create the folder a new analysis lives in. Use Mycelium's own pieces wherever they exist: its analysis doc template, `outputs/`, `reports/`, and the `run.sh` entry point. Add only what Mycelium lacks: numbered steps run by a Snakefile, a single plan, a tracker, and symlinked `data/` and linked shared code.
 
 ```
 analysis/<name>/
-├── 01_prepare_data.R  02_train_model.py  03_explore_model.ipynb
-├── Snakefile      run.sh
-├── <NAME>.md      PLAN.md      TRACKER.md
-└── data/  code/  outputs/  logs/  reports/
+├── <NAME>.md      Snakefile      run.sh      run.sbatch
+├── code/     01_prepare_data.R  02_train_model.py  03_explore_model.ipynb  (+ linked shared code)
+├── plans/    PLAN.md  TRACKER.md
+└── data/  outputs/  logs/  reports/
 ```
 
 ## 1. Gather
@@ -59,7 +59,7 @@ Use Edit; the files already exist.
 Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and conclusions. Carry its figure deliverables into `PLAN.md` and the analysis doc. Keep this rule in the analysis doc so `/mycelium:analyze` reads it when continuing.
 
 - **`<NAME>.md`.** Write the Purpose from the scope, and the "Does" column of the Steps table.
-- **`PLAN.md` and `TRACKER.md`.** If this conversation holds an approved mycelium-extra grill brief for this analysis, copy it in:
+- **`plans/PLAN.md` and `plans/TRACKER.md`.** If this conversation holds an approved mycelium-extra grill brief for this analysis, copy it in:
   - Into `PLAN.md`: its Objective, Evidence, Inputs, Plan table, Assumptions and risk, Parked, and Decisions to record.
   - Into `TRACKER.md`: one row per plan row, using the same IDs.
 - If there is no approved brief, leave the headings for the user or for a later grill.
@@ -71,16 +71,17 @@ Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and c
   - It holds the purpose, status, datasets, steps, open questions, and outputs.
   - **Key Findings** is where results go: each conclusion links its inspected plot and panel, gives its `.living/findings` ID once crystallized, and ends with ``[agent-derived: `outputs/<file>`]`` naming the file behind it; `verify` counts these tags. An interpretive table needs an explicit fallback reason.
   - `/mycelium:analyze` reads this file, and its post-action hook updates it.
-- **`PLAN.md`** is the one plan. Revise it in place and log each change in `TRACKER.md`. Never start a second plan file.
-- **`TRACKER.md`** holds each item's status and a dated log. Project-wide todos stay in `todo/`.
-- **Numbered steps** sit at the folder root, so the order is visible at a glance. A new step needs four things:
+- **`plans/PLAN.md`** is the one plan. Revise it in place and log each change in `TRACKER.md`. Never start a second plan file.
+- **`plans/TRACKER.md`** holds each item's status and a dated log. Project-wide todos stay in `todo/`.
+- **Numbered steps** sit in `code/`, with helpers and checks beside them. Steps run from the analysis folder, so a helper is sourced as `code/<file>`. A new step needs four things:
   - the next number
   - a Snakefile rule
   - a Steps row in `<NAME>.md`
-  - a `TRACKER.md` row
+  - a `plans/TRACKER.md` row
 - **`outputs/`** is flat, and each file name starts with the step's number (`02_model.rds`).
   - Mycelium's `register_value` writes `outputs/numbers.json` there.
   - The robust-analysis protocols name subfolders such as `outputs/figures/diagnostic/`. Keeping `outputs/` flat, with `diag_` and `supp_` prefixes instead, holds only once it is recorded as a repo-local convention in `.living/conventions.md`. Mycelium applies repo-local conventions before domain and core ones.
+- **`run.sbatch`** submits `run.sh` to SLURM; its output goes to `logs/slurm-%x-%j.out`.
 - **`logs/`** holds Snakemake and SLURM logs, benchmarks, and executed notebook copies.
 - **`reports/`** belongs to Mycelium's report skill.
 
@@ -91,5 +92,5 @@ Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and c
 - Next steps for the user:
   1. Plan the work with `/mycelium-extra:grill`. A plan whose table names this folder's scripts or its `run.sh` lets the approval gate pass them.
   2. Run `/mycelium:analyze <name>`. It continues the existing folder, adds the manifest entry (the script printed a suggested one), and records decisions. That includes the flat-`outputs/` convention, if the user wants it.
-  3. For a reportable run, once the code is written and linted, grill a run plan that freezes it (grill's `references/run-plans.md`): it revises this `PLAN.md` in place and shows the job list from `bash run.sh -n`, run under the first plan's approval.
+  3. For a reportable run, once the code is written and linted, grill a run plan that freezes it (grill's `references/run-plans.md`): it revises this `plans/PLAN.md` in place and shows the job list from `bash run.sh -n`, run under the first plan's approval.
 - Offer to commit the new folder.

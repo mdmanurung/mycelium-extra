@@ -6,10 +6,11 @@ Run from stdin so Mycelium's hooks stay closed, with every option in --flag=valu
               [--data=PATH ...] [--code=PATH ...] [--doc-template=PATH]
               --templates=<skill-dir>/templates [--dry-run] < new_analysis.py
 
-Creates <dest>/ with numbered step stubs at its root, a Snakefile that runs them in
-order, run.sh, the analysis doc (Mycelium's analysis-readme template: <NAME>.md in a
-Mycelium repository, README.md elsewhere), PLAN.md, TRACKER.md, and data/ code/ outputs/
-logs/ reports/. data/ and code/ hold symlinks. Refuses a non-empty <dest>, never
+Creates <dest>/ with numbered step stubs in code/, a Snakefile that runs them in
+order, run.sh, run.sbatch, the analysis doc (Mycelium's analysis-readme template: <NAME>.md in a
+Mycelium repository, README.md elsewhere), and data/ code/ plans/ outputs/ logs/ reports/
+(plans/ holds PLAN.md and TRACKER.md). data/ holds symlinks, and code/ holds the steps plus any
+linked shared code. Refuses a non-empty <dest>, never
 overwrites, and writes nothing outside <dest> except an empty lock file, .<name>.scaffold.lock, that it
 leaves in the parent folder. Stdlib-only; runs on Python 3.9+.
 """
@@ -27,7 +28,7 @@ import sys
 
 STEP = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*)\.(R|py|ipynb)$")
 DEFAULT_STEPS = "01_prepare_data.R,02_train_model.py,03_explore_model.ipynb"
-DIRS = ["data", "code", "outputs", "logs", "reports"]
+DIRS = ["data", "code", "plans", "outputs", "logs", "reports"]
 UNTRACKED_OK = {"outputs/", "logs/"}  # often ignored on purpose (large or regenerable files)
 OUTPUT_EXT = {"R": ".rds", "py": ".parquet"}
 MYCELIUM_TEMPLATE = os.path.join("skills", "core", "templates", "analysis-readme.md")
@@ -95,7 +96,7 @@ def parse_steps(text):
         previous = number
         stem, kind = name.rsplit(".", 1)
         output = ("logs/" + name) if kind == "ipynb" else ("outputs/" + stem + OUTPUT_EXT[kind])
-        steps.append({"file": name, "num": match.group(1), "stem": stem, "kind": kind,
+        steps.append({"file": name, "path": "code/" + name, "num": match.group(1), "stem": stem, "kind": kind,
                       "rule": "step" + re.sub(r"\W", "_", stem), "output": output})
     if not steps:
         raise Refusal("--steps is empty")
@@ -161,7 +162,7 @@ def stub_values(step, name, data_links):
     else:
         code = ("(output_path,) = sys.argv[1:]" if first
                 else "input_path, output_path = sys.argv[1:]")
-    return {"FILE": step["file"], "NUM": step["num"], "NAME": name,
+    return {"FILE": step["file"], "PATH": step["path"], "NUM": step["num"], "NAME": name,
             "INPUT": notebook_input if step["kind"] == "ipynb" else source,
             "INPUT_LITERAL": json.dumps(notebook_input),
             "OUTPUT": step["output"], "USAGE": usage, "NARGS": "1" if first else "2",
@@ -182,7 +183,7 @@ def rule(step, data_links):
     elif data_links:
         lines.append("        data=[{}],".format(", ".join(json.dumps(l["rel"]) for l in data_links)))
     key = "notebook" if step["kind"] == "ipynb" else "script"
-    lines.append('        {}="{}",'.format(key, step["file"]))
+    lines.append('        {}="{}",'.format(key, step["path"]))
     todo = "" if step["kind"] == "ipynb" else "  # TODO: name the real outputs"
     lines += ["    output:", '        "{}",{}'.format(step["output"], todo),
               "    threads: 1",
@@ -222,9 +223,9 @@ def doc_text(template, name, dest_rel, steps, data_links, code_links, root):
     section = "\n".join(
         ["## Steps", "",
          "Run in number order; `bash run.sh` runs them all through the `Snakefile`.",
-         "Plan: [PLAN.md](PLAN.md). Status and log: [TRACKER.md](TRACKER.md).", "",
+         "Plan: [plans/PLAN.md](plans/PLAN.md). Status and log: [plans/TRACKER.md](plans/TRACKER.md).", "",
          "| Step | File | Does | Output |", "|---|---|---|---|"]
-        + ["| {} | `{}` | [what it does] | `{}` |".format(s["num"], s["file"], s["output"])
+        + ["| {} | `{}` | [what it does] | `{}` |".format(s["num"], s["path"], s["output"])
            for s in steps]) + "\n"
     if "\n## Reproducibility" in text:
         return text.replace("\n## Reproducibility", "\n" + section + "\n## Reproducibility", 1)
@@ -305,9 +306,6 @@ def scaffold(args):
     data_links = plan_links(args.data, "data", dest, root)
     code_links = plan_links(args.code, "code", dest, root)
     doc_name = name.upper().replace("-", "_") + ".md" if mycelium else "README.md"
-    if doc_name in ("PLAN.md", "TRACKER.md"):
-        raise Refusal("the analysis doc {} would collide with the {} this folder also holds; pick another "
-                      "name; nothing was changed".format(doc_name, doc_name))
     template_path, template_note = find_doc_template(args.doc_template, root, args.templates)
     templates = args.templates
     today = datetime.date.today().isoformat()
@@ -316,25 +314,26 @@ def scaffold(args):
     for step in steps:
         values = stub_values(step, name, data_links)
         source = read(os.path.join(templates, "stub." + step["kind"]))
-        files[step["file"]] = notebook(source, values) if step["kind"] == "ipynb" else fill(source, values)
+        files[step["path"]] = notebook(source, values) if step["kind"] == "ipynb" else fill(source, values)
     files["Snakefile"] = fill(read(os.path.join(templates, "Snakefile")), {
         "NAME": json.dumps(name)[1:-1], "DEST": json.dumps(dest_rel)[1:-1],
         "LAST_OUTPUT": steps[-1]["output"],
         "RULES": "\n\n".join(rule(step, data_links) for step in steps).rstrip("\n")})
     files["run.sh"] = fill(read(os.path.join(templates, "run.sh")), {"NAME": name})
+    files["run.sbatch"] = fill(read(os.path.join(templates, "run.sbatch")), {"NAME": name})
     files[doc_name] = doc_text(read(template_path), name, dest_rel, steps, data_links,
                                code_links, root)
     inputs = ", ".join(display(l["target"], root) for l in data_links) or (
         "[repository paths of the sample table, config, or raw-data folder; or none]")
-    files["PLAN.md"] = fill(read(os.path.join(templates, "PLAN.md")), {
+    files["plans/PLAN.md"] = fill(read(os.path.join(templates, "PLAN.md")), {
         "NAME": name, "INPUTS": inputs, "PLAN_ROWS": "\n".join(
             "| S{} | `{}/{}` | [choice] | [repo: / user / default:] | [check] |".format(
-                s["num"], dest_rel, s["file"]) for s in steps)})
+                s["num"], dest_rel, s["path"]) for s in steps)})
     ids = ["S" + s["num"] for s in steps]
-    files["TRACKER.md"] = fill(read(os.path.join(templates, "TRACKER.md")), {
+    files["plans/TRACKER.md"] = fill(read(os.path.join(templates, "TRACKER.md")), {
         "NAME": name, "DOC": doc_name, "DATE": today, "TRACKER_ROWS": "\n".join(
             "| {} | `{}` | todo | {} | [how to check it worked] |".format(
-                ident, s["file"], before or "—")
+                ident, s["path"], before or "—")
             for ident, before, s in zip(ids, [None] + ids, steps))})
 
     probes = [(os.path.join(dest, path), path) for path in sorted(files)]
@@ -381,8 +380,8 @@ def scaffold(args):
             os.close(fd)
 
     print("{} {}/ (doc {} from {})".format(verb, dest_rel, doc_name, template_note))
-    for path in [s["file"] for s in steps] + ["Snakefile", "run.sh", doc_name, "PLAN.md",
-                                               "TRACKER.md"] + [d + "/" for d in DIRS]:
+    for path in [s["path"] for s in steps] + ["Snakefile", "run.sh", "run.sbatch", doc_name,
+                                              "plans/PLAN.md", "plans/TRACKER.md"] + [d + "/" for d in DIRS]:
         print("  " + path)
     for link in data_links + code_links:
         print("  {} -> {}".format(link["rel"], link["value"]))

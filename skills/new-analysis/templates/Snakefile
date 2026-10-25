@@ -4,7 +4,7 @@ From anywhere: snakemake -s @@DEST@@/Snakefile --cores 4   (or: bash @@DEST@@/ru
 One step:      snakemake -s @@DEST@@/Snakefile --cores 4 <rule name>
 Interpreters:  --config rscript=/path/to/Rscript python=/path/to/python jupyter=/path/to/jupyter
 
-Paths are relative to this folder. Outputs go to outputs/ with the step's number as prefix;
+Step scripts live in code/; paths are relative to this folder. Outputs go to outputs/ with the step's number as prefix;
 logs, benchmarks, and executed notebooks go to logs/. Wrap an output in protected() once it
 is expensive to recompute.
 """

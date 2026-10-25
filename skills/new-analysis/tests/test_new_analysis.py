@@ -65,9 +65,11 @@ class NewAnalysisTest(unittest.TestCase):
 
     def test_full_tree_in_mycelium_repo(self):
         out = self.scaffold("--data=data/anndatas/cells.h5ad", "--code=src/helpers.R")
-        expected = set(STEPS + ["Snakefile", "run.sh", "DEMO_RUN.md", "PLAN.md", "TRACKER.md",
-                                "data", "code", "outputs", "logs", "reports"])
+        expected = {"Snakefile", "run.sh", "run.sbatch", "DEMO_RUN.md",
+                    "data", "code", "plans", "outputs", "logs", "reports"}
         self.assertEqual(set(os.listdir(self.dest)), expected)
+        self.assertEqual(set(os.listdir(os.path.join(self.dest, "code"))), set(STEPS + ["helpers.R"]))
+        self.assertEqual(set(os.listdir(os.path.join(self.dest, "plans"))), {"PLAN.md", "TRACKER.md"})
         self.assertTrue(os.access(os.path.join(self.dest, "run.sh"), os.X_OK))
         link = os.path.join(self.dest, "data", "cells.h5ad")
         self.assertEqual(os.readlink(link), "../../../data/anndatas/cells.h5ad")
@@ -75,12 +77,12 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertEqual(read(os.path.join(self.dest, "code", "helpers.R")), "f <- 1\n")
         self.assertIn("suggested analysis/ANALYSIS_MANIFEST.md entry", out)
         self.assertIn("datasets: [cells.h5ad]", out)
-        plan = read(os.path.join(self.dest, "PLAN.md"))
+        plan = read(os.path.join(self.dest, "plans", "PLAN.md"))
         self.assertIn("Inputs: data/anndatas/cells.h5ad", plan)
-        self.assertIn("| S02 | `analysis/demo-run/02_train_model.py` |", plan)
-        tracker = read(os.path.join(self.dest, "TRACKER.md"))
-        self.assertIn("| S03 | `03_explore_model.ipynb` | todo | S02 |", tracker)
-        self.assertIn("[DEMO_RUN.md](DEMO_RUN.md)", tracker)
+        self.assertIn("| S02 | `analysis/demo-run/code/02_train_model.py` |", plan)
+        tracker = read(os.path.join(self.dest, "plans", "TRACKER.md"))
+        self.assertIn("| S03 | `code/03_explore_model.ipynb` | todo | S02 |", tracker)
+        self.assertIn("[DEMO_RUN.md](../DEMO_RUN.md)", tracker)
 
     def test_readme_outside_mycelium(self):
         os.rmdir(os.path.join(self.root, ".living"))
@@ -97,7 +99,7 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertIn("Mycelium's template at", out)
         doc = read(os.path.join(self.dest, "DEMO_RUN.md"))
         self.assertTrue(doc.startswith("# demo-run\n\nMARKER"))
-        self.assertTrue(doc.rstrip().endswith("| 03 | `03_explore_model.ipynb` | [what it does] "
+        self.assertTrue(doc.rstrip().endswith("| 03 | `code/03_explore_model.ipynb` | [what it does] "
                                               "| `logs/03_explore_model.ipynb` |"))
         self.assertIn(".living/findings ID", doc)
         self.assertIn("saved, inspected plot and panel", doc)
@@ -125,13 +127,6 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertIn("not empty", proc.stdout)
         self.assertEqual(os.listdir(self.dest), ["notes.txt"])
 
-    def test_folder_named_plan_or_tracker_is_refused_in_a_mycelium_repo(self):
-        for name in ("plan", "tracker"):
-            proc = run(self.root, "--dest=analysis/" + name)
-            self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
-            self.assertIn("collide", proc.stdout)
-            self.assertFalse(os.path.exists(os.path.join(self.root, "analysis", name)))
-
     def test_empty_dest_is_filled(self):
         os.mkdir(self.dest)
         self.scaffold()
@@ -147,7 +142,7 @@ class NewAnalysisTest(unittest.TestCase):
             codes.append(job.returncode)
         self.assertEqual(sorted(codes), [0, 1])
         self.assertTrue(os.path.isfile(os.path.join(self.dest, "Snakefile")))
-        self.assertEqual(len(os.listdir(self.dest)), 13)
+        self.assertEqual(len(os.listdir(self.dest)), 10)
 
     def test_symlink_destination_and_staging_failure_leave_targets_untouched(self):
         target = os.path.join(self.root, "target")
@@ -186,7 +181,7 @@ class NewAnalysisTest(unittest.TestCase):
 
     def test_notebook_is_nbformat_4(self):
         self.scaffold()
-        book = json.loads(read(os.path.join(self.dest, "03_explore_model.ipynb")))
+        book = json.loads(read(os.path.join(self.dest, "code", "03_explore_model.ipynb")))
         self.assertEqual(book["nbformat"], 4)
         self.assertEqual(book["metadata"]["kernelspec"]["name"], "python3")
         for cell in book["cells"]:
@@ -204,7 +199,7 @@ class NewAnalysisTest(unittest.TestCase):
         match = re.search(r"        data=(\[.*\]),", snakefile)
         import ast
         self.assertEqual(ast.literal_eval(match.group(1)), ["data/" + basename])
-        book = json.loads(read(os.path.join(self.dest, "01_look.ipynb")))
+        book = json.loads(read(os.path.join(self.dest, "code", "01_look.ipynb")))
         setup = "".join(book["cells"][1]["source"])
         parsed = ast.parse(setup)
         assignment = next(node for node in parsed.body if isinstance(node, ast.Assign)
@@ -213,7 +208,7 @@ class NewAnalysisTest(unittest.TestCase):
 
     def test_r_stub_points_at_scilintr_stage_without_setting_one(self):
         self.scaffold()
-        head = read(os.path.join(self.dest, "01_prepare_data.R")).splitlines()[:10]
+        head = read(os.path.join(self.dest, "code", "01_prepare_data.R")).splitlines()[:10]
         self.assertTrue(any("scilintr stage" in line for line in head))
         # scilintr reads a stage from `# STAGE: <name>` in the first 10 lines; the guidance must not set one
         self.assertFalse(any(re.match(r"^\s*#\s*STAGE:\s*\S+", line) for line in head))
@@ -225,16 +220,16 @@ class NewAnalysisTest(unittest.TestCase):
                          ["all", "step01_load", "step04_fit", "step07_look"])
         self.assertIn('rule all:\n    input:\n        "logs/07_look.ipynb",', snakefile)
         self.assertIn('data=["data/cells.h5ad"],', snakefile)
-        self.assertIn('prev="outputs/01_load.parquet",\n        script="04_fit.R",', snakefile)
-        self.assertIn('prev="outputs/04_fit.rds",\n        notebook="07_look.ipynb",', snakefile)
+        self.assertIn('prev="outputs/01_load.parquet",\n        script="code/04_fit.R",', snakefile)
+        self.assertIn('prev="outputs/04_fit.rds",\n        notebook="code/07_look.ipynb",', snakefile)
         self.assertIn("workdir: workflow.basedir", snakefile)
         self.assertNotIn("@@", snakefile)
         for name in ["01_load.py", "04_fit.R", "07_look.ipynb"]:
-            self.assertIn(name, os.listdir(self.dest))
+            self.assertIn(name, os.listdir(os.path.join(self.dest, "code")))
 
     def test_python_stub_fails_loudly(self):
         self.scaffold()
-        proc = subprocess.run([sys.executable, "02_train_model.py", "in", "out"], cwd=self.dest,
+        proc = subprocess.run([sys.executable, "code/02_train_model.py", "in", "out"], cwd=self.dest,
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               universal_newlines=True)
         self.assertNotEqual(proc.returncode, 0)
@@ -245,7 +240,7 @@ class NewAnalysisTest(unittest.TestCase):
         if not rscript:
             self.skipTest("Rscript is not installed")
         self.scaffold()
-        proc = subprocess.run([rscript, "01_prepare_data.R", "out"], cwd=self.dest,
+        proc = subprocess.run([rscript, "code/01_prepare_data.R", "out"], cwd=self.dest,
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               universal_newlines=True)
         self.assertNotEqual(proc.returncode, 0)

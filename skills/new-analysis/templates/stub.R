@@ -1,7 +1,7 @@
 # @@FILE@@: step @@NUM@@ of @@NAME@@.
 # Input:  @@INPUT@@
 # Output: @@OUTPUT@@
-# Run:    Rscript @@FILE@@ @@USAGE@@   (the Snakefile passes these paths)
+# Run:    Rscript @@PATH@@ @@USAGE@@   (the Snakefile passes these paths)
 # scilintr stage: replace this line with `# STAGE: <stage>` (blind_qc, selection, evaluation or library;
 #   label columns are allowed only in evaluation) so its label and stage rules run on this file.
 
