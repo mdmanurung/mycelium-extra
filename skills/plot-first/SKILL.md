@@ -47,8 +47,10 @@ Put a clickable figure link beside each conclusion. Name a panel when needed.
 Separate what the plot shows from the interpretation and its limits.
 For example, if the inspected output supports it:
 
+```markdown
 > Responses vary across donors ([Figure 1B](outputs/03_response_by_visit.pdf)).
 > Estimates remain imprecise ([Figure 1B](outputs/03_response_by_visit.pdf)).
+```
 
 Keep Mycelium's `.living/findings` IDs and `[agent-derived: ...]` tags.
 Keep numerical claims bound to their source cells through existing claims blocks
