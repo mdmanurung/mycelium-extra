@@ -254,7 +254,7 @@ test("an open focus line reaches the prompt even beside a hint", () => {
 
 test("skill commands come from the skills folder", () => {
   const skills = __test__.skillCommands(ROOT)
-  assert.equal(skills.length, 14)
+  assert.equal(skills.length, 15)
   const ids = skills.map((skill) => skill.id)
   for (const id of ["grill", "init", "verify", "handoff", "plan-review", "focus", "track-changes", "plot-first"]) assert.ok(ids.includes(id), id)
   assert.match(skills.find((skill) => skill.id === "grill").description, /planning/i)

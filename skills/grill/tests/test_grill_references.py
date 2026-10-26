@@ -266,6 +266,24 @@ class GrillReferenceContractTest(unittest.TestCase):
         self.assertIn("not implemented guards", science)
         self.assertIn("never itself", science.lower())
 
+    def test_manuscript_routing_is_opt_in_and_bounded(self):
+        science = read(os.path.join(SKILL, "references", "scientific-conventions.md"))
+        # The routing path exists, is opt-in, and stays read-only guidance.
+        for required in ("manuscript-reproducibility", "opt-in only", "registered as active",
+                         "not a validation result", "figures-and-source-data.md",
+                         "statistical-reporting.md", "code-style.md",
+                         "Do not add questions, approvals, executions",
+                         "If the pack is absent or unregistered"):
+            self.assertIn(required, science, required)
+        # Local override precedence is preserved over the manuscript pack.
+        self.assertLess(science.index("Local `.living/conventions.md` overrides both"),
+                        science.index("A `grill` request that is purely statistical"))
+        # Negative control: an irrelevant statistical request is explicitly not routed here.
+        self.assertIn("is not routed here", science)
+        # The single-cell method routing table is unchanged and still governs method selection.
+        self.assertIn("The active single-cell pack governs method selection and assumptions", science)
+        self.assertIn("| Experimental design, pairing, dataset / counts layer |", science)
+
 
 if __name__ == "__main__":
     unittest.main()

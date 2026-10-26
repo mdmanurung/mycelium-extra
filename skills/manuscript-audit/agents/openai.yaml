@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mycelium Extra Manuscript Audit"
+  short_description: "Read-only manuscript reproducibility audit"
+  default_prompt: "Use $mycelium-extra:manuscript-audit for a read-only audit of figure/table lineage, source data and reporting in this manuscript repository."

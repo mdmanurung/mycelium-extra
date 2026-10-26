@@ -1,0 +1,9 @@
+# Reusable, pragmatic R/Python and plot-style conventions
+
+- Prefer short self-contained numbered analysis steps or readable R Markdown/Jupyter where exploratory science needs narrative and inspection; move stable duplicated operations to `code/R/` or `code/python/`.
+- Avoid absolute private HPC paths and uncontrolled `setwd()`; parameterise input roots, records of external files, environment versions, reference models and resources. Respect R/Scanpy/AnnData count-layer semantics.
+- Print/record sample counts, donor IDs counts (not identifiable donor values), exclusion totals, and model inputs at significant boundaries. Assertions must test known scientific assumptions; no silent imputation or coercion.
+- Do not require a formal R package merely because a `.R` helper file is shared. Do not force Quarto/website or Snakemake on a small methods paper. Use a DAG when repeated expensive jobs or file-dependency correctness merits it.
+- Plot styles: an explicit named color dictionary keyed by biological identity, fixed category order, clear confidence-interval meaning, physical figure units, reproducible file names and PDF font settings where relevant. ALTRA uses `theme_classic`, shape 21 fill/color, `ggrepel` and domain palettes; GTestimate standardises PDF dimensions/font sizes; Haniffa configures PDF font embedding. These styles are optional, biological identity consistency is more important than mimicking a specific palette.
+- Separate intermediate statistics from figure formatting. A figure script should not silently refit a model; a reporting notebook showing pre-rendered figures must say so.
+- When refactoring, preserve numerical outputs on representative fixtures and compare before/after figures. A stylistic refactor that changes a factor order, join, contrast or exclusion is a scientific change needing renewed review.

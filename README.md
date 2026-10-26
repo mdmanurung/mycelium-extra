@@ -26,6 +26,10 @@ The skills, from planning to hand-off:
 - `focus` and `track-changes` say which analysis a session works on and show what changed against the approved plan.
 - `new-analysis`, `plan-review`, `handoff`, `harden`, `idea`, `idea-triage`,
   `decision-status` and `data-contract-check` cover structure, review, continuity, and checks.
+- `manuscript-audit` is a read-only audit of a manuscript repository's figure/table
+  lineage and source data, with an optional small deterministic contract check. It adds
+  no hook or gate; the opt-in `manuscript-reproducibility` convention pack is guidance
+  only. See [the skill reference](docs/reference/skills/manuscript-audit.md).
 
 Five of these are built around Mycelium's files: `decision-status` and `harden`
 read `.living/` memory and stop when it is absent; `idea` and `idea-triage` read

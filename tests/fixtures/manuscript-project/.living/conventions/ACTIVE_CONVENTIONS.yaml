@@ -1,0 +1,11 @@
+# Fixture sample registration. The authoritative file format is written by
+# upstream Mycelium's install_convention.py; this sample follows the shape
+# skills/grill/references/scientific-conventions.md checks (a path relative to
+# the repository root, inside .living/conventions/, whose directory and
+# analysis-conventions.md hub exist). Live activation through
+# install_convention.py --network-dir is separately verified or labeled unverified.
+conventions:
+  - name: manuscript-reproducibility
+    version: 0.1.0
+    path: .living/conventions/manuscript-reproducibility
+    registered: 2026-10-26

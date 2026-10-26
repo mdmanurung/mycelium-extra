@@ -1,0 +1,23 @@
+{
+  "schema": "mycelium-extra.manuscript_checks.v1",
+  "data_manifest": "data/README.md",
+  "figures": [
+    {
+      "id": "Fig1a",
+      "script": "script/Figure1.py",
+      "source_data": "figures/source_data/Fig1a.tsv",
+      "required_columns": ["sample_id", "condition", "fraction"],
+      "outputs": []
+    }
+  ],
+  "tables": [
+    {
+      "id": "freq",
+      "file": "outputs/freq.tsv",
+      "key_columns": ["sample_id", "cell_type"],
+      "nonnegative_integer_columns": ["cell_count", "total_count"],
+      "finite_numeric_columns": ["fraction"],
+      "ratio_invariant": {"numerator": "cell_count", "denominator": "total_count", "fraction": "fraction"}
+    }
+  ]
+}

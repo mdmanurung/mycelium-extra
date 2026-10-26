@@ -11,6 +11,7 @@ Every skill is a slash command in Claude Code (`/mycelium-extra:<name>`), a `$` 
 | [init](skills/init.md) | Turn the approval gate on in a repository | `.mycelium-extra/gate.json`, `.gitignore` |
 | [grill](skills/grill.md) | Turn a task into a sourced plan and stop for your approval | nothing |
 | [data-contract-check](skills/data-contract-check.md) | Test a plan's data assumptions against the sample table | nothing by default |
+| [manuscript-audit](skills/manuscript-audit.md) | Read-only audit of manuscript figure/table lineage and source data | nothing by default |
 | [decision-status](skills/decision-status.md) | Work out which past decision still binds | one `.living/decisions.md` entry, after you confirm |
 | [verify](skills/verify.md) | Check what ran against the approved plan; record provenance | `provenance/` on `write` |
 | [track-changes](skills/track-changes.md) | Show what changed in one analysis since its approved plan | `.mycelium-extra/track-changes/` |

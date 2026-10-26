@@ -57,6 +57,10 @@ Finds which past Mycelium decision applies. See [decision-status](https://github
 
 Compares a plan's assumptions with your sample tables or H5AD `obs`. See [data-contract-check](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/data-contract-check.md).
 
+## manuscript-audit
+
+Read-only audit of a manuscript repository's figure/table lineage, source data and reporting, with an optional small deterministic contract check. See [manuscript-audit](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/manuscript-audit.md).
+
 ## focus
 
 Say which analysis this session works on. See [focus](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/focus.md).

@@ -1,0 +1,4 @@
+sample_id	cell_type	cell_count	total_count	fraction
+S1	T	25	100	0.25
+S2	T	50	100	0.5
+S3	T	75	100	0.75

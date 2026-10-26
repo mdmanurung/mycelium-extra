@@ -1,0 +1,11 @@
+---
+name: manuscript-reproducibility
+version: 0.1.0
+description: >
+  Optional domain-agnostic manuscript code, data-product, publication-figure
+  provenance and evidence-quality conventions for R/Python bioinformatics.
+  Complements (does not supersede) scientific-method packs and local decisions.
+author: mycelium-extra-extension-proposal
+dependencies: []
+tags: [reproducibility, manuscript, source-data, figure-lineage, bioinformatics, single-cell]
+---
