@@ -56,7 +56,7 @@ A status describes the plan. None grants permission to run.
 | optional `<!-- plan-evidence -->` block | read-only commands and their verbatim output, one entry per fact the plan rests on; `verify` re-runs them and reports drift; syntax in `references/plan-evidence.md` |
 | Assumptions and risk, Parked, Decisions to record, Next action | brief, at most 150 words outside the protected parts |
 
-The gate reads only the plan table's Step column to decide what a plan lets through. A script named only in a Choice or Validation cell, in prose, or in Evidence approves nothing.
+The full rules for each part (what qualifies, the tags, how the card quotes a row) are in `skills/grill/references/brief-format.md`. The gate reads only the plan table's Step column to decide what a plan lets through. A script named only in a Choice or Validation cell, in prose, or in Evidence approves nothing.
 
 ## Default on or off
 

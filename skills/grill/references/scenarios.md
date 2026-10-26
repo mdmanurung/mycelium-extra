@@ -42,7 +42,7 @@ Expected: `READY_WITH_ASSUMPTIONS`; record style as a reversible default and par
 
 User: "Test the monocyte change by protection, stratified by sex."
 Repo: a decision declined sex-stratified tests because one stratum has too few events; findings already report the unstratified monocyte result.
-Expected: open by citing the findings that already cover most of the task; cite the decision; recommend a reconciled design (for example an interaction term with descriptive per-stratum estimates) and ask one question, in the round,, because the user owns the trade-off. Make reuse versus re-run explicit in the plan.
+Expected: open by citing the findings that already cover most of the task; cite the decision; recommend a reconciled design (for example an interaction term with descriptive per-stratum estimates) and ask one question in the round, because the user owns the trade-off. Make reuse versus re-run explicit in the plan.
 
 ## Mycelium without `MYCELIUM.md`
 

@@ -6,9 +6,11 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Changed
 
+- **grill:** the brief's section rules (tags, `Inputs:`/`Outputs:` paths, the table's cells and how the card quotes them, run blocks, plan evidence) moved from `SKILL.md` section 4 into `references/brief-format.md`, which section 4 points at; the steps, statuses, quoted-question template and status line stay in `SKILL.md`. The markers the gate and `verify` read are unchanged.
+
 - **grill:** questions you own are asked in rounds: every question whose prerequisites are settled goes in one numbered message with a `Recommended:` line worded so that "yes" accepts it, and a question that depends on an open one waits for the next round. The five-question cap counts across rounds. "one question at a time" restores one per message. The Socratic probe and the evidence-lookup option ride inside their own question as before.
 
-- **skills:** every description is now one or two sentences (392 words across the 14 skills, from 1,646), so less loads on every turn; the first sentence carries the trigger and fits OpenCode's 150-character cut. `focus`, `handoff`, `harden`, `idea-triage`, `init` and `new-analysis` are user-invoked (`disable-model-invocation: true`, mirrored as `policy.allow_implicit_invocation: false` for Codex): the agent no longer starts them on its own, and their descriptions leave the context entirely. `tests/test_skill_frontmatter.py` guards both rules; the convention is in [Development](docs/development.md#skill-descriptions-and-invocation).
+- **skills:** every description is now one or two sentences (386 words across the 14 skills, from 1,646), so less loads on every turn; the first sentence carries the trigger and fits OpenCode's 150-character cut. `focus`, `handoff`, `harden`, `idea-triage`, `init` and `new-analysis` are user-invoked (`disable-model-invocation: true`, mirrored as `policy.allow_implicit_invocation: false` for Codex): the agent no longer starts them on its own, and their descriptions leave the context entirely. `tests/test_skill_frontmatter.py` guards both rules; the convention is in [Development](docs/development.md#skill-descriptions-and-invocation).
 
 ## [0.16.1] - 2026-10-26
 

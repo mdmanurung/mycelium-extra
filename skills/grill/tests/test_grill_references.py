@@ -183,6 +183,19 @@ class GrillReferenceContractTest(unittest.TestCase):
         self.assertIn('"one question at a time,"', skill)
         self.assertIn("one probe per question", socratic)
 
+    def test_brief_format_reference_holds_the_section_rules(self):
+        skill = read(os.path.join(SKILL, "SKILL.md"))
+        fmt = read(os.path.join(SKILL, "references", "brief-format.md"))
+        self.assertIn("references/brief-format.md", skill)
+        for marker in ("`Inputs: none`", "`Outputs: none`", "## Plan table", "**Step**", "**Choice**",
+                       "**Source**", "**Validation**", "`(done)`", "<!-- plan-evidence",
+                       "<!-- exact-execution", "`Facts:`", "[agent-asserted: none]",
+                       "## Status line", "`Plan status: READY`"):
+            self.assertIn(marker, fmt, marker)
+        # The gate grants runs from the Step column alone; the rule lives in both files.
+        self.assertIn("reads only this column", fmt)
+        self.assertIn("grants runs from this column alone", skill)
+
     def test_socratic_mode_is_opt_in_and_read_only(self):
         socratic = read(os.path.join(SKILL, "references", "socratic.md"))
         skill = read(os.path.join(SKILL, "SKILL.md"))
