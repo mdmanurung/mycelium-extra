@@ -1,6 +1,6 @@
 # 15 · Lucid-coder bundles: triage (2026-10-26)
 
-Objective: pick what to build from six outside bundles dropped in `plans-lucidcoder/` (local, untracked). Each was checked against the [guiding principles](README.md#guiding-principles), roadmap files 00 to 14, `skills/` and `hooks/`.
+Objective: pick what to build from six outside bundles dropped in `plans-lucidcoder/`, archived 2026-10-26 to `plans/_DONE/lucidcoder/` (local, gitignored). Each was checked against the [guiding principles](README.md#guiding-principles), roadmap files 00 to 14, `skills/` and `hooks/`.
 
 - `docs/conventions_synthesis_2026-10-26/`: repo template, manuscript validator, style and plotting packs, scRNA rules.
 - `docs/cc_learnings/` (symlink to the bmv CyTOF repo's `scratch/learnings`): conventions read from 17 public single-cell manuscript repos.
@@ -57,4 +57,4 @@ L2 and L3 were both called "recipe 9" in their sources. Number them when they la
 
 ## Sources
 
-Per-source tables with every park and drop reason were written to the session scratchpad, not the repo. The bundles stay in `plans-lucidcoder/`.
+Per-source tables with every park and drop reason are in `plans/_DONE/lucidcoder/triage/`, beside the bundles.

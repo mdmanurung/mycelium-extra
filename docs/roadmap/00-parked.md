@@ -67,4 +67,4 @@ Work already drafted outside the repository, waiting to land.
   - Notebook hygiene (kernel language, suppressed warnings, checkpoints) and a lockfile check for analysis code with non-stdlib imports.
   - Root containment for `data-contract-check --result-json`: its documented recipes write results to `/tmp`, and `verify` already contains every bound `evidence_path`.
 - **Return condition:** a real manuscript repository shows the failure one of these would catch. Grill that check alone.
-- **Source:** the triage and the review bundle, local and gitignored: `plans/2026-10-26-lucidcoder-triage.md`, `plans-lucidcoder/docs/conventions_synthesis_2026-10-26/SYNTHESIS.md`.
+- **Source:** the triage and the review bundle, local and gitignored: `plans/_DONE/lucidcoder/2026-10-26-lucidcoder-triage.md`, `plans/_DONE/lucidcoder/docs/conventions_synthesis_2026-10-26/SYNTHESIS.md`.

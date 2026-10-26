@@ -4,6 +4,18 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Added
+
+- **grill:** before writing the `Outputs:` line, grill looks for each path. A path that already exists, or a step that skips when its output exists, needs a fresh run folder or the user's `(overwrite)` after it; the gate reads only the path.
+
+- **grill:** four failure modes: a silent default class, labels keyed to cluster numbers, a formula that expands differently from how it reads (`age^2` without `I()`), and missing values shown as zero. Non-determinism now names seeding inside parallel R workers.
+
+- **recipes:** recipe 7's `invariants --accounting START,RETAINED,REMOVED` fails a row where start is not retained plus removed, or any of the three is not a non-negative count.
+
+### Fixed
+
+- **data-contract-check:** `h5ad_layer`'s `max_at_most` rejects `NaN` and `Infinity`, which made every value pass, and a limit of `0` is now checked instead of skipped.
+
 ### Fixed
 
 - **verify:** a data-contract result no longer passes on malformed evidence. An `exit_code` of `false` or `0.0`, a missing `checks` list or `contract` object, a `checks` entry that is not an object, an empty `checks` list, or (for a binding that pins files) a missing `contract.sha256` is now `unsupported`; all eight passed before. Found by the strict-input probe in roadmap 15 (N1).
