@@ -27,7 +27,7 @@ A run of this kind is not denied and leaves no receipt. `verify` reports it only
 - code run through an MCP notebook tool (`nb_*_execute`) or any other tool the gate does not match. It bypasses both the gate and the lineage;
 - a file a script sources or imports, unless you list it on the plan's `Inputs:` line.
 
-Runner operands that are a shell expansion (`python3 $f`, a loop variable, `$(...)`, find's `{}`) are denied rather than traced, so write script paths literally. The current list is in [Forms the gate does not trace](../reference/gate.md#forms-the-gate-does-not-trace).
+Runner operands that are a shell expansion (`python3 $f`, a loop variable, `$(...)`, find's `{}`) are denied rather than traced, so write script paths literally. The current list is in [Forms the gate does not trace](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/gate.md#forms-the-gate-does-not-trace).
 
 State written in ways the gate cannot read is not caught. Some removals of the `.mycelium-extra/` folder (for example `git clean -fd` while it is untracked and not ignored, or a script that deletes it) are not seen. A gate whose `gate.json` is gone is off and says nothing; `verify` then reports the plan's runs as unrecorded, which is a gap.
 
