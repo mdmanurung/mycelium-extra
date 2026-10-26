@@ -41,6 +41,8 @@ One line, `Inputs: <path>, <path>`, naming by repository path the files the plan
 
 One line, `Outputs: <path>, <path>`, naming by repository path the files or folders the plan's runs will write: result tables, figures, `numbers.json`, or this run's own output folder (such as `results/run_20261001_dream/`, rather than a glob over every run's folder). Write each path in full: a `{a,b}` list is read, a `{sample}` wildcard is read as `*`, and a `…_x.csv` shorthand names no path and is flagged. `verify` checks that each was written after the approval by a run of this plan. Write `Outputs: none` when the plan writes nothing.
 
+Before writing the line, look for each path. If one already exists, or a script skips its step when the output exists, a rerun may leave the old file in place and `verify` then reports it as not written. Name a fresh run folder instead, or ask the user and write `(overwrite)` after that path; the gate reads only the path.
+
 ## Plan table
 
 A numbered table, the only table in the brief (Evidence stays as bullets, and the plan-evidence block is JSON in a comment, because the gate reads every table row beside the plan as a plan row). Columns: Step, Choice, Source, Validation.

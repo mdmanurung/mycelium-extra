@@ -195,6 +195,9 @@ class GrillReferenceContractTest(unittest.TestCase):
         # The gate grants runs from the Step column alone; the rule lives in both files.
         self.assertIn("reads only this column", fmt)
         self.assertIn("grants runs from this column alone", skill)
+        # An existing output path needs a fresh folder or the user's overwrite; both files say so.
+        self.assertIn("`(overwrite)`", fmt)
+        self.assertIn("`(overwrite)`", skill)
 
     def test_socratic_mode_is_opt_in_and_read_only(self):
         socratic = read(os.path.join(SKILL, "references", "socratic.md"))
