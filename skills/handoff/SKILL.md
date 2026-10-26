@@ -11,7 +11,7 @@ Write `HANDOFF.md` at the project root: the least a fresh session needs to keep 
 ## 1. Gather cheaply
 
 - Find the project root (`git rev-parse --show-toplevel`, else the working directory).
-- Run only `git status --short`, `git log --oneline -15`, and `git diff --stat`. Write everything else from the conversation. Do not re-read files to summarise them; a pointer is enough.
+- Run only `git status --short`, `git log --oneline -15`, `git diff --stat`, `git rev-parse --short HEAD`, and `date '+%F %H:%M %Z'`. Copy the hash and the time from those outputs into the file; never type them. Write everything else from the conversation. Do not re-read files to summarise them; a pointer is enough.
 - If the conversation's last grill brief ended `Plan status: READY` or `READY_WITH_ASSUMPTIONS` and the user has not approved it, do not summarise it. Where the approval gate is on, its Stop hook stored the brief word for word; find it by content (a parallel session may have stopped later, so not by the newest file). From the project root, pass a distinctive line of the brief (its `> Question:` line, or its Objective if the question was declined):
 
   ```bash
@@ -37,7 +37,7 @@ Write `HANDOFF.md` at the project root: the least a fresh session needs to keep 
 
   `approved` means nothing to carry. `pending` gives the file and hash for the Pending plan section. `none` (no gate, or no match): copy the brief into `HANDOFF.md` word for word instead.
 - If `.mycelium-extra/track-changes/<analysis>/brief.md` exists for the work in hand, list it under Read first as a pointer; do not summarise it.
-- If `HANDOFF.md` exists, read it before overwriting. Carry forward locked decisions, dead ends, and open items that still hold. Drop finished work, or keep it as one line with its commit hash. Before overwriting, print the first ten lines of the old file to the user and say it is replaced (the file is usually untracked, so the old copy is not kept anywhere; if the user wants it, copy it aside first).
+- If `HANDOFF.md` exists, read it before overwriting. If the hash it records is not an ancestor of HEAD (`git merge-base --is-ancestor <hash> HEAD` fails), tell the user it was written on another branch or history before carrying anything forward. Carry forward locked decisions, dead ends, and open items that still hold. Drop finished work, or keep it as one line with its commit hash. Before overwriting, print the first ten lines of the old file to the user and say it is replaced (the file is usually untracked, so the old copy is not kept anywhere; if the user wants it, copy it aside first).
 
 ## 2. Write
 
@@ -46,7 +46,10 @@ Overwrite, never append. Keep it under about 80 lines. Omit a section that would
 ```markdown
 # Handoff — <topic>
 
-**Date:** YYYY-MM-DD · **Branch:** <branch> @ <short-hash> · **Status:** <one line>
+**Written:** <date output> · **Branch:** <branch> @ <rev-parse output> · **Status:** <one line>
+
+## Check first
+Run `git log --oneline <hash>..HEAD` and `git status --short`, with `<hash>` from the line above. If either shows work this file does not mention, say so before anything else: State, Next action and Read first may be out of date, so re-check each against the code before acting on it.
 
 ## Goal
 <1–2 lines: what we are trying to achieve, and what done looks like>
@@ -92,6 +95,6 @@ Rules:
 - If Mycelium's Stop hook asks for `.living/` updates afterwards, follow the hook.
 - End with the resume prompt on its own line, then tell the user to run `/clear` (or open a new session) and paste it:
 
-  `Read HANDOFF.md, then <next action>.`
+  `Read HANDOFF.md, run its Check first, then <next action>.`
 
   With a pending plan, the resume prompt is `Read HANDOFF.md, then print pending plan <hash> as its Pending plan section says, unchanged, as your whole reply, with nothing before or after it.` Tell the user the gate then shows a fresh card: approve the hash that card shows. It equals `<hash>` when the text is unchanged; if it differs, the reprint changed the plan, so compare it with the stored copy before approving.

@@ -4,6 +4,10 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Added
+
+- **handoff:** `HANDOFF.md` records the time and commit copied from `date` and `git rev-parse`, and opens with a Check first step: the next session runs `git log <hash>..HEAD` and `git status` and says so first when work happened since. An old handoff from another branch is flagged before anything is carried forward. A stale handoff once led sessions to report finished work as blocked.
+
 ### Changed
 
 - **docs:** the input/output overlap note's limit is in `docs/advanced.md`, and `docs/mycelium-integration.md` and the track-changes schema say that a check one approved plan dropped is a change in approved scope, not an unapproved run. `docs/roadmap/14-newplans.md` closes the newplans bundles with a measured `--profile-only` budget.

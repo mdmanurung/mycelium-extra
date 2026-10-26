@@ -1089,6 +1089,16 @@ class GateTest(unittest.TestCase):
         self.assertIn("approved", self.hook("prompt", {"prompt": "approve plan " + digest})["systemMessage"])
         self.assertIsNone(self.bash("python analysis/x.py"))
 
+    def test_handoff_opens_with_a_freshness_check(self):
+        # A stale HANDOFF.md once made sessions report finished work as blocked; the next session checks first.
+        with open(os.path.join(os.path.dirname(GATE), "..", "skills", "handoff", "SKILL.md"), encoding="utf-8") as f:
+            skill = f.read()
+        template = skill.split("```markdown\n", 1)[1].split("```", 1)[0]
+        self.assertLess(template.index("## Check first"), template.index("## Goal"))
+        self.assertIn("git log --oneline <hash>..HEAD", template)
+        self.assertIn("<rev-parse output>", template)
+        self.assertIn("`Read HANDOFF.md, run its Check first, then <next action>.`", skill)
+
     def test_handed_off_plan_is_approved_where_it_is_shown_again(self):
         # the handoff skill's own commands find the stored plan and print it unchanged
         with open(os.path.join(os.path.dirname(GATE), "..", "skills", "handoff", "SKILL.md"), encoding="utf-8") as f:

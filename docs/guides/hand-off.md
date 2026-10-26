@@ -34,6 +34,7 @@ No captured handoff session exists for this page, so no output is shown. The fil
 
 ```markdown
 # Handoff — <topic>
+## Check first
 ## Goal
 ## Next action
 ## Pending plan
@@ -47,8 +48,10 @@ No captured handoff session exists for this page, so no output is shown. The fil
 The resume prompt has this form:
 
 ```text
-Read HANDOFF.md, then <next action>.
+Read HANDOFF.md, run its Check first, then <next action>.
 ```
+
+Check first lists the commits made and the files changed since the handoff was written. If there are any, the new session says so before acting, because the State and Next action sections may describe an older tree.
 
 ## What this does not guarantee
 
