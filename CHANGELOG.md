@@ -2,7 +2,40 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
-## [Unreleased]
+## [0.19.0] - 2026-10-26
+
+### Changed
+
+- **plot-first:** rewritten after an adversarial review. The worked example now ends each line with the `[agent-derived: ...]` tag `verify` counts; inspection leaves one written line per figure (path, what was seen, defects, or `not inspected: <reason>`); inline-code figures are never cited; figure names follow the repository's conventions instead of a hard "Figure 1B"; `.living/findings/` entries cite in prose and never change the registry table; reuse checks `provenance/outputs-<hash>.tsv` or verify `stale`; the table fallback has one label (`table fallback: <reason>`) and missing evidence one marker (`unsupported: no inspected figure`); verify's printed tables and the `## Outputs` table are exempt; invoked directly with a folder it lists conclusions and writes nothing. The description no longer triggers on every analysis turn, since grill and new-analysis load it. `docs/skills.md` and `docs/reference/index.md` now describe the same skill (lists, writes nothing). `handoff` carries the rule as a `Results:` line in State.
+- **manuscript-audit:** step 4 names the two ways to run the checker and no third: streamed on stdin through `py.sh` before approval (no file runs by path, nothing written), or as a copy inside the project bound in a validation binding's `test_paths` and run by the approved step with `--result-json`. It says who writes the contract (`new-analysis --panels`, else proposed and written on approval), that rounded fractions need `tolerance`, and asks for at least two traced panels chosen to cover the main claim and the hardest transformation. The reference page lists the contract keys with the fixture as the example and the symlinked `outputs/current` gap; `new-analysis` points at that instead of a `python3 ... by path` command.
+
+### Fixed
+
+- **gate:** a backslash-escaped quote inside double quotes (`git commit -m "fix \\"x\\"" && python analysis/a.py`) swallowed the rest of the command into one word, so the run after it, or a write into `.mycelium-extra/`, was never seen.
+- **gate:** a quoted `)` inside `$(...)` closed the substitution early, with the same effect.
+- **gate:** a here-string (`bash <<< '...'`, `python3 <<< '...'`) was read as a heredoc and its code ignored; it is inline code now, like `-c`.
+- **gate:** `eval "python analysis/a.py"` ran unread; `eval` recurses on its arguments, as `writes_state` already did.
+- **gate:** `function NAME { ... }` and `coproc` hid the command after them; both are read past.
+- **gate:** `VAR=1 cd DIR` did not move the virtual folder; it moves like `cd DIR`.
+- **gate:** `cd` to a globbed folder (`cd analy*s`) was resolved as a literal path; it is unresolved, like `cd $DIR`, and read against both folders.
+- **gate:** a gated script piped into a runner that names none (`cat analysis/a.py | python3 -`) is that script's run. A heredoc or echoed text into a runner stays unread, as the tests pin.
+- **gate:** `--flag=.mycelium-extra/...` was not a state write; the value after `=` is read as a path.
+- **gate:** `|&` is one operator; before, its `&` marked the call as backgrounded and the receipt lost the exit status. `hooks/tests/gate_diff_expected.json` records the two fuzz cases the scanner changes affect.
+- **gate:** `gated_paths` and `gated_commands` of the wrong type (a string, `null`, a list with a number) are replaced by the default with the existing notice; before, a string gated every path or matched substrings, and the others crashed every hook call. A config notice on a prompt reply that carried only context crashed the hook.
+- **gate:** a hand-edited `pending/<session>.json` of the wrong shape (an object, a list of strings, entries without a hash) no longer crashes every prompt and stop; it holds no plan. The `handoff` snippets that read it skip such entries too.
+- **gate:** a crash on an event whose repository was found through a path the call named (shell outside the repository) now honours that repository's `on_error` and logs there.
+- **py.sh:** `on_error: deny` when no Python interpreter exists never fired: the branch tested the first argument for `PreToolUse`, which no registration passes; it now reads the hook's event from the last argument. The launcher tests use the real argument shape.
+- **tests:** `hooks/tests/test_gate.py` ran the launcher with an unreadable event from the checkout's own folder, so every test run appended two lines to the live repository's `.mycelium-extra/gate-errors.jsonl`; the launcher now runs in a temp folder. The on_error tests break the tool call instead of the config, since a bad config is absorbed now.
+- **verify:** `report` and `stale` created `provenance/.publish.lock` on a read (an untracked file in the committed folder) and crashed on a read-only checkout; a read that cannot lock reads unlocked.
+- **manuscript-audit:** `--result-json` protects every path the contract names even when an earlier gap skipped observing it, and refuses an existing destination when the contract cannot be parsed; before, a gap could let it overwrite a declared script or table.
+- **manuscript-audit:** a present but empty or wrongly typed declaration (`"ratio_invariant": {}`, `"finite_numeric_columns": false`, `"data_manifest": ""`) is a gap instead of a silent skip, and the table pass message names only the checks that ran.
+- **manuscript-audit:** a UTF-8 BOM, a wrong delimiter (now a gap naming it), all-blank rows, and padded header cells or key values no longer produce false blocks or false passes.
+- **manuscript-audit:** a blank or non-string figure/table id is a gap; the figure map reports blank ids and stops printing a pass beside row gaps.
+- **manuscript-audit:** a 0-byte declared output is a gap, each input records `size` and `identity`, and inputs are de-duplicated.
+- **manuscript-audit:** numbers must be plain ASCII (`1_000` and non-ASCII digits are rejected); a 400-digit count is reported as a count problem, not "non-finite".
+- **manuscript-audit:** the result file honours the umask instead of 0600; a missing root, an absolute or unreadable `--config`, and `--result-json ""` are usage errors (exit 1); the result message says what it checks.
+- **manuscript-audit:** behaviour changes to know about: ratio numerator and denominator now follow the integer-count rule (a fractional weight blocks), `required_columns: []` is a gap, and `--result-json` refuses a destination whose name equals any string in the contract, column names included.
+- **skills:** the `grill` and `track-changes` descriptions held an unquoted `: `, which a strict YAML loader rejects; quoted, and `tests/test_skill_frontmatter.py` checks every skill for it.
 
 ### Added
 
