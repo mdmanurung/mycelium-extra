@@ -6,14 +6,15 @@ description: Scaffold a new analysis folder that plugs into Mycelium (stubs in c
 
 # Mycelium Extra: New analysis
 
-Create the folder a new analysis lives in. Use Mycelium's own pieces wherever they exist: its analysis doc template, `outputs/`, `reports/`, and the `run.sh` entry point. Add only what Mycelium lacks: numbered steps run by a Snakefile, a single plan, a tracker, and symlinked `data/` and linked shared code.
+Create the folder a new analysis lives in. Use Mycelium's own pieces wherever they exist: its analysis doc template, `outputs/`, `reports/`, and the `run.sh` entry point. Add only what Mycelium lacks: numbered steps run by a Snakefile, a single plan, a tracker, a Quarto report skeleton, and symlinked `data/` and linked shared code.
 
 ```
 analysis/<name>/
 ├── <NAME>.md      Snakefile      run.sh      run.sbatch
 ├── code/     01_prepare_data.R  02_train_model.py  03_explore_model.ipynb  (+ linked shared code)
 ├── plans/    PLAN.md  TRACKER.md
-└── data/  outputs/  logs/  reports/
+├── reports/  <name>.qmd
+└── data/  outputs/  logs/
 ```
 
 ## 1. Gather
@@ -88,7 +89,7 @@ Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and c
 - **`run.sbatch`** submits `run.sh` to SLURM; its output goes to `logs/slurm-%x-%j.out`.
 - **`config/` and `code/plot_<panel>`** (with `--panels`) tie each figure to its script and source data. Run a stub as `Rscript <dest>/code/plot_<panel>.R <dest>/outputs/run_<date>_<slug>`, point `outputs/current` at the run to release, fill each `figure_map.tsv` claim, and replace the stub's `x`/`y` columns in `required_columns`. Check with `manuscript-audit` (its SKILL.md says how to run the checker without opening the post-action cycle). `outputs/current` must stay inside the repository: a symlink to scratch storage makes every declared path a gap.
 - **`logs/`** holds Snakemake and SLURM logs, benchmarks, and executed notebook copies.
-- **`reports/`** belongs to Mycelium's report skill.
+- **`reports/<name>.qmd`** is the Quarto report skeleton: Overview (with a mermaid chain of the steps), Methods and Results tabs per step, Reproducibility. `/mycelium-extra:analysis-report` fills it after a run. Mycelium's `report` skill writes its LaTeX PDF beside it as `<name>-report.tex`.
 
 ## 5. Report and hand off
 

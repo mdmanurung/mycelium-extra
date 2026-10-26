@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Analysis Report"
+  short_description: "Fill the scaffolded Quarto report with narrative, script excerpts and figures"
+  default_prompt: "Use $mycelium-extra:analysis-report to fill analysis/<name>/reports/<name>.qmd after a run."
+policy:
+  allow_implicit_invocation: false

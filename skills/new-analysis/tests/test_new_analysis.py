@@ -84,6 +84,24 @@ class NewAnalysisTest(unittest.TestCase):
         tracker = read(os.path.join(self.dest, "plans", "TRACKER.md"))
         self.assertIn("| S03 | `code/03_explore_model.ipynb` | todo | S02 |", tracker)
         self.assertIn("[DEMO_RUN.md](../DEMO_RUN.md)", tracker)
+        self.assertIn("  reports/demo-run.qmd\n", out)
+        report = read(os.path.join(self.dest, "reports", "demo-run.qmd"))
+        self.assertEqual(os.listdir(os.path.join(self.dest, "reports")), ["demo-run.qmd"])
+        self.assertNotIn("@@", report)
+        self.assertIn('title: "demo-run"', report)
+        self.assertIn("[DEMO_RUN.md](../DEMO_RUN.md)", report)
+        self.assertEqual(report.count("::: {.panel-tabset}"), 3)
+        self.assertEqual(report.count("\n:::\n"), 3)  # every tabset closed
+        chain = report.split("```{mermaid}\n")[1].split("```")[0]
+        self.assertEqual(chain.splitlines(), [
+            "flowchart LR",
+            '    d0[("data/cells.h5ad")] --> s01["code/01_prepare_data.R"] --> o01[("outputs/01_prepare_data.rds")]',
+            '    o01 --> s02["code/02_train_model.py"] --> o02[("outputs/02_train_model.parquet")]',
+            '    o02 --> s03["code/03_explore_model.ipynb"] --> o03[("logs/03_explore_model.ipynb")]'])
+        self.assertEqual(report.count("### 02 train model"), 2)  # one Methods tab, one Results tab
+        self.assertIn('```{.python filename="code/02_train_model.py"}', report)
+        self.assertIn('```{.r filename="code/01_prepare_data.R"}', report)
+        self.assertIn("[agent-derived: `outputs/02_[what-it-shows].png`]", report)
 
     def test_readme_outside_mycelium(self):
         os.rmdir(os.path.join(self.root, ".living"))

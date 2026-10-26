@@ -24,8 +24,8 @@ The skills, from planning to hand-off:
 - `verify` checks what ran against the approved plan and writes provenance after you confirm.
 - `plot-first` makes plots the primary analysis outputs. Conclusions cite inspected figures; interpretive tables need a fallback reason. `grill` and `new-analysis` load this guidance for analysis work.
 - `focus` and `track-changes` say which analysis a session works on and show what changed against the approved plan.
-- `new-analysis`, `plan-review`, `handoff`, `harden`, `idea`, `idea-triage`,
-  `decision-status` and `data-contract-check` cover structure, review, continuity, and checks.
+- `new-analysis`, `analysis-report`, `plan-review`, `handoff`, `harden`, `idea`, `idea-triage`,
+  `decision-status` and `data-contract-check` cover structure, reporting, review, continuity, and checks.
 - `manuscript-audit` is a read-only audit of a manuscript repository's figure/table
   lineage and source data, with an optional small deterministic contract check. It adds
   no hook or gate; the opt-in `manuscript-reproducibility` convention pack is guidance

@@ -46,7 +46,7 @@ Verification reads records; it never re-runs the analysis, and a match does not 
 
 ## Tier 4: Full project workflow
 
-Add a tool when the project needs it. You do not need all fifteen skills.
+Add a tool when the project needs it. You do not need all sixteen skills.
 
 | Need | Tool |
 |---|---|

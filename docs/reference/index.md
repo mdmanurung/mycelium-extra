@@ -18,6 +18,7 @@ Every skill is a slash command in Claude Code (`/mycelium-extra:<name>`), a `$` 
 | [focus](skills/focus.md) | Say which analysis this session is working on | `.mycelium-extra/focus/` (your typed command only) |
 | [plan-review](skills/plan-review.md) | Independent review of a plan before you approve it | `.mycelium-extra/review-packets/` |
 | [new-analysis](skills/new-analysis.md) | Scaffold an analysis folder | the new folder |
+| [analysis-report](skills/analysis-report.md) | Fill the scaffolded Quarto report after a run | `reports/<name>.qmd`, one `## Outputs` row |
 | [plot-first](../../skills/plot-first/SKILL.md) | Tie analysis conclusions to inspected plots | nothing (guidance the plan's own steps carry out) |
 | [idea](skills/idea.md) | Park an idea in one line | `todo/` |
 | [idea-triage](skills/idea-triage.md) | Rank parked ideas so you can choose | `todo/` annotations, after you pick |

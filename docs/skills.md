@@ -41,6 +41,10 @@ Checks what ran against the approved plan and saves provenance once you confirm.
 
 Scaffolds a new analysis folder. With `--panels`, it adds a manuscript layer (a plot stub per panel, a figure map and a `manuscript-audit` contract), also to an existing folder without overwriting anything. See [new-analysis](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/new-analysis.md).
 
+## analysis-report
+
+Fills the Quarto report `new-analysis` scaffolds in `reports/`: Overview with a mermaid chain of the steps, Methods and Results tabs, quoted script excerpts and inspected figures. Rendering is a gated run. See [analysis-report](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/analysis-report.md).
+
 ## plot-first
 
 Makes saved plots the primary artifacts for interpreting analysis results. Each conclusion links an inspected figure and panel. An interpretive table needs a stated reason a plot is inadequate. `grill` loads this guidance for analysis plans; `new-analysis` carries it into the analysis doc and plan. Existing numeric provenance and workflow status tables stay in place. This is agent guidance, not a gate-enforced check. See the [skill instructions](https://github.com/mdmanurung/mycelium-extra/blob/main/skills/plot-first/SKILL.md).

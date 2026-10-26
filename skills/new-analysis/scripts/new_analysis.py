@@ -9,7 +9,8 @@ Run from stdin so Mycelium's hooks stay closed, with every option in --flag=valu
 Creates <dest>/ with numbered step stubs in code/, a Snakefile that runs them in
 order, run.sh, run.sbatch, the analysis doc (Mycelium's analysis-readme template: <NAME>.md in a
 Mycelium repository, README.md elsewhere), and data/ code/ plans/ outputs/ logs/ reports/
-(plans/ holds PLAN.md and TRACKER.md). data/ holds symlinks, and code/ holds the steps plus any
+(plans/ holds PLAN.md and TRACKER.md; reports/ holds <name>.qmd, a Quarto report skeleton with a
+mermaid chain of the steps and one Methods and Results tab per step, for analysis-report to fill). data/ holds symlinks, and code/ holds the steps plus any
 linked shared code. Refuses a non-empty <dest>, never
 overwrites, and writes nothing outside <dest> except an empty lock file, .<name>.scaffold.lock, that it
 leaves in the parent folder. Stdlib-only; runs on Python 3.9+.
@@ -316,6 +317,39 @@ def doc_text(template, name, dest_rel, steps, data_links, code_links, root):
     return text.rstrip("\n") + "\n\n" + section
 
 
+def report_text(template, name, doc_name, dest_rel, steps, data_links):
+    """The Quarto report: a mermaid chain of the steps, one Methods and one Results tab per step."""
+    lang = {"R": "r", "py": "python", "ipynb": "python"}
+    nodes = []
+    for step in steps:
+        nodes.append('s{0}["{1}"] --> o{0}[("{2}")]'.format(step["num"], step["path"], step["output"]))
+    lines = ["flowchart LR"]
+    if data_links:
+        lines.append("    " + " & ".join('d{}[("{}")]'.format(i, l["rel"]) for i, l in enumerate(data_links))
+                     + " --> " + nodes[0])
+    else:
+        lines.append("    " + nodes[0])
+    for before, node in zip(steps, nodes[1:]):
+        lines.append("    o{} --> {}".format(before["num"], node))
+    methods, results = [], []
+    for step in steps:
+        title = "### {} {}".format(step["num"], step["stem"][3:].replace("_", " "))
+        methods.append("\n".join([
+            title, "",
+            "[What this step does, in two sentences.] Script: [`{0}`](../{0}). Output: `{1}`."
+            .format(step["path"], step["output"]), "",
+            '```{{.{} filename="{}"}}'.format(lang[step["kind"]], step["path"]),
+            "# [the 5-15 lines that do the work, with their line range]", "```", ""]))
+        figure = "outputs/{}_[what-it-shows].png".format(step["num"])
+        results.append("\n".join([
+            title, "",
+            "- [Conclusion] ([figure](../{0}), panel A). [agent-derived: `{0}`]".format(figure), "",
+            "Inspected `{}`: [groups, n, axes, interval type; any defect].".format(figure), ""]))
+    return fill(template, {"NAME": name, "DOC": doc_name, "DEST": dest_rel.replace(os.sep, "/"),
+                           "MERMAID": "\n".join(lines), "METHODS": "\n".join(methods),
+                           "RESULTS": "\n".join(results)})
+
+
 def find_doc_template(option, root, templates):
     if option:
         if not os.path.isfile(option):
@@ -410,6 +444,9 @@ def scaffold(args):
     files["run.sbatch"] = fill(read(os.path.join(templates, "run.sbatch")), {"NAME": name})
     files[doc_name] = doc_text(read(template_path), name, dest_rel, steps, data_links,
                                code_links, root)
+    report = "reports/" + name + ".qmd"
+    files[report] = report_text(read(os.path.join(templates, "report.qmd")), name, doc_name, dest_rel,
+                                steps, data_links)
     if args.panels:
         files.update(manuscript_files(parse_panels(args.panels), name, dest_rel.replace(os.sep, "/"), root, templates))
     folders = DIRS + (["config"] if args.panels else [])
@@ -468,7 +505,7 @@ def scaffold(args):
 
     print("{} {}/ (doc {} from {})".format(verb, dest_rel, doc_name, template_note))
     for path in [s["path"] for s in steps] + ["Snakefile", "run.sh", "run.sbatch", doc_name,
-                                              "plans/PLAN.md", "plans/TRACKER.md"] + sorted(
+                                              "plans/PLAN.md", "plans/TRACKER.md", report] + sorted(
                                                   p for p in files if p.startswith(("config/", "code/plot_"))) + [
                                                   d + "/" for d in folders]:
         print("  " + path)

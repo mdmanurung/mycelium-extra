@@ -4,6 +4,10 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Added
+
+- **analysis-report:** a user-invoked skill fills the Quarto report that `new-analysis` now scaffolds at `reports/<name>.qmd`: Overview (Purpose, plan links, a mermaid `flowchart LR` of inputs → steps → outputs generated from the same step list as the Snakefile), Methods and Results as nested tabsets with one tab per step, and Reproducibility. The report is static (`engine: markdown`, `embed-resources: true`): code blocks are 5–15 verbatim lines per script with `filename=` and a line range, figures are PNGs under `outputs/`, and conclusions follow plot-first. `quarto render` is a gated run (an approved plan step, or the user runs it). Mycelium's `report` keeps writing `<name>-report.tex` beside it.
+
 ### Changed
 
 - **docs:** revised against the code after an audit: `pin_scripts` re-pins with a notice rather than blocking; the gate type-checks `gated_paths`, `gated_commands` and `confirm_writes` at load; 16 settings, not 15; `init --hours 0` is accepted; the untraced-forms list drops `xargs`, `find -exec` and `eval "literal"` and names what is denied instead (`{}`, a `$VAR` command word, an `xargs` target not on the line); an unresolved expansion is denied, not "not traced"; the Codex matchers and remap; `.gitignore` lines `init` writes; `write-pending/` and `write-consent/` in the state-file table; `rule-envs-<hash>.json` and `evidence-<hash>.json` in the provenance tables; CI's adversarial-audit step and the viewer tests; verify's twelfth action `exercise` and which actions need no gate; `track-changes` `--journal`, `--save-checkpoint` and `--note`; fifteen skills, nine recipes; recipe and exercise commands stream scripts through `py.sh` instead of running them by path; `py.sh` interpreter order stated the same way on every page; a host timeout and a missing interpreter in the on_error pages; `card_coverage` default wording; the `plan-review` exception to stdin; the `@grill` mention claim for OpenCode removed (unverified).

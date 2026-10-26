@@ -1,0 +1,66 @@
+---
+title: "@@NAME@@"
+date: today
+format:
+  html:
+    embed-resources: true
+    toc: true
+engine: markdown
+---
+
+<!-- Filled by /mycelium-extra:analysis-report after a run. Quote only the lines that do the work of
+     each script (filename= names it; say the line range); figures are the saved PNGs under outputs/
+     (a PDF does not show in HTML). Render: quarto render reports/@@NAME@@.qmd (a gated run: an
+     approved plan step, or you run it). Rename, add or drop tabs freely: steps are the first layout,
+     not the last. -->
+
+::: {.panel-tabset}
+
+## Overview
+
+Status: draft. Run: `outputs/[run]`. Findings: [.living/findings IDs once crystallized]. Plan: [plans/PLAN.md](../plans/PLAN.md); log: [plans/TRACKER.md](../plans/TRACKER.md); doc: [@@DOC@@](../@@DOC@@).
+
+[What question the analysis answers: the Purpose from @@DOC@@.]
+
+### Answer in brief
+
+- [One line per question in Results: the answer, its size, and what it does not show.]
+
+### Steps
+
+```{mermaid}
+@@MERMAID@@
+```
+
+## Methods
+
+::: {.panel-tabset}
+
+@@METHODS@@
+:::
+
+## Results
+
+<!-- One tab per question, numbered as in the plan ("1. What changes after X"); the step tabs below are
+     placeholders to rename. Null and adverse results get a tab too. -->
+
+::: {.panel-tabset}
+
+@@RESULTS@@
+:::
+
+## Open items
+
+- [What stays unresolved, with the next plot or check that would settle it.]
+
+## Reproducibility
+
+```bash
+cd @@DEST@@
+bash run.sh                       # or: sbatch run.sbatch
+quarto render reports/@@NAME@@.qmd
+```
+
+Each conclusion in Results cites its inspected figure and ends with the `[agent-derived: ...]` tag that `verify` counts. Numbers come from `outputs/numbers.json` (Mycelium's `register_value`) or the analysis doc's `<!-- claims -->` block. Provenance: `provenance/` after `verify write`; logs in `logs/`.
+
+:::
