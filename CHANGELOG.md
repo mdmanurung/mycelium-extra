@@ -2,6 +2,17 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [0.19.1] - 2026-10-26
+
+### Fixed
+
+- **gate:** launchers that took a gated run elsewhere were unread, a silent allow: `xargs`, `parallel`, `watch` and `screen` are wrappers (a script piped to `xargs python` is that script's run); `find ... -exec CMD {} \;` reads CMD with `{}` as an unresolved operand, like `$f`; `tmux new -d '...'`, `tmux send-keys '...'` and `ssh HOST CMD` recurse on the command they carry (on a shared filesystem the remote run names this repository's paths); `$p analysis/x.py`, a variable command on a gated script, is unresolved and blocked.
+- **opencode:** an `edit`/`write` call whose input had no path was read as a write to the current folder and allowed; the adapter now accepts `filePath` as well as `path`/`file_path`, and a missing path is reported as unreadable. The pending-notice map drops its oldest entry at 64 instead of clearing every live call's notice.
+- **codex:** the hook matchers name `exec_command`, `shell_command` and `shell` beside `Bash`, so the launcher's tool-name remap is reachable whichever name the host sends.
+- **init:** `.gitignore` also ignores `**/provenance/.publish.lock` and `**/provenance/.transactions/`, verify's write lock and in-flight transaction, which were untracked files in the committed folder.
+- **ci:** `tests/adversarial_audit.py` (138 locked contracts) runs in the tests job; it had been excluded by the `test_*.py` glob.
+- **docs:** the approval-gate page says what a host timeout does: Claude Code and Codex allow the call silently whatever `on_error` says; only the OpenCode adapter applies `on_error` to a timeout.
+
 ## [0.19.0] - 2026-10-26
 
 ### Changed
