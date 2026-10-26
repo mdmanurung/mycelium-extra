@@ -78,7 +78,7 @@ def main(files):
                 targets.append(m.group(1))
             for t in targets:
                 t = t.strip("<>")
-                if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", t) or re.match(r"^@@\w+@@$", t):
+                if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", t) or re.search(r"@@\w+@@", t):
                     continue
                 checked += 1
                 path, _, frag = t.partition("#")
