@@ -34,7 +34,7 @@ class Recipes(unittest.TestCase):
     def test_every_binding_in_the_page_is_valid(self):
         with open(PAGE, encoding="utf-8") as handle:
             blocks = BLOCK.findall(handle.read())
-        self.assertEqual(len(blocks), 5, "three original recipe blocks, one R1-R3 example, one for recipes 4 to 8")
+        self.assertEqual(len(blocks), 6, "three original recipe blocks, one R1-R3 example, one for recipes 4 to 8, one for recipe 9")
         for text in blocks:
             checks = json.loads(re.search(r"\{.*\}", text, re.DOTALL).group(0))["checks"]
             with tempfile.TemporaryDirectory() as root:
@@ -133,7 +133,7 @@ class RecipeOutcomes(unittest.TestCase):
 
 
 class ReferenceChecks(unittest.TestCase):
-    """Recipes 4 to 8: each red fixture fails, each benign control passes, and a gap is never a pass."""
+    """Recipes 4 to 9: each red fixture fails, each benign control passes, and a gap is never a pass."""
     folder = os.path.join(HERE, "fixtures", "validation-recipes")
     script = os.path.join(folder, "recipe_checks.py")
 
@@ -218,6 +218,24 @@ class ReferenceChecks(unittest.TestCase):
                 proc = subprocess.run([sys.executable, checker, "--contract", "c.json", "--root", work, "--json"],
                                       cwd=work, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
                 self.assertEqual(proc.returncode, expected, proc.stdout + proc.stderr)
+
+    def test_recipe_9_a_refactor_must_reproduce_the_baseline_bytes(self):
+        same = ["same", "--baseline", "refactor/baseline.sha256", "--run"]
+        for run, code, status in [("refactor/run_same", 0, "passed"), ("refactor/run_changed", 2, "failed"),
+                                  ("refactor/run_missing", 2, "failed"), ("refactor/nope", 0, "unsupported")]:
+            self.assertEqual(self.run_check(*same, run), (code, status), run)
+        with tempfile.TemporaryDirectory() as work:
+            for text in ("", "not a sum line\n", "{}  ../x.tsv\n".format("0" * 64), "{0}  a.tsv\n{0}  a.tsv\n".format("0" * 64)):
+                sums = os.path.join(work, "sums")
+                with open(sums, "w") as handle:
+                    handle.write(text)
+                self.assertEqual(self.run_check("same", "--baseline", sums, "--run", "refactor/run_same"),
+                                 (0, "unsupported"), text)  # nothing listed or a bad list never passes
+            out = os.path.join(work, "r.json")
+            self.run_check("--out", out, *same, "refactor/run_changed")
+            self.assertEqual(verify.read_result(out, {"files": {}})[0], "failed")
+            with open(out) as handle:
+                self.assertNotIn("0.43", handle.read())  # names the table, never a value
 
     def test_a_result_file_is_judged_by_verify_like_any_other_check(self):
         with tempfile.TemporaryDirectory() as work:

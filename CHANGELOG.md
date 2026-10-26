@@ -6,6 +6,10 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Added
 
+- **recipes:** recipe 9, same results after a refactor. `recipe_checks.py same --baseline SUMS --run DIR` passes when every table the baseline run's `sha256sum` file lists has the same bytes in the new run, and fails naming any table that differs or is missing. An empty or malformed sums file is unsupported, never a pass. A passing result is the evidence for labelling the old run `superseded_by` the new one.
+
+- **grill:** a run plan's `Inputs:` now also lists every file its scripts source or import (helpers, config). Neither the gate nor `verify` follows a `source()` or an import, so an unlisted helper could change results unseen; a stage 17 Snakefile had missed one.
+
 - **new-analysis:** `--panels=Fig1a.R,Fig1b.py` adds a manuscript layer: a `code/plot_<panel>` stub per panel that exports the plotted values to `<run>/source_data/<panel>.tsv` and then draws the figure from that table alone, plus `config/figure_map.tsv` and `config/manuscript_checks.json`, which `manuscript-audit` checks. On an existing folder it adds only the missing manuscript files and never overwrites one, so it can retrofit a manuscript folder (checked as a dry run on bmv's `analysis/manuscript`). The reference page now shows the `code/` and `plans/` layout from 0.18.0.
 
 ## [0.18.1] - 2026-10-26

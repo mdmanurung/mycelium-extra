@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reference checks for docs/validation-recipes.md recipes 4 to 8. Copy one into a project and bind it.
+"""Reference checks for docs/validation-recipes.md recipes 4 to 9. Copy one into a project and bind it.
 
 Each subcommand reads TSV/CSV tables, writes {"status", "message"} to --out when given, and exits 0 for
 passed or unsupported, 2 for failed. A missing file, missing column or unreadable table is `unsupported`,
@@ -7,9 +7,11 @@ never a pass. Every check states one claim; none of them says the analysis is ri
 """
 import argparse
 import csv
+import hashlib
 import json
 import math
 import os
+import re
 import sys
 
 MISSING = {"", "NA", "NaN", "nan", "NULL"}
@@ -162,6 +164,44 @@ def invariants(a):
     return "passed", "declared invariants hold for {} row(s)".format(len(rows))
 
 
+def same(a):
+    """Recipe 9: every table the baseline run lists has the same bytes in the new run."""
+    try:
+        with open(a.baseline, encoding="utf-8") as handle:
+            lines = handle.read().splitlines()
+    except (OSError, UnicodeDecodeError) as error:
+        raise Gap("cannot read {}: {}".format(a.baseline, error))
+    expected = {}
+    for n, line in enumerate(lines, 1):
+        if not line.strip():
+            continue
+        match = re.fullmatch(r"([0-9a-f]{64}) [ *](.+)", line)  # the format `sha256sum` writes
+        if not match:
+            raise Gap("{} line {} is not `<sha256>  <file>`".format(a.baseline, n))
+        name = match.group(2)
+        if os.path.isabs(name) or ".." in name.split("/") or name in expected:
+            raise Gap("{} line {}: {} is absolute, leaves the run folder or repeats".format(a.baseline, n, name))
+        expected[name] = match.group(1)
+    if not expected:
+        raise Gap("{} lists no tables, so nothing would be compared".format(a.baseline))
+    if not os.path.isdir(a.run_dir):
+        raise Gap("run folder {} not found".format(a.run_dir))
+    missing, differ = [], []
+    for name, digest in expected.items():
+        path = os.path.join(a.run_dir, name)
+        if not os.path.isfile(path):
+            missing.append(name)
+            continue
+        with open(path, "rb") as handle:
+            if hashlib.sha256(handle.read()).hexdigest() != digest:
+                differ.append(name)
+    problems = (["{} table(s) differ from the baseline: {}".format(len(differ), sample(differ))] if differ else []) + \
+        (["{} table(s) missing from the run: {}".format(len(missing), sample(missing))] if missing else [])
+    if problems:
+        return "failed", "; ".join(problems)
+    return "passed", "{} table(s) byte-identical to the baseline".format(len(expected))
+
+
 def accounting(text):
     names = text.split(",")
     if len(names) != 3 or not all(names):
@@ -208,6 +248,10 @@ def parser():
     s.add_argument("--accounting", type=accounting, default=[], metavar="START,RETAINED,REMOVED",
                    help="per row, START = RETAINED + REMOVED, all non-negative counts")
     s.set_defaults(run=invariants)
+    s = sub.add_parser("same", help="recipe 9, same results after a refactor")
+    s.add_argument("--baseline", required=True, help="`sha256sum` output, made inside the baseline run folder")
+    s.add_argument("--run", dest="run_dir", required=True, help="the new run folder")
+    s.set_defaults(run=same)
     return p
 
 

@@ -1,0 +1,3 @@
+contrast	logFC	padj_BH
+stim_vs_ctrl	0.42	0.003
+late_vs_ctrl	-0.17	0.21
