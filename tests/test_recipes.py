@@ -235,6 +235,14 @@ class SingleCellRecipes(unittest.TestCase):
                 self.assertTrue(data['tables'])
                 self.assertTrue(all(t['sha256'] for t in data['tables']))
 
+    def test_model_input_unit_red_green_with_real_checker_and_verify(self):
+        # R4: unique cell IDs do not make a cell-level table a donor-level one.
+        for contract, code in [('r4_cell_level.json', 2), ('r4_unit.json', 0)]:
+            with tempfile.TemporaryDirectory() as folder:
+                proc, path, data = self.invoke(contract, folder)
+                self.assertEqual(proc.returncode, code, proc.stderr)
+                self.assertEqual(verify.read_result(path, {'files': {}})[0], 'failed' if code else 'passed')
+
     def test_keys_red_green_and_reordering_control_with_real_checker(self):
         for contract, code in [('r2_wrong_keys.json', 2), ('r2_keys.json', 0)]:
             with tempfile.TemporaryDirectory() as folder:

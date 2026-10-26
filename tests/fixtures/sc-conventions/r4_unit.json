@@ -1,0 +1,16 @@
+{
+  "schema": "mycelium-extra.data_contract.v1",
+  "table": "tests/fixtures/sc-conventions/pseudobulk.tsv",
+  "checks": [
+    {
+      "id": "donors-per-cell-type",
+      "kind": "unit_of_replication",
+      "unit": "donor",
+      "group": "cell_type",
+      "within": [
+        "condition"
+      ],
+      "min_units_per_group": 2
+    }
+  ]
+}

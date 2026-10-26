@@ -1,0 +1,5 @@
+donor	condition	cell_type	n_cells
+d1	control	T	120
+d1	stimulated	T	131
+d2	control	T	98
+d2	stimulated	T	104

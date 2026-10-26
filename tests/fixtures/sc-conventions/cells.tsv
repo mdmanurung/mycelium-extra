@@ -1,0 +1,7 @@
+cell_id	donor	condition	cell_type
+c1	d1	control	T
+c2	d1	control	T
+c3	d1	stimulated	T
+c4	d2	control	T
+c5	d2	stimulated	T
+c6	d2	stimulated	T

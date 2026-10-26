@@ -258,14 +258,15 @@ An edit to a pinned expectation is a changed dependency, not automatically a con
 - A standalone preflight followed by a separately permitted command is not prevented by bindings. To make an analysis conditional on a preflight, put both in one entry point that runs the analysis only when the preflight succeeds.
 - The fixture results show these checks work on the fixture project and the host and versions the tests ran on.
 
-## Single-cell R1–R3 bindings
+## Single-cell R1–R4 bindings
 
-R1 and R2 compose the shipped `data-contract-check`; R3 adds recorded method fidelity. These are optional acceptance checks bound to approved intent, with no change to the gate or approval semantics. The runnable fixtures are in `tests/fixtures/sc-conventions/`. Run the commands below from the repository root; `/tmp` results demonstrate the check only. For a live approved project, copy the contracts into its checks directory, adapt input paths independently, and bind the actual checker and expectations before approval. The plan must use project-local evidence paths like the example below so existing run attribution can observe them.
+R1, R2 and R4 compose the shipped `data-contract-check`; R3 adds recorded method fidelity. These are optional acceptance checks bound to approved intent, with no change to the gate or approval semantics. The runnable fixtures are in `tests/fixtures/sc-conventions/`. Run the commands below from the repository root; `/tmp` results demonstrate the check only. For a live approved project, copy the contracts into its checks directory, adapt input paths independently, and bind the actual checker and expectations before approval. The plan must use project-local evidence paths like the example below so existing run attribution can observe them.
 
 | Check | Independently specified expectation | Negative fixture | Benign control | What it establishes |
 |---|---|---|---|---|
 | R1 design | Two independent donors; each donor observed at control and stimulated; each batch overlaps conditions | `r1_missing_pair.json`, `r1_aliased.json` | `r1_design.json`; retain donor and condition identities | Declared pairing, replication and batch overlap, not design-matrix rank, covariance choice or convergence |
 | R2 input | Equal independent sample keys; declared count layer has nonnegative integer values | `r2_wrong_keys.json`; test-generated fractional/negative count layer | `r2_keys.json`, reordered metadata; test-generated integer count layer | Key agreement and declared sampled layer properties, not the analysis's join or normalization algorithm |
+| R4 model-input unit | The table that feeds the model has one row per donor in each cell type × condition cell, and at least two donors per cell | `r4_cell_level.json` (cell-level table; cell IDs are unique) | `r4_unit.json` (pseudobulk table) | The model input is at the declared biological unit, independently of R1's sample table; not that the aggregation summed the right counts |
 | R3 recorded method | Exact approved formula, contrast numerator/denominator/sign, random effects, covariates, assay and exclusions | `r3_wrong_sign.json`; tests mutate every field | `r3_observed.json`; JSON key order and ordering within declared lists may vary | Agreement of the recorded model fields with approved expectations; no extraction or authentication of the actual fit |
 
 ```bash
@@ -277,6 +278,10 @@ python3 skills/data-contract-check/scripts/data_contract_check.py --contract tes
 # exit 2; independently listed sample keys differ
 python3 skills/data-contract-check/scripts/data_contract_check.py --contract tests/fixtures/sc-conventions/r2_keys.json --root . --result-json /tmp/sc-r2-green.json
 # exit 0; key sets agree
+python3 skills/data-contract-check/scripts/data_contract_check.py --contract tests/fixtures/sc-conventions/r4_cell_level.json --root . --result-json /tmp/sc-r4-red.json
+# exit 2; donors repeat within a cell type x condition cell
+python3 skills/data-contract-check/scripts/data_contract_check.py --contract tests/fixtures/sc-conventions/r4_unit.json --root . --result-json /tmp/sc-r4-green.json
+# exit 0; one row per donor per cell
 python3 skills/verify/scripts/method_fidelity.py --expected tests/fixtures/sc-conventions/r3_expected.json --observed tests/fixtures/sc-conventions/r3_wrong_sign.json --result-json /tmp/sc-r3-red.json
 # exit 2; recorded contrast sign differs
 python3 skills/verify/scripts/method_fidelity.py --expected tests/fixtures/sc-conventions/r3_expected.json --observed tests/fixtures/sc-conventions/r3_observed.json --result-json /tmp/sc-r3-green.json
