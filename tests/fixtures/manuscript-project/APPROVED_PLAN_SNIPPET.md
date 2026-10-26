@@ -28,6 +28,12 @@ this repository's existing `validation-bindings` format.
 ]} -->
 ```
 
+The `test_paths` above name the checker inside this repository. In a research
+project the plugin is not part of the repository, so copy the checker into the
+project (for example `analysis/paper/tests/manuscript_audit.py`) and bind that
+copy; `tests/e2e/manuscript_scenario.py` builds a worked example
+(see `docs/design/2026-10-26-manuscript-native-verify.md`).
+
 Before approval: confirm the plan row exists, the script is inside a covered
 gated scope, the contract file exists, and the declared values were not chosen
 after inspecting the desired result. After running: `verify <hash>` reports

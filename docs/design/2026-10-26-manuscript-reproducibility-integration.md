@@ -41,16 +41,25 @@ No hook, gate, manifest, approval or verification status was changed. The instal
 | Negative/non-integer counts and wrong ratio fail | `test_counts_and_ratio_red` (4 subcases) | pass |
 | Result JSON is judged correctly by verify's actual reader | `test_verify_reader_maps_*`, `test_verify_reader_detects_changed_contract` (via `gate.load_verify()`) | pass |
 | Inactive pack is not cited; statistical-only grill is not polluted; local override precedence preserved | `test_manuscript_routing_is_opt_in_and_bounded` (reference contract; negative controls in text) | pass |
-| No existing file modified, no hook/manifest change | `git status` scope check at apply time; installer overwrite refusal | pass |
+| No hook, gate, manifest or verify file changed; existing files touched only where listed below | `git diff --stat --diff-filter=M c1d6bfd` (6 files: `README.md`, `docs/reference/index.md`, `docs/skills.md`, `opencode/tests/gate.test.js`, `skills/grill/references/scientific-conventions.md`, `skills/grill/tests/test_grill_references.py`); installer overwrite refusal | pass |
 
 ## Verified vs unverified
 
-Verified in this sandbox (Python 3.11): the new test suites, the full existing Python test sweep, the link checker on changed Markdown, and the OpenCode adapter tests where node is available. Results are in the delivery notes.
+Verified in this sandbox (Python 3.11): the new test suites (`test_manuscript_audit.py`, 21 tests; the grill reference tests, 16), the link checker on changed Markdown, and the OpenCode adapter tests with node (22/22; the adapter's expected skill count was raised from 14 to 15 for `manuscript-audit`).
+
+Full Python sweep at commit `06435d8` (the CI loop over `hooks/tests`, `skills/*/tests` and `tests/test_*.py`, 45 suites): 43 passed, 2 failed. Neither failure comes from this branch:
+
+- `tests/test_end_to_end.py`: `Defects.test_F_06` and `Defects.test_V_02b` expect `CONFORMS_WITH_GAPS` and get `DOES_NOT_CONFORM`. They fail 3 of 3 times both on this branch and on the base commit `c1d6bfd` in a clean worktree, so the failure predates the branch in this sandbox. Not investigated further; whether upstream CI passes them was not checked.
+- `skills/verify/tests/test_verify.py`: `test_unknown_exit_status_is_a_gap` failed once during the sweep, while another test sweep was running at the same time. Re-run alone it failed 2 of 4 times on the base commit too, then passed 3 of 3 on both once the machine was quiet. It depends on timing (writers within verify's 5 s clock-skew window).
+
+Skipped tests need tools this sandbox lacks, such as real scilintr with `MX_E2E_REAL_TOOLS`, or a Python 3.6 interpreter.
+
+Errata: the commit message of `06435d8` says "22 tests" for the validator suite; the suite has 21. The OpenCode skill-count change (14 to 15) was not in the first version of this ledger.
 
 Unverified here — labeled as such, not claimed:
 
 - Live host-hook behavior: no native Claude Code / Codex / OpenCode session ran the gate, so receipt/attribution behavior of a bound manuscript check through a real host is unverified.
-- A native approved-plan `verify` scenario (approved plan → pinned checker → `verify` Validation section in all outcome states) was not executed; the reader side is covered by the `read_result` compatibility tests only.
+- A native approved-plan `verify` scenario. A simulated-host oracle now drives the real gate, the checker and `verify` through all outcome states, and the native Claude Code runbook and grader are pre-registered. See [the native-verify record](2026-10-26-manuscript-native-verify.md). No native session has run, so the native result is still unverified.
 - Live activation through upstream Mycelium's `install_convention.py --network-dir` was not run; the fixture's `ACTIVE_CONVENTIONS.yaml` is a sample following the shape `scientific-conventions.md` checks, not a product of the upstream installer.
 - No published figure was reproduced. Nothing here demonstrates full published-paper reproducibility.
 - The fixture's registration YAML format is not validated against upstream Mycelium's installer schema (no upstream checkout available).
