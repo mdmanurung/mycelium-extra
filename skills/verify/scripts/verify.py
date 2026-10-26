@@ -2406,15 +2406,19 @@ def read_result(path, check):
             return "unsupported", "the result has no `status` of passed or failed", []
         return status, "the result says {}{}".format(status, " ({})".format(note.strip()[:200])
                                                      if isinstance(note, str) and note.strip() else ""), []
-    status, code = data.get("status"), data.get("exit_code")
-    if not isinstance(data.get("checks") or [], list) or not isinstance(data.get("contract") or {}, dict):
-        return "unsupported", "the data-contract result's `checks` or `contract` is malformed", []
-    checks = [c for c in data.get("checks") or [] if isinstance(c, dict)]
-    pinned = (data.get("contract") or {}).get("sha256")
+    status, code, checks, contract = data.get("status"), data.get("exit_code"), data.get("checks"), data.get("contract")
+    if type(code) is not int or not isinstance(checks, list) or not all(isinstance(c, dict) for c in checks) \
+            or not isinstance(contract, dict):
+        return "unsupported", "the data-contract result's `exit_code`, `checks` or `contract` is missing or malformed", []
+    pinned = contract.get("sha256")
     if pinned and check["files"] and pinned not in check["files"].values():
         return "changed", "the result was produced from a contract that is not the pinned one", []
     label = "the data-contract result is {} (exit {})".format(status, code)
     if code == 0 and status in ("pass", "warn") and not any(c.get("status") == "block" for c in checks):
+        if not checks:
+            return "unsupported", label + "; it lists no checks, so nothing was judged", []
+        if check["files"] and not pinned:
+            return "unsupported", label + "; it does not name its contract's sha256, so the pin cannot be compared", []
         return "passed", label, [contract_text(c) for c in checks if c.get("status") == "warn"]
     if code == 2 or status == "block":
         bad = [contract_text(c) for c in checks if c.get("status") == "block"]

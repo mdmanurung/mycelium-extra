@@ -982,6 +982,9 @@ def run_contract(contract, base_dir, inputs=None):
     """Return (per-check summaries, alerts); `inputs`, when a list, receives every file the checks name."""
     if not isinstance(contract, dict) or contract.get("schema") != SCHEMA:
         raise ContractError("contract schema must be " + SCHEMA)
+    if set(contract) - {"schema", "table", "filters", "checks"}:
+        # a misspelled top-level key (say `filter`) would silently drop what it declares
+        raise ContractError("contract does not accept: " + ", ".join(sorted(set(contract) - {"schema", "table", "filters", "checks"})))
     checks = need(contract, "checks")
     if not isinstance(checks, list) or not checks:
         raise ContractError("checks must be a nonempty list")

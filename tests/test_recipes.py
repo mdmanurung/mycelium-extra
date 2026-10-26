@@ -87,6 +87,22 @@ class RecipeOutcomes(unittest.TestCase):
                                         "checks": [{"id": "batch-confounding", "status": "warn", "message": "one block"}]}),
                          "passed")
 
+    def test_a_malformed_contract_result_never_passes(self):
+        good = {"schema": CONTRACT, "status": "pass", "exit_code": 0, "contract": {"path": "c.json", "sha256": "aa"},
+                "checks": [{"id": "x", "status": "pass"}]}
+        self.assertEqual(self.judge(0, good), "passed")
+        bad = [dict(good, exit_code=False), dict(good, exit_code=0.0), dict(good, checks=[]),
+               dict(good, checks=[{"id": "x", "status": "pass"}, 5]), {k: v for k, v in good.items() if k != "checks"},
+               {k: v for k, v in good.items() if k != "contract"}]
+        for result in bad:
+            self.assertEqual(self.judge(0, result), "unsupported", result)
+        with tempfile.TemporaryDirectory() as root:  # a pinned check needs the result to name its contract
+            path = os.path.join(root, "r.json")
+            for contract in ({"path": "c.json"}, {"path": "c.json", "sha256": None}):
+                with open(path, "w") as handle:
+                    json.dump(dict(good, contract=contract), handle)
+                self.assertEqual(verify.read_result(path, {"files": {"c.json": "aa"}})[0], "unsupported", contract)
+
     def test_an_unrecorded_exit_status_is_unsupported_not_a_pass(self):
         self.assertEqual(self.judge(None, {"status": "passed"}), "unsupported")
 

@@ -34,7 +34,7 @@ Invoke with `/mycelium-extra:data-contract-check`. Run from the project root, st
 | `unique_key` | the named columns are nonempty and their combination is unique |
 | `sample_alignment` | the table's sample keys match a declared sample sheet or matrix header (`reference`; optional `agree_on`) |
 | `identifiers` | identifiers are unique and found in a declared `namespace` file; without one, date-like strings warn and the check is a gap |
-| `h5ad_layer` | properties of an `.h5ad` matrix path: `non_negative`, `integer_valued`, `max_at_most`, on a bounded sample (`sample_values`, default 100000) |
+| `h5ad_layer` | properties of an `.h5ad` matrix path: `non_negative`, `integer_valued`, `max_at_most` (a finite number; `0` is a limit too), on a bounded sample (`sample_values`, default 100000) |
 
 Common fields: `filters` (`equals`, `in`, `not_in`) at contract or check level, `table`, `label`, `id`. The last three kinds compare the table with a file from outside the table and outside the analysis code; a list copied from the table passes whatever is wrong with it. `h5ad_layer` ignores contract-level filters.
 

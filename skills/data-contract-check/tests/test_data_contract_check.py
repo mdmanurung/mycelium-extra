@@ -108,6 +108,19 @@ class DataContractCheckTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("does not accept: levles", out)
 
+    def test_misspelled_top_level_key_is_a_usage_error(self):
+        contract = {"schema": "mycelium-extra.data_contract.v1", "table": "samples.tsv", "filter": KEEP,
+                    "checks": [{"kind": "schema", "columns": ["donor"]}]}
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(contract, handle)
+        try:
+            proc = subprocess.run([sys.executable, SCRIPT, "--contract", handle.name, "--root", FIXTURES],
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        finally:
+            os.unlink(handle.name)
+        self.assertEqual(proc.returncode, 1)  # `filter` would otherwise drop the declared rows filter
+        self.assertIn("contract does not accept: filter", proc.stderr)
+
     def test_all_empty_rows_are_no_samples_and_errors_name_the_file_line(self):
         with tempfile.TemporaryDirectory() as root:
             with open(os.path.join(root, "t.csv"), "w") as handle:

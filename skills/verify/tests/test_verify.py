@@ -2726,7 +2726,8 @@ sys.exit(1 if hits else 0)
 
     def contract_result(self, status, code, checks):
         return {"schema": self.CONTRACT_SCHEMA, "status": status, "exit_code": code, "runnable": "all_ran", "not_run": [],
-                "contract": {"path": "x", "sha256": None}, "checks": checks}
+                "contract": {"path": self.EXPECT, "sha256": hashlib.sha256(b'{"rows": 60}\n').hexdigest()},
+                "checks": checks}  # the pinned EXPECT, as bound_plan writes it
 
     def test_a_check_that_exited_zero_with_a_failed_result_blocks(self):  # F06: the 60-row expectation, one row found
         digest = self.approve(self.bound_plan())
