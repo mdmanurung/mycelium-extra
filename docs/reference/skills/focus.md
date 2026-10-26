@@ -4,6 +4,8 @@ Records which analysis one session is working on. Advisory: it grants no run, ex
 
 ## Synopsis
 
+You type this skill; the agent does not start it on its own (`disable-model-invocation: true`, and Codex's `allow_implicit_invocation: false`).
+
 You type the commands; the gate answers them before the agent sees them. The skill (`/mycelium-extra:focus`) only explains and lists folders:
 
 ```bash

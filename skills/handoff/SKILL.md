@@ -1,6 +1,7 @@
 ---
 name: handoff
-description: Write a short `HANDOFF.md` at the project root so a fresh session can pick the work up by reading one small file instead of the old conversation. Records the goal, the exact next action, current state, decisions the user locked in, dead ends not to redo, and the few `path:line` pointers to read first. Overwrites the previous handoff, carrying forward only what still holds, and stays under about 80 lines. Use when the user invokes mycelium-extra handoff, or asks to hand off, write a handoff, save state, wrap up for a new session, continue in a fresh session, or avoid context bloat. Not Mycelium's session summary (`.mycelium/last-session.md`, which Mycelium's own hooks write and load) and not a report or changelog.
+disable-model-invocation: true
+description: Write a short HANDOFF.md so a fresh session can resume from one small file.
 ---
 
 # Mycelium Extra: Handoff

@@ -4,6 +4,8 @@ Ships one Mycelium learning's `structural_mitigation_candidate` as a real test, 
 
 ## Synopsis
 
+You type this skill; the agent does not start it on its own (`disable-model-invocation: true`, and Codex's `allow_implicit_invocation: false`).
+
 `/mycelium-extra:harden` (Codex: `$mycelium-extra:harden`). No script and no flags. One learning per run.
 
 ## Steps

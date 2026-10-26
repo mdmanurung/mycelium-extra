@@ -1,6 +1,7 @@
 ---
 name: harden
-description: Ship one Mycelium learning's `structural_mitigation_candidate` as a real test, then set the learning's `mitigation_type` to `structural`. Picks a learning in `.living/learnings.md` that is still `ambient-awareness` but names a concrete check, writes a test in the repository's own test setup, proves it fails on a minimal reproduction of the original problem and passes on the current code, and after the user confirms updates only that entry. Never edits analysis code. Use when the user invokes mycelium-extra harden, or asks to harden, enforce, or turn a learning, gotcha, or lesson into a test or structural mitigation. Not for recording a new learning (use Mycelium's normal logging), not for promoting learnings to conventions (Mycelium core), and not for checks inside analysis code.
+disable-model-invocation: true
+description: Ship one Mycelium learning's structural_mitigation_candidate as a real test, then mark the learning structural.
 ---
 
 # Mycelium Extra: Harden

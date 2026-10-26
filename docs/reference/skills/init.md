@@ -4,6 +4,8 @@ Turns the approval gate on in a repository. Guide: [Approve and run](../../guide
 
 ## Synopsis
 
+You type this skill; the agent does not start it on its own (`disable-model-invocation: true`, and Codex's `allow_implicit_invocation: false`).
+
 ```bash
 sh <skill-dir>/../../hooks/py.sh - [--root DIR] [--paths GLOB ...] [--commands CMD ...] [--hours N] [--dry-run] < <skill-dir>/scripts/gate_init.py
 sh <skill-dir>/../../hooks/py.sh - --tools [--scilintr PATH] [--rscript PATH] < <skill-dir>/scripts/gate_init.py

@@ -4,6 +4,8 @@ Scaffolds a new, self-contained analysis folder that plugs into Mycelium. Guide:
 
 ## Synopsis
 
+You type this skill; the agent does not start it on its own (`disable-model-invocation: true`, and Codex's `allow_implicit_invocation: false`).
+
 ```bash
 sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb] [--data=PATH ...] [--code=PATH ...] [--doc-template=FILE] --templates=<skill-dir>/templates [--dry-run] < <skill-dir>/scripts/new_analysis.py
 ```

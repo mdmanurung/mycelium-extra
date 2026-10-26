@@ -1,6 +1,7 @@
 ---
 name: idea-triage
-description: Rank the ideas parked in `todo/` (from the `idea` skill or Mycelium's `todo-idea`) by impact, likelihood and risk, so the user can choose what to work on next. Scores each idea on two impact axes, counts the things that must go right, rates the riskiest assumption, checks whether existing findings already answer it, and names the cheapest go/no-go test for the top pick. Shows a ranked table with a "park all" option; the user chooses. Use when the user invokes mycelium-extra idea-triage, or asks to triage ideas, pick the next idea, choose what to work on next, or review the idea list. Based on Fischbach and Walsh (2024) problem selection. Not for planning a chosen idea (use grill) and not for capturing one (use idea).
+disable-model-invocation: true
+description: Rank the ideas parked in todo/ so the user can choose the next one.
 ---
 
 # Mycelium Extra: Idea triage

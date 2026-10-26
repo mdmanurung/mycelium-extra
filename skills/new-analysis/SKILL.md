@@ -1,6 +1,7 @@
 ---
 name: new-analysis
-description: Scaffold a new, self-contained analysis folder that plugs into Mycelium. It has numbered step stubs (R, Python, notebook) at the folder root, a Snakefile that runs them in order, a run.sh entry point, Mycelium's own analysis doc (`<NAME>.md`) with a Steps table, one PLAN.md and one TRACKER.md, and `data/` and `code/` symlink folders plus `outputs/`, `logs/`, and `reports/`. Use when the user invokes mycelium-extra new-analysis, or asks to create, start, scaffold, set up, or initialize a new analysis folder or subfolder. Writes only inside the new folder and never overwrites. Not for turning on the approval gate (use init), and not for continuing an existing analysis (use Mycelium's analyze).
+disable-model-invocation: true
+description: Scaffold a new analysis folder that plugs into Mycelium (step stubs, Snakefile, run.sh, analysis doc, PLAN.md, TRACKER.md).
 ---
 
 # Mycelium Extra: New analysis

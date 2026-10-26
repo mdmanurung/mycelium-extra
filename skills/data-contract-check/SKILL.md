@@ -1,6 +1,6 @@
 ---
 name: data-contract-check
-description: Test a plan's data assumptions against the actual sample-level table before an analysis runs, read-only. The plan's assumptions (required columns, cohort levels and row counts, unit of replication, pairing across timepoints, batch versus contrast nesting) go into a small JSON contract; a stdlib checker reports each mismatch as a structured alert with expected, observed, and evidence, and blocks on any failure of a coverage-list kind. Use when the user invokes mycelium-extra data-contract-check, when grill or a plan rests on properties of a metadata or sample table that nobody has verified, or before a statistical test whose validity depends on replication, pairing, or batch structure. Reads CSV/TSV tables and the `obs` of an `.h5ad` file (through h5py when it is installed); also compares keys, identifiers, or an `.h5ad` layer against independent evidence the plan names, and writes a machine-readable result; not for Seurat objects or checking code.
+description: Check a plan's data assumptions (columns, cohort counts, replication unit, pairing, batch nesting) against the sample table or h5ad obs, read-only. Use when a plan rests on table properties nobody has verified; not for Seurat objects or code.
 ---
 
 # Mycelium Extra: Data contract check

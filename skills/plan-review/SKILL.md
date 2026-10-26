@@ -1,6 +1,6 @@
 ---
 name: plan-review
-description: Read-only, pre-approval challenge of a sourced Mycelium Extra grill plan by independent Codex engineering and Biomni biomedical reviewers. The lead host assembles one evidence packet, preserves disagreement, and recommends amendments without editing or approving the plan. Use after grill and before plan approval when the user requests independent review. In Codex, act only as the engineering reviewer; do not claim a dual review. In OpenCode, lead the dual review when the Codex CLI and the Biomni MCP are available, and say which reviewers actually ran.
+description: Read-only, pre-approval challenge of a grill plan by independent Codex and Biomni reviewers; nothing leaves the machine without the user's consent. Use after grill, before approval, when the user asks for independent review.
 ---
 
 # Mycelium Extra: Plan review

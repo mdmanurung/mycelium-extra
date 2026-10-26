@@ -1,6 +1,7 @@
 ---
 name: focus
-description: Explain and use `focus`, the typed command that says which analysis this Claude session is working on (`focus <folder>`, `focus status`, `focus switch <folder>`, `focus end`), and list the folders a focus can name. Focus is advisory: it grants no run, extends no approval, and is changed only by the user typing the command. Use when the user invokes mycelium-extra focus, asks how to declare or switch the current analysis, asks which analysis is in focus, or wants the folders they can focus on. Not for approving a plan (use grill), for scaffolding a folder (use new-analysis), or for seeing what changed (use track-changes).
+disable-model-invocation: true
+description: Explain the typed focus command and list the folders a focus can name.
 ---
 
 # Mycelium Extra: Focus

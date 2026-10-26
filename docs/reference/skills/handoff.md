@@ -4,6 +4,8 @@ Writes a short `HANDOFF.md` at the project root so a fresh session can resume fr
 
 ## Synopsis
 
+You type this skill; the agent does not start it on its own (`disable-model-invocation: true`, and Codex's `allow_implicit_invocation: false`).
+
 `/mycelium-extra:handoff` (Codex: `$mycelium-extra:handoff`). No script and no flags. The gate suggests it after `hints on`, on wrap-up wording or when context passes about 120k tokens.
 
 ## What it does

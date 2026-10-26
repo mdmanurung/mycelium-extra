@@ -4,6 +4,8 @@ Ranks the ideas parked in `todo/` so you can choose what to work on next. It hel
 
 ## Synopsis
 
+You type this skill; the agent does not start it on its own (`disable-model-invocation: true`, and Codex's `allow_implicit_invocation: false`).
+
 `/mycelium-extra:idea-triage` (Codex: `$mycelium-extra:idea-triage`). No script and no flags.
 
 ## What it does

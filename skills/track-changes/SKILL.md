@@ -1,6 +1,6 @@
 ---
 name: track-changes
-description: Show what changed in one analysis against its approved intent, read-only. Compares the original and current approved plans, the scripts against what each approval pinned, the runs the gate recorded, and, if a Claude Code transcript is available, direct edits made to other analyses while a focus was open. Prints a short card and writes a Markdown review brief and an offline HTML report under `.mycelium-extra/track-changes/`. Every item says what was observed, what is only potential, and what is unknown. Use when the user invokes mycelium-extra track-changes, asks what changed since the plan was approved, whether the work drifted from the focus, or wants a briefing before `freeze` or Mycelium's review. It approves, freezes, runs, and validates nothing. Not for planning (use grill), judging correctness (use Mycelium's review), or checking whether a run matches its plan (use verify).
+description: Show, read-only, what changed in one analysis against its approved plan: plan, scripts, recorded runs, and off-focus edits. Use for "what changed since approval" or a briefing before freeze or review; it approves and runs nothing.
 ---
 
 # Mycelium Extra: Track changes

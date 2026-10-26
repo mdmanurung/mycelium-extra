@@ -1,6 +1,6 @@
 ---
 name: decision-status
-description: Work out which past decision still binds a task when a Mycelium project's `.living/decisions.md` holds several entries on the same choice (a method, cohort, contrast, threshold, or tool that was confirmed, held, shelved, rejected, or revisited over time). Lists only the entries the task touches, oldest first, applies explicit supersession, asks the user about genuinely contested threads (at most three per session), and after the user confirms, appends a resolution entry so the question is not asked again. Use when the user invokes mycelium-extra decision-status, asks which decision is current or binding, or when grill or planning finds two or more decision entries on a choice the task depends on. Not for recording a brand-new decision (use Mycelium's normal logging) or auditing a whole decision log.
+description: Work out which past entry in .living/decisions.md still binds a choice when several cover it, and record the resolution after the user confirms. Use when a decision is contested or grill finds two entries on one choice; not for logging a new decision.
 ---
 
 # Mycelium Extra: Decision status

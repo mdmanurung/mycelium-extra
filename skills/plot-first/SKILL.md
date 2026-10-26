@@ -1,6 +1,6 @@
 ---
 name: plot-first
-description: Make plots the primary artifacts for interpreting analysis results, with every conclusion linked to visual evidence and tables used only as a justified last resort. Use when planning, running, continuing, reviewing, or reporting a Mycelium-initiated analysis, or when the user requests plot-first analysis outputs.
+description: Make plots the primary artifacts for interpreting analysis results; every conclusion cites a figure and tables need a stated reason. Use when planning, running, continuing, reviewing, or reporting a Mycelium-initiated analysis, or when the user requests plot-first analysis outputs.
 ---
 
 # Mycelium Extra: Plot first

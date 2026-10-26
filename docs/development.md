@@ -84,6 +84,12 @@ The oracle procedure:
 
 The base stays the 0.10.2 release; `python3 tests/test_ci_pins.py` fails if `ci.yml` and the oracle name different commits.
 
+## Skill descriptions and invocation
+
+A skill's `description:` loads into the agent's context on every turn in every host, so it is a pointer, not a summary. Keep it to one line (OpenCode reads it with a one-line regex) and at most about 60 words: a first sentence that says what the skill does and when it fires, within 150 characters (OpenCode shows only that sentence, cut at 150), then one sentence for the boundary. The body carries everything else.
+
+A skill only a human types is user-invoked in both hosts, and the two flags stay in sync: `disable-model-invocation: true` in the frontmatter (Claude Code) and `policy.allow_implicit_invocation: false` in `agents/openai.yaml` (Codex). Its description is then human-facing: a one-line summary. OpenCode ignores the flag; its `/mycelium-extra:<skill>` commands are typed by the user anyway. Today: `focus`, `handoff`, `harden`, `idea-triage`, `init`, `new-analysis`. A skill another skill tells the model to run (grill runs `track-changes`) stays model-invoked. `tests/test_skill_frontmatter.py` checks all of this.
+
 ## Release steps
 
 1. Work in a worktree and land on `main`; do not edit `hooks/` in a tree that live sessions run from.

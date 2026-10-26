@@ -1,6 +1,6 @@
 ---
 name: idea
-description: Park a passing idea in one line, with no questions, so the main work keeps its flow. Writes `todo/<slug>.md` and one `todo/TODO_REGISTRY.md` row (priority `idea`, status `open`) in Mycelium's own todo format, then replies with one line. Use when the user invokes mycelium-extra idea, or says "idea:", "park this", "note this for later", "remind me to try", or "add to the idea list". Never runs analysis code, never changes the current plan or the approval gate. Not Mycelium's `todo-idea` mode (which asks up to six questions) and not for choosing what to work on (use idea-triage).
+description: Park a passing idea in one line, with no questions, into Mycelium's todo/ registry. Use on "idea:", "park this", "note this for later"; never starts the idea (idea-triage chooses what to work on).
 ---
 
 # Mycelium Extra: Idea
@@ -27,5 +27,5 @@ Append ` (plan <hash> still waiting)` when a grill card shown in this conversati
 ## Limits
 
 - Write only under `todo/`. No analysis code, no `.mycelium-extra/`, no `.living/`, no git commit.
-- Do not start the idea, even when it looks quick. `idea-triage` chooses what to work on next.
+- Do not start the idea, even when it looks quick. The user runs `idea-triage` to choose what to work on next.
 - Several ideas in one message: one file and one row each, one reply line.
