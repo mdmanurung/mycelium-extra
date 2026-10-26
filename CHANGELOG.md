@@ -4,6 +4,10 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- **docs:** the input/output overlap note's limit is in `docs/advanced.md`, and `docs/mycelium-integration.md` and the track-changes schema say that a check one approved plan dropped is a change in approved scope, not an unapproved run. `docs/roadmap/14-newplans.md` closes the newplans bundles with a measured `--profile-only` budget.
+
 ## [0.17.0] - 2026-10-26
 
 ### Changed

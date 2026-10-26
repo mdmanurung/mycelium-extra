@@ -32,6 +32,8 @@ Independent axes, never one badge:
 | `attribution` | `direct_tool`, `contextual`, `unattributed`, `not_applicable` | `direct_tool` is a direct editor call in the transcript; `contextual` came from a subagent. Shell edits are never attributed. |
 | `currency` | `older_than_change`, `unknown`, `not_checked` | A file time never shows that code produced an output. |
 
+A validation binding or declared output that one approved plan had and a later approved plan dropped is reported with `historical: different_original` and `authorization_relation: covered_current`: the scope changed under approval. `not_established` is for work no current approval covers. The two are separate questions, so a lost check is never shown as an unauthorized run.
+
 Text fields: `summary`, `observed`, `potential`, `unknown`, `baseline`, `current`, `authorization`, `context`, `next[]` (drafts only), `limitations[]`. `diff` is `[["add"|"del"|"ctx", line]]`, bounded and redacted.
 
 ## Evidence and timeline

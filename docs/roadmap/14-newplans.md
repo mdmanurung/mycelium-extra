@@ -1,6 +1,6 @@
 # 14 · New plans: unified roadmap (2026-10-24)
 
-Objective: merge two outside plan bundles into one ordered build list that fits the guiding principles in the [roadmap README](README.md). Both bundles are local and gitignored (`plans/newplans/`).
+Objective: merge two outside plan bundles into one ordered build list that fits the guiding principles in the [roadmap README](README.md). Both bundles are local and gitignored (`plans/_DONE/newplans/`, archived 2026-10-26).
 
 - **Bundle A**, `mycelium_extra_workflow_integrated_bundle_v2_2026-10-23`: a spec of four PRs (A1 to A4) plus synthetic fixtures. Target `630fc30`.
 - **Bundle B**, `mycelium-extra-science-direct-v5`: an overlay that adds a `science` skill, 16 method guides, 13 convention packs and a 264-row source index. Target 0.15.0.
@@ -39,7 +39,7 @@ Order is by value, then risk. Each item is one feature in its own PR. Version bu
 | A3 | Input/output overlap advisory on the full approval and freeze cards | `hooks/validation.py` or adjacent helper, `gate.py` card path, `test_gate.py` | highest: `gate.py`, needs `gate_diff` before and after | done on main (`8d83a27`, `79757ac`) |
 | B1 | Folded method guidance for 2 or 3 methods (no new skill) | `skills/grill/references/` | low: docs and a static test | done on main (`acc21ef`) |
 
-PR-D in bundle B (route one or two methods as their own skills) stays `parked` until B1 exists and routing accuracy is measured.
+PR-D in bundle B (route one or two methods as their own skills) is `dropped`; see Closed below.
 
 ## M1: first usable milestone (A1 then A2)
 
@@ -127,3 +127,32 @@ M1 ships the two items that need no hook edit and change no default behavior. A 
 
 - The bundles' file and function names were checked by reading `630fc30`. The plans' claims about tests (for example R1-01) are specs, not results.
 - Passing tests show that a named failure is caught, not that a recipe suits a real study.
+
+## Closed (2026-10-26)
+
+Every bundle item is now built, dropped or declined, so the bundles are archived.
+
+Built:
+
+- Doc paragraphs the bundle asked for: the overlap note's limit in `docs/advanced.md`, and the difference between changed approved scope and an unapproved run in `docs/mycelium-integration.md` and the track-changes `references/schema.md`.
+- Profile measurement (bundle doc 17, item 5), below.
+
+Dropped, each with its reason:
+
+- **PR-D**, one method per skill: Q4 folded method guidance into `grill`, and a skill per method would undo that. Revive only if live routing (F2 in the remaining-features plan) shows a method guide misroutes.
+- **Bundle B PR-B and PR-C**, scientist review of the 16 guides and a host check of the overlay: the overlay was not adopted. The three B1 guides have no scientist review; that stays a stated limit of the guides.
+- **The end-to-end scenario demo** (bundle docs 00 and 16): recipes 4 to 8 reuse its fixtures and test each failure family on its own.
+- **The HTML check at 390px and 200% zoom, and the reviewer comprehension test** (doc 17, items 6 and 7): both need a person at a browser. They belong with the live validation packet if anyone asks for them.
+
+### Profile measurement
+
+`data-contract-check --profile-only --json` on synthetic TSV metadata (six columns, two `group_by` columns, two missingness columns), five runs each, Python 3.12.6 on `res-hpc-exe032`, 2026-10-26. Wall time and peak RSS from GNU `time`.
+
+| Input | Rows read | Result | Median / max time | Peak RSS |
+|---|---|---|---|---|
+| Small, 8 KB | 200 of 200 | complete, exit 0 | 0.09 s / 0.11 s | 18 MB |
+| Large, 29 MB, default budget | 250,000 of 1,000,000 | partial, exit 0 | 1.20 s / 1.23 s | 47 MB |
+| Large, `max_rows_inspected: 1000000` | 1,000,000 | complete, exit 0 | 4.59 s / 4.80 s | 135 MB |
+| Malformed, one invalid UTF-8 byte | none | unavailable, exit 3 | 0.09 s / 0.09 s | 18 MB |
+
+An `.h5ad` is not profiled by design (unavailable, exit 3), so it has no row. Memory grows with the rows read, about 120 bytes per row, so the 5,000,000-row ceiling would need roughly 600 MB. The default budget of 250,000 rows stays under 50 MB and two seconds; keep it.

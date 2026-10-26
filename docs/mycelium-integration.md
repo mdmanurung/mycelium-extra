@@ -129,6 +129,8 @@ contribution; it is future collaboration, not a current integration.
 
 `track-changes` writes `.mycelium-extra/track-changes/<analysis>/brief.md`: what changed against the approved plan, what is only potential, and what was not observed. Hand that one file to Mycelium's `review` before a freeze instead of re-deriving the changes. `grill` and `handoff` point to it when it exists. For the evidence behind one item, run `track-changes` with `--explain <item_id>`.
 
+A brief item about a check or output that one approved plan had and the next one dropped describes a change in approved scope, not a run nobody approved. Whether the narrower scope is still adequate is a question for that review; `track-changes` does not judge it.
+
 ## Boundaries
 
 Extra's planning and data checks are read-only. Scaffolding writes only the new
