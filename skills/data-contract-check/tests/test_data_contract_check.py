@@ -1214,6 +1214,7 @@ class H5adLayerTest(TempTables):
         code, check = self.go(layer("layers/counts", max_at_most=8))
         self.assertEqual((code, check["alerts"][0]["expected"]), (2, "max_at_most 8"))
         self.assertEqual(self.go(layer("layers/counts", max_at_most=9))[0], 0)
+        self.assertEqual(self.go(layer("layers/counts", max_at_most=0))[0], 2)  # zero is a limit, not off
 
     def test_properties_switched_off_are_not_checked(self):
         self.assertEqual(self.go(layer("layers/negative", non_negative=False))[0], 0)
@@ -1272,6 +1273,8 @@ class H5adLayerSyntaxTest(TempTables):
                {"kind": "h5ad_layer", "h5_path": "X", "properties": ["non_negative"]},
                {"kind": "h5ad_layer", "h5_path": "X", "properties": {"non_negative": "yes"}},
                {"kind": "h5ad_layer", "h5_path": "X", "properties": {"max_at_most": True}},
+               {"kind": "h5ad_layer", "h5_path": "X", "properties": {"max_at_most": float("nan")}},
+               {"kind": "h5ad_layer", "h5_path": "X", "properties": {"max_at_most": float("inf")}},
                {"kind": "h5ad_layer", "h5_path": "X", "properties": {"non_negative": 1}},
                {"kind": "h5ad_layer", "h5_path": "X", "sample_values": 0},
                {"kind": "h5ad_layer", "h5_path": "X", "sample_values": True}]

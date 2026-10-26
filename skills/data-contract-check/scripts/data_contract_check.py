@@ -23,6 +23,7 @@ import csv
 import io
 import json
 import hashlib
+import math
 import os
 import re
 import sys
@@ -681,7 +682,7 @@ def sample_facts(array, properties):
     if "max_at_most" in properties:
         tests["max_at_most"] = values > properties["max_at_most"]
     for name, bad in tests.items():
-        if properties.get(name) and bad.any():
+        if properties.get(name, False) is not False and bad.any():  # max_at_most 0 is a limit
             facts["violations"][name] = int(bad.sum())
     return facts
 
@@ -914,7 +915,8 @@ def validate_declared(check, index):
         if not isinstance(props, dict) or set(props) - set(PROPERTIES):
             raise ContractError("checks[{}] properties accepts only {}".format(index, ", ".join(sorted(PROPERTIES))))
         for name, value in props.items():
-            if isinstance(value, bool) != (PROPERTIES[name] is bool) or not isinstance(value, PROPERTIES[name]):
+            if (isinstance(value, bool) != (PROPERTIES[name] is bool) or not isinstance(value, PROPERTIES[name])
+                    or not math.isfinite(value)):  # NaN would make every `values > limit` False
                 raise ContractError("checks[{}] property {} has an invalid value".format(index, name))
         if "sample_values" in check and (isinstance(check["sample_values"], bool)
                                          or not isinstance(check["sample_values"], int)
