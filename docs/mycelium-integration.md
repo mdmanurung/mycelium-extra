@@ -32,6 +32,21 @@ The installer check also needs the local reviewed pack at
 `plans/sc-conventions-revised/network/conventions/single-cell-analysis/`.
 Missing upstream or pack inputs produce explicit test skips.
 
+Extra ships one convention pack, `manuscript-reproducibility`, at
+`network/conventions/`. It is guidance only and stays inactive until a project
+installs it with Mycelium's own installer:
+
+```bash
+python3 /path/to/mycelium/skills/core/scripts/install_convention.py \
+  --name manuscript-reproducibility \
+  --network-dir /path/to/mycelium-extra/network/conventions \
+  --target-dir /path/to/project
+```
+
+Checked 2026-10-26 against Mycelium `8f8b167`: the installer registers it in
+`.living/conventions/ACTIVE_CONVENTIONS.yaml` and the installed copy is
+byte-identical to the shipped one.
+
 The integration test also replays a complete synthetic lifecycle through both
 plugins' actual Claude and Codex hook commands, sequentially and with concurrent
 PostToolUse callbacks. Extra's approval gate and Mycelium's reflection/lineage

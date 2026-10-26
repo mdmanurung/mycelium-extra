@@ -1,6 +1,6 @@
 ---
 name: manuscript-audit
-description: "Read-only, source-grounded audit of a research manuscript repository's data products, figure/table lineage, reproducible entry points and publication artifacts. Traces panels from inputs through the plotting script to the exact source-data file, reports evidence-linked findings with explicit labels for static observation, executed check, data unavailable and researcher interpretation, and can propose (never silently run) a small deterministic contract check. Use when the user asks for a manuscript/source-data reproducibility review, auditing plotting conventions, code-source traceability or publication readiness. Not for planning (use grill), execution-record verification (use verify), sample-design assumptions (use data-contract-check) or code hardening (use harden)."
+description: Audit a manuscript repository read-only, tracing each figure or table from inputs through its script to the source-data file. Use for source-data, figure-lineage or publication-readiness reviews; not for planning (grill), run records (verify) or sample design (data-contract-check).
 ---
 
 # Mycelium Extra: manuscript-audit
