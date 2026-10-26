@@ -10,7 +10,7 @@ Friction is opt-in. Socratic mode starts when the user invokes grill with `socra
 
 ## One probe inside the question
 
-When a rule-3 `user` question is asked, add **one** probe to the same message, after the evidence (and the librarian dossier, if the user chose the lookup, see [evidence-assistance.md](evidence-assistance.md)) and before the options. The user's one reply answers both. A probe costs nothing against the five-question cap and is never a second question. Pick the one that fits:
+When a rule-3 `user` question is asked, add **one** probe to the same message, inside that question's block (one probe per question when a round holds several), after the evidence (and the librarian dossier, if the user chose the lookup, see [evidence-assistance.md](evidence-assistance.md)) and before the options. The user's one reply answers both. A probe costs nothing against the five-question cap and is never a second question. Pick the one that fits:
 
 - Expectation: "Whichever option you pick, what would you expect to see if it is right?"
 - Disconfirmation: "What result would make you drop the option you pick?"

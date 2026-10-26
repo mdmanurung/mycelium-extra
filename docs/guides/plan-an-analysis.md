@@ -23,7 +23,7 @@ The source tag explains where a choice came from, not whether it is right. Nothi
    ```
 
 2. Answer the opening question in your own words. `grill` offers no drafted answer, so nothing anchors you.
-3. Answer its questions, one at a time. It asks at most five; open points after that become labelled defaults you can override at approval.
+3. Answer its questions by number; it asks them in rounds (say "one question at a time" if you prefer that). It asks at most five; open points after that become labelled defaults you can override at approval.
 4. Read the brief. `Inputs:` lists the files the plan rests on (pinned at approval), `Outputs:` what the runs will write, and the Step column names every script.
 5. Check the status line: `READY`, `READY_WITH_ASSUMPTIONS` (some defaults to confirm) or `DECISION_REQUIRED` (a choice only you can make).
 

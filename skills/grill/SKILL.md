@@ -44,7 +44,19 @@ Resolve each consequential decision by the first rule that applies:
 3. Plausible answers would change the scientific question, data, method, interpretation, deliverable, or next action, and the user owns the choice: ask (`user`). When such a methodological question has no repository evidence, the question may add an evidence lookup as one option; follow [references/evidence-assistance.md](references/evidence-assistance.md). When the user asks for Socratic mode, or types `explain row N`, `explain plan` or `challenge row N`, follow [references/socratic.md](references/socratic.md); all are read-only and off by default.
 4. Otherwise drop it, or park it with a return condition if a later stage needs it.
 
-Ask one question per message, the most consequential first, stating the evidence you found and a recommended default. Beyond the opening question, ask zero questions if nothing qualifies. Cap: **five questions per grill**. The cap is a circuit breaker, not a target. At the cap, turn remaining user-owned points into labeled defaults in the plan; the approval step is where the user overrides them. Do not restart a question tree or evade the cap by subdividing a question. If the user says "good enough," stop and write the plan.
+Ask in **rounds**. A round holds every `user` question whose prerequisites are already settled, most consequential first; a question whose answer depends on another question still open waits for the next round. Number them `Q1`, `Q2`, ... and give each: the evidence you found, the options, and a `Recommended:` line worded so that "yes" accepts it. The user answers by number. After the answers, recompute the frontier and ask the next round; stop when no user-owned unknown would change the plan. Beyond the opening question, ask zero questions if nothing qualifies. Cap: **five questions per grill**, counted across rounds, not per round. The cap is a circuit breaker, not a target. At the cap, turn remaining user-owned points into labeled defaults in the plan; the approval step is where the user overrides them. Do not restart a question tree or evade the cap by subdividing a question. If the user says "good enough," stop and write the plan. If the user says "one question at a time," ask one per message for the rest of the grill.
+
+A round looks like this (one probe per question when Socratic mode is on, placed after the evidence):
+
+```
+**Q1. <title>**
+Evidence: <what the repository says, with paths>
+Options: (a) ... (b) ...
+Recommended: (a), because <reason>
+
+**Q2. <title>**
+...
+```
 
 ## 4. Converge, brief, and wait
 

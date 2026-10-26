@@ -173,6 +173,16 @@ class GrillReferenceContractTest(unittest.TestCase):
         self.assertIn("references/evidence-assistance.md", skill)
         self.assertIn("the question may add an evidence lookup as one option", skill)
 
+    def test_questions_are_asked_in_rounds_under_the_cap(self):
+        skill = read(os.path.join(SKILL, "SKILL.md"))
+        socratic = read(os.path.join(SKILL, "references", "socratic.md"))
+        self.assertIn("Ask in **rounds**", skill)
+        self.assertIn("waits for the next round", skill)
+        self.assertIn("counted across rounds, not per round", skill)
+        self.assertIn("Recommended: (a), because", skill)
+        self.assertIn('"one question at a time,"', skill)
+        self.assertIn("one probe per question", socratic)
+
     def test_socratic_mode_is_opt_in_and_read_only(self):
         socratic = read(os.path.join(SKILL, "references", "socratic.md"))
         skill = read(os.path.join(SKILL, "SKILL.md"))

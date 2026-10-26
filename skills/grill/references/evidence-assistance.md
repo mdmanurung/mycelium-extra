@@ -8,7 +8,7 @@ Only to a methodological question the repository cannot settle: which test famil
 
 ## How it rides inside the question
 
-Keep the single question, and offer three options in it:
+Keep that question single (the lookup option rides inside it, even when a round holds other questions), and offer three options in it:
 
 1. inspect relevant evidence and alternatives, then decide;
 2. decide using your existing knowledge;

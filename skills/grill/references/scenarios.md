@@ -18,7 +18,7 @@ Expected: before reading any file, ask once, in free text with no drafted option
 
 User: "Redo the monocyte pathway comparison across trials."
 Repo: an old decision uses baseline reference scaling, a newer script uses per-trial z scores, and current docs call that script provisional.
-Expected: check the reason and outputs, and do not treat recency or implementation as automatic authority. If the choice changes the inference and intent cannot be inferred, ask one question with a recommendation.
+Expected: check the reason and outputs, and do not treat recency or implementation as automatic authority. If the choice changes the inference and intent cannot be inferred, ask one question, in the round, with a recommendation.
 
 ## Challenge without a question
 
@@ -30,7 +30,7 @@ Expected: flag possible removal of biology or leakage; propose a within-trial pr
 
 User: "Run DE between protected and unprotected in CD14 monocytes."
 Repo: metadata has donors with several samples each; no decision covers the test unit; a learning warns about pseudoreplication.
-Expected: do not silently run a cell-level test. If a prior decision or convention fixes the unit, cite it. Otherwise ask one question: donor-level pseudobulk (recommended) versus a cell-level mixed model. Every other applicable decision point (layer state, covariates, multiplicity) appears in the plan with a source.
+Expected: do not silently run a cell-level test. If a prior decision or convention fixes the unit, cite it. Otherwise ask one question in the round: donor-level pseudobulk (recommended) versus a cell-level mixed model. Every other applicable decision point (layer state, covariates, multiplicity) appears in the plan with a source.
 
 ## Stop despite residual uncertainty
 
@@ -42,7 +42,7 @@ Expected: `READY_WITH_ASSUMPTIONS`; record style as a reversible default and par
 
 User: "Test the monocyte change by protection, stratified by sex."
 Repo: a decision declined sex-stratified tests because one stratum has too few events; findings already report the unstratified monocyte result.
-Expected: open by citing the findings that already cover most of the task; cite the decision; recommend a reconciled design (for example an interaction term with descriptive per-stratum estimates) and ask one question, because the user owns the trade-off. Make reuse versus re-run explicit in the plan.
+Expected: open by citing the findings that already cover most of the task; cite the decision; recommend a reconciled design (for example an interaction term with descriptive per-stratum estimates) and ask one question, in the round,, because the user owns the trade-off. Make reuse versus re-run explicit in the plan.
 
 ## Mycelium without `MYCELIUM.md`
 
@@ -66,7 +66,7 @@ Expected: do not fit the model as written and report the effects with flipped si
 
 User: "Adjust for sequencing batch using the `seq_batch` column."
 Repo: the sample table's header has `run_id` and `lane`, but no `seq_batch`.
-Expected: do not write a plan that uses `seq_batch`. Report the header the probe found, check whether `run_id` is the intended variable (a data contract or one read-only probe), and either source the mapping from the repository or ask one question. The plan's guard confirms every column the code uses (the invented-columns failure mode).
+Expected: do not write a plan that uses `seq_batch`. Report the header the probe found, check whether `run_id` is the intended variable (a data contract or one read-only probe), and either source the mapping from the repository or ask one question in the round. The plan's guard confirms every column the code uses (the invented-columns failure mode).
 
 ## No Mycelium
 

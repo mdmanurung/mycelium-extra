@@ -31,7 +31,7 @@ Nothing. The plan is the final message. In that turn it does not execute, create
 
 ## The question cap and the status line
 
-At most five questions per grill, one per message, most consequential first, each with the evidence found and a recommended default. The opening question about your own words does not count. At the cap, the remaining user-owned points become labelled defaults that you can override at approval.
+At most five questions per grill, asked in rounds: each round holds every question you own whose prerequisites are settled, numbered, each with the evidence found and a `Recommended:` line worded so that "yes" accepts it; you answer by number, and a question that depends on an open one waits for the next round. The cap counts questions, not rounds. Say "one question at a time" to get one per message instead. The opening question about your own words does not count. At the cap, the remaining user-owned points become labelled defaults that you can override at approval.
 
 The final message ends with exactly one of:
 
