@@ -200,13 +200,13 @@ Renamed columns need an explicit mapping in the check (for example comparing the
 
 | | |
 |---|---|
-| **Claim** | A chosen output has no repeated observational unit, its keys equal the metadata keys, and named columns hold counts. |
-| **Inputs** | the output table, its key, the columns that name a unit (for example participant and visit), optionally the metadata table and the count columns |
+| **Claim** | A chosen output has no repeated observational unit, its keys equal the metadata keys, named columns hold counts, and each row's filtering adds up (start = retained + removed). |
+| **Inputs** | the output table, its key, the columns that name a unit (for example participant and visit), optionally the metadata table, the count columns, and the start, retained and removed columns of a filtering step |
 | **Expected answer** | Declared by the researcher. Row order is ignored, so a keyed table passes after a shuffle. Value ranges never reveal how a step normalized. |
-| **Invocation** | `python3 recipe_checks.py --out RESULT invariants --table T --key sample_id --unit participant_id,visit --meta M --integer gene_a,gene_b` |
-| **Pass / fail / unavailable** | Pass: every declared invariant holds. Fail: a repeated key or unit, a key on one side only, or a count column with a fraction or a negative value. Unavailable: as in recipe 4. |
-| **Deliberate failure** | `units_duplicate.tsv` repeats participant `P1` at visit `0`; `counts_logged.tsv` holds log values where counts belong. |
-| **Benign control** | `counts_ok.tsv` passes; a metadata table with the same keys in another order passes. |
+| **Invocation** | `python3 recipe_checks.py --out RESULT invariants --table T --key sample_id --unit participant_id,visit --meta M --integer gene_a,gene_b --accounting cells_start,cells_retained,cells_removed` |
+| **Pass / fail / unavailable** | Pass: every declared invariant holds. Fail: a repeated key or unit, a key on one side only, a count column with a fraction or a negative value, or a row where start is not retained plus removed, or removed is negative. Unavailable: as in recipe 4. |
+| **Deliberate failure** | `units_duplicate.tsv` repeats participant `P1` at visit `0`; `counts_logged.tsv` holds log values where counts belong; `attrition_negative.tsv` reports -20 cells removed; in `attrition_sum.tsv` 500 cells become 400 retained and 90 removed. |
+| **Benign control** | `counts_ok.tsv` and `attrition_ok.tsv` (one sample loses every cell) pass; a metadata table with the same keys in another order passes. |
 | **Limit** | A log transform that happens to give integers passes. When the transform is the claim, use a known-answer test on a tiny input instead. |
 
 ## 8. Negative controls

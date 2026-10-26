@@ -132,7 +132,7 @@ def collide(a):
 
 
 def invariants(a):
-    rows = table(a.table, a.key, *a.unit, *a.integer)
+    rows = table(a.table, a.key, *a.unit, *a.integer, *a.accounting)
     problems = []
     keys = [r[a.key] for r in rows]
     if len(set(keys)) != len(keys):
@@ -150,9 +150,23 @@ def invariants(a):
         odd = [r[a.key] for r in rows if not count(r[column])]
         if odd:
             problems.append("column {} is not non-negative integer counts in {} row(s)".format(column, len(odd)))
+    if a.accounting:
+        start, kept, removed = a.accounting
+        odd = [r[a.key] for r in rows if not all(count(r[c]) for c in a.accounting)
+               or number(r[start]) != number(r[kept]) + number(r[removed])]
+        if odd:
+            problems.append("{} != {} + {} with non-negative counts in {} row(s): {}".format(
+                start, kept, removed, len(odd), sample(odd)))
     if problems:
         return "failed", "; ".join(problems)
     return "passed", "declared invariants hold for {} row(s)".format(len(rows))
+
+
+def accounting(text):
+    names = text.split(",")
+    if len(names) != 3 or not all(names):
+        raise argparse.ArgumentTypeError("name three columns: START,RETAINED,REMOVED")
+    return names
 
 
 def parser():
@@ -191,6 +205,8 @@ def parser():
     s.add_argument("--unit", type=lambda t: t.split(","), default=[], help="columns that name one observational unit")
     s.add_argument("--meta", help="metadata table; its key set must equal the table's (order is ignored)")
     s.add_argument("--integer", type=lambda t: t.split(","), default=[], help="columns that must hold counts")
+    s.add_argument("--accounting", type=accounting, default=[], metavar="START,RETAINED,REMOVED",
+                   help="per row, START = RETAINED + REMOVED, all non-negative counts")
     s.set_defaults(run=invariants)
     return p
 

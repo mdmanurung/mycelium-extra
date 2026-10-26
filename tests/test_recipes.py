@@ -151,6 +151,12 @@ class ReferenceChecks(unittest.TestCase):
                 ("R4-02 repeated donor and visit", units + ["units_duplicate.tsv", "--unit", "participant_id,visit"], "failed"),
                 ("R4-03 log values for counts", units + ["counts_logged.tsv", "--integer", "gene_a,gene_b"], "failed"),
                 ("R4 control: counts", units + ["counts_ok.tsv", "--integer", "gene_a,gene_b"], "passed"),
+                ("R4-04 negative removed count", units + ["attrition_negative.tsv", "--accounting",
+                                                         "cells_start,cells_retained,cells_removed"], "failed"),
+                ("R4-05 start != retained + removed", units + ["attrition_sum.tsv", "--accounting",
+                                                              "cells_start,cells_retained,cells_removed"], "failed"),
+                ("R4 control: attrition adds up", units + ["attrition_ok.tsv", "--accounting",
+                                                          "cells_start,cells_retained,cells_removed"], "passed"),
                 ("missing file is a gap", units + ["nope.tsv"], "unsupported"),
                 ("missing column is a gap", units + ["counts_ok.tsv", "--integer", "gene_z"], "unsupported")]:
             code, got = self.run_check(*args)

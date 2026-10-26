@@ -1,0 +1,3 @@
+sample_id	cells_start	cells_retained	cells_removed
+S001_D0	1000	950	50
+S001_D28	800	820	-20
