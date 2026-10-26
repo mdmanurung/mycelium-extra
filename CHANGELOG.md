@@ -4,17 +4,27 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
-### Changed
-
-- **new-analysis:** step scripts now go in `code/` (beside any linked shared code), `PLAN.md` and `TRACKER.md` in `plans/`, and the root keeps only `<NAME>.md`, `Snakefile`, `run.sh` and a new `run.sbatch`. Step paths in the Snakefile, plan table, tracker and Steps table use `code/`, and the notebook stub moves to the analysis folder before it runs. The `plan`/`tracker` folder-name refusal is gone because the collision is gone. Existing folders are not moved.
+## [0.18.0] - 2026-10-26
 
 ### Added
+
+- **manuscript-audit:** a new read-only skill audits a manuscript repository's figure and table lineage, from inputs through the plotting script to the exact source-data file. Its optional stdlib validator checks a declared `manuscript_checks.v1` contract (plotting columns, key uniqueness, integer counts, ratio invariants, declared files) and writes the existing `contract_result.v1`, so `verify` judges it like any other bound check. An optional `figure_map` TSV gives each figure contract one row and checks its files. The result file must stay inside the project; unknown keys, non-digit counts and non-number tolerances are gaps; messages never quote key or cell values. Built on 2026-10-26 and landed from the reproducibility review bundle.
+
+- **network/conventions:** the opt-in `manuscript-reproducibility` convention pack ships in `network/conventions/`. It is guidance only and stays inactive until a project installs it with Mycelium's own installer; grill reads it only when it is active. [Mycelium integration](docs/mycelium-integration.md) shows the command.
+
+- **recipes:** R4 binds `data-contract-check`'s `unit_of_replication` to the table that feeds the model, so a cell-level table with unique cell IDs blocks.
 
 - **handoff:** `HANDOFF.md` records the time and commit copied from `date` and `git rev-parse`, and opens with a Check first step: the next session runs `git log <hash>..HEAD` and `git status` and says so first when work happened since. An old handoff from another branch is flagged before anything is carried forward. A stale handoff once led sessions to report finished work as blocked.
 
 ### Changed
 
+- **new-analysis:** step scripts now go in `code/` (beside any linked shared code), `PLAN.md` and `TRACKER.md` in `plans/`, and the root keeps only `<NAME>.md`, `Snakefile`, `run.sh` and a new `run.sbatch`. Step paths in the Snakefile, plan table, tracker and Steps table use `code/`, and the notebook stub moves to the analysis folder before it runs. The `plan`/`tracker` folder-name refusal is gone because the collision is gone. Existing folders are not moved.
+
 - **docs:** the input/output overlap note's limit is in `docs/advanced.md`, and `docs/mycelium-integration.md` and the track-changes schema say that a check one approved plan dropped is a change in approved scope, not an unapproved run. `docs/roadmap/14-newplans.md` closes the newplans bundles with a measured `--profile-only` budget.
+
+### Fixed
+
+- **links:** the Markdown link check skips any target that holds a template placeholder, such as `../@@DOC@@`.
 
 ## [0.17.0] - 2026-10-26
 

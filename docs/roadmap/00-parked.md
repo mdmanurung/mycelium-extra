@@ -56,3 +56,15 @@ Work already drafted outside the repository, waiting to land.
   - PI-03: Gate message template: no misread gate message is recorded; wording fixes land per finding (tracker 13).
 - **Return condition:** a real session shows the failure a dropped idea guards against. Re-grill that one idea; do not reopen the batch.
 - **Source:** the triage table and the synthesis index, local and gitignored under `plans/_DONE/ROADMAP/`.
+
+## R3: Reproducibility review follow-ups (2026-10-26)
+
+- **Why:** the 2026-10-26 manuscript reproducibility review proposed checks beyond the `manuscript-audit` validator that 0.18.0 shipped.
+- **Parked:**
+  - Portability scan for `setwd(`, `/home/`, `/exports/`, `~` and `Sys.getenv("HOME")` in analysis code. scilintr has no such rule (checked against the installed 0.1.1, rules R001 to R044).
+  - Render-from-source equivalence (MX08): re-render a panel from its source table alone and compare.
+  - Independent recount (MX07): recompute a source fraction from a separately sourced raw table.
+  - Notebook hygiene (kernel language, suppressed warnings, checkpoints) and a lockfile check for analysis code with non-stdlib imports.
+  - Root containment for `data-contract-check --result-json`: its documented recipes write results to `/tmp`, and `verify` already contains every bound `evidence_path`.
+- **Return condition:** a real manuscript repository shows the failure one of these would catch. Grill that check alone.
+- **Source:** the triage and the review bundle, local and gitignored: `plans/2026-10-26-lucidcoder-triage.md`, `plans-lucidcoder/docs/conventions_synthesis_2026-10-26/SYNTHESIS.md`.
