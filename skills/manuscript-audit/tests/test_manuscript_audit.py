@@ -243,6 +243,31 @@ class ManuscriptAuditTests(unittest.TestCase):
             res = audit.evaluate(root, "config/checks.json")
             self.assertIn("Source-only declaration", str(res["checks"]))
 
+    def test_figure_map_covers_every_contract(self):
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); cfg = self.project(root)
+            cfg["figure_map"] = "config/figure_map.tsv"
+            (root / "config/figure_map.tsv").write_text("figure\tscript\tsource_data\toutput\nFig1a\tscript/Figure1.py\tfigures/source_data/Fig1a.tsv\t\n")
+            res = self.rewrite(root, cfg)
+            self.assertEqual(res["status"], "pass", str(res["checks"]))
+            self.assertIn("config/figure_map.tsv", [i["path"] for i in res["inputs"]])
+
+    def test_figure_map_red_cases(self):
+        header = "figure\tscript\tsource_data\n"
+        row = "Fig1a\tscript/Figure1.py\tfigures/source_data/Fig1a.tsv\n"
+        cases = [(header + "Fig2\tscript/Figure1.py\tfigures/source_data/Fig1a.tsv\n", "gap", "without a map row"),
+                 (header + row + row, "block", "repeats ids"),
+                 (header + row + "S1\tscript/missing.py\tfigures/source_data/Fig1a.tsv\n", "gap", "column script"),
+                 ("figure\tscript\n" + "Fig1a\tscript/Figure1.py\n", "gap", "lacks columns: source_data")]
+        for table, status, message in cases:
+            with self.subTest(message=message), tempfile.TemporaryDirectory() as x:
+                root = Path(x); cfg = self.project(root)
+                cfg["figure_map"] = "config/figure_map.tsv"
+                (root / "config/figure_map.tsv").write_text(table)
+                res = self.rewrite(root, cfg)
+                self.assertEqual(res["status"], status, str(res["checks"]))
+                self.assertIn(message, str(res["checks"]))
+
     # --- committed fixture is green ---------------------------------------------
 
     def test_committed_fixture_passes(self):

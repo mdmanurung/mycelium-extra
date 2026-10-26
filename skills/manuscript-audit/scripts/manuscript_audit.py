@@ -21,7 +21,7 @@ SCHEMA = "mycelium-extra.manuscript_checks.v1"
 RESULT_SCHEMA = "mycelium-extra.contract_result.v1"
 MAX_TABLE_BYTES = 16 * 1024 * 1024  # check only small, published plot/source tables
 ALLOWED = {
-    "contract": {"schema", "data_manifest", "figures", "tables"},
+    "contract": {"schema", "data_manifest", "figure_map", "figures", "tables"},
     "figure": {"id", "script", "source_data", "required_columns", "outputs"},
     "table": {"id", "file", "key_columns", "required_columns", "finite_numeric_columns",
               "nonnegative_integer_columns", "ratio_invariant"},
@@ -203,6 +203,9 @@ def evaluate(root, config_rel):
         except (ValueError, OSError, csv.Error) as e:
             add(base, "gap", "Cannot inspect figure contract: " + str(e))
 
+    if "figure_map" in cfg:
+        check_figure_map(cfg, observe, add)
+
     seen_tables = set()
     for tbl in cfg.get("tables", []):
         if not isinstance(tbl, dict) or not all(x in tbl for x in ("id", "file", "key_columns")):
@@ -286,6 +289,44 @@ def evaluate(root, config_rel):
         except (ValueError, OSError, csv.Error, TypeError) as e:
             add(base, "gap", "Cannot inspect table: " + str(e))
     return make_result(contract, inputs, checks)
+
+
+def check_figure_map(cfg, observe, add):
+    """Every figure contract has one map row, and every row's script and source data exist."""
+    try:
+        path = observe(cfg["figure_map"])
+        if not path:
+            add("figure-map", "gap", "Declared figure map unavailable")
+            return
+        cols, rows = read_table(path)
+    except (ValueError, OSError, csv.Error) as e:
+        add("figure-map", "gap", "Cannot read figure map: " + str(e))
+        return
+    missing_cols = sorted({"figure", "script", "source_data"} - set(cols))
+    if missing_cols:
+        add("figure-map", "gap", "Figure map lacks columns: " + ", ".join(missing_cols))
+        return
+    ids = [row["figure"].strip() for row in rows]
+    repeated = sorted({i for i in ids if ids.count(i) > 1})
+    if repeated:
+        add("figure-map", "block", "Figure map repeats ids: " + ", ".join(repeated))
+        return
+    declared = [str(f["id"]) for f in cfg.get("figures", []) if isinstance(f, dict) and "id" in f]
+    unmapped = [i for i in declared if i not in ids]
+    if unmapped:
+        add("figure-map", "gap", "Figure contracts without a map row: " + ", ".join(unmapped))
+    for n, row in enumerate(rows, 2):
+        for col in ("script", "source_data"):
+            try:
+                found = observe(row[col])
+            except ValueError as e:
+                found, why = None, str(e)
+            else:
+                why = "file unavailable"
+            if not found:
+                add("figure-map:" + row["figure"], "gap", "row " + str(n) + ", column " + col + ": " + why)
+    if not unmapped:
+        add("figure-map", "pass", "{} mapped panels; {} have a figure contract. Map rows are not checked against plotted content.".format(len(ids), len(declared)), n_rows=len(rows))
 
 
 def reject_duplicate_json_keys(pairs):
