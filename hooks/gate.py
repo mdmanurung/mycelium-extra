@@ -86,7 +86,8 @@ MYCELIUM_SEES = re.compile(r"^(python[\d.]*|Rscript|R|jupyter)$")  # Mycelium 0.
 SCRIPT_EXT = re.compile(r"(\.(py|R|r|sh|ipynb|qmd|Rmd|rmd|jl|smk|pl)$|(^|/)Snakefile$)")
 WRAPPERS = {"env", "time", "nohup", "nice", "ionice", "setsid", "command", "exec", "stdbuf", "timeout", "srun",
             "conda", "mamba", "micromamba", "pixi", "uv", "uvx", "run", "xvfb-run",
-            "poetry", "pipx", "rye", "pdm", "hatch", "npx"}  # package-manager and process-launcher runners
+            "poetry", "pipx", "rye", "pdm", "hatch", "npx",
+            "xargs", "parallel", "watch", "screen"}  # package-manager and process-launcher runners
 VALUE_FLAGS = {"-n", "-p", "--name", "--prefix", "-e", "--environment", "--env",
                "-J", "--job-name", "-t", "--time", "-A", "--account", "--partition"}
 # Value options of the wrappers that precede a command, and the ones that move the command's
@@ -94,6 +95,12 @@ VALUE_FLAGS = {"-n", "-p", "--name", "--prefix", "-e", "--environment", "--env",
 _CONDA_OPTIONS = ({"-n", "--name", "-p", "--prefix", "-r", "--root-prefix", "-a", "--attach", "--label",
                    "-e", "--environment", "--manifest-path", "--config", "--cwd"}, {"--cwd"})
 WRAPPER_OPTIONS = {
+    "xargs": ({"-n", "--max-args", "-P", "--max-procs", "-I", "-i", "--replace", "-d", "--delimiter", "-a",
+               "--arg-file", "-s", "--max-chars", "-L", "--max-lines", "-E", "--eof", "--process-slot-var"}, set()),
+    "parallel": ({"-j", "--jobs", "-N", "--max-args", "-n", "--colsep", "-C", "-a", "--arg-file", "-S", "--sshlogin",
+                  "--results", "--joblog", "--tmpdir", "--delay", "--timeout", "--retries", "--load", "--memfree"}, set()),
+    "watch": ({"-n", "--interval", "-d", "--differences"}, set()),
+    "screen": ({"-S", "-dmS", "-t", "-c", "-e", "-h", "-p", "-s", "-T"}, set()),
     "ionice": ({"-c", "--class", "-n", "--classdata", "-p", "--pid", "-P", "--pgid", "-u", "--uid"}, set()),
     "env": ({"-u", "--unset", "-C", "--chdir", "-S", "--split-string"}, {"-C", "--chdir"}),
     "srun": (VALUE_FLAGS | {"-D", "--chdir"}, {"-D", "--chdir"}),
@@ -112,6 +119,15 @@ WRAPPER_OPTIONS = {
 _CONDA_FLAGS = {"-v", "--verbose", "--dev", "--debug-wrapper-scripts", "--no-capture-output",
                 "--live-stream", "-h", "--help"}
 WRAPPER_FLAGS = {
+    "xargs": {"-0", "--null", "-r", "--no-run-if-empty", "-t", "--verbose", "-p", "--interactive", "-x", "--exit",
+              "-o", "--open-tty", "--show-limits"},
+    "parallel": {"-k", "--keep-order", "--dry-run", "--bar", "--eta", "--progress", "--line-buffer", "--lb", "-u",
+                 "--ungroup", "-X", "-m", "-q", "--quote", "--halt-on-error", "--no-notice", "--will-cite",
+                 "--citation", "-v", "--verbose", "--pipe", "--group"},
+    "watch": {"-t", "--no-title", "-b", "--beep", "-e", "--errexit", "-g", "--chgexit", "-c", "--color", "-x",
+              "--exec", "-p", "--precise", "-w", "--no-wrap"},
+    "screen": {"-d", "-m", "-dm", "-D", "-r", "-R", "-RR", "-x", "-X", "-L", "-U", "-q", "-A", "-a", "-f",
+               "-fn", "-fa", "-l", "-ln", "-O", "-wipe", "-ls", "-list"},
     "ionice": {"-t", "--ignore", "-h", "--help", "-V", "--version"},
     "setsid": {"-c", "--ctty", "-f", "--fork", "-w", "--wait", "-h", "--help", "-V", "--version"},
     "env": {"-i", "--ignore-environment", "-0", "--null", "-v", "--debug", "-h", "--help"},
@@ -702,7 +718,8 @@ def _classify(tokens, root, cwd, config, info=None):
                     import shlex
                     return explore, "recurse", [" ".join(shlex.quote(t) for t in tokens[j:])], cwd
             return explore, None, [], cwd
-        if RUNNERS.match(word) or word in config["gated_commands"] or word == "eval":
+        if (RUNNERS.match(word) or word in config["gated_commands"] or word in ("eval", "find", "tmux", "ssh")
+                or re.search(r"[$`]", tokens[i]) and "/" not in tokens[i]):  # `$p x.py`: an unresolved command
             break
         if "/" in tokens[i] and not is_assignment(tokens[i]) and not (
                 word in WRAPPERS and gated_rel(root, cwd, tokens[i], config) is None):
@@ -762,6 +779,40 @@ def _classify(tokens, root, cwd, config, info=None):
         return explore, word, paths + ["wrap:" + w for w in wraps], cwd
     if word == "eval":  # `eval "python analysis/x.py"`: the arguments are the command, as writes_state reads them
         return explore, "recurse", [" ".join(rest)], cwd
+    if word == "find":  # `find DIR -exec CMD {} \;`: CMD runs once per file; `{}` is an operand the gate cannot resolve
+        for k, token in enumerate(rest):
+            if token in ("-exec", "-execdir", "-ok", "-okdir"):
+                payload = [t for t in rest[k + 1:] if t != "+"]
+                return explore, "recurse", [" ".join(payload)], cwd
+        return explore, None, [], cwd
+    if word == "tmux" and rest:  # the shell command is the last operand of a session, window or pane command
+        if rest[0] in ("new", "new-session", "new-window", "neww", "split-window", "splitw", "respawn-pane",
+                       "respawn-window", "send-keys", "send"):
+            operands, skip = [], False
+            for token in rest[1:]:
+                if skip:
+                    skip = False
+                elif token.startswith("-"):
+                    skip = token in ("-s", "-n", "-t", "-c", "-x", "-y", "-e", "-F", "-f", "-S", "-N", "-l")
+                elif token not in ("Enter", "C-m", "KPEnter"):
+                    operands.append(token)
+            if operands:
+                return explore, "recurse", [" ".join(operands) if rest[0] in ("send-keys", "send") else operands[-1]], cwd
+        return explore, None, [], cwd
+    if word == "ssh" and rest:  # `ssh HOST CMD...`: on a shared filesystem CMD names this repository's paths
+        skip = False
+        for k, token in enumerate(rest):
+            if skip:
+                skip = False
+            elif token.startswith("-"):
+                skip = len(token) == 2 and token[1] in "pliocJFLRDWbcmeESQB"
+            else:  # the host
+                return (explore, "recurse", [" ".join(rest[k + 1:])], cwd) if rest[k + 1:] else (explore, None, [], cwd)
+        return explore, None, [], cwd
+    if re.search(r"[$`]", head) and "/" not in head:  # `$p analysis/x.py`: an unresolved command on a gated script
+        named = [r for r in (gated_rel(root, cwd, t, config) for t in rest) if r and SCRIPT_EXT.search(r)]
+        if named:
+            return explore, head, named, cwd
     if RUNNERS.match(word):
         positional = None
         skip = False
@@ -796,13 +847,13 @@ def _classify(tokens, root, cwd, config, info=None):
             if first:
                 positional = token
             rel = script_rel(value)
-            if (rel is None and (first or SCRIPT_EXT.search(value)) and re.search(r"[$`]", value)
+            if (rel is None and (first or SCRIPT_EXT.search(value)) and (re.search(r"[$`]", value) or value == "{}")
                     and not PLUGIN_ROOT_VAR.match(value)):
                 # an operand the shell expands (`$f`, `$(ls ...)`) is unresolved: it is read as written, which no
                 # plan covers, unless the expansion is `$PWD`/`$HOME`, which resolve
                 value = re.sub(r"\$(?:\{(PWD|HOME)\}|(PWD|HOME)(?![A-Za-z0-9_]))",
                                lambda m: cwd if "PWD" in m.group(0) else os.path.expanduser("~"), value)
-                rel = script_rel(value) if not re.search(r"[$`]", value) else (
+                rel = script_rel(value) if not (re.search(r"[$`]", value) or value == "{}") else (
                     repo_relative(root, cwd, value) or value)
             if rel and (first or SCRIPT_EXT.search(rel) or word in ("jupyter", "papermill", "quarto")):
                 paths.append(rel)
@@ -1173,9 +1224,9 @@ def segment_writes(tokens, bodies, command, inside, root, cwd, ancestor=lambda t
         if (token.startswith(">") or token == "&>") and inside(tokens[j + 1]):  # >, >>, >|, >&, &>, 1>&2
             return True
     i, previous = 0, ""
-    while i < len(tokens) and (tokens[i] in WRAPPERS or tokens[i] in HEAD_SKIP or is_assignment(tokens[i])
-                               or tokens[i].startswith("-") or previous in VALUE_FLAGS
-                               or re.match(r"^\d+[smhd]?$", tokens[i])):
+    while i < len(tokens) and (tokens[i] in WRAPPERS - {"xargs", "parallel"} or tokens[i] in HEAD_SKIP
+                               or is_assignment(tokens[i]) or tokens[i].startswith("-") or previous in VALUE_FLAGS
+                               or re.match(r"^\d+[smhd]?$", tokens[i])):  # xargs/parallel: targets come on stdin, read below
         previous = tokens[i]
         i += 2 if tokens[i] == "function" else 1
     if i >= len(tokens):
@@ -1205,7 +1256,7 @@ def segment_writes(tokens, bodies, command, inside, root, cwd, ancestor=lambda t
             return False
     if head == "eval":
         return writes_state(" ".join(args), root, cwd)
-    if head == "xargs":  # its targets arrive on stdin
+    if head in ("xargs", "parallel"):  # its targets arrive on stdin
         return (any(os.path.basename(t) in WRITE_ALL | WRITE_LAST for t in args)
                 and any(inside(t) for part in segments(command) for t in part))
     if head in WRITE_ALL:
@@ -3607,8 +3658,8 @@ def on_tool(event, root, config):
                      "resolve, so it read the run relative to the repo root and to the current folder, and "
                      "no approved plan covers either. Write a literal path (`env -C analysis/demo ...`) or "
                      "`cd` there first.".format(raw))
-    if any(re.search(r"[$`]", p) for _, paths in blocked for p in paths):
-        lines.append("A script path that holds a shell expansion (`$VAR`, `$(...)`, a loop variable) cannot be "
+    if any(re.search(r"[$`]", p) or p == "{}" for _, paths in blocked for p in paths):
+        lines.append("A script path that holds a shell expansion (`$VAR`, `$(...)`, a loop variable, find's `{}`) cannot be "
                      "resolved by the gate, so it is read as written and no plan covers it. Write each script "
                      "path literally.")
     lines.append("Active approved plans (last {} h): {}.".format(config["approval_hours"], hashes))

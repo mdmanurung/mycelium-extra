@@ -82,5 +82,6 @@ Optional keys, the `.mycelium-extra/` file layout, lint-on-write, command hints 
 - A script edited after approval is re-pinned with a notice, not blocked: a covered run can execute code newer than the code you approved. `freeze` and `verify` show what changed.
 - Size-and-mtime and folder fingerprints miss an edit that keeps both.
 - An internal gate error fails open and says so, unless `on_error` is `"deny"`.
+- A hook the host kills at its timeout (10 s for a tool call, 30 s at Stop) returns no decision: Claude Code and Codex allow the call and say nothing, whatever `on_error` says; only the OpenCode adapter applies `on_error` to a timeout. A slow network filesystem is the usual cause.
 
 The full list is in [what it does not guarantee](concepts/not-guaranteed.md).

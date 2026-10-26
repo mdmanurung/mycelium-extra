@@ -99,7 +99,9 @@ def add_ignore(root):
     prefix = "\n" if text and not text.endswith(b"\n") else ""
     with open(path, "a", encoding="utf-8") as handle:
         handle.write(prefix + "# mycelium-extra approval gate: short-lived execution state\n"
-                     + IGNORE_LINE + "\n")
+                     + IGNORE_LINE + "\n"
+                     + "# mycelium-extra verify: write lock and in-flight transaction, never committed\n"
+                     + "**/provenance/.publish.lock\n**/provenance/.transactions/\n")
 
 
 def glob_base(pattern):

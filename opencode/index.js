@@ -305,7 +305,7 @@ export default {
         notice = toolNotice(reply)
       }
       if (notice) {
-        if (notes.size > 64) notes.clear() // a before without an after (rejected permission) must not leak
+        while (notes.size > 64) notes.delete(notes.keys().next().value) // drop the oldest: a before without an after (rejected permission) must not leak
         notes.set(event.id, notice)
       }
     })

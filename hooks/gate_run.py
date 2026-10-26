@@ -153,7 +153,10 @@ def opencode_event(event):
             event["tool_input"]["run_in_background"] = True
     elif name in ("edit", "write"):
         event["tool_name"] = "Write" if name == "write" else "Edit"
-        event["tool_input"] = dict(data, file_path=data.get("path", data.get("file_path", "")))
+        target = data.get("filePath", data.get("path", data.get("file_path", "")))
+        if not isinstance(target, str) or not target:
+            raise Unreadable("the OpenCode {} call names no file path, so the write cannot be read".format(name))
+        event["tool_input"] = dict(data, file_path=target)
     elif name == "patch":
         event["tool_name"] = "apply_patch"
         event["tool_input"] = dict(data, command=data.get("patchText", data.get("patch", "")))

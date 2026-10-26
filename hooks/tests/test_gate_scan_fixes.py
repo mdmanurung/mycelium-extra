@@ -322,6 +322,23 @@ class ScanFixTest(unittest.TestCase):
         ]:
             self.assertIsNone(self.bash(command), command)
 
+    def test_launchers_that_took_the_run_elsewhere_are_read(self):
+        for command in [
+            "echo analysis/x.py | xargs python",  # the script arrives on stdin
+            "parallel python ::: analysis/x.py",
+            "watch -n 5 python analysis/x.py",
+            "screen -dmS fit python analysis/x.py",
+            "tmux new -d 'python analysis/x.py'",
+            "tmux send-keys -t fit 'python analysis/x.py' Enter",
+            "ssh -p 22 node01 python analysis/x.py",  # a shared filesystem: the same repository path
+            "find analysis -name '*.py' -exec python {} \\;",  # `{}` is unresolved, like `$f`
+            "p=python; $p analysis/x.py",  # an unresolved command on a gated script
+        ]:
+            self.assertTrue(self.denied(self.bash(command)), command)
+        for command in ["find analysis -name '*.py'", "ssh node01 ls", "tmux ls", "echo x | xargs echo",
+                        "$EDITOR notes.md"]:
+            self.assertIsNone(self.bash(command), command)
+
     def test_an_option_value_that_names_state_is_a_state_write(self):
         self.assertTrue(self.denied(self.bash("python tools/y.py --out=.mycelium-extra/x.json")))
         self.assertIsNone(self.bash("python tools/y.py --out=outputs/x.json"))

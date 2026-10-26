@@ -120,7 +120,9 @@ class GateInitTest(unittest.TestCase):
         run(self.root)
         with open(self.ignore, "rb") as handle:
             self.assertEqual(handle.read(), b"# caf\xe9\n*.pyc\n# mycelium-extra approval gate: "
-                             b"short-lived execution state\n.mycelium-extra/\n")
+                             b"short-lived execution state\n.mycelium-extra/\n# mycelium-extra verify: write lock and "
+                             b"in-flight transaction, never committed\n**/provenance/.publish.lock\n"
+                             b"**/provenance/.transactions/\n")
 
     def test_dry_run_writes_nothing(self):
         run(self.root, "--dry-run")

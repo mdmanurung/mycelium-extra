@@ -49,8 +49,8 @@ ABLATIONS = [
     ("A-15", "gate", '        if explore:\n            return deny("mycelium-extra gate: the exploratory-run prefix',
      '        if False:\n            return deny("mycelium-extra gate: the exploratory-run prefix', "G-03"),
     ("A-16", "gate_run", "            policy = value\n", '            policy = "allow"\n', "G-13"),
-    ("A-17", "gate", '            if (rel is None and (first or SCRIPT_EXT.search(value)) and re.search(r"[$`]", value)\n',
-     '            if (False and (first or SCRIPT_EXT.search(value)) and re.search(r"[$`]", value)\n', "G-14"),
+    ("A-17", "gate", '            if (rel is None and (first or SCRIPT_EXT.search(value)) and (re.search(r"[$`]", value) or value == "{}")\n',
+     '            if (False and (first or SCRIPT_EXT.search(value)) and (re.search(r"[$`]", value) or value == "{}")\n', "G-14"),
 ]
 
 
