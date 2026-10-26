@@ -2,6 +2,12 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [Unreleased]
+
+### Fixed
+
+- **tests:** `tests/test_manuscript_native_grader.py` failed in CI since the 0.18.1 runbook landed: it runs the runbook under a fresh `HOME`, which drops CI's global `safe.directory`, so git refused the root-owned checkout. The test sets `safe.directory=*` through `GIT_CONFIG_COUNT` for the runbook only.
+
 ## [0.19.1] - 2026-10-26
 
 ### Fixed

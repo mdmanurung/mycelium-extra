@@ -115,7 +115,10 @@ class NativeRunbookWithShim(unittest.TestCase):
         home = tempfile.mkdtemp(prefix="home-", dir=cls.tmp)
         env = {k: v for k, v in os.environ.items() if k not in harness.SCRUB}
         env.update(harness.IDENTITY)
-        env.update({"PATH": cls.bin + os.pathsep + env.get("PATH", "/usr/bin:/bin"), "HOME": home, "TZ": "UTC"})
+        env.update({"PATH": cls.bin + os.pathsep + env.get("PATH", "/usr/bin:/bin"), "HOME": home, "TZ": "UTC",
+                    # a fresh HOME drops CI's global safe.directory; the container runs as root over a checkout
+                    # another uid owns, and the runbook reads the plugin's git state
+                    "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "safe.directory", "GIT_CONFIG_VALUE_0": "*"})
         line = (approval if approval is not None else "approve plan " + cls.digest) + "\n"
         proc = subprocess.run(["sh", RUNBOOK, scenario, work], input=line.encode(), env=env,
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
