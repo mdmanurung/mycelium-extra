@@ -39,6 +39,7 @@ These come from decisions already locked in this repository. A task that would b
 | 12 | Agentic reasoning: heuristics, objection classification, post-report reading | [12-agentic-reasoning.md](12-agentic-reasoning.md) |
 | 13 | Function audit: 2026-10-20 coherence and ultracode findings, E1b real-run follow-ups | [13-function-audit.md](13-function-audit.md) |
 | 14 | New plans: recipes, data profile, scope-loss summary, overlap advisory, science library | [14-newplans.md](14-newplans.md) |
+| 15 | Lucid-coder bundles: manuscript-audit shipped in 0.18.0; checker input hardening, existing-outputs probe, failure-mode rows, recipe gaps | [15-lucidcoder.md](15-lucidcoder.md) |
 
 Phases are a suggested order, not a gate; a task may start once its dependencies are done. B5 is a decision for the maintainer, not a build task, and has no phase.
 
@@ -85,6 +86,7 @@ Every task uses these fields, under a `### <ID>: <title>` heading:
 - [12-agentic-reasoning.md](12-agentic-reasoning.md): M0 to M4 reasoning contracts in grill, plan-review and verify; M5 (live Socratic study) parked.
 - [13-function-audit.md](13-function-audit.md): every finding of the 2026-10-20 audits (6 coherence, 40 confirmed and 25 contested candidates) with a status per row; E1b real-run follow-ups.
 - [14-newplans.md](14-newplans.md): the unified roadmap for the two 2026-10-23 plan bundles; M1 to M4 shipped in `0.16.0`; original method guides extend `grill`.
+- [15-lucidcoder.md](15-lucidcoder.md): triage of the six 2026-10-26 `plans-lucidcoder/` bundles; S1 to S6 shipped in `0.18.0`, N1 to N5 to build, L1 to L6 wait for a real case.
 
 ## Updating this roadmap
 
