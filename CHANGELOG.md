@@ -4,6 +4,8 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-26
+
 ### Changed
 
 - **grill:** the brief's section rules (tags, `Inputs:`/`Outputs:` paths, the table's cells and how the card quotes them, run blocks, plan evidence) moved from `SKILL.md` section 4 into `references/brief-format.md`, which section 4 points at; the steps, statuses, quoted-question template and status line stay in `SKILL.md`. The markers the gate and `verify` read are unchanged.
