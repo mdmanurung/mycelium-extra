@@ -14,6 +14,7 @@ SKILL = os.path.join(HERE, "..")
 SCRIPT = os.path.join(SKILL, "scripts", "new_analysis.py")
 TEMPLATES = os.path.join(SKILL, "templates")
 GATE = os.path.join(SKILL, "..", "..", "hooks", "gate.py")
+AUDIT = os.path.join(SKILL, "..", "manuscript-audit", "scripts", "manuscript_audit.py")
 STEPS = ["01_prepare_data.R", "02_train_model.py", "03_explore_model.ipynb"]
 
 
@@ -260,6 +261,108 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertIn("lowercase-with-hyphens", out)
         self.assertIn("elsewhere/raw.csv is not under data/", out)
 
+    # --- manuscript panels -------------------------------------------------------------
+
+    def audit(self):
+        """manuscript-audit on the scaffold's contract, from the repository root."""
+        return subprocess.run([sys.executable, AUDIT, "--root", self.root, "--config",
+                               "analysis/demo-run/config/manuscript_checks.json"],
+                              stdout=subprocess.PIPE, universal_newlines=True)
+
+    def tree(self):
+        found = {}
+        for folder, _, names in os.walk(self.dest):
+            for name in names:
+                path = os.path.join(folder, name)
+                found[os.path.relpath(path, self.dest)] = read(path)
+        return found
+
+    def test_panels_add_stubs_map_and_contract(self):
+        write(os.path.join(self.root, "data", "DATA_MANIFEST.md"), "# Data\n")
+        out = self.scaffold("--panels=Fig1a.R,Fig1b.py")
+        for path in ("code/plot_Fig1a.R", "code/plot_Fig1b.py", "config/figure_map.tsv",
+                     "config/manuscript_checks.json"):
+            self.assertIn(path, out)
+            self.assertTrue(os.path.isfile(os.path.join(self.dest, path)), path)
+        rows = read(os.path.join(self.dest, "config", "figure_map.tsv")).splitlines()
+        self.assertEqual(rows[0].split("\t")[:3], ["figure", "script", "source_data"])
+        self.assertEqual([r.split("\t")[1] for r in rows[1:]],
+                         ["analysis/demo-run/code/plot_Fig1a.R", "analysis/demo-run/code/plot_Fig1b.py"])
+        contract = json.loads(read(os.path.join(self.dest, "config", "manuscript_checks.json")))
+        self.assertEqual(contract["data_manifest"], "data/DATA_MANIFEST.md")
+        self.assertEqual(self.audit().returncode, 3)  # nothing released yet: a gap, never a pass
+
+    def test_panels_need_a_repository(self):
+        with tempfile.TemporaryDirectory() as bare:
+            proc = run(bare, "--dest=analysis/x", "--panels=Fig1a.R")
+            self.assertEqual(proc.returncode, 1)
+            self.assertIn("needs a git or Mycelium repository", proc.stdout)
+        for bad in ("Fig 1.R", "Fig1a.ipynb", "Fig1a.R,Fig1a.py"):
+            self.assertEqual(run(self.root, "--dest=analysis/demo-run", "--panels=" + bad).returncode, 1, bad)
+
+    def test_retrofit_adds_only_missing_files_and_never_overwrites(self):
+        self.scaffold()
+        mine = "figure\tscript\tsource_data\nFig3e\tcode/mine.R\tsrc.tsv\n"
+        write(os.path.join(self.dest, "config", "figure_map.tsv"), mine)
+        before = self.tree()
+        dry = self.scaffold("--panels=Fig1a.R", "--dry-run")
+        self.assertIn("would add code/plot_Fig1a.R", dry)
+        self.assertIn("kept config/figure_map.tsv", dry)
+        self.assertEqual(self.tree(), before)
+        self.scaffold("--panels=Fig1a.R")
+        after = self.tree()
+        self.assertEqual(set(after) - set(before), {"code/plot_Fig1a.R", "config/manuscript_checks.json"})
+        self.assertEqual({p: after[p] for p in before}, before)  # every existing byte unchanged
+        again = self.scaffold("--panels=Fig1a.R")
+        self.assertNotIn("added code", again)
+        self.assertEqual(self.tree(), after)
+
+    def test_retrofit_refuses_a_symlinked_code_folder(self):
+        self.scaffold()
+        outside = tempfile.mkdtemp()
+        try:
+            shutil.rmtree(os.path.join(self.dest, "code"))
+            os.symlink(outside, os.path.join(self.dest, "code"))
+            proc = run(self.root, "--dest=analysis/demo-run", "--panels=Fig1a.R")
+            self.assertEqual(proc.returncode, 1)
+            self.assertEqual(os.listdir(outside), [])
+        finally:
+            shutil.rmtree(outside)
+
+    def render_only(self, interpreter, stub, run_dir):
+        """Run the stub without its export section: the panel must redraw from the released table alone."""
+        text = read(stub)
+        head, _, rest = text.partition("# ---- 1.")
+        script = os.path.join(self.root, "render_only" + os.path.splitext(stub)[1])
+        write(script, head + "# ---- 2." + rest.partition("# ---- 2.")[2])
+        return subprocess.run([interpreter, script, run_dir], cwd=self.root, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, universal_newlines=True)
+
+    def check_stub_renders_from_source_only(self, interpreter, panel):
+        self.scaffold("--panels=" + panel)
+        stub = os.path.join(self.dest, "code", "plot_" + panel)
+        run_dir = os.path.join(self.dest, "outputs", "run_20261026_demo")
+        proc = subprocess.run([interpreter, stub, run_dir], cwd=self.root, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, universal_newlines=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        os.symlink("run_20261026_demo", os.path.join(self.dest, "outputs", "current"))
+        self.assertEqual(self.audit().returncode, 0, self.audit().stdout)
+        figure = os.path.join(run_dir, "figures", panel.split(".")[0] + ".pdf")
+        os.remove(figure)
+        self.assertEqual(self.render_only(interpreter, stub, run_dir).returncode, 0)  # the table suffices
+        self.assertTrue(os.path.isfile(figure))
+        os.remove(os.path.join(run_dir, "source_data", panel.split(".")[0] + ".tsv"))
+        self.assertNotEqual(self.render_only(interpreter, stub, run_dir).returncode, 0)  # and is required
+
+    @unittest.skipUnless(subprocess.run([sys.executable, "-c", "import matplotlib"],
+                                        stderr=subprocess.DEVNULL).returncode == 0, "matplotlib is not installed")
+    def test_python_panel_renders_from_its_source_table_alone(self):
+        self.check_stub_renders_from_source_only(sys.executable, "Fig1b.py")
+
+    @unittest.skipUnless(shutil.which("Rscript"), "Rscript is not on PATH")
+    def test_r_panel_renders_from_its_source_table_alone(self):
+        self.check_stub_renders_from_source_only(shutil.which("Rscript"), "Fig1a.R")
+
     def gate_decision(self, command):
         write(os.path.join(self.root, ".mycelium-extra", "gate.json"), "{}\n")
         event = {"cwd": self.root, "hook_event_name": "PreToolUse", "tool_name": "Bash",
@@ -273,6 +376,7 @@ class NewAnalysisTest(unittest.TestCase):
                "/plugin/skills/new-analysis/scripts/new_analysis.py"
         self.assertIsNone(self.gate_decision(
             "python3 - --dest=analysis/demo-run --data=data/anndatas/cells.h5ad" + tail))
+        self.assertIsNone(self.gate_decision("python3 - --dest=analysis/demo-run --panels=Fig1a.R,Fig1b.py" + tail))
         # A bare positional path is read as the script to run, which is why SKILL.md
         # always uses --flag=value.
         self.assertEqual(self.gate_decision("python3 - --dest analysis/demo-run" + tail), "deny")

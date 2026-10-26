@@ -4,6 +4,10 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Added
+
+- **new-analysis:** `--panels=Fig1a.R,Fig1b.py` adds a manuscript layer: a `code/plot_<panel>` stub per panel that exports the plotted values to `<run>/source_data/<panel>.tsv` and then draws the figure from that table alone, plus `config/figure_map.tsv` and `config/manuscript_checks.json`, which `manuscript-audit` checks. On an existing folder it adds only the missing manuscript files and never overwrites one, so it can retrofit a manuscript folder (checked as a dry run on bmv's `analysis/manuscript`). The reference page now shows the `code/` and `plans/` layout from 0.18.0.
+
 ## [0.18.1] - 2026-10-26
 
 ### Added

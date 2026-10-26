@@ -3,7 +3,7 @@
 Run from stdin so Mycelium's hooks stay closed, with every option in --flag=value form
 (the approval gate reads a bare analysis/... argument as a script to run):
     sh <plugin>/hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb]
-              [--data=PATH ...] [--code=PATH ...] [--doc-template=PATH]
+              [--data=PATH ...] [--code=PATH ...] [--doc-template=PATH] [--panels=Fig1a.R,Fig1b.py]
               --templates=<skill-dir>/templates [--dry-run] < new_analysis.py
 
 Creates <dest>/ with numbered step stubs in code/, a Snakefile that runs them in
@@ -13,6 +13,10 @@ Mycelium repository, README.md elsewhere), and data/ code/ plans/ outputs/ logs/
 linked shared code. Refuses a non-empty <dest>, never
 overwrites, and writes nothing outside <dest> except an empty lock file, .<name>.scaffold.lock, that it
 leaves in the parent folder. Stdlib-only; runs on Python 3.9+.
+
+--panels adds a manuscript layer: one code/plot_<panel> stub per panel, config/figure_map.tsv and
+config/manuscript_checks.json for manuscript-audit, with repository-relative paths. On a non-empty
+<dest> it adds only the manuscript files that are missing and never overwrites one that exists.
 """
 
 import argparse
@@ -26,6 +30,7 @@ import shutil
 import tempfile
 import sys
 
+PANEL = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*)\.(R|py)$")
 STEP = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*)\.(R|py|ipynb)$")
 DEFAULT_STEPS = "01_prepare_data.R,02_train_model.py,03_explore_model.ipynb"
 DIRS = ["data", "code", "plans", "outputs", "logs", "reports"]
@@ -103,6 +108,85 @@ def parse_steps(text):
     for before, step in zip([None] + steps, steps):
         step["input"] = before["output"] if before else None
     return steps
+
+
+def parse_panels(text):
+    panels, seen = [], set()
+    for name in [part.strip() for part in text.split(",") if part.strip()]:
+        match = PANEL.match(name)
+        if not match:
+            raise Refusal("panel {!r} must look like Fig1a.R or Fig1a.py".format(name))
+        if match.group(1) in seen:
+            raise Refusal("panel {} is named twice".format(match.group(1)))
+        seen.add(match.group(1))
+        panels.append({"id": match.group(1), "kind": match.group(2), "file": "plot_" + name,
+                       "path": "code/plot_" + name})
+    if not panels:
+        raise Refusal("--panels is empty")
+    return panels
+
+
+def manuscript_files(panels, name, dest_rel, root, templates):
+    """Plot stubs, the figure map and the manuscript-audit contract, every path repository-relative."""
+    current = dest_rel + "/outputs/current"  # the released run; the stub's Release line says how to set it
+    files, rows, figures = {}, [], []
+    for panel in panels:
+        script = dest_rel + "/" + panel["path"]
+        source = "{}/source_data/{}.tsv".format(current, panel["id"])
+        output = "{}/figures/{}.pdf".format(current, panel["id"])
+        files[panel["path"]] = fill(read(os.path.join(templates, "plot_panel." + panel["kind"])), {
+            "FILE": panel["file"], "PANEL": panel["id"], "NAME": name, "PATH": script, "DEST": dest_rel})
+        rows.append("\t".join([panel["id"], script, source, output, "[claim]", "draft"]))
+        figures.append({"id": panel["id"], "script": script, "source_data": source,
+                        "required_columns": ["x", "y"], "outputs": [output]})
+    files["config/figure_map.tsv"] = "\n".join(["figure\tscript\tsource_data\toutput\tclaim\tstatus"] + rows) + "\n"
+    contract = {"schema": "mycelium-extra.manuscript_checks.v1", "figure_map": dest_rel + "/config/figure_map.tsv",
+                "figures": figures}
+    if os.path.isfile(os.path.join(root, "data", "DATA_MANIFEST.md")):
+        contract["data_manifest"] = "data/DATA_MANIFEST.md"
+    files["config/manuscript_checks.json"] = json.dumps(contract, indent=2) + "\n"
+    return files
+
+
+def checked(path, text):
+    """Refuse a file with an unfilled placeholder or a Python stub that does not compile."""
+    if "@@" in text:
+        raise Refusal("unresolved template placeholder in " + path)
+    if path.endswith(".py"):
+        compile(text, path, "exec")
+
+
+def manuscript_root(dest):
+    root = find_root(dest)
+    if root is None:
+        raise Refusal("--panels needs a git or Mycelium repository: the contract names repository-relative paths")
+    if root == dest:
+        raise Refusal("{} is the repository root".format(dest))
+    return root
+
+
+def add_panels(args, dest):
+    """Retrofit a non-empty folder: write each missing manuscript file, keep every one that exists."""
+    root = manuscript_root(dest)
+    dest_rel = display(dest, root).replace(os.sep, "/")
+    files = manuscript_files(parse_panels(args.panels), os.path.basename(dest), dest_rel, root, args.templates)
+    for folder in ("code", "config"):
+        if os.path.islink(os.path.join(dest, folder)):
+            raise Refusal("{}/{} is a symlink; nothing was changed".format(dest_rel, folder))
+    for path, text in files.items():
+        checked(path, text)
+    missing = [path for path in sorted(files) if not os.path.lexists(os.path.join(dest, path))]
+    print("{} {}/ (manuscript files only; existing files are kept)".format(
+        "would add to" if args.dry_run else "added to", dest_rel))
+    for path in sorted(files):
+        print("  {} {}".format(("would add" if args.dry_run else "added") if path in missing else "kept", path))
+    if args.dry_run:
+        return 0
+    for path in missing:
+        os.makedirs(os.path.dirname(os.path.join(dest, path)), exist_ok=True)
+        with open(os.path.join(dest, path), "x", encoding="utf-8") as handle:  # "x": never overwrite
+            handle.write(files[path])
+    return 0
 
 
 def plan_links(paths, kind, dest, root):
@@ -276,6 +360,7 @@ def main(argv):
     default_templates = (os.path.join(os.path.dirname(os.path.abspath(here)), "..", "templates")
                          if here and os.path.isfile(here) else None)
     parser.add_argument("--templates", default=default_templates, help="this skill's templates/")
+    parser.add_argument("--panels", help="comma-separated manuscript panels, e.g. Fig1a.R,Fig1b.py")
     parser.add_argument("--dry-run", action="store_true", help="report what would change, write nothing")
     args = parser.parse_args(argv)
     if not args.templates or not os.path.isdir(args.templates):
@@ -295,8 +380,10 @@ def scaffold(args):
     if os.path.exists(dest) and not os.path.isdir(dest):
         raise Refusal("{} exists and is not a folder".format(args.dest))
     if os.path.isdir(dest) and os.listdir(dest):
+        if args.panels:
+            return add_panels(args, dest)
         raise Refusal("{} exists and is not empty; nothing was changed".format(args.dest))
-    root = find_root(dest)
+    root = manuscript_root(dest) if args.panels else find_root(dest)
     if root == dest:
         raise Refusal("{} is the repository root".format(args.dest))
     mycelium = root is not None and os.path.isdir(os.path.join(root, ".living"))
@@ -323,6 +410,9 @@ def scaffold(args):
     files["run.sbatch"] = fill(read(os.path.join(templates, "run.sbatch")), {"NAME": name})
     files[doc_name] = doc_text(read(template_path), name, dest_rel, steps, data_links,
                                code_links, root)
+    if args.panels:
+        files.update(manuscript_files(parse_panels(args.panels), name, dest_rel.replace(os.sep, "/"), root, templates))
+    folders = DIRS + (["config"] if args.panels else [])
     inputs = ", ".join(display(l["target"], root) for l in data_links) or (
         "[repository paths of the sample table, config, or raw-data folder; or none]")
     files["plans/PLAN.md"] = fill(read(os.path.join(templates, "PLAN.md")), {
@@ -337,7 +427,7 @@ def scaffold(args):
             for ident, before, s in zip(ids, [None] + ids, steps))})
 
     probes = [(os.path.join(dest, path), path) for path in sorted(files)]
-    probes += [(os.path.join(dest, d, "placeholder"), d + "/") for d in DIRS]
+    probes += [(os.path.join(dest, d, "placeholder"), d + "/") for d in folders]
     hidden = ignored(root, probes) if root else {}
 
     verb = "would create" if args.dry_run else "created"
@@ -350,14 +440,11 @@ def scaffold(args):
             fcntl.flock(fd, fcntl.LOCK_EX)
             stage = tempfile.mkdtemp(prefix="." + name + ".stage-", dir=parent)
             try:
-                for folder in DIRS:
+                for folder in folders:
                     os.mkdir(os.path.join(stage, folder))
                 for path, text in files.items():
-                    if "@@" in text:
-                        raise Refusal("unresolved template placeholder in " + path)
-                    if path.endswith(".py"):
-                        compile(text, path, "exec")
-                    elif path.endswith(".ipynb"):
+                    checked(path, text)
+                    if path.endswith(".ipynb"):
                         book = json.loads(text)
                         for cell in book["cells"]:
                             if cell["cell_type"] == "code":
@@ -381,7 +468,9 @@ def scaffold(args):
 
     print("{} {}/ (doc {} from {})".format(verb, dest_rel, doc_name, template_note))
     for path in [s["path"] for s in steps] + ["Snakefile", "run.sh", "run.sbatch", doc_name,
-                                              "plans/PLAN.md", "plans/TRACKER.md"] + [d + "/" for d in DIRS]:
+                                              "plans/PLAN.md", "plans/TRACKER.md"] + sorted(
+                                                  p for p in files if p.startswith(("config/", "code/plot_"))) + [
+                                                  d + "/" for d in folders]:
         print("  " + path)
     for link in data_links + code_links:
         print("  {} -> {}".format(link["rel"], link["value"]))

@@ -39,7 +39,7 @@ Checks what ran against the approved plan and saves provenance once you confirm.
 
 ## new-analysis
 
-Scaffolds a new analysis folder. See [new-analysis](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/new-analysis.md).
+Scaffolds a new analysis folder. With `--panels`, it adds a manuscript layer (a plot stub per panel, a figure map and a `manuscript-audit` contract), also to an existing folder without overwriting anything. See [new-analysis](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/new-analysis.md).
 
 ## plot-first
 

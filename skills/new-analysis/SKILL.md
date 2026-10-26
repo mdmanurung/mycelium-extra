@@ -31,6 +31,10 @@ Take these from the user's message. Ask only if the destination is missing. Aski
   - `--data=` for each file or folder the analysis reads. Prefer entries under the repository's `data/`.
   - `--code=` for shared code, such as `algorithms/<name>/`, `src/`, or `R/`.
   - The folders hold symlinks only. Mycelium's rule is to reference earlier work by path, never copy it.
+- **Panels (manuscript only).** `--panels=Fig1a.R,Fig1b.py` when the folder makes manuscript figures.
+  - Each panel gets `code/plot_<panel>`, a stub that exports the plotted values to `<run>/source_data/<panel>.tsv` and then draws the figure from that table alone.
+  - It also gets a row in `config/figure_map.tsv` and an entry in `config/manuscript_checks.json`, the contract `manuscript-audit` checks. Paths are repository-relative and point at `outputs/current/`, the released run.
+  - On a folder that already exists, `--panels` adds only the missing manuscript files and keeps every existing one byte for byte. Use it to retrofit a manuscript folder.
 - **Scope.** One sentence on the question the analysis answers.
 
 ## 2. Dry run, then create
@@ -38,7 +42,7 @@ Take these from the user's message. Ask only if the destination is missing. Aski
 Run from the repository root, from stdin:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb] [--data=PATH ...] [--code=PATH ...] \
+sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb] [--data=PATH ...] [--code=PATH ...] [--panels=Fig1a.R,...] \
   --templates=<skill-dir>/templates --dry-run < <skill-dir>/scripts/new_analysis.py
 ```
 
@@ -82,6 +86,7 @@ Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and c
   - Mycelium's `register_value` writes `outputs/numbers.json` there.
   - The robust-analysis protocols name subfolders such as `outputs/figures/diagnostic/`. Keeping `outputs/` flat, with `diag_` and `supp_` prefixes instead, holds only once it is recorded as a repo-local convention in `.living/conventions.md`. Mycelium applies repo-local conventions before domain and core ones.
 - **`run.sbatch`** submits `run.sh` to SLURM; its output goes to `logs/slurm-%x-%j.out`.
+- **`config/` and `code/plot_<panel>`** (with `--panels`) tie each figure to its script and source data. Run a stub as `Rscript <dest>/code/plot_<panel>.R <dest>/outputs/run_<date>_<slug>`, point `outputs/current` at the run to release, fill each `figure_map.tsv` claim, and replace the stub's `x`/`y` columns in `required_columns`. Check with `manuscript-audit`: `python3 <plugin>/skills/manuscript-audit/scripts/manuscript_audit.py --root . --config <dest>/config/manuscript_checks.json`.
 - **`logs/`** holds Snakemake and SLURM logs, benchmarks, and executed notebook copies.
 - **`reports/`** belongs to Mycelium's report skill.
 
