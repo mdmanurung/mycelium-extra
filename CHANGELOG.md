@@ -4,6 +4,8 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-10-26
+
 ### Added
 
 - **grill:** before writing the `Outputs:` line, grill looks for each path. A path that already exists, or a step that skips when its output exists, needs a fresh run folder or the user's `(overwrite)` after it; the gate reads only the path.
