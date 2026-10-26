@@ -13,12 +13,20 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import sys
 import tempfile
 
 SCHEMA = "mycelium-extra.manuscript_checks.v1"
 RESULT_SCHEMA = "mycelium-extra.contract_result.v1"
 MAX_TABLE_BYTES = 16 * 1024 * 1024  # check only small, published plot/source tables
+ALLOWED = {
+    "contract": {"schema", "data_manifest", "figures", "tables"},
+    "figure": {"id", "script", "source_data", "required_columns", "outputs"},
+    "table": {"id", "file", "key_columns", "required_columns", "finite_numeric_columns",
+              "nonnegative_integer_columns", "ratio_invariant"},
+    "ratio_invariant": {"numerator", "denominator", "fraction", "tolerance"},
+}
 
 
 class UsageError(Exception):
@@ -76,15 +84,29 @@ def compare_fraction(num, den, value, tol=1e-8):
     return math.isclose(num / den, value, abs_tol=tol, rel_tol=tol)
 
 
-def checked_num(value, integer=False):
-    if value.strip() == "":
-        raise ValueError("missing numeric value")
-    n = float(value)
+def checked_num(value, column, integer=False):
+    """Parse one cell; an error names the column, never the cell's value."""
+    value = value.strip()
+    if value == "":
+        raise ValueError("column " + column + ": missing numeric value")
+    if integer:
+        if not re.fullmatch(r"[0-9]+", value):
+            raise ValueError("column " + column + ": not a nonnegative integer count")
+        return int(value)
+    try:
+        n = float(value)
+    except ValueError:
+        raise ValueError("column " + column + ": not a number") from None
     if not math.isfinite(n):
-        raise ValueError("non-finite numeric value")
-    if integer and (n < 0 or not n.is_integer()):
-        raise ValueError("not a nonnegative integer count")
+        raise ValueError("column " + column + ": non-finite numeric value")
     return n
+
+
+def unknown_keys(entry, kind):
+    """Name the first undeclared key, so a misspelled check is a gap, not a silent skip."""
+    extra = sorted(set(entry) - ALLOWED[kind])
+    if extra:
+        raise ValueError("unknown " + kind + " key: " + extra[0])
 
 
 def column_list(value, what):
@@ -125,6 +147,7 @@ def evaluate(root, config_rel):
             raise ValueError("figures and tables must be lists")
         if not cfg.get("figures") and not cfg.get("tables"):
             raise ValueError("at least one figure or table contract required")
+        unknown_keys(cfg, "contract")
     except (OSError, UnicodeDecodeError, ValueError, TypeError) as e:
         add("config", "gap", "Unreadable or invalid contract: " + str(e))
         return make_result(contract, inputs, checks)
@@ -150,13 +173,14 @@ def evaluate(root, config_rel):
         seen_ids.add(fid)
         base = "figure:" + fid
         try:
+            unknown_keys(fig, "figure")
             required = column_list(fig["required_columns"], "required_columns")
         except ValueError as e:
             add(base, "gap", str(e))
             continue
-        outputs = fig.get("outputs", [])
+        outputs = fig.get("outputs")
         if not isinstance(outputs, list) or not all(isinstance(x, str) and x.strip() for x in outputs):
-            add(base, "gap", "outputs must be a list of project-relative paths")
+            add(base, "gap", "outputs must be a list of project-relative paths; use [] for a source-only declaration")
             continue
         try:
             script = observe(fig["script"])
@@ -171,6 +195,8 @@ def evaluate(root, config_rel):
                     continue
                 missing = sorted(set(required) - set(cols))
                 add(base + ":source", "block" if missing else "pass", "Missing declared plotting columns: " + ", ".join(missing) if missing else "All declared plotting columns present (not proof all actual aesthetics declared)", n_rows=len(rows))
+            if not outputs:
+                add(base + ":output", "pass", "Source-only declaration: no rendered output declared or checked")
             for output in outputs:
                 output_path = observe(output)
                 add(base + ":output:" + output, "pass" if output_path else "gap", "Figure output present" if output_path else "Figure output not observed")
@@ -189,6 +215,7 @@ def evaluate(root, config_rel):
         seen_tables.add(tid)
         base = "table:" + tid
         try:
+            unknown_keys(tbl, "table")
             keys = column_list(tbl["key_columns"], "key_columns")
             req_extra = tbl.get("required_columns", []) or []
             if req_extra:
@@ -219,9 +246,13 @@ def evaluate(root, config_rel):
                     add(base, "gap", "Malformed ratio_invariant declaration")
                     continue
                 try:
-                    tolerance = float(ratio.get("tolerance", 1e-8))
-                except (TypeError, ValueError):
-                    add(base, "gap", "ratio_invariant tolerance must be a number")
+                    unknown_keys(ratio, "ratio_invariant")
+                except ValueError as e:
+                    add(base, "gap", str(e))
+                    continue
+                tolerance = ratio.get("tolerance", 1e-8)
+                if isinstance(tolerance, bool) or not isinstance(tolerance, (int, float)):
+                    add(base, "gap", "ratio_invariant tolerance must be a JSON number")
                     continue
                 if not math.isfinite(tolerance) or tolerance < 0:
                     add(base, "gap", "ratio_invariant tolerance must be finite and nonnegative")
@@ -238,15 +269,16 @@ def evaluate(root, config_rel):
                 if any(not v.strip() for v in key):
                     problem = "missing key at row " + str(n); break
                 if key in ids:
-                    problem = "duplicate key at row " + str(n) + ": " + repr(key); break
+                    problem = "duplicate key at row " + str(n) + " in " + ", ".join(keys); break
                 ids.add(key)
                 try:
                     for col in counts:
-                        checked_num(row[col], integer=True)
+                        checked_num(row[col], col, integer=True)
                     for col in numeric:
-                        checked_num(row[col])
+                        checked_num(row[col], col)
                     if ratio:
-                        if not compare_fraction(checked_num(row[ratio["numerator"]]), checked_num(row[ratio["denominator"]]), checked_num(row[ratio["fraction"]]), tolerance):
+                        parts = [checked_num(row[ratio[k]], ratio[k]) for k in ("numerator", "denominator", "fraction")]
+                        if not compare_fraction(*parts, tolerance):
                             raise ValueError("fraction inconsistent with declared numerator/denominator")
                 except (ValueError, KeyError, TypeError) as err:
                     problem = "row " + str(n) + ": " + str(err); break
@@ -274,13 +306,10 @@ def make_result(contract, inputs, checks):
 
 
 def write_result(result, root, config_rel, dest):
-    """Save the result atomically, refusing to overwrite the contract or any declared input.
+    """Save the result atomically inside the project, refusing to overwrite the contract or any declared input.
 
-    A relative destination is resolved against the project root, like --config."""
-    dest = Path(dest).expanduser()
-    if not dest.is_absolute():
-        dest = root / dest
-    dest = dest.resolve()
+    The destination is project-relative, like --config; absolute or escaping paths are refused."""
+    dest = resolve_under(root, dest)
     protected = [resolve_under(root, config_rel)]
     protected += [root / item["path"] for item in result["inputs"]]
     if dest in [p.resolve() for p in protected]:

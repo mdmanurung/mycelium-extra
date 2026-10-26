@@ -35,7 +35,7 @@ class ManuscriptAuditTests(unittest.TestCase):
         (root / "outputs/freq.tsv").write_text(counts)
         (root / "data/README.md").write_text("Synthetic examples; no patient data.\n")
         cfg = {"schema": audit.SCHEMA, "data_manifest": "data/README.md",
-               "figures": [{"id": "Fig1a", "script": "script/Figure1.py", "source_data": "figures/source_data/Fig1a.tsv", "required_columns": ["sample_id", "condition", "fraction"]}],
+               "figures": [{"id": "Fig1a", "script": "script/Figure1.py", "source_data": "figures/source_data/Fig1a.tsv", "required_columns": ["sample_id", "condition", "fraction"], "outputs": []}],
                "tables": [{"id": "freq", "file": "outputs/freq.tsv", "key_columns": ["sample_id", "cell_type"], "nonnegative_integer_columns": ["cell_count", "total_count"], "finite_numeric_columns": ["fraction"], "ratio_invariant": {"numerator": "cell_count", "denominator": "total_count", "fraction": "fraction"}}]}
         (root / "config/checks.json").write_text(json.dumps(cfg))
         return cfg
@@ -140,13 +140,12 @@ class ManuscriptAuditTests(unittest.TestCase):
     def test_zero_tolerance_is_accepted(self):
         with tempfile.TemporaryDirectory() as x:
             root = Path(x); cfg = self.project(root)
-            cfg["tables"][0]["ratio_invariant"]["tolerance"] = "0"
+            cfg["tables"][0]["ratio_invariant"]["tolerance"] = 0
             (root / "config/checks.json").write_text(json.dumps(cfg))
             self.assertEqual(audit.evaluate(root, "config/checks.json")["status"], "pass")
 
     def test_symlink_escape_is_gap(self):
-        with tempfile.TemporaryDirectory() as x:
-            outside = tempfile.mkdtemp()
+        with tempfile.TemporaryDirectory() as x, tempfile.TemporaryDirectory() as outside:
             secret = Path(outside) / "private.tsv"
             secret.write_text("sample_id\tcondition\tfraction\nS1\tA\t0.25\n")
             root = Path(x); self.project(root)
@@ -176,6 +175,74 @@ class ManuscriptAuditTests(unittest.TestCase):
             res = audit.evaluate(root, "config/checks.json")
             self.assertEqual(res["status"], "gap")
 
+    # --- P0 repairs (MX01-MX04) ---------------------------------------------------
+
+    def rewrite(self, root, cfg):
+        (root / "config/checks.json").write_text(json.dumps(cfg))
+        return audit.evaluate(root, "config/checks.json")
+
+    def test_result_json_outside_project_is_refused(self):
+        with tempfile.TemporaryDirectory() as x, tempfile.TemporaryDirectory() as outside:
+            root = Path(x); self.project(root)
+            for dest in (os.path.join(outside, "r.json"), "../r.json", os.path.join(x, "outputs", "r.json")):
+                with self.subTest(dest=dest):
+                    code = audit.main(["--root", x, "--config", "config/checks.json", "--result-json", dest])
+                    self.assertEqual(code, 1)
+            self.assertEqual(os.listdir(outside), [])
+            self.assertFalse((root / "outputs/r.json").exists())
+
+    def test_counts_must_be_plain_digits(self):
+        for bad in ("5.0", "+5", "1e2", "1_0", "9007199254740992.5", "-1"):
+            with self.subTest(bad=bad), tempfile.TemporaryDirectory() as x:
+                root = Path(x)
+                self.project(root, counts="sample_id\tcell_type\tcell_count\ttotal_count\tfraction\nS1\tT\t1\t" + bad + "\t0.25\n")
+                res = audit.evaluate(root, "config/checks.json")
+                self.assertEqual(res["status"], "block")
+                self.assertIn("column total_count", str(res["checks"]))
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); self.project(root, counts="sample_id\tcell_type\tcell_count\ttotal_count\tfraction\nS1\tT\t 1 \t4\t0.25\n")
+            self.assertEqual(audit.evaluate(root, "config/checks.json")["status"], "pass")
+
+    def test_diagnostics_never_carry_cell_or_key_values(self):
+        sentinel = "DONOR_SENTINEL_7731"
+        header = "sample_id\tcell_type\tcell_count\ttotal_count\tfraction\n"
+        for counts in (header + sentinel + "\tT\t1\t4\t0.25\n" + sentinel + "\tT\t1\t4\t0.25\n",
+                       header + "S1\tT\t1\t4\t" + sentinel + "\n"):
+            with tempfile.TemporaryDirectory() as x:
+                root = Path(x); self.project(root, counts=counts)
+                res = audit.evaluate(root, "config/checks.json")
+                self.assertEqual(res["status"], "block")
+                self.assertNotIn(sentinel, json.dumps(res))
+
+    def test_unknown_keys_are_gap(self):
+        cases = [(lambda c: c.__setitem__("figure_mapp", "x"), "contract key: figure_mapp"),
+                 (lambda c: c["figures"][0].__setitem__("output", ["a.pdf"]), "figure key: output"),
+                 (lambda c: c["tables"][0].__setitem__("nonnegative_integer_colums", ["cell_count"]), "table key: nonnegative_integer_colums"),
+                 (lambda c: c["tables"][0]["ratio_invariant"].__setitem__("tol", 1), "ratio_invariant key: tol")]
+        for change, message in cases:
+            with self.subTest(message=message), tempfile.TemporaryDirectory() as x:
+                root = Path(x); cfg = self.project(root); change(cfg)
+                res = self.rewrite(root, cfg)
+                self.assertEqual(res["status"], "gap")
+                self.assertIn("unknown " + message, str(res["checks"]))
+
+    def test_tolerance_must_be_a_json_number(self):
+        for bad in (True, "0", "1e-3", None):
+            with self.subTest(bad=bad), tempfile.TemporaryDirectory() as x:
+                root = Path(x); cfg = self.project(root)
+                cfg["tables"][0]["ratio_invariant"]["tolerance"] = bad
+                self.assertEqual(self.rewrite(root, cfg)["status"], "gap")
+
+    def test_outputs_must_be_declared(self):
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); cfg = self.project(root)
+            del cfg["figures"][0]["outputs"]
+            self.assertEqual(self.rewrite(root, cfg)["status"], "gap")
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); self.project(root)
+            res = audit.evaluate(root, "config/checks.json")
+            self.assertIn("Source-only declaration", str(res["checks"]))
+
     # --- committed fixture is green ---------------------------------------------
 
     def test_committed_fixture_passes(self):
@@ -187,9 +254,10 @@ class ManuscriptAuditTests(unittest.TestCase):
 
     def verify_reader(self, result, files=None):
         verify = gate.load_verify()
-        path = Path(tempfile.mkdtemp()) / "result.json"
-        path.write_text(json.dumps(result))
-        return verify.read_result(str(path), {"files": files or {}})
+        with tempfile.TemporaryDirectory() as x:
+            path = Path(x) / "result.json"
+            path.write_text(json.dumps(result))
+            return verify.read_result(str(path), {"files": files or {}})
 
     def test_verify_reader_maps_green_to_passed(self):
         with tempfile.TemporaryDirectory() as x:
