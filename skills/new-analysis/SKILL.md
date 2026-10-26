@@ -86,7 +86,7 @@ Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and c
   - Mycelium's `register_value` writes `outputs/numbers.json` there.
   - The robust-analysis protocols name subfolders such as `outputs/figures/diagnostic/`. Keeping `outputs/` flat, with `diag_` and `supp_` prefixes instead, holds only once it is recorded as a repo-local convention in `.living/conventions.md`. Mycelium applies repo-local conventions before domain and core ones.
 - **`run.sbatch`** submits `run.sh` to SLURM; its output goes to `logs/slurm-%x-%j.out`.
-- **`config/` and `code/plot_<panel>`** (with `--panels`) tie each figure to its script and source data. Run a stub as `Rscript <dest>/code/plot_<panel>.R <dest>/outputs/run_<date>_<slug>`, point `outputs/current` at the run to release, fill each `figure_map.tsv` claim, and replace the stub's `x`/`y` columns in `required_columns`. Check with `manuscript-audit`: `python3 <plugin>/skills/manuscript-audit/scripts/manuscript_audit.py --root . --config <dest>/config/manuscript_checks.json`.
+- **`config/` and `code/plot_<panel>`** (with `--panels`) tie each figure to its script and source data. Run a stub as `Rscript <dest>/code/plot_<panel>.R <dest>/outputs/run_<date>_<slug>`, point `outputs/current` at the run to release, fill each `figure_map.tsv` claim, and replace the stub's `x`/`y` columns in `required_columns`. Check with `manuscript-audit` (its SKILL.md says how to run the checker without opening the post-action cycle). `outputs/current` must stay inside the repository: a symlink to scratch storage makes every declared path a gap.
 - **`logs/`** holds Snakemake and SLURM logs, benchmarks, and executed notebook copies.
 - **`reports/`** belongs to Mycelium's report skill.
 

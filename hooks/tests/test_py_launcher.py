@@ -52,7 +52,7 @@ class LauncherTest(unittest.TestCase):
 
     # X23: a hook with no interpreter at all must answer in the hook protocol, not exit 127 with no JSON
     def test_no_interpreter_still_answers_in_the_hook_protocol(self):
-        out = self.launch(["--hook", "PreToolUse", "-"], {"PATH": self.bin})
+        out = self.launch(["--hook", GATE_RUN, "tool"], {"PATH": self.bin})
         self.assertEqual(out.returncode, 0, out.stderr)
         payload = json.loads(out.stdout)
         self.assertIn("no Python interpreter was found", payload["systemMessage"])
@@ -65,7 +65,7 @@ class LauncherTest(unittest.TestCase):
         with open(os.path.join(root, ".mycelium-extra", "gate.json"), "w") as handle:
             handle.write('{"on_error": "deny"}')
         os.symlink(shutil.which("grep"), os.path.join(self.bin, "grep"))
-        out = self.launch(["--hook", "PreToolUse", "-"],
+        out = self.launch(["--hook", GATE_RUN, "tool"],
                           {"PATH": self.bin, "CLAUDE_PROJECT_DIR": root})
         self.assertEqual(out.returncode, 0, out.stderr)
         payload = json.loads(out.stdout)

@@ -1,6 +1,6 @@
 ---
 name: grill
-description: Read-only planning: turn a research, analysis, or software task into a sourced step-by-step plan and wait for approval before anything runs. Use to scope, plan, pressure-test, or promote explore runs; not for reviewing finished code or results (use Mycelium's review).
+description: "Read-only planning: turn a research, analysis, or software task into a sourced step-by-step plan and wait for approval before anything runs. Use to scope, plan, pressure-test, or promote explore runs; not for reviewing finished code or results (use Mycelium's review)."
 ---
 
 # Mycelium Extra: Grill

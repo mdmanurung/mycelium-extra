@@ -13,7 +13,7 @@ Read README, `AGENTS.md`/`CLAUDE.md` and, in a Mycelium project, `.living/conven
 
 ## 2. Inspect actual code, not only filenames
 
-Find the paper's figure/table map or construct an **explicitly proposed** one. Read representative full scripts/notebook code cells to trace two panels end to end: inputs → transformations → statistical result → figure script → exact plot source → panel file. Inspect scientifically consequential operations: replicate unit, raw counts vs normalized data, denominators, contrasts, model formula/heterogeneity, batch confounding, annotation edits and factor-score feature matching. Do not guess unavailable private datasets or treat a source file's presence as evidence it was executed.
+Find the paper's figure/table map or construct an **explicitly proposed** one. Read full scripts/notebook code cells to trace at least two panels end to end, chosen to cover the main claim and the most complex transformation (list the panels not traced under `Not established`): inputs → transformations → statistical result → figure script → exact plot source → panel file. Inspect scientifically consequential operations: replicate unit, raw counts vs normalized data, denominators, contrasts, model formula/heterogeneity, batch confounding, annotation edits and factor-score feature matching. Do not guess unavailable private datasets or treat a source file's presence as evidence it was executed.
 
 ## 3. Findings with evidence classes
 
@@ -28,13 +28,20 @@ Record both positive reproducibility features and issues, with severity and owne
 
 ## 4. Optional deterministic checks, never disguised as background verification
 
-For actual execution, offer a separate user-approved command:
+The checker reads a contract, `config/manuscript_checks.json` (schema `mycelium-extra.manuscript_checks.v1`; keys and an example in [the reference page](../../docs/reference/skills/manuscript-audit.md)). `new-analysis --panels` scaffolds one; in any other repository, propose the contract to the user and write it only when they approve, like any file. Published fractions are compared at a tolerance of 1e-8 unless the table declares `tolerance`, so rounded values need one.
 
-```bash
-python3 <skill-dir>/scripts/manuscript_audit.py --root . --config config/manuscript_checks.json --result-json outputs/manuscript_audit.json
-```
+Two ways to run it, never a third:
 
-Exit 0 = declared checks passed, 1 = usage error (nothing was judged), 2 = a declared invariant failed, 3 = gap (malformed or unavailable — never a pass). The tool checks ONLY declared figure-source columns, declared small keyed tables with count/fraction invariants, and file availability. It does not infer every plotting aesthetic, validate statistical inference, or authenticate producer execution; its result JSON (`mycelium-extra.contract_result.v1`) is read by `verify` like any other contract result. A planned check is not a performed check.
+- **Ad hoc, before approval**: stream the script on stdin so no file in the repository runs by path (running a script by path opens Mycelium's post-action cycle) and write no file:
+
+  ```bash
+  sh <skill-dir>/../../hooks/py.sh - --root . --config config/manuscript_checks.json < <skill-dir>/scripts/manuscript_audit.py
+  ```
+
+  Its result is a `test-executed` finding for this session only; `verify` cannot attribute it to a plan.
+- **Bound to a plan**: copy the script into the project (for example `tests/manuscript_audit.py`), list the copy and the contract in a validation binding's `test_paths`, and let the approved step run that copy by path with `--result-json outputs/manuscript_audit.json`. The gate pins the copy and matches the exact argv, and `verify` reads the result like any other contract result: exit 0 with no blocked check is a pass, a gap is "not run".
+
+Exit 0 = declared checks passed, 1 = usage error (nothing was judged), 2 = a declared invariant failed, 3 = gap (malformed or unavailable — never a pass). The tool checks ONLY that declared files exist, that declared plotting columns are present in the declared source-data table, and key uniqueness, digit-only counts, finite numerics and a numerator/denominator/fraction invariant on declared small tables. It does not infer every plotting aesthetic, validate statistical inference, or authenticate producer execution. A planned check is not a performed check.
 
 For sample design and batch/pairing use `/mycelium-extra:data-contract-check` rather than reimplementing. For expected-vs-executed model-field agreement use `skills/verify/scripts/method_fidelity.py` (which does not authenticate arbitrary fits). For recurring validated failures use `/mycelium-extra:harden`; require deliberate failing and passing fixtures before claiming structural mitigation.
 

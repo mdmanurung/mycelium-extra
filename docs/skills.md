@@ -16,7 +16,7 @@ This is a task map, not a list of commands to execute in sequence. Read the skil
 | Enable execution checks | `/mycelium-extra:init` |
 | Check a completed run | `/mycelium-extra:verify <hash>` |
 | Create an analysis folder | `/mycelium-extra:new-analysis analysis/<name>: <question>` |
-| Tie conclusions to plots | `/mycelium-extra:plot-first <analysis folder>` |
+| List which conclusions in an analysis cite an inspected plot | `/mycelium-extra:plot-first <analysis folder>` |
 | Resume in a fresh session | `/mycelium-extra:handoff` |
 | Say which analysis this session works on | type `focus <folder>` |
 | See what changed against the approved plan | `/mycelium-extra:track-changes` |

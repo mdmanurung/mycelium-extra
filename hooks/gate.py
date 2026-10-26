@@ -130,7 +130,7 @@ WRAPPER_FLAGS = {
 WRITE_ALL = {"rm", "rmdir", "mv", "tee", "touch", "truncate", "mkdir", "chmod", "chown", "shred",
              "unlink"}  # every path argument is written
 WRITE_LAST = {"cp", "ln", "install", "rsync", "scp"}  # only the destination is written
-HEAD_SKIP = {"sudo", "do", "then", "else", "elif", "!", "{", "if", "while", "until"}
+HEAD_SKIP = {"sudo", "do", "then", "else", "elif", "!", "{", "if", "while", "until", "function", "coproc"}
 WRITE_CODE = re.compile(
     r"""open\s*\([^)]*,\s*(mode\s*=\s*)?['"][^'"]*[wax+]|\.write(_text|_bytes|lines)?\s*\("""
     r"|\b(json|pickle)\.dump\s*\(|\bshutil\.\w+\s*\(|\bsubprocess\.|\bos\.system\s*\("
@@ -196,6 +196,8 @@ def _number(value):  # 0 is allowed: `approval_hours: 0` expires every approval,
 # numeric key -> (what it accepts, test); an invalid value is replaced by its default and named in a notice, as
 # `max_runs_per_approval` is, instead of aborting the hook. Mirrors CONFIG_RULES in skills/init/scripts/gate_init.py.
 CONFIG_CHECKS = (
+    ("gated_paths", "a list of strings", lambda v: isinstance(v, list) and all(isinstance(x, str) for x in v)),
+    ("gated_commands", "a list of strings", lambda v: isinstance(v, list) and all(isinstance(x, str) for x in v)),
     ("confirm_writes", "true or false", lambda v: isinstance(v, bool)),
     ("approval_hours", "a number of 0 or more", _number),
     ("pin_hash_mb", "a number of 0 or more", _number),
@@ -482,15 +484,21 @@ def tokenize(command, bodies=None, operators=None):
             in_word = True
             i += literal.end() if literal else n - i
         elif c in "'\"":
-            end = command.find(c, i + 1)
-            end = n if end < 0 else end
-            word.append(command[i + 1:end])
+            j = i + 1
+            while j < n and command[j] != c:
+                if c == '"' and command[j] == "\\" and command[j + 1:j + 2] in ('"', "\\"):
+                    j += 1  # a backslash escapes `"` and `\` inside double quotes: not the closing quote
+                word.append(command[j])
+                j += 1
             in_word = True
-            i = end + 1
+            i = j + 1
         elif c == "$" and command.startswith("$(", i):
             depth, j = 0, i
             while j < n:
-                if command[j] == "(":
+                if command[j] in "'\"":  # a quoted `)` does not close the substitution
+                    end = command.find(command[j], j + 1)
+                    j = n if end < 0 else end
+                elif command[j] == "(":
                     depth += 1
                 elif command[j] == ")":
                     depth -= 1
@@ -522,12 +530,14 @@ def tokenize(command, bodies=None, operators=None):
         elif c in ";&|()<>":
             in_word = flush()
             j = i
-            while j < n and command[j] == c and j - i < 2:
+            while j < n and command[j] == c and j - i < (3 if c == "<" else 2):  # `<<<`: a here-string
                 j += 1
             op = command[i:j]
             if op in ("<<",) and command.startswith("-", j):
                 j += 1
-            if c in "<>" and command.startswith("&", j):
+            if c == "|" and command.startswith("&", j):  # `|&`: stdout and stderr piped, one operator
+                j += 1
+            elif c in "<>" and command.startswith("&", j):
                 j += 1
                 while j < n and (command[j].isdigit() or command[j] == "-"):
                     j += 1
@@ -638,7 +648,7 @@ def move_folder(cwd, value):
     if not unknown:
         value = re.sub(r"\$(?:\{(PWD|HOME)\}|(PWD|HOME)(?![A-Za-z0-9_]))",
                        lambda m: cwd if "PWD" in m.group(0) else os.path.expanduser("~"), value)
-    if re.search(r"[$`]", value):
+    if re.search(r"[$`*?\[]", value):  # an expansion or a glob: the shell decides where this goes
         return cwd if unknown else UnknownFolder(cwd, value)
     path = os.path.normpath(os.path.join(cwd, os.path.expanduser(value)))
     return UnknownFolder(path, cwd.raw, cwd.readings) if unknown and not os.path.isabs(
@@ -670,7 +680,7 @@ def _classify(tokens, root, cwd, config, info=None):
     while i < len(tokens) and (tokens[i] in HEAD_SKIP or is_assignment(tokens[i])):
         if tokens[i] == EXPLORE_VAR + "=1":
             explore = True
-        i += 1
+        i += 2 if tokens[i] == "function" else 1  # `function NAME { ...`: the name is not the command
     previous, wrapper, unknown = "", None, False
     while i < len(tokens):
         word = os.path.basename(tokens[i])
@@ -692,7 +702,7 @@ def _classify(tokens, root, cwd, config, info=None):
                     import shlex
                     return explore, "recurse", [" ".join(shlex.quote(t) for t in tokens[j:])], cwd
             return explore, None, [], cwd
-        if RUNNERS.match(word) or word in config["gated_commands"]:
+        if RUNNERS.match(word) or word in config["gated_commands"] or word == "eval":
             break
         if "/" in tokens[i] and not is_assignment(tokens[i]) and not (
                 word in WRAPPERS and gated_rel(root, cwd, tokens[i], config) is None):
@@ -750,6 +760,8 @@ def _classify(tokens, root, cwd, config, info=None):
         paths += [p for p in (gated_rel(root, cwd, t, config) for j, t in enumerate(rest)
                               if not t.startswith("-") and j not in folder) if p]
         return explore, word, paths + ["wrap:" + w for w in wraps], cwd
+    if word == "eval":  # `eval "python analysis/x.py"`: the arguments are the command, as writes_state reads them
+        return explore, "recurse", [" ".join(rest)], cwd
     if RUNNERS.match(word):
         positional = None
         skip = False
@@ -762,7 +774,7 @@ def _classify(tokens, root, cwd, config, info=None):
                 continue
             if word in SHELLS and re.match(r"^-[A-Za-z]*c[A-Za-z]*$", token) and j + 1 < len(rest):
                 return explore, "recurse", [rest[j + 1]], cwd
-            if token in ("-c", "-e", "--eval") and j + 1 < len(rest):
+            if (token in ("-c", "-e", "--eval") or token == "<<<" and word not in SHELLS) and j + 1 < len(rest):
                 paths += paths_in_text(root, cwd, rest[j + 1], config)
                 skip = True
                 continue
@@ -813,7 +825,7 @@ def cd_target(cwd, tokens):
     target = rest[0] if rest else os.path.expanduser("~")
     if target == "-" or re.match(r"^[+-]\d+$", target):  # OLDPWD or the directory stack: not tracked here
         return move_folder(cwd, "$OLDPWD")
-    if re.search(r"[$`]", target):
+    if re.search(r"[$`*?\[]", target):  # an expansion or a glob: move_folder reads it as unresolved
         return move_folder(cwd, target)
     return os.path.normpath(os.path.join(cwd, os.path.expanduser(target)))
 
@@ -825,7 +837,10 @@ def substitutions(text):
         if text.startswith("$(", i):
             depth, j = 0, i
             while j < n:
-                if text[j] == "(":
+                if text[j] in "'\"":  # a quoted `)` does not close the substitution
+                    end = text.find(text[j], j + 1)
+                    j = n if end < 0 else end
+                elif text[j] == "(":
                     depth += 1
                 elif text[j] == ")":
                     depth -= 1
@@ -846,36 +861,40 @@ def substitutions(text):
 
 
 def scoped_segments(command, bodies=None):
-    """Like segments(), with parentheses kept as scope: yield (tokens, opened, closed, heredocs).
+    """Like segments(), with parentheses kept as scope: yield (tokens, opened, closed, heredocs, before).
 
     `closed` parentheses end before this segment and `opened` ones start before it, so
     `(cd D); cmd` reads cmd in the outer folder and `popd` is never mistaken for a plain cd.
-    `heredocs` holds this segment's `<<` bodies, in order.
+    `heredocs` holds this segment's `<<` bodies, in order; `before` is the separator that led to it
+    (`|` when the previous segment's output is its stdin).
     """
     bodies = [] if bodies is None else bodies
-    current, opened, closed, own, used = [], 0, 0, [], 0
+    current, opened, closed, own, used, before = [], 0, 0, [], 0, ""
     for token in tokenize(command, bodies):
         if token in ("<<", "<<-"):
             own.append(bodies[used])
             used += 1
         if token == "(":
             if current:
-                yield current, opened, closed, own
+                yield current, opened, closed, own, before
                 current, opened, closed, own = [], 0, 0, []
             opened += 1
+            before = token
         elif token == ")":
             if current:
-                yield current, opened, closed, own
+                yield current, opened, closed, own, before
                 current, opened, closed, own = [], 0, 0, []
             closed += 1
+            before = token
         elif is_separator(token):
             if current:
-                yield current, opened, closed, own
+                yield current, opened, closed, own, before
                 current, opened, closed, own = [], 0, 0, []
+            before = token
         else:
             current.append(token)
     if current:
-        yield current, opened, closed, own
+        yield current, opened, closed, own, before
 
 
 def reads_code(tokens):
@@ -892,19 +911,20 @@ def analyse_command(command, root, cwd, config):
     bodies = []
     parts = list(scoped_segments(command, bodies))
     virtual_cwd, stack, dirs = cwd, [], []  # stack: folders saved on `(`; dirs: folders saved on `pushd`
-    for index, (tokens, opened, closed, own) in enumerate(parts):
+    for index, (tokens, opened, closed, own, before) in enumerate(parts):
         for _ in range(closed):
             virtual_cwd = stack.pop() if stack else virtual_cwd
         for _ in range(opened):
             stack.append(virtual_cwd)
-        if tokens[0] == "cd":
-            virtual_cwd = cd_target(virtual_cwd, tokens)
+        plain = tokens[next((k for k, t in enumerate(tokens) if not is_assignment(t)), len(tokens) - 1):]
+        if plain[0] == "cd":  # `CDPATH=. cd DIR` moves like `cd DIR`
+            virtual_cwd = cd_target(virtual_cwd, plain)
             continue
-        if tokens[0] == "pushd":
+        if plain[0] == "pushd":
             dirs.append(virtual_cwd)
-            virtual_cwd = move_folder(virtual_cwd, "$OLDPWD") if len(tokens) == 1 else cd_target(virtual_cwd, tokens)
+            virtual_cwd = move_folder(virtual_cwd, "$OLDPWD") if len(plain) == 1 else cd_target(virtual_cwd, plain)
             continue
-        if tokens[0] == "popd":
+        if plain[0] == "popd":
             virtual_cwd = dirs.pop() if dirs else move_folder(virtual_cwd, "$OLDPWD")
             continue
         for inner in substitutions(" ".join(tokens)):  # `x=$(Rscript analysis/a.R)` runs that script
@@ -913,12 +933,25 @@ def analyse_command(command, root, cwd, config):
         # code that arrives on stdin: a heredoc or a pipe into a shell or a runner reading `-`
         following = parts[index + 1][0] if index + 1 < len(parts) else None
         code = list(own) if reads_code(tokens) else []
+        if reads_code(tokens):  # `bash <<< "cmd"`: the here-string is the shell's stdin
+            code += [tokens[k + 1] for k, t in enumerate(tokens[:-1]) if t == "<<<"]
         if following is not None and reads_code(following):
             code += [" ".join(tokens[1:])] + own
         for text in code:
             for result in analyse_command(text, root, virtual_cwd, config):
                 yield result
         explore, label, paths, run_cwd = classify(tokens, root, virtual_cwd, config)
+        if label is None and before in ("|", "|&"):
+            # a runner that names no script but is piped one (`cat analysis/x.py | python3 -`) is that script's
+            # run; a heredoc or echoed text is another language's data, not read (see the tests)
+            info = {}
+            _classify(tokens, root, virtual_cwd, config, info)
+            head = os.path.basename(tokens[info["head"]]) if "head" in info else ""
+            if RUNNERS.match(head) and head not in SHELLS:
+                fed = [r for r in (gated_rel(root, virtual_cwd, t, config) for t in parts[index - 1][0][1:]
+                                   if SCRIPT_EXT.search(t)) if r]
+                if fed:
+                    label, paths = head, fed
         if label == "recurse":
             for inner in analyse_command(paths[0], root, run_cwd, config):
                 yield (inner[0] or explore,) + inner[1:]
@@ -968,8 +1001,9 @@ def writes_state(command, root, cwd):
             if own and token in (">", ">>"):  # cat > run.py <<EOF: run.py's code is that heredoc
                 written[tokens[j + 1]] = "\n".join(own)
         own += [written[t] for t in tokens if t in written]
-        if tokens[0] in ("cd", "pushd"):
-            virtual_cwd = cd_target(virtual_cwd, tokens)
+        plain = tokens[next((k for k, t in enumerate(tokens) if not is_assignment(t)), len(tokens) - 1):]
+        if plain[0] in ("cd", "pushd"):
+            virtual_cwd = cd_target(virtual_cwd, plain)
             continue
 
         def inside(token):
@@ -1143,11 +1177,11 @@ def segment_writes(tokens, bodies, command, inside, root, cwd, ancestor=lambda t
                                or tokens[i].startswith("-") or previous in VALUE_FLAGS
                                or re.match(r"^\d+[smhd]?$", tokens[i])):
         previous = tokens[i]
-        i += 1
+        i += 2 if tokens[i] == "function" else 1
     if i >= len(tokens):
         return False
     head, args = os.path.basename(tokens[i]), tokens[i + 1:]
-    code = [args[j + 1] for j, t in enumerate(args[:-1]) if t in ("-c", "-e", "--eval")]
+    code = [args[j + 1] for j, t in enumerate(args[:-1]) if t in ("-c", "-e", "--eval", "<<<")]
     if head in SHELLS and any(SHELL_C.match(t) for t in args):
         # `-lc`, `-ec`, `-ce`, `-c -l CMD`: the payload is the first word that is not an option, and later
         # words (`$0`, arguments) are read too, so a reordering cannot hide the code
@@ -1159,9 +1193,11 @@ def segment_writes(tokens, bodies, command, inside, root, cwd, ancestor=lambda t
         if skip or token in code:
             skip = False
             continue
-        skip = token in (">", ">>", "<", "<<", "<<-")
+        skip = token in (">", ">>", "<", "<<", "<<-", "<<<")
         if not skip and not token.startswith("-") and not token.startswith(">"):
             positional.append(token)
+        elif token.startswith("-") and "=" in token:  # `--out=.mycelium-extra/x`: the value is a path
+            positional.append(token.split("=", 1)[1])
     if head in SHELLS:
         if any(writes_state(payload, root, cwd) for payload in code + bodies):
             return True
@@ -4166,7 +4202,7 @@ def prompt_commands(event, root, config):
         entry, shown = freeze_entry(root, config, freeze.group(1).lower())
         if entry:
             path = state_path(root, "pending", safe_session(event.get("session_id")) + ".json")
-            kept = [p for p in read_json(path, []) if p["hash"] != entry["hash"]]
+            kept = [p for p in read_json(path, []) if isinstance(p, dict) and p.get("hash") != entry["hash"]]
             write_json(path, (kept + [entry])[-10:])
         return {"decision": "block", "reason": shown}
     match = APPROVE.match(prompt)
@@ -4174,7 +4210,8 @@ def prompt_commands(event, root, config):
     if match and match.group(2) and not steps:  # a step number answers a checkpoint question; none is open
         match = None
     session = safe_session(event.get("session_id"))
-    pending = read_json(state_path(root, "pending", session + ".json"), [])
+    pending = [p for p in read_json(state_path(root, "pending", session + ".json"), [])
+               if isinstance(p, dict) and isinstance(p.get("hash"), str)]  # a hand-edited file holds no plan
     ask = CARD_ASK.match(prompt)
     if ask:  # answered here, so the agent never sees it
         plan = next((p for p in pending if p["hash"] == ask.group(1).lower()), None)
@@ -4285,7 +4322,7 @@ def on_stop(event, root, config):
         digest = sha256(text.encode("utf-8")).hexdigest()[:8]
         session = safe_session(event.get("session_id"))
         path = state_path(root, "pending", session + ".json")
-        pending = read_json(path, [])
+        pending = [p for p in read_json(path, []) if isinstance(p, dict) and isinstance(p.get("hash"), str)]
         previous = next((p for p in pending if p["hash"] == digest and plan_ready(p)), None)
         pending = [p for p in pending if p["hash"] != digest]
         entry = {"hash": digest, "ts": time.time(), "text": text, "pins": {}, "ready": False}
@@ -5002,8 +5039,8 @@ def main(argv, text=None, root=None):
         result = HANDLERS[argv[1]](event, root, config)
         if config["_notices"] and argv[1] in ("prompt", "stop"):  # where the user is reading: each turn, not each call
             result = dict(result or {})
-            result["systemMessage"] = "\n\n".join(config["_notices"] + [result["systemMessage"]] * bool(
-                result.get("systemMessage")))
+            result["systemMessage"] = "\n\n".join(config["_notices"] + (
+                [result["systemMessage"]] if result.get("systemMessage") else []))  # a reply may carry context only
         if argv[1] == "tool":
             log_deny(root, event, result)
         emit(result)
@@ -5013,7 +5050,7 @@ def main(argv, text=None, root=None):
         emit(result)
     except Exception as error:  # fail open, but tell the user the gate broke; on_error "deny" blocks
         from gate_run import error_output
-        emit(error_output(argv[1], error, cwd, event))
+        emit(error_output(argv[1], error, cwd, event, root=root))
     return 0
 
 

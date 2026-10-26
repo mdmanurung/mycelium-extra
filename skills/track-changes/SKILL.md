@@ -1,6 +1,6 @@
 ---
 name: track-changes
-description: Show, read-only, what changed in one analysis against its approved plan: plan, scripts, recorded runs, and off-focus edits. Use for "what changed since approval" or a briefing before freeze or review; it approves and runs nothing.
+description: "Show, read-only, what changed in one analysis against its approved plan: plan, scripts, recorded runs, and off-focus edits. Use for \"what changed since approval\" or a briefing before freeze or review; it approves and runs nothing."
 ---
 
 # Mycelium Extra: Track changes

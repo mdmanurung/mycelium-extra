@@ -1282,6 +1282,30 @@
         ]
       }
     },
+    "fuzz #5": {
+      "new": {
+        "err": "",
+        "out": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"mycelium-extra gate: blocked because no active approved plan covers this run.\\n  - papermill analysis/analysis/x.py\\nActive approved plans (last 24 h): none.\\nPresent a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so.\"}}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ]
+        ]
+      },
+      "old": {
+        "err": "",
+        "out": "",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ]
+        ]
+      }
+    },
     "fuzz #50": {
       "new": {
         "err": "",
@@ -1646,6 +1670,50 @@
           [
             ".mycelium-extra/pending/s1.explore-seen",
             "1"
+          ]
+        ]
+      }
+    },
+    "fuzz #60": {
+      "new": {
+        "err": "",
+        "out": "{\"systemMessage\": \"mycelium-extra: run receipt recorded: compound shell command: per-run execution, exit status, and output attribution unknown; python (no approved plan).\"}\n",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/receipts.jsonl",
+            "{\"approval_instance\": null, \"attempt_id\": null, \"call_id\": null, \"command\": \"python a.py quarto --resume analysis/x.py a b.py nbs/n.ipynb\", \"command_env\": null, \"command_exit_source\": \"response\", \"command_exit_status\": 0, \"cwd\": \".\", \"env_lines\": [], \"exit_source\": null, \"exit_status\": \"unknown\", \"explore\": false, \"git\": {\"dirty\": true, \"head\": \"a83165274f336f9b004364dad07d8bcdb6113477\"}, \"hook_env\": {}, \"kind\": \"python\", \"launch_match\": \"unmatched\", \"launch_note\": \"no launch record for this call\", \"lockfiles\": [{\"git\": \"committed\", \"in_repo\": true, \"mtime\": 0, \"path\": \"renv.lock\", \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\", \"size\": 3}], \"outputs_observation\": \"skipped: unmatched launch\", \"paths\": [\"analysis/x.py\", \"nbs/n.ipynb\"], \"pins\": {}, \"pins_checked\": false, \"pins_unchecked\": [], \"plans\": [], \"response_keys\": [\"exit_code\", \"stderr\", \"stdout\"], \"sbatch_lines\": [], \"schema\": \"mycelium-extra.receipt.v1\", \"script\": {\"git\": \"modified\", \"in_repo\": true, \"mtime\": 0, \"path\": \"analysis/x.py\", \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\", \"size\": 12}, \"session_id\": \"s1\", \"started\": null, \"ts\": 0}\n"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | --configfile | repo: `repo:` x | ok |\\n| 3 | $HOME | repo: `repo:` x | ok |\\n| 2 | ; | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "2"
+          ]
+        ]
+      },
+      "old": {
+        "err": "",
+        "out": "",
+        "rc": 0,
+        "state": [
+          [
+            ".mycelium-extra/gate.json",
+            "{}"
+          ],
+          [
+            ".mycelium-extra/approvals/00000001.json",
+            "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | --configfile | repo: `repo:` x | ok |\\n| 3 | $HOME | repo: `repo:` x | ok |\\n| 2 | ; | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/pending/s1.explore-seen",
+            "2"
           ]
         ]
       }

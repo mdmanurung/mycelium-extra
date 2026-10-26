@@ -5,10 +5,14 @@ Read-only, source-grounded audit of a manuscript repository's data products, fig
 ## Synopsis
 
 ```bash
-python3 skills/manuscript-audit/scripts/manuscript_audit.py --root . --config config/manuscript_checks.json [--result-json PATH]
+sh <plugin>/hooks/py.sh - --root . --config config/manuscript_checks.json [--result-json PATH] < <plugin>/skills/manuscript-audit/scripts/manuscript_audit.py
 ```
 
-The audit itself is a skill the agent performs by reading the repository; the script is the optional deterministic part, run only as a separate user-approved command.
+The audit itself is a skill the agent performs by reading the repository; the script is the optional deterministic part, run only as a separate user-approved command. Streamed on stdin it runs ad hoc; bound in an approved plan it runs as a copy inside the project (see the skill's step 4).
+
+## The contract
+
+`config/manuscript_checks.json`, schema `mycelium-extra.manuscript_checks.v1`. Top-level keys: `schema`, optional `data_manifest` (a file that must exist), optional `figure_map` (a TSV/CSV, below), `figures`, `tables`. Each figure: `id`, `script`, `source_data`, `required_columns`, `outputs` (a list; empty means source-only). Each table: `id`, `file`, `key_columns`, optional `required_columns`, `finite_numeric_columns`, `nonnegative_integer_columns`, and `ratio_invariant` with `numerator`, `denominator`, `fraction` and optional `tolerance` (default 1e-8, so rounded published fractions need one). Every path is relative to `--root` and must stay inside it after resolving symlinks; a released run under `outputs/current` that links to scratch storage is a gap. Example: `tests/fixtures/manuscript-project/config/manuscript_checks.json`.
 
 ## Evidence classes
 

@@ -268,6 +268,164 @@ class ManuscriptAuditTests(unittest.TestCase):
                 self.assertEqual(res["status"], status, str(res["checks"]))
                 self.assertIn(message, str(res["checks"]))
 
+    # --- hardening round ----------------------------------------------------------
+
+    def run_main(self, root, *args):
+        return audit.main(["--root", str(root), "--config", "config/checks.json", *args])
+
+    def test_result_json_protects_paths_an_earlier_gap_skipped(self):
+        with tempfile.TemporaryDirectory() as x:  # gap on a missing output: script is still declared
+            root = Path(x); cfg = self.project(root)
+            cfg["figures"][0]["outputs"] = ["figures/missing.pdf"]
+            self.rewrite(root, cfg)
+            before = (root / "script/Figure1.py").read_bytes()
+            self.assertEqual(self.run_main(root, "--result-json", "script/Figure1.py"), 1)
+            self.assertEqual((root / "script/Figure1.py").read_bytes(), before)
+        with tempfile.TemporaryDirectory() as x:  # unparsable contract: refuse any existing file
+            root = Path(x); self.project(root)
+            (root / "config/checks.json").write_text("{bad")
+            before = (root / "figures/source_data/Fig1a.tsv").read_bytes()
+            self.assertEqual(self.run_main(root, "--result-json", "figures/source_data/Fig1a.tsv"), 1)
+            self.assertEqual((root / "figures/source_data/Fig1a.tsv").read_bytes(), before)
+
+    def test_present_but_falsy_declarations_are_gap(self):
+        cases = [("ratio_invariant", {}), ("ratio_invariant", None), ("ratio_invariant", False),
+                 ("finite_numeric_columns", False), ("key_columns", []), ("required_columns", [])]
+        for field, value in cases:
+            with self.subTest(field=field, value=value), tempfile.TemporaryDirectory() as x:
+                root = Path(x); cfg = self.project(root)
+                cfg["tables"][0][field] = value
+                self.assertEqual(self.rewrite(root, cfg)["status"], "gap")
+        for value in ("", None, False, {}):
+            with self.subTest(manifest=value), tempfile.TemporaryDirectory() as x:
+                root = Path(x); cfg = self.project(root)
+                cfg["data_manifest"] = value
+                self.assertEqual(self.rewrite(root, cfg)["status"], "gap")
+
+    def test_table_pass_message_names_only_what_ran(self):
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); cfg = self.project(root)
+            for k in ("nonnegative_integer_columns", "finite_numeric_columns", "ratio_invariant"):
+                del cfg["tables"][0][k]
+            msg = [c["message"] for c in self.rewrite(root, cfg)["checks"] if c["id"] == "table:freq"][0]
+            self.assertEqual(msg, "Key uniqueness passed")
+
+    def test_bom_in_source_table_is_accepted(self):
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); self.project(root, data="\ufeffsample_id\tcondition\tfraction\nS1\tA\t0.25\n")
+            self.assertEqual(audit.evaluate(root, "config/checks.json")["status"], "pass")
+
+    def test_blank_or_nonstring_ids_are_gap(self):
+        for bad in ("", "  ", None, 1):
+            for kind in ("figures", "tables"):
+                with self.subTest(bad=bad, kind=kind), tempfile.TemporaryDirectory() as x:
+                    root = Path(x); cfg = self.project(root)
+                    cfg[kind][0]["id"] = bad
+                    res = self.rewrite(root, cfg)
+                    self.assertEqual(res["status"], "gap")
+                    self.assertIn("nonblank string", str(res["checks"]))
+
+    def test_empty_output_is_not_present_and_inputs_record_size(self):
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); cfg = self.project(root)
+            cfg["figures"][0]["outputs"] = ["figures/Fig1a.pdf"]
+            (root / "figures/Fig1a.pdf").write_bytes(b"")
+            res = self.rewrite(root, cfg)
+            self.assertEqual(res["status"], "gap")
+            self.assertIn("Figure output is empty", str(res["checks"]))
+            item = [i for i in res["inputs"] if i["path"] == "figures/Fig1a.pdf"][0]
+            self.assertEqual((item["size"], item["identity"]), (0, "sha256"))
+            cfg["figures"][0]["outputs"] = ["figures/none.pdf"]
+            item = [i for i in self.rewrite(root, cfg)["inputs"] if i["path"] == "figures/none.pdf"][0]
+            self.assertEqual((item["size"], item["sha256"], item["identity"]), (None, None, "absent"))
+
+    def test_figure_map_row_gap_and_blank_ids(self):
+        header = "figure\tscript\tsource_data\n"
+        cases = [(header + "Fig1a\tscript/missing.py\tfigures/source_data/Fig1a.tsv\n", "column script"),
+                 (header + "Fig1a\tscript/Figure1.py\tfigures/source_data/Fig1a.tsv\n \tscript/Figure1.py\tfigures/source_data/Fig1a.tsv\n", "blank figure ids at rows: 3")]
+        for table, message in cases:
+            with self.subTest(message=message), tempfile.TemporaryDirectory() as x:
+                root = Path(x); cfg = self.project(root)
+                cfg["figure_map"] = "config/figure_map.tsv"
+                (root / "config/figure_map.tsv").write_text(table)
+                res = self.rewrite(root, cfg)
+                self.assertEqual(res["status"], "gap", str(res["checks"]))
+                self.assertIn(message, str(res["checks"]))
+                self.assertNotIn("repeats ids", str(res["checks"]))
+                self.assertFalse([c for c in res["checks"] if c["id"] == "figure-map" and c["status"] == "pass"])
+        with tempfile.TemporaryDirectory() as x:  # ids are stripped on both sides
+            root = Path(x); cfg = self.project(root); cfg["figures"][0]["id"] = " Fig1a "
+            cfg["figure_map"] = "config/figure_map.tsv"
+            (root / "config/figure_map.tsv").write_text(header + "Fig1a \tscript/Figure1.py\tfigures/source_data/Fig1a.tsv\n")
+            self.assertEqual(self.rewrite(root, cfg)["status"], "pass")
+
+    def test_numbers_must_be_plain_ascii(self):
+        for bad in ("1_0", "\u0661\u0662", "0x1", "1e999", "nan"):
+            with self.subTest(bad=bad), tempfile.TemporaryDirectory() as x:
+                root = Path(x); self.project(root, counts="sample_id\tcell_type\tcell_count\ttotal_count\tfraction\nS1\tT\t1\t4\t" + bad + "\n")
+                self.assertEqual(audit.evaluate(root, "config/checks.json")["status"], "block")
+        with tempfile.TemporaryDirectory() as x:  # a huge ratio count says what is wrong
+            root = Path(x); cfg = self.project(root)
+            self.project(root, counts="sample_id\tcell_type\tcell_count\ttotal_count\tfraction\nS1\tT\t1\t" + "9" * 400 + "\t0.25\n")
+            cfg["tables"][0]["nonnegative_integer_columns"] = ["cell_count"]
+            res = self.rewrite(root, cfg)
+            self.assertEqual(res["status"], "block")
+            self.assertNotIn("non-finite", str(res["checks"]))
+
+    def test_blank_rows_are_not_data(self):
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); self.project(root, data="sample_id\tcondition\tfraction\n\t\t\n \t \t \n")
+            res = audit.evaluate(root, "config/checks.json")
+            self.assertEqual(res["status"], "block")
+            self.assertIn("no data rows", str(res["checks"]))
+
+    def test_wrong_delimiter_is_gap_naming_it(self):
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); self.project(root, data="sample_id,condition,fraction\nS1,A,0.25\n")
+            res = audit.evaluate(root, "config/checks.json")
+            self.assertEqual(res["status"], "gap")
+            self.assertIn("comma-delimited", str(res["checks"]))
+
+    def test_result_file_honours_umask(self):
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); self.project(root)
+            old = os.umask(0o022)
+            try:
+                self.assertEqual(self.run_main(root, "--result-json", "outputs/r.json"), 0)
+            finally:
+                os.umask(old)
+            self.assertEqual((root / "outputs/r.json").stat().st_mode & 0o777, 0o644)
+
+    def test_headers_and_keys_are_stripped(self):
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); self.project(root, counts=" sample_id \tcell_type\tcell_count\ttotal_count\tfraction\nS1\tT\t1\t4\t0.25\nS1 \tT\t1\t4\t0.25\n")
+            res = audit.evaluate(root, "config/checks.json")
+            self.assertEqual(res["status"], "block")
+            self.assertIn("duplicate key", str(res["checks"]))
+
+    def test_inputs_are_deduplicated(self):
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); cfg = self.project(root)
+            cfg["figure_map"] = "config/figure_map.tsv"
+            (root / "config/figure_map.tsv").write_text("figure\tscript\tsource_data\nFig1a\tscript/Figure1.py\tfigures/source_data/Fig1a.tsv\n")
+            paths = [i["path"] for i in self.rewrite(root, cfg)["inputs"]]
+            self.assertEqual(len(paths), len(set(paths)))
+
+    def test_unusable_root_or_config_exits_1(self):
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); self.project(root)
+            self.assertEqual(audit.main(["--root", str(root / "nope"), "--config", "config/checks.json"]), 1)
+            self.assertEqual(audit.main(["--root", x, "--config", str(root / "config/checks.json")]), 1)
+            self.assertEqual(audit.main(["--root", x, "--config", "config/absent.json"]), 1)
+            self.assertEqual(self.run_main(root, "--result-json", ""), 1)
+            (root / "config/checks.json").write_text("{bad")
+            self.assertEqual(self.run_main(root), 3)  # unparsable contract is a gap, not a usage error
+
+    def test_message_names_the_checks_it_does(self):
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x); self.project(root)
+            self.assertIn("file-presence, column-presence, key, count and ratio checks only", audit.evaluate(root, "config/checks.json")["message"])
+
     # --- committed fixture is green ---------------------------------------------
 
     def test_committed_fixture_passes(self):

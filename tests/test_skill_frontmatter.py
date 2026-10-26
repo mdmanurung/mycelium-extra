@@ -26,7 +26,10 @@ def frontmatter(path):
 def description(fm):
     lines = [line for line in fm.splitlines() if line.startswith("description:")]
     assert len(lines) == 1, "one description line"
-    return lines[0].partition(":")[2].strip().strip('"')
+    value = lines[0].partition(":")[2].strip()
+    # a plain scalar holding `: ` is not YAML (a strict loader drops the skill): it must be a quoted string
+    assert ": " not in value or value.startswith('"') and value.endswith('"'), "quote a description holding `: `"
+    return value.strip('"')
 
 
 class SkillFrontmatterTest(unittest.TestCase):

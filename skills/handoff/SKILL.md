@@ -24,8 +24,8 @@ Write `HANDOFF.md` at the project root: the least a fresh session needs to keep 
       except (OSError, ValueError):
           continue
       if isinstance(entries, list):
-          hits += [(e.get("ts", 0), path, e["hash"]) for e in entries
-                   if sys.argv[1] in e.get("text", "") and "Plan status:" in e.get("text", "")]
+          hits += [(e.get("ts", 0), path, e["hash"]) for e in entries if isinstance(e, dict) and "hash" in e
+                   and sys.argv[1] in e.get("text", "") and "Plan status:" in e.get("text", "")]
   if not hits:
       print("none")
   else:
@@ -59,11 +59,12 @@ Run `git log --oneline <hash>..HEAD` and `git status --short`, with `<hash>` fro
 
 ## Pending plan
 - `<hash>` not approved; stored word for word in `<pending file>`. Re-present it unchanged; do not re-grill. Print it with:
-  `python3 -c "import json;print(next(e['text'] for e in json.load(open('<pending file>')) if e['hash']=='<hash>'))"`
+  `python3 -c "import json;print(next(e['text'] for e in json.load(open('<pending file>')) if isinstance(e, dict) and e.get('hash')=='<hash>'))"`
 
 ## State
 - Uncommitted: <files, or "clean">
 - Tests: <passing / failing, with the failing name>
+- Results: <conclusion> — <its inspected figure path, `table fallback: <reason>`, or `unsupported`> (one line each; see plot-first)
 - <anything running: job IDs, servers, envs>
 
 ## Locked decisions

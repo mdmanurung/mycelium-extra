@@ -26,7 +26,8 @@ if [ -z "$py" ]; then
     # asks for on_error: deny (an unreadable gate.json cannot opt in, as in gate_run.py).
     note="mycelium-extra: no Python interpreter was found (set MYCELIUM_EXTRA_PYTHON), so this call was not checked by the gate."
     cfg=${CLAUDE_PROJECT_DIR:-.}/.mycelium-extra/gate.json
-    if [ "${1:-}" = PreToolUse ] && [ -f "$cfg" ] &&
+    for last; do :; done  # the hook's event is its last argument (`... gate_run.py [--host H] tool`)
+    if [ "${last:-}" = tool ] && [ -f "$cfg" ] &&
        grep -Eq '"on_error"[[:space:]]*:[[:space:]]*"deny"' "$cfg" 2>/dev/null; then
       printf '{"systemMessage":"%s","hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s Do not work around this block; the user can fix the gate or set on_error to allow."}}\n' "$note" "$note"
     else

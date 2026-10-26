@@ -2134,13 +2134,13 @@ class GateTest(unittest.TestCase):
 
 
     def test_on_error_fails_open_by_default_and_denies_only_tool_calls_when_set(self):
-        broken = {"gated_commands": 5, "gated_paths": 5}  # the tool handler raises on a config it cannot read
-        self.config(broken)
-        result = self.bash("ls")
+        broken = {"x": 1}  # a tool call the gate cannot read: the handler raises
+        self.config({})
+        result = self.bash(broken)
         self.assertFalse(self.denied(result))
         self.assertIn("mycelium-extra gate error (tool)", result["systemMessage"])
-        self.config(dict(broken, on_error="deny"))
-        result = self.bash("ls")
+        self.config({"on_error": "deny"})
+        result = self.bash(broken)
         self.assertTrue(self.denied(result))
         self.assertIn("on_error", result["hookSpecificOutput"]["permissionDecisionReason"])
         for event in ("prompt", "stop", "post"):  # nothing to block outside a tool call
@@ -2156,13 +2156,13 @@ class GateTest(unittest.TestCase):
         self.assertEqual([r["decision"] for r in records if r["event"] == "tool"], ["allow", "deny"])
 
     def test_on_error_deny_survives_a_log_that_cannot_be_written(self):
-        self.config({"gated_commands": 5, "on_error": "deny"})
+        self.config({"on_error": "deny"})
         os.makedirs(os.path.join(self.root, ".mycelium-extra", "gate-errors.jsonl"))  # a folder cannot be appended to
-        self.assertTrue(self.denied(self.bash("ls")))
+        self.assertTrue(self.denied(self.bash({"x": 1})))
 
     def test_on_error_must_be_allow_or_deny(self):
-        self.config({"gated_commands": 5, "on_error": "block"})
-        result = self.bash("ls")
+        self.config({"on_error": "block"})
+        result = self.bash({"x": 1})
         self.assertFalse(self.denied(result))
         self.assertIn('"on_error" in gate.json must be "allow" or "deny"', result["systemMessage"])
 
@@ -2180,7 +2180,9 @@ class LauncherTest(GateTest):
 class LauncherOnlyTest(unittest.TestCase):
     def run_launcher(self, stdin, code=None):
         args = [sys.executable, LAUNCHER, "tool"] if code is None else [sys.executable, "-c", code]
-        proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        cwd = tempfile.mkdtemp()  # never the checkout: an unreadable event would log into its live gate state
+        self.addCleanup(shutil.rmtree, cwd)
+        proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd)
         out, err = proc.communicate(stdin.encode("utf-8"))
         self.assertEqual(proc.returncode, 0, err)
         return out.decode("utf-8")
@@ -2202,7 +2204,8 @@ class LauncherOnlyTest(unittest.TestCase):
     def test_unreadable_event_fails_open_like_the_gate(self):
         message = self.run_launcher("{not json")
         self.assertIn("mycelium-extra gate error (tool)", message)
-        proc = subprocess.Popen([sys.executable, GATE, "tool"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        proc = subprocess.Popen([sys.executable, GATE, "tool"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                cwd=tempfile.mkdtemp())
         self.assertEqual(message, proc.communicate(b"{not json")[0].decode("utf-8"))
 
     def test_on_error_covers_a_gate_that_cannot_load_on_both_hosts(self):
@@ -3577,16 +3580,16 @@ class AttemptEvidenceTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, err)
         return json.loads(out.decode("utf-8"))
 
-    BROKEN = {"gated_commands": 5, "gated_paths": 5}  # the tool handler raises on a config it cannot read
+    BROKEN = {"x": 1}  # a tool call the gate cannot read: the handler raises
 
     def test_a_gate_error_records_event_decision_host_session_and_call(self):
         for entry in (GATE, LAUNCHER):
-            self.config(self.BROKEN)
-            payload = {"tool_name": "Bash", "tool_input": {"command": "ls"}, "tool_use_id": "t9",
+            self.config({})
+            payload = {"tool_name": "Bash", "tool_input": {"command": self.BROKEN}, "tool_use_id": "t9",
                        "session_id": "sX", "cwd": self.root}
             reply = self.run_entry(entry, ["tool"], payload)
             self.assertFalse(self.denied(reply))
-            self.config(dict(self.BROKEN, on_error="deny"))
+            self.config({"on_error": "deny"})
             self.assertTrue(self.denied(self.run_entry(entry, ["tool"], payload)))
         allowed, denied, allowed_again, denied_again = self.errors()
         for record, decision in ((allowed, "allow"), (denied, "deny"), (allowed_again, "allow"), (denied_again, "deny")):
@@ -3596,8 +3599,8 @@ class AttemptEvidenceTest(unittest.TestCase):
             self.assertIn("error", record)
 
     def test_a_codex_gate_error_names_its_host_thread_and_call(self):
-        self.config(self.BROKEN)
-        payload = {"tool_name": "shell", "tool_input": {"command": ["ls"]}, "tool_use_id": "c1",
+        self.config({})
+        payload = {"tool_name": "shell", "tool_input": {"command": self.BROKEN}, "tool_use_id": "c1",
                    "thread_id": "th1", "cwd": self.root}
         self.run_entry(LAUNCHER, ["--host", "codex", "tool"], payload)
         record, = self.errors()
@@ -3629,9 +3632,9 @@ class AttemptEvidenceTest(unittest.TestCase):
         self.assertEqual((codex["session_id"], codex["call_id"], codex["host"]), ("sY", "t5", "codex"))
 
     def test_a_log_that_cannot_be_written_leaves_no_record_and_says_so(self):
-        self.config(self.BROKEN)
+        self.config({})
         os.makedirs(self.path("gate-errors.jsonl"))  # a folder cannot be appended to
-        reply = self.run_entry(GATE, ["tool"], {"tool_name": "Bash", "tool_input": {"command": "ls"},
+        reply = self.run_entry(GATE, ["tool"], {"tool_name": "Bash", "tool_input": {"command": self.BROKEN},
                                                 "session_id": "sX", "cwd": self.root})
         self.assertFalse(self.denied(reply))
         self.assertIn("could not be recorded", reply["systemMessage"])

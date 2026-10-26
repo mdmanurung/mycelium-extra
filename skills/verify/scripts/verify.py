@@ -2720,7 +2720,10 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         import provenance
         folder = os.path.join(root, analysis_dir, "provenance")
         if os.path.isdir(folder):
-            with provenance.locked(os.path.join(folder, ".publish.lock")):
+            try:
+                with provenance.locked(os.path.join(folder, ".publish.lock")):
+                    saved_state = provenance.bundle_state(folder, digest)
+            except (OSError, ValueError):  # read-only checkout or a busy lock: a read needs no lock to be honest
                 saved_state = provenance.bundle_state(folder, digest)
             if saved_state != "complete":
                 report.add("gap", "Saved provenance bundle is {}; no checksummed completion established.".format(saved_state))
@@ -4191,18 +4194,21 @@ def output_fingerprint(path, budget):
 def stale_plan(root, rel, budget, content=False):
     import provenance
     folder = os.path.join(root, os.path.dirname(rel))
-    with provenance.locked(os.path.join(folder, ".publish.lock")):
-        digest = os.path.basename(rel)[len("receipts-"):-len(".jsonl")]
+    digest = os.path.basename(rel)[len("receipts-"):-len(".jsonl")]
+    try:
+        with provenance.locked(os.path.join(folder, ".publish.lock")):
+            state = provenance.bundle_state(folder, digest)
+    except (OSError, ValueError):  # read-only checkout or a busy lock: a read needs no lock to be honest
         state = provenance.bundle_state(folder, digest)
-        result = ({"hash": digest, "analysis_dir": os.path.dirname(os.path.dirname(rel)) or ".",
-                   "changes": [], "sessions": [], "content_checked": 0, "content_unchecked": 0}
-                  if state == "interrupted" else _stale_plan(root, rel, budget, content))
-        result["bundle"] = state
-        result["recorded_approved"], result["recorded_verified"] = recorded_verify(folder, digest)
-        result["recorded_lint"] = recorded_lint(folder, digest) if state != "interrupted" else "unchecked"
-        if state != "complete":
-            result["changes"].append("provenance bundle {}: no checksummed completion established".format(state))
-        return result
+    result = ({"hash": digest, "analysis_dir": os.path.dirname(os.path.dirname(rel)) or ".",
+               "changes": [], "sessions": [], "content_checked": 0, "content_unchecked": 0}
+              if state == "interrupted" else _stale_plan(root, rel, budget, content))
+    result["bundle"] = state
+    result["recorded_approved"], result["recorded_verified"] = recorded_verify(folder, digest)
+    result["recorded_lint"] = recorded_lint(folder, digest) if state != "interrupted" else "unchecked"
+    if state != "complete":
+        result["changes"].append("provenance bundle {}: no checksummed completion established".format(state))
+    return result
 
 
 def _stale_plan(root, rel, budget, content=False):

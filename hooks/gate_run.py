@@ -79,15 +79,14 @@ def identity(event, host=None):
                 for key, value in found.items())
 
 
-def error_output(name, error, cwd, event=None, host=None):
+def error_output(name, error, cwd, event=None, host=None, root=None):
     """The hook's reply when the gate itself broke. It fails open unless gate.json sets
     "on_error": "deny", which blocks every tool call the gate could not check. It reads gate.json on
     its own, so it works when gate.py cannot even be imported; an unreadable file cannot opt in. The error is
     logged with the event, decision, host, session and call id when the event could be decoded."""
     note, policy = "", "allow"
-    root = None
     try:
-        root = find_root(cwd)
+        root = root or find_root(cwd)  # the root the event named, when gate.main found one the cwd does not
         with open(os.path.join(root, STATE_DIR, "gate.json"), encoding="utf-8") as config:
             value = json.load(config).get("on_error", "allow")
         if value in ("allow", "deny"):

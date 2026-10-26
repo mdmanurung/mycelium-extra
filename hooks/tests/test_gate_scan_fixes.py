@@ -296,6 +296,71 @@ class ScanFixTest(unittest.TestCase):
         self.assertTrue(result)
         self.assertIn("did not run", json.dumps(result))
 
+    # 0.18.2 adversarial review: shell spellings the tokenizer or the reader mis-split, each a silent allow before
+    def test_quoting_that_hid_a_run_is_read(self):
+        for command in [
+            'git commit -m "fix \\"quote\\"" && python analysis/x.py',  # `\"` inside double quotes
+            'echo "a\\"" ; python analysis/x.py',
+            'echo $(echo ")"); python analysis/x.py',  # a quoted `)` inside `$(...)`
+            "echo $(echo ')'); python analysis/x.py",
+            "bash <<< 'python analysis/x.py'",  # a here-string is the shell's stdin
+            "python3 <<< \"exec(open('analysis/x.py').read())\"",
+            'eval "python analysis/x.py"',
+            "function f { python analysis/x.py; }; f",
+            "coproc python analysis/x.py",
+            "cat analysis/x.py | python",  # a script piped into a runner that names none
+            "head -n 3 analysis/x.py | python3 -",
+            "CDPATH=. cd analysis && python x.py",
+            "cd analy*s && python x.py",  # a globbed folder is unresolved, like `cd $DIR`
+        ]:
+            self.assertTrue(self.denied(self.bash(command)), command)
+        for command in [
+            'git commit -m "fix \\"quote\\""',
+            'echo $(echo ")")',
+            "echo 'python analysis/x.py' | grep python",
+            "ls |& grep x",
+        ]:
+            self.assertIsNone(self.bash(command), command)
+
+    def test_an_option_value_that_names_state_is_a_state_write(self):
+        self.assertTrue(self.denied(self.bash("python tools/y.py --out=.mycelium-extra/x.json")))
+        self.assertIsNone(self.bash("python tools/y.py --out=outputs/x.json"))
+
+    def test_list_settings_of_the_wrong_type_fall_back_with_a_notice(self):
+        for config in ({"gated_paths": "analysis/**"}, {"gated_paths": None}, {"gated_paths": [1]},
+                       {"gated_commands": "sbatch"}):
+            self.config(config)
+            result = self.bash("python analysis/x.py")
+            self.assertTrue(self.denied(result), config)  # the default still gates
+            notice = self.hook("prompt", {"prompt": "hello"})
+            self.assertIn("must be a list of strings", notice["systemMessage"], config)
+        self.config({"gated_commands": ["sbatch"]})
+        self.assertIsNone(self.bash("s analysis/x"))  # no substring match on a string setting
+
+    def test_a_pending_file_of_the_wrong_shape_holds_no_plan(self):
+        folder = os.path.join(self.root, ".mycelium-extra", "pending")
+        os.makedirs(folder)
+        for content in ('{"x": 1}', '["a", 1]', '[{"ts": 0}]', '[{"hash": 5}]'):
+            with open(os.path.join(folder, "s1.json"), "w") as handle:
+                handle.write(content)
+            reply = self.hook("prompt", {"prompt": "approve plan 12345678"})
+            self.assertIn("no pending plan 12345678", reply["systemMessage"], content)
+            self.assertNotIn("gate error", reply["systemMessage"], content)
+            stop = self.hook("stop", {"last_assistant_message": PLAN})
+            self.assertNotIn("gate error", json.dumps(stop), content)
+
+    def test_a_crash_keeps_the_root_the_event_named(self):
+        self.config({"on_error": "deny"})
+        outside = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, outside)
+        payload = {"session_id": {"x": 1}, "cwd": outside, "tool_name": "Bash",  # the session id makes the gate raise
+                   "tool_input": {"command": "python " + os.path.join(self.root, "analysis", "x.py")}}
+        proc = subprocess.run([sys.executable, LAUNCHER, "tool"], input=json.dumps(payload).encode("utf-8"),
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=outside)
+        result = json.loads(proc.stdout.decode("utf-8"))
+        self.assertTrue(self.denied(result), result)
+        self.assertTrue(os.path.isfile(os.path.join(self.root, ".mycelium-extra", "gate-errors.jsonl")))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

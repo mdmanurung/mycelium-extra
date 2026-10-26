@@ -63,14 +63,17 @@ def read_table(path):
     if path.stat().st_size > MAX_TABLE_BYTES:
         raise ValueError("table exceeds 16 MiB lightweight-check limit")
     delim = "\t" if path.suffix.lower() in (".tsv", ".tab", ".txt") else ","
-    with path.open("r", encoding="utf-8", newline="") as inp:
+    with path.open("r", encoding="utf-8-sig", newline="") as inp:
         reader = csv.reader(inp, delimiter=delim, strict=True)
-        header = next(reader, None)
+        header = [h.strip() for h in next(reader, None) or []]
         if not header or not all(header) or len(set(header)) != len(header):
             raise ValueError("empty, blank or duplicated column headers")
+        other = "," if delim == "\t" else "\t"
+        if len(header) == 1 and other in header[0]:
+            raise ValueError("one column only; file looks " + ("comma" if other == "," else "tab") + "-delimited")
         rows = []
         for row in reader:
-            if not row or (len(row) == 1 and row[0] == ""):
+            if not any(c.strip() for c in row):
                 continue
             if len(row) != len(header):
                 raise ValueError("row width differs from header")
@@ -93,10 +96,9 @@ def checked_num(value, column, integer=False):
         if not re.fullmatch(r"[0-9]+", value):
             raise ValueError("column " + column + ": not a nonnegative integer count")
         return int(value)
-    try:
-        n = float(value)
-    except ValueError:
-        raise ValueError("column " + column + ": not a number") from None
+    if not re.fullmatch(r"[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?", value, re.ASCII):
+        raise ValueError("column " + column + ": not a number")
+    n = float(value)
     if not math.isfinite(n):
         raise ValueError("column " + column + ": non-finite numeric value")
     return n
@@ -114,7 +116,7 @@ def column_list(value, what):
     if not isinstance(value, list) or not value or \
             not all(isinstance(x, str) and x.strip() for x in value) or \
             len(set(value)) != len(value):
-        raise ValueError(what + " must be a nonempty list of unique column names")
+        raise ValueError("malformed declaration: " + what + " must be a nonempty list of unique column names")
     return value
 
 
@@ -131,7 +133,12 @@ def evaluate(root, config_rel):
         try:
             path = resolve_under(root, path)
             exists = path.is_file()
-            inputs.append({"path": str(path.relative_to(root)), "sha256": sha256(path) if exists and path.stat().st_size <= MAX_TABLE_BYTES else None})
+            size = path.stat().st_size if exists else None
+            hashed = exists and size <= MAX_TABLE_BYTES
+            rel = str(path.relative_to(root))
+            if not any(i["path"] == rel for i in inputs):
+                inputs.append({"path": rel, "sha256": sha256(path) if hashed else None, "size": size,
+                               "identity": "sha256" if hashed else "size_only" if exists else "absent"})
             return path if exists else None
         except (OSError, ValueError) as e:
             raise ValueError(str(e))
@@ -152,10 +159,9 @@ def evaluate(root, config_rel):
         add("config", "gap", "Unreadable or invalid contract: " + str(e))
         return make_result(contract, inputs, checks)
 
-    manifest = cfg.get("data_manifest")
-    if manifest:
+    if "data_manifest" in cfg:
         try:
-            manifest_path = observe(manifest)
+            manifest_path = observe(cfg["data_manifest"])
             add("data-manifest", "pass" if manifest_path else "gap",
                 "Declared data manifest exists" if manifest_path else "Declared data manifest unavailable")
         except ValueError as e:
@@ -166,7 +172,10 @@ def evaluate(root, config_rel):
         if not isinstance(fig, dict) or not all(k in fig for k in ("id", "script", "source_data", "required_columns")):
             add("figure-declaration", "gap", "figure entry missing required fields")
             continue
-        fid = str(fig["id"])
+        if not isinstance(fig["id"], str) or not fig["id"].strip():
+            add("figure-declaration", "gap", "figure id must be a nonblank string")
+            continue
+        fid = fig["id"].strip()
         if fid in seen_ids:
             add("figure:" + fid, "block", "duplicate figure id")
             continue
@@ -199,7 +208,8 @@ def evaluate(root, config_rel):
                 add(base + ":output", "pass", "Source-only declaration: no rendered output declared or checked")
             for output in outputs:
                 output_path = observe(output)
-                add(base + ":output:" + output, "pass" if output_path else "gap", "Figure output present" if output_path else "Figure output not observed")
+                full = bool(output_path) and output_path.stat().st_size > 0
+                add(base + ":output:" + output, "pass" if full else "gap", "Figure output present" if full else "Figure output is empty" if output_path else "Figure output not observed")
         except (ValueError, OSError, csv.Error) as e:
             add(base, "gap", "Cannot inspect figure contract: " + str(e))
 
@@ -211,7 +221,10 @@ def evaluate(root, config_rel):
         if not isinstance(tbl, dict) or not all(x in tbl for x in ("id", "file", "key_columns")):
             add("table-declaration", "gap", "table contract requires id/file/key_columns")
             continue
-        tid = str(tbl["id"])
+        if not isinstance(tbl["id"], str) or not tbl["id"].strip():
+            add("table-declaration", "gap", "table id must be a nonblank string")
+            continue
+        tid = tbl["id"].strip()
         if tid in seen_tables:
             add("table:" + tid, "block", "duplicate table id")
             continue
@@ -220,15 +233,8 @@ def evaluate(root, config_rel):
         try:
             unknown_keys(tbl, "table")
             keys = column_list(tbl["key_columns"], "key_columns")
-            req_extra = tbl.get("required_columns", []) or []
-            if req_extra:
-                req_extra = column_list(req_extra, "required_columns")
-            numeric = tbl.get("finite_numeric_columns", []) or []
-            counts = tbl.get("nonnegative_integer_columns", []) or []
-            if numeric:
-                numeric = column_list(numeric, "finite_numeric_columns")
-            if counts:
-                counts = column_list(counts, "nonnegative_integer_columns")
+            req_extra, numeric, counts = [column_list(tbl[k], k) if k in tbl else []
+                                          for k in ("required_columns", "finite_numeric_columns", "nonnegative_integer_columns")]
         except ValueError as e:
             add(base, "gap", str(e))
             continue
@@ -244,7 +250,7 @@ def evaluate(root, config_rel):
             required = set(req_extra) | set(keys) | set(numeric) | set(counts)
             ratio = tbl.get("ratio_invariant")
             tolerance = 1e-8
-            if ratio:
+            if "ratio_invariant" in tbl:
                 if not isinstance(ratio, dict) or not all(isinstance(ratio.get(k), str) and ratio.get(k) for k in ("numerator", "denominator", "fraction")):
                     add(base, "gap", "Malformed ratio_invariant declaration")
                     continue
@@ -268,7 +274,7 @@ def evaluate(root, config_rel):
             ids = set()
             problem = None
             for n, row in enumerate(rows, 2):
-                key = tuple(row[k] for k in keys)
+                key = tuple(row[k].strip() for k in keys)
                 if any(not v.strip() for v in key):
                     problem = "missing key at row " + str(n); break
                 if key in ids:
@@ -280,12 +286,13 @@ def evaluate(root, config_rel):
                     for col in numeric:
                         checked_num(row[col], col)
                     if ratio:
-                        parts = [checked_num(row[ratio[k]], ratio[k]) for k in ("numerator", "denominator", "fraction")]
+                        parts = [checked_num(row[ratio[k]], ratio[k], integer=k != "fraction") for k in ("numerator", "denominator", "fraction")]
                         if not compare_fraction(*parts, tolerance):
                             raise ValueError("fraction inconsistent with declared numerator/denominator")
                 except (ValueError, KeyError, TypeError) as err:
                     problem = "row " + str(n) + ": " + str(err); break
-            add(base, "block" if problem else "pass", problem or "Key uniqueness, declared numeric types and ratio invariants passed", n_rows=len(rows))
+            ran = ["key uniqueness"] + ["declared integer counts"] * bool(counts) + ["declared numeric types"] * bool(numeric) + ["ratio invariant"] * bool(ratio)
+            add(base, "block" if problem else "pass", problem or ", ".join(ran).capitalize() + " passed", n_rows=len(rows))
         except (ValueError, OSError, csv.Error, TypeError) as e:
             add(base, "gap", "Cannot inspect table: " + str(e))
     return make_result(contract, inputs, checks)
@@ -307,14 +314,18 @@ def check_figure_map(cfg, observe, add):
         add("figure-map", "gap", "Figure map lacks columns: " + ", ".join(missing_cols))
         return
     ids = [row["figure"].strip() for row in rows]
-    repeated = sorted({i for i in ids if ids.count(i) > 1})
+    blank = [str(n) for n, i in enumerate(ids, 2) if not i]
+    if blank:
+        add("figure-map", "gap", "Figure map has blank figure ids at rows: " + ", ".join(blank))
+    repeated = sorted({i for i in ids if i and ids.count(i) > 1})
     if repeated:
         add("figure-map", "block", "Figure map repeats ids: " + ", ".join(repeated))
         return
-    declared = [str(f["id"]) for f in cfg.get("figures", []) if isinstance(f, dict) and "id" in f]
+    declared = [f["id"].strip() for f in cfg.get("figures", []) if isinstance(f, dict) and isinstance(f.get("id"), str) and f["id"].strip()]
     unmapped = [i for i in declared if i not in ids]
     if unmapped:
         add("figure-map", "gap", "Figure contracts without a map row: " + ", ".join(unmapped))
+    unavailable = 0
     for n, row in enumerate(rows, 2):
         for col in ("script", "source_data"):
             try:
@@ -324,8 +335,9 @@ def check_figure_map(cfg, observe, add):
             else:
                 why = "file unavailable"
             if not found:
-                add("figure-map:" + row["figure"], "gap", "row " + str(n) + ", column " + col + ": " + why)
-    if not unmapped:
+                unavailable += 1
+                add("figure-map:" + ids[n - 2], "gap", "row " + str(n) + ", column " + col + ": " + why)
+    if not (unmapped or unavailable or blank):
         add("figure-map", "pass", "{} mapped panels; {} have a figure contract. Map rows are not checked against plotted content.".format(len(ids), len(declared)), n_rows=len(rows))
 
 
@@ -343,7 +355,7 @@ def make_result(contract, inputs, checks):
     state = "block" if "block" in statuses else "gap" if "gap" in statuses else "pass"
     return {"schema": RESULT_SCHEMA, "status": state, "exit_code": 2 if state == "block" else 3 if state == "gap" else 0,
             "contract": contract, "inputs": inputs, "checks": checks,
-            "message": "Declared artifact/scale checks only. Does NOT inspect every actual plotting aesthetic, validate statistical inference, or authenticate producer execution."}
+            "message": "Declared file-presence, column-presence, key, count and ratio checks only. Does NOT inspect every actual plotting aesthetic, validate statistical inference, or authenticate producer execution."}
 
 
 def write_result(result, root, config_rel, dest):
@@ -353,6 +365,21 @@ def write_result(result, root, config_rel, dest):
     dest = resolve_under(root, dest)
     protected = [resolve_under(root, config_rel)]
     protected += [root / item["path"] for item in result["inputs"]]
+    try:  # an earlier gap may have skipped observe(), so protect every path the contract names
+        stack = [json.loads(protected[0].read_text(encoding="utf-8"), object_pairs_hook=reject_duplicate_json_keys)]
+    except (OSError, ValueError):
+        if dest.exists():
+            raise UsageError("--result-json destination exists and the contract cannot be parsed: " + str(dest))
+        stack = []
+    while stack:
+        v = stack.pop()
+        if isinstance(v, (dict, list)):
+            stack.extend(v.values() if isinstance(v, dict) else v)
+        elif isinstance(v, str):
+            try:
+                protected.append(resolve_under(root, v))
+            except ValueError:
+                pass
     if dest in [p.resolve() for p in protected]:
         raise UsageError("--result-json destination would overwrite the contract or a declared input: " + str(dest))
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -362,6 +389,9 @@ def write_result(result, root, config_rel, dest):
             temporary = Path(out.name)
             json.dump(result, out, indent=2, sort_keys=True)
             out.write("\n")
+        umask = os.umask(0)
+        os.umask(umask)
+        os.chmod(str(temporary), 0o666 & ~umask)
         os.replace(str(temporary), str(dest))
         temporary = None
     finally:
@@ -375,8 +405,13 @@ def main(argv=None):
     parser.add_argument("--config", required=True, help="Project-relative JSON check declaration")
     parser.add_argument("--result-json", help="Save observed result atomically, relative to --root; optional")
     args = parser.parse_args(argv)
+    try:
+        resolve_under(Path(args.root).resolve(), args.config).open("rb").close()
+    except (OSError, ValueError) as e:
+        print("usage error: --root/--config not usable: " + str(e), file=sys.stderr)
+        return 1
     result = evaluate(args.root, args.config)
-    if args.result_json:
+    if args.result_json is not None:
         try:
             write_result(result, Path(args.root).resolve(), args.config, args.result_json)
         except (UsageError, ValueError, OSError) as e:
