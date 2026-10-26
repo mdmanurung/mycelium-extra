@@ -87,7 +87,7 @@ Each tier adds to the previous one; use only what your task needs.
 
 Commands below use Claude Code syntax. In Codex, replace `/mycelium-extra:`
 with `$mycelium-extra:`. In OpenCode, the same `/mycelium-extra:grill` commands
-work (mentioning `@grill` also works).
+work.
 
 ### Plan and approve a run
 

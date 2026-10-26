@@ -54,7 +54,7 @@ CI (`.github/workflows/ci.yml`) runs on every push to `main`, every pull request
 | `python:3.12-bookworm` | `C.UTF-8` |
 | `python:3.14-bookworm` | `C.UTF-8` |
 
-Each leg then runs, in order: every `hooks/tests/test_*.py`, `skills/*/tests/test_*.py`, and `tests/test_*.py` file with `python3` (a failure is reported and the loop goes on, then the step fails); `python3 tests/e2e/ablate.py`; and `tests/check_links.py` over the tracked Markdown files Files outside those patterns, such as `tests/integration_workflows.py`, are not run by CI. The Sphinx build is a separate workflow, `docs.yml`.
+Each leg then runs, in order: every `hooks/tests/test_*.py`, `skills/*/tests/test_*.py`, and `tests/test_*.py` file with `python3` (a failure is reported and the loop goes on, then the step fails); `python3 tests/e2e/ablate.py`; `python3 tests/adversarial_audit.py` (138 locked contracts); and `tests/check_links.py` over the tracked Markdown files except `mycelium-extra-improvements/**`. Files outside those patterns, such as `tests/integration_workflows.py`, are not run by CI. The Sphinx build is a separate workflow, `docs.yml`.
 
 **`gate-diff`** runs on pull requests and on demand (`gh workflow run CI`, or the Actions button), in `python:3.14-bookworm` with full history. It compares the working tree's gate against the **fixed** base `267d9e244d1f50abef2d024c9632c50df1911823` (the 0.10.2 release), not the pull request's base commit. The pin must name the same commit as `hooks/tests/gate_diff_expected.json`; `tests/test_ci_pins.py` fails if the two drift apart:
 
@@ -67,7 +67,7 @@ The first command fails unless every difference from that base matches `hooks/te
 
 The comparison skips `denies.jsonl` (the deny log records no decision), so a new line there is never a difference.
 
-**`opencode-plugin`** runs `node --test opencode/tests/gate.test.js` on Node 22 (`actions/setup-node`). The runner's `python3` is recorded in `MYCELIUM_EXTRA_PYTHON` by the test, so the gate runs even where the default `python3` is too old.
+**`opencode-plugin`** runs `node --test opencode/tests/gate.test.js` and the two track-changes viewer tests with `MX_REQUIRE_NODE=1` on Node 22 (`actions/setup-node`). The runner's `python3` is recorded in `MYCELIUM_EXTRA_PYTHON` by the test, so the gate runs even where the default `python3` is too old.
 
 Before changing `hooks/gate.py`, also run `python3 hooks/tests/gate_diff.py`: with no options it compares the committed gate (`HEAD`) with the working tree and must report every case identical, except the decisions you meant to change. To reproduce the CI result locally, run the two commands above.
 
@@ -93,7 +93,7 @@ A skill only a human types is user-invoked in both hosts, and the two flags stay
 ## Release steps
 
 1. Work in a worktree and land on `main`; do not edit `hooks/` in a tree that live sessions run from.
-2. Run the whole CI set with `python3.12`: every `hooks/tests/test_*.py`, `skills/*/tests/test_*.py` and `tests/test_*.py`, `python3.12 tests/e2e/ablate.py`, `python3.12 tests/check_links.py $(git ls-files '*.md')`, `node --test opencode/tests/gate.test.js`, and the Sphinx build in [Documentation website](#documentation-website). With a gate change, add the `gate_diff` commands above.
+2. Run the whole CI set with `python3.12`: every `hooks/tests/test_*.py`, `skills/*/tests/test_*.py` and `tests/test_*.py`, `python3.12 tests/e2e/ablate.py`, `python3.12 tests/adversarial_audit.py --output /tmp/audit.json`, `python3.12 tests/check_links.py $(git ls-files '*.md')`, `node --test opencode/tests/gate.test.js`, and the Sphinx build in [Documentation website](#documentation-website). With a gate change, add the `gate_diff` commands above.
 3. One feature, two commits: the change, then the version bump. Bump `version` in the four manifests together and add the `CHANGELOG.md` entry in the same commit; `python3 tests/test_versions.py` checks they agree.
 4. Push and tag only on request. The installed plugin follows `origin/main`, so a push is a release.
 
@@ -113,7 +113,7 @@ installed plugin in a real host session.
 flow, receipts, missing exit status, and state protection for patches and moves.
 `hooks/hooks.json` is Claude's configuration; the Codex manifest points to
 `hooks/codex.json`. Keep host decoding at the launcher boundary and reuse the
-shared gate. Codex shell tools expose `Bash` and `tool_input.command` to hooks.
+shared gate. Codex may send the shell tool as `Bash`, `exec_command`, `shell_command` or `shell`; the launcher remaps each to `Bash` and reads `tool_input.cmd` or `.command`.
 Do not assume a Codex post event means exit 0.
 
 Validate Claude's marketplace and plugin separately:

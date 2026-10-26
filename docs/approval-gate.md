@@ -2,7 +2,7 @@
 
 The gate checks covered analysis commands before they run, so an agent cannot start a new run because an earlier chat discussed it. You decide what is approved; the gate records the runs that follow. It catches execution mistakes and shows gaps. It is **not a security boundary**, and the "ask first" steps in skills are instructions to the agent, not rules the gate enforces.
 
-Turn it on per repository with `/mycelium-extra:init` (Codex: `$mycelium-extra:init`). By hand: create `.mycelium-extra/gate.json` (`{}` uses the defaults) and add `.mycelium-extra/` to `.gitignore`. It holds short-lived execution state, not project knowledge. `init` never changes a gate that is already on.
+Turn it on per repository with `/mycelium-extra:init` (Codex: `$mycelium-extra:init`). By hand: create `.mycelium-extra/gate.json` (`{}` uses the defaults) and add `.mycelium-extra/`, `**/provenance/.publish.lock` and `**/provenance/.transactions/` to `.gitignore`. The first holds short-lived execution state, not project knowledge; the other two are verify's write lock and in-flight transaction. `init` never changes a gate that is already on.
 
 **Full detail** for every section below, including card fields, receipt fields and edge cases, is in the [complete gate reference](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/approval-gate-full.md).
 
@@ -77,7 +77,7 @@ Optional keys, the `.mycelium-extra/` file layout, lint-on-write, command hints 
 ## Limits
 
 - It catches mistakes; an agent set on bypassing it through Bash can do so.
-- It reads the words of a shell command. Runs through `make`, an unlisted `bash script.sh`, or a shell expansion it cannot resolve are not traced.
+- It reads the words of a shell command. Runs through `make` or an unlisted `bash script.sh` are not traced; a script path that is a shell expansion it cannot resolve is denied, so write paths literally.
 - Tools other than Bash and the file-edit tools, such as MCP notebook execution, bypass both the gate and the lineage.
 - A script edited after approval is re-pinned with a notice, not blocked: a covered run can execute code newer than the code you approved. `freeze` and `verify` show what changed.
 - Size-and-mtime and folder fingerprints miss an edit that keeps both.

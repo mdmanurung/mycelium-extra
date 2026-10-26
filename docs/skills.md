@@ -1,8 +1,8 @@
 # Skill reference
 
-New here? Start with [Usage tiers](usage.md) to choose a workflow. This page indexes the skills. Each one has a reference page with its synopsis, subcommands, what it writes, its defaults and how to switch it off. You don't need to learn them all.
+New here? Start with [Usage tiers](usage.md) to choose a workflow. This page indexes the skills. Each one but `plot-first` (guidance only) has a reference page with its synopsis, subcommands, what it writes, its defaults and how to switch it off. You don't need to learn them all.
 
-Commands use Claude Code syntax. In Codex, use `$mycelium-extra:` instead of `/mycelium-extra:`. OpenCode takes the same `/mycelium-extra:` commands (`@grill` also works). See [Host compatibility](installation.md#host-compatibility).
+Commands use Claude Code syntax. In Codex, use `$mycelium-extra:` instead of `/mycelium-extra:`. OpenCode takes the same `/mycelium-extra:` commands. See [Host compatibility](installation.md#host-compatibility).
 
 ![Planning, execution, inspection, continuity and retained lessons are different tasks. The skill reference below gives their actual read/write behavior and prerequisites.](figures/task-skills.svg)
 
@@ -59,7 +59,7 @@ Compares a plan's assumptions with your sample tables or H5AD `obs`. See [data-c
 
 ## manuscript-audit
 
-Read-only audit of a manuscript repository's figure/table lineage, source data and reporting, with an optional small deterministic contract check. See [manuscript-audit](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/manuscript-audit.md).
+Read-only audit of a manuscript repository's figure/table lineage, source data and reporting, with an optional small deterministic contract check: run ad hoc on stdin before approval, or as a project copy bound in a plan's `test_paths` so `verify` can attribute its result. See [manuscript-audit](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/manuscript-audit.md).
 
 ## focus
 

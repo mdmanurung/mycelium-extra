@@ -77,7 +77,7 @@ When an `Outputs:` path names the same file or folder as an `Inputs:` path, the 
 
 ### Other `gate.json` settings
 
-`gated_paths`, `gated_commands`, `approval_hours` and `on_error` are in [Settings](approval-gate.md#settings). These keys are optional; a missing key uses its default. An invalid numeric value, or an `on_error` that is neither `"allow"` nor `"deny"`, does not abort the card: at the next prompt and Stop the gate shows one notice naming the key and what it accepts, and uses the default for that key (`approval_hours`, `pin_hash_mb` and `pin_seconds` take a number of 0 or more; `on_error` is `"allow"` or `"deny"`, and any other value allows). `max_runs_per_approval`, `checkpoint_steps`, `pin_scripts` and `lint_before_run` give their own notice where they apply. A `gate.json` that is not valid JSON is a gate error and follows `on_error`.
+`gated_paths`, `gated_commands`, `approval_hours` and `on_error` are in [Settings](approval-gate.md#settings). These keys are optional; a missing key uses its default. An invalid numeric value, a `gated_paths` or `gated_commands` that is not a list of strings, a `confirm_writes` that is not a boolean, or an `on_error` that is neither `"allow"` nor `"deny"`, does not abort the card: at the next prompt and Stop the gate shows one notice naming the key and what it accepts, and uses the default for that key (`approval_hours`, `pin_hash_mb` and `pin_seconds` take a number of 0 or more; `on_error` is `"allow"` or `"deny"`, and any other value allows). `max_runs_per_approval`, `checkpoint_steps`, `pin_scripts` and `lint_before_run` give their own notice where they apply. A `gate.json` that is not valid JSON is a gate error and follows `on_error`.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -91,7 +91,7 @@ When an `Outputs:` path names the same file or folder as an `Inputs:` path, the 
 | `lint_on_write` | `true` | Lint each gated script as it is written and tell the agent the open findings; the user sees what is left when the turn ends. `false` turns it off. |
 | `lint_before_run` | `false` | `"warn"` or `"block"`: before a gated run, tell about or deny a script whose findings lint-on-write recorded and that has not been edited since. See [Lint on write](reference/approval-gate-full.md#lint-on-write). |
 | `lint_before_stop` | `false` | `true` blocks the Stop once per change while scripts written this session have open findings. See [Lint on write](reference/approval-gate-full.md#lint-on-write). |
-| `pin_scripts` | `true` | Block a run whose script changed since it was approved or first run. `false` turns it off. |
+| `pin_scripts` | `true` | Pin the scripts a plan names and re-pin with a notice when one is edited; `freeze` and `verify` show the change. `false` turns it off. |
 
 ### Plan-review packets and consent
 

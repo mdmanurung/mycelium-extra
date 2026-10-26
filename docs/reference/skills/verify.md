@@ -12,7 +12,7 @@ Run from inside the repository, from stdin. Invoke with `/mycelium-extra:verify`
 
 ## Subcommands
 
-`<action>` is one of eleven values. "Gate" says whether it needs `.mycelium-extra/gate.json`.
+`<action>` is one of twelve values. "Gate" says whether it needs `.mycelium-extra/gate.json`.
 
 | Action | Arguments | Meaning | Writes | Gate |
 |---|---|---|---|---|
@@ -28,8 +28,9 @@ Run from inside the repository, from stdin. Invoke with `/mycelium-extra:verify`
 | `status` | none | one table: plans approved or verified, runs, status, stale, lint, manifest listing | no | no |
 | `runs` | `[RESULTS_DIR]` | labelled run folders of a results folder (`run_<YYYYMMDD>_<slug>`, `_vNN`, `RUN.txt`) | no | no |
 | `refs` | `<path> [--sha SHA256]` | which saved plans pinned a file; `definite` when the SHA256 matches, `possible` otherwise | no | no |
+| `exercise` | `[reveal]` | a labelled synthetic claim-mismatch rehearsal; prints only ([exercise](../../exercise.md)) | no | no |
 
-`status` and `runs` read committed provenance, so they work on a clone with no gate. With no hash, list the plans and ask which one.
+`stale`, `status`, `runs` and `refs` read committed provenance, so they work on a clone with no gate; `exercise` needs neither. With no hash, list the plans and ask which one.
 
 ## Options
 
@@ -73,7 +74,7 @@ Exit codes: `report` and `write` exit 0 whatever the status. `--require-reportab
 
 ## Writes
 
-Only `write`, and only `<analysis-dir>/provenance/`: `plan-<hash>.md`, `receipts-<hash>.jsonl`, `outputs-<hash>.tsv`, `verify-<hash>.md`, `lint-<hash>.txt`, `PROVENANCE.md`, `complete-<hash>.json`; plus `validation-<hash>.json`, `env-<hash>.txt` and `pip-<hash>.txt` when they apply. Writing again for the same plan replaces its files and its row. A non-conforming result can be written too; its status is recorded with it. The script warns if git ignores the folder. See [State files](../state-files.md).
+Only `write`, and only `<analysis-dir>/provenance/`: `plan-<hash>.md`, `receipts-<hash>.jsonl`, `outputs-<hash>.tsv`, `verify-<hash>.md`, `lint-<hash>.txt`, `PROVENANCE.md`, `complete-<hash>.json`; plus `validation-<hash>.json`, `env-<hash>.txt`, `pip-<hash>.txt` and `rule-envs-<hash>.json` when they apply, and `evidence-<hash>.json` (the portable evidence handoff). Writing again for the same plan replaces its files and its row. A non-conforming result can be written too; its status is recorded with it. The script warns if git ignores the folder. See [State files](../state-files.md).
 
 ## Default on or off
 

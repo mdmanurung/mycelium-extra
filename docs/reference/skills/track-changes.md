@@ -5,7 +5,7 @@ A read-only account of how one analysis moved from what you approved. It reuses 
 ## Synopsis
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. [--repo DIR] [--analysis FOLDER] [--session ID] [--original HASH] [--current HASH] [--transcript FILE] [--json] [--no-write] [--explain ITEM_ID] < <skill-dir>/scripts/track_changes.py
+sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. [--repo DIR] [--analysis FOLDER] [--session ID] [--original HASH] [--current HASH] [--transcript FILE] [--json] [--no-write] [--explain ITEM_ID] [--journal [--save-checkpoint] [--note TEXT]] < <skill-dir>/scripts/track_changes.py
 ```
 
 Invoke with `/mycelium-extra:track-changes`. Run from stdin, never by path.
@@ -24,6 +24,9 @@ Invoke with `/mycelium-extra:track-changes`. Run from stdin, never by path.
 | `--json` | Print the snapshot instead of the card. |
 | `--no-write` | Print only; write no files. |
 | `--explain ITEM_ID` | One bounded block for one item (a unique id prefix is enough) with five headings: Observed, Potential, Unknown, Authorization, Evidence. Read-only; writes no files. |
+| `--journal` | Print the analysis journal (`mycelium-extra.analysis-journal.v1`) built from the same evidence; see [Focus and track-changes](../../focus-and-track-changes.md). |
+| `--save-checkpoint` | With `--journal`: save it as `<analysis>/journal/checkpoints/<digest>.json`. |
+| `--note TEXT` | With `--save-checkpoint`: a one-line note stored with the checkpoint. |
 
 ## What it compares
 
@@ -35,7 +38,7 @@ A short card (Baseline, Attention, Also, Unknown, then one `▶` line), a Markdo
 
 ## Writes
 
-Only `.mycelium-extra/track-changes/<analysis>/`: `snapshot.json`, `brief.md`, `report.html` (not with `--no-write` or `--explain`). It refuses to write if that folder is a link or resolves outside the project. The report holds code diffs, so `.mycelium-extra/` should be git-ignored; the script warns when it is not. `grill` reads `brief.md` when a task revises an approved plan.
+`.mycelium-extra/track-changes/<analysis>/`: `snapshot.json`, `brief.md`, `report.html` (not with `--no-write` or `--explain`); with `--journal --save-checkpoint`, also `<analysis>/journal/checkpoints/<digest>.json`. It refuses to write if that folder is a link or resolves outside the project. The report holds code diffs, so `.mycelium-extra/` should be git-ignored; the script warns when it is not. `grill` reads `brief.md` when a task revises an approved plan.
 
 ## Default on or off
 

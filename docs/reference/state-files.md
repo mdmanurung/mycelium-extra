@@ -15,7 +15,9 @@ The `.jsonl` logs and `explore.log` only grow. Nothing trims them.
 
 | Path | Written by | Read by | Holds | Proposed 1.x |
 |---|---|---|---|---|
-| `gate.json` | you (`init` creates it once) | gate, `init --diagnose`, `verify` | the settings ([gate.json](gate-json.md)) | Yes: the 15 keys |
+| `gate.json` | you (`init` creates it once) | gate, `init --diagnose`, `verify` | the settings ([gate.json](gate-json.md)) | Yes: the 16 keys |
+| `write-pending/<id>.json` | `confirm_write.py prepare` (a skill) | gate | a write awaiting `confirm write <id>` | No |
+| `write-consent/<id>.json` | gate, on your `confirm write <id>` | the skill | the consent, valid 1 h | No |
 | `approvals/<hash>.json` | gate, on your `approve` | gate, `verify`, `track-changes` | the approved plan text, its pins and script pins, session, time. Never deleted. | Yes, readable forever |
 | `approval-instances/<hash>/<id>.json` | gate, on your `approve` | `verify`, `track-changes` | the immutable freeze of one approval (`mycelium-extra.approval-instance.v1`) | Yes (v1) |
 | `approvals.jsonl` | gate | nothing | one latency line per approval | No |
@@ -51,6 +53,8 @@ Written only by `verify write <hash> --analysis-dir <folder>`, after you confirm
 | `verify-<hash>.md` | the verify report | Yes |
 | `lint-<hash>.txt` | scilintr output, waivers and what each suppressed | Yes |
 | `env-<hash>.txt`, `pip-<hash>.txt` | conda and pip packages of the runs' environments; only when they apply | Yes |
+| `rule-envs-<hash>.json` | the per-rule conda environments of a `snakemake --use-conda` run; only when it applies | Yes |
+| `evidence-<hash>.json` | the portable evidence handoff (`mycelium-extra.evidence-handoff.v1`), checksummed by the completion marker; see [portable evidence handoff](verification-full.md#portable-evidence-handoff) | Yes |
 | `PROVENANCE.md` | one row per verified plan | Yes |
 | `complete-<hash>.json` | marks a bundle as completely written | Yes |
 | `.publish.lock`, `.transactions/` | write lock and the in-flight transaction record | No |
@@ -61,9 +65,9 @@ Written only by `verify write <hash> --analysis-dir <folder>`, after you confirm
 
 | Path | Written by | Notes |
 |---|---|---|
-| `.gitignore` | `init` | gains `.mycelium-extra/` |
+| `.gitignore` | `init` | gains `.mycelium-extra/`, `**/provenance/.publish.lock` and `**/provenance/.transactions/` |
 | `HANDOFF.md` (project root) | `handoff` | overwritten each time |
-| `todo/<slug>.md`, `todo/TODO_REGISTRY.md` | `idea` | Mycelium's own todo format |
+| `todo/<slug>.md`, `todo/TODO_REGISTRY.md` | `idea`; `idea-triage` annotates items and sets one status | Mycelium's own todo format |
 | `.living/decisions.md` | `decision-status` | one appended entry, after you confirm |
 | `.living/learnings.md` | `harden` | one entry edited, after you confirm |
 | the new analysis folder | `new-analysis` | never overwrites |
@@ -71,11 +75,6 @@ Written only by `verify write <hash> --analysis-dir <folder>`, after you confirm
 See also: [Gate](gate.md), [gate.json](gate-json.md).
 
 ## Analysis Journal records
-
-Confirmed `verify write` additionally publishes `provenance/evidence-<hash>.json`
-(`mycelium-extra.evidence-handoff.v1`), checksummed by the existing completion
-marker. Same-plan replacement still applies. See
-[portable evidence handoff](verification-full.md#portable-evidence-handoff).
 
 Explicit `track-changes --journal --save-checkpoint` creates only
 `<analysis>/journal/checkpoints/<full-digest>.json` and its `.save.lock`, in

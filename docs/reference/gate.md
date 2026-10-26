@@ -6,7 +6,7 @@ The gate is off in a repository until `.mycelium-extra/gate.json` exists ([init]
 
 ## Hook events
 
-All hooks start through `hooks/py.sh --hook hooks/gate_run.py <event>`. `py.sh` picks the newest `python3.N` on `PATH` (3.14 down to 3.9), else `python3`; set `MYCELIUM_EXTRA_PYTHON` to name one. The gate needs Python 3.9 or later.
+All hooks start through `hooks/py.sh --hook hooks/gate_run.py <event>`. `py.sh` uses `MYCELIUM_EXTRA_PYTHON` if set, else `python3` when it is 3.9 or later (hooks skip that probe), else the newest `python3.N` on `PATH` (3.14 down to 3.9). The gate needs Python 3.9 or later.
 
 ### Claude Code (`hooks/hooks.json`)
 
@@ -21,7 +21,7 @@ All hooks start through `hooks/py.sh --hook hooks/gate_run.py <event>`. `py.sh` 
 
 ### Codex (`hooks/codex.json`)
 
-The same events with `--host codex`, except that there is no `PostToolUseFailure`. Tool matchers are `Bash|apply_patch` for `PreToolUse`, and `Bash` and `apply_patch` as two `PostToolUse` entries. Timeouts are the same as above. Codex needs enabled and trusted hooks, and CLI 0.160.0 or later. In 0.160.0 the post hook gives no exit status, so every Codex receipt records exit status `unknown` and `verify` reports a gap. A failed `Bash` or `apply_patch` call therefore never reads as a pass: when Codex sends the post event it is receipted `unknown`, and when it sends none the planned step has no receipt at all. Neither is recorded as a completed run (Claude Code, which does send `PostToolUseFailure`, records the exit code when the message carries one).
+The same events with `--host codex`, except that there is no `PostToolUseFailure`. Tool matchers are `Bash|apply_patch|exec_command|shell_command|shell` for `PreToolUse`, and `Bash|exec_command|shell_command|shell` and `apply_patch` as two `PostToolUse` entries; the launcher remaps each shell name to `Bash`. Timeouts are the same as above. Codex needs enabled and trusted hooks, and CLI 0.160.0 or later. In 0.160.0 the post hook gives no exit status, so every Codex receipt records exit status `unknown` and `verify` reports a gap. A failed `Bash` or `apply_patch` call therefore never reads as a pass: when Codex sends the post event it is receipted `unknown`, and when it sends none the planned step has no receipt at all. Neither is recorded as a completed run (Claude Code, which does send `PostToolUseFailure`, records the exit code when the message carries one).
 
 ### OpenCode (`opencode/index.js`)
 
@@ -113,14 +113,14 @@ Reading gated files (`cat`, `rg`, `git`) is never gated. A deny is logged in `de
 
 ### Errors and `on_error`
 
-If the gate itself breaks, or cannot be loaded, the hook fails open and prints a message, unless `gate.json` sets `"on_error": "deny"`: then every PreToolUse call it could not check is denied. Prompt, post and stop hooks report the error and carry on. Each error is appended to `gate-errors.jsonl` with its event, decision, host, session and call id when they can be decoded. A hook running on Python older than 3.9 first hands the event to `py.sh` once, and only then reports "needs Python 3.9 or later" and follows `on_error`.
+If the gate itself breaks, or cannot be loaded, the hook fails open and prints a message, unless `gate.json` sets `"on_error": "deny"`: then every PreToolUse call it could not check is denied. Prompt, post and stop hooks report the error and carry on. Each error is appended to `gate-errors.jsonl` with its event, decision, host, session and call id when they can be decoded. A hook running on Python older than 3.9 first hands the event to `py.sh` once, and only then reports "needs Python 3.9 or later" and follows `on_error`. With no Python interpreter at all, `py.sh` says so itself and denies the tool call only when `gate.json` sets `on_error: deny`. A hook the host kills at its timeout returns no decision: Claude Code and Codex allow the call silently whatever `on_error` says; only the OpenCode adapter applies `on_error` then.
 
 ## Forms the gate does not trace
 
 These are listed so you know where a run can happen with no denial and no receipt. `verify` reports such a run only when it can see its outputs.
 
-- Not traced: `make` and other build tools outside `gated_commands`; `bash script.sh` or `./run.sh` outside `gated_paths` (what a script runs inside is not read); `runpy`, `ipython`, `pypy`; `xargs python3`; `find -exec`; `eval` of a variable; a script written in an earlier call and then run.
-- Unresolved, therefore denied unless a plan covers the literal text: a runner whose script is a shell expansion (`python3 $f`, `python3 $(ls ...)`, a loop variable, a variable set earlier), and a `cd` or `pushd` into one. Write script paths literally.
+- Not traced: `make` and other build tools outside `gated_commands`; `bash script.sh` or `./run.sh` outside `gated_paths` (what a script runs inside is not read); `runpy`, `ipython`, `pypy`; `eval` of a variable; a script written in an earlier call and then run.
+- Unresolved, therefore denied unless a plan covers the literal text: a runner whose script is a shell expansion (`python3 $f`, `python3 $(ls ...)`, a loop variable, a variable set earlier), `find -exec` (`{}` is an operand like `$f`), a `$VAR` command word on a gated script, an `xargs`/`parallel` target not named on the line, and a `cd` or `pushd` into an expansion or a glob. Write script paths literally.
 - ANSI-C quoted paths decode basic escapes, ASCII octal/hex escapes and four/eight-digit Unicode escapes. Unsupported escapes remain unresolved. `ionice` and `setsid` are read as launch wrappers, including their documented value options and flags.
 - Tools other than Bash and the file-edit tools are not gated. Code run through an MCP notebook tool (`nb_*_execute`) or any other tool the gate does not match bypasses both the gate and the lineage.
 - State-folder protection is partial. Write and Edit paths, `rm -r*`, `mv`, `cp`, `tee`, `sed -i`, redirects, `find -delete` (with no `-name` or `-path` test), `rsync --delete`, `git clean -x`/`-X` and `git stash -a` are denied. Not seen: `git clean -fd` or `git stash -u` while the folder is untracked and not ignored, a script that deletes it, and a variable or glob the gate cannot resolve. A repository whose `gate.json` is gone is ungated and says nothing; `verify` then reports the plan's runs as unrecorded, a gap and never a clean pass.

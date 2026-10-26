@@ -4,7 +4,7 @@ One page per skill, then the pages about the gate, its settings and its files. E
 
 ## Skills
 
-Every skill is a slash command in Claude Code (`/mycelium-extra:<name>`), a `$` command in Codex (`$mycelium-extra:<name>`) and a `/` command in OpenCode. The scripts behind them run from stdin through `hooks/py.sh`, never by path, so Mycelium's own hooks stay closed.
+Every skill is a slash command in Claude Code (`/mycelium-extra:<name>`), a `$` command in Codex (`$mycelium-extra:<name>`) and a `/` command in OpenCode. The scripts behind them run from stdin through `hooks/py.sh`, never by path, so Mycelium's own hooks stay closed; the one exception is `plan-review`'s `review_packet.py`, which loads a sibling module and runs by path.
 
 | Skill | One line | Writes |
 |---|---|---|
@@ -29,7 +29,7 @@ Every skill is a slash command in Claude Code (`/mycelium-extra:<name>`), a `$` 
 | Page | What it covers |
 |---|---|
 | [Gate](gate.md) | hook events on each host, typed commands, every allow, deny and notice, what the gate does not trace |
-| [gate.json](gate-json.md) | all 15 settings with default, type and validation |
+| [gate.json](gate-json.md) | all 16 settings with default, type and validation |
 | [State files](state-files.md) | every file under `.mycelium-extra/` and `provenance/`, who writes and reads it, and the proposed 1.x compatibility surface |
 
 ## Reading the "confirmation" lines

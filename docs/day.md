@@ -2,7 +2,7 @@
 
 [Back to the usage tiers](usage.md)
 
-This follows one researcher through one working day on a reportable analysis, in order, so you can see where Mycelium Extra speaks up and where it stays out of the way. The times are illustrative. The commands and messages are the ones the plugin has today (0.14.0); for the exact output of each step, see the [worked example](example.md).
+This follows one researcher through one working day on a reportable analysis, in order, so you can see where Mycelium Extra speaks up and where it stays out of the way. The times are illustrative. The commands and messages are the ones the plugin has today; for the exact output of each step, see the [worked example](example.md).
 
 The question for the day: *does the day 28 minus day 0 change in gene expression differ between vaccine and placebo?* The repository already has the gate turned on (`/mycelium-extra:init`, once). Examples use Claude Code's `/mycelium-extra:` prefix; Codex uses `$mycelium-extra:`, and OpenCode uses `/mycelium-extra:` too.
 

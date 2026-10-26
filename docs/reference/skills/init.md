@@ -37,7 +37,7 @@ The repository's top-level folders (to warn when the default gated paths do not 
 | What | Where | When |
 |---|---|---|
 | `gate.json` | `.mycelium-extra/gate.json` | once; `{}` when you pass no options |
-| ignore line | `.gitignore` gains `.mycelium-extra/` | when not already ignored |
+| ignore line | `.gitignore` gains `.mycelium-extra/`, `**/provenance/.publish.lock` and `**/provenance/.transactions/` | when not already ignored |
 | `tools.json` | `.mycelium-extra/tools.json` | with `--tools` |
 
 `--diagnose` and `--dry-run` write nothing. The script never commits. When a gate is already on (here or in a parent folder), the script prints `already gated`, the effective config and a note that nothing changed, and exits 0 (1 if that `gate.json` is unreadable); with `--tools` it still records the tools.

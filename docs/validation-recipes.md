@@ -2,11 +2,11 @@
 
 [Back to the advanced features](advanced.md)
 
-Eight small acceptance checks that catch a wrong analysis a plain run would not, and how to correct a wrong expectation afterwards. Each recipe is built from what the repository already has: a [validation binding](advanced.md#validation-bindings), the [data-contract checks](skills.md), and a development fixture that proves the check fails when it should. Nothing here adds a mandatory step; a plan without a `validation-bindings` block is approved and run as before.
+Nine small acceptance checks that catch a wrong analysis a plain run would not, and how to correct a wrong expectation afterwards. Each recipe is built from what the repository already has: a [validation binding](advanced.md#validation-bindings), the [data-contract checks](skills.md), and a development fixture that proves the check fails when it should. Nothing here adds a mandatory step; a plan without a `validation-bindings` block is approved and run as before.
 
 A bound check is one claim, not a certificate. `verify` reads the check's result file and reports `passed`, `failed`, `not run`, `changed`, `unsupported`, `unattributable` or `stale` (see [Validation in the report](advanced.md#validation-in-the-report)). It does not run the check and does not say the analysis is right.
 
-**On this page:** [How a recipe is written](#how-a-recipe-is-written) · [How a result is read](#how-a-result-is-read) · [Contract kinds, and what they cannot show](#contract-kinds-and-what-they-cannot-show) · [Running a step that takes paths on the command line](#running-a-step-that-takes-paths-on-the-command-line) · [1. Sample and key join](#1-sample-and-key-join) · [2. Contrast direction](#2-contrast-direction) · [3. Complete result table](#3-complete-result-table) · [4. Missing values and type conversion](#4-missing-values-and-type-conversion) · [5. Join cardinality and denominator](#5-join-cardinality-and-denominator) · [6. Identifier normalization](#6-identifier-normalization) · [7. Output invariants](#7-output-invariants) · [8. Negative controls](#8-negative-controls) · [Correcting a wrong expectation](#correcting-a-wrong-expectation) · [Limits](#limits)
+**On this page:** [How a recipe is written](#how-a-recipe-is-written) · [How a result is read](#how-a-result-is-read) · [Contract kinds, and what they cannot show](#contract-kinds-and-what-they-cannot-show) · [Running a step that takes paths on the command line](#running-a-step-that-takes-paths-on-the-command-line) · [1. Sample and key join](#1-sample-and-key-join) · [2. Contrast direction](#2-contrast-direction) · [3. Complete result table](#3-complete-result-table) · [4. Missing values and type conversion](#4-missing-values-and-type-conversion) · [5. Join cardinality and denominator](#5-join-cardinality-and-denominator) · [6. Identifier normalization](#6-identifier-normalization) · [7. Output invariants](#7-output-invariants) · [8. Negative controls](#8-negative-controls) · [9. Same results after a refactor](#9-same-results-after-a-refactor) · [Correcting a wrong expectation](#correcting-a-wrong-expectation) · [Limits](#limits)
 
 ## How a result is read
 
@@ -294,21 +294,21 @@ R1, R2 and R4 compose the shipped `data-contract-check`; R3 adds recorded method
 | R3 recorded method | Exact approved formula, contrast numerator/denominator/sign, random effects, covariates, assay and exclusions | `r3_wrong_sign.json`; tests mutate every field | `r3_observed.json`; JSON key order and ordering within declared lists may vary | Agreement of the recorded model fields with approved expectations; no extraction or authentication of the actual fit |
 
 ```bash
-python3 skills/data-contract-check/scripts/data_contract_check.py --contract tests/fixtures/sc-conventions/r1_missing_pair.json --root . --result-json /tmp/sc-r1-red.json
+sh hooks/py.sh - --contract tests/fixtures/sc-conventions/r1_missing_pair.json --root . --result-json /tmp/sc-r1-red.json < skills/data-contract-check/scripts/data_contract_check.py
 # exit 2; missing donor pair blocks
-python3 skills/data-contract-check/scripts/data_contract_check.py --contract tests/fixtures/sc-conventions/r1_design.json --root . --result-json /tmp/sc-r1-green.json
+sh hooks/py.sh - --contract tests/fixtures/sc-conventions/r1_design.json --root . --result-json /tmp/sc-r1-green.json < skills/data-contract-check/scripts/data_contract_check.py
 # exit 0; these declared design checks pass
-python3 skills/data-contract-check/scripts/data_contract_check.py --contract tests/fixtures/sc-conventions/r2_wrong_keys.json --root . --result-json /tmp/sc-r2-red.json
+sh hooks/py.sh - --contract tests/fixtures/sc-conventions/r2_wrong_keys.json --root . --result-json /tmp/sc-r2-red.json < skills/data-contract-check/scripts/data_contract_check.py
 # exit 2; independently listed sample keys differ
-python3 skills/data-contract-check/scripts/data_contract_check.py --contract tests/fixtures/sc-conventions/r2_keys.json --root . --result-json /tmp/sc-r2-green.json
+sh hooks/py.sh - --contract tests/fixtures/sc-conventions/r2_keys.json --root . --result-json /tmp/sc-r2-green.json < skills/data-contract-check/scripts/data_contract_check.py
 # exit 0; key sets agree
-python3 skills/data-contract-check/scripts/data_contract_check.py --contract tests/fixtures/sc-conventions/r4_cell_level.json --root . --result-json /tmp/sc-r4-red.json
+sh hooks/py.sh - --contract tests/fixtures/sc-conventions/r4_cell_level.json --root . --result-json /tmp/sc-r4-red.json < skills/data-contract-check/scripts/data_contract_check.py
 # exit 2; donors repeat within a cell type x condition cell
-python3 skills/data-contract-check/scripts/data_contract_check.py --contract tests/fixtures/sc-conventions/r4_unit.json --root . --result-json /tmp/sc-r4-green.json
+sh hooks/py.sh - --contract tests/fixtures/sc-conventions/r4_unit.json --root . --result-json /tmp/sc-r4-green.json < skills/data-contract-check/scripts/data_contract_check.py
 # exit 0; one row per donor per cell
-python3 skills/verify/scripts/method_fidelity.py --expected tests/fixtures/sc-conventions/r3_expected.json --observed tests/fixtures/sc-conventions/r3_wrong_sign.json --result-json /tmp/sc-r3-red.json
+sh hooks/py.sh - --expected tests/fixtures/sc-conventions/r3_expected.json --observed tests/fixtures/sc-conventions/r3_wrong_sign.json --result-json /tmp/sc-r3-red.json < skills/verify/scripts/method_fidelity.py
 # exit 2; recorded contrast sign differs
-python3 skills/verify/scripts/method_fidelity.py --expected tests/fixtures/sc-conventions/r3_expected.json --observed tests/fixtures/sc-conventions/r3_observed.json --result-json /tmp/sc-r3-green.json
+sh hooks/py.sh - --expected tests/fixtures/sc-conventions/r3_expected.json --observed tests/fixtures/sc-conventions/r3_observed.json --result-json /tmp/sc-r3-green.json < skills/verify/scripts/method_fidelity.py
 # exit 0; recorded fields agree
 ```
 

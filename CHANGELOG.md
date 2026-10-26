@@ -4,6 +4,10 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- **docs:** revised against the code after an audit: `pin_scripts` re-pins with a notice rather than blocking; the gate type-checks `gated_paths`, `gated_commands` and `confirm_writes` at load; 16 settings, not 15; `init --hours 0` is accepted; the untraced-forms list drops `xargs`, `find -exec` and `eval "literal"` and names what is denied instead (`{}`, a `$VAR` command word, an `xargs` target not on the line); an unresolved expansion is denied, not "not traced"; the Codex matchers and remap; `.gitignore` lines `init` writes; `write-pending/` and `write-consent/` in the state-file table; `rule-envs-<hash>.json` and `evidence-<hash>.json` in the provenance tables; CI's adversarial-audit step and the viewer tests; verify's twelfth action `exercise` and which actions need no gate; `track-changes` `--journal`, `--save-checkpoint` and `--note`; fifteen skills, nine recipes; recipe and exercise commands stream scripts through `py.sh` instead of running them by path; `py.sh` interpreter order stated the same way on every page; a host timeout and a missing interpreter in the on_error pages; `card_coverage` default wording; the `plan-review` exception to stdin; the `@grill` mention claim for OpenCode removed (unverified).
+
 ### Fixed
 
 - **tests:** `tests/test_manuscript_native_grader.py` failed in CI since the 0.18.1 runbook landed: it runs the runbook under a fresh `HOME`, which drops CI's global `safe.directory`, so git refused the root-owned checkout. The test sets `safe.directory=*` through `GIT_CONFIG_COUNT` for the runbook only.
