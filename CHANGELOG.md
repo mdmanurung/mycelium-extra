@@ -18,10 +18,9 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 - **data-contract-check:** `h5ad_layer`'s `max_at_most` rejects `NaN` and `Infinity`, which made every value pass, and a limit of `0` is now checked instead of skipped.
 
-### Fixed
+- **verify:** a contract result is `unsupported`, not passed, when its `exit_code` is `false` or `0.0`, its `checks` list is empty, missing or holds a non-object, its `contract` object is missing, or a binding that pins files has no `contract.sha256`.
 
-- **verify:** a data-contract result no longer passes on malformed evidence. An `exit_code` of `false` or `0.0`, a missing `checks` list or `contract` object, a `checks` entry that is not an object, an empty `checks` list, or (for a binding that pins files) a missing `contract.sha256` is now `unsupported`; all eight passed before. Found by the strict-input probe in roadmap 15 (N1).
-- **data-contract-check:** an `h5ad_layer` `max_at_most` of `0` is now checked (it was skipped as falsy), a non-finite `max_at_most` (`NaN`, `Infinity`) is a usage error, and an unknown top-level contract key (say `filter` for `filters`) is a usage error instead of a silent drop. `method_fidelity.py` refused all 38 malformed records the probe tried; no change.
+- **data-contract-check:** an unknown top-level contract key, such as `filter` for `filters`, is a usage error instead of being ignored.
 
 ## [0.18.0] - 2026-10-26
 
