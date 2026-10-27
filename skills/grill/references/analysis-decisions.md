@@ -5,7 +5,7 @@ A coverage list, not a question list. For each point that applies, the plan must
 | Decision point | Settle | Where evidence usually lives |
 | --- | --- | --- |
 | Estimand and claim type | Exploratory, predictive, or causal; the exact contrast and direction; the population the claim covers | Analysis doc, `specification.md`, decisions |
-| Unit of replication | Donor, sample, or cell as the test unit; pseudobulk or mixed model versus cell-level tests; paired or repeated structure | Metadata schema, prior decisions, existing model code |
+| Unit of replication | Donor, sample, or cell as the test unit; pseudobulk or mixed model versus cell-level tests; paired or repeated structure. Cells are the unit only when the condition was assigned to each cell (per-cell perturbation, biology-skills v0.6.0 `experimental-design` pseudoreplication `:70`); otherwise the donor is. A donor with several samples needs a donor term in the design | Metadata schema, prior decisions, existing model code |
 | Cohort and exclusions | Inclusion rules; excluded samples and why; pre-specified or data-derived | `DATA_MANIFEST.md`, `data/metadata/*/provenance.md`, decisions |
 | Input and matrix state | Which file or object; `X` versus `layers`/`raw`/assay; counts, normalized, log, or scaled at each downstream call | Data manifest, loading code, a single inline probe |
 | Reference and identifiers | Genome and annotation build; gene ID type (Ensembl or symbol); species mapping; marker or gene-set source and version | Ingest provenance, config, learnings |
