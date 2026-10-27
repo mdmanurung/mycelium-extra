@@ -108,6 +108,25 @@ class GateTest(unittest.TestCase):
         ]:
             self.assertIsNone(self.bash(command), command)
 
+    def test_static_quarto_render_is_not_a_run(self):
+        folder = os.path.join(self.root, "analysis", "x", "reports")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "static.qmd"), "w") as handle:
+            handle.write("---\ntitle: x\nformat: html\nengine: markdown\n---\n\n```{r}\n1\n```\n")
+        with open(os.path.join(folder, "live.qmd"), "w") as handle:
+            handle.write("---\ntitle: x\nengine: knitr\n---\n")
+        with open(os.path.join(folder, "none.qmd"), "w") as handle:
+            handle.write("# no front matter\n")
+        self.assertIsNone(self.bash("quarto render analysis/x/reports/static.qmd"))
+        self.assertIsNone(self.bash("cd analysis/x && quarto render reports/static.qmd --to html"))
+        for command in ["quarto render analysis/x/reports/live.qmd", "quarto render analysis/x/reports/none.qmd",
+                        "quarto render analysis/x/reports/static.qmd analysis/x/reports/live.qmd",
+                        "quarto run analysis/x/reports/static.qmd", "quarto render analysis/x/01.R"]:
+            self.assertTrue(self.denied(self.bash(command)), command)
+        with open(os.path.join(self.root, "analysis", "x", "_quarto.yml"), "w") as handle:
+            handle.write("project:\n  pre-render: 01.R\n")
+        self.assertTrue(self.denied(self.bash("quarto render analysis/x/reports/static.qmd")), "_quarto.yml")
+
     def test_each_deny_is_counted_and_an_allow_is_not(self):
         self.assertTrue(self.denied(self.bash("python analysis/x.py")))
         self.assertIsNone(self.bash("ls"))

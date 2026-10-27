@@ -60,7 +60,7 @@ A dry run (`snakemake -n`, `bash run.sh -n`) is gated like any run: a Snakefile 
 
 Only the plan table's Step column counts. A path or command word in a Choice, Validation or Source cell, the brief's prose, its Evidence, or a `repo:` citation approves nothing, so a plan that cites a script as evidence does not approve running it. A plan with no table approves nothing, and the approval notice says so. A table whose header has no Step column (or no header) grants from every cell but Source, as before 0.9.57. The card lists scripts named outside the Step column as "not authorised". `verify` still reads every cell but Source when it asks what a plan named, so its record of older plans is unchanged.
 
-Reading gated files (`cat`, `rg`, `git`) is never gated.
+Reading gated files (`cat`, `rg`, `git`) is never gated. Nor is `quarto render` or `quarto preview` of a `.qmd` whose front matter says `engine: markdown`, when no `_quarto.yml` sits in its folder or any parent up to the project root: no cell executes, so it is typesetting (the `analysis-report` skill's output). A `.qmd` with another engine, no front matter, a `_quarto.yml` above it (it can add pre-render scripts), a script operand, or `quarto run` is gated like any run.
 
 An existing script path containing spaces can be quoted or backticked in the
 Step cell. Its complete path is granted and pinned; its fragments grant nothing.

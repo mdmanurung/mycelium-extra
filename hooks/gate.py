@@ -857,9 +857,35 @@ def _classify(tokens, root, cwd, config, info=None):
                     repo_relative(root, cwd, value) or value)
             if rel and (first or SCRIPT_EXT.search(rel) or word in ("jupyter", "papermill", "quarto")):
                 paths.append(rel)
+        if word == "quarto" and positional in ("render", "preview") and any(r.endswith(".qmd") for r in paths) and all(
+                static_quarto(root, r) if r.endswith(".qmd") else not SCRIPT_EXT.search(r) for r in paths):
+            paths = []  # every document is markdown-engine (static_quarto) and nothing else is a script: nothing executes
         return explore, (word if paths else None), paths, cwd
     rel = script_rel(head, "/" in head)
     return explore, (head if rel else None), ([rel] if rel else []), cwd
+
+
+def static_quarto(root, rel):
+    """True for a .qmd whose front matter says `engine: markdown` (no cell executes) with no `_quarto.yml`
+    between it and the repository root (a project file can add pre-render scripts)."""
+    if not rel.endswith(".qmd"):
+        return False
+    path = os.path.join(root, rel)
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            head = handle.read(4096)
+    except OSError:
+        return False
+    match = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", head, re.S)
+    if not match or not re.search(r"^engine:\s*markdown\s*$", match.group(1), re.M):
+        return False
+    folder = os.path.dirname(path)
+    while True:
+        if os.path.exists(os.path.join(folder, "_quarto.yml")) or os.path.exists(os.path.join(folder, "_quarto.yaml")):
+            return False
+        if os.path.realpath(folder) == os.path.realpath(root) or os.path.dirname(folder) == folder:
+            return True
+        folder = os.path.dirname(folder)
 
 
 def job_cwd(tokens, cwd):

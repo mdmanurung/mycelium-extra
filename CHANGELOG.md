@@ -6,6 +6,8 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Added
 
+- **gate:** `quarto render` or `quarto preview` of a `.qmd` whose front matter says `engine: markdown`, with no `_quarto.yml` between it and the project root, is not a run: no cell executes. Any other `.qmd`, a script operand or `quarto run` stays gated.
+- **analysis-report:** `scripts/analysis_report.py` (stdin through `py.sh`, `--dest=<folder>`) reads any analysis folder, not only a `new-analysis` one: it prints an inventory (doc, numbered steps at the root or in `code/`, each `Snakefile*` with its rules, the script each shell line names and its `RUN` folder, dated runs and the `outputs/current` target, PNG figures, `*REPORT*.md`, `numbers.json`) and writes `reports/<name>.qmd` with one mermaid subgraph per Snakefile; it keeps an existing report unless `--overwrite`. First use: `bmv` stage 17 (`17_vaxresponse_dream`, four Snakefiles, six steps) rendered to a 5.5 MB self-contained HTML with the four reviewed figures embedded.
 - **analysis-report:** a user-invoked skill fills the Quarto report that `new-analysis` now scaffolds at `reports/<name>.qmd`: Overview (Purpose, plan links, a mermaid `flowchart LR` of inputs → steps → outputs generated from the same step list as the Snakefile), Methods and Results as nested tabsets with one tab per step, and Reproducibility. The report is static (`engine: markdown`, `embed-resources: true`): code blocks are 5–15 verbatim lines per script with `filename=` and a line range, figures are PNGs under `outputs/`, and conclusions follow plot-first. `quarto render` is a gated run (an approved plan step, or the user runs it). Mycelium's `report` keeps writing `<name>-report.tex` beside it.
 
 ### Changed
