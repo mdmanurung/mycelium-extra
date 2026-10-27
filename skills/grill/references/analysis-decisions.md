@@ -18,6 +18,7 @@ A coverage list, not a question list. For each point that applies, the plan must
 | Leakage and circularity | Selection or feature choice on the evaluation data; clustering then testing on the same cells; train/test split by subject | Code, prior reviews |
 | Validation and sensitivity | Which choices get a sensitivity run; null or permutation checks; the result that would change the conclusion | Active robust-analysis conventions, analysis doc |
 | Outputs and reporting | Deliverable (figure, table, report); values a report will cite; n, uncertainty, and units in figures | Analysis doc, `numbers.json`, report conventions |
+| Plot parameters | Each required argument of the lucid-coder `plots.R`/`plots.py` form a planned figure uses: `padj_max` and `lfc_min` (volcano), `limit` (heatmap), `seed` and `jitter_width` (box), `max_size` (dotplot), and panel width and height in mm. The module has no defaults, so none may come from another project or from habit. Not settled by the repository: ask the user as one question listing them all | `palettes.R`/`palettes.py` header, earlier figures in this repository, decisions |
 
 ## Declaring a data check in the plan
 
