@@ -43,7 +43,7 @@ Write nothing outside `reports/` except the `## Outputs` row in step 3.
 
 Run `quarto render <folder>/reports/<name>.qmd`. The gate lets it through without a plan because the document says `engine: markdown`: no cell executes, so it is typesetting, not a run. (A `.qmd` with `engine: knitr` or `jupyter`, or a `_quarto.yml` in the folder or above it, is a gated run again.) The output is `reports/<name>.html`, one self-contained file; open it or check it holds the figures (`<img` count) and the mermaid block before handing off. Quarto must be on PATH; if it is missing, say so and stop.
 
-After a render: add `| reports/<name>.html | Quarto report (rendered <date>) |` to the `## Outputs` table of `<NAME>.md`. Mycelium's `analysis/ANALYSIS_MANIFEST.md` has a `report:` field; suggest the HTML path for it and let `/mycelium:analyze` or the user write it.
+After a render: add `| reports/<name>.html | Quarto report (rendered <date>) |` to the `## Outputs` table of `<NAME>.md` (one sentence in its Outputs section when the doc has no table). Mycelium's `analysis/ANALYSIS_MANIFEST.md` has a `report:` field; suggest the HTML path for it and let `/mycelium:analyze` or the user write it.
 
 ## 4. Hand off
 
