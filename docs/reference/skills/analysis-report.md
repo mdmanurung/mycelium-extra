@@ -35,7 +35,7 @@ The inventory (JSON on stdout) lists the analysis doc, the steps, each Snakefile
 |---|---|
 | Overview | Status, run and findings line; the Purpose from `<NAME>.md`; **Answer in brief**, one line per Results tab; a mermaid `flowchart LR` of inputs → `code/NN_step` → output, one node pair per Snakefile rule |
 | Methods | One sub-tab per step: two sentences, then 5–15 lines quoted verbatim from the script with `filename=` and the line range |
-| Results | One sub-tab per question (the scaffold's step tabs are placeholders): conclusions in plot-first form (figure link in the sentence, `[agent-derived: ...]` at line end), each with an inspection line |
+| Results | One sub-tab per question (the scaffold's step tabs are placeholders), opening with **Question.** / **Approach.** / **Conclusion.**, then conclusions in plot-first form (figure link in the sentence, `[agent-derived: ...]` at line end), numbered figure captions naming the source file, and an inspection line per figure |
 | Open items | What stays unresolved and the plot or check that would settle it |
 | Reproducibility | `bash run.sh`, `quarto render`, where numbers and provenance live |
 

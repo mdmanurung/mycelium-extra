@@ -138,9 +138,13 @@ def methods_tab(step):
 
 def results_tab(step, figures, reports):
     title = "### {} {}".format(step["num"], step["stem"][3:].replace("_", " "))
-    lines = [title, ""]
-    for fig in figures:
+    lines = [title, "",
+             "**Question.** [What this tab answers, as one question.]", "",
+             "**Approach.** [The data, the model or test, the multiplicity family, in one or two sentences.]", "",
+             "**Conclusion.** [The answer with its size and what it does not show.]", ""]
+    for n, fig in enumerate(figures, 1):
         lines += ["- [Conclusion] ([figure](../{0})). [agent-derived: `{0}`]".format(fig), "",
+                  "![Figure {1}. [caption]. `{0}`](../{0})".format(fig, n), "",
                   "Inspected `{}`: [groups, n, axes, interval type; any defect].".format(fig), ""]
     for rep in reports:
         lines += ["- [Conclusion from the run report]. [agent-derived: `{}`]".format(rep), ""]

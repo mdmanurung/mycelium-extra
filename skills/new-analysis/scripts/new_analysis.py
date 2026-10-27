@@ -343,7 +343,11 @@ def report_text(template, name, doc_name, dest_rel, steps, data_links):
         figure = "outputs/{}_[what-it-shows].png".format(step["num"])
         results.append("\n".join([
             title, "",
+            "**Question.** [What this tab answers, as one question.]", "",
+            "**Approach.** [The data, the model or test, the multiplicity family, in one or two sentences.]", "",
+            "**Conclusion.** [The answer with its size and what it does not show.]", "",
             "- [Conclusion] ([figure](../{0}), panel A). [agent-derived: `{0}`]".format(figure), "",
+            "![Figure N. [caption]. `{0}`](../{0})".format(figure), "",
             "Inspected `{}`: [groups, n, axes, interval type; any defect].".format(figure), ""]))
     return fill(template, {"NAME": name, "DOC": doc_name, "DEST": dest_rel.replace(os.sep, "/"),
                            "MERMAID": "\n".join(lines), "METHODS": "\n".join(methods),

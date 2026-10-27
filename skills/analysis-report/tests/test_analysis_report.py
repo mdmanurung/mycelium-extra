@@ -87,6 +87,8 @@ class AnalysisReportTest(unittest.TestCase):
         self.assertEqual(report.count("### 03 plot"), 2)  # a Methods tab, and the one Results tab with evidence
         self.assertEqual(report.count("### 01 prepare"), 1)
         self.assertIn("[agent-derived: `outputs/run_2/03_effects.png`]", report)
+        self.assertIn("![Figure 1. [caption]. `outputs/run_2/03_effects.png`](../outputs/run_2/03_effects.png)", report)
+        self.assertEqual(report.count("**Question.**"), 1)
         self.assertIn("[agent-derived: `outputs/run_2/03_REPORT.md`]", report)
 
         with open(os.path.join(self.dest, "reports", "demo.qmd"), "w") as handle:

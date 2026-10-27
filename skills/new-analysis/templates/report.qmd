@@ -42,7 +42,9 @@ Status: draft. Run: `outputs/[run]`. Findings: [.living/findings IDs once crysta
 ## Results
 
 <!-- One tab per question, numbered as in the plan ("1. What changes after X"); the step tabs below are
-     placeholders to rename. Null and adverse results get a tab too. -->
+     placeholders to rename. Each tab opens with Question / Approach / Conclusion, then the evidence:
+     conclusions citing figures, numbered figure captions naming the source file, one inspection line per
+     figure. Null and adverse results get a tab too. -->
 
 ::: {.panel-tabset}
 
