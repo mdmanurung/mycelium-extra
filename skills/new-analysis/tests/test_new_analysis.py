@@ -318,7 +318,7 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertIn('"outputs/02_fit.parquet"', snake)
         self.assertIn('"reports/site/code/02_fit.html"', snake)
         self.assertIn('input:\n        "reports/site/code/02_fit.html"', snake.split("rule all:")[1])
-        self.assertIn("execute-dir: project", read(os.path.join(self.dest, "_quarto.yml")))
+        self.assertIn("  execute-dir: project", read(os.path.join(self.dest, "_quarto.yml")))
         self.assertIn("```{python}", read(os.path.join(self.dest, "code", "01_prep.qmd")))
         self.assertFalse(os.path.exists(os.path.join(self.dest, "reports", "demo-run.qmd")))  # the steps are the report
 
