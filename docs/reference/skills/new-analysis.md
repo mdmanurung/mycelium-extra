@@ -17,7 +17,9 @@ Invoke with `/mycelium-extra:new-analysis analysis/<name>: <question>`. Write ev
 | Option | Meaning |
 |---|---|
 | `--dest` | Folder to create (required). In a Mycelium repository use `analysis/<name>/`, lowercase with hyphens. |
-| `--steps` | Comma-separated `NN_name.R`, `.py` or `.ipynb`, numbered in increasing order. Default `01_prepare_data.R,02_train_model.py,03_explore_model.ipynb`. |
+| `--steps` | Comma-separated `NN_name.R`, `.py`, `.ipynb` or `.qmd`, numbered in increasing order. A name with no extension takes `--format`. Default `01_prepare_data.R,02_train_model.py,03_explore_model.ipynb`, or the same names with the `--format` extension. |
+| `--format` | `R`, `py`, `ipynb` or `qmd`: the extension of the default steps and of bare names. Default: `step_format` in `.mycelium-extra/gate.json`, else none (the mixed default above). |
+| `--lang` | `r` (default, knitr) or `python` (jupyter): the language of qmd steps. |
 | `--data` | File or folder to link into `data/` (repeatable). |
 | `--code` | File or folder to link into `code/` (repeatable). |
 | `--doc-template` | Analysis doc template. Default: Mycelium's `analysis-readme.md`, found through `.mycelium/plugin-root`, else a bundled copy. |

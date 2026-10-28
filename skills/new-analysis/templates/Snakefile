@@ -2,7 +2,7 @@
 
 From anywhere: snakemake -s @@DEST@@/Snakefile --cores 4   (or: bash @@DEST@@/run.sh)
 One step:      snakemake -s @@DEST@@/Snakefile --cores 4 <rule name>
-Interpreters:  --config rscript=/path/to/Rscript python=/path/to/python jupyter=/path/to/jupyter
+Interpreters:  --config rscript=/path/to/Rscript python=/path/to/python jupyter=/path/to/jupyter quarto=/path/to/quarto
 
 Step scripts live in code/; paths are relative to this folder. Outputs go to outputs/ with the step's number as prefix;
 logs, benchmarks, and executed notebooks go to logs/. Wrap an output in protected() once it
@@ -14,6 +14,7 @@ workdir: workflow.basedir
 RSCRIPT = config.get("rscript", "Rscript")
 PYTHON = config.get("python", "python")
 JUPYTER = config.get("jupyter", "jupyter")
+QUARTO = config.get("quarto", "quarto")
 THREADS = "OPENBLAS_NUM_THREADS={threads} OMP_NUM_THREADS={threads} MKL_NUM_THREADS={threads} "
 
 

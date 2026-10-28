@@ -2,7 +2,8 @@
 
 Run from stdin so Mycelium's hooks stay closed, with every option in --flag=value form
 (the approval gate reads a bare analysis/... argument as a script to run):
-    sh <plugin>/hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb]
+    sh <plugin>/hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb,04_d.qmd]
+              [--format=R|py|ipynb|qmd] [--lang=r|python]
               [--data=PATH ...] [--code=PATH ...] [--doc-template=PATH] [--panels=Fig1a.R,Fig1b.py]
               --templates=<skill-dir>/templates [--dry-run] < new_analysis.py
 
@@ -32,8 +33,12 @@ import tempfile
 import sys
 
 PANEL = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*)\.(R|py)$")
-STEP = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*)\.(R|py|ipynb)$")
+STEP = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*)(?:\.(R|py|ipynb|qmd))?$")
+FORMATS = ("R", "py", "ipynb", "qmd")
 DEFAULT_STEPS = "01_prepare_data.R,02_train_model.py,03_explore_model.ipynb"
+DEFAULT_NAMES = ("01_prepare_data", "02_train_model", "03_explore_model")  # --format gives these one extension
+STATE_DIR = ".mycelium-extra"  # holds gate.json, whose "step_format" is the repository default
+LANGS = {"r": "R", "python": "py"}  # --lang for a qmd step: knitr (R) or jupyter (Python)
 DIRS = ["data", "code", "plans", "outputs", "logs", "reports"]
 UNTRACKED_OK = {"outputs/", "logs/"}  # often ignored on purpose (large or regenerable files)
 OUTPUT_EXT = {"R": ".rds", "py": ".parquet"}
@@ -89,26 +94,50 @@ def display(path, root):
     return os.path.relpath(path, root) if inside(path, root) else path
 
 
-def parse_steps(text):
+def parse_steps(text, fmt, lang):
     steps, previous = [], -1
     for name in [part.strip() for part in text.split(",") if part.strip()]:
         match = STEP.match(name)
-        if not match:
-            raise Refusal("step {!r} must look like NN_name.R, NN_name.py, or NN_name.ipynb"
-                          .format(name))
+        kind = match and (match.group(3) or fmt)
+        if not kind:
+            raise Refusal("step {!r} must look like NN_name.R, NN_name.py, NN_name.ipynb, or NN_name.qmd "
+                          "(or NN_name with --format)".format(name))
+        name = "{}.{}".format(match.group(0), kind) if not match.group(3) else name
         number = int(match.group(1))
         if number <= previous:
             raise Refusal("step numbers must increase: {} comes after {:02d}".format(name, previous))
         previous = number
-        stem, kind = name.rsplit(".", 1)
-        output = ("logs/" + name) if kind == "ipynb" else ("outputs/" + stem + OUTPUT_EXT[kind])
+        stem = name.rsplit(".", 1)[0]
+        step_lang = lang if kind == "qmd" else "r" if kind == "R" else "python"
+        output = ("logs/" + name) if kind == "ipynb" else ("outputs/" + stem + OUTPUT_EXT[LANGS[step_lang]])
         steps.append({"file": name, "path": "code/" + name, "num": match.group(1), "stem": stem, "kind": kind,
-                      "rule": "step" + re.sub(r"\W", "_", stem), "output": output})
+                      "lang": step_lang, "rule": "step" + re.sub(r"\W", "_", stem), "output": output,
+                      "html": "reports/site/code/{}.html".format(stem) if kind == "qmd" else None,
+                      "stub": "stub_{}.qmd".format(step_lang) if kind == "qmd" else "stub." + kind})
     if not steps:
         raise Refusal("--steps is empty")
     for before, step in zip([None] + steps, steps):
         step["input"] = before["output"] if before else None
     return steps
+
+
+def step_format(args, root):
+    """(format, where it came from): --format, else step_format in gate.json, else (None, None)."""
+    if args.format:
+        return args.format, "--format"
+    if root is None:
+        return None, None
+    try:
+        with open(os.path.join(root, STATE_DIR, "gate.json"), encoding="utf-8") as handle:
+            value = json.load(handle).get("step_format")
+    except (OSError, ValueError, AttributeError):
+        return None, None
+    if value is None:
+        return None, None
+    if value not in FORMATS:
+        raise Refusal('"step_format" in {}/gate.json must be one of {}; got {!r}'.format(
+            STATE_DIR, ", ".join(FORMATS), value))
+    return value, "step_format in {}/gate.json".format(STATE_DIR)
 
 
 def parse_panels(text):
@@ -248,8 +277,9 @@ def stub_values(step, name, data_links):
         code = ("(output_path,) = sys.argv[1:]" if first
                 else "input_path, output_path = sys.argv[1:]")
     return {"FILE": step["file"], "PATH": step["path"], "NUM": step["num"], "NAME": name,
-            "INPUT": notebook_input if step["kind"] == "ipynb" else source,
-            "INPUT_LITERAL": json.dumps(notebook_input),
+            "INPUT": notebook_input if step["kind"] in ("ipynb", "qmd") else source,
+            "INPUT_LITERAL": json.dumps(notebook_input), "OUTPUT_LITERAL": json.dumps(step["output"]),
+            "STEM": step["stem"],
             "OUTPUT": step["output"], "USAGE": usage, "NARGS": "1" if first else "2",
             "ARGS_CODE": code}
 
@@ -270,8 +300,10 @@ def rule(step, data_links):
     key = "notebook" if step["kind"] == "ipynb" else "script"
     lines.append('        {}="{}",'.format(key, step["path"]))
     todo = "" if step["kind"] == "ipynb" else "  # TODO: name the real outputs"
-    lines += ["    output:", '        "{}",{}'.format(step["output"], todo),
-              "    threads: 1",
+    lines += ["    output:", '        "{}",{}'.format(step["output"], todo)]
+    if step["html"]:
+        lines.append('        "{}",'.format(step["html"]))
+    lines += ["    threads: 1",
               "    log:", '        "logs/{}.log",'.format(step["stem"]),
               "    benchmark:", '        "logs/{}.benchmark.tsv"'.format(step["stem"]),
               "    shell:"]
@@ -279,6 +311,8 @@ def rule(step, data_links):
     if step["kind"] == "ipynb":
         command = ("{{JUPYTER:q}} nbconvert --to notebook --execute {{input.notebook:q}} "
                    "--output-dir logs --output {} > {{log:q}} 2>&1".format(step["file"]))
+    elif step["kind"] == "qmd":  # the project in _quarto.yml runs it from this folder and writes the html
+        command = "{QUARTO:q} render {input.script:q} > {log:q} 2>&1"
     elif step["kind"] == "R":
         command = "{RSCRIPT:q} {input.script:q}" + prev + " {output:q} > {log:q} 2>&1"
     else:
@@ -319,7 +353,6 @@ def doc_text(template, name, dest_rel, steps, data_links, code_links, root):
 
 def report_text(template, name, doc_name, dest_rel, steps, data_links):
     """The Quarto report: a mermaid chain of the steps, one Methods and one Results tab per step."""
-    lang = {"R": "r", "py": "python", "ipynb": "python"}
     nodes = []
     for step in steps:
         nodes.append('s{0}["{1}"] --> o{0}[("{2}")]'.format(step["num"], step["path"], step["output"]))
@@ -338,7 +371,7 @@ def report_text(template, name, doc_name, dest_rel, steps, data_links):
             title, "",
             "[What this step does, in two sentences.] Script: [`{0}`](../{0}). Output: `{1}`."
             .format(step["path"], step["output"]), "",
-            '```{{.{} filename="{}"}}'.format(lang[step["kind"]], step["path"]),
+            '```{{.{} filename="{}"}}'.format(step["lang"], step["path"]),
             "# [the 5-15 lines that do the work, with their line range]", "```", ""]))
         figure = "outputs/{}_[what-it-shows].png".format(step["num"])
         results.append("\n".join([
@@ -390,7 +423,11 @@ def ignored(root, probes):
 def main(argv):
     parser = argparse.ArgumentParser(prog="new_analysis")
     parser.add_argument("--dest", required=True, help="folder to create, e.g. analysis/<name>")
-    parser.add_argument("--steps", default=DEFAULT_STEPS, help="comma-separated NN_name.{R,py,ipynb}")
+    parser.add_argument("--steps", help="comma-separated NN_name.{R,py,ipynb,qmd}; a name with no extension "
+                        "takes --format")
+    parser.add_argument("--format", choices=FORMATS, help="step format (default: step_format in "
+                        ".mycelium-extra/gate.json); alone, it sets the default steps' extension")
+    parser.add_argument("--lang", choices=sorted(LANGS), default="r", help="language of qmd steps")
     parser.add_argument("--data", action="append", help="file or folder to link into data/")
     parser.add_argument("--code", action="append", help="file or folder to link into code/")
     parser.add_argument("--doc-template", help="analysis doc template (default: Mycelium's)")
@@ -427,7 +464,10 @@ def scaffold(args):
     mycelium = root is not None and os.path.isdir(os.path.join(root, ".living"))
     name = os.path.basename(dest)
     dest_rel = display(dest, root)
-    steps = parse_steps(args.steps)
+    fmt, fmt_source = step_format(args, root)
+    steps = parse_steps(args.steps or (",".join(n + "." + fmt for n in DEFAULT_NAMES) if fmt else DEFAULT_STEPS),
+                        fmt, args.lang)
+    qmd = any(s["kind"] == "qmd" for s in steps)
     data_links = plan_links(args.data, "data", dest, root)
     code_links = plan_links(args.code, "code", dest, root)
     doc_name = name.upper().replace("-", "_") + ".md" if mycelium else "README.md"
@@ -438,19 +478,22 @@ def scaffold(args):
     files = {}
     for step in steps:
         values = stub_values(step, name, data_links)
-        source = read(os.path.join(templates, "stub." + step["kind"]))
+        source = read(os.path.join(templates, step["stub"]))
         files[step["path"]] = notebook(source, values) if step["kind"] == "ipynb" else fill(source, values)
     files["Snakefile"] = fill(read(os.path.join(templates, "Snakefile")), {
         "NAME": json.dumps(name)[1:-1], "DEST": json.dumps(dest_rel)[1:-1],
-        "LAST_OUTPUT": steps[-1]["output"],
+        "LAST_OUTPUT": steps[-1]["html"] or steps[-1]["output"],
         "RULES": "\n\n".join(rule(step, data_links) for step in steps).rstrip("\n")})
     files["run.sh"] = fill(read(os.path.join(templates, "run.sh")), {"NAME": name})
     files["run.sbatch"] = fill(read(os.path.join(templates, "run.sbatch")), {"NAME": name})
     files[doc_name] = doc_text(read(template_path), name, dest_rel, steps, data_links,
                                code_links, root)
+    if qmd:  # the steps are the report: Quarto renders them as one site under reports/site/
+        files["_quarto.yml"] = read(os.path.join(templates, "_quarto.yml"))
     report = "reports/" + name + ".qmd"
-    files[report] = report_text(read(os.path.join(templates, "report.qmd")), name, doc_name, dest_rel,
-                                steps, data_links)
+    if not all(s["kind"] == "qmd" for s in steps):
+        files[report] = report_text(read(os.path.join(templates, "report.qmd")), name, doc_name, dest_rel,
+                                    steps, data_links)
     if args.panels:
         files.update(manuscript_files(parse_panels(args.panels), name, dest_rel.replace(os.sep, "/"), root, templates))
     folders = DIRS + (["config"] if args.panels else [])
@@ -509,12 +552,18 @@ def scaffold(args):
 
     print("{} {}/ (doc {} from {})".format(verb, dest_rel, doc_name, template_note))
     for path in [s["path"] for s in steps] + ["Snakefile", "run.sh", "run.sbatch", doc_name,
-                                              "plans/PLAN.md", "plans/TRACKER.md", report] + sorted(
+                                              "plans/PLAN.md", "plans/TRACKER.md"] + [
+                                                  p for p in ("_quarto.yml", report) if p in files] + sorted(
                                                   p for p in files if p.startswith(("config/", "code/plot_"))) + [
                                                   d + "/" for d in folders]:
         print("  " + path)
     for link in data_links + code_links:
         print("  {} -> {}".format(link["rel"], link["value"]))
+    if fmt:
+        print("note: default steps are .{} ({}).".format(fmt, fmt_source))
+    if qmd:
+        print("note: qmd steps are rendered by quarto into reports/site/ ({} engine); the Snakefile needs quarto "
+              "on PATH, or --config quarto=/path/to/quarto.".format("knitr" if args.lang == "r" else "jupyter"))
     for shown in sorted(hidden):
         if shown in UNTRACKED_OK:
             print("note: git ignores {}/{} ({}); its contents stay out of git.".format(

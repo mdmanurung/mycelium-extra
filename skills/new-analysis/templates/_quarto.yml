@@ -1,0 +1,11 @@
+project:
+  type: website
+  render: ["code/*.qmd"]
+  output-dir: reports/site
+execute:
+  execute-dir: project
+format:
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true

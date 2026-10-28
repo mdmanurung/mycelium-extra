@@ -103,6 +103,13 @@ class AnalysisReportTest(unittest.TestCase):
         with open(os.path.join(self.dest, "reports", "demo.qmd")) as handle:
             self.assertIn('s01["01_prepare.R"] --> s02["02_fit.R"] --> s03["code/03_plot.py"]', handle.read())
 
+    def test_all_qmd_steps_are_the_report(self):
+        for name in ("01_prepare.R", "02_fit.R"):
+            os.remove(os.path.join(self.dest, name))
+        os.remove(os.path.join(self.dest, "code", "03_plot.py"))
+        write(os.path.join(self.dest, "code", "01_prepare.qmd"), "---\ntitle: x\n---\n")
+        self.assertIn("every step is a qmd", self.run_script())
+        self.assertFalse(os.path.exists(os.path.join(self.dest, "reports", "demo.qmd")))
 
 if __name__ == "__main__":
     unittest.main()

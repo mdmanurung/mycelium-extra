@@ -1,0 +1,36 @@
+---
+title: "@@FILE@@"
+subtitle: "Step @@NUM@@ of @@NAME@@"
+---
+
+- **Purpose.** [One sentence: what this step answers or prepares.]
+- **Run.** `quarto render @@PATH@@` from the analysis folder; the Snakefile does it. Paths are relative to that folder.
+- **Inputs.** `@@INPUT@@` [producer or `[gap]`]
+- **Outputs.** `@@OUTPUT@@` [what the table holds]; this page, under `reports/site/`.
+
+## Parameters
+
+```{r}
+# Parameters -------------------------------------------------------------------
+# scilintr stage: replace this line with `# STAGE: <stage>` (blind_qc, selection, evaluation or library;
+#   label columns are allowed only in evaluation) so its label and stage rules run on this file.
+INPUT <- @@INPUT_LITERAL@@
+OUTPUT <- @@OUTPUT_LITERAL@@
+SEED <- 0 # every stochastic step below uses this
+```
+
+## Load data
+
+```{r}
+# Load data --------------------------------------------------------------------
+set.seed(SEED)
+
+stop("@@FILE@@ is not written yet")
+```
+
+## Session
+
+```{r}
+# Session info -----------------------------------------------------------------
+writeLines(capture.output(sessionInfo()), "logs/@@STEM@@.session.txt")
+```

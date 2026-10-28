@@ -18,7 +18,7 @@ Run from the repository root, from stdin, every option as `--flag=value` (a bare
 sh <skill-dir>/../../hooks/py.sh - --dest=<folder> --templates=<skill-dir>/../new-analysis/templates [--overwrite] [--dry-run] < <skill-dir>/scripts/analysis_report.py
 ```
 
-It prints an inventory (analysis doc, numbered steps at the root or in `code/`, each `Snakefile*` with its rules, scripts and run folder, the dated runs under `outputs/` and where `current` points, PNG figures, `*REPORT*.md`, `numbers.json`) and writes `reports/<name>.qmd`: a mermaid chain per Snakefile, one Methods tab per step, one Results tab per step that has figures or a report. It keeps an existing report unless `--overwrite`; a report you have already filled is replaced only when you ask. Never run it by path.
+It prints an inventory (analysis doc, numbered steps at the root or in `code/`, each `Snakefile*` with its rules, scripts and run folder, the dated runs under `outputs/` and where `current` points, PNG figures, `*REPORT*.md`, `numbers.json`) and writes `reports/<name>.qmd`: a mermaid chain per Snakefile, one Methods tab per step, one Results tab per step that has figures or a report. When every step is `.qmd` it writes nothing: those step pages (rendered under `reports/site/`) carry their own Methods and Results, so fill the Question / Approach / Conclusion prose inside each step. It keeps an existing report unless `--overwrite`; a report you have already filled is replaced only when you ask. Never run it by path.
 
 Then read what the inventory names, and run nothing else:
 

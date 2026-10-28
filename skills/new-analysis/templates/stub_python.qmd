@@ -1,0 +1,38 @@
+---
+title: "@@FILE@@"
+subtitle: "Step @@NUM@@ of @@NAME@@"
+jupyter: python3
+---
+
+- **Purpose.** [One sentence: what this step answers or prepares.]
+- **Run.** `quarto render @@PATH@@` from the analysis folder; the Snakefile does it. Paths are relative to that folder.
+- **Inputs.** `@@INPUT@@` [producer or `[gap]`]
+- **Outputs.** `@@OUTPUT@@` [what the table holds]; this page, under `reports/site/`.
+
+## Parameters
+
+```{python}
+# Parameters -------------------------------------------------------------------
+from pathlib import Path
+
+INPUT = Path(@@INPUT_LITERAL@@)
+OUTPUT = Path(@@OUTPUT_LITERAL@@)
+SEED = 0  # pass to every RNG, e.g. np.random.default_rng(SEED)
+```
+
+## Load data
+
+```{python}
+# Load data --------------------------------------------------------------------
+raise NotImplementedError("@@FILE@@ is not written yet")
+```
+
+## Session
+
+```{python}
+# Session info -----------------------------------------------------------------
+from importlib.metadata import distributions
+
+versions = sorted(f"{d.metadata['Name']}=={d.version}" for d in distributions())
+Path("logs/@@STEM@@.session.txt").write_text("\n".join(versions) + "\n")
+```

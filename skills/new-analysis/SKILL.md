@@ -26,8 +26,10 @@ Take these from the user's message. Ask only if the destination is missing. Aski
   - Mycelium names analyses in lowercase-with-hyphens and adds `-v2` for a new iteration of the same question.
   - Another path, such as `nbs/<group>/<NN_name>/`, works too. Mycelium then finds the folder only through a manifest pointer.
 - **Steps.** Use the user's list, or default to `01_prepare_data.R,02_train_model.py,03_explore_model.ipynb`.
-  - Each step is `NN_name.R`, `NN_name.py`, or `NN_name.ipynb`, numbered in increasing order.
+  - Each step is `NN_name.R`, `.py`, `.ipynb` or `.qmd`, numbered in increasing order.
   - Use R or Python scripts for work that needs no interaction, scripts for heavy jobs, and notebooks for exploration.
+  - **Format.** `--format=R|py|ipynb|qmd` gives every default step, and every bare name in `--steps`, that extension. With no flag the script reads `step_format` in `.mycelium-extra/gate.json`; set it once there for a repository. An explicit extension in `--steps` always wins.
+  - **qmd steps** compute and hold their own Methods and Results prose in one file. `--lang=r|python` (default `r`) picks knitr or jupyter. The scaffold adds `_quarto.yml`, and the Snakefile runs `quarto render` on each step and writes `outputs/NN_name.rds|parquet` plus the page under `reports/site/code/`. No `reports/<name>.qmd` is written when every step is qmd: the step pages are the report.
 - **Links.**
   - `--data=` for each file or folder the analysis reads. Prefer entries under the repository's `data/`.
   - `--code=` for shared code, such as `algorithms/<name>/`, `src/`, or `R/`.
@@ -43,7 +45,7 @@ Take these from the user's message. Ask only if the destination is missing. Aski
 Run from the repository root, from stdin:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb] [--data=PATH ...] [--code=PATH ...] [--panels=Fig1a.R,...] \
+sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb,04_d.qmd] [--format=R|py|ipynb|qmd] [--lang=r|python] [--data=PATH ...] [--code=PATH ...] [--panels=Fig1a.R,...] \
   --templates=<skill-dir>/templates --dry-run < <skill-dir>/scripts/new_analysis.py
 ```
 
@@ -89,7 +91,8 @@ Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and c
 - **`run.sbatch`** submits `run.sh` to SLURM; its output goes to `logs/slurm-%x-%j.out`.
 - **`config/` and `code/plot_<panel>`** (with `--panels`) tie each figure to its script and source data. Run a stub as `Rscript <dest>/code/plot_<panel>.R <dest>/outputs/run_<date>_<slug>`, point `outputs/current` at the run to release, fill each `figure_map.tsv` claim, and replace the stub's `x`/`y` columns in `required_columns`. Check with `manuscript-audit` (its SKILL.md says how to run the checker without opening the post-action cycle). `outputs/current` must stay inside the repository: a symlink to scratch storage makes every declared path a gap.
 - **`logs/`** holds Snakemake and SLURM logs, benchmarks, and executed notebook copies.
-- **`reports/<name>.qmd`** is the Quarto report skeleton: Overview (with a mermaid chain of the steps), Methods and Results tabs per step, Reproducibility. `/mycelium-extra:analysis-report` fills it after a run. Mycelium's `report` skill writes its LaTeX PDF beside it as `<name>-report.tex`.
+- **qmd steps** (`--format=qmd`) are rendered by `quarto render` through `_quarto.yml` (project at the analysis folder, `execute-dir: project`, so paths match the script steps). An executing `quarto render` is a gated run like any other. Each stub follows the lucid-coder layout: Purpose/Run/Inputs/Outputs, a Parameters chunk, 80-column block dividers, session info last. Heavy fits write their table to `outputs/` in one chunk and later chunks read it, so a figure edit does not refit.
+- **`reports/<name>.qmd`** is the Quarto report skeleton (script and notebook steps): Overview (with a mermaid chain of the steps), Methods and Results tabs per step, Reproducibility. `/mycelium-extra:analysis-report` fills it after a run. Mycelium's `report` skill writes its LaTeX PDF beside it as `<name>-report.tex`.
 
 ## 5. Report and hand off
 
@@ -99,4 +102,5 @@ Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and c
   1. Plan the work with `/mycelium-extra:grill`. A plan whose table names this folder's scripts or its `run.sh` lets the approval gate pass them.
   2. Run `/mycelium:analyze <name>`. It continues the existing folder, adds the manifest entry (the script printed a suggested one), and records decisions. That includes the flat-`outputs/` convention, if the user wants it.
   3. For a reportable run, once the code is written and linted, grill a run plan that freezes it (grill's `references/run-plans.md`): it revises this `plans/PLAN.md` in place and shows the job list from `bash run.sh -n`, run under the first plan's approval.
+- With lucid-coder installed, `/lucid-coder:align` installs the formatter configs once per repository. Its rule 6 ("scripts compute, notebooks show") does not fit qmd steps; the user's format choice outranks it. If they want that lasting, offer `/lucid-coder:learn` once.
 - Offer to commit the new folder.

@@ -310,6 +310,38 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertEqual(contract["data_manifest"], "data/DATA_MANIFEST.md")
         self.assertEqual(self.audit().returncode, 3)  # nothing released yet: a gap, never a pass
 
+    def test_qmd_steps_render_through_a_quarto_project(self):
+        out = self.scaffold("--steps=01_prep.qmd,02_fit.qmd", "--lang=python", "--data=data/anndatas/cells.h5ad")
+        self.assertIn("rendered by quarto", out)
+        snake = read(os.path.join(self.dest, "Snakefile"))
+        self.assertIn('"{QUARTO:q} render', snake.replace("THREADS + ", ""))
+        self.assertIn('"outputs/02_fit.parquet"', snake)
+        self.assertIn('"reports/site/code/02_fit.html"', snake)
+        self.assertIn('input:\n        "reports/site/code/02_fit.html"', snake.split("rule all:")[1])
+        self.assertIn("execute-dir: project", read(os.path.join(self.dest, "_quarto.yml")))
+        self.assertIn("```{python}", read(os.path.join(self.dest, "code", "01_prep.qmd")))
+        self.assertFalse(os.path.exists(os.path.join(self.dest, "reports", "demo-run.qmd")))  # the steps are the report
+
+    def test_format_names_the_default_steps_and_a_flag_beats_gate_json(self):
+        write(os.path.join(self.root, ".mycelium-extra", "gate.json"), json.dumps({"step_format": "qmd"}))
+        out = self.scaffold()
+        self.assertIn("step_format in .mycelium-extra/gate.json", out)
+        self.assertEqual(sorted(os.listdir(os.path.join(self.dest, "code"))),
+                         ["01_prepare_data.qmd", "02_train_model.qmd", "03_explore_model.qmd"])
+        self.assertIn("```{r}", read(os.path.join(self.dest, "code", "01_prepare_data.qmd")))
+        shutil.rmtree(self.dest)
+        self.scaffold("--format=R", "--steps=01_a,02_b.py")
+        self.assertEqual(sorted(os.listdir(os.path.join(self.dest, "code"))), ["01_a.R", "02_b.py"])
+        self.assertTrue(os.path.exists(os.path.join(self.dest, "reports", "demo-run.qmd")))  # not all steps are qmd
+
+    def test_refuses_a_bare_step_name_with_no_format_and_a_bad_step_format(self):
+        proc = run(self.root, "--dest=analysis/demo-run", "--steps=01_a")
+        self.assertIn("refused", proc.stdout)
+        write(os.path.join(self.root, ".mycelium-extra", "gate.json"), json.dumps({"step_format": "docx"}))
+        proc = run(self.root, "--dest=analysis/demo-run")
+        self.assertIn('"step_format"', proc.stdout)
+        self.assertFalse(os.path.exists(self.dest))
+
     def test_panels_need_a_repository(self):
         with tempfile.TemporaryDirectory() as bare:
             proc = run(bare, "--dest=analysis/x", "--panels=Fig1a.R")
