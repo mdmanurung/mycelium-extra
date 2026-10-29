@@ -1070,6 +1070,15 @@ class GateTest(unittest.TestCase):
         self.approve(PLAN.replace("repo |", "repo | sbatch job |"))
         self.assertIsNone(self.bash("sbatch job.sh"))
 
+    def test_gated_command_operands_that_name_no_file_are_not_scripts(self):
+        # `--cores 1`, `2>&1`, a Snakemake rule name and `--config k=v` are not unplanned scripts in a gated folder;
+        # an operand that is an existing, unplanned file still is.
+        self.write_file("analysis/a/Snakefile", "rule all:\n    input: []\n")
+        self.approve(PLAN.replace("repo |", "repo | snakemake |"))
+        folder = os.path.join(self.root, "analysis", "a")
+        self.assertIsNone(self.bash("snakemake --cores 1 step_rule --config atlas_run=out smoke=smoke 2>&1", cwd=folder))
+        self.assertTrue(self.denied(self.bash("snakemake --cores 1 Snakefile", cwd=folder)))
+
     def test_decision_required_gets_no_hash(self):
         self.assertIsNone(self.hook("stop", {"last_assistant_message": "Plan status: DECISION_REQUIRED"}))
 

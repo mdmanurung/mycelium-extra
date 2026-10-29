@@ -612,6 +612,11 @@ def repo_relative(root, cwd, token):
     return rel.replace(os.sep, "/")
 
 
+def operand_exists(cwd, token):
+    """True if a command operand names a file or folder that exists, resolved from the command's folder."""
+    return os.path.exists(os.path.normpath(os.path.join(cwd, os.path.expanduser(token))))
+
+
 def gated_rel(root, cwd, token, config):
     rel = repo_relative(root, cwd, token)
     if rel is None:
@@ -774,8 +779,12 @@ def _classify(tokens, root, cwd, config, info=None):
         wraps += [rest[j + 1] for j, t in enumerate(rest) if t == "--wrap" and j + 1 < len(rest)]
         # sbatch's job folder (`-D DIR`, `--chdir DIR`) is where the job runs, not code it runs.
         folder = [j + 1 for j, t in enumerate(rest) if word == "sbatch" and t in ("-D", "--chdir")]
+        # only an operand that names something on disk can be code: option values (`--cores 1`), redirect pieces
+        # (`2`, `>&1`), Snakemake rule names and `--config k=v` pairs name none and are not unplanned scripts.
+        # An unresolved folder keeps the old reading, as any operand may be a script there.
         paths += [p for p in (gated_rel(root, cwd, t, config) for j, t in enumerate(rest)
-                              if not t.startswith("-") and j not in folder) if p]
+                              if not t.startswith("-") and j not in folder
+                              and (isinstance(cwd, UnknownFolder) or operand_exists(cwd, t))) if p]
         return explore, word, paths + ["wrap:" + w for w in wraps], cwd
     if word == "eval":  # `eval "python analysis/x.py"`: the arguments are the command, as writes_state reads them
         return explore, "recurse", [" ".join(rest)], cwd
