@@ -14,6 +14,8 @@ A normal grill plan approves intent: Mycelium's analyze skill writes the code af
 
 When plan B is presented again after an edit, `verify diff <old> <new>` shows a complete difference summary against the plan it replaces: the objective, every changed, added, removed and reordered row, dropped columns, `Inputs:` and `Outputs:`, validation and exact-execution blocks, and the runs allowed. Show it; do not summarize it from memory. If the scientific question is unchanged (the Objective and every Choice cell are the same), the user needs that summary and a fresh approval, not another full interview: revisit a question only where the summary shows it changed.
 
+A full run that takes hours gets a de-risk row first: the same script on a small subset (a few samples, one chromosome, a capped iteration count) that finishes in about a minute, run under `allow explore`, so a path or shape error costs a minute, not a queue slot. Its outputs are never cited. Each run writes a new `run_<YYYYMMDD>_<slug>` folder and none is overwritten or deleted; a run that should not be used is labelled `superseded_by <run>` in its `RUN.txt` (`verify runs` reads it).
+
 ## Optional blocks for a reportable run
 
 Two comment blocks in the plan text bind the run more tightly than a path in the table does. Both are optional; add one only where a reportable result depends on it, not for every sentence of the plan. The gate checks them before it will offer `approve plan <hash>`: an invalid block is shown as errors and the plan cannot be approved until it is fixed.

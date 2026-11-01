@@ -21,8 +21,19 @@ Invoked directly with a folder: read `<folder>/<NAME>.md` and the reports it nam
 - Generate plots from the actual analysis outputs through the approved steps and save each cited figure as a file under `outputs/`. A transient notebook display, an unsaved interactive session, or a figure inside an executed notebook copy under `logs/` is not a cited figure.
 - Show the comparison the claim depends on: the replication unit, denominators, missingness, and uncertainty where relevant. Preserve paired or repeated observations. Distinguish observations from model estimates. When the result has no replication unit or is an enumeration (identifiers, gene sets), say so and go straight to the table fallback with that reason.
 - Use readable labels, units, legends, and accessible colors. State transforms, exclusions, and interval meanings in the caption or nearby text.
-- Inspect before interpreting. For each figure you cite, write one line where the conclusion lives: the path, what you saw (groups, n, axes, interval type), and any defect such as clipping or a mislabelled group. A figure you could not render (no image viewer, a PDF page you could not open) is `not inspected: <reason>`, and its conclusion stays unsupported.
+- The caption's first sentence states what the reader should see, as an observation the figure shows, not a conclusion it cannot carry. Mark an incomplete last point (a partial batch, an unfinished time window) as preliminary. Never encode a group by colour alone: add shape, position or a direct label.
+- Style follows the project. With lucid-coder installed, its `figure-style` skill sets theme, palette, sizes and export; otherwise the `data-visualization-master` or `evident-charts` skill when installed. Their `[T]` taste rules bend to the project style; their `[E]` integrity rules (bars from zero, no dual axes, uncertainty or n shown) do not.
+- Inspect the rendered image, never the plotting code, before interpreting. For each figure you cite, write one line where the conclusion lives: the path, what you saw (groups, n, axes, interval type), and any defect such as clipping or a mislabelled group. A figure you could not render (no image viewer, a PDF page you could not open) is `not inspected: <reason>`, and its conclusion stays unsupported.
 - Show null, mixed, and adverse results too. Never select panels to support a preferred story. A visual pattern alone establishes neither significance nor causality; keep claims within the design and the statistical evidence.
+
+## Exploring
+
+Before a plan exists, or under an explore run, look at the data one plot at a time.
+
+- Before each plot, say in one line what question it answers and what result would change the next step. Ask the user why a plot they request matters when the reason is not clear.
+- After it, record one line in the analysis doc (`<NAME>.md`, Open Questions or Key Findings) tagged `[SHAPE]`, `[PLOT]`, `[FINDING]` or `[NEXT]`, and suggest one next plot. Do not start a separate journal file: the analysis doc and Mycelium's session log hold the trail.
+- For an AnnData or single-cell object, follow lucid-coder's `sc-qc` and `sc-embed` skills when installed: they name the plots a reviewer expects and the view/copy traps.
+- An exploration plot is never cited. A pattern worth keeping becomes a plan row whose script saves the figure under `outputs/`.
 
 ## Write from the evidence
 

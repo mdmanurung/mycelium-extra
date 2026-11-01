@@ -28,7 +28,7 @@ Then read what the inventory names, and run nothing else:
 - Every step script and every Snakefile.
 - The run the report describes: figures, summary tables, `*REPORT*.md`, receipts, `numbers.json`, and `provenance/` when `verify write` has run. Open every PNG you will cite.
 - [../plot-first/SKILL.md](../plot-first/SKILL.md): its citation rules apply to every Results line.
-- These user-level skills, when they are installed (skip silently when not): `biology-core` and `biological-statistics` before writing Results and Answer in brief (what was measured, observation versus association versus causality, multiplicity families, paired designs, nominal versus simultaneous intervals); `scientific-writing` before any prose; `hadley-viz` before each inspection line (denominators, pairing, colour, what the next plot needs). None of them makes a plot here: figures come only from approved steps.
+- These user-level skills, when they are installed (skip silently when not): `biology-core` and `biological-statistics` before writing Results and Answer in brief (what was measured, observation versus association versus causality, multiplicity families, paired designs, nominal versus simultaneous intervals); `scientific-writing` before any prose; `hadley-viz` before each inspection line (denominators, pairing, colour, what the next plot needs); lucid-coder's `figure-style`, else `data-visualization-master`, for what a figure's style should be. None of them makes a plot here: figures come only from approved steps.
 
 ## 2. Fill with Edit
 
