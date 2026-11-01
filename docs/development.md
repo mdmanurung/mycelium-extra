@@ -71,6 +71,17 @@ The comparison skips `denies.jsonl` (the deny log records no decision), so a new
 
 Before changing `hooks/gate.py`, also run `python3 hooks/tests/gate_diff.py`: with no options it compares the committed gate (`HEAD`) with the working tree and must report every case identical, except the decisions you meant to change. To reproduce the CI result locally, run the two commands above.
 
+### Oracle and mutation tests
+
+A check that has never failed is untested. These rules keep the evidence for a checker (gate, verify, data-contract-check, manuscript-audit, a validation recipe) honest. They are adapted from the `grader-mutation-evidence` skill.
+
+- **A red case and its control.** Show a check works with a mutated fixture it rejects and the unmutated one it accepts. Mark the control `# control for ...` (`tests/test_recipes.py::test_a_mutated_copy_fails_and_the_original_passes_recipe_8`, `tests/test_end_to_end.py::test_the_unmutated_baseline_passes_every_declared_check`). A new guard also gets an ablation in `tests/e2e/ablate.py` (`test_removing_the_guard_lets_the_red_fixture_pass`).
+- **Never relax the assertion to fit the artifact.** When a test fails on code you believe is right, decide which side states the intent, the test or the fixture, and change that side. A defective fixture is the plainest form of the bug; a compliant one may be as indirect as real code.
+- **Assert the specific finding.** A verdict alone can pass for the wrong reason. Assert the finding that should fire, and that the one that should not fire is absent (`tests/test_end_to_end.py::test_a_declared_check_that_is_not_run_is_a_gap_not_a_pass`).
+- **The checker does not move during the test.** If the change edits the checker and its test together, the detection may come from the edit. Pin what the check runs by hash (`tests/test_manuscript_native_grader.py::test_an_edited_contract_in_the_bundle_fails_the_project_check`, `tests/test_ci_pins.py::test_gate_diff_base_matches_the_committed_oracle`).
+- **A check that cannot see its input reports a gap.** It never reports clean ([Gaps and passes](concepts/gaps-and-passes.md)). A subprocess test asserts the child's exit code and puts its stderr in the failure message (`Base.hook` in `skills/track-changes/tests/test_track_changes.py`), because an empty result reads the same as a crash.
+- **Report counts as before and after.** Give a suite result as `310 -> 332, +22`, not the new total alone, and show the new case failing before the fix.
+
 ### Changing the gate's behaviour on purpose
 
 An intended gate behaviour change needs a named regression test that fails before the change and passes after it, and a reviewed, case-specific rationale for each oracle entry it changes. Never regenerate `gate_diff_expected.json` blindly to turn a red comparison green: the file is the record of which decisions changed and why, and the comparison matches observed output only. It does not read the `rationale` text, so reviewing that each entry still describes its own case is a human step.
