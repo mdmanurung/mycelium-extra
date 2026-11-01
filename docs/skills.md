@@ -13,6 +13,7 @@ This is a task map, not a list of commands to execute in sequence. Read the skil
 | Need | Command |
 |---|---|
 | Make a plan | `/mycelium-extra:grill <your question>` |
+| Set up a new repository | `/mycelium-extra:repo-setup` |
 | Enable execution checks | `/mycelium-extra:init` |
 | Check a completed run | `/mycelium-extra:verify <hash>` |
 | Create an analysis folder | `/mycelium-extra:new-analysis analysis/<name>: <question>` |
@@ -32,6 +33,10 @@ Turns your question into a sourced, numbered plan. It is read-only. For scientif
 ## init
 
 Turns on the approval gate for a repository. See [init](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/init.md).
+
+## repo-setup
+
+Sets up a new analysis repository (Mycelium init and the gate) or Python package (`ericmjl/cookiecutter-python-project`), then lucid-coder's style and environment pointer. See [repo-setup](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/repo-setup.md).
 
 ## verify
 
