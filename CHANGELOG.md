@@ -4,8 +4,12 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-01
+
 ### Added
 
+- **questionnaire:** a user-invoked skill writes the questions only a PI, core facility or collaborator can answer into `questionnaire-<slug>.md` (in the analysis's `plans/` or at the root): it asks who gets the file and what must come back, never the subject itself. Grill parks such a question as `answer from <role>` and names the skill. Adapted from Matt Pocock's `to-questionnaire` (MIT).
+- **track-changes:** a `##` or `###` heading of `reports/*.qmd` present at the last snapshot and absent now is one attention item per report, and a deleted report is one too. The snapshot records the headings in a new `reports` field; the first snapshot says it had nothing to compare.
 - **new-analysis:** `qmd` steps and a step format setting. `--format=R|py|ipynb|qmd` (or `step_format` in `.mycelium-extra/gate.json`) sets the extension of the default steps and of bare names in `--steps`; `--lang=r|python` picks knitr or jupyter for qmd. A qmd step computes and holds its own Methods and Results prose; the scaffold adds `_quarto.yml` (project at the analysis folder, `execute-dir: project`), the Snakefile runs `quarto render` per step and writes `reports/site/code/NN_name.html`, and no `reports/<name>.qmd` is written when every step is qmd. Stubs follow the lucid-coder layout. `analysis-report` reads qmd steps and writes nothing for an all-qmd folder.
 
 - **gate:** `quarto render` or `quarto preview` of a `.qmd` whose front matter says `engine: markdown`, with no `_quarto.yml` between it and the project root, is not a run: no cell executes. Any other `.qmd`, a script operand or `quarto run` stays gated.
@@ -14,6 +18,8 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Changed
 
+- **analysis-report, new-analysis:** before a whole-file write over a filled report, list every heading and tab, carry each one forward, and compare `wc -l` and `git diff --stat` after; a failed Edit is retried with a shorter anchor, never replaced by a rewrite. From the `audit-before-rewrite` skill.
+- **docs:** `docs/development.md` gains oracle and mutation test rules (a red case and its control, assert the specific finding, pin the checker, a blind check is a gap, before-and-after counts), each pointing at an existing test. The user-invoked list now names `analysis-report` and `questionnaire`.
 - **docs:** revised against the code after an audit: `pin_scripts` re-pins with a notice rather than blocking; the gate type-checks `gated_paths`, `gated_commands` and `confirm_writes` at load; 16 settings, not 15; `init --hours 0` is accepted; the untraced-forms list drops `xargs`, `find -exec` and `eval "literal"` and names what is denied instead (`{}`, a `$VAR` command word, an `xargs` target not on the line); an unresolved expansion is denied, not "not traced"; the Codex matchers and remap; `.gitignore` lines `init` writes; `write-pending/` and `write-consent/` in the state-file table; `rule-envs-<hash>.json` and `evidence-<hash>.json` in the provenance tables; CI's adversarial-audit step and the viewer tests; verify's twelfth action `exercise` and which actions need no gate; `track-changes` `--journal`, `--save-checkpoint` and `--note`; fifteen skills, nine recipes; recipe and exercise commands stream scripts through `py.sh` instead of running them by path; `py.sh` interpreter order stated the same way on every page; a host timeout and a missing interpreter in the on_error pages; `card_coverage` default wording; the `plan-review` exception to stdin; the `@grill` mention claim for OpenCode removed (unverified).
 
 ### Fixed
