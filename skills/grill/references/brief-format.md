@@ -70,7 +70,7 @@ Each `default` row in one line, then the key failure mode and how the plan detec
 
 ## Parked
 
-Deferred items, each with a return condition.
+Deferred items, each with a return condition. A question only someone else can answer reads `answer from <role>`, and the brief names `/mycelium-extra:questionnaire` once as the way to collect the answers.
 
 ## Decisions to record
 

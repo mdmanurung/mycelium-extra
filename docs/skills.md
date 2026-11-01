@@ -77,6 +77,10 @@ Shows what changed against the approved plan. It is read-only. See [track-change
 
 Writes a short `HANDOFF.md` for a fresh session. See [handoff](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/handoff.md).
 
+## questionnaire
+
+Writes the questions only a PI, core facility or collaborator can answer into a Markdown file to send them. See [questionnaire](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/questionnaire.md).
+
 ## idea
 
 Parks a passing idea without a question. See [idea](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/idea.md).

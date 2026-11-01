@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Questionnaire"
+  short_description: "Write a questionnaire for the person who can answer a plan's open questions"
+  default_prompt: "Use $mycelium-extra:questionnaire to turn the questions only my PI or collaborator can answer into a questionnaire file."
+policy:
+  allow_implicit_invocation: false
