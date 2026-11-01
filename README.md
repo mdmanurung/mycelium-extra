@@ -93,7 +93,8 @@ work.
 ### Plan and approve a run
 
 ```text
-/mycelium-extra:init                         # once per repository
+/mycelium-extra:repo-setup                   # a new repository: layout, gate, lucid-coder style and env
+/mycelium-extra:init                         # once per existing repository
 /mycelium-extra:grill <your analysis question>
 approve                                      # or approve plan <hash>
 ```

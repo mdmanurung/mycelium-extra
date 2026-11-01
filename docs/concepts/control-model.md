@@ -16,7 +16,7 @@ Approval is a message you type: `approve plan <hash>`, `approve amendment <hash>
 
 Example: the agent tries `python3 analysis/vaccine-response/scripts/01_select_samples.py` before any approval. The gate blocks it and says no active approved plan covers the run. The plan is shown to you, and the run starts only after you type `approve plan 84bb5fce`. See [A worked example](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/example.md).
 
-The skills that write something outside the gate (`verify write`, `decision-status`, `harden`, `idea-triage`, `new-analysis`) ask you first. That step is the agent's instruction, not a gate rule.
+The skills that write something outside the gate (`verify write`, `decision-status`, `harden`, `idea-triage`, `new-analysis`, `questionnaire` when its file exists, and each generator `repo-setup` runs) ask you first. That step is the agent's instruction, not a gate rule.
 
 ## 2. Visibility
 

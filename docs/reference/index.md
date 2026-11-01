@@ -17,11 +17,13 @@ Every skill is a slash command in Claude Code (`/mycelium-extra:<name>`), a `$` 
 | [track-changes](skills/track-changes.md) | Show what changed in one analysis since its approved plan | `.mycelium-extra/track-changes/` |
 | [focus](skills/focus.md) | Say which analysis this session is working on | `.mycelium-extra/focus/` (your typed command only) |
 | [plan-review](skills/plan-review.md) | Independent review of a plan before you approve it | `.mycelium-extra/review-packets/` |
+| [repo-setup](skills/repo-setup.md) | Set up a new analysis repository or Python package, then lucid-coder's style and environment pointer | nothing itself; the generators it runs, after you say yes |
 | [new-analysis](skills/new-analysis.md) | Scaffold an analysis folder | the new folder |
 | [analysis-report](skills/analysis-report.md) | Fill the scaffolded Quarto report after a run | `reports/<name>.qmd`, one `## Outputs` row |
 | [plot-first](../../skills/plot-first/SKILL.md) | Tie analysis conclusions to inspected plots | nothing (guidance the plan's own steps carry out) |
 | [idea](skills/idea.md) | Park an idea in one line | `todo/` |
 | [idea-triage](skills/idea-triage.md) | Rank parked ideas so you can choose | `todo/` annotations, after you pick |
+| [questionnaire](skills/questionnaire.md) | Turn questions only a PI or collaborator can answer into a file to send | `questionnaire-<slug>.md` |
 | [handoff](skills/handoff.md) | Write `HANDOFF.md` for a fresh session | `HANDOFF.md` |
 | [harden](skills/harden.md) | Ship a learning's check as a test | a test file and one `.living/learnings.md` entry, after you confirm |
 

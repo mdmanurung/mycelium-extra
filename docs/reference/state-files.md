@@ -37,7 +37,7 @@ The `.jsonl` logs and `explore.log` only grow. Nothing trims them.
 | `locks/` | gate, focus | the same writers | write locks | No |
 | `review-packets/<digest>/` | `plan-review`'s `review_packet.py prepare` | `review_packet.py preview` and `verify` | the immutable packet, selected attachments and a manifest of hashes | Not listed |
 | `review-consent/<digest>.json` | gate, on your `send packet` | `review_packet.py verify` | your consent to send one prepared packet (`mycelium-extra.review-consent.v1`) | Yes (v1) |
-| `track-changes/<analysis>/snapshot.json` | `track_changes.py` | you, `grill` (via `brief.md`) | the machine-readable change snapshot (`mycelium-extra.track-changes.v1`) | Yes |
+| `track-changes/<analysis>/snapshot.json` | `track_changes.py` | you, `grill` (via `brief.md`), the next `track_changes.py` run (its `reports` headings) | the machine-readable change snapshot (`mycelium-extra.track-changes.v1`); `reports` keeps each `reports/*.qmd`'s `##`/`###` headings so the next snapshot can report dropped sections | Yes |
 | `track-changes/<analysis>/brief.md`, `report.html` | `track_changes.py` | you, `grill`, `handoff` (as pointers) | the review brief and the offline report | Format yes, wording and layout no |
 
 ## `provenance/` (in an analysis folder)
@@ -71,6 +71,9 @@ Written only by `verify write <hash> --analysis-dir <folder>`, after you confirm
 | `.living/decisions.md` | `decision-status` | one appended entry, after you confirm |
 | `.living/learnings.md` | `harden` | one entry edited, after you confirm |
 | the new analysis folder | `new-analysis` | never overwrites |
+| `<analysis>/plans/questionnaire-<slug>.md` or `questionnaire-<slug>.md` | `questionnaire` | asks before replacing an existing one |
+
+`lucid-coder.yaml` at the project root is lucid-coder's file, written by `/lucid-coder:align`. Extra only reads it: `new-analysis` (Snakefile interpreters), `grill` (the Environment evidence line) and `init --diagnose`.
 
 See also: [Gate](gate.md), [gate.json](gate-json.md).
 

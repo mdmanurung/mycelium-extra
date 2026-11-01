@@ -57,6 +57,7 @@ shapes; native host trust and dispatch still require a fresh live session.
 
 | Task | Use |
 |---|---|
+| Set up a new repository | Mycelium's `core` init, through Extra's `repo-setup`, which then adds the gate and lucid-coder's style |
 | Read existing decisions and plan the next analysis | Extra's `grill` |
 | Create an analysis folder with a plan and tracker | Extra's `new-analysis` |
 | Approve covered execution and record receipts | Extra's approval gate |
