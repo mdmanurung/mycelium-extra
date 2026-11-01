@@ -2,7 +2,7 @@
 
 From anywhere: snakemake -s @@DEST@@/Snakefile --cores 4   (or: bash @@DEST@@/run.sh)
 One step:      snakemake -s @@DEST@@/Snakefile --cores 4 <rule name>
-Interpreters:  --config rscript=/path/to/Rscript python=/path/to/python jupyter=/path/to/jupyter quarto=/path/to/quarto
+Interpreters:  @@ENV_NOTE@@; override with --config rscript=/path/to/Rscript python=/path/to/python jupyter=/path/to/jupyter quarto=/path/to/quarto
 
 Step scripts live in code/; paths are relative to this folder. Outputs go to outputs/ with the step's number as prefix;
 logs, benchmarks, and executed notebooks go to logs/. Wrap an output in protected() once it
@@ -11,9 +11,9 @@ is expensive to recompute.
 
 workdir: workflow.basedir
 
-RSCRIPT = config.get("rscript", "Rscript")
-PYTHON = config.get("python", "python")
-JUPYTER = config.get("jupyter", "jupyter")
+RSCRIPT = config.get("rscript", @@RSCRIPT@@)
+PYTHON = config.get("python", @@PYTHON@@)
+JUPYTER = config.get("jupyter", @@JUPYTER@@)
 QUARTO = config.get("quarto", "quarto")
 THREADS = "OPENBLAS_NUM_THREADS={threads} OMP_NUM_THREADS={threads} MKL_NUM_THREADS={threads} "
 

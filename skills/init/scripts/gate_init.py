@@ -19,6 +19,7 @@ import importlib.util
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -388,6 +389,16 @@ def diagnose(root, plugin_root):
             "not one of the tested versions " + ", ".join(TESTED_MYCELIUM)))
     else:
         out.append("mycelium: version unreadable at {} (listed by .mycelium/plugin-root).".format(plugin))
+    env_file = os.path.join(gated or root, "lucid-coder.yaml")  # lucid-coder's env pointer, read by new-analysis
+    if not os.path.isfile(env_file):
+        out.append("environment: no lucid-coder.yaml; new-analysis uses Rscript and python from PATH "
+                   "(/lucid-coder:align writes one).")
+    else:
+        with open(env_file, encoding="utf-8", errors="replace") as handle:
+            named = re.findall(r"(?m)^\s+(r|python):\s*[\"']?([^\"'#\s]+)", handle.read())
+        out.append("environment: {}: {}.".format(env_file, "; ".join(
+            "{} {} ({})".format(key, path, "found" if os.path.isfile(path) else "PROBLEM: not a file")
+            for key, path in named) or "PROBLEM: names no r or python"))
     recorded = load_json(os.path.join(state, "tools.json"))[0]
     recorded = recorded if isinstance(recorded, dict) else {}
     out.append("optional readers and linters (presence only; nothing is run):")

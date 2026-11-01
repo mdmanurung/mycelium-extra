@@ -102,5 +102,6 @@ Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and c
   1. Plan the work with `/mycelium-extra:grill`. A plan whose table names this folder's scripts or its `run.sh` lets the approval gate pass them.
   2. Run `/mycelium:analyze <name>`. It continues the existing folder, adds the manifest entry (the script printed a suggested one), and records decisions. That includes the flat-`outputs/` convention, if the user wants it.
   3. For a reportable run, once the code is written and linted, grill a run plan that freezes it (grill's `references/run-plans.md`): it revises this `plans/PLAN.md` in place and shows the job list from `bash run.sh -n`, run under the first plan's approval.
+- **Interpreters.** When `lucid-coder.yaml` at the repository root names `env.r` and `env.python` (written by `/lucid-coder:align`), the Snakefile's `RSCRIPT`, `PYTHON` and `JUPYTER` default to those paths, each only if the file exists; otherwise they stay the names on PATH and the script says so. `--config rscript=...` still overrides per run.
 - With lucid-coder installed, `/lucid-coder:align` installs the formatter configs once per repository. Its rule 6 ("scripts compute, notebooks show") does not fit qmd steps; the user's format choice outranks it. If they want that lasting, offer `/lucid-coder:learn` once.
 - Offer to commit the new folder.

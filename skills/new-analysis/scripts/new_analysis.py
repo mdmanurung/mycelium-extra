@@ -121,6 +121,31 @@ def parse_steps(text, fmt, lang):
     return steps
 
 
+ENV_FILE = "lucid-coder.yaml"  # lucid-coder's env pointer: env.r and env.python are the interpreters to run
+# ponytail: line match on lucid-coder's flat env block, no YAML parser; parse properly if the file grows nested r:/python: keys
+ENV_LINE = re.compile(r"^\s+(r|python):\s*[\"']?([^\"'#\s]+)")
+
+
+def interpreters(root):
+    """Rscript, python and jupyter from lucid-coder.yaml at the root, each kept only when the file exists;
+    bare names otherwise. Returns (paths, used, note)."""
+    found = {"rscript": "Rscript", "python": "python", "jupyter": "jupyter"}
+    path = os.path.join(root, ENV_FILE) if root else None
+    if not path or not os.path.isfile(path):
+        return found, [], "environment: none recorded; run /lucid-coder:align to write lucid-coder.yaml"
+    named = dict(m.groups() for m in map(ENV_LINE.match, read(path).splitlines()) if m)
+    named = {("rscript" if k == "r" else k): v for k, v in named.items()}
+    if "python" in named:
+        named["jupyter"] = os.path.join(os.path.dirname(named["python"]), "jupyter")
+    used = sorted(k for k, v in named.items() if os.path.isfile(v))
+    missing = sorted(k for k in named if k not in used and k != "jupyter")
+    found.update({k: named[k] for k in used})
+    note = "environment: {} from {}".format(", ".join(used) or "nothing", ENV_FILE)
+    if missing:
+        note += "; WARNING: {} in {} is not a file, kept the bare name".format(", ".join(missing), ENV_FILE)
+    return found, used, note
+
+
 def step_format(args, root):
     """(format, where it came from): --format, else step_format in gate.json, else (None, None)."""
     if args.format:
@@ -480,8 +505,12 @@ def scaffold(args):
         values = stub_values(step, name, data_links)
         source = read(os.path.join(templates, step["stub"]))
         files[step["path"]] = notebook(source, values) if step["kind"] == "ipynb" else fill(source, values)
+    tools, env_used, env_note = interpreters(root)
     files["Snakefile"] = fill(read(os.path.join(templates, "Snakefile")), {
         "NAME": json.dumps(name)[1:-1], "DEST": json.dumps(dest_rel)[1:-1],
+        "RSCRIPT": json.dumps(tools["rscript"]), "PYTHON": json.dumps(tools["python"]),
+        "JUPYTER": json.dumps(tools["jupyter"]),
+        "ENV_NOTE": "defaults from " + ENV_FILE if env_used else "defaults are the names on PATH",
         "LAST_OUTPUT": steps[-1]["html"] or steps[-1]["output"],
         "RULES": "\n\n".join(rule(step, data_links) for step in steps).rstrip("\n")})
     files["run.sh"] = fill(read(os.path.join(templates, "run.sh")), {"NAME": name})
@@ -559,6 +588,7 @@ def scaffold(args):
         print("  " + path)
     for link in data_links + code_links:
         print("  {} -> {}".format(link["rel"], link["value"]))
+    print("note: " + env_note + ".")
     if fmt:
         print("note: default steps are .{} ({}).".format(fmt, fmt_source))
     if qmd:

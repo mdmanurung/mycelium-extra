@@ -298,6 +298,16 @@ class DiagnoseTest(unittest.TestCase):
                     self.state_file("gate.json", json.dumps({key: value}))
                     self.assertIn("PROBLEM " + key + ":", self.diagnose())
 
+    def test_diagnose_reports_the_env_pointer(self):
+        self.assertIn("environment: no lucid-coder.yaml", self.diagnose())  # control: absent
+        python = os.path.join(self.root, "python")
+        open(python, "w").close()
+        with open(os.path.join(self.root, "lucid-coder.yaml"), "w") as handle:
+            handle.write("env:\n  r: /nowhere/Rscript  # comment\n  python: {}\n".format(python))
+        out = self.diagnose()
+        self.assertIn("r /nowhere/Rscript (PROBLEM: not a file)", out)
+        self.assertIn("python {} (found)".format(python), out)
+
     def test_diagnose_writes_nothing_with_or_without_state(self):
         before = self.listing()
         out = self.diagnose()

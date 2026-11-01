@@ -40,6 +40,8 @@ analysis/<name>/
   data/  outputs/  logs/
 ```
 
+The Snakefile runs R and Python with the interpreters `lucid-coder.yaml` names at the repository root (`env.r`, `env.python`, and `jupyter` beside that `python`), each only if the file exists; without the file it uses the names on PATH, and the script prints which. `init --diagnose` shows the same pointer.
+
 `data/` holds symlinks only; `code/` holds the stubs and links to shared code. The analysis doc is `<NAME>.md` (folder name in UPPER_SNAKE_CASE) in a Mycelium repository, `README.md` elsewhere. Stubs stop until implemented. A panel stub writes `<run>/source_data/<panel>.tsv`, then re-reads only that table to draw `<run>/figures/<panel>.pdf`, so the released source data can redraw the panel; its toy `x`/`y` columns are placeholders, and the contract points at `outputs/current/`, which you point at the run you release. `reports/<name>.qmd` is a static Quarto report (`engine: markdown`) with a mermaid chain of the steps and one Methods and one Results tab per step; [analysis-report](analysis-report.md) fills it after a run, and Mycelium's `report` writes its LaTeX PDF beside it. Without `--panels` it refuses a non-empty folder; with it, it adds each missing manuscript file and keeps every existing file unchanged. It also refuses a missing link target and anything it would overwrite (`refused:` line, nothing written). A `WARNING: git ignores ...` line means that file would never be committed; stop and ask. It writes nothing outside the new folder except an empty `.<name>.scaffold.lock` file in its parent folder (the lock that keeps two runs from filling the same folder; delete it if you like): not `.living/`, not `analysis/ANALYSIS_MANIFEST.md` (it prints a suggested manifest entry).
 
 ## Afterwards

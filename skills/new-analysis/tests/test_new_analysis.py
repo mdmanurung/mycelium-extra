@@ -431,6 +431,40 @@ class NewAnalysisTest(unittest.TestCase):
         # always uses --flag=value.
         self.assertEqual(self.gate_decision("python3 - --dest analysis/demo-run" + tail), "deny")
 
+    def env_file(self, r, python):
+        bindir = os.path.join(self.root, "env", "bin")
+        for name in ("Rscript", "python", "jupyter"):
+            write(os.path.join(bindir, name))
+        write(os.path.join(self.root, "lucid-coder.yaml"),
+              "version: 1\nenv:\n  manager: conda\n  name: R4\n  r: {}   # command -v Rscript\n  python: \"{}\"\n"
+              "formatters:\n  air: \"0.x\"\n".format(r, python))
+        return bindir
+
+    def test_interpreters_come_from_lucid_coder_yaml(self):
+        bindir = self.env_file(os.path.join(self.root, "env", "bin", "Rscript"),
+                               os.path.join(self.root, "env", "bin", "python"))
+        out = self.scaffold()
+        snake = read(os.path.join(self.dest, "Snakefile"))
+        for key, name in (("rscript", "Rscript"), ("python", "python"), ("jupyter", "jupyter")):
+            self.assertIn('config.get("{}", {})'.format(key, json.dumps(os.path.join(bindir, name))), snake)
+        self.assertIn("defaults from lucid-coder.yaml", snake)
+        self.assertIn("environment: jupyter, python, rscript from lucid-coder.yaml", out)
+
+    def test_a_dangling_interpreter_keeps_the_bare_name_and_warns(self):
+        self.env_file("/nowhere/Rscript", os.path.join(self.root, "env", "bin", "python"))
+        out = self.scaffold()
+        snake = read(os.path.join(self.dest, "Snakefile"))
+        self.assertIn('config.get("rscript", "Rscript")', snake)
+        self.assertIn("WARNING: rscript in lucid-coder.yaml is not a file", out)
+
+    def test_without_lucid_coder_yaml_the_names_on_path_stay(self):  # control
+        out = self.scaffold()
+        snake = read(os.path.join(self.dest, "Snakefile"))
+        self.assertIn('config.get("rscript", "Rscript")', snake)
+        self.assertIn('config.get("python", "python")', snake)
+        self.assertIn("defaults are the names on PATH", snake)
+        self.assertIn("environment: none recorded", out)
+
 
 if __name__ == "__main__":
     unittest.main()
