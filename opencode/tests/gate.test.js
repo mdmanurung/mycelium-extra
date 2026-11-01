@@ -10,7 +10,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -254,7 +254,8 @@ test("an open focus line reaches the prompt even beside a hint", () => {
 
 test("skill commands come from the skills folder", () => {
   const skills = __test__.skillCommands(ROOT)
-  assert.equal(skills.length, 15)
+  const onDisk = readdirSync(join(ROOT, "skills")).filter((name) => existsSync(join(ROOT, "skills", name, "SKILL.md")))
+  assert.equal(skills.length, onDisk.length)
   const ids = skills.map((skill) => skill.id)
   for (const id of ["grill", "init", "verify", "handoff", "plan-review", "focus", "track-changes", "plot-first"]) assert.ok(ids.includes(id), id)
   assert.match(skills.find((skill) => skill.id === "grill").description, /planning/i)

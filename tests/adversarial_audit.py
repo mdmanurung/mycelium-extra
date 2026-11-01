@@ -277,9 +277,9 @@ def run():
               lambda: decisions.parse_entries(str(decision)), lambda v: len(v) == 1 and v[0]['status'] == 'confirmed')
         for steps in ['', '../01_x.py', '01_a.py,01_b.R', '02_b.R,01_a.py', '01_a.sh']:
             check('scaffold rejects ' + repr(steps), 'new-analysis', 'Refusal',
-                  lambda s=steps: refuses(lambda: scaffold.parse_steps(s), scaffold.Refusal), bool)
+                  lambda s=steps: refuses(lambda: scaffold.parse_steps(s, None, 'r'), scaffold.Refusal), bool)
         check('scaffold supports mixed ordered steps', 'new-analysis', '3 linked steps',
-              lambda: scaffold.parse_steps('01_a.R,02_b.py,03_c.ipynb'),
+              lambda: scaffold.parse_steps('01_a.R,02_b.py,03_c.ipynb', None, 'r'),
               lambda v: len(v) == 3 and v[1]['input'] == v[0]['output'])
         check('idea registry escapes cell metacharacters', 'idea', 'no raw bars or line breaks',
               lambda: capture.cell('x|y\r\nz'), lambda v: '|' not in v and '\n' not in v and '\r' not in v)
