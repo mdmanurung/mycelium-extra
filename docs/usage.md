@@ -46,12 +46,14 @@ Verification reads records; it never re-runs the analysis, and a match does not 
 
 ## Tier 4: Full project workflow
 
-Add a tool when the project needs it. You do not need all sixteen skills.
+Add a tool when the project needs it. You do not need all eighteen skills.
 
 | Need | Tool |
 |---|---|
+| A new repository, its style and environment pointer | `repo-setup` |
 | A predictable analysis folder | `new-analysis` |
 | An independent challenge before approval | `plan-review` |
+| Questions only a PI or collaborator can answer | `questionnaire` |
 | Continuity between sessions | `handoff` |
 | Which analysis this session works on | `focus <folder>` |
 | What changed against the approved plan | `track-changes` |

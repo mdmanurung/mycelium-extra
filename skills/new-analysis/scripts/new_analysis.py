@@ -599,7 +599,7 @@ def scaffold(args):
         print("note: default steps are .{} ({}).".format(fmt, fmt_source))
     for step in (s for s in steps if s["kind"] == "marimo"):
         print("note: {0} runs headless as a Python script; `marimo edit {0}` opens it, and `marimo export html {0} "
-              "-o reports/site/code/{1}.html` renders a page analysis-report can link.".format(step["path"], step["stem"]))
+              "-o reports/site/code/{1}.html` renders a page analysis-report can link (it executes the notebook: a gated run).".format(step["path"], step["stem"]))
     if qmd:
         print("note: qmd steps are rendered by quarto into reports/site/ ({} engine); the Snakefile needs quarto "
               "on PATH, or --config quarto=/path/to/quarto.".format("knitr" if args.lang == "r" else "jupyter"))
