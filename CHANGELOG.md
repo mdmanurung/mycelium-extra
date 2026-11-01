@@ -4,6 +4,20 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-01
+
+### Added
+
+- **repo-setup:** a user-invoked skill sets up a new repository by running existing generators in order, each after a shown command and a yes: `git init`, Mycelium's init and `/mycelium-extra:init` for an analysis repository, or `cookiecutter gh:ericmjl/cookiecutter-python-project` for a Python package (it says first that the template's hook installs pixi and pre-commit and commits); then `/lucid-coder:align`, an optional `step_format`, and a first `new-analysis`.
+- **new-analysis:** marimo steps. `NN_name.marimo.py`, or `--format=marimo` / `step_format: "marimo"`, scaffolds a marimo notebook in lucid-coder's notebook layout (docstring header, parameters in `with app.setup:`, named cells, markdown before and after each code cell); the Snakefile runs it headless with `PYTHON`, and the script prints the `marimo export html` line. `analysis-report` quotes marimo steps as Python. The stub was run under marimo 0.25.2.
+- **new-analysis:** the Snakefile's `RSCRIPT`, `PYTHON` and `JUPYTER` default to `env.r` and `env.python` in `lucid-coder.yaml` at the repository root (and `jupyter` beside that `python`), each only when the file exists; a dangling path keeps the bare name with a warning. `init --diagnose` reports the pointer and whether each path exists.
+
+### Changed
+
+- **grill:** a plan that runs code keeps one Evidence bullet naming its environment from `lucid-coder.yaml`, or `Environment: not recorded`. Long runs get a de-risk explore row first, and `llm-failure-modes.md` gains "figure from values not on disk".
+- **plot-first:** an Exploring section (one plot at a time, the question and the decision first, one tagged line in the analysis doc, lucid-coder's `sc-qc`/`sc-embed` for AnnData); captions state what the reader should see; preliminary points are marked; the rendered image is inspected, not the code; style follows lucid-coder's `figure-style` when installed, and integrity rules never bend. From ericmjl's `scientific-eda`, `ml-experimentation`, `data-visualization-master` and `evident-charts`.
+- **init:** `--diagnose` reports `step_format` as the new-analysis setting instead of flagging it as an unknown key.
+
 ## [0.20.0] - 2026-11-01
 
 ### Added

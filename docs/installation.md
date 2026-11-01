@@ -65,6 +65,16 @@ Pick the matching host tab below, then check that its hooks are active. The comp
 - **Scientific checks** use the tools for the files you have: R with scilintr, Python scilintr, or h5py for H5AD. A missing tool is reported as a gap, never as a pass. On a cluster, record where they are with `gate_init.py --tools` (see [Verification](verification.md)).
 - **Independent plan review** needs a Codex CLI and a connected Biomni MCP in a Claude Code or OpenCode session. Missing reviewers are reported unavailable, and a packet leaves the machine only after you agree.
 
+## With lucid-coder
+
+lucid-coder is optional. When it is installed, Extra uses it in five places and never edits its files:
+
+- **Environment.** `/lucid-coder:align` writes `lucid-coder.yaml` at the repository root: the conda, pixi or uv environment and its `Rscript` and `python`. `new-analysis` uses those paths in the Snakefile, `grill` names the environment in the plan's Evidence, and `init --diagnose` shows whether the paths exist. Without the file, the Snakefile uses the names on `PATH`.
+- **Setup.** `repo-setup` runs `/lucid-coder:align` after laying out the repository.
+- **Step stubs.** R, Python, qmd and marimo stubs follow lucid-coder's layout: a Purpose, Run, Inputs and Outputs header, parameters first, a seed, and notebooks that read tables a script wrote.
+- **Figures.** `plot-first` and `analysis-report` defer to lucid-coder's `figure-style` for theme, palette and size; Extra's integrity rules still apply.
+- **Single-cell exploration.** `plot-first` points AnnData exploration at lucid-coder's `sc-qc` and `sc-embed`.
+
 ## Host compatibility
 
 | Feature | Claude Code | Codex 0.160.0+ | OpenCode V2 |

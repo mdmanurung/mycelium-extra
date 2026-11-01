@@ -16,13 +16,15 @@ Statuses: `todo`, `in progress`, `built`, `done`, `parked`, `dropped: <reason>`,
 
 ## Part B: 0.21.0
 
+lucid-coder integration: B1 reads its `lucid-coder.yaml`, B2 runs its `align`, B3 follows its notebook layout, B4 and B5 defer to its `sc-*` and `figure-style` skills. lucid-coder's `align` step 6 still calls this skill `repo-template`; rename it there to `repo-setup`.
+
 | ID | Item | Source | Touches | Status |
 |---|---|---|---|---|
-| B1 | Default environment: new-analysis writes `lucid-coder.yaml`'s `env.r` and `env.python` into the Snakefile; grill adds an `Environment:` evidence line; `init --diagnose` reports the pointer | user request; lucid-coder `align` step 4 | `skills/new-analysis/`, `skills/grill/`, `skills/init/` | todo |
-| B2 | `repo-setup` skill: Mycelium init plus gate for an analysis repository, or `cookiecutter-python-project` for a package; then `/lucid-coder:align` | ericmjl cookiecutter; lucid-coder `align` step 6 names this skill | `skills/repo-setup/` | todo |
-| B3 | marimo steps (`NN_name.marimo.py`) in new-analysis and analysis-report | `marimo-notebook-patterns` | `skills/new-analysis/`, `skills/analysis-report/` | todo |
-| B4 | Exploring one plot at a time, de-risk runs as their own explore row, plots only from logged values | `scientific-eda`, `ml-experimentation` | `skills/plot-first/`, `skills/grill/references/` | todo |
-| B5 | Figure rules Extra lacks (takeaway caption, one accent, direct labels, rendered-image review); `evident-charts` checker when installed | `data-visualization-master`, `evident-charts` | `skills/plot-first/`, `skills/analysis-report/` | todo |
+| B1 | Default environment: new-analysis writes `lucid-coder.yaml`'s `env.r` and `env.python` into the Snakefile; grill adds an `Environment:` evidence line; `init --diagnose` reports the pointer | user request; lucid-coder `align` step 4 | `skills/new-analysis/`, `skills/grill/`, `skills/init/` | done |
+| B2 | `repo-setup` skill: Mycelium init plus gate for an analysis repository, or `cookiecutter-python-project` for a package; then `/lucid-coder:align` | ericmjl cookiecutter; lucid-coder `align` step 6 names this skill | `skills/repo-setup/` | done |
+| B3 | marimo steps (`NN_name.marimo.py`) in new-analysis and analysis-report | `marimo-notebook-patterns` | `skills/new-analysis/`, `skills/analysis-report/` | done |
+| B4 | Exploring one plot at a time, de-risk runs as their own explore row, plots only from logged values | `scientific-eda`, `ml-experimentation` | `skills/plot-first/`, `skills/grill/references/` | done |
+| B5 | Figure rules Extra lacks (takeaway caption, preliminary marks, no colour-only encoding, rendered-image review); taste rules defer to lucid-coder `figure-style`. `evident-charts`' `check_chart.py` is not called: it executes the plotting script (a gated run) and covers matplotlib only | `data-visualization-master`, `evident-charts` | `skills/plot-first/`, `skills/analysis-report/` | done |
 
 ## Parked: no failure in real use yet
 
