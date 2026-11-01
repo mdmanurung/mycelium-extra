@@ -431,6 +431,34 @@ class NewAnalysisTest(unittest.TestCase):
         # always uses --flag=value.
         self.assertEqual(self.gate_decision("python3 - --dest analysis/demo-run" + tail), "deny")
 
+    def test_marimo_step_is_a_named_cell_notebook_the_snakefile_runs(self):
+        out = self.scaffold("--steps=01_prep.py,02_explore.marimo.py")
+        path = os.path.join(self.dest, "code", "02_explore.marimo.py")
+        text = read(path)
+        compile(text, path, "exec")
+        self.assertNotIn("@@", text)
+        self.assertIn("with app.setup:", text)
+        self.assertIn('INPUT = Path("outputs/01_prep.parquet")', text)
+        self.assertIn('if __name__ == "__main__":\n    app.run()', text)
+        snake = read(os.path.join(self.dest, "Snakefile"))
+        self.assertIn("rule step02_explore:", snake)
+        self.assertIn('notebook="code/02_explore.marimo.py"', snake)
+        self.assertIn('"outputs/02_explore.parquet"', snake)
+        self.assertIn("{PYTHON:q} -u {input.notebook:q}", snake)
+        self.assertIn("marimo export html code/02_explore.marimo.py", out)
+        marimo_python = os.environ.get("MARIMO_PYTHON")  # a python with marimo installed runs the stub for real
+        if not marimo_python:
+            self.skipTest("set MARIMO_PYTHON to run the stub under marimo")
+        write(os.path.join(self.dest, "outputs", "01_prep.parquet"))
+        proc = subprocess.run([marimo_python, "code/02_explore.marimo.py"], cwd=self.dest,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        self.assertNotEqual(proc.returncode, 0)  # the stub stops until it is written
+        self.assertIn("02_explore.marimo.py is not written yet", proc.stderr)
+
+    def test_marimo_format_names_default_steps_marimo_py(self):
+        self.scaffold("--format=marimo")
+        self.assertIn("03_explore_model.marimo.py", os.listdir(os.path.join(self.dest, "code")))
+
     def env_file(self, r, python):
         bindir = os.path.join(self.root, "env", "bin")
         for name in ("Rscript", "python", "jupyter"):

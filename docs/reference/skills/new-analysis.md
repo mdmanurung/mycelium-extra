@@ -17,8 +17,8 @@ Invoke with `/mycelium-extra:new-analysis analysis/<name>: <question>`. Write ev
 | Option | Meaning |
 |---|---|
 | `--dest` | Folder to create (required). In a Mycelium repository use `analysis/<name>/`, lowercase with hyphens. |
-| `--steps` | Comma-separated `NN_name.R`, `.py`, `.ipynb` or `.qmd`, numbered in increasing order. A name with no extension takes `--format`. Default `01_prepare_data.R,02_train_model.py,03_explore_model.ipynb`, or the same names with the `--format` extension. |
-| `--format` | `R`, `py`, `ipynb` or `qmd`: the extension of the default steps and of bare names. Default: `step_format` in `.mycelium-extra/gate.json`, else none (the mixed default above). |
+| `--steps` | Comma-separated `NN_name.R`, `.py`, `.ipynb`, `.qmd` or `.marimo.py`, numbered in increasing order. A name with no extension takes `--format`. Default `01_prepare_data.R,02_train_model.py,03_explore_model.ipynb`, or the same names with the `--format` extension. |
+| `--format` | `R`, `py`, `ipynb`, `qmd` or `marimo`: the extension of the default steps and of bare names. Default: `step_format` in `.mycelium-extra/gate.json`, else none (the mixed default above). |
 | `--lang` | `r` (default, knitr) or `python` (jupyter): the language of qmd steps. |
 | `--data` | File or folder to link into `data/` (repeatable). |
 | `--code` | File or folder to link into `code/` (repeatable). |
@@ -39,6 +39,8 @@ analysis/<name>/
   reports/   <name>.qmd                   Quarto report skeleton, filled by analysis-report
   data/  outputs/  logs/
 ```
+
+A `NN_name.marimo.py` step (or `--format=marimo`) is a marimo notebook in lucid-coder's notebook layout, run headless by the Snakefile as a Python script.
 
 The Snakefile runs R and Python with the interpreters `lucid-coder.yaml` names at the repository root (`env.r`, `env.python`, and `jupyter` beside that `python`), each only if the file exists; without the file it uses the names on PATH, and the script prints which. `init --diagnose` shows the same pointer.
 

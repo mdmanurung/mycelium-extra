@@ -26,9 +26,10 @@ Take these from the user's message. Ask only if the destination is missing. Aski
   - Mycelium names analyses in lowercase-with-hyphens and adds `-v2` for a new iteration of the same question.
   - Another path, such as `nbs/<group>/<NN_name>/`, works too. Mycelium then finds the folder only through a manifest pointer.
 - **Steps.** Use the user's list, or default to `01_prepare_data.R,02_train_model.py,03_explore_model.ipynb`.
-  - Each step is `NN_name.R`, `.py`, `.ipynb` or `.qmd`, numbered in increasing order.
+  - Each step is `NN_name.R`, `.py`, `.ipynb`, `.qmd` or `.marimo.py`, numbered in increasing order.
   - Use R or Python scripts for work that needs no interaction, scripts for heavy jobs, and notebooks for exploration.
-  - **Format.** `--format=R|py|ipynb|qmd` gives every default step, and every bare name in `--steps`, that extension. With no flag the script reads `step_format` in `.mycelium-extra/gate.json`; set it once there for a repository. An explicit extension in `--steps` always wins.
+  - **Format.** `--format=R|py|ipynb|qmd|marimo` gives every default step, and every bare name in `--steps`, that extension. With no flag the script reads `step_format` in `.mycelium-extra/gate.json`; set it once there for a repository. An explicit extension in `--steps` always wins.
+  - **marimo steps** (`NN_name.marimo.py`) are plain Python files: the Snakefile runs them headless with `PYTHON`, and `marimo edit` opens them. The stub keeps lucid-coder's notebook layout: a Purpose/Run/Inputs/Outputs docstring, parameters in the `with app.setup:` cell, named cells, a markdown cell before and after each code cell, and it reads the table the step before wrote rather than refitting. The script prints the `marimo export html` line for a page `analysis-report` can link.
   - **qmd steps** compute and hold their own Methods and Results prose in one file. `--lang=r|python` (default `r`) picks knitr or jupyter. The scaffold adds `_quarto.yml`, and the Snakefile runs `quarto render` on each step and writes `outputs/NN_name.rds|parquet` plus the page under `reports/site/code/`. No `reports/<name>.qmd` is written when every step is qmd: the step pages are the report.
 - **Links.**
   - `--data=` for each file or folder the analysis reads. Prefer entries under the repository's `data/`.

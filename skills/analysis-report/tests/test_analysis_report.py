@@ -111,5 +111,11 @@ class AnalysisReportTest(unittest.TestCase):
         self.assertIn("every step is a qmd", self.run_script())
         self.assertFalse(os.path.exists(os.path.join(self.dest, "reports", "demo.qmd")))
 
+    def test_a_marimo_step_gets_a_python_methods_tab(self):
+        write(os.path.join(self.dest, "code", "04_explore.marimo.py"), "import marimo\n")
+        self.run_script()
+        with open(os.path.join(self.dest, "reports", "demo.qmd")) as handle:
+            self.assertIn('```{.python filename="code/04_explore.marimo.py"}', handle.read())
+
 if __name__ == "__main__":
     unittest.main()

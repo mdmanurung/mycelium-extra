@@ -4,7 +4,7 @@ Run from stdin so the gate reads no script path, with every option as --flag=val
     sh <plugin>/hooks/py.sh - --dest=analysis/<name> --templates=<plugin>/skills/new-analysis/templates
               [--overwrite] [--dry-run] < analysis_report.py
 
-Finds the analysis doc (<NAME>.md or README.md), the numbered steps (NN_*.R|py|ipynb|qmd at the root
+Finds the analysis doc (<NAME>.md or README.md), the numbered steps (NN_*.R|py|ipynb|qmd|marimo.py at the root
 or in code/), every Snakefile* and the rules and scripts it runs, the dated runs under outputs/
 (and where outputs/current points), the PNG figures, *REPORT*.md files and numbers.json. Writes
 reports/<name>.qmd from new-analysis's report.qmd template: a mermaid chain per Snakefile (rules in
@@ -20,8 +20,8 @@ import re
 import subprocess
 import sys
 
-STEP = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*)\.(R|py|ipynb|qmd)$")
-LANG = {"R": "r", "py": "python", "ipynb": "python", "qmd": "r"}  # ponytail: a qmd step in a mixed folder is quoted as r; sniff its chunk if python qmd steps mix in
+STEP = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*)\.(R|py|ipynb|qmd|marimo\.py)$")
+LANG = {"R": "r", "py": "python", "ipynb": "python", "marimo.py": "python", "qmd": "r"}  # ponytail: a qmd step in a mixed folder is quoted as r; sniff its chunk if python qmd steps mix in
 
 
 def read(path):
@@ -62,7 +62,7 @@ def find_steps(dest):
         for entry in sorted(os.listdir(base)):
             match = STEP.match(entry)
             if match and os.path.isfile(os.path.join(base, entry)):
-                steps.append({"num": match.group(1), "stem": entry.rsplit(".", 1)[0], "kind": match.group(3),
+                steps.append({"num": match.group(1), "stem": "{}_{}".format(match.group(1), match.group(2)), "kind": match.group(3),
                               "path": (folder + "/" if folder else "") + entry})
     return sorted(steps, key=lambda s: (s["num"], s["path"]))
 
@@ -187,7 +187,7 @@ def main(argv):
     if doc is None:
         print("note: no <NAME>.md or README.md; the Overview has nothing to copy the Purpose from.")
     if not steps:
-        print("note: no NN_*.R|py|ipynb|qmd steps at the root or in code/; Methods has no tabs.")
+        print("note: no NN_*.R|py|ipynb|qmd|marimo.py steps at the root or in code/; Methods has no tabs.")
     if steps and all(s["kind"] == "qmd" for s in steps):
         print("note: every step is a qmd that carries its own Methods and Results prose and renders to "
               "reports/site/; no reports/{}.qmd written.".format(name))

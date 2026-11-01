@@ -372,6 +372,10 @@ def diagnose(root, plugin_root):
                "checkpoint_steps: 0 also turns checkpoints off.")
     for key in sorted(saved):
         rule = CONFIG_RULES.get(key)
+        if key == "step_format":  # read by new-analysis, not by the gate
+            out.append("  step_format: {} (new-analysis default step format; the gate ignores it).".format(
+                json.dumps(saved[key])))
+            continue
         if rule is None:
             out.append("  PROBLEM {}: not a key this gate reads (typo?); ignored.".format(key))
         elif not rule[1](saved[key]):

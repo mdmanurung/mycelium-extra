@@ -2,8 +2,8 @@
 
 Run from stdin so Mycelium's hooks stay closed, with every option in --flag=value form
 (the approval gate reads a bare analysis/... argument as a script to run):
-    sh <plugin>/hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb,04_d.qmd]
-              [--format=R|py|ipynb|qmd] [--lang=r|python]
+    sh <plugin>/hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb,04_d.qmd,05_e.marimo.py]
+              [--format=R|py|ipynb|qmd|marimo] [--lang=r|python]
               [--data=PATH ...] [--code=PATH ...] [--doc-template=PATH] [--panels=Fig1a.R,Fig1b.py]
               --templates=<skill-dir>/templates [--dry-run] < new_analysis.py
 
@@ -33,8 +33,9 @@ import tempfile
 import sys
 
 PANEL = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*)\.(R|py)$")
-STEP = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*)(?:\.(R|py|ipynb|qmd))?$")
-FORMATS = ("R", "py", "ipynb", "qmd")
+STEP = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*)(?:\.(R|py|ipynb|qmd|marimo\.py))?$")
+FORMATS = ("R", "py", "ipynb", "qmd", "marimo")
+EXT = {"marimo": "marimo.py"}  # the file suffix of a format, where it differs from its name
 DEFAULT_STEPS = "01_prepare_data.R,02_train_model.py,03_explore_model.ipynb"
 DEFAULT_NAMES = ("01_prepare_data", "02_train_model", "03_explore_model")  # --format gives these one extension
 STATE_DIR = ".mycelium-extra"  # holds gate.json, whose "step_format" is the repository default
@@ -98,22 +99,23 @@ def parse_steps(text, fmt, lang):
     steps, previous = [], -1
     for name in [part.strip() for part in text.split(",") if part.strip()]:
         match = STEP.match(name)
-        kind = match and (match.group(3) or fmt)
+        kind = match and ("marimo" if match.group(3) == "marimo.py" else match.group(3) or fmt)
         if not kind:
-            raise Refusal("step {!r} must look like NN_name.R, NN_name.py, NN_name.ipynb, or NN_name.qmd "
+            raise Refusal("step {!r} must look like NN_name.R, NN_name.py, NN_name.ipynb, NN_name.qmd or NN_name.marimo.py "
                           "(or NN_name with --format)".format(name))
-        name = "{}.{}".format(match.group(0), kind) if not match.group(3) else name
+        name = "{}.{}".format(match.group(0), EXT.get(kind, kind)) if not match.group(3) else name
         number = int(match.group(1))
         if number <= previous:
             raise Refusal("step numbers must increase: {} comes after {:02d}".format(name, previous))
         previous = number
-        stem = name.rsplit(".", 1)[0]
+        stem = "{}_{}".format(match.group(1), match.group(2))
         step_lang = lang if kind == "qmd" else "r" if kind == "R" else "python"
         output = ("logs/" + name) if kind == "ipynb" else ("outputs/" + stem + OUTPUT_EXT[LANGS[step_lang]])
         steps.append({"file": name, "path": "code/" + name, "num": match.group(1), "stem": stem, "kind": kind,
                       "lang": step_lang, "rule": "step" + re.sub(r"\W", "_", stem), "output": output,
                       "html": "reports/site/code/{}.html".format(stem) if kind == "qmd" else None,
-                      "stub": "stub_{}.qmd".format(step_lang) if kind == "qmd" else "stub." + kind})
+                      "stub": "stub_{}.qmd".format(step_lang) if kind == "qmd" else
+                      "stub_marimo.py" if kind == "marimo" else "stub." + kind})
     if not steps:
         raise Refusal("--steps is empty")
     for before, step in zip([None] + steps, steps):
@@ -302,7 +304,7 @@ def stub_values(step, name, data_links):
         code = ("(output_path,) = sys.argv[1:]" if first
                 else "input_path, output_path = sys.argv[1:]")
     return {"FILE": step["file"], "PATH": step["path"], "NUM": step["num"], "NAME": name,
-            "INPUT": notebook_input if step["kind"] in ("ipynb", "qmd") else source,
+            "INPUT": notebook_input if step["kind"] in ("ipynb", "qmd", "marimo") else source,
             "INPUT_LITERAL": json.dumps(notebook_input), "OUTPUT_LITERAL": json.dumps(step["output"]),
             "STEM": step["stem"],
             "OUTPUT": step["output"], "USAGE": usage, "NARGS": "1" if first else "2",
@@ -322,7 +324,7 @@ def rule(step, data_links):
         lines.append('        prev="{}",'.format(step["input"]))
     elif data_links:
         lines.append("        data=[{}],".format(", ".join(json.dumps(l["rel"]) for l in data_links)))
-    key = "notebook" if step["kind"] == "ipynb" else "script"
+    key = "notebook" if step["kind"] in ("ipynb", "marimo") else "script"
     lines.append('        {}="{}",'.format(key, step["path"]))
     todo = "" if step["kind"] == "ipynb" else "  # TODO: name the real outputs"
     lines += ["    output:", '        "{}",{}'.format(step["output"], todo)]
@@ -336,6 +338,8 @@ def rule(step, data_links):
     if step["kind"] == "ipynb":
         command = ("{{JUPYTER:q}} nbconvert --to notebook --execute {{input.notebook:q}} "
                    "--output-dir logs --output {} > {{log:q}} 2>&1".format(step["file"]))
+    elif step["kind"] == "marimo":  # a marimo notebook is a Python file: run it headless as a script
+        command = "{PYTHON:q} -u {input.notebook:q} > {log:q} 2>&1"
     elif step["kind"] == "qmd":  # the project in _quarto.yml runs it from this folder and writes the html
         command = "{QUARTO:q} render {input.script:q} > {log:q} 2>&1"
     elif step["kind"] == "R":
@@ -448,7 +452,7 @@ def ignored(root, probes):
 def main(argv):
     parser = argparse.ArgumentParser(prog="new_analysis")
     parser.add_argument("--dest", required=True, help="folder to create, e.g. analysis/<name>")
-    parser.add_argument("--steps", help="comma-separated NN_name.{R,py,ipynb,qmd}; a name with no extension "
+    parser.add_argument("--steps", help="comma-separated NN_name.{R,py,ipynb,qmd,marimo.py}; a name with no extension "
                         "takes --format")
     parser.add_argument("--format", choices=FORMATS, help="step format (default: step_format in "
                         ".mycelium-extra/gate.json); alone, it sets the default steps' extension")
@@ -490,7 +494,7 @@ def scaffold(args):
     name = os.path.basename(dest)
     dest_rel = display(dest, root)
     fmt, fmt_source = step_format(args, root)
-    steps = parse_steps(args.steps or (",".join(n + "." + fmt for n in DEFAULT_NAMES) if fmt else DEFAULT_STEPS),
+    steps = parse_steps(args.steps or (",".join(n + "." + EXT.get(fmt, fmt) for n in DEFAULT_NAMES) if fmt else DEFAULT_STEPS),
                         fmt, args.lang)
     qmd = any(s["kind"] == "qmd" for s in steps)
     data_links = plan_links(args.data, "data", dest, root)
@@ -557,6 +561,8 @@ def scaffold(args):
                     os.mkdir(os.path.join(stage, folder))
                 for path, text in files.items():
                     checked(path, text)
+                    if path.endswith(".marimo.py"):
+                        compile(text, path, "exec")
                     if path.endswith(".ipynb"):
                         book = json.loads(text)
                         for cell in book["cells"]:
@@ -591,6 +597,9 @@ def scaffold(args):
     print("note: " + env_note + ".")
     if fmt:
         print("note: default steps are .{} ({}).".format(fmt, fmt_source))
+    for step in (s for s in steps if s["kind"] == "marimo"):
+        print("note: {0} runs headless as a Python script; `marimo edit {0}` opens it, and `marimo export html {0} "
+              "-o reports/site/code/{1}.html` renders a page analysis-report can link.".format(step["path"], step["stem"]))
     if qmd:
         print("note: qmd steps are rendered by quarto into reports/site/ ({} engine); the Snakefile needs quarto "
               "on PATH, or --config quarto=/path/to/quarto.".format("knitr" if args.lang == "r" else "jupyter"))

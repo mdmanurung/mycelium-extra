@@ -298,6 +298,12 @@ class DiagnoseTest(unittest.TestCase):
                     self.state_file("gate.json", json.dumps({key: value}))
                     self.assertIn("PROBLEM " + key + ":", self.diagnose())
 
+    def test_step_format_is_not_flagged_as_a_typo(self):
+        self.state_file("gate.json", json.dumps({"step_format": "marimo"}))
+        out = self.diagnose()
+        self.assertIn("step_format: \"marimo\" (new-analysis default step format", out)
+        self.assertNotIn("PROBLEM step_format", out)
+
     def test_diagnose_reports_the_env_pointer(self):
         self.assertIn("environment: no lucid-coder.yaml", self.diagnose())  # control: absent
         python = os.path.join(self.root, "python")
