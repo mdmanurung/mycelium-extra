@@ -37,7 +37,7 @@ Take these from the user's message. Ask only if the destination is missing. Aski
 - **Panels (manuscript only).** `--panels=Fig1a.R,Fig1b.py` when the folder makes manuscript figures.
   - Each panel gets `code/plot_<panel>`, a stub that exports the plotted values to `<run>/source_data/<panel>.tsv` and then draws the figure from that table alone.
   - It also gets a row in `config/figure_map.tsv` and an entry in `config/manuscript_checks.json`, the contract `manuscript-audit` checks. Paths are repository-relative and point at `outputs/current/`, the released run.
-  - On a folder that already exists, `--panels` adds only the missing manuscript files and keeps every existing one byte for byte. Use it to retrofit a manuscript folder.
+  - On a folder that already exists, `--panels` adds only the missing manuscript files and keeps every existing one byte for byte. Use it to retrofit a manuscript folder. Edit a scaffolded file you have since filled (`<NAME>.md`, `PLAN.md`, a report) with Edit, not a whole-file Write; `analysis-report` gives the check for when a rewrite is needed.
 - **Scope.** One sentence on the question the analysis answers.
 
 ## 2. Dry run, then create

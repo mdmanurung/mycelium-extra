@@ -209,6 +209,60 @@ class LostCoverageTest(Base):
         self.assertEqual((snap.items, snap.limitations), ([], []))
 
 
+class ReportSectionsTest(Base):
+    """A whole-file rewrite of reports/*.qmd that drops sections is an attention item at the next snapshot."""
+    QMD = "analysis/a/reports/a.qmd"
+    FULL = "# A\n\n## Overview\n\n```{r}\n## not a heading\n```\n\n## Results\n\n### 1. Fit\n"
+
+    def prior(self, reports):
+        self.write(".mycelium-extra/track-changes/analysis__a/snapshot.json",
+                   json.dumps({"analysis_path": "analysis/a", "reports": reports}))
+
+    def report_items(self, data):
+        return self.items(data, "report")
+
+    def test_a_section_dropped_since_the_last_snapshot_is_attention(self):
+        self.write(self.QMD, self.FULL)
+        self.prior({self.QMD: ["## Overview", "## Results", "### 1. Fit"]})
+        self.write(self.QMD, "# A\n\n## Overview\n")
+        data = self.collect(analysis="analysis/a")
+        found = self.report_items(data)
+        self.assertEqual(len(found), 1, found)
+        self.assertEqual(found[0]["bucket"], "attention")
+        self.assertIn("## Results", found[0]["observed"])
+        self.assertIn("### 1. Fit", found[0]["observed"])
+        self.assertNotIn("## Overview", found[0]["observed"])
+        self.assertEqual(data["reports"], {self.QMD: ["## Overview"]})
+
+    def test_a_deleted_report_is_attention(self):
+        self.prior({self.QMD: ["## Overview"]})
+        found = self.report_items(self.collect(analysis="analysis/a"))
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("file is gone", found[0]["title"])
+
+    def test_unchanged_headings_give_no_item(self):  # control for the two cases above
+        self.write(self.QMD, self.FULL)
+        self.prior({self.QMD: ["## Overview", "## Results", "### 1. Fit"]})
+        data = self.collect(analysis="analysis/a")
+        self.assertEqual(self.report_items(data), [])
+        self.assertEqual(data["reports"][self.QMD], ["## Overview", "## Results", "### 1. Fit"])
+
+    def test_first_snapshot_is_a_limitation_not_a_pass(self):
+        self.write(self.QMD, self.FULL)
+        data = self.collect(analysis="analysis/a")
+        self.assertEqual(self.report_items(data), [])
+        self.assertIn("report sections have no earlier snapshot to compare", data["coverage"]["limitations"])
+
+    def test_the_cli_records_headings_for_the_next_run(self):
+        self.write(self.QMD, self.FULL)
+        self.cli("--analysis", "analysis/a")
+        self.write(self.QMD, "# A\n")
+        self.cli("--analysis", "analysis/a")
+        with open(os.path.join(self.root, ".mycelium-extra/track-changes/analysis__a/snapshot.json")) as handle:
+            data = json.load(handle)
+        self.assertEqual(len(self.report_items(data)), 1)
+
+
 class PlansAndCodeTest(Base):
     def test_two_plans_name_the_folder_so_the_original_must_be_chosen(self):  # F10
         first, second = self.two_plans()

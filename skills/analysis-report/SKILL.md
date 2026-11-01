@@ -20,6 +20,8 @@ sh <skill-dir>/../../hooks/py.sh - --dest=<folder> --templates=<skill-dir>/../ne
 
 It prints an inventory (analysis doc, numbered steps at the root or in `code/`, each `Snakefile*` with its rules, scripts and run folder, the dated runs under `outputs/` and where `current` points, PNG figures, `*REPORT*.md`, `numbers.json`) and writes `reports/<name>.qmd`: a mermaid chain per Snakefile, one Methods tab per step, one Results tab per step that has figures or a report. When every step is `.qmd` it writes nothing: those step pages (rendered under `reports/site/`) carry their own Methods and Results, so fill the Question / Approach / Conclusion prose inside each step. It keeps an existing report unless `--overwrite`; a report you have already filled is replaced only when you ask. Never run it by path.
 
+Before any whole-file write over a filled report (`--overwrite`, or a Write instead of Edit), read the report in full and list every `##`/`###` heading and tab; mark each carry or drop, and carry every one the user did not ask to drop. Run `wc -l` on it before and after, and `git diff --stat` after. A line count that falls on a targeted Edit is truncation: restore with `git restore` and redo it. When an Edit fails to match, retry it with a shorter anchor; never fall back to rewriting the file. `track-changes` reports sections that vanished since its last snapshot.
+
 Then read what the inventory names, and run nothing else:
 
 - The analysis doc (Purpose, Steps table, Key Findings, Outputs), `PLAN.md`, `TRACKER.md`, `HANDOFF.md` where they exist (at the root or under `plans/`).

@@ -47,6 +47,7 @@ Offer the brief to Mycelium's review before a freeze: it is one file, `brief.md`
 - Not an approval, a gate, or a check of scientific correctness.
 - Not an attribution of who edited a file: only direct editor tool calls in a transcript are listed; shell-made edits and unmarked subagent work are not observed.
 - Between two approved plans it shows one attention item when a required validation binding is gone or redefined, or a declared output is no longer named. It does not judge whether a replacement is equivalent, and it says nothing about a plan whose bindings it cannot read. Inputs and exact-execution blocks are not compared here; `verify diff <old> <new>` lists every difference.
+- A `##` or `###` heading of `reports/*.qmd` present at the last snapshot and absent now is one attention item per report (a whole-file rewrite that lost sections). The baseline is the previous snapshot, not an approval; the first snapshot records headings and says it had nothing to compare.
 - Field meanings and the axes: `references/schema.md`.
 
 ## Historical Analysis Journal (explicit)

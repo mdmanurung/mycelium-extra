@@ -562,11 +562,55 @@ def focus_items(snap, root, rel, edits, mentions, transcript, started):
                 ", ".join("{}/{} x{}".format(container, k, v) for k, v in sorted(others.items())[:5])))
 
 
+def report_headings(path):
+    """The `##` and `###` headings of a Quarto report, outside fenced code."""
+    found, fenced = [], False
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            if line.lstrip().startswith(("```", "~~~")):
+                fenced = not fenced
+            elif not fenced and re.match(r"#{2,3} \S", line):
+                found.append(line.rstrip())
+    return found
+
+
+def report_items(snap, root, rel):
+    """One attention item per report whose sections vanished since the last snapshot of this analysis.
+    Returns the headings now, which the snapshot records for the next run."""
+    # ponytail: the baseline is the last snapshot, not an approval; read git history if a per-approval baseline is wanted
+    folder = os.path.join(root, rel, "reports")
+    now = {}
+    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        if name.endswith(".qmd"):
+            now[posixpath.join(rel, "reports", name)] = report_headings(os.path.join(folder, name))
+    base = os.path.join(root, ".mycelium-extra", "track-changes")
+    prior = read_json(os.path.join(output_folder(base, rel), "snapshot.json"))
+    before = prior.get("reports") if isinstance(prior, dict) and prior.get("analysis_path") == rel else None
+    if not isinstance(before, dict):
+        if now:
+            snap.limitations.append("report sections have no earlier snapshot to compare")
+        return now
+    for qmd, old in sorted(before.items()):
+        gone = [h for h in old if h not in now.get(qmd, [])] if isinstance(old, list) else []
+        if not gone:
+            continue
+        missing = qmd not in now
+        snap.item("report", qmd, "{}: {} since the last snapshot".format(
+                      qmd, "file is gone" if missing else "{} section(s) dropped".format(len(gone))), "attention", file=qmd,
+                  summary="Observed: report sections present at the last snapshot are absent now.",
+                  observed=("The file no longer exists. " if missing else "") + "Headings gone: " +
+                  "; ".join(gone[:8]) + (" …" if len(gone) > 8 else "") + ".",
+                  unknown="Whether the drop was intended, or a whole-file rewrite lost them.",
+                  next=["`git diff -- {}` shows what changed; restore with `git restore` if the loss was not intended".format(qmd)],
+                  evidence=[snap.evid("file", qmd, "headings compared with the last snapshot")])
+    return now
+
+
 def prioritize(snap):
     """Order items by bucket then kind, and only then keep the first CAP_ITEMS: the cap must never drop an
     attention item that was collected late while a routine one collected early stays. Says what it left out."""
     order = {"attention": 0, "authorized": 1, "routine": 2}
-    rank = {"plan": 0, "code": 1, "execution": 2, "focus": 3, "output": 4}
+    rank = {"plan": 0, "code": 1, "report": 2, "execution": 3, "focus": 4, "output": 5}
     snap.items.sort(key=lambda i: (order[i["bucket"]], rank[i["kind"]], i["id"]))
     if len(snap.items) > CAP_ITEMS:
         snap.limitations.append("{} items beyond the first {} were left out".format(len(snap.items) - CAP_ITEMS, CAP_ITEMS))
@@ -660,6 +704,7 @@ def collect(args, gate, focus, verify):
     extra = code_items(gate, verify, snap, root, config, original, current, redact, {}) or {}
     execution_items(gate, snap, root, original, current)
     output_items(gate, snap, root, current, extra.get("last_code_change", 0))
+    reports = report_items(snap, root, rel)
     transcript = {"status": "not_requested", "note": ""}
     path = args.transcript or (episode or {}).get("transcript_path")
     if path and os.path.isfile(path):
@@ -705,7 +750,7 @@ def collect(args, gate, focus, verify):
                          else ["edits to other analyses (no transcript read)"])},
         "counts": {b: sum(1 for i in snap.items if i["bucket"] == b) for b in ("attention", "authorized", "routine")},
         "items": snap.items, "evidence": sorted(snap.evidence.values(), key=lambda e: e["id"]), "timeline": snap.timeline,
-        "walkthrough": walk,
+        "walkthrough": walk, "reports": reports,
     }
 
 
