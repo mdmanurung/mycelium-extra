@@ -105,5 +105,11 @@ class DefaultReasonsTest(unittest.TestCase):
         self.assertIn(b"cannot read the plan", err)
 
 
+class PlaceholderRowTest(unittest.TestCase):
+    def test_dash_placeholder_row_is_not_a_rule(self):
+        text = plan("default: Seurat default").replace("| ok |\n", "| ok |\n| - | - |\n", 1)
+        self.assertEqual(flagged(text), [("1", "a reason under 3 words")])
+
+
 if __name__ == "__main__":
     unittest.main()

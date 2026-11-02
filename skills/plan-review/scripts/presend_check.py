@@ -227,7 +227,7 @@ def unread_reasons(unread, repo):
 
 def analyse(raw, repo=None):
     """Scan the packet bytes `raw`. Returns the structured result; its `exit` is the exit status."""
-    packet = raw.decode("utf-8", errors="replace").replace("\r\n", "\n")  # as text mode read it
+    packet = raw.decode("utf-8-sig", errors="replace").replace("\r\n", "\n")  # as text mode read it
     quiet = []
     flags, unread = check(packet, repo, quiet)
     listed = redactions_listed(packet)

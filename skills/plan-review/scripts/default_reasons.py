@@ -36,7 +36,7 @@ MIN_WORDS = 3
 FILLER = {"a", "an", "the", "is", "it", "its", "it's", "this", "that", "just", "and", "or"}
 
 TABLE_ROW = re.compile(r"^\s*\|(.*)\|\s*$")
-TABLE_RULE = re.compile(r"^\s*\|[\s:|-]*-[\s:|-]*\|\s*$")
+TABLE_RULE = re.compile(r"^\s*\|(?:\s*:?-{3,}:?\s*\|)+\s*$")
 DEFAULT = re.compile(r"(?<![\w-])default\s*:", re.IGNORECASE)
 NEXT_SOURCE = re.compile(r"(?<![\w-])(?:default|repo)\s*:", re.IGNORECASE)
 WORD = re.compile(r"[^\W_](?:[\w'.+/-]*[^\W_])?", re.UNICODE)
@@ -52,7 +52,7 @@ def split_row(line):
 def tables(plan):
     """Yield (header, [(line number, cells)]) for each Markdown table in the text."""
     lines = plan.splitlines()
-    header, rows = None, []
+    header, rows, rule_at = None, [], -1
     for i, line in enumerate(lines):
         cells = split_row(line)
         if cells is None:
@@ -60,13 +60,13 @@ def tables(plan):
                 yield header, rows
             header, rows = None, []
             continue
-        if TABLE_RULE.match(line):
+        if i == rule_at:  # the rule counts only right after its header row
             continue
         following = lines[i + 1] if i + 1 < len(lines) else ""
         if TABLE_RULE.match(following):
             if header is not None:
                 yield header, rows
-            header, rows = [c.lower() for c in cells], []
+            header, rows, rule_at = [c.lower() for c in cells], [], i + 1
         elif header is not None:
             rows.append((i + 1, cells))
     if header is not None:

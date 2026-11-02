@@ -210,5 +210,17 @@ class PacketTest(unittest.TestCase):
         self.assertNotIn(TOKEN, out)
 
 
+class NoGateTest(unittest.TestCase):
+    def test_prepare_without_gate_json_refuses_and_writes_nothing(self):
+        root = os.path.realpath(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root)
+        write(os.path.join(root, "p.txt"), PACKET)
+        proc = subprocess.run([sys.executable, SCRIPT, "prepare", "--packet", "p.txt"], cwd=root,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        self.assertEqual(proc.returncode, 3)
+        self.assertIn("gate.json", proc.stdout)
+        self.assertEqual(sorted(os.listdir(root)), ["p.txt"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -216,5 +216,11 @@ class PresendCheckTest(unittest.TestCase):
         self.assertIn(hashlib.sha256(text.encode()).hexdigest(), out)
 
 
+class BomTest(unittest.TestCase):
+    def test_bom_before_first_line_redactions_is_not_malformed(self):
+        result = presend_check.analyse(b"\xef\xbb\xbfredactions: []\nobjective: x\n")
+        self.assertNotEqual(result["exit"], 3)
+
+
 if __name__ == "__main__":
     unittest.main()

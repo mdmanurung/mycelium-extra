@@ -179,7 +179,7 @@ def load(folder, digest):
         assert manifest["schema"] == SCHEMA and isinstance(manifest["created"], int)
         assert isinstance(manifest["packet"]["sha256"], str) and all(isinstance(p, str) for p in listed)
         assert all(not p.startswith("/") and ".." not in p.split("/") for p in listed)
-    except (OSError, ValueError, KeyError, TypeError, AssertionError):
+    except (OSError, ValueError, KeyError, TypeError, AssertionError, RecursionError):
         raise Refuse("manifest.json is missing or malformed")
     if sha256_bytes(mbytes) != digest:
         raise Refuse("manifest.json bytes do not hash to the digest")
@@ -284,6 +284,8 @@ def main(argv):
     root = os.path.abspath(args.root) if args.root else find_root(os.getcwd())
     try:
         if args.command == "prepare":
+            if not args.root and not os.path.isfile(os.path.join(root, STATE, "gate.json")):
+                raise Refuse("no {}/gate.json at or above here; run init first or pass --root".format(STATE))
             if not args.packet:
                 parser.error("prepare needs --packet")
             sys.stdout.write(prepare(root, args.packet, args.attach, args.consent_unread_inputs))
