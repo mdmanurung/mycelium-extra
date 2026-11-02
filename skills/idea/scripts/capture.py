@@ -99,7 +99,7 @@ def main(argv):
                     idea = handle.read()
                 if not idea.strip():
                     raise ValueError("idea text is empty")
-                title = " ".join(idea.split()[:8])
+                title = " ".join(idea.split()[:8])[:200]  # one huge token must not overflow argv
                 # Bounded: one long token (a sequence, a URL) must not exceed the filename limit.
                 slug = re.sub(r"[^a-z0-9]+", "-", title.lower())[:60].strip("-") or "idea"
                 reserved = set()

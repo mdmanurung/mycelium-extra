@@ -50,6 +50,12 @@ class CaptureTest(unittest.TestCase):
         for name in files:
             self.assertEqual(registry.count("[{}]({})".format(name, name)), 1)
 
+    def test_huge_single_token_still_publishes(self):
+        with open(self.idea, "w") as handle:
+            handle.write("A" * 300000)
+        result = self.run_capture()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_failed_publication_retains_text_and_recovery_is_idempotent(self):
         self.assertEqual(self.run_capture(helper="/missing/helper").returncode, 1)
         todo = os.path.join(self.root, "todo")
