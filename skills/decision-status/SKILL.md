@@ -35,6 +35,7 @@ An entry with no status is `unknown`, not `current`. You may say an entry looks 
 
 - Ask only about a decision point the task touches that has two or more entries unresolved by rules 1–2, or where a premise named in an entry has changed (for example new data, or a `**Revisit when**:` condition that now holds).
 - One question per message, most consequential first. Quote the competing entries by date, title, and line, say what each implies for the task, and recommend one.
+- When called from grill, ask nothing here: return each contested point to grill, which asks it within its own five-question cap.
 - Cap: **three questions per session**. Past the cap, carry each remaining contested point forward as `contested` with your recommended reading, and name it in the answer; do not quietly pick one.
 
 ## 4. Record the user's answer

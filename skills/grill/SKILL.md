@@ -1,11 +1,11 @@
 ---
 name: grill
-description: "Read-only planning: turn a research, analysis, or software task into a sourced step-by-step plan and wait for approval before anything runs. Use to scope, plan, pressure-test, or promote explore runs; not for reviewing finished code or results (use Mycelium's review)."
+description: "Planning: turn a research, analysis, or software task into a sourced step-by-step plan and wait for approval (unless the gate is off). Use to scope, plan, pressure-test, or promote explore runs; not for reviewing finished code or results (use Mycelium's review)."
 ---
 
 # Mycelium Extra: Grill
 
-Turn a proposed task into a sourced, step-by-step plan before anything runs. Ask for the user's question first, retrieve, decide what the evidence supports, ask the user only what remains, then stop and wait for approval. Make no edits during this skill.
+Turn a proposed task into a sourced, step-by-step plan before anything runs. Ask for the user's question first, retrieve, decide what the evidence supports, ask the user only what remains, then stop and wait for approval. Make no edits during this skill. The one exception is `gate off`, where the plan runs without waiting (section 4).
 
 ## 0. Ask for the question first
 
