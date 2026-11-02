@@ -46,9 +46,13 @@ The Snakefile runs R and Python with the interpreters `lucid-coder.yaml` names a
 
 `data/` holds symlinks only; `code/` holds the stubs and links to shared code. The analysis doc is `<NAME>.md` (folder name in UPPER_SNAKE_CASE) in a Mycelium repository, `README.md` elsewhere. Stubs stop until implemented. A panel stub writes `<run>/source_data/<panel>.tsv`, then re-reads only that table to draw `<run>/figures/<panel>.pdf`, so the released source data can redraw the panel; its toy `x`/`y` columns are placeholders, and the contract points at `outputs/current/`, which you point at the run you release. `reports/<name>.qmd` is a static Quarto report (`engine: markdown`) with a mermaid chain of the steps and one Methods and one Results tab per step; [analysis-report](analysis-report.md) fills it after a run, and Mycelium's `report` writes its LaTeX PDF beside it. Without `--panels` it refuses a non-empty folder; with it, it adds each missing manuscript file and keeps every existing file unchanged. It also refuses a missing link target and anything it would overwrite (`refused:` line, nothing written). A `WARNING: git ignores ...` line means that file would never be committed; stop and ask. It writes nothing outside the new folder except an empty `.<name>.scaffold.lock` file in its parent folder (the lock that keeps two runs from filling the same folder; delete it if you like): not `.living/`, not `analysis/ANALYSIS_MANIFEST.md` (it prints a suggested manifest entry).
 
+## Before it writes
+
+The agent asks for the aim in your own words, unless the invocation states it. It shows your words beside a tidier restatement. It checks the aim's assumptions against the repository by reading files: a prior analysis that already answers it, the named data, overloaded terms. It asks at most three questions the repository cannot settle, then waits for you to confirm or edit the aim.
+
 ## Afterwards
 
-The agent fills the Purpose and Steps table of `<NAME>.md`, and copies an approved grill brief into `PLAN.md` and `TRACKER.md` when one exists in the conversation. `PLAN.md` records no plan hash. Each R step opens with a `scilintr stage` line; the stage is your choice. Next: [grill](grill.md) a plan naming this folder's scripts or `run.sh`, then Mycelium's `analyze`.
+The agent writes your words, tagged `[human-stated]`, and the confirmed aim into the Purpose of `<NAME>.md` and fills its Steps table. It copies an approved grill brief into `PLAN.md` and `TRACKER.md` when one exists in the conversation. `PLAN.md` records no plan hash. Each R step opens with a `scilintr stage` line; the stage is your choice. Next: [grill](grill.md) a plan naming this folder's scripts or `run.sh`, then Mycelium's `analyze`.
 
 ## Default on or off
 
@@ -59,5 +63,6 @@ On when invoked.
 | Step | Kind |
 |---|---|
 | Never overwrites; refuses non-empty folders and missing link targets | Enforced by the script |
+| Restating and checking the aim, and waiting for you to confirm it | The agent's instruction |
 | Reading the dry run and asking you before writing | The agent's instruction |
 | Filling `PLAN.md` only from an approved brief; touching nothing outside the folder after creation | The agent's instruction |

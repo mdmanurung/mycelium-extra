@@ -4,6 +4,11 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- **new-analysis:** a new section 2 settles the aim before anything is written. The agent asks for the aim in your own words and shows a tidier restatement beside them. It checks the aim's assumptions by reading the repository (prior analyses, named data, overloaded terms), asks at most three questions, and waits for you to confirm. The Purpose keeps your words tagged `[human-stated]` beside the confirmed aim.
+- **grill:** section 0 quotes the user's words from the target analysis doc's Purpose instead of asking again.
+
 ## [0.22.1] - 2026-11-02
 
 ### Changed
