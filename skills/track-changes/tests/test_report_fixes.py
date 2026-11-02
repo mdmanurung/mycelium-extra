@@ -99,7 +99,7 @@ class ReportItemsTest(unittest.TestCase):
                                      evid=lambda *a: None)
         self.items = []
         self.assertEqual(tc.report_items(snap, root, "a"), {})
-        self.assertIn("## Gone", self.items[0][3] + str(self.items))
+        self.assertEqual(len(self.items), 1)
 
 
 if __name__ == "__main__":
