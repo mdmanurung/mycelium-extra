@@ -200,6 +200,12 @@ Mycelium's `analyze` skill tells the agent to run scilintr after every code writ
 
 `verify` still decides: it blocks on any finding left unfixed and unwaived, except a threshold finding (`magic-threshold`, `R002`) whose line holds only numbers, with the same sign, that a Choice cell of a plan row naming that script states (any row's Choice, when no row names the script). That one is info. The reason lines of `lint_before_run` and `lint_before_stop` say the same.
 
+## Switching the gate off
+
+Type `gate off` to switch the whole gate off for this repository, for example while you develop a package. Runs then need no approved plan, the Stop hook pins no plans, and no receipts are written. `gate on` switches it back; approvals given before stay valid. Only you can type it: the agent cannot send a prompt.
+
+Claude Code's `/goal <condition>` pauses the gate the same way, for that session only. The pause ends when Claude Code reports the goal met or impossible, or when you type `/goal clear`. Other sessions keep the gate. The gate reads the goal's state from the `goal_status` lines Claude Code 2.1.316 writes to the transcript.
+
 ## Command hints
 
 Type `hints on` for a one-line suggestion of the command to run next, and `hints off` to stop them. The setting lasts for the repository until you turn it off. Hints need the gate (`init`), since the gate's hooks carry them.

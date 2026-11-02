@@ -32,6 +32,8 @@ The `.jsonl` logs and `explore.log` only grow. Nothing trims them.
 | `explore-grants/<session>.json` | gate, on `allow explore` | gate | the session's explore permission, with its scope if bounded | No |
 | `explore.log` | gate | gate (Stop notice) | one line per explore run | No |
 | `hints.json` | gate, on `hints on` | gate | the hints switch | No: hint rules are not frozen |
+| `off.json` | gate, on `gate off` | gate | the gate switch; while it exists every hook is silent | No |
+| `goal/<session>.json` | gate, on `/goal <condition>` | gate | the session's goal pause; removed when the goal ends or on `/goal clear` | No |
 | `tools.json` | `init --tools` | gate, `verify` | where `scilintr` and an `Rscript` with scilintr are | Not listed |
 | `focus/<session>.json` | gate, on your `focus` commands | gate, `track-changes` | which analysis a session declared, with its history (`mycelium-extra.focus.v1`) | Not listed |
 | `locks/` | gate, focus | the same writers | write locks | No |

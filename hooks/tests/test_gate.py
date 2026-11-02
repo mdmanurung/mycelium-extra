@@ -1885,6 +1885,47 @@ class GateTest(unittest.TestCase):
         self.assertIn("off", ask("hints off")["systemMessage"])
         self.assertIsNone(ask("write the report"))
 
+    def test_gate_off_silences_every_hook_until_gate_on(self):
+        digest, _ = self.approve()
+        self.assertIn("gate off", self.hook("prompt", {"prompt": "gate off"})["systemMessage"])
+        self.assertIsNone(self.bash("python analysis/y.py"))  # unplanned, yet not denied
+        self.assertIsNone(self.hook("stop", {"last_assistant_message": PLAN.replace("x.py", "z.py")}))
+        self.assertIsNone(self.hook("prompt", {"prompt": "approve plan " + digest}))
+        self.assertIn("gate on", self.hook("prompt", {"prompt": "Gate on."})["systemMessage"])
+        self.assertTrue(self.denied(self.bash("python analysis/y.py")))
+        self.assertIsNone(self.bash("python analysis/x.py"))  # the approval survived
+        self.assertIn("did not parse", self.hook("prompt", {"prompt": "gate offf"})["systemMessage"])
+
+    def test_goal_pauses_the_gate_until_it_ends(self):
+        transcript = os.path.join(self.root, "t.jsonl")
+
+        def status(**fields):  # the attachment Claude Code 2.1.316 writes at each /goal check
+            with open(transcript, "a") as handle:
+                handle.write(json.dumps({"type": "attachment", "attachment": dict(
+                    type="goal_status", condition="tests pass", **fields)}) + "\n")
+
+        ask = lambda text: self.hook("prompt", {"prompt": text, "transcript_path": transcript})
+        stop = lambda: self.hook("stop", {"last_assistant_message": "done", "transcript_path": transcript})
+        run = lambda session="s1": self.hook("tool", {"tool_name": "Bash", "tool_input": {
+            "command": "python analysis/y.py"}}, session=session)
+        self.assertIn("paused", ask("/goal tests pass")["systemMessage"])
+        status(met=False, sentinel=True)
+        self.assertIsNone(run())
+        self.assertTrue(self.denied(run("s2")))  # another session keeps the gate
+        status(met=False)
+        self.assertIsNone(stop())  # still running: silent
+        self.assertIsNone(ask("keep going"))
+        status(met=False, failed=True)
+        self.assertIn("goal ended", stop()["systemMessage"])
+        self.assertTrue(self.denied(run()))
+        ask("/goal tests pass")
+        self.assertIsNone(run())
+        self.assertIn("cleared", ask("/goal clear")["systemMessage"])
+        self.assertTrue(self.denied(run()))
+        ask("/goal tests pass")
+        ask("gate on")  # ends the pause too
+        self.assertTrue(self.denied(run()))
+
     def test_stop_hints_verify_and_handoff_once(self):
         digest, _ = self.approve()
         self.post("python analysis/x.py", {"stdout": ""})

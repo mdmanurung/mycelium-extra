@@ -4,6 +4,11 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Added
+
+- **gate:** `gate off` and `gate on` switch the whole gate off and on for a repository (`.mycelium-extra/off.json`). While off, every hook stays silent, as if `init` never ran: runs need no approved plan, no plans are pinned and no receipts are written. Approvals given before survive the switch.
+- **gate:** Claude Code's `/goal <condition>` pauses the gate for that session (`.mycelium-extra/goal/<session>.json`). The pause ends when the transcript's last `goal_status` says met or failed, or on `/goal clear`.
+
 ## [0.21.0] - 2026-11-01
 
 ### Added

@@ -12,6 +12,8 @@ blocks a launch whose pinned inputs changed; the post hook appends one run
 receipt per gated run to .mycelium-extra/receipts.jsonl.
 
 After `hints on`, the prompt and Stop hooks also suggest the command to run next.
+`gate off` silences every hook in the repository until `gate on`; `/goal <condition>` silences them for
+that session until Claude Code reports the goal met or failed, or `/goal clear`.
 """
 
 import ast
@@ -53,7 +55,11 @@ CONFIRM_WRITE = re.compile(r"confirm write ([0-9a-f]{8})")
 WRITE_CONSENT_HOURS = 1
 VERIFY_WRITE = re.compile(r"scripts/verify\.py")
 HINTS_TOGGLE = re.compile(r"^\s*hints (on|off)\s*[.!]?\s*$", re.IGNORECASE)
-NEAR_COMMAND = re.compile(r"^\s*(approve|allow\s+explore|stop\s+explore|send\s+packet|hints|card)\b",
+GATE_TOGGLE = re.compile(r"^\s*gate (on|off)\s*[.!]?\s*$", re.IGNORECASE)
+GOAL = re.compile(r"^\s*/goal(?:\s+(.*\S))?\s*$", re.DOTALL)  # Claude Code's built-in /goal
+GOAL_CLEAR = {"clear", "stop", "off", "reset", "none", "cancel"}
+GOAL_TAIL_BYTES = 2 * 1024 * 1024
+NEAR_COMMAND = re.compile(r"^\s*(approve|allow\s+explore|stop\s+explore|send\s+packet|hints|gate|card)\b",
                           re.IGNORECASE)  # a prompt that starts like a command but did not parse as one
 HANDOFF_TOKENS = 120000  # context size at which the Stop hint suggests a handoff
 # (pattern, command, condition); first match wins. "living": only where .living/ exists;
@@ -3864,6 +3870,50 @@ def protected_write_notice(root, event, target):
             "hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": message}}
 
 
+def goal_ended(event):
+    """True when the transcript's last /goal check says met or failed (Claude Code 2.1.316 writes a
+    `goal_status` attachment at each check: `met`, or `failed` when judged impossible)."""
+    # ponytail: reads the last 2 MB only; a status further back counts as still running. Each check writes one,
+    # so the newest is near the end at the next prompt or Stop.
+    try:
+        with open(event.get("transcript_path"), "rb") as handle:
+            handle.seek(0, 2)
+            handle.seek(max(0, handle.tell() - GOAL_TAIL_BYTES))
+            lines = handle.read().decode("utf-8", "replace").splitlines()
+    except (OSError, TypeError):
+        return False
+    for line in reversed(lines):
+        if '"goal_status"' not in line:
+            continue
+        try:
+            status = json.loads(line).get("attachment") or {}
+        except (ValueError, AttributeError):
+            continue
+        if isinstance(status, dict) and status.get("type") == "goal_status":
+            return bool(status.get("met") or status.get("failed"))
+    return False
+
+
+def goal_pause(argv, event, root):
+    """(skip, notice). `/goal <condition>` pauses the gate for this session; `/goal clear`, or the goal met or
+    failed, ends the pause. While paused every hook is silent, as with `gate off`."""
+    path = state_path(root, "goal", safe_session(event.get("session_id")) + ".json")
+    match = GOAL.match(event.get("prompt") or "") if argv[1] == "prompt" else None
+    if match and match.group(1) and match.group(1).lower() not in GOAL_CLEAR:
+        write_json(path, {"set_at": time.time(), "condition": match.group(1)[:200]})
+        return True, ("mycelium-extra: gate paused for this goal. Runs need no approved plan and no receipts are "
+                      "written until the goal is met or fails, or `/goal clear`.")
+    if not os.path.isfile(path):
+        return False, None
+    if match and match.group(1):
+        os.remove(path)
+        return True, "mycelium-extra: goal cleared, so the gate's pause ends."
+    if argv[1] in ("prompt", "stop") and goal_ended(event):
+        os.remove(path)
+        return False, "mycelium-extra: the goal ended, so the gate applies again."
+    return True, None
+
+
 def hints_on(root):
     return os.path.isfile(state_path(root, "hints.json"))
 
@@ -4252,6 +4302,22 @@ def prompt_commands(event, root, config):
             message = "mycelium-extra: command hints off for this repository."
         return {"systemMessage": message,
                 "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
+    toggle = GATE_TOGGLE.match(prompt)
+    if toggle:  # main() lets this through while the gate is off
+        path = state_path(root, "off.json")
+        if toggle.group(1).lower() == "off":
+            write_json(path, {"off_at": time.time()})
+            message = ("mycelium-extra: gate off for this repository. Runs need no approved plan; no plans are "
+                       "pinned and no receipts are written. Approvals already given are kept. `gate on` turns it "
+                       "back on.")
+        else:
+            goal = state_path(root, "goal", safe_session(event.get("session_id")) + ".json")
+            for done in (path, goal):  # `gate on` also ends this session's /goal pause
+                if os.path.isfile(done):
+                    os.remove(done)
+            message = "mycelium-extra: gate on for this repository. Gated runs need an approved plan again."
+        return {"systemMessage": message,
+                "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
     grant = EXPLORE_GRANT.match(prompt)
     if grant:
         path = grant_path(root, event.get("session_id"))
@@ -4323,7 +4389,7 @@ def prompt_commands(event, root, config):
         if near and len(prompt.split()) <= 4:  # a near-miss command must not be ignored in silence; longer is prose
             message = ("mycelium-extra: `{}` did not parse as a command, so nothing changed. Use `approve plan "
                        "<8-hex>` (or `approve`, `approve amendment <hash>`, `approve freeze <hash>`), `allow explore` "
-                       "or `allow explore <8-hex>`, `stop explore`, `send packet <hash>`, `hints on|off`, or `card "
+                       "or `allow explore <8-hex>`, `stop explore`, `send packet <hash>`, `hints on|off`, `gate on|off`, or `card "
                        "<hash> [full|checks|diff]`.".format(clean(prompt.strip(), 40)))
             return {"systemMessage": message,
                     "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
@@ -5121,8 +5187,19 @@ def main(argv, text=None, root=None):
         root = root or find_root(cwd)
         if root is None:
             return 0
+        toggle = argv[1] == "prompt" and GATE_TOGGLE.match(event.get("prompt") or "")
+        skip, notice = (False, None) if toggle else goal_pause(argv, event, root)
+        if skip or (not toggle and os.path.isfile(state_path(root, "off.json"))):
+            # `gate off` or a `/goal` pause: behave as if the repository never ran init
+            emit(notice and {"systemMessage": notice, "hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit", "additionalContext": notice}})
+            return 0
         config = load_config(root)
         result = HANDLERS[argv[1]](event, root, config)
+        if notice:  # the goal just ended; the gate ran again
+            result = dict(result or {})
+            result["systemMessage"] = "\n\n".join([notice] + (
+                [result["systemMessage"]] if result.get("systemMessage") else []))
         if config["_notices"] and argv[1] in ("prompt", "stop"):  # where the user is reading: each turn, not each call
             result = dict(result or {})
             result["systemMessage"] = "\n\n".join(config["_notices"] + (

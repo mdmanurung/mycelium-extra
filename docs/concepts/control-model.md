@@ -41,7 +41,7 @@ Example: a citation is checked offline. The tool cannot reach a service, so the 
 - Refuse: do not type `approve`. The covered run stays blocked.
 - Amend: a plan that only adds to an earlier approval gets a change-only card, `approve amendment <hash>`.
 - Re-scope: `focus switch <folder>` and `focus end` change which analysis a session works on.
-- Switch off: `hints off` stops command hints; `"card_coverage": false` and `"card_lint": false` in `gate.json` remove the Coverage row and the lint line from the card; `on_error` chooses whether a gate failure blocks. New friction is opt-in.
+- Switch off: `gate off` silences the whole gate in a repository until `gate on`, and `/goal` pauses it for one session; `hints off` stops command hints; `"card_coverage": false` and `"card_lint": false` in `gate.json` remove the Coverage row and the lint line from the card; `on_error` chooses whether a gate failure blocks. New friction is opt-in.
 
 Example: `focus_notices` is off by default. You turn it on with `"focus_notices": true` in `gate.json` and off by deleting the key.
 

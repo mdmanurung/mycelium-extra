@@ -61,6 +61,12 @@ Quick experiments belong apart from reportable runs. Type `allow explore` to let
 
 `allow explore <plan hash>` is the scoped form: runs on that plan's own analysis paths need no new approval, however often you fix and rerun; a run outside them is denied.
 
+## Switching the gate off
+
+Type `gate off` to switch the whole gate off for this repository, for example while you develop a package. Runs then need no approved plan, the Stop hook pins no plans, and no receipts are written. `gate on` switches it back; approvals given before stay valid. Only you can type it: the agent cannot send a prompt.
+
+Claude Code's `/goal <condition>` pauses the gate the same way, for that session only. The pause ends when Claude Code reports the goal met or impossible, or when you type `/goal clear`. Other sessions keep the gate.
+
 ## Settings
 
 `.mycelium-extra/gate.json` takes these keys. A missing key uses its default.

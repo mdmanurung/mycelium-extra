@@ -46,7 +46,7 @@ stop explore
 
 ### Optional
 
-`hints on` and `hints off` switch one-line command suggestions on and off. Other `gate.json` settings (approval hours, run limit, `pin_scripts`) are on [Advanced features](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/advanced.md).
+`hints on` and `hints off` switch one-line command suggestions on and off. `gate off` and `gate on` switch the whole gate off and on for the repository, so an agent can work without approvals, for example on a package. `/goal <condition>` pauses it for one session until the goal ends. Other `gate.json` settings (approval hours, run limit, `pin_scripts`) are on [Advanced features](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/advanced.md).
 
 ## Worked example
 
