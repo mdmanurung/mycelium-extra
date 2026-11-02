@@ -155,7 +155,7 @@ def evaluate(root, config_rel):
         if not cfg.get("figures") and not cfg.get("tables"):
             raise ValueError("at least one figure or table contract required")
         unknown_keys(cfg, "contract")
-    except (OSError, UnicodeDecodeError, ValueError, TypeError) as e:
+    except (OSError, UnicodeDecodeError, ValueError, TypeError, RecursionError) as e:
         add("config", "gap", "Unreadable or invalid contract: " + str(e))
         return make_result(contract, inputs, checks)
 

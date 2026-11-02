@@ -472,5 +472,14 @@ class ManuscriptAuditTests(unittest.TestCase):
             self.assertEqual(outcome, "changed")
 
 
+class DeepJsonTests(unittest.TestCase):
+    def test_deeply_nested_config_is_a_gap_not_a_traceback(self):
+        with tempfile.TemporaryDirectory() as x:
+            root = Path(x)
+            (root / "config").mkdir()
+            (root / "config/checks.json").write_text("[" * 200000)
+            self.assertEqual(audit.evaluate(root, "config/checks.json")["status"], "gap")
+
+
 if __name__ == "__main__":
     unittest.main()
