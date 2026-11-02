@@ -1,6 +1,6 @@
 # grill
 
-Read-only planning before anything runs. Asks for your question in your words, searches what the repository already knows, asks only what you must decide, and returns a plan in which each consequential choice is sourced. Then it stops and waits. Guide: [Plan an analysis](../../guides/plan-an-analysis.md).
+Read-only planning before anything runs. Asks for your question in your words, searches what the repository already knows, asks only what you must decide, and returns a plan in which each consequential choice is sourced. Then it stops and waits, except under `gate off`, where it runs the plan. Guide: [Plan an analysis](../../guides/plan-an-analysis.md).
 
 ## Synopsis
 
