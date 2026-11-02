@@ -4,6 +4,8 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-11-02
+
 ### Changed
 
 - **grill:** only `gate off` skips the wait for approval. With the gate on, grill waits for `approve` even under an active `/goal`.
