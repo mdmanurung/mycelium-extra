@@ -5,7 +5,7 @@ Run from stdin so the gate reads no script path, with every option as --flag=val
               [--overwrite] [--dry-run] < analysis_report.py
 
 Finds the analysis doc (<NAME>.md or README.md), the numbered steps (NN_*.R|py|ipynb|qmd|marimo.py at the root
-or in code/), every Snakefile* and the rules and scripts it runs, the dated runs under outputs/
+or in code/), every Snakefile and *.smk and the rules and scripts it runs, the dated runs under outputs/
 (and where outputs/current points), the PNG figures, *REPORT*.md files and numbers.json. Writes
 reports/<name>.qmd from new-analysis's report.qmd template: a mermaid chain per Snakefile (rules in
 file order; a folder with no Snakefile chains the steps by number), one Methods tab per step and one
@@ -78,8 +78,9 @@ def parse_snakefile(path, step_files):
         block = text[head.start():heads[k + 1].start() if k + 1 < len(heads) else len(text)]
         if name == "all":
             continue
-        scripts = [f for f in step_files if re.search(r"(?<!\w)" + re.escape(f) + r"(?![\w.])",
-                                                      block.split("shell:", 1)[1] if "shell:" in block else "")]
+        shell = block.split("shell:", 1)[1] if "shell:" in block else ""
+        inputs = {os.path.basename(v) for v in re.findall(r'\b(?:script|notebook)\s*=\s*"([^"]+)"', block)}
+        scripts = [f for f in step_files if f in inputs or re.search(r"(?<!\w)" + re.escape(f) + r"(?![\w.])", shell)]
         rules.append({"rule": name, "scripts": scripts})
     return {"file": os.path.basename(path), "run": run.group(1) if run else None, "rules": rules}
 
@@ -177,7 +178,8 @@ def main(argv):
     steps = find_steps(dest)
     step_files = sorted({os.path.basename(s["path"]) for s in steps})  # a shell line names the file, with or without code/
     snakefiles = [parse_snakefile(os.path.join(dest, f), step_files)
-                  for f in sorted(os.listdir(dest)) if f.startswith("Snakefile")]
+                  for f in sorted(os.listdir(dest))
+                  if (f == "Snakefile" or f.endswith(".smk")) and os.path.isfile(os.path.join(dest, f))]
     outputs = scan_outputs(dest)
     by_step = lambda items, num: [i for i in items if os.path.basename(i).startswith(num + "_")]
 
