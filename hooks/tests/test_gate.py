@@ -1334,6 +1334,14 @@ class GateTest(unittest.TestCase):
             "S=.; rm $S/.mycelium-extra/gate.json",
             "echo \"import os; os.remove('.mycelium-extra/gate.json')\" | python3",
             "cat <<'EOF' | python3 -\nimport os\nos.remove('.mycelium-extra/gate.json')\nEOF",
+            # 0.22 kill switches: one empty off.json or goal file turns the gate off
+            "env -C .mycelium-extra touch off.json",
+            "env --chdir=.mycelium-extra touch off.json",
+            "make -C .mycelium-extra x",
+            "perl -e 'open F,\">.mycelium-extra/off.json\"'",
+            "awk 'BEGIN{print 1 > \".mycelium-extra/off.json\"}'",
+            "python -c \"import os;os.mknod('.mycelium-extra/off.json')\"",
+            "grep -C3 x analysis/y.py > .mycelium-extra/off.json",  # -C of other commands moves no folder
         ]:
             self.assertTrue(self.denied(self.bash(command)), command)
         for command in [

@@ -1085,6 +1085,8 @@ def option_cwd(tokens, cwd):
     """The folder `env -C DIR CMD` or `make -C DIR` runs in; `cwd` when the command has no such option."""
     head = os.path.basename(tokens[0])
     flags = CHDIR_FLAGS.get(head, ())
+    if not flags:  # `grep -C3`, `tar -C`: only env and make move the folder here
+        return cwd
     args = tokens[1:]
     for folder in flag_values(args, flags) + [t[2:] for t in args if t.startswith("-C") and len(t) > 2]:
         cwd = move_folder(cwd, folder)
