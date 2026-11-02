@@ -8,6 +8,9 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 - **gate:** `gate off` and `gate on` switch the whole gate off and on for a repository (`.mycelium-extra/off.json`). While off, every hook stays silent, as if `init` never ran: runs need no approved plan, no plans are pinned and no receipts are written. Approvals given before survive the switch.
 - **gate:** Claude Code's `/goal <condition>` pauses the gate for that session (`.mycelium-extra/goal/<session>.json`). The pause ends when the transcript's last `goal_status` says met or failed, or on `/goal clear`.
+- **grill:** package plans (`references/package-plans.md`). In a package repository each row names its seam and a test that fails first, with an expected value from a hand-worked literal, a published example or a reference tool's fixture, never the code under test. A checklist covers the replication unit, shuffled order, missing levels, edge sizes, sparse versus dense and seeds. From Pocock's `tdd`.
+- **grill:** glossary and ADRs, from Pocock's `domain-modeling`. Grill reads `GLOSSARY.md`, flags overloaded terms (sample, replicate, batch), and lists settled terms under Terms to record. Outside Mycelium repositories a decision becomes an ADR under `docs/adr/` only when it is hard to reverse, surprising and a real trade-off.
+- **grill:** grill looks facts up itself, running slow lookups in a read-only sub-agent while it asks the rest. It checks the frontier before the brief and reports it in a `Frontier:` line. Under an active `/goal` or `gate off` it goes on to execute instead of waiting for approval.
 
 ## [0.21.0] - 2026-11-01
 

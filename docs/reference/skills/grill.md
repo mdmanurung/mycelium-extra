@@ -21,13 +21,13 @@ Read-only planning before anything runs. Asks for your question in your words, s
 
 ## Reads
 
-Project instructions (`CLAUDE.md`, `AGENTS.md`); in a Mycelium repository, `.living/` decisions, learnings, findings and manifests (lookup order in `references/mycelium.md`); analysis docs, code, config; `.mycelium-extra/track-changes/<analysis>/brief.md` when the task revises an approved plan. It may run brief read-only probes (`python3 -c`, `Rscript -e`) that write nothing. For sample-table properties it uses [data-contract-check](data-contract-check.md) in its no-file form. It never runs a repository script, notebook or pipeline by path.
+Project instructions (`CLAUDE.md`, `AGENTS.md`); in a Mycelium repository, `.living/` decisions, learnings, findings and manifests (lookup order in `references/mycelium.md`); analysis docs, code, config; `.mycelium-extra/track-changes/<analysis>/brief.md` when the task revises an approved plan; `GLOSSARY.md` when it exists. It looks facts up itself instead of asking you, and runs a slow lookup in a read-only sub-agent while it asks the other questions. In a package repository it follows `references/package-plans.md`: each row names its seam and a test that fails first, with an expected value from an independent source. It may run brief read-only probes (`python3 -c`, `Rscript -e`) that write nothing. For sample-table properties it uses [data-contract-check](data-contract-check.md) in its no-file form. It never runs a repository script, notebook or pipeline by path.
 
 The librarian dossier (`references/evidence-assistance.md`) may look for evidence on a methodological question when you add it as an option: offline sources first; an external lookup only with your consent in that turn and with no project data in the query; retrieved text is treated as untrusted; no invented citations.
 
 ## Writes
 
-Nothing. The plan is the final message. In that turn it does not execute, create analysis folders, or write to `.living/`, manifests, todo or analysis files. Decisions you confirm are listed under "Decisions to record" for the executing workflow.
+Nothing. The plan is the final message. In that turn it does not execute, create analysis folders, or write to `.living/`, manifests, todo or analysis files. Decisions you confirm are listed under "Decisions to record" for the executing workflow: `.living/decisions.md` in a Mycelium repository, otherwise an ADR under `docs/adr/` when the decision is hard to reverse, surprising and a real trade-off. Settled terms are listed under "Terms to record" for `GLOSSARY.md`. Under an active `/goal` or `gate off`, grill says so and goes on to execute the plan instead of waiting.
 
 ## The question cap and the status line
 
@@ -54,7 +54,8 @@ A status describes the plan. None grants permission to run.
 | plan table | the only table; columns for step, choice, source (`repo: <path>`, `user`, `default: <reason>`) and validation check |
 | optional `<!-- exact-execution -->`, `<!-- validation-bindings -->` blocks | for reportable runs; syntax in `references/run-plans.md` and [Advanced features](../../advanced.md) |
 | optional `<!-- plan-evidence -->` block | read-only commands and their verbatim output, one entry per fact the plan rests on; `verify` re-runs them and reports drift; syntax in `references/plan-evidence.md` |
-| Assumptions and risk, Parked, Decisions to record, Next action | brief, at most 150 words outside the protected parts |
+| `Frontier:` | one count line: branches settled by repo, by you, by default, parked, and open |
+| Assumptions and risk, Parked, Decisions to record, Terms to record, Next action | brief, at most 150 words outside the protected parts |
 
 The full rules for each part (what qualifies, the tags, how the card quotes a row) are in `skills/grill/references/brief-format.md`. The gate reads only the plan table's Step column to decide what a plan lets through. A script named only in a Choice or Validation cell, in prose, or in Evidence approves nothing.
 

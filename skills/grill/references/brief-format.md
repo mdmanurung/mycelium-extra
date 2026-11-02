@@ -4,7 +4,7 @@
 
 ## Length
 
-At most 150 words, and scale down further for a simple task. Outside the limit, and never cut to meet it: the plan table, the quoted question, the `Inputs:`, `Outputs:`, `Facts:` and `Plan status:` lines, a `<!-- plan-evidence -->` block, and the guards [llm-failure-modes.md](llm-failure-modes.md) asks for. The gate pins and `verify` checks from those parts. Use one short line per section. Keep only the Evidence bullets the plan's choices rest on, and always one that names a failure, a flag, or an unverified fact: the approval card quotes those. The user asks for more if they need it.
+At most 150 words, and scale down further for a simple task. Outside the limit, and never cut to meet it: the plan table, the quoted question, the `Inputs:`, `Outputs:`, `Facts:`, `Frontier:` and `Plan status:` lines, a `<!-- plan-evidence -->` block, and the guards [llm-failure-modes.md](llm-failure-modes.md) asks for. The gate pins and `verify` checks from those parts. Use one short line per section. Keep only the Evidence bullets the plan's choices rest on, and always one that names a failure, a flag, or an unverified fact: the approval card quotes those. The user asks for more if they need it.
 
 ## Quoted question
 
@@ -74,9 +74,23 @@ Each `default` row in one line, then the key failure mode and how the plan detec
 
 Deferred items, each with a return condition. A question only someone else can answer reads `answer from <role>`, and the brief names `/mycelium-extra:questionnaire` once as the way to collect the answers.
 
+## Frontier
+
+One line after Parked: `Frontier: <n> repo, <n> user, <n> default, <n> parked; <n> open.` It counts the consequential branches walked before the brief. `open` is 0 unless the status is `DECISION_REQUIRED`, and each open branch is the decision that status names.
+
 ## Decisions to record
 
-User answers and defaults the executing workflow should log (for example to `.living/decisions.md`) once work begins.
+User answers and defaults the executing workflow should log once work begins. In a Mycelium repository (`.living/` exists) they go to `.living/decisions.md`. Elsewhere, a decision becomes an ADR, `docs/adr/NNNN-<slug>.md` numbered after the highest one there, only when all three hold:
+
+1. Hard to reverse: changing it later costs real work.
+2. Surprising without context: a reader would wonder why.
+3. A real trade-off: there were genuine alternatives.
+
+An ADR is one to three sentences: the context, the decision and why. Mark each such entry `(ADR)`; the rest stay in the approved plan.
+
+## Terms to record
+
+Terms the plan settled, one bullet each, in the glossary's format: `**Donor**: the person a sample came from; the unit of replication. _Avoid_: patient, subject.` They go to `GLOSSARY.md` at the root (or the context's glossary named in `GLOSSARY-MAP.md`), which is created when the first term is written. Only terms specific to the project or its data; no implementation details. Omit the section when no term was settled.
 
 ## Next action
 

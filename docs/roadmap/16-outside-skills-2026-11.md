@@ -26,6 +26,18 @@ lucid-coder integration: B1 reads its `lucid-coder.yaml`, B2 runs its `align`, B
 | B4 | Exploring one plot at a time, de-risk runs as their own explore row, plots only from logged values | `scientific-eda`, `ml-experimentation` | `skills/plot-first/`, `skills/grill/references/` | done |
 | B5 | Figure rules Extra lacks (takeaway caption, preliminary marks, no colour-only encoding, rendered-image review); taste rules defer to lucid-coder `figure-style`. `evident-charts`' `check_chart.py` is not called: it executes the plotting script (a gated run) and covers matplotlib only | `data-visualization-master`, `evident-charts` | `skills/plot-first/`, `skills/analysis-report/` | done |
 
+## Part C: package development (2026-11-02)
+
+The user widened the audience to bioinformatics package development, so three of the drops below are re-scoped: grill takes `domain-modeling`'s glossary and ADR rules, `tdd`'s seams and independent expectations, and `grilling`'s facts-are-mine rule, as thin glue. The Pocock skills stay installed and own the loops; no skill is added. The five-question cap stays (0.17.0).
+
+| ID | Item | Source | Touches | Status |
+|---|---|---|---|---|
+| C1 | Glossary: grill reads `GLOSSARY.md`, challenges overloaded terms, lists Terms to record | Pocock `domain-modeling`, `grill-with-docs` | `skills/grill/` | done |
+| C2 | ADRs under `docs/adr/` outside Mycelium repositories, only past the three tests | Pocock `domain-modeling` | `skills/grill/references/brief-format.md` | done |
+| C3 | Package plan rows: seam, failing test first, independent expected value, bioinformatics test cases | Pocock `tdd` | `skills/grill/references/package-plans.md` | done |
+| C4 | Facts-are-mine rule, frontier check with a `Frontier:` line, auto-go under `/goal` or `gate off` | Pocock `grilling`; user request | `skills/grill/SKILL.md` | done |
+| C5 | `dev_packages` in gate.json: receipts record a working-copy package's commit | user request | `hooks/gate.py`, `skills/init/` | todo |
+
 ## Parked: no failure in real use yet
 
 Return condition for each: a real session shows the failure it guards against. Grill that one item alone.
@@ -41,9 +53,9 @@ Return condition for each: a real session shows the failure it guards against. G
 | Item | Reason |
 |---|---|
 | `.out-of-scope/` folder (Pocock item 4) | dropped: grill's Parked section with a return condition covers it |
-| `tdd`, `codebase-design`, `triage`, `wayfinder`, `to-spec`, `to-tickets`, `implement`, `pr` | dropped: they assume a software issue tracker; the audience is researchers |
+| `codebase-design`, `triage`, `wayfinder`, `to-spec`, `to-tickets`, `implement`, `pr` | dropped: they assume a software issue tracker; `tdd` re-scoped as C3 |
 | `research` | dropped: covered by `references/evidence-assistance.md` |
-| `domain-modeling`, `wait-what` | dropped: they need a GLOSSARY Mycelium does not define |
+| `wait-what` | dropped: it needs a GLOSSARY Mycelium does not define; `domain-modeling` re-scoped as C1 and C2 |
 | `agents-md-improver` | dropped: Mycelium owns the project CLAUDE.md; the environment goal is met by B1 |
 | `awesome-marimo-notebook`, `marimo` umbrella, WASM export | dropped: publication explainers and routing only |
 | PEP723 + `uv run` rule, WebP plots (`scientific-eda`) | dropped: the gate already matches `conda run`/`uv run`; PNG stays for Quarto HTML |

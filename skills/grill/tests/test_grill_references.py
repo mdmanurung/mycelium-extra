@@ -287,6 +287,20 @@ class GrillReferenceContractTest(unittest.TestCase):
         self.assertIn("The active single-cell pack governs method selection and assumptions", science)
         self.assertIn("| Experimental design, pairing, dataset / counts layer |", science)
 
+    def test_package_glossary_frontier_and_goal_rules(self):
+        skill = read(os.path.join(SKILL, "SKILL.md"))
+        brief = read(os.path.join(SKILL, "references", "brief-format.md"))
+        package = read(os.path.join(SKILL, "references", "package-plans.md"))
+        self.assertIn("Finding facts is your job", skill)
+        self.assertIn("`GLOSSARY.md`", skill)
+        self.assertIn("unless this session has an active `/goal` or the gate is off", skill)
+        for section in ("## Frontier", "## Terms to record", "docs/adr/", "Hard to reverse"):
+            self.assertIn(section, brief)
+        self.assertLess(brief.index("## Parked"), brief.index("## Frontier"))
+        self.assertLess(brief.index("## Frontier"), brief.index("## Decisions to record"))
+        for rule in ("never comes from the code under test", "fails before the change", "shuffle", "dev_packages"):
+            self.assertIn(rule, package)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,6 +16,8 @@ Before reading any file or data, and before proposing anything, ask the user in 
 - Locate the project root and obey its instructions (`CLAUDE.md`, `AGENTS.md`, and similar).
 - A repository uses Mycelium when `.living/` exists. `MYCELIUM.md` is optional: many Mycelium repositories carry only a Mycelium block in `CLAUDE.md` or `AGENTS.md`, or no guidance file at all. Partial structure is normal. Follow [references/mycelium.md](references/mycelium.md) for the lookup order, entry-ID caveats, and fallbacks.
 - In another repository, use its instructions, README, docs, tests, config, and code. With no repository, use the user's supplied context and mark missing evidence.
+- Read `GLOSSARY.md` at the root when it exists (with `GLOSSARY-MAP.md`, the glossary of the context the task touches) and use its terms in the plan.
+- Finding facts is your job, never the user's: do not ask the user anything a file, a search or a read-only probe can answer. When a lookup is slow, run it in a read-only sub-agent where the host has one, and ask the questions that do not depend on it meanwhile; only the questions downstream of it wait.
 - Search narrowly with `rg` and read excerpts; do not load whole memory histories or large data. Before stating that something is absent, run a targeted search for it.
 - When the task revises an approved plan, read the `track-changes` review brief (what changed against the approved intent) instead of re-deriving the changes, and treat its Unknown lines as open. It sits at `.mycelium-extra/track-changes/<analysis path with `/` written as `__`>/brief.md`: a folder name two analyses share gets a `-<hash>` suffix, and `track-changes` prints the folder it wrote. Check its second line, `Snapshot <time> · original plan <hash> · current plan <hash>`: use it only when `current plan` is the plan you are revising and the snapshot time is later than that plan's approval; otherwise it predates the plan, so run `track-changes` again before relying on it.
 - Check whether findings, outputs, or a prior analysis already answer the task. If they do, say so first, cite them, and make reuse versus re-run an explicit choice in the plan.
@@ -30,6 +32,10 @@ For scientific and statistical work, use [references/scientific-conventions.md](
 Keep a compact internal evidence map: claim, source/path, date or commit if material, status (`intended`, `implemented`, `observed`, `proposed`), applicability, and confidence. Distinguish current user intent from repository evidence and from your inference. A file's existence does not prove its outputs are current; a past decision does not prove the current implementation follows it.
 
 Test only relevant axes: goal, evidence/data, assumptions, meaningful alternatives, failure modes, and validation. When the plan is blocked — a decision point that will not resolve from the repository, or a claim whose discriminating check cannot yet be written — work it with [references/polya-heuristics.md](references/polya-heuristics.md), which backward-chains claim to estimand to replication unit to check and applies five selective heuristics; it adds plan rows, never questions. For scientific work, distinguish exploration, prediction, and causal or mechanistic inference, and identify the unit of analysis and obvious leakage or confounding risks. For any bioinformatics or statistical analysis, walk [references/analysis-decisions.md](references/analysis-decisions.md): every applicable decision point must appear in the plan with a source, and none may stay implicit. Then walk [references/llm-failure-modes.md](references/llm-failure-modes.md): for every applicable failure mode, the plan names a guard with a source, and never claims a `planned:` check already runs. The lists set coverage, not reading depth. A standing repository contract (for example scientific rules in `AGENTS.md` or an active convention) is valid `repo` evidence, and a point that cannot be sourced cheaply becomes a labeled default with a validation step.
+
+Challenge vocabulary as you go. When the user's word conflicts with `GLOSSARY.md`, or is overloaded (sample: donor, library or cell? replicate: biological or technical? batch, contrast, layer), name the conflict and propose one term. A term the plan settles goes in the brief's Terms to record.
+
+When the task changes a package (a `DESCRIPTION`, or a `pyproject.toml` with a package folder), follow [references/package-plans.md](references/package-plans.md): each row names its seam and the test that fails first, with an expected value from an independent source.
 
 Challenge a premise directly when the repository contradicts it. When a prior decision or finding rejects the design the user asked for, do not silently override either side: present the evidence, recommend the repository's position or a reconciled design, and ask if the user owns the trade-off. Do not manufacture objections or expand the scope into an exhaustive audit.
 
@@ -60,13 +66,15 @@ Recommended: (a), because <reason>
 
 ## 4. Converge, brief, and wait
 
-After each answer, check: **would plausible answers to any remaining user-owned unknown change the plan?** If not, stop. End with one status. Each status describes the plan; none grants permission to execute.
+After each answer, check: **would plausible answers to any remaining user-owned unknown change the plan?** If not, stop.
+
+Before writing the brief, check the frontier: walk every consequential branch of the decision tree once and settle each as `repo`, `user`, `default` or parked. A branch with none of these is a silent assumption: source it, ask it within the cap, or make it a labeled default. The brief reports the result in one `Frontier:` line. End with one status. Each status describes the plan; none grants permission to execute.
 
 - `READY`: every consequential decision is sourced from the repository or the user.
 - `READY_WITH_ASSUMPTIONS`: the plan is stable, and some decisions rest on labeled, reversible defaults the user can override at approval without re-planning.
 - `DECISION_REQUIRED`: one user-owned choice leads to materially different plans (estimand, data, or deliverable), and no default is defensible without the user's intent. Give the options, a recommendation, and the consequence of each. Do not pretend the question cap resolves a blocker.
 
-Write a brief of at most 150 words. The plan table, the quoted question, the `Inputs:`, `Outputs:`, `Facts:` and `Plan status:` lines, a `<!-- plan-evidence -->` block, and the guards [references/llm-failure-modes.md](references/llm-failure-modes.md) asks for do not count, and are never cut to meet the limit: the gate pins and verify checks from them. Open it with the user's answer from section 0, quoted verbatim:
+Write a brief of at most 150 words. The plan table, the quoted question, the `Inputs:`, `Outputs:`, `Facts:`, `Frontier:` and `Plan status:` lines, a `<!-- plan-evidence -->` block, and the guards [references/llm-failure-modes.md](references/llm-failure-modes.md) asks for do not count, and are never cut to meet the limit: the gate pins and verify checks from them. Open it with the user's answer from section 0, quoted verbatim:
 
 ```
 > Question (user's words): "<answer>"
@@ -86,12 +94,14 @@ Then the sections below, in order. The rules for each (what qualifies, how to ci
 - **Plan evidence (optional)**: a `<!-- plan-evidence {...} -->` block per [references/plan-evidence.md](references/plan-evidence.md), whenever at least two Evidence bullets rest on a file read; JSON in a comment, never a table.
 - **Assumptions and risk**: each `default` row in one line, then the key failure mode and how the plan detects it.
 - **Parked**: deferred items, each with a return condition.
-- **Decisions to record**: user answers and defaults the executing workflow should log once work begins.
+- **Frontier**: one line, for example `Frontier: 6 repo, 2 user, 1 default, 1 parked; 0 open.`
+- **Decisions to record**: user answers and defaults the executing workflow should log once work begins: to `.living/decisions.md` in a Mycelium repository, otherwise as an ADR under `docs/adr/` only when the three tests in brief-format.md hold.
+- **Terms to record**: terms the plan settled, for `GLOSSARY.md`; omit when none.
 - **Next action**: approve or edit the plan, then the execution route: Mycelium's analyze skill in a Mycelium repository, otherwise the repository's normal workflow.
 
 Put the brief and the plan table in your final message, and end it with the status on its own line, exactly `Plan status: READY`, `Plan status: READY_WITH_ASSUMPTIONS`, or `Plan status: DECISION_REQUIRED`. Where the mycelium-extra approval gate is enabled (`.mycelium-extra/gate.json`), its hook hashes that message and shows the user `approve plan <hash>`; never print or guess a hash yourself, and never add the gate's explore prefix to a command unless the user asks for an exploratory run.
 
-Then stop. In this turn, do not execute, create analysis folders, or write to `.living/`, manifests, todo, or analysis files. Execution starts only after the user approves or edits the plan, and it follows the repository's normal lifecycle, carrying the approved plan and the decisions to record. Name other skills rather than assuming they can be invoked programmatically.
+Then stop, unless this session has an active `/goal` or the gate is off (`.mycelium-extra/off.json` exists): the goal or the switch is the user's approval, so say so in one line and start executing the plan as written, recording its decisions and terms first. Otherwise, in this turn, do not execute, create analysis folders, or write to `.living/`, manifests, todo, or analysis files. Execution starts only after the user approves or edits the plan, and it follows the repository's normal lifecycle, carrying the approved plan and the decisions to record. Name other skills rather than assuming they can be invoked programmatically.
 
 ## Resume, debug, freeze
 
