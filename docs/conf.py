@@ -24,6 +24,7 @@ include_patterns = [
     "docs/guides/verify-and-provenance.md",
     "docs/guides/hand-off.md",
     "docs/guides/full-workflow.md",
+    "docs/guides/develop-a-package.md",
     "docs/concepts/control-model.md",
     "docs/concepts/gaps-and-passes.md",
     "docs/concepts/not-guaranteed.md",

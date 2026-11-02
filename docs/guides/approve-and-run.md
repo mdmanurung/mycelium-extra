@@ -12,7 +12,7 @@ A displayed card or an agreement in chat grants no execution approval by itself.
 
 - **Your typed word:** `approve plan <hash>`, `approve amendment <hash>`, `approve freeze <hash>`, or bare `approve` when exactly one card is waiting and it is the one shown last. Only these exact words count. `ok, approve` is an ordinary prompt.
 - **Shown to you:** the approval card, a denial with its reason, and a notice when a pinned input changes or a script is re-pinned after an edit.
-- **To say no:** don't approve. To turn the gate off, remove `.mycelium-extra/gate.json`. Exploration is a separate, typed grant (below).
+- **To say no:** don't approve. To turn the gate off, type `gate off` (and `gate on` to restore it); `/goal` pauses it for one session. Exploration is a separate, typed grant (below).
 
 ## Steps
 

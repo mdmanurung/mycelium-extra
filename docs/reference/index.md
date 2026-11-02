@@ -32,7 +32,7 @@ Every skill is a slash command in Claude Code (`/mycelium-extra:<name>`), a `$` 
 | Page | What it covers |
 |---|---|
 | [Gate](gate.md) | hook events on each host, typed commands, every allow, deny and notice, what the gate does not trace |
-| [gate.json](gate-json.md) | all 16 settings with default, type and validation |
+| [gate.json](gate-json.md) | all 17 settings with default, type and validation |
 | [State files](state-files.md) | every file under `.mycelium-extra/` and `provenance/`, who writes and reads it, and the proposed 1.x compatibility surface |
 
 ## Reading the "confirmation" lines
@@ -46,4 +46,4 @@ See [How control works](../concepts/control-model.md), [Gaps and passes](../conc
 
 ## Guides by task
 
-[Plan an analysis](../guides/plan-an-analysis.md) · [Approve and run](../guides/approve-and-run.md) · [Verify and record provenance](../guides/verify-and-provenance.md) · [Amend, freeze, re-scope](../guides/amend-freeze-rescope.md) · [Stay oriented](../guides/stay-oriented.md) · [Hand off](../guides/hand-off.md) · [Second-model review](../guides/second-model-review.md) · [Harden against repeats](../guides/harden-against-repeats.md) · [With Mycelium or in a plain repo](../guides/with-mycelium-or-plain-repo.md)
+[Plan an analysis](../guides/plan-an-analysis.md) · [Approve and run](../guides/approve-and-run.md) · [Verify and record provenance](../guides/verify-and-provenance.md) · [Amend, freeze, re-scope](../guides/amend-freeze-rescope.md) · [Stay oriented](../guides/stay-oriented.md) · [Hand off](../guides/hand-off.md) · [Second-model review](../guides/second-model-review.md) · [Harden against repeats](../guides/harden-against-repeats.md) · [With Mycelium or in a plain repo](../guides/with-mycelium-or-plain-repo.md) · [Develop a package](../guides/develop-a-package.md)

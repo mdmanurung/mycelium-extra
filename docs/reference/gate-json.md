@@ -1,6 +1,6 @@
 # gate.json reference
 
-`.mycelium-extra/gate.json` is the one settings file of the approval gate. Its existence is what switches the gate on: a repository (or any folder below it) with no `gate.json` is not gated, and every hook returns at once.
+`.mycelium-extra/gate.json` is the one settings file of the approval gate. Its existence is what switches the gate on: a repository (or any folder below it) with no `gate.json` is not gated, and every hook returns at once. `gate off` has the same effect without deleting the file, until `gate on` ([gate](gate.md#typed-commands)).
 
 - `{}` is a valid file and means "all defaults".
 - `init` writes the file once and never changes it afterwards; after that you edit it by hand ([init](skills/init.md)).
@@ -10,7 +10,7 @@
 
 To see the effective values, with invalid ones flagged, run `init --diagnose` ([init](skills/init.md)). It reads and writes nothing.
 
-## The 16 keys
+## The 17 keys
 
 | Key | Type | Default | Accepts | What it does |
 |---|---|---|---|---|
@@ -31,6 +31,7 @@ To see the effective values, with invalid ones flagged, run `init --diagnose` ([
 | `checkpoint_steps` | whole number | unset (off) | 1 or more; `0` or unset is off | A plan table with more than this many step rows asks one comprehension question before the first `approve`. Any other value is ignored, with a notice. |
 | `max_runs_per_approval` | whole number | unset (no limit) | 1 or more | After this many runs under one approval, the next gated run is denied until you approve the plan again. Any other value is ignored, with a notice. |
 | `focus_notices` | boolean | `false` | `true` or `false` | At turn end, one line to you when scripts under another analysis ran while a `focus` was open. Takes effect only when it is exactly `true`. |
+| `dev_packages` | list of strings | `[]` | paths relative to the project root | Packages an analysis loads from a working copy (`pip install -e`, `devtools::load_all()`). Each run receipt records each one's git commit and whether it had uncommitted changes; `verify report` lists them under Packages in development. Only the first three are read, so two git calls each fit the 20 s post hook. |
 
 ### Notes on single keys
 

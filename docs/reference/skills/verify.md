@@ -56,7 +56,7 @@ Run from inside the repository, from stdin. Invoke with `/mycelium-extra:verify`
 
 ## What a report contains
 
-It opens with `# Verify plan <hash>: <status>` and five rows: `Ran as planned`, `Numbers match`, `Code checks`, `Not checked`, `Next`. Each starts `yes`, `no`, `partly`, or `n/a` with its reason. Then a `## Scope` block with a Qualification (`qualified` or `not qualified`), a short evidence table and one limitation line; findings graded `block`, `gap` or `info`; `## Lint`, `## Claims`, `## Citations`, and `## Validation` and `## Recovery` when they apply. It ends with `Verify status:`.
+It opens with `# Verify plan <hash>: <status>` and five rows: `Ran as planned`, `Numbers match`, `Code checks`, `Not checked`, `Next`. Each starts `yes`, `no`, `partly`, or `n/a` with its reason. Then a `## Scope` block with a Qualification (`qualified` or `not qualified`), a short evidence table and one limitation line; findings graded `block`, `gap` or `info`; `## Lint`, `## Claims`, `## Citations`, and `## Validation` and `## Recovery` when they apply. With `dev_packages` in `gate.json`, a `## Packages in development` table lists each working-copy package's commit and whether it had uncommitted changes in the plan's runs. It ends with `Verify status:`.
 
 | Status | Meaning |
 |---|---|

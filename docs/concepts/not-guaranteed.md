@@ -33,6 +33,10 @@ State written in ways the gate cannot read is not caught. Some removals of the `
 
 A host that never runs the hook cannot be controlled by it. A gate that fails open (the default) says so and logs it; set `"on_error": "deny"` if you prefer it to block.
 
+## A switched-off gate records nothing
+
+While `gate off` is set, or a `/goal` pause holds, the gate checks nothing and writes no receipts. `verify` then sees those runs as missing, never as conforming, so a plan whose runs all happened in that window reports gaps. Mycelium's own hooks are separate: its Stop check can still ask for `.living/` updates after real work. The `/goal` pause reads Claude Code 2.1.316's `goal_status` transcript lines; another version may write them differently, and the pause then lasts until `/goal clear` or `gate on`.
+
 ## Edits after approval
 
 An edit to a script the plan lists is re-pinned with a notice, not blocked. A covered run can therefore execute code newer than the code you approved. Your approval is for the plan and its pins as shown. `freeze` and `verify` show what changed, and a reportable run of code no approval froze is a gap.

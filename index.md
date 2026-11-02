@@ -86,6 +86,7 @@ docs/guides/approve-and-run
 docs/guides/verify-and-provenance
 docs/guides/hand-off
 docs/guides/full-workflow
+docs/guides/develop-a-package
 ```
 
 ```{toctree}

@@ -54,6 +54,8 @@ Send each as the whole prompt. The hook answers these itself; the agent does not
 | `card <hash> checks`, `card <hash> diff`, `card <hash> full` | Shows the rest of a card. `card <hash>` alone means `full`. | nothing |
 | `freeze <hash>` | Shows the freeze card: scripts changed since the approval, with diffs, the steps to re-run, runs so far and gaps now. | a pending freeze entry in `pending/` |
 | `hints on`, `hints off` | Turns one-line command suggestions on or off for the repository. | creates or removes `hints.json` |
+| `gate off`, `gate on` | Switches the whole gate off or on for the repository. While off, every hook returns at once, as if `gate.json` were absent: no denial, no pins, no receipts. Approvals given before are kept. `gate on` also ends this session's `/goal` pause. | creates or removes `off.json` |
+| `/goal <condition>` | Claude Code's own command; the gate also reads it and pauses itself for this session, as `gate off` does. The pause ends when the transcript's last `goal_status` says met or failed (seen at the next prompt or Stop), on `/goal clear` (or `stop`, `off`, `reset`, `none`, `cancel`), or on `gate on`. Tested on Claude Code 2.1.316 only. | `goal/<session>.json` |
 | `allow explore` | Session-wide permission for runs prefixed `MYCELIUM_EXTRA_EXPLORE=1`. | `explore-grants/<session>.json` |
 | `allow explore <hash>` | The same, bounded to that approved plan's analysis paths and protected files. | same, with a scope |
 | `stop explore` | Ends the explore permission. | removes the grant |
@@ -79,7 +81,7 @@ Each hook returns one of a few kinds of answer.
 | Answer | When |
 |---|---|
 | Blocked with a reason (shown to you, hidden from the agent) | `card`, `freeze`, `focus status`, and a refused `focus` command |
-| Notice to you and the agent | an approval was recorded or refused, `hints on|off`, an explore grant, a recorded packet consent, a `focus` change, a failed comprehension question, `approve` with nothing or too many waiting |
+| Notice to you and the agent | an approval was recorded or refused, `gate on|off`, a `/goal` pause set or ended, `hints on|off`, an explore grant, a recorded packet consent, a `focus` change, a failed comprehension question, `approve` with nothing or too many waiting |
 | One-line command hint | only after `hints on`, on a prompt that matches a task type |
 | Silence | every other prompt |
 

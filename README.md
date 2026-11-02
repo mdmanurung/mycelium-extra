@@ -19,8 +19,9 @@ The skills, from planning to hand-off:
 
 - `grill` turns your question into a sourced plan. It can search for evidence
   like a librarian, ask one neutral Socratic question per decision you own, and
-  answer `explain row N` or `challenge row N`, all read-only.
-- `init` and `approve plan <hash>` turn on execution checks, input pins, and run receipts.
+  answer `explain row N` or `challenge row N`, all read-only. For a package it
+  plans test-first, and it keeps a project glossary and ADRs.
+- `init` and `approve plan <hash>` turn on execution checks, input pins, and run receipts; `gate off` and `/goal` switch them off.
 - `verify` checks what ran against the approved plan and writes provenance after you confirm.
 - `plot-first` makes plots the primary analysis outputs. Conclusions cite inspected figures; interpretive tables need a fallback reason. `grill` and `new-analysis` load this guidance for analysis work.
 - `focus` and `track-changes` say which analysis a session works on and show what changed against the approved plan.
@@ -103,6 +104,20 @@ Bare `approve` works when the plan shown last is the only one waiting; otherwise
 it approves nothing and lists the hashes. Run the approved steps through your
 normal workflow. Edit the plan's scripts freely: the gate re-pins each edit with a notice.
 
+### Develop a package, or work without approvals
+
+```text
+gate off                                     # this repository: no approvals, pins or receipts until gate on
+/goal <what done looks like>                 # Claude Code: this session only, until the goal is met or fails
+```
+
+Under either switch, grill shows its plan and carries on instead of waiting. In a
+package repository, grill plans each change test-first: every row names the
+function under test and a failing test whose expected value comes from an
+independent source. In an analysis repository, `dev_packages` in `gate.json`
+records which commit of a working-copy package each run used. See
+[Develop a package](docs/guides/develop-a-package.md).
+
 ### Be better informed before you approve
 
 Ask grill for the evidence lookup in a question: you get what was searched, what
@@ -149,8 +164,9 @@ include a portable evidence-handoff JSON. See [Journal and checkpoints](docs/foc
   [amend, freeze, re-scope](docs/guides/amend-freeze-rescope.md),
   [stay oriented](docs/guides/stay-oriented.md), [hand off](docs/guides/hand-off.md),
   [second-model review](docs/guides/second-model-review.md),
-  [harden against repeats](docs/guides/harden-against-repeats.md), and
-  [with Mycelium or in a plain repo](docs/guides/with-mycelium-or-plain-repo.md).
+  [harden against repeats](docs/guides/harden-against-repeats.md),
+  [with Mycelium or in a plain repo](docs/guides/with-mycelium-or-plain-repo.md), and
+  [develop a package](docs/guides/develop-a-package.md).
 - **Reference:** the [reference index](docs/reference/index.md), the [skill index](docs/skills.md),
   [gate decisions](docs/reference/gate.md), [`gate.json`](docs/reference/gate-json.md),
   [state files](docs/reference/state-files.md), the [approval gate](docs/approval-gate.md),
