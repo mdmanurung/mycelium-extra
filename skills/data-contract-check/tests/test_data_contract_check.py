@@ -855,7 +855,7 @@ class ResultJsonTest(TempTables):
                                                   "checks": [{"kind": "cohort", "rows": 2}]}))
         with open(SCRIPT) as source:
             proc = subprocess.Popen([sys.executable, "-", "--contract", contract, "--root", self.root,
-                                     "--result-json", os.path.join(self.root, "no", "such", "dir", "r.json")],
+                                     "--result-json", os.path.join(contract, "r.json")],  # the parent is a file
                                     stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             _, err = proc.communicate()
         self.assertEqual(proc.returncode, 1)
@@ -1309,6 +1309,52 @@ class H5adLayerSyntaxTest(TempTables):
         check = result["checks"][0]
         self.assertEqual((code, check["status"], check["runnable"]), (3, "gap", "optional_reader_missing"))
         self.assertIn("h5py cannot be imported", check["alerts"][0]["observed"])
+
+
+class ContractInputFixesTest(unittest.TestCase):
+    """Duplicate keys, deep nesting, NUL paths and an unwritable --result-json."""
+
+    GOOD = ('{"schema": "mycelium-extra.data_contract.v1", "table": "%s", "filters": [], '
+            '"checks": [{"kind": "cohort", "column": "cohort", "min_rows": 1}]}')
+
+    def cli(self, text, result=None):
+        """Run the checker on contract `text`; `result` is a --result-json path relative to the temp dir."""
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        with open(os.path.join(tmp, "c.json"), "w") as handle:
+            handle.write(text)
+        args = ["--result-json", os.path.join(tmp, result)] if result else []
+        with open(SCRIPT) as source:
+            proc = subprocess.run([sys.executable, "-", "--contract", os.path.join(tmp, "c.json"),
+                                   "--root", FIXTURES] + args, stdin=source, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE, universal_newlines=True)
+        return proc, tmp
+
+    def test_duplicate_key_is_a_contract_error(self):
+        proc, _ = self.cli(self.GOOD.replace('"min_rows": 1', '"min_rows": 100, "min_rows": 1') % "samples.tsv")
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("duplicate JSON key: min_rows", proc.stderr)
+
+    def test_deep_nesting_is_malformed_not_a_traceback(self):
+        proc, _ = self.cli("[" * 200000)
+        self.assertEqual(proc.returncode, 1)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_nul_in_table_path_with_result_json(self):
+        proc, _ = self.cli(self.GOOD % "a\\u0000b", result="r.json")
+        self.assertEqual(proc.returncode, 1)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_result_json_into_missing_directory_is_created(self):
+        proc, tmp = self.cli(self.GOOD % "samples.tsv", result="new/deeper/r.json")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertTrue(os.path.isfile(os.path.join(tmp, "new", "deeper", "r.json")))
+
+    def test_unwritable_result_json_still_prints_the_report(self):
+        proc, tmp = self.cli(self.GOOD % "samples.tsv", result="c.json/r.json")  # c.json is a file
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("cohort", proc.stdout)
+        self.assertIn(os.path.join(tmp, "c.json", "r.json"), proc.stderr)
 
 
 if __name__ == "__main__":

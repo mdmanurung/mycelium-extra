@@ -1182,9 +1182,19 @@ def build_result(contract_path, root, contract_bytes, summaries, alerts, inputs,
     }
 
 
+def reject_duplicate_json_keys(pairs):
+    out = {}
+    for k, v in pairs:
+        if k in out:
+            raise ValueError("duplicate JSON key: " + k)
+        out[k] = v
+    return out
+
+
 def write_result(path, result):
     tmp = None
     try:
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=os.path.dirname(os.path.abspath(path)),
                                          delete=False) as handle:
             tmp = handle.name
@@ -1430,11 +1440,12 @@ def main(argv=None):
     try:
         with open(args.contract, "rb") as handle:
             contract_bytes = handle.read()
-        contract = json.loads(contract_bytes.decode("utf-8"))
+        contract = json.loads(contract_bytes.decode("utf-8"), object_pairs_hook=reject_duplicate_json_keys)
         summaries, alerts = run_contract(contract, args.root, inputs)
-    except (ContractError, ValueError, OSError) as caught:
+    except (ContractError, ValueError, OSError, RecursionError) as caught:
         error = str(caught)
     code = 1 if error else exit_code(alerts)
+    write_failed = None
     if args.result_json:
         # Protect declared inputs even when validation stopped before recording their identities.
         paths = [args.contract]
@@ -1449,15 +1460,19 @@ def main(argv=None):
                     spec = check.get(role)
                     if isinstance(spec, dict) and isinstance(spec.get("path"), str):
                         paths.append(resolve(args.root, spec["path"]))
-        if os.path.realpath(args.result_json) in {os.path.realpath(p) for p in paths}:
+        try:
+            clash = os.path.realpath(args.result_json) in {os.path.realpath(p) for p in paths}
+        except ValueError as caught:  # a NUL byte in a path
+            print("contract error: bad path: {}".format(caught), file=sys.stderr)
+            return 1
+        if clash:
             print("result path must differ from the contract and all input paths", file=sys.stderr)
             return 1
         try:
             write_result(args.result_json, build_result(args.contract, args.root, contract_bytes, summaries,
                                                         alerts, inputs, code, error))
-        except OSError as caught:
-            print("cannot write the result file: {}".format(caught), file=sys.stderr)
-            return 1
+        except OSError as caught:  # keep the check outcome: report first, fail after
+            write_failed = "cannot write the result file {}: {}".format(args.result_json, caught.strerror or caught)
     if error:
         print("contract error: {}".format(error), file=sys.stderr)
         return 1
@@ -1466,6 +1481,9 @@ def main(argv=None):
         print()
     else:
         print(render(summaries, alerts))
+    if write_failed:
+        print(write_failed, file=sys.stderr)
+        return 1
     return code
 
 
