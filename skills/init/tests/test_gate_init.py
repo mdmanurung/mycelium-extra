@@ -394,5 +394,18 @@ class DiagnoseTest(unittest.TestCase):
         self.assertEqual(os.listdir(self.root), [])
 
 
+class StateFileClashTest(unittest.TestCase):
+    def test_regular_file_named_state_dir_is_a_one_line_error(self):
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        with open(os.path.join(root, ".mycelium-extra"), "w") as handle:
+            handle.write("x")
+        with open(SCRIPT) as source:
+            proc = subprocess.run([sys.executable, "-", "--root", root], stdin=source,
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        self.assertEqual(proc.returncode, 1)
+        self.assertNotIn("Traceback", proc.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

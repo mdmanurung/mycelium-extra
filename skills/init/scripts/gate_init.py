@@ -498,10 +498,14 @@ def main(argv):
     verb = "would create" if args.dry_run else "created"
 
     if not args.dry_run:
-        os.makedirs(os.path.join(root, STATE_DIR), exist_ok=True)
-        with open(os.path.join(root, STATE_DIR, "gate.json"), "w", encoding="utf-8") as handle:
-            json.dump(config, handle, indent=2)
-            handle.write("\n")
+        try:
+            os.makedirs(os.path.join(root, STATE_DIR), exist_ok=True)
+            with open(os.path.join(root, STATE_DIR, "gate.json"), "w", encoding="utf-8") as handle:
+                json.dump(config, handle, indent=2)
+                handle.write("\n")
+        except OSError as error:
+            print("cannot create {}/gate.json: {}".format(os.path.join(root, STATE_DIR), error.strerror or error))
+            return 1
         if not ignored:
             add_ignore(root)
 
