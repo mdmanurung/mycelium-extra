@@ -43,7 +43,7 @@ Take these from the user's message. Ask only if the destination is missing; the 
 
 ## 2. Aim: ask, restate, check
 
-1. **Ask.** If the invocation states the question in the user's words, quote it. Otherwise ask for the aim of the analysis in their own words, in one free-text message, as grill's section 0 does: no drafted answer or example, because a draft anchors the user.
+1. **Ask.** If the invocation states the question in the user's words, quote it. Otherwise ask for the aim of the analysis and the claim they hope to make from it, in their own words, in one free-text message, as grill's section 0 does: no drafted answer or example, because a draft anchors the user.
 2. **Restate.** After they answer, show their words verbatim and one tidier version beside it, labelled as your restatement. The restatement keeps their meaning; it fixes wording, names the comparison and drops filler. Never write it before they answer.
 3. **Check.** Test the aim's assumptions against the repository, read-only and by file reads and `rg` only (no probes, no scripts): `.living/findings` and `analysis/ANALYSIS_MANIFEST.md` for a prior analysis that already answers it, `data/DATA_MANIFEST.md` or `data/` for the named data, and `GLOSSARY.md` for overloaded terms (sample, replicate, batch). Outside Mycelium, use the README and docs. For which assumptions matter, use [../grill/references/analysis-decisions.md](../grill/references/analysis-decisions.md) (unit of analysis, contrast, exploratory versus confirmatory).
 4. **Refine.** Ask only what the repository cannot settle and the user owns, in one round in grill's format (`Q1`, evidence, options, `Recommended:`), at most three questions. Grill later asks its own five; it does not re-ask what is settled here.
@@ -54,7 +54,7 @@ Take these from the user's message. Ask only if the destination is missing; the 
 Run from the repository root, from stdin:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb,04_d.qmd] [--format=R|py|ipynb|qmd] [--lang=r|python] [--data=PATH ...] [--code=PATH ...] [--panels=Fig1a.R,...] \
+sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb,04_d.qmd] [--format=R|py|ipynb|qmd|marimo] [--lang=r|python] [--data=PATH ...] [--code=PATH ...] [--panels=Fig1a.R,...] \
   --templates=<skill-dir>/templates --dry-run < <skill-dir>/scripts/new_analysis.py
 ```
 
@@ -74,7 +74,7 @@ Use Edit; the files already exist.
 
 Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and conclusions. Carry its figure deliverables into `PLAN.md` and the analysis doc. Keep this rule in the analysis doc so `/mycelium:analyze` reads it when continuing.
 
-- **`<NAME>.md`.** Write the Purpose from section 2: the user's words quoted verbatim and tagged `[human-stated]`, then the confirmed aim, then its assumptions with their status. Write the "Does" column of the Steps table.
+- **`<NAME>.md`.** Write the Purpose from section 2: the user's words quoted verbatim and tagged `[human-stated]`, the claim they hope to make beside the aim, also `[human-stated]`, then the confirmed aim, then its assumptions with their status. Write the "Does" column of the Steps table.
 - **`plans/PLAN.md` Objective.** Without an approved brief, put the confirmed aim there too.
 - **`plans/PLAN.md` and `plans/TRACKER.md`.** If this conversation holds an approved mycelium-extra grill brief for this analysis, copy it in:
   - Into `PLAN.md`: its Objective, Evidence, Inputs, Plan table, Assumptions and risk, Parked, and Decisions to record.

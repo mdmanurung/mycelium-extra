@@ -48,11 +48,11 @@ The Snakefile runs R and Python with the interpreters `lucid-coder.yaml` names a
 
 ## Before it writes
 
-The agent asks for the aim in your own words, unless the invocation states it. It shows your words beside a tidier restatement. It checks the aim's assumptions against the repository by reading files: a prior analysis that already answers it, the named data, overloaded terms. It asks at most three questions the repository cannot settle, then waits for you to confirm or edit the aim.
+The agent asks for the aim, and the claim you hope to make, in your own words, unless the invocation states them. It shows your words beside a tidier restatement. It checks the aim's assumptions against the repository by reading files: a prior analysis that already answers it, the named data, overloaded terms. It asks at most three questions the repository cannot settle, then waits for you to confirm or edit the aim.
 
 ## Afterwards
 
-The agent writes your words, tagged `[human-stated]`, and the confirmed aim into the Purpose of `<NAME>.md` and fills its Steps table. It copies an approved grill brief into `PLAN.md` and `TRACKER.md` when one exists in the conversation. `PLAN.md` records no plan hash. Each R step opens with a `scilintr stage` line; the stage is your choice. Next: [grill](grill.md) a plan naming this folder's scripts or `run.sh`, then Mycelium's `analyze`.
+The agent writes your words and your hoped-for claim, tagged `[human-stated]`, and the confirmed aim into the Purpose of `<NAME>.md` and fills its Steps table. It copies an approved grill brief into `PLAN.md` and `TRACKER.md` when one exists in the conversation. `PLAN.md` records no plan hash. Each R step opens with a `scilintr stage` line; the stage is your choice. Next: [grill](grill.md) a plan naming this folder's scripts or `run.sh`, then Mycelium's `analyze`.
 
 ## Default on or off
 
