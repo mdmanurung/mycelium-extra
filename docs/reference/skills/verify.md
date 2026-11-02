@@ -26,7 +26,7 @@ Run from inside the repository, from stdin. Invoke with `/mycelium-extra:verify`
 | `explore` | `[--session ID \| --all]` | explore runs of gated code. Default: this session (`$CLAUDE_CODE_SESSION_ID`); with no session id, the last 7 days of every session. | no | yes |
 | `stale` | `[--content]` | scripts, inputs and outputs out of date for every verified plan; reads committed `provenance/` | no | no |
 | `status` | none | one table: plans approved or verified, runs, status, stale, lint, manifest listing | no | no |
-| `runs` | `[RESULTS_DIR]` | labelled run folders of a results folder (`run_<YYYYMMDD>_<slug>`, `_vNN`, `RUN.txt`) | no | no |
+| `runs` | `[RESULTS_DIR]` | labelled run folders of a results folder (default `results/`, else `outputs/`; `run_<YYYYMMDD>_<slug>`, `_vNN`, `RUN.txt`) | no | no |
 | `refs` | `<path> [--sha SHA256]` | which saved plans pinned a file; `definite` when the SHA256 matches, `possible` otherwise | no | no |
 | `exercise` | `[reveal]` | a labelled synthetic claim-mismatch rehearsal; prints only ([exercise](../../exercise.md)) | no | no |
 

@@ -97,7 +97,7 @@ def load_gate(plugin_root):
 def read_jsonl(path, invalid=None):
     records = []
     if os.path.isfile(path):
-        with open(path, encoding="utf-8") as handle:
+        with open(path, encoding="utf-8", errors="replace") as handle:  # a bad byte fails JSON: skipped and counted
             for line_no, line in enumerate(handle, 1):
                 try:
                     record = json.loads(line)
@@ -113,11 +113,36 @@ def read_jsonl(path, invalid=None):
                     for key in ("script", "engine", "pins", "command_env", "hook_env"):
                         if record.get(key) is not None and not isinstance(record[key], dict):
                             raise ValueError("invalid receipt mapping")
+                    if any(not isinstance(v, dict) for v in (record.get("pins") or {}).values()):
+                        raise ValueError("invalid receipt pins")
+                    dev = record.get("dev_packages") or []
+                    if not isinstance(dev, list) or any(
+                            not isinstance(d, dict) or not isinstance(d.get("path"), str)
+                            or not isinstance(d.get("head"), (str, type(None)))
+                            or not isinstance(d.get("dirty"), (bool, type(None))) for d in dev):
+                        raise ValueError("invalid receipt dev_packages")
                     records.append(record)
                 except (ValueError, OverflowError, OSError):
                     if invalid is not None:
                         invalid.append(line_no)
     return records
+
+
+def saved_bundle_state(folder, digest):
+    """Bundle state for a read: "none" when nothing was saved for this plan; the lock is taken only if it exists."""
+    import provenance
+    lock = os.path.join(folder, ".publish.lock")
+    try:
+        if os.path.exists(lock):
+            with provenance.locked(lock):
+                state = provenance.bundle_state(folder, digest)
+        else:
+            state = provenance.bundle_state(folder, digest)
+    except (OSError, ValueError):  # read-only checkout or a busy lock: a read needs no lock to be honest
+        state = provenance.bundle_state(folder, digest)
+    if state == "legacy" and not glob.glob(os.path.join(glob.escape(folder), "*-{}.*".format(digest))):
+        return "none"  # other plans were saved here; this one never was
+    return state
 
 
 def parse_iso(text):
@@ -2720,12 +2745,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
         import provenance
         folder = os.path.join(root, analysis_dir, "provenance")
         if os.path.isdir(folder):
-            try:
-                with provenance.locked(os.path.join(folder, ".publish.lock")):
-                    saved_state = provenance.bundle_state(folder, digest)
-            except (OSError, ValueError):  # read-only checkout or a busy lock: a read needs no lock to be honest
-                saved_state = provenance.bundle_state(folder, digest)
-            if saved_state != "complete":
+            saved_state = saved_bundle_state(folder, digest)
+            if saved_state not in ("complete", "none"):
                 report.add("gap", "Saved provenance bundle is {}; no checksummed completion established.".format(saved_state))
     if invalid_receipts:
         report.add("gap", "{} malformed receipt record(s) were skipped (lines {}); the run history "
@@ -4202,11 +4223,7 @@ def stale_plan(root, rel, budget, content=False):
     import provenance
     folder = os.path.join(root, os.path.dirname(rel))
     digest = os.path.basename(rel)[len("receipts-"):-len(".jsonl")]
-    try:
-        with provenance.locked(os.path.join(folder, ".publish.lock")):
-            state = provenance.bundle_state(folder, digest)
-    except (OSError, ValueError):  # read-only checkout or a busy lock: a read needs no lock to be honest
-        state = provenance.bundle_state(folder, digest)
+    state = saved_bundle_state(folder, digest)
     result = ({"hash": digest, "analysis_dir": os.path.dirname(os.path.dirname(rel)) or ".",
                "changes": [], "sessions": [], "content_checked": 0, "content_unchecked": 0}
               if state == "interrupted" else _stale_plan(root, rel, budget, content))
@@ -4854,7 +4871,7 @@ def parse_label(text):
     for key, allowed in (("status", RUN_STATUS), ("kind", RUN_KIND)):
         if key in fields and fields[key] not in allowed and fields[key] != "-":
             problems.append((lines[key], "`{}: {}` is not one of {}".format(key, fields[key], " | ".join(allowed))))
-    if "version" in fields and fields["version"] != "-" and not fields["version"].isdigit():
+    if "version" in fields and fields["version"] != "-" and not re.fullmatch(r"[0-9]+", fields["version"]):
         problems.append((lines["version"], "`version` is not a whole number"))
     if "status" not in fields:
         problems.append((None, "no `status:` line"))
@@ -4900,7 +4917,7 @@ def run_order(run):
     """Version, `_vNN` suffix, date: how the user's convention orders two runs of one slug."""
     version = run["fields"].get("version", "")
     suffix = re.search(r"_v(\d+)$", run["run"])
-    return (int(version) if version.isdigit() else 0, int(suffix.group(1)) if suffix else 0,
+    return (int(version) if re.fullmatch(r"[0-9]+", version) else 0, int(suffix.group(1)) if suffix else 0,
             RUN_NAME.match(run["run"]).group(1), run["run"])
 
 
@@ -5001,6 +5018,8 @@ def list_runs(base, gated, path):
             sys.exit("verify: the newest approval ({}) names no analysis folder; pass the results folder: "
                      "verify runs PATH".format(newest[1]))
         results = os.path.join(base, rel, "results")
+        if not os.path.isdir(results):  # new-analysis scaffolds put runs under outputs/
+            results = os.path.join(base, rel, "outputs")
     else:
         results = os.path.abspath(path)
         if not gated:  # labels name other runs from the project root: the repository the results folder is in
@@ -5391,7 +5410,7 @@ def main(argv):
                      "freeze.".format(result["instance"]["current"]))
         try:
             written = write(root, result)
-        except OSError as error:
+        except (OSError, ValueError) as error:
             sys.exit("verify: could not write the provenance bundle: {}.".format(error))
         for path in written:
             print("wrote " + path)

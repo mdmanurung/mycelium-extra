@@ -107,5 +107,59 @@ class AuditFixTest(Harness):
             self.assertEqual(handle.read(), "existing file\n")
 
 
+    # stress-test fixes: malformed receipts are skipped and counted, never a traceback
+    def test_malformed_receipts_are_skipped_not_crashes(self):
+        digest = self.approve(test_verify.plan("run `{}`".format(test_verify.FIT)))
+        self.run_cmd("python " + test_verify.FIT)
+        path = os.path.join(self.root, ".mycelium-extra", "receipts.jsonl")
+        with open(path, "rb") as handle:
+            good = json.loads(handle.read().splitlines()[-1])
+        bad = [b'{"ts": 1, \xff}\n']
+        for extra in ({"dev_packages": [{"path": ["a"], "head": 1, "dirty": [1]}]}, {"dev_packages": 5},
+                      {"pins": {"a": 5}}):
+            bad.append((json.dumps(dict(good, **extra)) + "\n").encode())
+        with open(path, "ab") as handle:
+            handle.writelines(bad)
+        self.assertIn("4 malformed receipt record(s) were skipped", self.verify("report", digest))
+        self.verify("disclose", digest)
+        self.verify("status")
+
+    # stress-test fixes: a plan never written has no saved bundle; another plan's bundle is not its legacy one
+    def test_unwritten_plan_next_to_a_saved_one_has_no_legacy_gap(self):
+        verify = gate.load_verify()
+        folder = os.path.join(self.root, "analysis", "a", "provenance")
+        self.write("analysis/a/provenance/plan-aaaaaaaa.md", "x\n")
+        self.assertEqual(verify.saved_bundle_state(folder, "bbbbbbbb"), "none")
+        self.assertEqual(verify.saved_bundle_state(folder, "aaaaaaaa"), "legacy")
+        self.assertFalse(os.path.exists(os.path.join(folder, ".publish.lock")))  # a read creates no lock
+
+    # stress-test fixes: a superscript digit is not a version number
+    def test_run_version_rejects_unicode_digits(self):
+        verify = gate.load_verify()
+        self.write("analysis/a/results/run_20260101_a/RUN.txt", "run: run_20260101_a\nversion: \u00b2\nstatus: current\n")
+        label = verify.label_run(os.path.join(self.root, "analysis", "a", "results", "run_20260101_a"))
+        self.assertTrue(any("whole number" in str(p) for p in label["problems"]), label)
+        self.assertEqual(verify.run_order(label)[0], 0)
+
+    # stress-test fixes: a provenance recovery gap on write is a `verify:` error
+    def test_write_recovery_gap_is_a_verify_error(self):
+        digest = self.approve(test_verify.plan("run `{}`".format(test_verify.FIT)))
+        self.run_cmd("python " + test_verify.FIT)
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        folder = os.path.join(self.root, "analysis", "a", "provenance")
+        lint = [n for n in os.listdir(folder) if n.startswith("lint-")][0]
+        with open(os.path.join(folder, lint), "a") as handle:
+            handle.write("edited\n")
+        error = self.verify("write", digest, "--analysis-dir", "analysis/a", fails=True)
+        self.assertIn("verify:", error)
+        self.assertNotIn("Traceback", error)
+
+    # stress-test fixes: `runs` falls back to outputs/ when the folder has no results/
+    def test_runs_default_falls_back_to_outputs(self):
+        self.approve(test_verify.plan("run `{}`".format(test_verify.FIT)))
+        self.write("analysis/a/outputs/run_20260101_a/RUN.txt", "run: run_20260101_a\nversion: 1\nkind: model\nstatus: current\n")
+        self.assertIn("run_20260101_a", self.verify("runs"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
