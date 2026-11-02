@@ -95,7 +95,7 @@ WRAPPERS = {"env", "time", "nohup", "nice", "ionice", "setsid", "command", "exec
             "conda", "mamba", "micromamba", "pixi", "uv", "uvx", "run", "xvfb-run",
             "poetry", "pipx", "rye", "pdm", "hatch", "npx",
             "xargs", "parallel", "watch", "screen"}  # package-manager and process-launcher runners
-VALUE_FLAGS = {"-n", "-p", "--name", "--prefix", "-e", "--environment", "--env",
+VALUE_FLAGS = {"-n", "-p", "--name", "--prefix", "-e", "--environment", "--env", "-C", "--chdir",
                "-J", "--job-name", "-t", "--time", "-A", "--account", "--partition"}
 # Value options of the wrappers that precede a command, and the ones that move the command's
 # folder; `classify` skips an option's value instead of mistaking it for the command.
@@ -158,7 +158,7 @@ WRITE_CODE = re.compile(
     r"""open\s*\([^)]*,\s*(mode\s*=\s*)?['"][^'"]*[wax+]|\.write(_text|_bytes|lines)?\s*\("""
     r"|\b(json|pickle)\.dump\s*\(|\bshutil\.\w+\s*\(|\bsubprocess\.|\bos\.system\s*\("
     r"|\bos\.(remove|unlink|rename|renames|replace|makedirs|mkdir|rmdir|removedirs|truncate|symlink"
-    r"|link|chmod)\s*\(|\.(unlink|touch|mkdir|rmdir|rename|symlink_to|chmod)\s*\(|\bPath\s*\([^)]*\)\.replace\s*\("
+    r"|link|chmod|mknod|open)\s*\(|\.(unlink|touch|mkdir|rmdir|rename|symlink_to|chmod)\s*\(|\bPath\s*\([^)]*\)\.replace\s*\("
     # ponytail: a bare `.replace(` is str.replace in most code, so only `Path(...).replace(` and os.replace count;
     # a Path held in a variable and replaced is missed
     r"|\b(writeLines|saveRDS|save|write\.(csv|table|delim)|write_(csv|tsv|delim|lines|json|rds)"
@@ -233,7 +233,10 @@ def load_config(root):
     """The settings, with defaults; `_notices` lists each invalid value found and what is used instead."""
     with open(os.path.join(root, STATE_DIR, "gate.json"), encoding="utf-8") as handle:
         config = dict(DEFAULTS)
-        config.update(json.load(handle))
+        loaded = json.load(handle)
+        if not isinstance(loaded, dict):
+            raise ValueError("gate.json must be a JSON object")
+        config.update(loaded)
     notices = []
     for key, wants, ok in CONFIG_CHECKS:
         if not ok(config[key]):
@@ -1074,6 +1077,20 @@ def single_shell_command(command, root, cwd, config):
         command = paths[0]
 
 
+INLINE_CODE = {"perl", "node", "nodejs", "ruby", "awk", "gawk", "mawk"}  # a program naming the folder is denied
+CHDIR_FLAGS = {"env": ("-C", "--chdir"), "make": ("-C", "--directory"), "gmake": ("-C", "--directory")}
+
+
+def option_cwd(tokens, cwd):
+    """The folder `env -C DIR CMD` or `make -C DIR` runs in; `cwd` when the command has no such option."""
+    head = os.path.basename(tokens[0])
+    flags = CHDIR_FLAGS.get(head, ())
+    args = tokens[1:]
+    for folder in flag_values(args, flags) + [t[2:] for t in args if t.startswith("-C") and len(t) > 2]:
+        cwd = move_folder(cwd, folder)
+    return cwd
+
+
 def writes_state(command, root, cwd):
     """True if the command visibly writes into the gate's state folder.
 
@@ -1122,8 +1139,10 @@ def writes_state(command, root, cwd):
                     return True
             return False
 
+        saved, virtual_cwd = virtual_cwd, option_cwd(plain, virtual_cwd)  # `inside` reads virtual_cwd
         if segment_writes(tokens, own, command, inside, root, virtual_cwd, ancestor):
             return True
+        virtual_cwd = saved
     return False
 
 
@@ -1334,6 +1353,10 @@ def segment_writes(tokens, bodies, command, inside, root, cwd, ancestor=lambda t
             ancestor(t) for t in args if not t.startswith(("-", "!", "(")))
     if head == "git":
         return git_wipes_state(args, ancestor)
+    if head in ("make", "gmake"):  # runs in the folder (`make -C .mycelium-extra x`) or builds a target in it
+        return inside(".") or any(inside(t) for t in positional)
+    if head in INLINE_CODE and any(STATE_DIR in text for text in code + bodies + positional[:1 if head.endswith("awk") else 0]):
+        return True  # such a program cannot be traced; any mention of the folder counts as a write
     if RUNNERS.match(head):
         if any(inside(t) for t in positional + stdin):
             return True
@@ -3872,15 +3895,16 @@ def protected_write_notice(root, event, target):
             "hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": message}}
 
 
-def goal_ended(event):
-    """True when the transcript's last /goal check says met or failed (Claude Code 2.1.316 writes a
-    `goal_status` attachment at each check: `met`, or `failed` when judged impossible)."""
+def goal_ended(event, since=0):
+    """True when the transcript's last /goal check, written after byte `since` (where the transcript ended when
+    this /goal was set), says met or failed (Claude Code 2.1.316 writes a `goal_status` attachment at each
+    check: `met`, or `failed` when judged impossible)."""
     # ponytail: reads the last 2 MB only; a status further back counts as still running. Each check writes one,
     # so the newest is near the end at the next prompt or Stop.
     try:
         with open(event.get("transcript_path"), "rb") as handle:
             handle.seek(0, 2)
-            handle.seek(max(0, handle.tell() - GOAL_TAIL_BYTES))
+            handle.seek(max(since, handle.tell() - GOAL_TAIL_BYTES))
             lines = handle.read().decode("utf-8", "replace").splitlines()
     except (OSError, TypeError):
         return False
@@ -3902,7 +3926,13 @@ def goal_pause(argv, event, root):
     path = state_path(root, "goal", safe_session(event.get("session_id")) + ".json")
     match = GOAL.match(event.get("prompt") or "") if argv[1] == "prompt" else None
     if match and match.group(1) and match.group(1).lower() not in GOAL_CLEAR:
-        write_json(path, {"set_at": time.time(), "condition": match.group(1)[:200]})
+        if not event.get("transcript_path"):  # Codex and OpenCode send none, so nothing would say the goal ended
+            return False, None
+        try:
+            offset = os.path.getsize(event["transcript_path"])
+        except (OSError, TypeError):
+            offset = 0
+        write_json(path, {"set_at": time.time(), "condition": match.group(1)[:200], "transcript_offset": offset})
         return True, ("mycelium-extra: gate paused for this goal. Runs need no approved plan and no receipts are "
                       "written until the goal is met or fails, or `/goal clear`.")
     if not os.path.isfile(path):
@@ -3910,7 +3940,10 @@ def goal_pause(argv, event, root):
     if match and match.group(1):
         os.remove(path)
         return True, "mycelium-extra: goal cleared, so the gate's pause ends."
-    if argv[1] in ("prompt", "stop") and goal_ended(event):
+    record = read_json(path, None)
+    since = record.get("transcript_offset") if isinstance(record, dict) else None
+    since = since if isinstance(since, int) else 0  # absent in files from before 0.22.2: count from 0
+    if argv[1] in ("prompt", "stop") and goal_ended(event, since):
         os.remove(path)
         return False, "mycelium-extra: the goal ended, so the gate applies again."
     return True, None
@@ -5017,18 +5050,23 @@ def git(root, *args):
     return proc.stdout if proc.returncode == 0 else None
 
 
-def git_state(root):
+def git_state(root, package=False):
+    """HEAD and dirty flag of the repository at `root`. A `package` must be a repository of its own (a folder
+    inside another repository would report that one's state) and counts a new untracked file as dirty."""
+    top = git(root, "rev-parse", "--show-toplevel") if package else None
+    if package and (top is None or os.path.realpath(top.strip()) != os.path.realpath(root)):
+        return None
     head = git(root, "rev-parse", "HEAD")
     if head is None:
         return None
-    status = git(root, "status", "--porcelain", "--untracked-files=no")
+    status = git(root, "status", "--porcelain", "--untracked-files=" + ("normal" if package else "no"))
     return {"head": head.strip(), "dirty": None if status is None else bool(status.strip())}
 
 
 def dev_package_states(root, config):
     """The commit and dirty flag of each working-copy package named in gate.json's `dev_packages`."""
     # ponytail: two git calls per package at GIT_TIMEOUT each inside a 20 s hook, so only the first three
-    return [dict(git_state(os.path.join(root, os.path.expanduser(path))) or {"head": None, "dirty": None}, path=path)
+    return [dict(git_state(os.path.join(root, os.path.expanduser(path)), True) or {"head": None, "dirty": None}, path=path)
             for path in config["dev_packages"][:3]]
 
 
@@ -5206,7 +5244,12 @@ def main(argv, text=None, root=None):
             emit(notice and {"systemMessage": notice, "hookSpecificOutput": {
                 "hookEventName": "UserPromptSubmit", "additionalContext": notice}})
             return 0
-        config = load_config(root)
+        try:
+            config = load_config(root)
+        except Exception:
+            if not toggle:
+                raise
+            config = dict(DEFAULTS, _notices=[])  # `gate on|off` must work when gate.json is broken: it uses no setting
         result = HANDLERS[argv[1]](event, root, config)
         if notice:  # the goal just ended; the gate ran again
             result = dict(result or {})

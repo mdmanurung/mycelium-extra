@@ -5,12 +5,12 @@
 - `{}` is a valid file and means "all defaults".
 - `init` writes the file once and never changes it afterwards; after that you edit it by hand ([init](skills/init.md)).
 - A missing key uses its default. An unknown key is ignored by the gate; `init --diagnose` reports it as a possible typo.
-- A file that is not valid JSON is an internal gate error and follows `on_error` (below).
+- A file that is not valid JSON, or whose top level is not an object (`[]`, `null`, a string), is an internal gate error and follows `on_error` (below). The error says `gate.json must be a JSON object` in the second case. `gate on` and `gate off` still work.
 - Where the gate checks a value, an invalid one never aborts a hook. The gate uses the default for that key and shows one notice naming the key and what it accepts, at the next prompt and at the next turn end.
 
 To see the effective values, with invalid ones flagged, run `init --diagnose` ([init](skills/init.md)). It reads and writes nothing.
 
-## The 17 keys
+## The 18 keys
 
 | Key | Type | Default | Accepts | What it does |
 |---|---|---|---|---|
@@ -31,7 +31,7 @@ To see the effective values, with invalid ones flagged, run `init --diagnose` ([
 | `checkpoint_steps` | whole number | unset (off) | 1 or more; `0` or unset is off | A plan table with more than this many step rows asks one comprehension question before the first `approve`. Any other value is ignored, with a notice. |
 | `max_runs_per_approval` | whole number | unset (no limit) | 1 or more | After this many runs under one approval, the next gated run is denied until you approve the plan again. Any other value is ignored, with a notice. |
 | `focus_notices` | boolean | `false` | `true` or `false` | At turn end, one line to you when scripts under another analysis ran while a `focus` was open. Takes effect only when it is exactly `true`. |
-| `dev_packages` | list of strings | `[]` | paths relative to the project root | Packages an analysis loads from a working copy (`pip install -e`, `devtools::load_all()`). Each run receipt records each one's git commit and whether it had uncommitted changes; `verify report` lists them under Packages in development. Only the first three are read, so two git calls each fit the 20 s post hook. |
+| `dev_packages` | list of strings | `[]` | paths relative to the project root | Packages an analysis loads from a working copy (`pip install -e`, `devtools::load_all()`). Each folder must be a git repository of its own, else its commit and dirty flag are `null`. Each run receipt records each one's git commit and whether it had uncommitted changes (a new untracked file counts); `verify report` lists them under Packages in development. Only the first three are read, so two git calls each fit the 20 s post hook. |
 
 ### Notes on single keys
 

@@ -15,7 +15,7 @@ The `.jsonl` logs and `explore.log` only grow. Nothing trims them.
 
 | Path | Written by | Read by | Holds | Proposed 1.x |
 |---|---|---|---|---|
-| `gate.json` | you (`init` creates it once) | gate, `init --diagnose`, `verify` | the settings ([gate.json](gate-json.md)) | Yes: the 17 keys |
+| `gate.json` | you (`init` creates it once) | gate, `init --diagnose`, `verify` | the settings ([gate.json](gate-json.md)) | Yes: the 18 keys |
 | `write-pending/<id>.json` | `confirm_write.py prepare` (a skill) | gate | a write awaiting `confirm write <id>` | No |
 | `write-consent/<id>.json` | gate, on your `confirm write <id>` | the skill | the consent, valid 1 h | No |
 | `approvals/<hash>.json` | gate, on your `approve` | gate, `verify`, `track-changes` | the approved plan text, its pins and script pins, session, time. Never deleted. | Yes, readable forever |

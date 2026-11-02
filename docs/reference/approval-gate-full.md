@@ -143,7 +143,7 @@ Receipts are the execution record that `verify` reads later. After a covered she
 - `approval_instance`: the id of the approval instance the credited plan had when the run launched (see [Approval instances](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/advanced.md#approval-instances)), `null` for an approval from before instances.
 - `limitations`, when present: a run allowed although its folder could not be resolved (a wrapper option such as `env -C "$X"`) carries `cwd unresolved: <expression>`, in its launch entry and its receipt, and the post message adds one coverage line. The run was matched by reading the folder as the outer folder or the repo root.
 - Git HEAD, whether tracked files have uncommitted changes, and whether each recorded file is committed, modified, untracked, or ignored.
-- `dev_packages`, when `gate.json` names any: each working-copy package's `path`, git `head` and `dirty` flag (`null` when it is not a git repository).
+- `dev_packages`, when `gate.json` names any: each working-copy package's `path`, git `head` and `dirty` flag (`null` when the folder is not the top of its own git repository, even if it sits inside the project's; a new untracked file makes `dirty` true).
 - The script's fingerprint (or the sha256 of an `sbatch --wrap` payload), and its `module load`, `conda activate`, and `#SBATCH` lines.
 - Lockfiles (`renv.lock`, `pixi.lock`, `environment.yml`, and similar) in the repository root, the working directory, and the script's folder.
 - The environment the hook itself runs in (`hook_env`), and any `conda run -n` environment in the command (`command_env`).

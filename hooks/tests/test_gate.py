@@ -1337,6 +1337,8 @@ class GateTest(unittest.TestCase):
         ]:
             self.assertTrue(self.denied(self.bash(command)), command)
         for command in [
+            "env -C analysis touch off.json",
+            "awk '{print}' .mycelium-extra/receipts.jsonl",
             "cat .mycelium-extra/gate.json",
             "ls .mycelium-extra/ 2>/dev/null",
             "git check-ignore -v .mycelium-extra/gate.json || echo NOT-ignored",
@@ -1926,6 +1928,41 @@ class GateTest(unittest.TestCase):
         ask("gate on")  # ends the pause too
         self.assertTrue(self.denied(run()))
 
+    def test_old_goal_status_does_not_end_a_new_goal(self):
+        transcript = os.path.join(self.root, "t.jsonl")
+        with open(transcript, "w") as handle:  # the first goal met long ago
+            handle.write(json.dumps({"attachment": {"type": "goal_status", "met": True}}) + "\n")
+        ask = lambda text, **extra: self.hook("prompt", dict({"prompt": text, "transcript_path": transcript}, **extra))
+        run = lambda: self.bash("python analysis/y.py")
+        ask("/goal again")
+        self.assertIsNone(ask("keep going"))  # the old status lies before this goal
+        self.assertIsNone(run())
+        with open(transcript, "a") as handle:
+            handle.write(json.dumps({"attachment": {"type": "goal_status", "met": True}}) + "\n")
+        self.assertIn("goal ended", ask("next")["systemMessage"])
+        self.assertTrue(self.denied(run()))
+
+    def test_goal_without_transcript_does_not_pause(self):  # Codex and OpenCode events carry none
+        self.assertIsNone(self.hook("prompt", {"prompt": "/goal tests pass"}))
+        self.assertTrue(self.denied(self.bash("python analysis/y.py")))
+
+    def test_gate_toggle_works_with_a_broken_gate_json(self):
+        path = os.path.join(self.root, ".mycelium-extra", "gate.json")
+        with open(path, "w") as handle:
+            handle.write("{not json")
+        self.assertIn("gate off", self.hook("prompt", {"prompt": "gate off"})["systemMessage"])
+        self.assertIsNone(self.bash("python analysis/y.py"))  # off: silent, never reads gate.json
+        self.assertIn("gate on", self.hook("prompt", {"prompt": "gate on"})["systemMessage"])
+
+    def test_gate_json_must_be_an_object(self):
+        path = os.path.join(self.root, ".mycelium-extra", "gate.json")
+        for text in ("[]", "null", '"x"'):
+            with open(path, "w") as handle:
+                handle.write(text)
+            notice = self.hook("prompt", {"prompt": "hello"})["systemMessage"]
+            self.assertIn("gate.json must be a JSON object", notice, text)
+            self.assertNotIn("unreadable", notice, text)
+
     def test_stop_hints_verify_and_handoff_once(self):
         digest, _ = self.approve()
         self.post("python analysis/x.py", {"stdout": ""})
@@ -2194,6 +2231,26 @@ class GateTest(unittest.TestCase):
         self.assertEqual((clean[0]["path"], len(clean[0]["head"]), clean[0]["dirty"]), ("pkg", 40, False))
         self.assertTrue(dirty[0]["dirty"])
         self.assertEqual(clean[1], {"path": "missing", "head": None, "dirty": None})
+
+    def test_dev_package_needs_its_own_repo_and_counts_untracked_files(self):
+        git = lambda folder, *args: subprocess.check_call(
+            ("git", "-C", folder, "-c", "user.name=t", "-c", "user.email=t@t") + args,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.write("pkg/R/f.R", "f <- function() 1\n")
+        self.write("inner/R/f.R", "f <- function() 1\n")  # a folder of the project repo, not a repo itself
+        git(self.root, "init", "-q")
+        git(self.root, "add", "inner", ".mycelium-extra")
+        git(self.root, "commit", "-qm", "init")
+        git(os.path.join(self.root, "pkg"), "init", "-q")
+        git(os.path.join(self.root, "pkg"), "add", ".")
+        git(os.path.join(self.root, "pkg"), "commit", "-qm", "init")
+        self.config({"dev_packages": ["pkg", "inner"]})
+        self.approve()
+        self.write("pkg/R/new.R", "g <- function() 1\n")  # untracked
+        self.post("python analysis/x.py", {"stdout": ""})
+        pkg, inner = self.receipts()[0]["dev_packages"]
+        self.assertTrue(pkg["dirty"])
+        self.assertEqual(inner, {"path": "inner", "head": None, "dirty": None})
 
     def test_receipt_git_state(self):
         def run(*args):

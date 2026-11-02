@@ -88,13 +88,17 @@ def error_output(name, error, cwd, event=None, host=None, root=None):
     try:
         root = root or find_root(cwd)  # the root the event named, when gate.main found one the cwd does not
         with open(os.path.join(root, STATE_DIR, "gate.json"), encoding="utf-8") as config:
-            value = json.load(config).get("on_error", "allow")
+            loaded = json.load(config)
+            if not isinstance(loaded, dict):
+                raise TypeError("gate.json must be a JSON object")
+            value = loaded.get("on_error", "allow")
         if value in ("allow", "deny"):
             policy = value
         else:
             note = ' "on_error" in gate.json must be "allow" or "deny"; allowing.'
-    except Exception:
-        note = " gate.json is unreadable, so it cannot say what to do on an error; allowing." if root else ""
+    except Exception as problem:
+        what = "must be a JSON object" if isinstance(problem, TypeError) else "is unreadable"
+        note = " gate.json {}, so it cannot say what to do on an error; allowing.".format(what) if root else ""
     try:  # best-effort record; a failed write never changes the decision and leaves no record at all
         line = json.dumps(dict(identity(event, host), ts=int(time.time()), event=name, error=str(error),
                                decision="deny" if policy == "deny" and name == "tool" else "allow")) + "\n"
