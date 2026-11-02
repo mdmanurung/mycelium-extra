@@ -85,5 +85,22 @@ class RedactionTest(unittest.TestCase):
         self.assertEqual(redactor.count, 0)
 
 
+class ReportItemsTest(unittest.TestCase):
+    # stress-test fixes: a bad snapshot heading or a folder named *.qmd must not abort the report
+    def test_odd_headings_and_a_qmd_folder_are_skipped(self):
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        os.makedirs(os.path.join(root, "a", "reports", "x.qmd"))
+        folder = tc.output_folder(os.path.join(root, ".mycelium-extra", "track-changes"), "a")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "snapshot.json"), "w") as handle:
+            json.dump({"analysis_path": "a", "reports": {"a/reports/y.qmd": ["## Gone", 5, None]}}, handle)
+        snap = types.SimpleNamespace(limitations=[], item=lambda *a, **k: self.items.append(a),
+                                     evid=lambda *a: None)
+        self.items = []
+        self.assertEqual(tc.report_items(snap, root, "a"), {})
+        self.assertIn("## Gone", self.items[0][3] + str(self.items))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

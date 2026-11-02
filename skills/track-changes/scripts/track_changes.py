@@ -581,7 +581,7 @@ def report_items(snap, root, rel):
     folder = os.path.join(root, rel, "reports")
     now = {}
     for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
-        if name.endswith(".qmd"):
+        if name.endswith(".qmd") and os.path.isfile(os.path.join(folder, name)):
             now[posixpath.join(rel, "reports", name)] = report_headings(os.path.join(folder, name))
     base = os.path.join(root, ".mycelium-extra", "track-changes")
     prior = read_json(os.path.join(output_folder(base, rel), "snapshot.json"))
@@ -591,7 +591,7 @@ def report_items(snap, root, rel):
             snap.limitations.append("report sections have no earlier snapshot to compare")
         return now
     for qmd, old in sorted(before.items()):
-        gone = [h for h in old if h not in now.get(qmd, [])] if isinstance(old, list) else []
+        gone = [h for h in old if isinstance(h, str) and h not in now.get(qmd, [])] if isinstance(old, list) else []
         if not gone:
             continue
         missing = qmd not in now
