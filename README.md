@@ -111,7 +111,8 @@ gate off                                     # this repository: no approvals, pi
 /goal <what done looks like>                 # Claude Code: this session only, until the goal is met or fails
 ```
 
-Under either switch, grill shows its plan and carries on instead of waiting. In a
+Under `gate off`, grill shows its plan and carries on; with the gate on it waits
+for `approve`, even under `/goal`. In a
 package repository, grill plans each change test-first: every row names the
 function under test and a failing test whose expected value comes from an
 independent source. In an analysis repository, `dev_packages` in `gate.json`

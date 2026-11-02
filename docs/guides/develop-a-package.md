@@ -19,7 +19,7 @@ gate off                                     # this repository, until gate on
 
 `/goal` pauses the gate for one session only. The pause ends when Claude Code reports the goal met or impossible, which the gate sees at your next prompt, or on `/goal clear` or `gate on`. Other sessions keep the gate.
 
-Under either switch, grill shows its plan and goes on to execute it instead of waiting for `approve`.
+Under `gate off`, grill shows its plan and goes on to execute it. With the gate on, grill waits for `approve` even under `/goal`, so a goal that needs a grill plan stalls until you approve it.
 
 Mycelium's own hooks are not part of this. In a Mycelium repository its Stop check can still ask you to update `.living/` after real work. Disable the Mycelium plugin in the package repository if you do not want that.
 

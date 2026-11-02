@@ -293,7 +293,8 @@ class GrillReferenceContractTest(unittest.TestCase):
         package = read(os.path.join(SKILL, "references", "package-plans.md"))
         self.assertIn("Finding facts is your job", skill)
         self.assertIn("`GLOSSARY.md`", skill)
-        self.assertIn("unless this session has an active `/goal` or the gate is off", skill)
+        self.assertIn("unless the gate is off", skill)
+        self.assertIn("wait even under an active `/goal`", skill)
         for section in ("## Frontier", "## Terms to record", "docs/adr/", "Hard to reverse"):
             self.assertIn(section, brief)
         self.assertLess(brief.index("## Parked"), brief.index("## Frontier"))

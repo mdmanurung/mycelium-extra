@@ -27,7 +27,7 @@ The librarian dossier (`references/evidence-assistance.md`) may look for evidenc
 
 ## Writes
 
-Nothing. The plan is the final message. In that turn it does not execute, create analysis folders, or write to `.living/`, manifests, todo or analysis files. Decisions you confirm are listed under "Decisions to record" for the executing workflow: `.living/decisions.md` in a Mycelium repository, otherwise an ADR under `docs/adr/` when the decision is hard to reverse, surprising and a real trade-off. Settled terms are listed under "Terms to record" for `GLOSSARY.md`. Under an active `/goal` or `gate off`, grill says so and goes on to execute the plan instead of waiting.
+Nothing. The plan is the final message. In that turn it does not execute, create analysis folders, or write to `.living/`, manifests, todo or analysis files. Decisions you confirm are listed under "Decisions to record" for the executing workflow: `.living/decisions.md` in a Mycelium repository, otherwise an ADR under `docs/adr/` when the decision is hard to reverse, surprising and a real trade-off. Settled terms are listed under "Terms to record" for `GLOSSARY.md`. Under `gate off`, grill says so and goes on to execute the plan instead of waiting. With the gate on it waits for `approve`, even under an active `/goal`.
 
 ## The question cap and the status line
 
