@@ -44,6 +44,7 @@ DEFAULTS = {
     "lint_before_stop": False,
     "card_coverage": True,
     "confirm_writes": False,
+    "dev_packages": [],
 }
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call that never reported back
@@ -221,6 +222,7 @@ CONFIG_CHECKS = (
     ("gated_paths", "a list of strings", lambda v: isinstance(v, list) and all(isinstance(x, str) for x in v)),
     ("gated_commands", "a list of strings", lambda v: isinstance(v, list) and all(isinstance(x, str) for x in v)),
     ("confirm_writes", "true or false", lambda v: isinstance(v, bool)),
+    ("dev_packages", "a list of strings", lambda v: isinstance(v, list) and all(isinstance(x, str) for x in v)),
     ("approval_hours", "a number of 0 or more", _number),
     ("pin_hash_mb", "a number of 0 or more", _number),
     ("pin_seconds", "a number of 0 or more", _number),
@@ -4804,6 +4806,7 @@ def on_post(event, root, config):
         status, source, output = "unknown", None, ""
     budget = hash_budget(config)
     git = git_state(root)
+    dev = dev_package_states(root, config)
     approvals, unread = False, False  # approvals: read only for a run with no launch record
     notes = ["compound shell command: per-run execution, exit status, and output attribution unknown"] if compound else []
     planned, coverage = [], []
@@ -4868,6 +4871,8 @@ def on_post(event, root, config):
         }
         if limitations:
             receipt["limitations"] = limitations
+        if dev:
+            receipt["dev_packages"] = dev
         if launch_match == "matched" and attempt.get("focus_id"):  # the focus at launch, never at completion
             receipt["focus_id"], receipt["focus_folder"] = attempt["focus_id"], attempt["focus_folder"]
         for key in ("validation_check", "exact_match", "exact_step", "explore_scope", "explore_script_pins"):
@@ -5018,6 +5023,13 @@ def git_state(root):
         return None
     status = git(root, "status", "--porcelain", "--untracked-files=no")
     return {"head": head.strip(), "dirty": None if status is None else bool(status.strip())}
+
+
+def dev_package_states(root, config):
+    """The commit and dirty flag of each working-copy package named in gate.json's `dev_packages`."""
+    # ponytail: two git calls per package at GIT_TIMEOUT each inside a 20 s hook, so only the first three
+    return [dict(git_state(os.path.join(root, os.path.expanduser(path))) or {"head": None, "dirty": None}, path=path)
+            for path in config["dev_packages"][:3]]
 
 
 def add_git_states(root, receipt, in_git):

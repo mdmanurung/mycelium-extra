@@ -173,6 +173,12 @@ class VerifyTest(unittest.TestCase):
         self.assertNotIn("`{}/".format(self.root), out)
         self.assertIn(digest, self.verify("status"))
 
+    def test_report_lists_dev_package_commits(self):
+        self.write(".mycelium-extra/gate.json", json.dumps({"dev_packages": ["pkg"]}))  # not a git repo
+        digest = self.approve(plan("run `{}`".format(FIT)))
+        self.run_cmd("python " + FIT)
+        self.assertIn("| `pkg` | ? | unknown |", self.verify("report", digest))
+
     def edited_after_run(self, pins=True):
         """Plan 1 runs FIT; the script is then edited. Returns plan 1's hash."""
         if not pins:

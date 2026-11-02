@@ -143,6 +143,7 @@ Receipts are the execution record that `verify` reads later. After a covered she
 - `approval_instance`: the id of the approval instance the credited plan had when the run launched (see [Approval instances](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/advanced.md#approval-instances)), `null` for an approval from before instances.
 - `limitations`, when present: a run allowed although its folder could not be resolved (a wrapper option such as `env -C "$X"`) carries `cwd unresolved: <expression>`, in its launch entry and its receipt, and the post message adds one coverage line. The run was matched by reading the folder as the outer folder or the repo root.
 - Git HEAD, whether tracked files have uncommitted changes, and whether each recorded file is committed, modified, untracked, or ignored.
+- `dev_packages`, when `gate.json` names any: each working-copy package's `path`, git `head` and `dirty` flag (`null` when it is not a git repository).
 - The script's fingerprint (or the sha256 of an `sbatch --wrap` payload), and its `module load`, `conda activate`, and `#SBATCH` lines.
 - Lockfiles (`renv.lock`, `pixi.lock`, `environment.yml`, and similar) in the repository root, the working directory, and the script's folder.
 - The environment the hook itself runs in (`hook_env`), and any `conda run -n` environment in the command (`command_env`).
@@ -225,7 +226,7 @@ Type `hints on` for a one-line suggestion of the command to run next, and `hints
 | `approval_hours` | `24` | How long an approval covers runs. Approvals are never deleted. |
 | `on_error` | `"allow"` | What a PreToolUse hook does when the gate itself breaks. `"deny"` blocks every tool call the gate could not check, including when `gate.py` cannot load; any other value is ignored with a notice. |
 
-The optional keys (`max_runs_per_approval`, `checkpoint_steps`, `pin_hash_mb`, `pin_seconds`, `card_coverage`, `card_lint`, `focus_notices`, `lint_on_write`, `lint_before_run`, `lint_before_stop` and `pin_scripts`) are listed under [Other `gate.json` settings](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/advanced.md#other-gatejson-settings).
+The optional keys (`max_runs_per_approval`, `checkpoint_steps`, `pin_hash_mb`, `pin_seconds`, `card_coverage`, `card_lint`, `focus_notices`, `lint_on_write`, `lint_before_run`, `lint_before_stop`, `pin_scripts` and `dev_packages`) are listed under [Other `gate.json` settings](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/advanced.md#other-gatejson-settings).
 
 Two switches are not keys. `hints on` and `hints off` create and remove `.mycelium-extra/hints.json`. `allow explore [<plan hash>]` and `stop explore` apply to one session.
 

@@ -39,4 +39,4 @@ Exported API shape, the main data container (`SummarizedExperiment`, `SingleCell
 
 ## An analysis that uses a package in development
 
-When an analysis loads the package from a working copy (`pip install -e`, `devtools::load_all()`), list that copy in `gate.json`'s `dev_packages`, so each run receipt records the package's commit and whether it had uncommitted changes.
+When an analysis loads the package from a working copy (`pip install -e`, `devtools::load_all()`), list that copy in `gate.json`'s `dev_packages`, so each run receipt records the package's commit and whether it had uncommitted changes, and `verify report` lists them.

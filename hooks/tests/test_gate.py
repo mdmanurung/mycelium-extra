@@ -2177,6 +2177,24 @@ class GateTest(unittest.TestCase):
         self.assertEqual(receipt["script"]["path"], "analysis/x.py")
         self.assertTrue(receipt["script"]["missing"])
 
+    def test_receipt_records_dev_package_commit(self):
+        pkg = os.path.join(self.root, "pkg")
+        git = lambda *args: subprocess.check_call(("git", "-C", pkg, "-c", "user.name=t", "-c", "user.email=t@t")
+                                                  + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.write("pkg/R/f.R", "f <- function() 1\n")
+        git("init", "-q")
+        git("add", ".")
+        git("commit", "-qm", "init")
+        self.config({"dev_packages": ["pkg", "missing"]})
+        self.approve()
+        self.post("python analysis/x.py", {"stdout": ""})
+        self.write("pkg/R/f.R", "f <- function() 2\n")
+        self.post("python analysis/x.py", {"stdout": ""})
+        clean, dirty = (r["dev_packages"] for r in self.receipts())
+        self.assertEqual((clean[0]["path"], len(clean[0]["head"]), clean[0]["dirty"]), ("pkg", 40, False))
+        self.assertTrue(dirty[0]["dirty"])
+        self.assertEqual(clean[1], {"path": "missing", "head": None, "dirty": None})
+
     def test_receipt_git_state(self):
         def run(*args):
             subprocess.check_call(("git", "-C", self.root, "-c", "user.name=t", "-c", "user.email=t@t")

@@ -48,6 +48,7 @@ DEFAULTS = {
     "on_error": "allow",
     "max_runs_per_approval": None,
     "checkpoint_steps": None,
+    "dev_packages": [],
 }
 
 
@@ -262,6 +263,7 @@ CONFIG_RULES = {
     "lint_before_stop": ("true or false", lambda v: isinstance(v, bool)),
     "lint_before_run": ('false, "warn" or "block"', lambda v: v is False or v in ("warn", "block")),
     "on_error": ('"allow" or "deny"', lambda v: v in ("allow", "deny")),
+    "dev_packages": ("a list of strings", _strings),
     "max_runs_per_approval": ("a whole number of 1 or more (or null/unset)", lambda v: v is None or _whole(v, 1)),
     "checkpoint_steps": ("a whole number of 1 or more, or 0 for off (or null/unset)", lambda v: v is None or _whole(v, 0)),
 }
@@ -271,7 +273,7 @@ CONFIG_RULES = {
 INVALID_EFFECT = {
     "pin_scripts": "pinning is on", "card_lint": "on", "lint_on_write": "on", "card_coverage": "off",
     "focus_notices": "off", "confirm_writes": "off", "lint_before_stop": "off", "lint_before_run": "off", "on_error": "allow",
-    "max_runs_per_approval": "no limit", "checkpoint_steps": "off",
+    "max_runs_per_approval": "no limit", "checkpoint_steps": "off", "dev_packages": "none",
 }
 # gated_paths and gated_commands are not type-checked by the gate, so there is no default to fall back to.
 UNCHECKED_EFFECT = ("nothing: the gate does not check it, so an int makes the gate error (the run is then "

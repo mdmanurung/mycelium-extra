@@ -36,7 +36,7 @@ The user widened the audience to bioinformatics package development, so three of
 | C2 | ADRs under `docs/adr/` outside Mycelium repositories, only past the three tests | Pocock `domain-modeling` | `skills/grill/references/brief-format.md` | done |
 | C3 | Package plan rows: seam, failing test first, independent expected value, bioinformatics test cases | Pocock `tdd` | `skills/grill/references/package-plans.md` | done |
 | C4 | Facts-are-mine rule, frontier check with a `Frontier:` line, auto-go under `/goal` or `gate off` | Pocock `grilling`; user request | `skills/grill/SKILL.md` | done |
-| C5 | `dev_packages` in gate.json: receipts record a working-copy package's commit | user request | `hooks/gate.py`, `skills/init/` | todo |
+| C5 | `dev_packages` in gate.json: receipts record a working-copy package's commit | user request | `hooks/gate.py`, `skills/init/`, `skills/verify/` | done |
 
 ## Parked: no failure in real use yet
 

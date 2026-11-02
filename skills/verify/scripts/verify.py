@@ -3622,6 +3622,13 @@ def render(result, all_outputs=False, saved=False):
         for row in result["inputs"]:
             lines.append("| `{}` | {} | {}{} |".format(cell(row["path"]), row["pinned"], row["now"],
                                                       " (changed)" if row["changed"] else ""))
+    dev = sorted({(p.get("path"), (p.get("head") or "?")[:12], p.get("dirty"))
+                  for r in result["receipts"] if not r.get("not_a_run")
+                  for p in r.get("dev_packages") or [] if isinstance(p, dict)}, key=str)
+    if dev:  # gate.json `dev_packages`: the working-copy packages these runs loaded
+        lines += ["", "## Packages in development", "", "| Package | Commit | Uncommitted changes |", "|---|---|---|"]
+        lines += ["| `{}` | {} | {} |".format(cell(str(path)), head, {True: "yes", False: "no"}.get(dirty, "unknown"))
+                  for path, head, dirty in dev]
     lines += ["", "## Outputs", ""]
     if result["outputs_named"] is None:
         lines.append("The plan has no `Outputs:` line.")

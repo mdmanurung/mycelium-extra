@@ -92,6 +92,7 @@ When an `Outputs:` path names the same file or folder as an `Inputs:` path, the 
 | `lint_before_run` | `false` | `"warn"` or `"block"`: before a gated run, tell about or deny a script whose findings lint-on-write recorded and that has not been edited since. See [Lint on write](reference/approval-gate-full.md#lint-on-write). |
 | `lint_before_stop` | `false` | `true` blocks the Stop once per change while scripts written this session have open findings. See [Lint on write](reference/approval-gate-full.md#lint-on-write). |
 | `pin_scripts` | `true` | Pin the scripts a plan names and re-pin with a notice when one is edited; `freeze` and `verify` show the change. `false` turns it off. |
+| `dev_packages` | `[]` | Paths of packages an analysis loads from a working copy (`pip install -e`, `devtools::load_all()`), relative to the repository root. Each run receipt records each one's git commit and whether it had uncommitted changes, and `verify report` lists them. Only the first three are read: two git calls each must fit the 20 s post hook. |
 
 ### Plan-review packets and consent
 
