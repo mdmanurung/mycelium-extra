@@ -74,20 +74,20 @@ def inside(path, root):
 
 
 def find_root(dest):
-    """The git toplevel above dest, else the nearest ancestor with .living/, else None."""
+    """The nearest ancestor of dest with .living/ at or below the git toplevel, else the toplevel, else None."""
     start = dest
     while not os.path.isdir(start):
         start = os.path.dirname(start)
     result = git(start, "rev-parse", "--show-toplevel")
-    if result is not None and result.returncode == 0 and result.stdout.strip():
-        return os.path.realpath(result.stdout.strip())
+    top = os.path.realpath(result.stdout.strip()) if (
+        result is not None and result.returncode == 0 and result.stdout.strip()) else None
     path = start
     while True:
         if os.path.isdir(os.path.join(path, ".living")):
             return path
         parent = os.path.dirname(path)
-        if parent == path:
-            return None
+        if path == top or parent == path:
+            return top
         path = parent
 
 
@@ -110,14 +110,17 @@ def parse_steps(text, fmt, lang):
         previous = number
         stem = "{}_{}".format(match.group(1), match.group(2))
         step_lang = lang if kind == "qmd" else "r" if kind == "R" else "python"
-        output = ("logs/" + name) if kind == "ipynb" else ("outputs/" + stem + OUTPUT_EXT[LANGS[step_lang]])
         steps.append({"file": name, "path": "code/" + name, "num": match.group(1), "stem": stem, "kind": kind,
-                      "lang": step_lang, "rule": "step" + re.sub(r"\W", "_", stem), "output": output,
+                      "lang": step_lang, "rule": "step" + re.sub(r"\W", "_", stem),
                       "html": "reports/site/code/{}.html".format(stem) if kind == "qmd" else None,
+                      "executed": "logs/" + name if kind == "ipynb" else None,
                       "stub": "stub_{}.qmd".format(step_lang) if kind == "qmd" else
                       "stub_marimo.py" if kind == "marimo" else "stub." + kind})
     if not steps:
         raise Refusal("--steps is empty")
+    for step, after in zip(steps, steps[1:] + [None]):  # a table both languages read when the next step differs
+        ext = ".tsv" if after and after["lang"] != step["lang"] else OUTPUT_EXT[LANGS[step["lang"]]]
+        step["output"] = "outputs/" + step["stem"] + ext
     for before, step in zip([None] + steps, steps):
         step["input"] = before["output"] if before else None
     return steps
@@ -126,6 +129,7 @@ def parse_steps(text, fmt, lang):
 ENV_FILE = "lucid-coder.yaml"  # lucid-coder's env pointer: env.r and env.python are the interpreters to run
 # ponytail: line match on lucid-coder's flat env block, no YAML parser; parse properly if the file grows nested r:/python: keys
 ENV_LINE = re.compile(r"^\s+(r|python):\s*[\"']?([^\"'#\s]+)")
+ENV_HEAD = re.compile(r"^env:\s*(#.*)?$")
 
 
 def interpreters(root):
@@ -135,8 +139,18 @@ def interpreters(root):
     path = os.path.join(root, ENV_FILE) if root else None
     if not path or not os.path.isfile(path):
         return found, [], "environment: none recorded; run /lucid-coder:align to write lucid-coder.yaml"
-    named = dict(m.groups() for m in map(ENV_LINE.match, read(path).splitlines()) if m)
-    named = {("rscript" if k == "r" else k): v for k, v in named.items()}
+    try:
+        lines = read(path).splitlines()
+    except (OSError, ValueError):  # unreadable or not UTF-8
+        return found, [], "environment: WARNING: {} could not be read; kept the bare names on PATH".format(ENV_FILE)
+    named, in_env = {}, False
+    for line in lines:  # only the top-level env: block counts
+        if line.strip() and not line.startswith((" ", "\t", "#")):
+            in_env = bool(ENV_HEAD.match(line))
+        match = in_env and ENV_LINE.match(line)
+        if match:
+            named[("rscript" if match.group(1) == "r" else "python")] = os.path.abspath(
+                os.path.join(root, os.path.expanduser(match.group(2))))
     if "python" in named:
         named["jupyter"] = os.path.join(os.path.dirname(named["python"]), "jupyter")
     used = sorted(k for k, v in named.items() if os.path.isfile(v))
@@ -157,7 +171,10 @@ def step_format(args, root):
     try:
         with open(os.path.join(root, STATE_DIR, "gate.json"), encoding="utf-8") as handle:
             value = json.load(handle).get("step_format")
-    except (OSError, ValueError, AttributeError):
+    except OSError:
+        return None, None
+    except (ValueError, AttributeError):
+        print("note: {}/gate.json does not parse; its step_format was ignored.".format(STATE_DIR))
         return None, None
     if value is None:
         return None, None
@@ -222,6 +239,17 @@ def manuscript_root(dest):
     return root
 
 
+def figure_map_ids(path):
+    return {line.split("\t")[0] for line in read(path).splitlines()[1:]}
+
+
+def contract_ids(path):
+    try:
+        return {figure["id"] for figure in json.loads(read(path))["figures"]}
+    except (ValueError, KeyError, TypeError):
+        return set()
+
+
 def add_panels(args, dest):
     """Retrofit a non-empty folder: write each missing manuscript file, keep every one that exists."""
     root = manuscript_root(dest)
@@ -232,11 +260,21 @@ def add_panels(args, dest):
             raise Refusal("{}/{} is a symlink; nothing was changed".format(dest_rel, folder))
     for path, text in files.items():
         checked(path, text)
+    for panel in parse_panels(args.panels):
+        other = os.path.join(dest, "code", "plot_{}.{}".format(panel["id"], "py" if panel["kind"] == "R" else "R"))
+        if os.path.lexists(other):
+            raise Refusal("{} exists, so panel {} cannot also be a {} script; nothing was changed".format(
+                display(other, root), panel["id"], panel["kind"]))
     missing = [path for path in sorted(files) if not os.path.lexists(os.path.join(dest, path))]
     print("{} {}/ (manuscript files only; existing files are kept)".format(
         "would add to" if args.dry_run else "added to", dest_rel))
     for path in sorted(files):
         print("  {} {}".format(("would add" if args.dry_run else "added") if path in missing else "kept", path))
+    for path, known in (("config/figure_map.tsv", figure_map_ids), ("config/manuscript_checks.json", contract_ids)):
+        if path not in missing:
+            for panel in parse_panels(args.panels):
+                if panel["id"] not in known(os.path.join(dest, path)):
+                    print("WARNING: {} not in kept {}".format(panel["id"], path))
     if args.dry_run:
         return 0
     for path in missing:
@@ -326,8 +364,9 @@ def rule(step, data_links):
         lines.append("        data=[{}],".format(", ".join(json.dumps(l["rel"]) for l in data_links)))
     key = "notebook" if step["kind"] in ("ipynb", "marimo") else "script"
     lines.append('        {}="{}",'.format(key, step["path"]))
-    todo = "" if step["kind"] == "ipynb" else "  # TODO: name the real outputs"
-    lines += ["    output:", '        "{}",{}'.format(step["output"], todo)]
+    lines += ["    output:", '        "{}",  # TODO: name the real outputs'.format(step["output"])]
+    if step["executed"]:
+        lines.append('        "{}",'.format(step["executed"]))
     if step["html"]:
         lines.append('        "{}",'.format(step["html"]))
     lines += ["    threads: 1",
@@ -517,6 +556,7 @@ def scaffold(args):
         "ENV_NOTE": "defaults from " + ENV_FILE if env_used else "defaults are the names on PATH",
         "LAST_OUTPUT": steps[-1]["html"] or steps[-1]["output"],
         "RULES": "\n\n".join(rule(step, data_links) for step in steps).rstrip("\n")})
+    files["logs/.gitkeep"] = files["outputs/.gitkeep"] = ""  # git drops empty folders; SLURM needs logs/ after a clone
     files["run.sh"] = fill(read(os.path.join(templates, "run.sh")), {"NAME": name})
     files["run.sbatch"] = fill(read(os.path.join(templates, "run.sbatch")), {"NAME": name})
     files[doc_name] = doc_text(read(template_path), name, dest_rel, steps, data_links,
@@ -543,7 +583,7 @@ def scaffold(args):
                 ident, s["path"], before or "—")
             for ident, before, s in zip(ids, [None] + ids, steps))})
 
-    probes = [(os.path.join(dest, path), path) for path in sorted(files)]
+    probes = [(os.path.join(dest, path), path) for path in sorted(files) if not path.endswith(".gitkeep")]
     probes += [(os.path.join(dest, d, "placeholder"), d + "/") for d in folders]
     hidden = ignored(root, probes) if root else {}
 
@@ -573,6 +613,9 @@ def scaffold(args):
                         handle.flush()
                         os.fsync(handle.fileno())
                 os.chmod(os.path.join(stage, "run.sh"), 0o755)
+                umask = os.umask(0)
+                os.umask(umask)
+                os.chmod(stage, 0o777 & ~umask)  # mkdtemp makes it 0700; a lab folder follows the umask
                 for link in data_links + code_links:
                     os.symlink(link["value"], os.path.join(stage, link["rel"]))
                 if os.path.lexists(dest):

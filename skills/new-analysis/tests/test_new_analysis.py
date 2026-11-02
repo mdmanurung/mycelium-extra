@@ -95,9 +95,9 @@ class NewAnalysisTest(unittest.TestCase):
         chain = report.split("```{mermaid}\n")[1].split("```")[0]
         self.assertEqual(chain.splitlines(), [
             "flowchart LR",
-            '    d0[("data/cells.h5ad")] --> s01["code/01_prepare_data.R"] --> o01[("outputs/01_prepare_data.rds")]',
+            '    d0[("data/cells.h5ad")] --> s01["code/01_prepare_data.R"] --> o01[("outputs/01_prepare_data.tsv")]',
             '    o01 --> s02["code/02_train_model.py"] --> o02[("outputs/02_train_model.parquet")]',
-            '    o02 --> s03["code/03_explore_model.ipynb"] --> o03[("logs/03_explore_model.ipynb")]'])
+            '    o02 --> s03["code/03_explore_model.ipynb"] --> o03[("outputs/03_explore_model.parquet")]'])
         self.assertEqual(report.count("### 02 train model"), 2)  # one Methods tab, one Results tab
         self.assertIn('```{.python filename="code/02_train_model.py"}', report)
         self.assertIn('```{.r filename="code/01_prepare_data.R"}', report)
@@ -119,7 +119,7 @@ class NewAnalysisTest(unittest.TestCase):
         doc = read(os.path.join(self.dest, "DEMO_RUN.md"))
         self.assertTrue(doc.startswith("# demo-run\n\nMARKER"))
         self.assertTrue(doc.rstrip().endswith("| 03 | `code/03_explore_model.ipynb` | [what it does] "
-                                              "| `logs/03_explore_model.ipynb` |"))
+                                              "| `outputs/03_explore_model.parquet` |"))
         self.assertIn(".living/findings ID", doc)
         self.assertIn("saved, inspected plot and panel", doc)
         self.assertIn("explicit fallback", doc)
@@ -237,10 +237,10 @@ class NewAnalysisTest(unittest.TestCase):
         snakefile = read(os.path.join(self.dest, "Snakefile"))
         self.assertEqual(re.findall(r"^rule (\w+):", snakefile, re.M),
                          ["all", "step01_load", "step04_fit", "step07_look"])
-        self.assertIn('rule all:\n    input:\n        "logs/07_look.ipynb",', snakefile)
+        self.assertIn('rule all:\n    input:\n        "outputs/07_look.parquet",', snakefile)
         self.assertIn('data=["data/cells.h5ad"],', snakefile)
-        self.assertIn('prev="outputs/01_load.parquet",\n        script="code/04_fit.R",', snakefile)
-        self.assertIn('prev="outputs/04_fit.rds",\n        notebook="code/07_look.ipynb",', snakefile)
+        self.assertIn('prev="outputs/01_load.tsv",\n        script="code/04_fit.R",', snakefile)
+        self.assertIn('prev="outputs/04_fit.tsv",\n        notebook="code/07_look.ipynb",', snakefile)
         self.assertIn("workdir: workflow.basedir", snakefile)
         self.assertNotIn("@@", snakefile)
         for name in ["01_load.py", "04_fit.R", "07_look.ipynb"]:
@@ -492,6 +492,68 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertIn('config.get("python", "python")', snake)
         self.assertIn("defaults are the names on PATH", snake)
         self.assertIn("environment: none recorded", out)
+
+    # --- stress-test fixes -------------------------------------------------------------
+
+    def test_folder_follows_the_umask_not_mkdtemp_0700(self):
+        self.scaffold()
+        mode = os.stat(self.dest).st_mode & 0o777
+        umask = os.umask(0)
+        os.umask(umask)
+        self.assertEqual(mode, 0o777 & ~umask)
+
+    def test_handoff_between_languages_is_a_tsv_and_notebooks_write_a_table(self):
+        self.scaffold()
+        snake = read(os.path.join(self.dest, "Snakefile"))
+        self.assertIn('"outputs/01_prepare_data.tsv"', snake)  # R to Python
+        self.assertIn('"outputs/02_train_model.parquet"', snake)  # Python to Python keeps its type
+        self.assertIn('"outputs/03_explore_model.parquet",', snake)
+        self.assertIn('"logs/03_explore_model.ipynb",', snake)
+        book = json.loads(read(os.path.join(self.dest, "code", "03_explore_model.ipynb")))
+        setup = "".join(book["cells"][1]["source"])
+        self.assertIn('OUTPUT = Path("outputs/03_explore_model.parquet")', setup)
+
+    def test_mycelium_root_is_the_nearest_living_folder_inside_a_bigger_git_repo(self):
+        os.rmdir(os.path.join(self.root, ".living"))
+        sub = os.path.join(self.root, "proj")
+        os.makedirs(os.path.join(sub, ".living"))
+        proc = run(sub, "--dest=analysis/demo-run")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertTrue(os.path.isfile(os.path.join(sub, "analysis", "demo-run", "DEMO_RUN.md")))
+        self.assertIn("suggested analysis/ANALYSIS_MANIFEST.md entry", proc.stdout)
+
+    def test_retrofit_warns_about_a_panel_the_kept_contract_lacks_and_refuses_a_second_kind(self):
+        self.scaffold("--panels=Fig1a.R")
+        out = self.scaffold("--panels=Fig1a.R,Fig1b.py")
+        self.assertIn("WARNING: Fig1b not in kept config/figure_map.tsv", out)
+        self.assertIn("WARNING: Fig1b not in kept config/manuscript_checks.json", out)
+        proc = run(self.root, "--dest=analysis/demo-run", "--panels=Fig1a.py")
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("refused", proc.stdout)
+        self.assertFalse(os.path.exists(os.path.join(self.dest, "code", "plot_Fig1a.py")))
+
+    def test_lucid_coder_yaml_reads_only_env_expands_paths_and_survives_bad_bytes(self):
+        tool = os.path.join(self.root, "bin", "Rscript")
+        write(tool)
+        write(os.path.join(self.root, "lucid-coder.yaml"),
+              "packages:\n  python: {}\nenv:\n  r: bin/Rscript\n".format(os.path.join(self.root, "nope")))
+        self.scaffold()
+        snake = read(os.path.join(self.dest, "Snakefile"))
+        self.assertIn(json.dumps(tool), snake)  # relative to the repository root, written absolute
+        self.assertIn('config.get("python", "python")', snake)  # packages: did not set it
+        shutil.rmtree(self.dest)
+        with open(os.path.join(self.root, "lucid-coder.yaml"), "wb") as handle:
+            handle.write(b"env:\n  r: \xff\xfe\n")
+        self.assertIn("could not be read", self.scaffold())
+
+    def test_unparsable_gate_json_is_noted(self):
+        write(os.path.join(self.root, ".mycelium-extra", "gate.json"), "{not json")
+        self.assertIn("gate.json does not parse", self.scaffold())
+
+    def test_logs_and_outputs_survive_a_clone(self):
+        self.scaffold()
+        for folder in ("logs", "outputs"):
+            self.assertTrue(os.path.isfile(os.path.join(self.dest, folder, ".gitkeep")))
 
 
 if __name__ == "__main__":

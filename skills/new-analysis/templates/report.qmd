@@ -10,8 +10,8 @@ engine: markdown
 
 <!-- Filled by /mycelium-extra:analysis-report after a run. Quote only the lines that do the work of
      each script (filename= names it; say the line range); figures are the saved PNGs under outputs/
-     (a PDF does not show in HTML). Render: quarto render reports/@@NAME@@.qmd (a gated run: an
-     approved plan step, or you run it). Rename, add or drop tabs freely: steps are the first layout,
+     (a PDF does not show in HTML). Render: quarto render reports/@@NAME@@.qmd (engine: markdown, so no cell runs and the gate
+     lets it pass). Rename, add or drop tabs freely: steps are the first layout,
      not the last. -->
 
 ::: {.panel-tabset}
