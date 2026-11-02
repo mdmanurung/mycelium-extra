@@ -8,6 +8,23 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 - **new-analysis:** a new section 2 settles the aim before anything is written. The agent asks for the aim in your own words and shows a tidier restatement beside them. It checks the aim's assumptions by reading the repository (prior analyses, named data, overloaded terms), asks at most three questions, and waits for you to confirm. The Purpose keeps your words tagged `[human-stated]` beside the confirmed aim.
 - **grill:** section 0 quotes the user's words from the target analysis doc's Purpose instead of asking again.
+- **new-analysis:** the aim step also asks for the hoped-for claim, so grill has both. A step whose neighbour is another language hands off a `.tsv`; a notebook step writes a real `outputs/NN_*` table. Scaffolds add `logs/.gitkeep` and `outputs/.gitkeep`.
+
+### Fixed
+
+Found by a stress test of 0.22.1 (40 findings across five areas).
+
+- **gate:** a `goal_status` line left by an earlier `/goal` no longer ends a new pause; the pause records where the transcript ended. Codex and OpenCode start no `/goal` pause, since they have no transcript to end it.
+- **gate:** `off.json` and goal files can no longer be created through `env -C`, `make -C`, perl, awk, node or ruby programs, or `os.mknod`/`os.open`.
+- **gate:** a `dev_packages` folder must be its own git repository, and untracked files count as dirty. A `gate.json` that is not a JSON object says so. `gate on` and `gate off` work when `gate.json` is broken.
+- **new-analysis:** scaffolded folders get the umask's mode, not `drwx------`. The nearest `.living/` below the git toplevel is the root. A second `--panels` warns when a kept contract lacks a panel and refuses a second kind for one panel. `lucid-coder.yaml` is read only under `env:`, with paths resolved against the repository; a bad file or `gate.json` gives a note, not a traceback.
+- **analysis-report:** a `Snakefile.d/` folder or `Snakefile.bak` copy is skipped; scripts named by `script=` and `notebook=` inputs appear in the step chain.
+- **verify:** a non-UTF-8 byte or a malformed `dev_packages` or `pins` field in a receipt is counted as malformed, not a crash. The first `write` of a second plan no longer reports a legacy bundle. Read-only commands create no `.publish.lock`. `runs` falls back to `outputs/`. A `RUN.txt` version like `²` and a provenance mismatch on `write` give messages, not tracebacks.
+- **track-changes:** non-text headings and a folder named like a report no longer abort the report.
+- **data-contract-check:** duplicate JSON keys are refused. `--result-json` creates its folder and prints the report even when the write fails.
+- **manuscript-audit, data-contract-check, plan-review:** deeply nested JSON reports as malformed. `default_reasons` keeps `| - | - |` rows as data. `presend_check` reads a packet with a BOM. `review_packet prepare` refuses without a `gate.json` unless `--root` is given.
+- **init, idea:** a regular file named `.mycelium-extra` gives a one-line error; an idea title is capped at 200 characters.
+- **skills:** `repo-setup` asks you to type `init` and `new-analysis`, which only you can start. Grill names its `gate off` exception. `decision-status` called from grill leaves the questions to grill. Docs say `gate.json` has 18 keys.
 
 ## [0.22.1] - 2026-11-02
 
