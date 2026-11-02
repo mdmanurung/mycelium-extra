@@ -20,6 +20,9 @@ import re
 import subprocess
 import sys
 
+# Snakefile, Snakefile.<name> (not a backup copy) and <name>.smk.
+SNAKEFILE = re.compile(r"Snakefile(\.(?!(?:bak|orig|old)$)\w+)?|.+\.smk")
+
 STEP = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*)\.(R|py|ipynb|qmd|marimo\.py)$")
 LANG = {"R": "r", "py": "python", "ipynb": "python", "marimo.py": "python", "qmd": "r"}  # ponytail: a qmd step in a mixed folder is quoted as r; sniff its chunk if python qmd steps mix in
 
@@ -179,7 +182,7 @@ def main(argv):
     step_files = sorted({os.path.basename(s["path"]) for s in steps})  # a shell line names the file, with or without code/
     snakefiles = [parse_snakefile(os.path.join(dest, f), step_files)
                   for f in sorted(os.listdir(dest))
-                  if (f == "Snakefile" or f.endswith(".smk")) and os.path.isfile(os.path.join(dest, f))]
+                  if SNAKEFILE.fullmatch(f) and os.path.isfile(os.path.join(dest, f))]
     outputs = scan_outputs(dest)
     by_step = lambda items, num: [i for i in items if os.path.basename(i).startswith(num + "_")]
 

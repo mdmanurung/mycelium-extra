@@ -42,7 +42,7 @@ class AnalysisReportTest(unittest.TestCase):
         write(os.path.join(self.dest, "02_fit.R"), "2\n")
         write(os.path.join(self.dest, "code", "03_plot.py"), "3\n")
         write(os.path.join(self.dest, "Snakefile"), SNAKEFILE)
-        write(os.path.join(self.dest, "figures.smk"), 'RUN = "outputs/run_2"\nrule all:\n    input: "x"\n'
+        write(os.path.join(self.dest, "Snakefile.figures"), 'RUN = "outputs/run_2"\nrule all:\n    input: "x"\n'
               'rule figures:\n    shell: "python code/03_plot.py"\n')
         write(os.path.join(self.dest, "outputs", "run_1", "01.rds"), "")
         write(os.path.join(self.dest, "outputs", "run_2", "03_effects.png"), "")
@@ -69,7 +69,7 @@ class AnalysisReportTest(unittest.TestCase):
         self.assertEqual([(s["file"], s["run"], [(r["rule"], r["scripts"]) for r in s["rules"]])
                           for s in inventory["snakefiles"]],
                          [("Snakefile", "outputs/run_1", [("prepare", ["01_prepare.R"]), ("fit", ["02_fit.R"])]),
-                          ("figures.smk", "outputs/run_2", [("figures", ["03_plot.py"])])])
+                          ("Snakefile.figures", "outputs/run_2", [("figures", ["03_plot.py"])])])
         self.assertEqual(inventory["outputs"]["current"], "run_2")
         self.assertEqual(inventory["outputs"]["figures"], ["outputs/run_2/03_effects.png"])
         self.assertEqual(inventory["outputs"]["reports"], ["outputs/run_2/03_REPORT.md"])
@@ -99,16 +99,16 @@ class AnalysisReportTest(unittest.TestCase):
     def test_only_real_workflows_are_read_and_input_keys_name_the_script(self):
         os.makedirs(os.path.join(self.dest, "Snakefile.d"))
         write(os.path.join(self.dest, "Snakefile.bak"), "rule old:\n    shell: \"Rscript 01_prepare.R\"\n")
+        write(os.path.join(self.dest, "extra.smk"), "rule e:\n    shell: \"echo\"\n")
         write(os.path.join(self.dest, "Snakefile.keys"), 'rule k:\n    input:\n        script="code/03_plot.py",\n'
               '    shell:\n        "{PYTHON:q} -u {input.script:q}"\n')
-        os.rename(os.path.join(self.dest, "Snakefile.keys"), os.path.join(self.dest, "keys.smk"))
         out = self.run_script("--dry-run")
         inventory = json.loads(out[:out.rindex("}") + 1])
-        self.assertEqual([s["file"] for s in inventory["snakefiles"]], ["Snakefile", "figures.smk", "keys.smk"])
+        self.assertEqual([s["file"] for s in inventory["snakefiles"]], ["Snakefile", "Snakefile.figures", "Snakefile.keys", "extra.smk"])
         self.assertEqual(inventory["snakefiles"][2]["rules"][0]["scripts"], ["03_plot.py"])
 
     def test_folder_without_snakefile_chains_steps(self):
-        for name in ("Snakefile", "figures.smk"):
+        for name in ("Snakefile", "Snakefile.figures"):
             os.remove(os.path.join(self.dest, name))
         self.run_script()
         with open(os.path.join(self.dest, "reports", "demo.qmd")) as handle:
