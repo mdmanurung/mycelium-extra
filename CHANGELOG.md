@@ -4,6 +4,8 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-11-02
+
 ### Added
 
 - **gate:** `gate off` and `gate on` switch the whole gate off and on for a repository (`.mycelium-extra/off.json`). While off, every hook stays silent, as if `init` never ran: runs need no approved plan, no plans are pinned and no receipts are written. Approvals given before survive the switch.

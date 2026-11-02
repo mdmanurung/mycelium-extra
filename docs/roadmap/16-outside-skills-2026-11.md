@@ -26,7 +26,7 @@ lucid-coder integration: B1 reads its `lucid-coder.yaml`, B2 runs its `align`, B
 | B4 | Exploring one plot at a time, de-risk runs as their own explore row, plots only from logged values | `scientific-eda`, `ml-experimentation` | `skills/plot-first/`, `skills/grill/references/` | done |
 | B5 | Figure rules Extra lacks (takeaway caption, preliminary marks, no colour-only encoding, rendered-image review); taste rules defer to lucid-coder `figure-style`. `evident-charts`' `check_chart.py` is not called: it executes the plotting script (a gated run) and covers matplotlib only | `data-visualization-master`, `evident-charts` | `skills/plot-first/`, `skills/analysis-report/` | done |
 
-## Part C: package development (2026-11-02)
+## Part C: 0.22.0, package development (2026-11-02)
 
 The user widened the audience to bioinformatics package development, so three of the drops below are re-scoped: grill takes `domain-modeling`'s glossary and ADR rules, `tdd`'s seams and independent expectations, and `grilling`'s facts-are-mine rule, as thin glue. The Pocock skills stay installed and own the loops; no skill is added. The five-question cap stays (0.17.0).
 
