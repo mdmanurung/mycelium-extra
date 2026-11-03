@@ -15,11 +15,12 @@ These are distinct checks, not alternative scientific verdicts. The full referen
 When a reply ends with `Plan status: READY` or `READY_WITH_ASSUMPTIONS`, the Stop hook hashes the plan and shows a **card**: the question, each choice and who decided it (`[you]`, `[repo: ...]`, `[default: reason]*`), the checks, what changed since the last approval, and exactly what the plan lets run. Check the science on the card, then type:
 
 ```text
-approve plan <hash>
+approve
 ```
 
 - Only the exact words count. `approve it` is an ordinary prompt.
-- Bare `approve` works only when exactly one card is waiting and it is the one shown last. Otherwise nothing is approved and the reply lists the pending hashes.
+- `approve` takes the card shown last. If that card is already approved or not approvable, nothing is approved and the reply lists the pending hashes.
+- `approve plan <hash>` approves an older waiting card by its hash.
 - Amendment and freeze cards use their own verbs (`approve amendment`, `approve freeze`); the reply names the right one.
 - `card <hash> full`, `card <hash> checks` and `card <hash> diff` show the rest.
 - An approval grants execution only in the session that gave it. To continue in a new session, show the plan there first (`handoff` points at its stored text) and approve the hash on the new card.

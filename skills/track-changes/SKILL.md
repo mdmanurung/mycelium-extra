@@ -36,7 +36,7 @@ For the plan itself, point the user to the **Plan** tab: the approved plan's ste
 Each item lists what the user could do; none of it runs from here and none of it is an approval.
 
 - Edited since approval: review the diff, then the user types `freeze <hash>`.
-- A plan row changed: if it was not intended, `grill` revises the plan and the user approves the new hash.
+- A plan row changed: if it was not intended, `grill` revises the plan and the user approves it with `approve`.
 - Failed or unmatched runs: `verify report <hash>` grades what they establish.
 - Work in another analysis: the user may type `focus switch analysis/Y`, or note why it supports this one.
 

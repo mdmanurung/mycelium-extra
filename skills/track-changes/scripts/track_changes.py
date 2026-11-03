@@ -227,7 +227,7 @@ def plan_items(gate, verify, snap, original, current, redact):
     ev = snap.evid("approval", original["hash"], "original plan approved " + stamp(original["approved_at"]), original["approved_at"])
     ev2 = snap.evid("approval", current["hash"], "current plan approved " + stamp(current["approved_at"]), current["approved_at"])
     old, new = original["plan"], current["plan"]
-    ask = ["revise the plan with `/mycelium-extra:grill` if this was not intended, then approve the new hash"]
+    ask = ["revise the plan with `/mycelium-extra:grill` if this was not intended, then type `approve`"]
     changes = verify.plan_changes(old, new)
     for step, column, was, now in changes[:CAP_PLAN_ITEMS]:
         routine = any(word in column for word in ("source", "evidence", "note"))

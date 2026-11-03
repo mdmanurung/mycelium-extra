@@ -27,7 +27,7 @@ Two ordinary prompts the user may type after the plan is shown. The hook does no
 - `explain row N`: what the step does, the choice and its source tag (`repo:`, `user`, or `default: <reason>`), the assumption behind it, one alternative and when it would be better, and what the check would show if the choice is right.
 - `challenge row N`: the strongest reason this row could be wrong, grounded in repository or retrieved evidence, and the cheapest check that would settle it. If there is no strong objection, say `no strong objection found`; do not manufacture one.
 
-Both are read-only. They do not count toward the cap, change the plan status, edit a file, or approve anything. A challenge that exposes a real plan change ends with an amendment draft the user can accept through the normal route, never with an edit. Do not close either answer by asking whether to approve; the user types `approve plan <hash>` when they decide.
+Both are read-only. They do not count toward the cap, change the plan status, edit a file, or approve anything. A challenge that exposes a real plan change ends with an amendment draft the user can accept through the normal route, never with an edit. Do not close either answer by asking whether to approve; the user types `approve` when they decide.
 
 ## Explain plan (the linear walkthrough)
 

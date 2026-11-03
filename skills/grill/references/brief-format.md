@@ -98,7 +98,7 @@ Approve or edit the plan, then the execution route: in a Mycelium repository, My
 
 ## Status line
 
-The final message ends with the status on its own line, exactly `Plan status: READY`, `Plan status: READY_WITH_ASSUMPTIONS`, or `Plan status: DECISION_REQUIRED`. The gate takes the last such line, hashes the message, and shows `approve plan <hash>`.
+The final message ends with the status on its own line, exactly `Plan status: READY`, `Plan status: READY_WITH_ASSUMPTIONS`, or `Plan status: DECISION_REQUIRED`. The gate takes the last such line, hashes the message, and shows `approve` (or `approve plan <hash>`).
 
 ## Worked examples
 

@@ -49,7 +49,7 @@ DEFAULTS = {
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
 LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call that never reported back
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
-APPROVE = re.compile(r"^\s*approve(?:\s+(?:plan|amendment|freeze))?(?:\s+([0-9a-f]{8})(?:\s+(\d{1,4}))?)?\s*[.!]?\s*$", re.IGNORECASE)
+APPROVE = re.compile(r"^\s*approve(?:\s+(?:plan|amendment|freeze))?(?:\s+([0-9a-f]{8}))?(?:\s+(\d{1,4}))?\s*[.!]?\s*$", re.IGNORECASE)
 EXPLORE_GRANT = re.compile(r"^\s*(allow|stop)\s+explore(?:\s+([0-9a-f]{8}))?\s*[.!]?\s*$", re.IGNORECASE)
 SEND_PACKET = re.compile(r"send packet ([0-9a-f]{12,64})")  # no looser than review_packet.py's consent check
 CONFIRM_WRITE = re.compile(r"confirm write ([0-9a-f]{8})")
@@ -1855,8 +1855,8 @@ def exact_step_check(root, config, record, label, paths, tokens, cwd):
     flags = sorted(set(f for step, _ in reasons for f in step["operational"]))
     lines.append("An operational retry may differ only in the flags the plan lists as operational ({}). A changed "
                  "analytical argument (model, contrast, threshold, input, seed) changes the approved computation: "
-                 "go back to the researcher, who approves a revised plan with `approve plan {}`. Do not work "
-                 "around this block.".format(", ".join(flags) or "none", record["hash"]))
+                 "go back to the researcher, who approves a revised plan with `approve`. Do not work "
+                 "around this block.".format(", ".join(flags) or "none"))
     return {}, lines
 
 
@@ -1896,8 +1896,8 @@ def validation_denial(stale):
         lines.extend("  - check {}: {} {}".format(check, path, state) for check, path, state in changes)
         lines.append("An approved acceptance expectation is frozen with the plan, and a changed expectation does "
                      "not carry the old acceptance evidence. The plan must be shown and approved again: present "
-                     "it, and the user approves the new files with `approve plan {}`. Do not work around this "
-                     "block.".format(digest))
+                     "it, and the user approves the new files with `approve`. Do not work around this "
+                     "block.")
     return lines
 
 
@@ -2249,7 +2249,7 @@ def approval_card(root, text, config, digest, pins, outside, previous, scripts=N
                                    session_id=session_id)
     if not card:
         card = "\n".join(["mycelium-extra \u00b7 plan ready for approval",
-                          "  \u25b6 approve plan {}".format(digest), ""]
+                          "  \u25b6 approve  (or approve plan {})".format(digest), ""]
                          + scope_lines(root, text, config) + pin_lines(pins, outside, previous)
                          + script_lines(root, scripts, config) + output_lines(text)
                          + ["  " + line for line in unread_lines(root, text)])
@@ -2963,7 +2963,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
     diff_at = len(lines)
     if script_diff_lines:
         lines += ["Diff of changed scripts"] + script_diff_lines
-    lines.append("\u25b6 approve plan {}".format(digest))
+    lines.append("\u25b6 approve  (or approve plan {})".format(digest))
     # A grant line and a diff line are never cut: what the gate allows and what changed are shown whole.
     lines = [line if can_run_at <= i < reads_at or i >= diff_at else fit(line) for i, line in enumerate(lines)]
     full = "\n".join(lines)
@@ -3231,7 +3231,7 @@ def checkpoint_reply(root, session, plan, steps, answer):
     if passed:
         return None, {"asked": True, "passed": True, "wrong_attempts": wrong}
     return ("mycelium-extra: plan {h} is not approved yet. {shown}One question first: {q} Answer with "
-            "`approve plan {h} <number>`.".format(h=plan["hash"], shown=shown, q=question)), None
+            "`approve <number>` (or `approve plan {h} <number>`).".format(h=plan["hash"], shown=shown, q=question)), None
 
 
 def limit_changes(root, runs, budget, cache):
@@ -3542,7 +3542,7 @@ def on_tool(event, root, config):
         target = os.path.realpath(os.path.join(event.get("cwd") or root, target))
         if target == state or target.startswith(state + os.sep):
             return deny("mycelium-extra: {} is gate state. Only the user's approval "
-                        "(typing `approve plan <hash>`) and the gate's hooks write there.".format(
+                        "(typing `approve`) and the gate's hooks write there.".format(
                             os.path.relpath(target, root)))
         return protected_write_notice(root, event, target)
     if tool != "Bash":
@@ -3672,15 +3672,15 @@ def on_tool(event, root, config):
             lines.extend("  - " + change for change in changes)
         if stale:
             lines.append("Re-check these inputs (for example, re-run the plan's data-contract check) and "
-                         "present the plan again; the user approves the new pins with `approve plan <hash>`. "
+                         "present the plan again; the user approves the new pins with `approve`. "
                          "Do not work around this block.")
         for digest, used, changes in capped:
             lines.append("mycelium-extra gate: blocked because plan {} has been used for {} run(s), its limit "
                          "(`max_runs_per_approval` in gate.json). Changes since its first run:".format(digest, used))
             lines.extend("  - " + change for change in changes)
             lines.append("The user reviews this and re-approves: present the plan again, and they approve it "
-                         "with `approve plan {}`, which restarts the count. Do not work around this "
-                         "block.".format(digest))
+                         "with `approve`, which restarts the count. Do not work around this "
+                         "block.")
         return deny("\n".join(lines))
     if not blocked:
         note_first_runs(root, firsts, budget)
@@ -3733,7 +3733,7 @@ def on_tool(event, root, config):
     lines.append("Active approved plans (last {} h): {}.".format(config["approval_hours"], hashes))
     lines.append("Present a plan whose plan table names these paths (prose, Evidence, and Source "
                  "citations do not count) and that ends with the grill status line; "
-                 "the user approves it by typing `approve plan <hash>`. Do not work around this "
+                 "the user approves it by typing `approve`. Do not work around this "
                  "block; if the user wants an exploratory run instead, they will say so.")
     return deny("\n".join(lines))
 
@@ -3876,10 +3876,10 @@ def scoped_explore(root, config, scope, label, paths, tokens, cwd):
     if not notes:
         return None, []
     return None, ["mycelium-extra: exploration under plan {} (scoped): {}. Exploration continues, but reportable "
-                  "runs will need re-approval: the plan is shown and approved again with `approve plan {}`, then "
+                  "runs will need re-approval: the plan is shown and approved again with `approve`, then "
                   "re-run with fresh outputs. Exploratory runs never count as validation or as a reportable run; "
                   "this check is path-and-declared-file based, advisory beyond that.".format(
-                      scope["hash"], "; ".join(notes), scope["hash"])]
+                      scope["hash"], "; ".join(notes))]
 
 
 def protected_write_notice(root, event, target):
@@ -3892,7 +3892,7 @@ def protected_write_notice(root, event, target):
         return None
     message = ("mycelium-extra: {} is a protected test or expectation file of plan {} (the scoped exploration "
                "grant). Editing it changes the approved contract: reportable runs will need re-approval "
-               "(`approve plan {}`).".format(rel, scope["hash"], scope["hash"]))
+               "(`approve`).".format(rel, scope["hash"]))
     return {"systemMessage": message,
             "hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": message}}
 
@@ -4231,7 +4231,7 @@ def freeze_card(root, config, record, scripts, changed, new, deleted):
                 and r.get("ts", 0) >= record.get("approved_at", 0)]
     lines.append("Runs       {} under this approval so far".format(len(receipts)))
     lines.append(gaps_now(root, digest))
-    lines.append("▶ approve freeze {}   then: run the plan again, then verify".format(digest))
+    lines.append("▶ approve  (or approve freeze {})   then: run the plan again, then verify".format(digest))
     return "\n".join(lines)
 
 
@@ -4255,7 +4255,7 @@ def freeze_entry(root, config, digest):
     moved, skipped = changed_pins(root, record.get("pins") or {}, budget, cache)
     if moved:
         return None, ("mycelium-extra: inputs pinned by plan {} changed ({}). A freeze covers scripts only: show the "
-                      "plan again so the user approves the new pins with `approve plan <hash>`.".format(
+                      "plan again so the user approves the new pins with `approve`.".format(
                           digest, "; ".join(moved[:3])))
     if record.get("validation"):
         stale = blocks_module().changes(root, record["validation"])
@@ -4419,30 +4419,30 @@ def prompt_commands(event, root, config):
                       for p in pending) or "none"
     if not match:
         if re.search(r"\bapprove (?:plan|amendment|freeze)\b", prompt, re.IGNORECASE) and len(prompt) < 200:
-            message = ("mycelium-extra: nothing approved. To approve, send only `approve plan <hash>` "
+            message = ("mycelium-extra: nothing approved. To approve, send only `approve` "
                        "(pending in this session: {}).".format(known))
             return {"systemMessage": message}
         near = NEAR_COMMAND.match(prompt)
         if near and len(prompt.split()) <= 4:  # a near-miss command must not be ignored in silence; longer is prose
-            message = ("mycelium-extra: `{}` did not parse as a command, so nothing changed. Use `approve plan "
-                       "<8-hex>` (or `approve`, `approve amendment <hash>`, `approve freeze <hash>`), `allow explore` "
+            message = ("mycelium-extra: `{}` did not parse as a command, so nothing changed. Use `approve` "
+                       "(or `approve plan <8-hex>`, `approve amendment <hash>`, `approve freeze <hash>`), `allow explore` "
                        "or `allow explore <8-hex>`, `stop explore`, `send packet <hash>`, `hints on|off`, `gate on|off`, or `card "
                        "<hash> [full|checks|diff]`.".format(clean(prompt.strip(), 40)))
             return {"systemMessage": message,
                     "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
         return prompt_hint(prompt, root, config)
-    # Without a hash, `approve` takes the newest card of this session if it is the only one still waiting.
+    # Without a hash, `approve` takes the card shown last in this session, if it is still waiting.
     def approved_since_shown(p):
         record = read_json(state_path(root, "approvals", p["hash"] + ".json"), {})
         at = record.get("approved_at") if isinstance(record, dict) else None
         return isinstance(at, (int, float)) and not isinstance(at, bool) and at >= (p.get("ts") or 0)
     waiting = [p for p in pending if plan_ready(p) and not p.get("invalid") and not approved_since_shown(p)]
-    if match.group(1) is None and not (len(waiting) == 1 and waiting[0] is pending[-1]):
-        message = ("mycelium-extra: nothing approved. `approve` alone needs exactly one waiting plan, the one shown "
-                   "last; send `approve plan <hash>` (pending in this session: {}).".format(known))
+    if match.group(1) is None and not (pending and pending[-1] in waiting):
+        message = ("mycelium-extra: nothing approved. `approve` takes the plan shown last, and it is not waiting "
+                   "(pending in this session: {}). Show the plan again, or send `approve plan <hash>`.".format(known))
         return {"systemMessage": message,
                 "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
-    wanted = (match.group(1) or waiting[0]["hash"]).lower()
+    wanted = (match.group(1) or pending[-1]["hash"]).lower()
     plan = next((p for p in pending if p["hash"] == wanted), None)
     said = re.match(r"^\s*approve (plan|amendment|freeze)\b", prompt, re.IGNORECASE)
     verb = said.group(1).lower() if said else None
@@ -4464,7 +4464,7 @@ def prompt_commands(event, root, config):
                        ", ".join(freeze_moved(root, config, plan)[:3]), wanted))
     elif not plan_ready(plan):  # preparation was interrupted; approving would drop the pins
         message = ("mycelium-extra: plan {} was not fully prepared (inputs, scripts or card). Nothing was "
-                   "approved. Show the plan again so it is prepared, then approve its hash.".format(wanted))
+                   "approved. Show the plan again so it is prepared, then approve it.".format(wanted))
     else:
         reply, checkpoint = checkpoint_reply(root, session, plan, 0 if plan.get("freeze") else steps, match.group(2))
         if reply:

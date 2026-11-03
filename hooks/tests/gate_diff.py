@@ -350,7 +350,8 @@ def main():
                 actual[c["name"]] = {"old": a, "new": b}
                 print("FAIL  {} ({})".format(c["name"], ", ".join(diffs)))
                 if c["kind"] in ("tool", "post"):
-                    print("   command: {!r}".format(c["payload"]["tool_input"]["command"]))
+                    given = c["payload"]["tool_input"]
+                    print("   command: {!r}".format(given.get("command", given.get("file_path"))))
                 for field in diffs:
                     print("   {} old: {!r}\n   {} new: {!r}".format(field, a[field], field, b[field])[:2000])
         print("{} {}: {}/{} identical (base {}, new {})".format(

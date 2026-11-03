@@ -42,7 +42,7 @@ ABLATIONS = [
     ("A-11", "gate", '    if head == "git":\n        return git_wipes_state(args, ancestor)\n',
      '    if False:\n        return git_wipes_state(args, ancestor)\n', "G-10"),
     ("A-12", "gate", 'APPROVE = re.compile(r"^\\s*approve(?:', 'APPROVE = re.compile(r".*approve(?:', "G-11"),
-    ("A-13", "gate", '(\\d{1,4}))?)?\\s*[.!]?\\s*$", re.IGNORECASE)', '(\\d{1,4}))?)?\\s*[.!]?.*$", re.IGNORECASE)',
+    ("A-13", "gate", '(\\d{1,4}))?\\s*[.!]?\\s*$", re.IGNORECASE)', '(\\d{1,4}))?\\s*[.!]?.*$", re.IGNORECASE)',
      "G-11"),
     ("A-14", "gate", '(session_id is None or bool(session_id) and record.get("session_id") == session_id)',
      "True", "G-12"),

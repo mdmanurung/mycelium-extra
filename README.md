@@ -21,7 +21,7 @@ The skills, from planning to hand-off:
   like a librarian, ask one neutral Socratic question per decision you own, and
   answer `explain row N` or `challenge row N`, all read-only. For a package it
   plans test-first, and it keeps a project glossary and ADRs.
-- `init` and `approve plan <hash>` turn on execution checks, input pins, and run receipts; `gate off` and `/goal` switch them off.
+- `init` and `approve` turn on execution checks, input pins, and run receipts; `gate off` and `/goal` switch them off.
 - `verify` checks what ran against the approved plan and writes provenance after you confirm.
 - `plot-first` makes plots the primary analysis outputs. Conclusions cite inspected figures; interpretive tables need a fallback reason. `grill` and `new-analysis` load this guidance for analysis work.
 - `focus` and `track-changes` say which analysis a session works on and show what changed against the approved plan.
@@ -83,7 +83,7 @@ Each tier adds to the previous one; use only what your task needs.
 | Tier | Tools | What you get |
 |---|---|---|
 | 1. Plan | `grill` | A sourced plan; no analysis runs or file writes |
-| 2. Run with approval | Add `init` and `approve plan <hash>` | Covered execution checks, input pins, receipts |
+| 2. Run with approval | Add `init` and `approve` | Covered execution checks, input pins, receipts |
 | 3. Verify reportable work | Add a pinned run plan and `verify` | Checks against the approved plan; provenance after confirmation |
 | 4. Full project workflow | Add scaffolding, independent review, handoff, hardening, Mycelium | Structure, continuity, and checks for recurring mistakes |
 
@@ -100,8 +100,8 @@ work.
 approve                                      # or approve plan <hash>
 ```
 
-Bare `approve` works when the plan shown last is the only one waiting; otherwise
-it approves nothing and lists the hashes. Run the approved steps through your
+Bare `approve` approves the plan shown last. If that plan is already approved or
+not approvable, it approves nothing and lists the hashes. Run the approved steps through your
 normal workflow. Edit the plan's scripts freely: the gate re-pins each edit with a notice.
 
 ### Develop a package, or work without approvals

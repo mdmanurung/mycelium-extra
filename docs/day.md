@@ -38,7 +38,7 @@ When it is right, type:
 approve
 ```
 
-A bare `approve` works when the plan shown last is the only one waiting. With none, or several, waiting it approves nothing and lists the hashes, so you type `approve plan <hash>`. The approval lasts 24 hours by default and covers this session.
+A bare `approve` approves the plan shown last. If that plan is already approved or not approvable, it approves nothing and lists the hashes; `approve plan <hash>` picks an older one. The approval lasts 24 hours by default and covers this session.
 
 ## 10:00 Code gets written and linted
 
@@ -110,6 +110,6 @@ Tomorrow's first session starts from the file it writes.
 | A pinned input changed | The input differs from what you approved | Recheck it and approve the revised plan |
 | An ordinary script was re-pinned | Its code differs from the earlier pin | Inspect the notice; review and freeze before a reportable rerun |
 | An explore run was denied | It touches a path outside the plan | Approve a plan that names it, or `allow explore` for the session |
-| `approve` approved nothing and listed hashes | Several plans, or an older one, are waiting | `approve plan <hash>` |
+| `approve` approved nothing and listed hashes | The plan shown last is already approved or not approvable | Show the plan again, or `approve plan <hash>` |
 
 The gate is a record and a check on execution mistakes, not a security boundary and not a judgement of scientific validity. See the [approval gate reference](approval-gate.md) for settings and limits, and the [verification reference](verification.md) for what the report shows.

@@ -25,7 +25,7 @@ Answer the questions that affect the plan, then read its steps, assumptions and 
 
 1. `/mycelium-extra:init`, once per repository. Check that it covers your analysis paths.
 2. `/mycelium-extra:grill <your task>`. Read the plan and its `Inputs:` line.
-3. Type `approve plan <hash>` in the same session. A bare `approve` works only when exactly one card is waiting.
+3. Type `approve` in the same session. It approves the card shown last; `approve plan <hash>` picks an older one.
 4. Run the approved steps as you usually do. In a Mycelium project, use `/mycelium:analyze <name>`.
 
 Covered commands are denied until approved, changed pinned inputs block, and each run leaves a receipt. Default gated paths are `analysis/**` and `nbs/**`; default gated commands are `sbatch`, `snakemake` and `nextflow`. Details: [Approval gate](approval-gate.md).

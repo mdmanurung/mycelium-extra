@@ -775,7 +775,7 @@ class GateTest(unittest.TestCase):
         self.assertTrue(self.denied(result))
         self.assertIn("plan {} has been used for 3 run(s), its limit".format(digest), reason)
         self.assertIn("nothing recorded differs", reason)
-        self.assertIn("approve plan {}".format(digest), reason)
+        self.assertIn("approve it with `approve`, which restarts the count", reason)
         with open(path) as handle:
             self.assertEqual(handle.read(), before, "an expired approval stays in the record, unchanged")
 
@@ -823,7 +823,7 @@ class GateTest(unittest.TestCase):
         card = self.full(self.CARD_PLAN)
         lines = card.splitlines()
         self.assertTrue(lines[0].startswith("mycelium-extra \u00b7 plan ") and "ready for approval" in lines[0])
-        self.assertTrue(lines[-1].startswith("\u25b6 approve plan ") and len(lines[-1].split()[-1]) == 8)
+        self.assertRegex(lines[-1], r"^\u25b6 approve  \(or approve plan [0-9a-f]{8}\)$")
         for text in ('Question   "does A beat B?"', "Goal       Compare A with B on the cohort, no refits.",
                      "Defaults to confirm: step 1", "Facts: 1 agent-derived, 1 human-stated, 0 agent-asserted.",
                      "Sequence   (* = a default decided; confirm it)\n    1 Back up the old table*  (agent says: done)\n"
@@ -1006,7 +1006,7 @@ class GateTest(unittest.TestCase):
         self.assertLess(summary, card.index("Question"))
         self.assertGreater(diff, card.index("CAN RUN (in full)"))
         self.assertGreater(diff, card.index("Writes "))
-        self.assertTrue(card.splitlines()[-1].startswith("\u25b6 approve plan "))
+        self.assertTrue(card.splitlines()[-1].startswith("\u25b6 approve  (or approve plan "))
         self.assertEqual(card.count("-print(1)"), 1)
 
     def test_card_diff_is_capped_below_the_grants(self):
@@ -1017,7 +1017,7 @@ class GateTest(unittest.TestCase):
         after = card.split("CAN RUN (in full)")[1]
         self.assertIn("\u2026 and 51 more diff lines", after)
         self.assertNotIn("diff lines", card.split("CAN RUN (in full)")[0])
-        self.assertTrue(card.splitlines()[-1].startswith("\u25b6 approve plan "))
+        self.assertTrue(card.splitlines()[-1].startswith("\u25b6 approve  (or approve plan "))
 
     def test_card_warns_when_mycelium_would_see_the_state_folder(self):
         warning = "Warning: `.mycelium-extra/` is not in .gitignore"
@@ -1091,21 +1091,20 @@ class GateTest(unittest.TestCase):
         self.assertIn("approved", self.hook("prompt", {"prompt": "Approve plan {}.".format(digest)})["systemMessage"])
         self.assertIsNone(self.bash("python analysis/x.py"))
 
-    def test_approve_without_a_hash_takes_the_one_waiting_card_shown_last(self):
+    def test_approve_without_a_hash_takes_the_card_shown_last(self):
         show = lambda text: self.hook("stop", {"last_assistant_message": text})["systemMessage"].split(
             "approve plan ")[1][:8]
         first, second = show(PLAN), show(PLAN.replace("READY", "READY_WITH_ASSUMPTIONS"))
-        result = self.hook("prompt", {"prompt": "approve"})  # two waiting: which one is ambiguous
+        result = self.hook("prompt", {"prompt": "approve"})  # two waiting: the one shown last
+        self.assertIn("plan {} approved".format(second), result["systemMessage"])
+        self.assertIsNone(self.bash("python analysis/x.py"))
+        result = self.hook("prompt", {"prompt": "approve"})  # the last card is approved; the older one is not taken
         self.assertIn("nothing approved", result["systemMessage"])
         self.assertIn(first, result["systemMessage"])
-        self.assertTrue(self.denied(self.bash("python analysis/x.py")))
-        self.assertIn("approved", self.hook("prompt", {"prompt": "approve plan " + second})["systemMessage"])
-        self.assertIn("nothing approved", self.hook("prompt", {"prompt": "approve"})["systemMessage"])  # first is older
         third = show(PLAN.replace("READY", "READY_WITH_ASSUMPTIONS").replace("analysis/x.py", "analysis/x.py "))
-        self.assertIn("nothing approved", self.hook("prompt", {"prompt": "Approve plan."})["systemMessage"])
-        self.hook("prompt", {"prompt": "approve plan " + first})
-        self.assertIn("plan {} approved".format(third), self.hook("prompt", {"prompt": "Approve."})["systemMessage"])
-        self.assertIn("nothing approved", self.hook("prompt", {"prompt": "approve"})["systemMessage"])  # none left
+        self.assertIn("plan {} approved".format(third), self.hook("prompt", {"prompt": "Approve plan."})["systemMessage"])
+        self.assertIn("approved", self.hook("prompt", {"prompt": "approve plan " + first})["systemMessage"])
+        self.assertIn("nothing approved", self.hook("prompt", {"prompt": "Approve."})["systemMessage"])  # none left
 
     def test_parking_an_idea_leaves_a_waiting_plan_approvable(self):
         # the idea skill writes under todo/ and replies in one line while a card waits
@@ -1718,7 +1717,7 @@ class GateTest(unittest.TestCase):
         self.assertIn("Stale      the plan declares no outputs", card)
         self.assertIn("Runs       0 under this approval so far", card)  # receipts come from Post, which this test skips
         self.assertIn("Gaps now   ", card)
-        self.assertTrue(card.endswith("\u25b6 approve freeze {}   then: run the plan again, then verify".format(digest)))
+        self.assertTrue(card.endswith("\u25b6 approve  (or approve freeze {})   then: run the plan again, then verify".format(digest)))
         self.assertEqual(self.approval(digest), approved, "showing the card approves nothing")
         done = self.hook("prompt", {"prompt": "approve"})["systemMessage"]
         self.assertIn("plan {} frozen".format(digest), done)
@@ -2829,6 +2828,14 @@ class ApprovalLatencyTest(unittest.TestCase):
         self.assertIn("approved", self.say(digest, right)["systemMessage"])
         self.assertTrue(self.approved(digest))
         self.assertEqual(self.ledger()[0]["checkpoint"], {"asked": True, "passed": True, "wrong_attempts": 2})
+
+    def test_the_checkpoint_takes_a_bare_approve_with_the_number(self):
+        self.config({"checkpoint_steps": 3})
+        digest = self.show(self.LONG)
+        self.assertIn("not approved yet", self.hook("prompt", {"prompt": "approve"})["systemMessage"])
+        _, right = self.asked(digest)
+        self.assertIn("approved", self.hook("prompt", {"prompt": "approve " + right})["systemMessage"])
+        self.assertTrue(self.approved(digest))
 
     def test_a_reapproval_asks_again(self):
         self.config({"checkpoint_steps": 3})

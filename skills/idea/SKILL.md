@@ -22,7 +22,7 @@ One line, then continue the task you were doing:
 
 `Parked: <title> → todo/<slug>.md`
 
-Append ` (plan <hash> still waiting)` when a grill card shown in this conversation has not been approved. Approval needs only `approve plan <hash>`, so this reply does not cancel it.
+Append ` (plan <hash> still waiting)` when a grill card shown in this conversation has not been approved. Approval needs only `approve`, so this reply does not cancel it.
 
 ## Limits
 

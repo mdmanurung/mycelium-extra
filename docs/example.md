@@ -43,7 +43,7 @@ $ python3 analysis/vaccine-response/scripts/01_select_samples.py
 mycelium-extra gate: blocked because no active approved plan covers this run.
   - python3 analysis/vaccine-response/scripts/01_select_samples.py
 Active approved plans (last 24 h): none.
-Present a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve plan <hash>`. Do not work around this block; if the user wants an exploratory run instead, they will say so.
+Present a plan whose plan table names these paths (prose, Evidence, and Source citations do not count) and that ends with the grill status line; the user approves it by typing `approve`. Do not work around this block; if the user wants an exploratory run instead, they will say so.
 ```
 
 ## 4. The approval card
