@@ -1,5 +1,7 @@
 # Mycelium Extra
 
+Docs site, three pages: [Start here](index.md), [Walkthrough](docs/walkthrough.md), [Commands](docs/commands.md).
+
 ## Introduction
 
 **Plan an analysis. Approve what runs. Check the execution record.**

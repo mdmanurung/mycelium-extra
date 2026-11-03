@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="t">Volcano plot of the paired test</title>
+<desc id="d">Effect (log2 change difference) against -log10 p for 60 genes. The 8 interferon truth genes sit at p = 0.0022 (padj 0.016) with effects from 1.4 to 2.2; the other 52 genes are not significant.</desc>
+<rect x="0.5" y="0.5" width="639" height="359" rx="8" fill="#ffffff" stroke="#c8c8c8"/>
+<text x="20.0" y="26.0" font-size="14" font-weight="bold">Volcano: vaccine minus placebo change per gene</text>
+<text x="20.0" y="44.0" font-size="12" fill="#595959">60 genes; exact permutation test, 6 against 6 donors.</text>
+<line x1="62.0" y1="56.0" x2="62.0" y2="288.0" stroke="#d9d9d9" stroke-width="1"/>
+<text x="62.0" y="304.0" font-size="12" text-anchor="middle">-1.0</text>
+<line x1="141.4" y1="56.0" x2="141.4" y2="288.0" stroke="#d9d9d9" stroke-width="1"/>
+<text x="141.4" y="304.0" font-size="12" text-anchor="middle">-0.5</text>
+<line x1="220.9" y1="56.0" x2="220.9" y2="288.0" stroke="#d9d9d9" stroke-width="1"/>
+<text x="220.9" y="304.0" font-size="12" text-anchor="middle">0.0</text>
+<line x1="300.3" y1="56.0" x2="300.3" y2="288.0" stroke="#d9d9d9" stroke-width="1"/>
+<text x="300.3" y="304.0" font-size="12" text-anchor="middle">0.5</text>
+<line x1="379.7" y1="56.0" x2="379.7" y2="288.0" stroke="#d9d9d9" stroke-width="1"/>
+<text x="379.7" y="304.0" font-size="12" text-anchor="middle">1.0</text>
+<line x1="459.1" y1="56.0" x2="459.1" y2="288.0" stroke="#d9d9d9" stroke-width="1"/>
+<text x="459.1" y="304.0" font-size="12" text-anchor="middle">1.5</text>
+<line x1="538.6" y1="56.0" x2="538.6" y2="288.0" stroke="#d9d9d9" stroke-width="1"/>
+<text x="538.6" y="304.0" font-size="12" text-anchor="middle">2.0</text>
+<line x1="618.0" y1="56.0" x2="618.0" y2="288.0" stroke="#d9d9d9" stroke-width="1"/>
+<text x="618.0" y="304.0" font-size="12" text-anchor="middle">2.5</text>
+<line x1="62.0" y1="288.0" x2="618.0" y2="288.0" stroke="#d9d9d9" stroke-width="1"/>
+<text x="56.0" y="292.0" font-size="12" text-anchor="end">0</text>
+<line x1="62.0" y1="230.0" x2="618.0" y2="230.0" stroke="#d9d9d9" stroke-width="1"/>
+<text x="56.0" y="234.0" font-size="12" text-anchor="end">1</text>
+<line x1="62.0" y1="172.0" x2="618.0" y2="172.0" stroke="#d9d9d9" stroke-width="1"/>
+<text x="56.0" y="176.0" font-size="12" text-anchor="end">2</text>
+<line x1="62.0" y1="114.0" x2="618.0" y2="114.0" stroke="#d9d9d9" stroke-width="1"/>
+<text x="56.0" y="118.0" font-size="12" text-anchor="end">3</text>
+<line x1="62.0" y1="56.0" x2="618.0" y2="56.0" stroke="#d9d9d9" stroke-width="1"/>
+<text x="56.0" y="60.0" font-size="12" text-anchor="end">4</text>
+<line x1="220.9" y1="56.0" x2="220.9" y2="288.0" stroke="#8c8c8c" stroke-width="1.2"/>
+<text x="16.0" y="172.0" font-size="12" text-anchor="middle" transform="rotate(-90 16.0 172.0)">-log10 p</text>
+<text x="340.0" y="322.0" font-size="12" text-anchor="middle" fill="#595959">log2 change difference, vaccine minus placebo (log2 units)</text>
+<circle cx="188.7" cy="275.6" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="179.1" cy="264.8" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="253.5" cy="276.2" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="164.5" cy="253.6" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="149.6" cy="251.4" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="230.0" cy="286.8" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="168.6" cy="252.8" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="245.5" cy="271.2" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="209.6" cy="280.2" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="235.9" cy="281.3" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="163.8" cy="247.9" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="185.8" cy="268.6" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="172.9" cy="267.5" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="205.8" cy="281.6" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="236.3" cy="278.1" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="160.1" cy="269.2" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="203.0" cy="279.1" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="121.3" cy="203.3" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="166.9" cy="253.0" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="153.6" cy="221.5" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="120.4" cy="207.6" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="210.8" cy="284.2" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="216.0" cy="286.0" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="257.2" cy="271.5" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="152.8" cy="199.9" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="190.8" cy="270.6" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="162.5" cy="262.7" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="187.5" cy="274.4" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="193.4" cy="278.0" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="144.4" cy="241.2" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="177.1" cy="256.4" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="196.9" cy="278.1" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="166.5" cy="273.2" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="116.6" cy="182.5" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="193.1" cy="275.6" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="159.6" cy="249.9" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="209.7" cy="282.8" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="156.7" cy="246.5" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="148.6" cy="237.8" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="208.3" cy="283.7" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="218.1" cy="287.0" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="153.1" cy="232.0" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="196.5" cy="275.9" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="259.9" cy="265.2" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="125.6" cy="224.4" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="216.6" cy="286.4" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="108.7" cy="185.8" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="210.2" cy="281.8" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="106.4" cy="210.1" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="197.9" cy="271.7" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="179.2" cy="271.3" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="150.6" cy="225.7" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<circle cx="450.5" cy="133.5" r="4.8" fill="#D55E00" stroke="#ffffff" stroke-width="0.8"/>
+<line x1="450.5" y1="127.5" x2="444.3" y2="109.5" stroke="#D55E00" stroke-width="1"/>
+<text x="448.3" y="105.5" font-size="12" fill="#D55E00" transform="rotate(-90 448.3 105.5)">MX1</text>
+<circle cx="466.9" cy="133.5" r="4.8" fill="#D55E00" stroke="#ffffff" stroke-width="0.8"/>
+<line x1="466.9" y1="127.5" x2="460.3" y2="109.5" stroke="#D55E00" stroke-width="1"/>
+<text x="464.3" y="105.5" font-size="12" fill="#D55E00" transform="rotate(-90 464.3 105.5)">SIGLEC1</text>
+<circle cx="481.1" cy="133.5" r="4.8" fill="#D55E00" stroke="#ffffff" stroke-width="0.8"/>
+<line x1="481.1" y1="127.5" x2="476.3" y2="109.5" stroke="#D55E00" stroke-width="1"/>
+<text x="480.3" y="105.5" font-size="12" fill="#D55E00" transform="rotate(-90 480.3 105.5)">RSAD2</text>
+<circle cx="485.7" cy="133.5" r="4.8" fill="#D55E00" stroke="#ffffff" stroke-width="0.8"/>
+<line x1="485.7" y1="127.5" x2="492.3" y2="109.5" stroke="#D55E00" stroke-width="1"/>
+<text x="496.3" y="105.5" font-size="12" fill="#D55E00" transform="rotate(-90 496.3 105.5)">IFI44L</text>
+<circle cx="490.0" cy="133.5" r="4.8" fill="#D55E00" stroke="#ffffff" stroke-width="0.8"/>
+<line x1="490.0" y1="127.5" x2="508.3" y2="109.5" stroke="#D55E00" stroke-width="1"/>
+<text x="512.3" y="105.5" font-size="12" fill="#D55E00" transform="rotate(-90 512.3 105.5)">ISG15</text>
+<circle cx="512.8" cy="133.5" r="4.8" fill="#D55E00" stroke="#ffffff" stroke-width="0.8"/>
+<line x1="512.8" y1="127.5" x2="524.3" y2="109.5" stroke="#D55E00" stroke-width="1"/>
+<text x="528.3" y="105.5" font-size="12" fill="#D55E00" transform="rotate(-90 528.3 105.5)">IFIT1</text>
+<circle cx="542.0" cy="133.5" r="4.8" fill="#D55E00" stroke="#ffffff" stroke-width="0.8"/>
+<line x1="542.0" y1="127.5" x2="540.3" y2="109.5" stroke="#D55E00" stroke-width="1"/>
+<text x="544.3" y="105.5" font-size="12" fill="#D55E00" transform="rotate(-90 544.3 105.5)">IFI27</text>
+<circle cx="573.8" cy="133.5" r="4.8" fill="#D55E00" stroke="#ffffff" stroke-width="0.8"/>
+<line x1="573.8" y1="127.5" x2="556.3" y2="109.5" stroke="#D55E00" stroke-width="1"/>
+<text x="560.3" y="105.5" font-size="12" fill="#D55E00" transform="rotate(-90 560.3 105.5)">OAS1</text>
+<text x="614.0" y="278.0" font-size="12" text-anchor="end">all 8: p = 0.0022, padj = 0.016</text>
+<text x="614.0" y="262.0" font-size="12" text-anchor="end" fill="#595959">p floor is 1/462 (exact test)</text>
+<circle cx="66.0" cy="340.0" r="4.8" fill="#D55E00" stroke="#ffffff" stroke-width="0.8"/>
+<text x="76.0" y="344.0" font-size="12">truth gene, found at padj &lt; 0.05</text>
+<circle cx="300.0" cy="340.0" r="3.5" fill="#8c8c8c" stroke="#ffffff" stroke-width="0.8"/>
+<text x="310.0" y="344.0" font-size="12">other genes (52)</text>
+</svg>

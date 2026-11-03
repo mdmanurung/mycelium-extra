@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="t">Session timeline of the scenario</title>
+<desc id="d">7 events in order: the plan is shown, a run is denied before approval, the plan is approved, three runs leave receipts, and verify reports CONFORMS.</desc>
+<rect x="0.5" y="0.5" width="639" height="359" rx="8" fill="#ffffff" stroke="#c8c8c8"/>
+<text x="20.0" y="26.0" font-size="14" font-weight="bold">One session, in order</text>
+<text x="20.0" y="44.0" font-size="12" fill="#595959">Events read from the gate's state files; numbers are the order, not clock times.</text>
+<line x1="36.0" y1="72.0" x2="36.0" y2="288.0" stroke="#8c8c8c" stroke-width="2"/>
+<circle cx="36.0" cy="72.0" r="11.0" fill="#56B4E9" stroke="#ffffff" stroke-width="2"/>
+<text x="36.0" y="76.0" font-size="12" text-anchor="middle" font-weight="bold">1</text>
+<text x="62.0" y="71.0" font-size="12" font-weight="bold">plan shown</text>
+<text x="62.0" y="86.0" font-size="12" fill="#595959">84bb5fce, 3 steps, READY</text>
+<circle cx="36.0" cy="108.0" r="11.0" fill="#D55E00" stroke="#ffffff" stroke-width="2"/>
+<text x="36.0" y="112.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="bold">2</text>
+<text x="62.0" y="107.0" font-size="12" font-weight="bold">run denied</text>
+<text x="62.0" y="122.0" font-size="12" fill="#595959">01_select_samples.py: no active approved plan covers this run</text>
+<circle cx="36.0" cy="144.0" r="11.0" fill="#009E73" stroke="#ffffff" stroke-width="2"/>
+<text x="36.0" y="148.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="bold">3</text>
+<text x="62.0" y="143.0" font-size="12" font-weight="bold">plan approved</text>
+<text x="62.0" y="158.0" font-size="12" fill="#595959">approve plan 84bb5fce; 3 scripts and 2 inputs pinned</text>
+<circle cx="36.0" cy="180.0" r="11.0" fill="#009E73" stroke="#ffffff" stroke-width="2"/>
+<text x="36.0" y="184.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="bold">4</text>
+<text x="62.0" y="179.0" font-size="12" font-weight="bold">run receipt</text>
+<text x="62.0" y="194.0" font-size="12" fill="#595959">01_select_samples.py, exit 0</text>
+<circle cx="36.0" cy="216.0" r="11.0" fill="#009E73" stroke="#ffffff" stroke-width="2"/>
+<text x="36.0" y="220.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="bold">5</text>
+<text x="62.0" y="215.0" font-size="12" font-weight="bold">run receipt</text>
+<text x="62.0" y="230.0" font-size="12" fill="#595959">02_paired_test.py, exit 0</text>
+<circle cx="36.0" cy="252.0" r="11.0" fill="#009E73" stroke="#ffffff" stroke-width="2"/>
+<text x="36.0" y="256.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="bold">6</text>
+<text x="62.0" y="251.0" font-size="12" font-weight="bold">run receipt</text>
+<text x="62.0" y="266.0" font-size="12" fill="#595959">03_summary.R, exit 0</text>
+<circle cx="36.0" cy="288.0" r="11.0" fill="#0072B2" stroke="#ffffff" stroke-width="2"/>
+<text x="36.0" y="292.0" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="bold">7</text>
+<text x="62.0" y="287.0" font-size="12" font-weight="bold">verify</text>
+<text x="62.0" y="302.0" font-size="12" fill="#595959">CONFORMS: 3 of 3 steps ran, 3 run(s), all completed; 8 of 8 claimed cells match; 2 gaps listed</text>
+</svg>

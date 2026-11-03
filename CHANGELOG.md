@@ -4,6 +4,10 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- **docs:** the website is three pages: Start here, a walkthrough of one analysis on the simulated vaccine fixture, and a commands page. Every page shows plots generated from that analysis by `docs/scenario/make_figures.py` (standard library only), which replays the real gate and `verify`. The Documentation build regenerates them and fails if the committed figures are stale; `tests/test_docs_figures.py` checks the same. The other pages stay in the repository and are linked from GitHub.
+
 ## [0.22.3] - 2026-11-03
 
 ### Changed

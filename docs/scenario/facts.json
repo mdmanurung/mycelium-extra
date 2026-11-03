@@ -1,0 +1,162 @@
+{
+  "approval": {
+    "hash": "84bb5fce",
+    "inputs_pinned": 2,
+    "rows": 3
+  },
+  "arms": {
+    "placebo": [
+      "D07",
+      "D08",
+      "D09",
+      "D10",
+      "D11",
+      "D12"
+    ],
+    "vaccine": [
+      "D01",
+      "D02",
+      "D03",
+      "D04",
+      "D05",
+      "D06"
+    ]
+  },
+  "denied": {
+    "command": "python3 analysis/vaccine-response/scripts/01_select_samples.py",
+    "reason_first_line": "mycelium-extra gate: blocked because no active approved plan covers this run."
+  },
+  "donors": 12,
+  "genes_tested": 60,
+  "hit_log2fc": {
+    "IFI27": 2.0213,
+    "IFI44L": 1.6673,
+    "IFIT1": 1.8378,
+    "ISG15": 1.694,
+    "MX1": 1.4455,
+    "OAS1": 2.2219,
+    "RSAD2": 1.638,
+    "SIGLEC1": 1.549
+  },
+  "hit_p": 0.002165,
+  "hit_padj": 0.016234,
+  "ifn_mean_change_log2": {
+    "placebo": -0.05,
+    "vaccine": 1.71
+  },
+  "libraries_excluded": [
+    "D03_day28_rerun"
+  ],
+  "libraries_in": 25,
+  "libraries_kept": 24,
+  "median_log2fc_hits": 1.6806,
+  "n_hits_padj_below_0_05": 8,
+  "null_p_min": 0.015152,
+  "null_padj_min": 0.10101,
+  "p_floor_denominator": 462,
+  "plan": {
+    "hash": "84bb5fce",
+    "scripts": [
+      "01_select_samples.py",
+      "02_paired_test.py",
+      "03_summary.R"
+    ],
+    "steps": 3
+  },
+  "r_available_in_replay": false,
+  "r_note": "Rscript is hidden in the replay; step 3 is the harness stand-in that copies expected/summary.tsv.",
+  "receipts": [
+    {
+      "command": "python3 analysis/vaccine-response/scripts/01_select_samples.py",
+      "exit": 0,
+      "ordinal": 1
+    },
+    {
+      "command": "python3 analysis/vaccine-response/scripts/02_paired_test.py",
+      "exit": 0,
+      "ordinal": 2
+    },
+    {
+      "command": "Rscript analysis/vaccine-response/scripts/03_summary.R",
+      "exit": 0,
+      "ordinal": 3
+    }
+  ],
+  "step_stdout": {
+    "01_select_samples.py": "samples in: 25, out: 24 (dropped: D03_day28_rerun)",
+    "02_paired_test.py": "24 libraries, 12 donors (6 vaccine, 6 placebo), 60 genes, 8 at padj < 0.05",
+    "03_summary.R": ""
+  },
+  "timeline": [
+    {
+      "detail": "84bb5fce, 3 steps, READY",
+      "kind": "plan shown",
+      "ordinal": 1
+    },
+    {
+      "detail": "01_select_samples.py: no active approved plan covers this run",
+      "kind": "run denied",
+      "ordinal": 2
+    },
+    {
+      "detail": "approve plan 84bb5fce; 3 scripts and 2 inputs pinned",
+      "kind": "plan approved",
+      "ordinal": 3
+    },
+    {
+      "detail": "01_select_samples.py, exit 0",
+      "kind": "run receipt",
+      "ordinal": 4
+    },
+    {
+      "detail": "02_paired_test.py, exit 0",
+      "kind": "run receipt",
+      "ordinal": 5
+    },
+    {
+      "detail": "03_summary.R, exit 0",
+      "kind": "run receipt",
+      "ordinal": 6
+    },
+    {
+      "detail": "CONFORMS: 3 of 3 steps ran, 3 run(s), all completed; 8 of 8 claimed cells match; 2 gaps listed",
+      "kind": "verify",
+      "ordinal": 7
+    }
+  ],
+  "top_hits": [
+    "IFI27",
+    "IFI44L",
+    "ISG15",
+    "MX1",
+    "RSAD2",
+    "SIGLEC1",
+    "IFIT1",
+    "OAS1"
+  ],
+  "top_hits_equal_truth": true,
+  "truth_genes": [
+    "IFI27",
+    "IFI44L",
+    "ISG15",
+    "MX1",
+    "RSAD2",
+    "SIGLEC1",
+    "IFIT1",
+    "OAS1"
+  ],
+  "verify": {
+    "gap_lines": [
+      "3 are prose: nothing checks them",
+      "not checked: Rscript not found"
+    ],
+    "lint_not_checked": [
+      "03_summary.R"
+    ],
+    "numbers_match": "8 of 8 claimed cells match",
+    "prose_validation_cells": 3,
+    "qualified": true,
+    "ran_as_planned": "3 of 3 steps ran, 3 run(s), all completed",
+    "status": "CONFORMS"
+  }
+}

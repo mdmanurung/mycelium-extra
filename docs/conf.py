@@ -11,28 +11,8 @@ source_suffix = {".md": "markdown", ".rst": "restructuredtext"}
 root_doc = "index"
 include_patterns = [
     "index.md",
-    "docs/installation.md",
-    "docs/usage.md",
-    "docs/skills.md",
-    "docs/approval-gate.md",
-    "docs/verification.md",
-    "docs/start/what-it-is.md",
-    "docs/start/method.md",
-    "docs/start/first-plan.md",
-    "docs/guides/plan-an-analysis.md",
-    "docs/guides/approve-and-run.md",
-    "docs/guides/verify-and-provenance.md",
-    "docs/guides/hand-off.md",
-    "docs/guides/full-workflow.md",
-    "docs/guides/develop-a-package.md",
-    "docs/concepts/control-model.md",
-    "docs/concepts/gaps-and-passes.md",
-    "docs/concepts/not-guaranteed.md",
-    "docs/examples/index.md",
-    "docs/examples/E01-chat-yes-is-not-consent.md",
-    "docs/examples/E03-sign-flipped-comparison.md",
-    "docs/examples/E07-verify-unplanned-and-unrecorded.md",
-    "docs/examples/track-changes.md",
+    "docs/walkthrough.md",
+    "docs/commands.md",
 ]
 exclude_patterns = ["docs/_build"]
 myst_heading_anchors = 6
@@ -43,4 +23,3 @@ html_title = "Mycelium Extra"
 html_baseurl = "https://mdmanurung.github.io/mycelium-extra/"
 html_static_path = ["_static"]
 html_css_files = ["overviews.css"]
-html_extra_path = ["examples/track-changes-report.html"]

@@ -1,132 +1,79 @@
-# Mycelium Extra
+# Start here
 
-**Use an LLM to help with analysis without handing it your judgement.**
+**Use an LLM for analysis without handing it your judgement.** The agent proposes and runs. You decide what the analysis is. The record shows whether it ran that way.
 
-Mycelium Extra is built on one idea: the agent may propose and run, but *you* decide what the analysis is, and the record shows whether it ran that way. It works in three steps:
+Mycelium Extra is a plugin for Claude Code, Codex and OpenCode. It works alongside [Mycelium](https://github.com/arjunrajlaboratory/mycelium) or in an ordinary repository.
 
-1. **Plan.** A sourced plan, where every consequential choice says who made it: the repository, you, or a labelled default.
+## What it does in three steps
+
+1. **Plan.** The agent writes a sourced plan. Every choice says who made it: the repository, you, or a labelled default.
 2. **Approve.** You type the approval. Covered runs are denied until you do.
-3. **Check.** Afterwards, the plan is compared with the run record. Anything that could not be checked shows as a gap, never as a pass.
-
-It is a plugin for Claude Code, Codex and OpenCode, and it works alongside [Mycelium](https://github.com/arjunrajlaboratory/mycelium) or in an ordinary repository. The three steps are a method, not a product: [The method](docs/start/method.md) shows how to follow them with any tool, or by hand.
-
-**Scope.** It catches execution mistakes and shows gaps. It is not a security boundary and it does not judge the science. See [what it does not guarantee](docs/concepts/not-guaranteed.md).
+3. **Check.** Afterwards, the plan is compared with the run record. Anything it could not check shows as a gap, never as a pass.
 
 ![A researcher states a question, an agent proposes a sourced plan, the researcher approves, covered work leaves records, and verification compares the records with the plan.](docs/figures/overview.svg)
 
-The researcher makes the decisions; the agent proposes and helps execute them. A matching execution record does not establish scientific validity.
+## What you get
 
-::::{grid} 1 2 2 2
-:gutter: 3
+:::{figure} docs/figures/scenario/paired-change.svg
+:alt: Per-donor log2 change from day 0 to day 28 for 8 interferon genes and 4 control genes, vaccine versus placebo. Vaccine donors rise; placebo donors and control genes stay near zero.
+:width: 90%
 
-:::{grid-item-card} What it is
-:link: docs/start/what-it-is
-:link-type: doc
-
-The intent and scope on one page, and how it fits with Mycelium.
+Per-donor log2 change from day 0 to day 28 for the 8 interferon (IFN) genes and 4 control genes. Vaccine donors rise (mean +1.71); placebo stays flat (−0.05). The data are simulated with known truth, so you can see the plan, the run and the check agree with it. The [walkthrough](docs/walkthrough.md) builds this figure step by step.
 :::
 
-:::{grid-item-card} The method
-:link: docs/start/method
-:link-type: doc
+## Install
 
-Plan, approve, check, hand off: the habits that make LLM-assisted analysis trustworthy, with or without the plugin.
-:::
+Claude Code:
 
-:::{grid-item-card} Install
-:link: docs/installation
-:link-type: doc
-
-One page per host: Claude Code, Codex, OpenCode.
-:::
-
-:::{grid-item-card} Your first plan
-:link: docs/start/first-plan
-:link-type: doc
-
-Plan, approve, run and verify one small analysis in ten minutes.
-:::
-
-:::{grid-item-card} Guides
-:link: docs/guides/plan-an-analysis
-:link-type: doc
-
-One task each: plan, approve and run, verify, hand off.
-:::
-
-:::{grid-item-card} Reference
-:link: docs/skills
-:link-type: doc
-
-Skills, the approval gate, verification, and what is not guaranteed.
-:::
-::::
-
-Claude Code and OpenCode use `/mycelium-extra:<skill>`; Codex uses `$mycelium-extra:<skill>`.
-
-```{toctree}
-:hidden:
-:maxdepth: 1
-:caption: Start
-
-docs/start/what-it-is
-docs/start/method
-docs/installation
-docs/start/first-plan
-docs/usage
+```bash
+claude plugin marketplace add mdmanurung/mycelium-extra
+claude plugin install mycelium-extra@mycelium-extra
 ```
 
-```{toctree}
-:hidden:
-:maxdepth: 1
-:caption: Guides
+Codex (CLI 0.160.0 or later). Then open `/hooks`, trust every Mycelium Extra hook and start a new task:
 
-docs/guides/plan-an-analysis
-docs/guides/approve-and-run
-docs/guides/verify-and-provenance
-docs/guides/hand-off
-docs/guides/full-workflow
-docs/guides/develop-a-package
+```bash
+codex plugin marketplace add mdmanurung/mycelium-extra
+codex plugin add mycelium-extra@mycelium-extra
 ```
 
-```{toctree}
-:hidden:
-:maxdepth: 1
-:caption: Concepts
+OpenCode: point both settings at a checkout, in `~/.config/opencode/opencode.json(c)`:
 
-docs/concepts/control-model
-docs/concepts/gaps-and-passes
-docs/concepts/not-guaranteed
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": ["/absolute/path/to/mycelium-extra/opencode"],
+  "skills": ["/absolute/path/to/mycelium-extra/skills"]
+}
 ```
 
+All hosts need Python 3.9 or later. On RHEL 8, `python3` is 3.6, so set `MYCELIUM_EXTRA_PYTHON=python3.11`. Restart the host after installing.
+
+## Your first ten minutes
+
+Claude Code and OpenCode use `/mycelium-extra:<skill>`. Codex uses `$mycelium-extra:<skill>`.
+
+1. **Turn on the gate.** Run `/mycelium-extra:init`.
+2. **Plan.** Run `/mycelium-extra:grill <your question>`. It shows a numbered plan and a card with a hash.
+3. **Approve.** Type `approve` as your whole message. It takes the card shown last. To pick an older card, type `approve plan <hash>`.
+4. **Run.** Ask the agent to run the plan's steps. Covered runs now pass and leave receipts.
+5. **Verify.** Run `/mycelium-extra:verify <hash>`. It compares the receipts with the plan and writes provenance after you confirm.
+
+## What it does not guarantee
+
+It catches execution mistakes and shows gaps. It is not a security boundary: an agent set on bypassing the gate through Bash can do so. A run can match its plan and still be scientifically wrong, because the check covers what ran, not whether the method is right.
+
+## Where next
+
+- [Walkthrough](docs/walkthrough.md): one realistic study, from question to verified result.
+- [Commands](docs/commands.md): every typed command and skill on one page.
+
 ```{toctree}
 :hidden:
 :maxdepth: 1
-:caption: Reference
 
-docs/skills
-docs/approval-gate
-docs/verification
-```
-
-```{toctree}
-:hidden:
-:maxdepth: 1
-:caption: Examples
-
-docs/examples/index
-docs/examples/E01-chat-yes-is-not-consent
-docs/examples/E03-sign-flipped-comparison
-docs/examples/E07-verify-unplanned-and-unrecorded
-docs/examples/track-changes
-```
-
-```{toctree}
-:hidden:
-:maxdepth: 1
-:caption: More
-
-All docs <https://github.com/mdmanurung/mycelium-extra/tree/main/docs>
-Development notes <https://github.com/mdmanurung/mycelium-extra/blob/main/docs/development.md>
+docs/walkthrough
+docs/commands
 Changelog <https://github.com/mdmanurung/mycelium-extra/blob/main/CHANGELOG.md>
+GitHub <https://github.com/mdmanurung/mycelium-extra>
 ```
