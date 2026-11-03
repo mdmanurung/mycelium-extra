@@ -7,8 +7,8 @@ Mycelium Extra is a plugin for Claude Code, Codex and OpenCode. It works alongsi
 ## What it does in three steps
 
 1. **Plan.** The agent writes a sourced plan. Every choice says who made it: the repository, you, or a labelled default.
-2. **Approve.** You type the approval. Covered runs are denied until you do.
-3. **Check.** Afterwards, the plan is compared with the run record. Anything it could not check shows as a gap, never as a pass.
+2. **Approve.** You type the approval. While the gate is on, covered runs are denied until you do.
+3. **Check.** Afterwards, the plan is compared with the run record. A planned run with no matching record shows as a gap, never as a pass.
 
 ![A researcher states a question, an agent proposes a sourced plan, the researcher approves, covered work leaves records, and verification compares the records with the plan.](docs/figures/overview.svg)
 
@@ -61,7 +61,7 @@ Claude Code and OpenCode use `/mycelium-extra:<skill>`. Codex uses `$mycelium-ex
 
 ## What it does not guarantee
 
-It catches execution mistakes and shows gaps. It is not a security boundary: an agent set on bypassing the gate through Bash can do so. A run can match its plan and still be scientifically wrong, because the check covers what ran, not whether the method is right.
+It catches execution mistakes and shows gaps. It is not a security boundary: an agent set on bypassing the gate through Bash can do so. Runs made while the gate is off, or outside its view, leave no record. A run can match its plan and still be scientifically wrong, because the check covers what ran, not whether the method is right.
 
 ## Where next
 
