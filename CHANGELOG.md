@@ -4,6 +4,8 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.22.3] - 2026-11-03
+
 ### Changed
 
 - **gate:** a bare `approve` approves the plan card shown last, even when older cards still wait. It approves nothing only when that card is already approved, invalid or not prepared. The checkpoint takes `approve <number>`. Cards and gate messages now lead with `approve`; `approve plan <hash>` still works and picks an older card.

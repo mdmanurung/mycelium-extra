@@ -1,6 +1,6 @@
 {
   "name": "mycelium-extra",
-  "version": "0.22.2",
+  "version": "0.22.3",
   "description": "Repository-aware, bounded challenge and scoping for research and software work",
   "author": {
     "name": "Mikhael Manurung"
