@@ -93,8 +93,21 @@ def load_gate(plugin_root):
     sys.dont_write_bytecode = True  # leave no __pycache__ in the plugin folder
     import gate as module
     gate = module
-    import analysis_paths as paths_module
-    analysis_paths = paths_module
+    _paths()
+
+
+def _paths():
+    """hooks/analysis_paths.py, found beside gate.py or from this file; journal.py loads verify through
+    gate.load_verify() without load_gate(), so the import must not depend on it."""
+    global analysis_paths
+    if analysis_paths is None:
+        root = PLUGIN_ROOT or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        hooks = os.path.join(root, "hooks")
+        if hooks not in sys.path:
+            sys.path.insert(0, hooks)
+        import analysis_paths as paths_module
+        analysis_paths = paths_module
+    return analysis_paths
 
 
 def read_jsonl(path, invalid=None):
@@ -1965,7 +1978,7 @@ def document_set(root, analysis_dir, outputs, extra):
     by_path = {row["path"]: row for row in outputs}
     docs = [p for p in by_path if p.endswith(".md")]
     if analysis_dir:
-        found = analysis_paths.find_doc(os.path.join(root, analysis_dir))  # <NAME>.md, else README.md
+        found = _paths().find_doc(os.path.join(root, analysis_dir))  # <NAME>.md, else README.md
         docs.insert(0, os.path.join(analysis_dir, os.path.basename(found) if found else
                                     os.path.basename(analysis_dir).upper().replace("-", "_") + ".md"))
     docs += [rel_or_abs(root, os.path.abspath(p)) for p in extra]
@@ -3135,7 +3148,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     evidence_checked = plan_evidence(root, plan, report, seconds)
     fact_tags("the plan's Evidence", section_bullets(plan, "Evidence"), report)
     if analysis_dir:
-        found = analysis_paths.find_doc(os.path.join(root, analysis_dir))
+        found = _paths().find_doc(os.path.join(root, analysis_dir))
         doc = os.path.join(analysis_dir, os.path.basename(found) if found else
                            os.path.basename(analysis_dir).upper().replace("-", "_") + ".md")
         fact_tags("`{}` Key Findings".format(doc), section_bullets(read_text(os.path.join(root, doc)),
