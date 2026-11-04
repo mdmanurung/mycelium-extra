@@ -23,6 +23,9 @@ Open [the multi-session Journal](analysis-journal.html) or
 [its missing-source view](analysis-journal-missing.html). Both are generated,
 self-contained offline reports. The synthetic portable records live under
 `docs/examples/journal-demo/`; no real research data or scheduler was used.
+The HTML was regenerated for 0.23.0 from a fresh run of the same script, so its
+hashes and times differ from the files in `journal-demo/`. The two screenshots
+below show the viewer before 0.23.0 and are due for a retake.
 
 The overview shows three concerns at most; all six concerns and 167 loaded
 records remain discoverable. Search covers collapsed and paged records across
