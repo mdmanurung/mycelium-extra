@@ -50,7 +50,9 @@
 
   // A status is always a word in a tinted pill (DESIGN.md status-pill); colour only tints it.
   function pill(word, tone) { return h("span", "pill " + tone, word); }
-  function bucketPill(bucket) { return pill(bucket, {attention: "stale", authorized: "pass", routine: "routine"}[bucket] || "routine"); }
+  // The JSON and the data-bucket names keep attention / authorized / routine (schema v1); a person reads gap / pass / routine.
+  var BUCKET_WORD = {attention: "gap", authorized: "pass", routine: "routine"};
+  function bucketPill(bucket) { var w = BUCKET_WORD[bucket] || "routine"; return pill(w, w); }
   var OUTCOME = {CONFORMS: "pass", CONFORMS_WITH_GAPS: "gap", DOES_NOT_CONFORM: "fail", qualified: "pass", "not qualified": "fail"};
   // "Label: <pill>; <pill> tail": a check outcome as a word, never as colour alone.
   function outcomeLine(label, words, tail) {
@@ -267,8 +269,8 @@
   function filters() {
     var bar = h("div", "filters"), seg = attr(h("div", "seg"), "role", "group");
     attr(seg, "aria-label", "Filter changes");
-    [["attention", "Needs attention", data.counts.attention], ["all", "All", data.items.length],
-     ["authorized", "Authorized", data.counts.authorized], ["routine", "Routine", data.counts.routine]].forEach(function (f) {
+    [["attention", "Gap", data.counts.attention], ["all", "All", data.items.length],
+     ["authorized", "Pass", data.counts.authorized], ["routine", "Routine", data.counts.routine]].forEach(function (f) {
       var c = h("button", "chip", f[1], h("span", "n", f[2]));
       c.type = "button"; attr(c, "aria-pressed", state.filter === f[0] ? "true" : "false");
       c.addEventListener("click", function () { state.filter = f[0]; draw(); });

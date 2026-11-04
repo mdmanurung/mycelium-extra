@@ -209,6 +209,52 @@ class LostCoverageTest(Base):
         self.assertEqual((snap.items, snap.limitations), ([], []))
 
 
+class RunStatusTest(Base):
+    """A RUN.txt status flip or a retargeted `current` is an attention item at the next snapshot."""
+    A, B = "run_20261101_fit", "run_20261102_fit"
+
+    def runs(self, a="status: current", b="status: current", target=None):
+        for name, text in ((self.A, a), (self.B, b)):
+            self.write("analysis/a/outputs/{}/RUN.txt".format(name), "kind: analysis\n" + text + "\n")
+        link = os.path.join(self.root, "analysis", "a", "outputs", "current")
+        if os.path.lexists(link):
+            os.remove(link)
+        os.symlink(target or self.B, link)
+
+    def prior(self, data):
+        self.write(".mycelium-extra/track-changes/analysis__a/snapshot.json", json.dumps(dict(data, analysis_path="analysis/a")))
+
+    def found(self, data):
+        return self.items(data, "run")
+
+    def test_a_status_flip_is_reported_with_old_and_new(self):
+        self.runs(b="status: superseded")
+        self.prior({"runs": {"status": {self.A: "current", self.B: "current"}, "current": self.B}})
+        data = self.collect(analysis="analysis/a")
+        found = self.found(data)
+        self.assertEqual(len(found), 1, found)
+        self.assertEqual((found[0]["bucket"], found[0]["baseline"], found[0]["current"]), ("attention", "current", "superseded"))
+        self.assertIn(self.B, found[0]["title"])
+        self.assertEqual(data["runs"], {"status": {self.A: "current", self.B: "superseded"}, "current": self.B})
+        self.assertEqual(data["schema"], "mycelium-extra.track-changes.v1")
+
+    def test_a_retargeted_current_is_reported(self):
+        self.runs(target=self.A)
+        self.prior({"runs": {"status": {self.A: "current", self.B: "current"}, "current": self.B}})
+        found = self.found(self.collect(analysis="analysis/a"))
+        self.assertEqual(len(found), 1, found)
+        self.assertEqual((found[0]["bucket"], found[0]["baseline"], found[0]["current"]), ("attention", self.B, self.A))
+
+    def test_nothing_changed_gives_no_item_and_a_first_snapshot_says_it_has_no_baseline(self):
+        self.runs()
+        self.prior({"runs": {"status": {self.A: "current", self.B: "current"}, "current": self.B}})
+        self.assertEqual(self.found(self.collect(analysis="analysis/a")), [])
+        shutil.rmtree(os.path.join(self.root, ".mycelium-extra", "track-changes"))
+        data = self.collect(analysis="analysis/a")
+        self.assertEqual(self.found(data), [])
+        self.assertTrue(any("no earlier snapshot" in l and "run status" in l for l in data["coverage"]["limitations"]))
+
+
 class ReportSectionsTest(Base):
     """A whole-file rewrite of reports/*.qmd that drops sections is an attention item at the next snapshot."""
     QMD = "analysis/a/reports/a.qmd"
@@ -785,10 +831,17 @@ class SafetyTest(Base):
     def test_viewer_status_is_a_pill_with_a_word_not_a_dot(self):
         items = [self.item(id="I-1", bucket="attention", title="a"), self.item(id="I-2", bucket="authorized", title="b"),
                  self.item(id="I-3", bucket="routine", title="c")]
-        (state,) = self.draw_states(self.page_of(items=items, counts={"attention": 1, "authorized": 1, "routine": 1}))
+        page = self.page_of(items=items, counts={"attention": 1, "authorized": 1, "routine": 1})
+        (state,) = self.draw_states(page)
+        everything = self.draw_states(page, "All")[1]  # the All filter shows every row
         self.assertEqual(state["dots"], 0)
-        words = [(cls.split(" ")[1], word) for cls, word in state["pills"]]
-        self.assertIn(("stale", "attention"), words)  # the list shows the attention filter; each row carries its word
+        words = [(cls.split(" ")[1], word) for cls, word in everything["pills"]]
+        self.assertIn(("gap", "gap"), words)  # the JSON bucket is `attention`; a person reads `gap`
+        self.assertIn(("pass", "pass"), words)
+        self.assertIn(("routine", "routine"), words)
+        self.assertNotIn("attention", [word for _, word in words])
+        self.assertNotIn("authorized", [word for _, word in words])
+        self.assertTrue(any(c.startswith("Gap") for c in re.findall(r"chip[^\n]*", state["text"])) or "Gap" in state["text"])
         css = os.path.join(PLUGIN, "skills", "track-changes", "assets", "viewer.css")
         with open(css, encoding="utf-8") as handle:
             self.assertNotIn(".dot", handle.read())

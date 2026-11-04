@@ -33,6 +33,8 @@ class JournalTest(Base):
     def setUp(self):
         super().setUp()
         self.gate, self.focus, self.verify = tc.load(PLUGIN)
+        import analysis_paths
+        self.verify.analysis_paths = analysis_paths  # gate.load_verify() does not set it; verify.load_gate() does
 
     def collect_journal(self, notes=()):
         return journal.collect(self.root, "analysis/a", self.gate, self.focus, notes)
