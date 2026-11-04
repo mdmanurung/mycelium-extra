@@ -14,7 +14,7 @@ PAGE = """<!doctype html>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
 <title>Track changes</title>
 <style>__CSS__</style></head>
-<body><div id="app"></div>
+<body><main id="app"></main>
 <script type="application/json" id="data">__DATA__</script>
 <script>__JS__</script></body></html>
 """

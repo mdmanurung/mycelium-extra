@@ -842,6 +842,52 @@ class SafetyTest(Base):
                 for ground in ("paper", "paper-2"):
                     self.assertGreaterEqual(ratio(tok[name], tok[ground]), 4.5, "{} on {}".format(name, ground))
 
+    def asset(self, name):
+        with open(os.path.join(PLUGIN, "skills", "track-changes", "assets", name), encoding="utf-8") as handle:
+            return handle.read()
+
+    def test_viewer_views_are_pressed_buttons_not_half_a_tab_pattern(self):  # T3, T6, T12
+        item = self.item(diff=[["add", "+x"]], baseline="b")
+        page = self.page_of(items=[item], counts={"attention": 1, "authorized": 0, "routine": 0})
+        review, diff = self.draw_states(page, "Diff")
+        self.assertNotIn("tab", review["roles"])  # tab roles without arrow keys and panels would mislead
+        self.assertNotIn("tablist", review["roles"])
+        self.assertEqual([v[0] for v in review["views"]][:1], ["true"])
+        self.assertEqual([v[0] for v in diff["views"]].count("true"), 1)
+        self.assertIn(review["themePressed"], ("true", "false"))
+        self.assertTrue(review["live"])  # the copy result is announced
+        self.assertEqual(len(diff["scrollers"]), 1)  # the diff box takes a tab stop and a name
+
+    def test_viewer_selected_journal_row_is_not_the_focus_ring(self):  # T5
+        rule = re.search(r'\.journal \[aria-pressed="true"\] \{([^}]*)\}', self.asset("viewer.css")).group(1)
+        self.assertNotIn("accent", rule)  # the accent is the focus ring
+        self.assertNotRegex(rule, r"border:\s*2px")  # and a wider border moves the box
+
+    def test_viewer_control_borders_have_3_to_1_contrast(self):  # T8
+        css = self.asset("viewer.css")
+        for selector in (r"\.btn", r"\.search"):
+            self.assertRegex(css, selector + r" \{[^}]*border: 1px solid var\(--ink-2\)")
+        self.assertRegex(css, r'\.chip\[aria-pressed="true"\] \{[^}]*border-color: var\(--ink-2\)')
+        with open(os.path.join(PLUGIN, "DESIGN.md"), encoding="utf-8") as handle:
+            design = handle.read()
+        tok = dict(re.findall(r'^  ([\w-]+): "(#[0-9a-f]{6})"', design, re.M))
+
+        def lum(hex_value):
+            rgb = [int(hex_value[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+            rgb = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+            return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+
+        for ink, paper in (("ink-2", "paper"), ("ink-2-dark", "paper-dark")):
+            hi, lo = sorted((lum(tok[ink]), lum(tok[paper])), reverse=True)
+            self.assertGreaterEqual((hi + 0.05) / (lo + 0.05), 3.0, ink)
+
+    def test_viewer_has_one_main_landmark(self):  # T13
+        page = self.page_of()
+        with open(page, encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertEqual(text.count("<main"), 1)
+        self.assertNotIn('h("main"', self.asset("journal.js"))  # the journal view must not nest a second one
+
     def test_viewer_script_parses(self):
         node = shutil.which("node")
         if not node and os.environ.get("MX_REQUIRE_NODE"):  # set by the CI job that has Node: the viewer must not go untested

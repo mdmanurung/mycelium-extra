@@ -41,6 +41,8 @@
     if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(function () { settle(true); }, fallback);
     else fallback();
   }
+  // A scrolling box with no focusable child needs a tab stop and a name, or a keyboard cannot scroll it.
+  function scroller(el, label) { attr(el, "tabindex", "0"); attr(el, "role", "region"); return attr(el, "aria-label", label); }
   function copyButton(label, text, cls) {
     var b = btn(label, cls || "btn", function () { copy(text, b); });
     return b;
@@ -150,7 +152,7 @@
       any = true;
       box.appendChild(h("h2", "", i.title));
       box.appendChild(h("div", "sub", i.baseline));
-      var d = h("div", "diff");
+      var d = scroller(h("div", "diff"), "Line diff for " + i.title);
       i.diff.forEach(function (l) { d.appendChild(h("div", l[0], l[1])); });
       box.appendChild(d);
     });
@@ -197,7 +199,7 @@
         row.appendChild(h("code", "", e.cmd || "(no command)"));
         if (e.cmd) row.appendChild(copyButton("Copy", e.cmd, "btn small"));
         card.appendChild(row);
-        card.appendChild(h("pre", "wout", e.out || "(no output recorded)"));
+        card.appendChild(scroller(h("pre", "wout", e.out || "(no output recorded)"), "Recorded output of " + (e.cmd || "this step")));
         if (e.more) card.appendChild(h("p", "fine", e.more + " more recorded line(s), not shown."));
       });
       box.appendChild(card);
@@ -207,13 +209,16 @@
 
   function header() {
     var b = data.baselines, c = data.coverage, frag = h("div");
-    var tools = h("div", "tools");
+    var tools = attr(h("div", "tools"), "aria-live", "polite");  // announces "Copied"
     tools.appendChild(copyButton("Copy review brief", data.brief_md || ""));
-    tools.appendChild(btn("Light / dark", "btn", function () {
+    var theme = btn("Light / dark", "btn", function () {
       var r = document.documentElement;
       var dark = r.dataset.theme ? r.dataset.theme === "dark" : (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
       r.dataset.theme = dark ? "light" : "dark";
-    }));
+      attr(theme, "aria-pressed", String(!dark));
+    });
+    attr(theme, "aria-pressed", String(!!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches)));
+    tools.appendChild(theme);
     frag.appendChild(h("div", "head", "", h("div", "", "", h("h1", "title", data.analysis_path),
                                             h("p", "sub", "Track changes · snapshot " + data.generated_at)), tools));
     var meta = h("dl", "meta");
@@ -248,11 +253,11 @@
 
   // level 1: the view strip
   function views() {
-    var bar = attr(h("div", "views"), "role", "tablist");
+    var bar = attr(attr(h("div", "views"), "role", "group"), "aria-label", "Views");
     VIEWS.forEach(function (v) {
       var t = h("button", "view", v[1], h("span", "n", v[2]()));
       t.type = "button";
-      attr(t, "role", "tab"); attr(t, "aria-selected", state.view === v[0] ? "true" : "false");
+      attr(t, "aria-pressed", state.view === v[0] ? "true" : "false");
       t.addEventListener("click", function () { state.view = v[0]; draw(); });
       bar.appendChild(t);
     });
