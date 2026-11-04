@@ -1,5 +1,7 @@
 # @@NAME@@: plan
 
+The approved copy is provenance/plan-<hash>.md; this file is the draft.
+
 One plan for this analysis. Revise it in place, and add a dated line to
 [TRACKER.md](TRACKER.md) when it changes; do not start a second plan file. The headings
 follow the mycelium-extra grill brief, so an approved brief goes in section by section.

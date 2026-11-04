@@ -13,10 +13,12 @@ jupyter: python3
 
 ```{python}
 # Parameters -------------------------------------------------------------------
+import os
 from pathlib import Path
 
-INPUT = Path(@@INPUT_LITERAL@@)
-OUTPUT = Path(@@OUTPUT_LITERAL@@)
+RUN = Path(os.environ["RUN_DIR"])  # outputs/<run>, set by the Snakefile
+INPUT = @@INPUT_PY@@
+OUTPUT = @@OUTPUT_PY@@
 SEED = 0  # pass to every RNG, e.g. np.random.default_rng(SEED)
 ```
 
@@ -34,5 +36,5 @@ raise NotImplementedError("@@FILE@@ is not written yet")
 from importlib.metadata import distributions
 
 versions = sorted(f"{d.metadata['Name']}=={d.version}" for d in distributions())
-Path("logs/@@STEM@@.session.txt").write_text("\n".join(versions) + "\n")
+(RUN / "logs" / "@@STEM@@.session.txt").write_text("\n".join(versions) + "\n")
 ```
