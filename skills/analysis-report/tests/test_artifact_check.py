@@ -1,6 +1,7 @@
 """Run: python3 skills/analysis-report/tests/test_artifact_check.py"""
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -75,6 +76,42 @@ class ArtifactCheckTest(unittest.TestCase):
         # A cdnjs pin carries the version as a path segment and is accepted.
         cdnjs = read(GOOD) + '<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>'
         self.assertEqual(self.check(cdnjs)[0], 0, "cdnjs pin")
+
+    def test_comma_list_is_split_but_thousands_is_not(self):
+        page = read(GOOD).replace("<li>Dose effect", "<li>Donors 1,2,3. Dose effect")
+        out = self.check(page)
+        self.assertIn("number: 3 ", out[1] + " ")  # 3 is not in the report: the list was split
+        self.assertNotIn("1,2,3", out[1])
+        page = read(GOOD).replace("<li>Dose effect", "<li>Donors 1,5. Dose effect")
+        self.assertNotIn("number: 1,5", self.check(page)[1])
+        page = read(GOOD).replace("<li>Dose effect", "<li>14,231 genes tested. Dose effect")
+        self.assertEqual(self.check(page)[0], 0)  # thousands form still matches numbers.json
+
+    def test_default_numbers_file_comes_from_the_resolver(self):
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        run = os.path.join(root, "outputs", "run_20261104_a")
+        os.makedirs(run)
+        os.makedirs(os.path.join(root, "reports"))
+        shutil.copy(NUMBERS, os.path.join(run, "numbers.json"))
+        os.symlink("run_20261104_a", os.path.join(root, "outputs", "current"))
+        qmd = os.path.join(root, "reports", "demo.qmd")
+        shutil.copy(QMD, qmd)
+        page = read(GOOD).replace("<li>Dose effect", "<li>14,231 genes tested. Dose effect")
+        with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as handle:
+            handle.write(page)
+        self.addCleanup(os.unlink, handle.name)
+        hooks = os.path.join(HERE, "..", "..", "..", "hooks")
+        with open(SCRIPT, "rb") as script:
+            run_ = subprocess.run([sys.executable, "-", "--page=" + handle.name, "--report=" + qmd, "--hooks=" + hooks],
+                                  stdin=script, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
+        self.assertEqual(run_.returncode, 0, run_.stdout)
+
+    def test_artifact_page_maps_status_words(self):
+        text = read(os.path.join(HERE, "..", "references", "artifact-page.md"))
+        for pair in ("`CONFORMS` is pass", "`CONFORMS_WITH_GAPS` is gap", "`DOES_NOT_CONFORM` is fail", "is stale", "is not verified",
+                     "no nested elements of the same tag"):
+            self.assertIn(pair, text)
 
     def test_missing_numbers_file_is_not_a_crash(self):
         args = [sys.executable, "-", "--page=" + GOOD, "--report=" + QMD, "--numbers=" + NUMBERS + ".absent"]

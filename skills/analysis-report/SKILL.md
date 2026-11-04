@@ -18,7 +18,7 @@ Run from the repository root, from stdin, every option as `--flag=value` (a bare
 sh <skill-dir>/../../hooks/py.sh - --dest=<folder> --templates=<skill-dir>/../new-analysis/templates [--overwrite] [--dry-run] < <skill-dir>/scripts/analysis_report.py
 ```
 
-It prints an inventory (analysis doc, numbered steps at the root or in `code/`, each `Snakefile*` with its rules, scripts and run folder, the dated runs under `outputs/` and where `current` points, PNG figures, `*REPORT*.md`, `numbers.json`) and writes `reports/<name>.qmd`: a mermaid chain per Snakefile, one Methods tab per step, one Results tab per step that has figures or a report. When every step is `.qmd` it writes nothing: those step pages (rendered under `reports/site/`) carry their own Methods and Results, so fill the Question / Approach / Conclusion prose inside each step. It keeps an existing report unless `--overwrite`; a report you have already filled is replaced only when you ask. Never run it by path.
+It prints an inventory (analysis doc, numbered steps at the root or in `code/`, each `Snakefile*` with its rules, scripts and run folder, the runs under `outputs/` read through the shared resolver (`current`, else the newest run; a flat `outputs/` still works), the run label from `RUN.txt`, PNG figures, any figure with no `source_data/` table, `*REPORT*.md`, `numbers.json`) and writes `reports/<name>.qmd`: a mermaid chain per Snakefile, one Methods tab per step, one Results tab per step that has figures or a report. When every step is `.qmd` it writes nothing: those step pages (rendered under `reports/site/`) carry their own Methods and Results, so fill the Question / Approach / Conclusion prose inside each step. It keeps an existing report unless `--overwrite`; a report you have already filled is replaced only when you ask. Never run it by path.
 
 Before any whole-file write over a filled report (`--overwrite`, or a Write instead of Edit), read the report in full and list every `##`/`###` heading and tab; mark each carry or drop, and carry every one the user did not ask to drop. Run `wc -l` on it before and after, and `git diff --stat` after. A line count that falls on a targeted Edit is truncation: restore with `git restore` and redo it. When an Edit fails to match, retry it with a shorter anchor; never fall back to rewriting the file. `track-changes` reports sections that vanished since its last snapshot.
 
@@ -36,7 +36,7 @@ Then read what the inventory names, and run nothing else:
 - **Methods**, one tab per step. Two sentences on what the step does and the choice it makes. Then one code block, 5–15 lines copied verbatim from the script, with `filename=` and a comment giving the line range (`# lines 41–58`). Quote the lines that do the work (the model call, the test, the filter), never the imports or argument parsing. Link the script; do not paste it whole.
 - **Results**, one tab per question, numbered as in the plan (`1. What changes after X`); the scaffold's step tabs are placeholders to rename. Each tab opens with three labelled lines, **Question.** (one question), **Approach.** (data, model or test, multiplicity family), **Conclusion.** (the answer, its size, what it does not show), so a reader has the context before the evidence. Then the evidence: figure captions are numbered through the report (`Figure N. caption. \`path\``) and name the source file. Each conclusion follows plot-first: the figure link inside the sentence, the panel as a separate word, and the `[agent-derived: ...]` tag at line end. Below it, the inspection line: path, what you saw, any defect, or `not inspected: <reason>`. Numbers come from `outputs/numbers.json` or the analysis doc's `<!-- claims -->` block; write a number nowhere else first. A table needs `table fallback: <reason>`. A null or adverse result gets its tab too.
 - **Figures** are `![caption](../outputs/<NN>_<what-it-shows>.png)` or the link form above. A PDF does not render in HTML: when a step saves only a PDF, say so in the inspection line and ask for a PNG in the next plan rather than converting one by hand.
-- **Open items.** What stays unresolved, each with the plot or check that would settle it; the same list goes to Open Questions in `<NAME>.md`.
+- **Open items.** A figure whose stem has no `source_data/` table is listed as `source data missing: <figure>` and its Results tab says so; keep those lines (layout contract rule 3). What stays unresolved, each with the plot or check that would settle it; the same list goes to Open Questions in `<NAME>.md`.
 - **Reproducibility.** Leave as scaffolded unless the run commands changed.
 
 Write nothing outside `reports/` except the `## Outputs` row in step 3 and, for the artifact verb (section 5), the page under `.mycelium-extra/artifacts/` and its `TRACKER.md` line.
@@ -45,7 +45,13 @@ Write nothing outside `reports/` except the `## Outputs` row in step 3 and, for 
 
 Run `quarto render <folder>/reports/<name>.qmd`. The gate lets it through without a plan because the document says `engine: markdown`: no cell executes, so it is typesetting, not a run. (A `.qmd` with `engine: knitr` or `jupyter`, or a `_quarto.yml` in the folder or above it, is a gated run again.) The report's theme is `reports/report.scss` and `reports/report-dark.scss` (the plugin's `DESIGN.md` tokens; dark follows the reader's system setting). The scanner writes them when absent and never replaces an existing copy, so a project can restyle its own. The output is `reports/<name>.html`, one self-contained file; open it or check it holds the figures (`<img` count) and the mermaid block before handing off. Quarto must be on PATH; if it is missing, say so and stop.
 
-After a render: add `| reports/<name>.html | Quarto report (rendered <date>) |` to the `## Outputs` table of `<NAME>.md` (one sentence in its Outputs section when the doc has no table). Mycelium's `analysis/ANALYSIS_MANIFEST.md` has a `report:` field; suggest the HTML path for it and let `/mycelium:analyze` or the user write it.
+After a render, record it with the script, not by hand (same stdin form as step 1; `--date=YYYY-MM-DD` is optional and defaults to today):
+
+```bash
+sh <skill-dir>/../../hooks/py.sh - --dest=<folder> --templates=<skill-dir>/../new-analysis/templates --outputs-row < <skill-dir>/scripts/analysis_report.py
+```
+
+It adds `| reports/<name>.html | Quarto report (rendered <date>, run <run>) |` to the `## Outputs` table of the analysis doc, once per render: a row for the same path is replaced, never doubled. The run is the label in the current run's `RUN.txt`. When `reports/README.md` exists, it also sets the run cell of the `<name>.qmd` and `<name>.html` rows. Mycelium's `analysis/ANALYSIS_MANIFEST.md` has a `report:` field; suggest the HTML path for it and let `/mycelium:analyze` or the user write it.
 
 ## 4. Hand off
 
@@ -57,17 +63,17 @@ Say which tabs are filled, which conclusions are `unsupported: no inspected figu
 
 It runs only in Claude Code, where the Artifact tool exists. On Codex or OpenCode, print `The artifact verb needs Claude Code's Artifact tool; the record is reports/<name>.html.` and stop.
 
-1. **Read, add nothing.** Read the filled `reports/<name>.qmd`, `outputs/numbers.json`, every cited PNG and the verify status (`verify status`, else `provenance/PROVENANCE.md`; no provenance means `not verified`). The page holds no conclusion, number or figure that the report lacks. Stop and say so if the report is still the scaffold.
+1. **Read, add nothing.** Read the filled `reports/<name>.qmd`, the numbers file (`numbers(folder, run)`: `<run>/numbers.json` first, else the flat `outputs/numbers.json`), the run label from the current run's `RUN.txt`, every cited PNG and the verify status (`verify status`, else `provenance/PROVENANCE.md`; no provenance means `not verified`). The page holds no conclusion, number or figure that the report lacks. Stop and say so if the report is still the scaffold.
 2. **Write the page in one pass** to `.mycelium-extra/artifacts/<name>.html` at the repository root (`init` gitignores `.mycelium-extra/`; if `git check-ignore .mycelium-extra` finds nothing, say so in one line and write there anyway), following [references/artifact-page.md](references/artifact-page.md): the contract, the tokens, the Read-mode rules and the evaluator's order (answer in brief, each question with its figure and conclusion, open items and what is not verified, then methods quotes and reproducibility folded). The layout is free; the design is fixed. No template, no Quarto post-processing.
 3. **Banner.** Every page opens with a banner naming the run label, the plan hash, and the `.qmd` path with its short hash (`git hash-object <qmd>`, first 8 characters). It says `Evaluation copy. The record is reports/<name>.html`. An unverified run says `not verified`.
 4. **Figures** go in as data URIs (`data:image/png;base64,...`). The page may not pass 16 MB. When it would, stop, name the largest figures with their sizes, and ask the user which to drop or shrink. Do not downsample on your own.
 5. **Check before publishing**, from the repository root, with every option as `--flag=value`:
 
    ```bash
-   sh <skill-dir>/../../hooks/py.sh - --page=.mycelium-extra/artifacts/<name>.html --report=<folder>/reports/<name>.qmd --numbers=<folder>/outputs/numbers.json < <skill-dir>/scripts/artifact_check.py
+   sh <skill-dir>/../../hooks/py.sh - --page=.mycelium-extra/artifacts/<name>.html --report=<folder>/reports/<name>.qmd --hooks=<skill-dir>/../../hooks < <skill-dir>/scripts/artifact_check.py
    ```
 
-   It checks the contract, the banner, and that every number on the page is in the `.qmd` or `numbers.json`. A finding stops the publish: fix the page and run it again. Never edit the check to pass.
+   Without `--numbers`, `--hooks` makes the check read the numbers file through `numbers()`. It checks the contract, the banner, and that every number on the page is in the `.qmd` or `numbers.json`; a list like `1,2,3` is checked number by number. A finding stops the publish: fix the page and run it again. Never edit the check to pass.
 6. **Publish only after the user agrees.** Ask every time. Name the page, its size and the figure count, and say the page is private by default. Never publish unasked. In the same session, a re-run for the same analysis updates the same URL. Otherwise each run makes a new page, and the URL goes in `plans/TRACKER.md` as one line: `| <date> | Artifact (evaluation copy of reports/<name>.qmd): <url> |`.
 
 The check does not judge whether a number means what the page says. Read the page once against the report before you publish.

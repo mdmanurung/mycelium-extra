@@ -66,7 +66,7 @@ The reader came to judge whether the run answered the question. The page is a do
 - One column, about 920px wide at most, about 65 characters per line in prose (impeccable: a real measure, a reading face, real contrast).
 - Wayfinding: a short in-page list of links to each question, under the banner. No tabs, no script.
 - One accent (`--accent`) for links, focus and the banner rule. Use it nowhere else. Never use it for data.
-- Status is a word in a pill: `pass`, `gap`, `fail`, `stale` or `not verified`. The pill is the word on a 16% tint of its state colour with a 55% inset ring, text in `--ink`. For example `background: color-mix(in srgb, var(--pass) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pass) 55%, transparent)`. A missing check is never styled like a pass.
+- Status is a word in a pill: `pass`, `gap`, `fail`, `stale` or `not verified`, mapped from `verify` as in the status table of `docs/concepts/analysis-layout.md`: `CONFORMS` is pass; `CONFORMS_WITH_GAPS` is gap; `DOES_NOT_CONFORM` is fail; a `stale` finding is stale; no `provenance/` entry is not verified. The pill is the word on a 16% tint of its state colour with a 55% inset ring, text in `--ink`. For example `background: color-mix(in srgb, var(--pass) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pass) 55%, transparent)`. A missing check is never styled like a pass.
 - Contrast: body text `--ink`, captions and paths `--ink-2`. Rules and borders use `--rule` and `--rule-strong`.
 - Each figure has an alt text and a caption that names its source file.
 
@@ -82,15 +82,15 @@ The reader came to judge whether the run answered the question. The page is a do
 
 The first element after the style. It names, as text:
 
-- the run label (`RUN.txt`, else the run folder name);
+- the run label (`run:` in the current run's `RUN.txt`, else the run folder name);
 - the plan hash;
 - the `.qmd` path with its short hash, in `<code class="hash">`;
 - the words `Evaluation copy. The record is reports/<name>.html`;
 - `verified` or `not verified` as a status pill.
 
-Mark the element `data-banner`. Put each hash in `<code class="hash">`. The number check skips those hashes.
+Mark the element `data-banner`. The banner is one flat element: no nested elements of the same tag (the check ends it at the first closing tag, so a `<div>` inside a `<div data-banner>` hides the rest). Put each hash in `<code class="hash">`. The number check skips those hashes.
 
 ## Content rules
 
-- Every number, conclusion and figure comes from the filled `.qmd`, `outputs/numbers.json` or a cited PNG. Add none.
+- Every number, conclusion and figure comes from the filled `.qmd`, the numbers file (`numbers(folder, run)`) or a cited PNG. Add none.
 - Copy a number as written in the `.qmd`. Do not round, convert or compute a new one (no percentages, sums or fold changes the report does not state).

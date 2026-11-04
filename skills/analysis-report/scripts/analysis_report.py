@@ -3,10 +3,11 @@
 Run from stdin so the gate reads no script path, with every option as --flag=value:
     sh <plugin>/hooks/py.sh - --dest=analysis/<name> --templates=<plugin>/skills/new-analysis/templates
               [--overwrite] [--dry-run] < analysis_report.py
+    sh <plugin>/hooks/py.sh - --dest=... --templates=... --outputs-row [--date=YYYY-MM-DD] < analysis_report.py
 
 Finds the analysis doc (<NAME>.md or README.md), the numbered steps (NN_*.R|py|ipynb|qmd|marimo.py at the root
-or in code/), every Snakefile and *.smk and the rules and scripts it runs, the dated runs under outputs/
-(and where outputs/current points), the PNG figures, *REPORT*.md files and numbers.json. Writes
+or in code/), every Snakefile and *.smk and the rules and scripts it runs, the current run through
+hooks/analysis_paths.py (RUN.txt label, figures paired with source_data by stem; a flat outputs/ still works), the PNG figures, *REPORT*.md files and numbers.json. Writes
 reports/<name>.qmd from new-analysis's report.qmd template: a mermaid chain per Snakefile (rules in
 file order; a folder with no Snakefile chains the steps by number), one Methods tab per step and one
 Results tab per step that has figures or a report. Prints the inventory for the agent to fill from.
@@ -14,6 +15,7 @@ Refuses to overwrite an existing report unless --overwrite. Stdlib-only; Python 
 """
 
 import argparse
+import datetime
 import json
 import os
 import re
@@ -58,9 +60,8 @@ def find_steps(dest):
 
 
 def parse_snakefile(path, step_files):
-    """Rules in file order, each with the step script its shell line names, plus the RUN folder."""
+    """Rules in file order, each with the step script its shell line names."""
     text = ap.read(path)
-    run = re.search(r'^RUN\s*=\s*"([^"]+)"', text, re.M)
     rules = []
     heads = list(re.finditer(r"^rule\s+(\w+)\s*:", text, re.M))
     for k, head in enumerate(heads):
@@ -72,7 +73,7 @@ def parse_snakefile(path, step_files):
         inputs = {os.path.basename(v) for v in re.findall(r'\b(?:script|notebook)\s*=\s*"([^"]+)"', block)}
         scripts = [f for f in step_files if f in inputs or re.search(r"(?<!\w)" + re.escape(f) + r"(?![\w.])", shell)]
         rules.append({"rule": name, "scripts": scripts})
-    return {"file": os.path.basename(path), "run": run.group(1) if run else None, "rules": rules}
+    return {"file": os.path.basename(path), "rules": rules}
 
 
 def mermaid(snakefiles, steps):
@@ -84,8 +85,7 @@ def mermaid(snakefiles, steps):
     for k, snake in enumerate(snakefiles):
         if not snake["rules"]:
             continue
-        label = snake["file"] + (" → " + snake["run"] if snake["run"] else "")
-        lines.append('    subgraph w{}["{}"]'.format(k, label))
+        lines.append('    subgraph w{}["{}"]'.format(k, snake["file"]))
         nodes = []
         for j, rule in enumerate(snake["rules"]):
             text = rule["rule"] + (": " + ", ".join(rule["scripts"]) if rule["scripts"] else "")
@@ -95,34 +95,57 @@ def mermaid(snakefiles, steps):
     return "\n".join(lines)
 
 
+def run_label(run):
+    """The run's label: `run:` of RUN.txt, else the folder name; "flat layout" for old analyses."""
+    if run is None:
+        return None
+    if run["layout"] == "flat":
+        return "flat layout"
+    return (run["run_txt"] or {}).get("run") or run["name"]
+
+
 def scan_outputs(dest):
     base = os.path.join(dest, "outputs")
-    found = {"runs": [], "current": None, "figures": [], "reports": [], "numbers": []}
+    found = {"runs": [], "current": None, "run": None, "layout": "none", "figures": [], "reports": [], "numbers": [],
+             "source_data_missing": []}
     if not os.path.isdir(base):
         return found
-    current = os.path.join(base, "current")
-    if os.path.islink(current):
-        found["current"] = os.readlink(current)
+    rel = lambda path: os.path.relpath(path, dest).replace(os.sep, "/")
     listed = ap.runs(dest, "outputs")
-    if listed and listed[0]["layout"] == "run":
-        found["runs"] = [r["name"] for r in listed]
-    else:  # an old layout: every folder under outputs/ counts as a run
-        for entry in sorted(os.listdir(base)):
-            if os.path.isdir(os.path.join(base, entry)) and not os.path.islink(os.path.join(base, entry)):
-                found["runs"].append(entry)
-    if ap.current_run(dest, "outputs")[1] == "outside repository":
+    found["runs"] = [r["name"] for r in listed] if listed and listed[0]["layout"] == "run" else [
+        e for e in sorted(os.listdir(base)) if os.path.isdir(os.path.join(base, e)) and not os.path.islink(os.path.join(base, e))]
+    run, reason = ap.current_run(dest, "outputs")
+    found["layout"] = "flat" if reason == "flat layout" else "run" if run else "none"
+    if reason == "outside repository":
         found["current_gap"] = "outputs/current points outside the repository ({}); it is not used.".format(
-            found["current"])
-    for folder, dirs, files in os.walk(base):
+            os.readlink(os.path.join(base, "current")))
+    if run and run["layout"] == "run":
+        found["current"], found["run"] = run["name"], run_label(run)
+    elif run:
+        found["run"] = run_label(run)
+    if run and run["layout"] == "run" and os.path.isdir(os.path.join(run["path"], "figures")):
+        # A run folder: figures pair with source_data and tables by stem (contract rule 3).
+        pngs = [f for f in ap.figures(run) if f.endswith(".png")]
+        found["figures"] = [rel(f) for f in pngs]
+        have = {ap.stem(f) for f in ap.source_data(run)}
+        found["source_data_missing"] = sorted({ap.stem(f): rel(f) for f in reversed(ap.figures(run))
+                                               if ap.stem(f) not in have}.values())
+        found["tables"] = [rel(t) for t in ap.tables(run)]
+        found["reports"] = [rel(os.path.join(h, f)) for h, _, fs in os.walk(run["path"]) for f in sorted(fs)
+                            if "REPORT" in f and f.endswith(".md")]
+        number = ap.numbers(dest, run)
+        found["numbers"] = [rel(number)] if number else []
+        return found
+    for folder, dirs, files in os.walk(base):  # flat layout, or a run folder with no figures/: walk what is there
         dirs[:] = [d for d in dirs if not os.path.islink(os.path.join(folder, d)) and d not in ("cache", "logs")]
         for file in sorted(files):
-            rel = os.path.relpath(os.path.join(folder, file), dest).replace(os.sep, "/")
+            path = rel(os.path.join(folder, file))
             if file.endswith(".png"):
-                found["figures"].append(rel)
+                found["figures"].append(path)
             elif "REPORT" in file and file.endswith(".md"):
-                found["reports"].append(rel)
+                found["reports"].append(path)
             elif file == "numbers.json":
-                found["numbers"].append(rel)
+                found["numbers"].append(path)
     return found
 
 
@@ -134,7 +157,7 @@ def methods_tab(step):
                       "# [the 5-15 lines that do the work, with their line range]", "```", ""])
 
 
-def results_tab(step, figures, reports):
+def results_tab(step, figures, reports, missing=()):
     title = "### {} {}".format(step["num"], step["stem"][3:].replace("_", " "))
     lines = [title, "",
              "**Question.** [What this tab answers, as one question.]", "",
@@ -144,6 +167,8 @@ def results_tab(step, figures, reports):
         lines += ["- [Conclusion] ([figure](../{0})). [agent-derived: `{0}`]".format(fig), "",
                   "![Figure {1}. [caption]. `{0}`](../{0})".format(fig, n), "",
                   "Inspected `{}`: [groups, n, axes, interval type; any defect].".format(fig), ""]
+        if fig in missing:
+            lines += ["source data missing: {}".format(fig), ""]
     for rep in reports:
         lines += ["- [Conclusion from the run report]. [agent-derived: `{}`]".format(rep), ""]
     if not figures and not reports:
@@ -152,11 +177,58 @@ def results_tab(step, figures, reports):
     return "\n".join(lines)
 
 
+def outputs_row(dest, name, run, date):
+    """Write the render into the analysis doc's `## Outputs` table (one row per path, replaced on a rerun) and
+    the run cell of reports/README.md. Returns the lines to print."""
+    path = "reports/{}.html".format(name)
+    row = "| {} | Quarto report (rendered {}, run {}) |".format(path, date, run)
+    doc = ap.find_doc(dest)
+    if doc is None:
+        return ["refused: no <NAME>.md or README.md to hold the Outputs table"]
+    lines = ap.read(doc).split("\n")
+    mine = re.compile(r"^\|\s*`?{}`?\s*\|".format(re.escape(path)))
+    head = next((i for i, l in enumerate(lines) if re.match(r"^##\s+Outputs\s*$", l)), None)
+    if head is None:
+        lines += ["", "## Outputs", "", "| File | Description |", "|------|-------------|", row]
+    else:
+        end = next((i for i in range(head + 1, len(lines)) if lines[i].startswith("#")), len(lines))
+        table = [i for i in range(head + 1, end) if lines[i].startswith("|")]
+        hit = [i for i in table if mine.match(lines[i])]
+        if hit:
+            lines[hit[0]] = row
+            for i in reversed(hit[1:]):
+                del lines[i]
+        elif table:
+            lines.insert(table[-1] + 1, row)
+        else:
+            lines[head + 1:head + 1] = ["", "| File | Description |", "|------|-------------|", row]
+    with open(doc, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines))
+    out = ["wrote the Outputs row for {} in {}".format(path, os.path.basename(doc))]
+    readme = os.path.join(dest, "reports", "README.md")
+    if os.path.isfile(readme):
+        text = ap.read(readme).split("\n")
+        for i, line in enumerate(text):
+            cells = line.split("|")
+            if len(cells) >= 5 and cells[1].strip() in ("`{}.qmd`".format(name), "`{}.html`".format(name)):
+                cells[3] = " `{}` ".format(run)
+                if cells[1].strip().endswith(".html`"):
+                    cells[2] = " its render, {} ".format(date)
+                text[i] = "|".join(cells)
+        with open(readme, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(text))
+        out.append("updated the run cell in reports/README.md")
+    return out
+
+
 def main(argv):
     parser = argparse.ArgumentParser(prog="analysis_report")
     parser.add_argument("--dest", required=True, help="the analysis folder")
     parser.add_argument("--templates", required=True, help="new-analysis's templates/ (holds report.qmd)")
     parser.add_argument("--overwrite", action="store_true", help="replace an existing reports/<name>.qmd")
+    parser.add_argument("--outputs-row", action="store_true",
+                        help="after a render: add reports/<name>.html to the doc's Outputs table, update reports/README.md")
+    parser.add_argument("--date", help="render date for --outputs-row (default today)")
     parser.add_argument("--dry-run", action="store_true", help="print the inventory, write nothing")
     args = parser.parse_args(argv)
 
@@ -170,6 +242,11 @@ def main(argv):
         return 1
     name = os.path.basename(dest)
     load_paths(args.templates)
+    if args.outputs_row:
+        run, _ = ap.current_run(dest, "outputs")
+        for line in outputs_row(dest, name, run_label(run) or "none", args.date or datetime.date.today().isoformat()):
+            print(line)
+        return 0
     root = ap.git_toplevel(dest)
     dest_rel = os.path.relpath(dest, root).replace(os.sep, "/") if root else name
     doc = os.path.basename(ap.find_doc(dest) or "") or None
@@ -200,12 +277,16 @@ def main(argv):
     if os.path.exists(report) and not args.overwrite:
         print("kept: {}/{} exists; pass --overwrite to replace it".format(dest_rel, report_rel))
         return 0
-    results = [results_tab(s, by_step(outputs["figures"], s["num"]), by_step(outputs["reports"], s["num"]))
+    missing = outputs["source_data_missing"]
+    results = [results_tab(s, by_step(outputs["figures"], s["num"]), by_step(outputs["reports"], s["num"]), missing)
                for s in steps if by_step(outputs["figures"], s["num"]) or by_step(outputs["reports"], s["num"])] or [
         results_tab(s, [], []) for s in steps]
     text = ap.fill(ap.read(template), {
         "NAME": name, "DOC": doc or "README.md", "DEST": dest_rel, "MERMAID": mermaid(snakefiles, steps),
         "METHODS": "\n".join(methods_tab(s) for s in steps), "RESULTS": "\n".join(results)})
+    if missing:  # contract rule 3: a figure with no source_data/ table is an open item
+        text = text.replace("## Open items\n\n", "## Open items\n\n" + "".join(
+            "- source data missing: {}\n".format(f) for f in missing), 1)
     if "@@" in text:
         print("refused: unresolved placeholder in the template")
         return 1

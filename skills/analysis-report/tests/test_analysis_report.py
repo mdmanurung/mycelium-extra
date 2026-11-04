@@ -66,10 +66,10 @@ class AnalysisReportTest(unittest.TestCase):
         inventory = json.loads(out[:out.rindex("}") + 1])
         self.assertEqual(inventory["doc"], "DEMO.md")
         self.assertEqual(inventory["steps"], ["01_prepare.R", "02_fit.R", "code/03_plot.py"])
-        self.assertEqual([(s["file"], s["run"], [(r["rule"], r["scripts"]) for r in s["rules"]])
+        self.assertEqual([(s["file"], [(r["rule"], r["scripts"]) for r in s["rules"]])
                           for s in inventory["snakefiles"]],
-                         [("Snakefile", "outputs/run_1", [("prepare", ["01_prepare.R"]), ("fit", ["02_fit.R"])]),
-                          ("Snakefile.figures", "outputs/run_2", [("figures", ["03_plot.py"])])])
+                         [("Snakefile", [("prepare", ["01_prepare.R"]), ("fit", ["02_fit.R"])]),
+                          ("Snakefile.figures", [("figures", ["03_plot.py"])])])
         self.assertEqual(inventory["outputs"]["current"], "run_2")
         self.assertEqual(inventory["outputs"]["figures"], ["outputs/run_2/03_effects.png"])
         self.assertEqual(inventory["outputs"]["reports"], ["outputs/run_2/03_REPORT.md"])
@@ -82,7 +82,7 @@ class AnalysisReportTest(unittest.TestCase):
             report = handle.read()
         self.assertNotIn("@@", report)
         self.assertIn("engine: markdown", report)
-        self.assertIn('subgraph w0["Snakefile → outputs/run_1"]', report)
+        self.assertIn('subgraph w0["Snakefile"]', report)
         self.assertIn('r0_0["prepare: 01_prepare.R"] --> r0_1["fit: 02_fit.R"]', report)
         self.assertIn('r1_0["figures: 03_plot.py"]', report)
         self.assertIn('```{.python filename="code/03_plot.py"}', report)
@@ -141,6 +141,80 @@ class AnalysisReportTest(unittest.TestCase):
         self.run_script()
         with open(os.path.join(self.dest, "reports", "demo.qmd")) as handle:
             self.assertIn('```{.python filename="code/04_explore.marimo.py"}', handle.read())
+
+RUN_DOC = "# demo\n\n## Outputs\n\n| File | Description |\n|------|-------------|\n| `outputs/x.png` | a figure |\n\n## Notes\n\nend\n"
+
+
+class RunLayoutTest(unittest.TestCase):
+    def setUp(self):
+        self.root = os.path.realpath(tempfile.mkdtemp())
+        subprocess.run(["git", "-C", self.root, "init", "-q"], check=True)
+        self.dest = os.path.join(self.root, "nbs", "demo")
+        write(os.path.join(self.dest, "README.md"), RUN_DOC)
+        write(os.path.join(self.dest, "code", "01_fit.py"), "1\n")
+        old = os.path.join(self.dest, "outputs", "run_20261101_first")
+        new = os.path.join(self.dest, "outputs", "run_20261104_second")
+        write(os.path.join(old, "RUN.txt"), "run: run_20261101_first\nstatus: superseded\n")
+        write(os.path.join(old, "figures", "01_old.png"))
+        write(os.path.join(new, "RUN.txt"), "run: run_20261104_second\nstatus: current\n")
+        write(os.path.join(new, "figures", "01_a.png"))
+        write(os.path.join(new, "figures", "01_b.png"))
+        write(os.path.join(new, "source_data", "01_a.tsv"), "x\n")
+        write(os.path.join(new, "tables", "01_a.tsv"), "x\n")
+        write(os.path.join(new, "numbers.json"), "{}")
+        os.symlink("run_20261104_second", os.path.join(self.dest, "outputs", "current"))
+
+    def tearDown(self):
+        shutil.rmtree(self.root)
+
+    def run_script(self, *args):
+        with open(SCRIPT) as source:
+            proc = subprocess.run([sys.executable, "-", "--dest=nbs/demo", "--templates=" + TEMPLATES] + list(args),
+                                  stdin=source, cwd=self.root, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                  universal_newlines=True)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        return proc.stdout
+
+    def read(self, *parts):
+        with open(os.path.join(self.dest, *parts)) as handle:
+            return handle.read()
+
+    def test_current_run_figures_pair_with_source_data(self):
+        out = self.run_script()
+        outputs = json.loads(out[:out.rindex("}") + 1].split("\nwrote")[0])["outputs"]
+        self.assertEqual((outputs["layout"], outputs["current"], outputs["run"]), ("run", "run_20261104_second", "run_20261104_second"))
+        self.assertEqual(outputs["figures"], ["outputs/run_20261104_second/figures/01_a.png",
+                                              "outputs/run_20261104_second/figures/01_b.png"])
+        self.assertEqual(outputs["source_data_missing"], ["outputs/run_20261104_second/figures/01_b.png"])
+        self.assertEqual(outputs["numbers"], ["outputs/run_20261104_second/numbers.json"])
+        report = self.read("reports", "demo.qmd")
+        self.assertIn("- source data missing: outputs/run_20261104_second/figures/01_b.png", report)
+        self.assertEqual(report.count("source data missing:"), 2)  # Open items and the Results tab
+        self.assertNotIn("01_old.png", report)
+        self.assertNotIn("source data missing: outputs/run_20261104_second/figures/01_a.png", report)
+
+    def test_outputs_row_appends_once_and_replaces(self):
+        self.run_script()
+        write(os.path.join(self.dest, "reports", "README.md"),
+              "# Reports\n\n| File | What it is | From run | Owner |\n|---|---|---|---|\n"
+              "| `demo.qmd` | the record | `none` | analysis-report |\n| `demo.html` | its render | same | quarto render |\n")
+        self.run_script("--outputs-row", "--date=2026-11-04")
+        self.run_script("--outputs-row", "--date=2026-11-05")
+        doc = self.read("README.md")
+        self.assertEqual(doc.count("| reports/demo.html |"), 1)
+        self.assertIn("| reports/demo.html | Quarto report (rendered 2026-11-05, run run_20261104_second) |", doc)
+        self.assertLess(doc.index("| reports/demo.html |"), doc.index("## Notes"))
+        self.assertIn("| `outputs/x.png` | a figure |", doc)
+        readme = self.read("reports", "README.md")
+        self.assertIn("| `demo.qmd` | the record | `run_20261104_second` | analysis-report |", readme)
+        self.assertIn("| `demo.html` | its render, 2026-11-05 | `run_20261104_second` | quarto render |", readme)
+
+    def test_outputs_row_without_a_table_or_readme(self):
+        write(os.path.join(self.dest, "README.md"), "# demo\n")
+        self.run_script("--outputs-row", "--date=2026-11-04")
+        self.assertIn("## Outputs\n\n| File | Description |", self.read("README.md"))
+        self.assertFalse(os.path.exists(os.path.join(self.dest, "reports", "README.md")))
+
 
 if __name__ == "__main__":
     unittest.main()
