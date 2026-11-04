@@ -1,0 +1,46 @@
+---
+title: "il6-demo"
+date: today
+engine: markdown
+---
+
+::: {.panel-tabset}
+
+## Overview
+
+Status: verified. Run: `outputs/run_20261104_il6`. Plan: [plans/PLAN.md](../plans/PLAN.md).
+
+Does drug X raise IL6 in stimulated monocytes, with donors as the replicates?
+
+### Answer in brief
+
+- IL6 rises after drug X in 5 of 6 donors (paired log2 fold change 1.8, FDR 0.003); it does not show a dose effect.
+- The monocyte count per donor did not change (median 1200 cells); this is a descriptive check, not a test.
+
+## Results
+
+### 1. What changes after drug X
+
+**Question.** Does IL6 change after drug X?
+
+**Approach.** Pseudobulk per donor, paired test, one family of 2 contrasts, FDR across genes.
+
+**Conclusion.** IL6 is higher after drug X in 5 of 6 donors, paired log2 fold change 1.8, FDR 0.003. It does not show a dose effect. [Figure 1](../outputs/03_il6_by_donor.png) (panel A) [agent-derived: paired test on donor pseudobulk]
+
+Figure 1. Each line joins one donor before and after drug X. `outputs/03_il6_by_donor.png`
+
+Inspected `outputs/03_il6_by_donor.png`: 6 donors, lines paired, y axis log2 CPM; no clipping.
+
+### 2. Did cell numbers change
+
+**Question.** Did monocyte counts shift?
+
+**Approach.** Counts per donor, no test.
+
+**Conclusion.** The median is 1200 cells per donor; not tested. [agent-derived: descriptive count] unsupported: no inspected figure
+
+## Open items
+
+- Dose effect untested: needs the dose series plot from step 04.
+
+:::
