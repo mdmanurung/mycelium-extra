@@ -70,7 +70,8 @@ function journal() {
   controls.appendChild(select);
   box.appendChild(controls);
   var coverage = h("div", "journal-coverage");
-  coverage.appendChild(h("p", "", "Coverage: " + (serious.length ? serious.length + " source group(s) absent or incomplete" :
+  coverage.appendChild(h("p", "", "Coverage: " + (serious.length ? serious.length + " source group(s) absent or incomplete (" +
+    serious.map(function (k) { return k + " " + j.coverage[k]; }).join(", ") + ")" :
     "inspected sources available; history completeness not established") +
     (conflicts ? " · " + conflicts + " record(s) have conflicting or changed variants" : "") + (j.coverage.handoffs === "interrupted" ? " · publication interrupted" : "") + " · " + incomplete + " record(s) without their own completion evidence · Context is a saved snapshot; refresh to inspect later changes."));
   var covDetail = h("div");
@@ -93,17 +94,18 @@ function journal() {
     function outcomes(key) {
       return Array.from(new Set(tied.map(function (e) {
         var p = e.detail.projection; return key === "qualification" ? (p.qualification || {}).overall || "not available" : p.conformity;
-      }))).join("; ");
+      })));
     }
     var assessment = latest ? " · saved observation " + (latest.observed_at || "time not recorded") : "";
-    box.appendChild(para("Latest recorded conformity", projection ? outcomes("conformity") + assessment : "not available"));
-    box.appendChild(para("Latest recorded qualification", projection && projection.qualification ?
-      outcomes("qualification") + assessment : "not available"));
+    box.appendChild(projection ? outcomeLine("Latest recorded conformity", outcomes("conformity"), assessment) : para("Latest recorded conformity", "not available"));
+    box.appendChild(projection && projection.qualification ? outcomeLine("Latest recorded qualification", outcomes("qualification"), assessment) :
+      para("Latest recorded qualification", "not available"));
     if (tied.length > 1) box.appendChild(h("p", "fine", latest.observed_at ? "Multiple saved observations share this time; their order is not established." : "Multiple saved observations have no recorded observation time; their order is not established."));
     if (latest) box.appendChild(h("p", "fine", "Assessment computation time was not separately recorded. Saved time is not output production time."));
     var priorities = h("div", "journal-priorities");
     priorities.appendChild(h("h2", "", "Priority concerns"));
-    if (!concerns.length) priorities.appendChild(h("p", "", "No priority concerns found in the inspected records"));
+    if (!all.length) priorities.appendChild(h("p", "", "No journal records are loaded, so no concern could be found. That is not evidence that nothing ran: see the coverage above."));
+    else if (!concerns.length) priorities.appendChild(h("p", "", "No priority concerns found in the inspected records"));
     concerns.slice(0, 3).forEach(function (title) {
       var es = groups[title];
       var label = title.replace(/[0-9a-f]{16,}/g, "[identifier in evidence]");
@@ -178,7 +180,7 @@ function journal() {
       var e = selected;
       detailBox.appendChild(h("h2", "", e.summary));
       detailBox.appendChild(para("Observation", s.concern || e.summary));
-      detailBox.appendChild(para("Recorded outcome", e.kind === "verification" ? e.detail.projection.conformity :
+      detailBox.appendChild(e.kind === "verification" ? outcomeLine("Recorded outcome", [e.detail.projection.conformity], "") : para("Recorded outcome",
         e.detail.submission ? "submission; completion unknown" : e.detail.exit_status === undefined ? "see recorded evidence" : String(e.detail.exit_status)));
       detailBox.appendChild(para("Context", e.references.plan ? "Recorded plan " + e.references.plan : (e.references.plans || []).length > 1 ? "Multiple recorded plans; see evidence" : "Plan attribution not established"));
       if (e.references.attempt) detailBox.appendChild(para("Attempt", String(e.references.attempt).slice(0, 8) + " (full reference in evidence)"));
