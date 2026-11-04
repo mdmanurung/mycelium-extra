@@ -4066,6 +4066,40 @@ def write(root, result):
     return [os.path.join(os.path.relpath(folder, root), name) for name in names]
 
 
+def target_row(result):
+    return "provenance/verify-{}.md in the Outputs table".format(result["hash"])
+
+
+def index_outputs(root, result):
+    """Put one row for this plan's verify record in the `## Outputs` table of the analysis doc, replacing an
+    earlier row for the same file. Returns the note to print when nothing was added, else None."""
+    folder = os.path.join(root, result["analysis_dir"])
+    doc = analysis_paths.find_doc(folder)
+    if not doc:
+        return "no analysis doc in {}, so no Outputs row was added.".format(result["analysis_dir"])
+    target = "provenance/verify-{}.md".format(result["hash"])
+    row = "| {} | verify {} ({}) |".format(target, result["status"], time.strftime("%Y-%m-%d", time.localtime()))
+    lines = read_text(doc).splitlines()
+    start = next((i for i, line in enumerate(lines) if re.match(r"^##\s+Outputs\s*$", line)), None)
+    first = last = None
+    for i in range(start + 1 if start is not None else len(lines), len(lines)):
+        if lines[i].startswith("#"):
+            break
+        if lines[i].lstrip().startswith("|"):
+            first = i if first is None else first
+            last = i
+        elif first is not None:
+            break
+    if first is None or last - first < 1:
+        return "{} has no `## Outputs` table, so no Outputs row was added.".format(os.path.basename(doc))
+    old = re.compile(r"^\|\s*`?{}`?\s*\|".format(re.escape(target)))
+    kept = [line for i, line in enumerate(lines) if not (first + 2 <= i <= last and old.match(line))]
+    kept.insert(last + 1 - (len(lines) - len(kept)), row)
+    with open(doc, "w", encoding="utf-8", errors="surrogateescape") as handle:
+        handle.write("\n".join(kept) + "\n")
+    return None
+
+
 def approved_plans(root):
     """(approved_at, hash, planned scripts, run count) for each approval the gate holds."""
     receipts = read_jsonl(gate.state_path(root, "receipts.jsonl"))
@@ -4939,6 +4973,8 @@ def run_findings(base, results, runs, pointers):
             add("gap", name, "no label: neither `{0}/RUN.txt` nor `{0}.RUN.txt` exists.".format(name))
         elif run["label"] == "sibling":
             add("info", name, "labelled by the sibling file `{}.RUN.txt` (a frozen run).".format(name))
+        if run.get("kind_error"):
+            add("gap", name, "{}.".format(run["kind_error"]))
         for number, problem in run["problems"]:
             add("gap", name, "malformed label{}: {}.".format(" (line {})".format(number) if number else "", problem))
         if STATE_WORDS.search(name):
@@ -5038,9 +5074,12 @@ def list_runs(base, gated, path):
     mine = [p[0] for p in plans if guess_analysis_dir(p[2]) == os.path.relpath(analysis, base)]
     names = sorted(os.listdir(results))
     pointers = [(n, os.readlink(os.path.join(results, n))) for n in names if os.path.islink(os.path.join(results, n))]
-    found = [label_run(os.path.join(results, n)) for n in names
-             if RUN_NAME.match(n) and not os.path.islink(os.path.join(results, n))
-             and os.path.isdir(os.path.join(results, n))]
+    found = []
+    for entry in analysis_paths.runs(analysis, results):  # the shared resolver; a flat layout has no run folders
+        if entry["layout"] == "run":
+            run = label_run(entry["path"])
+            run["kind_error"] = (entry["run_txt"] or {}).get("kind_error")
+            found.append(run)
     return {"results": rel_or_abs(base, results), "runs": found, "pointers": pointers,
             "findings": run_findings(base, results, found, pointers),
             "citations": run_citations(base, analysis, max(mine) if mine else None)}
@@ -5420,6 +5459,8 @@ def main(argv):
             sys.exit("verify: could not write the provenance bundle: {}.".format(error))
         for path in written:
             print("wrote " + path)
+        note = index_outputs(root, result)
+        print("indexed " + target_row(result) if note is None else "note: " + note)
         if gate.git(root, "check-ignore", "-q", written[0]) is not None:
             print("warning: git ignores {}, so these files will not be committed with the analysis."
                   .format(os.path.dirname(written[0])))

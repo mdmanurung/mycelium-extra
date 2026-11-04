@@ -43,6 +43,20 @@ class ColdReader(unittest.TestCase):
         self.assertIn("- Assumed, not run: <", HANDOFF)
         self.assertRegex(HANDOFF, r"## Open items\n- .*lean \(not a decision\)")
 
+    def test_state_has_a_run_line(self):
+        state = HANDOFF.split("## State", 1)[1].split("## Open items", 1)[0]
+        self.assertIn("- Run: <", state)
+        for needle in ("status <RUN.txt status>", "kind <kind>", "`flat layout`", "`no run`"):
+            self.assertIn(needle, state, needle)
+        self.assertIn("docs/concepts/analysis-layout.md", state)
+
+    def test_track_changes_brief_path_uses_the_double_underscore_encoding(self):
+        grill = read(SKILLS, "grill", "SKILL.md")
+        path = ".mycelium-extra/track-changes/<analysis path with `/` written as `__`>/brief.md"
+        self.assertIn(path, HANDOFF)
+        self.assertIn(path, grill)
+        self.assertNotIn("track-changes/<analysis>/brief.md", HANDOFF)
+
     def test_no_banned_words(self):
         for word in ("leverage", "robust", "seamless", "comprehensive"):
             self.assertIsNone(re.search(word, REFERENCE, re.I), word)
