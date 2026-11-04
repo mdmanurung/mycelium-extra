@@ -64,4 +64,4 @@ Each question asks one thing, never two joined by "and". Ask for the fact, not f
 
 ## 3. After the answers come back
 
-When the user pastes or saves the answers, read them. Each answer that settles a Parked question goes back to `/mycelium-extra:grill` as `[human-stated]` evidence, quoting the recipient's role. A filled questionnaire approves nothing.
+When the user pastes or saves the answers, read them. Each answer that settles a Parked question goes back to `/mycelium-extra:grill` as evidence tagged `[human-stated: <role>]`, for example `[human-stated: core facility]`, quoting the recipient's role. Never use the bare `[human-stated]` tag for a recipient: it is reserved for the user's own words. A filled questionnaire approves nothing.

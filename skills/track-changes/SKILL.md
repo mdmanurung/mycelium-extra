@@ -5,7 +5,7 @@ description: "Show what changed in one analysis against its approved plan: plan,
 
 # Mycelium Extra: Track changes
 
-A read-only account of how one analysis moved from what the researcher approved. It reuses the gate's and `verify`'s records; it does not grade them again. Silence is not assurance: what it could not observe is listed in every report.
+A read-only account of how one analysis moved from what the researcher approved. It reuses the gate's and `verify`'s records; it does not grade them again. `track-changes` shows what changed since approval; for whether what ran matches the plan, use `/mycelium-extra:verify`. Silence is not assurance: what it could not observe is listed in every report.
 
 ## 1. Run it
 
