@@ -20,14 +20,16 @@ app = marimo.App(width="medium")
 
 with app.setup:
     # Parameters a reader may change, each with its reason.
+    import os
     from pathlib import Path
 
     import marimo as mo
     import pandas as pd
 
     SEED = 0  # pass to every RNG, e.g. np.random.default_rng(SEED)
-    INPUT = Path(@@INPUT_LITERAL@@)
-    OUTPUT = Path(@@OUTPUT_LITERAL@@)
+    RUN = Path(os.environ["RUN_DIR"])  # outputs/<run>, set by the Snakefile
+    INPUT = @@INPUT_PY@@
+    OUTPUT = @@OUTPUT_PY@@
 
 
 @app.cell(hide_code=True)

@@ -13,7 +13,7 @@ engine: markdown
 ---
 
 <!-- Filled by /mycelium-extra:analysis-report after a run. Quote only the lines that do the work of
-     each script (filename= names it; say the line range); figures are the saved PNGs under outputs/
+     each script (filename= names it; say the line range); figures are the saved PNGs under outputs/<run>/figures/
      (a PDF does not show in HTML). Render: quarto render reports/@@NAME@@.qmd (engine: markdown, so no cell runs and the gate
      lets it pass). Rename, add or drop tabs freely: steps are the first layout,
      not the last. -->
@@ -22,7 +22,7 @@ engine: markdown
 
 ## Overview
 
-Status: draft. Run: `outputs/[run]`. Findings: [.living/findings IDs once crystallized]. Plan: [plans/PLAN.md](../plans/PLAN.md); log: [plans/TRACKER.md](../plans/TRACKER.md); doc: [@@DOC@@](../@@DOC@@).
+Status: draft. Run: `outputs/[run]` (its `RUN.txt` has the status and the plan hash). Findings: [.living/findings IDs once crystallized]. Plan: [plans/PLAN.md](../plans/PLAN.md); log: [plans/TRACKER.md](../plans/TRACKER.md); doc: [@@DOC@@](../@@DOC@@).
 
 [What question the analysis answers: the Purpose from @@DOC@@.]
 
@@ -63,10 +63,10 @@ Status: draft. Run: `outputs/[run]`. Findings: [.living/findings IDs once crysta
 
 ```bash
 cd @@DEST@@
-bash run.sh                       # or: sbatch run.sbatch
+bash run.sh <slug>                # or: sbatch run.sbatch <slug>
 quarto render reports/@@NAME@@.qmd
 ```
 
-Each conclusion in Results cites its inspected figure and ends with the `[agent-derived: ...]` tag that `verify` counts. Numbers come from `outputs/numbers.json` (Mycelium's `register_value`) or the analysis doc's `<!-- claims -->` block. Provenance: `provenance/` after `verify write`; logs in `logs/`.
+Each conclusion in Results cites its inspected figure and ends with the `[agent-derived: ...]` tag that `verify` counts. Numbers come from `outputs/<run>/numbers.json` (or Mycelium's flat `outputs/numbers.json` from `register_value`) or the analysis doc's `<!-- claims -->` block. Provenance: `provenance/` after `verify write`; logs in `outputs/<run>/logs/`.
 
 :::

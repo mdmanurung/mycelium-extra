@@ -1,15 +1,21 @@
-"""@@NAME@@: run the numbered steps in order.
+"""@@NAME@@: run the numbered steps in order, into one run folder.
 
-From anywhere: snakemake -s @@DEST@@/Snakefile --cores 4   (or: bash @@DEST@@/run.sh)
-One step:      snakemake -s @@DEST@@/Snakefile --cores 4 <rule name>
-Interpreters:  @@ENV_NOTE@@; override with --config rscript=/path/to/Rscript python=/path/to/python jupyter=/path/to/jupyter quarto=/path/to/quarto
+From this folder: bash run.sh <slug>   (makes outputs/run_<YYYYMMDD>_<slug>/ and its RUN.txt, then runs this file)
+Without run.sh:   snakemake -s @@DEST@@/Snakefile --cores 4 --config run=run_YYYYMMDD_<slug>
+One step:         add the rule name, e.g. step01_prepare
+Interpreters:     @@ENV_NOTE@@; override with --config rscript=/path/to/Rscript python=/path/to/python jupyter=/path/to/jupyter quarto=/path/to/quarto
 
-Step scripts live in code/; paths are relative to this folder. Outputs go to outputs/ with the step's number as prefix;
-logs, benchmarks, and executed notebooks go to logs/. Wrap an output in protected() once it
-is expensive to recompute.
+Step scripts live in code/; paths are relative to this folder. Every output, log, benchmark and executed
+notebook of a step goes under outputs/<run>/ (OUT below); logs and benchmarks under outputs/<run>/logs/.
+A qmd step's page goes to reports/site/. Wrap an output in protected() once it is expensive to recompute.
 """
 
 workdir: workflow.basedir
+
+RUN = config.get("run")
+if not RUN:
+    raise ValueError("name the run: bash run.sh <slug>  (or snakemake --config run=run_YYYYMMDD_<slug>)")
+OUT = f"outputs/{RUN}"
 
 RSCRIPT = config.get("rscript", @@RSCRIPT@@)
 PYTHON = config.get("python", @@PYTHON@@)
@@ -20,7 +26,7 @@ THREADS = "OPENBLAS_NUM_THREADS={threads} OMP_NUM_THREADS={threads} MKL_NUM_THRE
 
 rule all:
     input:
-        "@@LAST_OUTPUT@@",
+@@LAST_OUTPUTS@@
 
 
 @@RULES@@

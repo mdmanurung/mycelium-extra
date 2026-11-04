@@ -38,7 +38,7 @@ Claude Code and OpenCode: `/mycelium-extra:<skill>`. Codex: `$mycelium-extra:<sk
 | `verify` | Checks what ran against the approved plan; writes provenance after you confirm. |
 | `plan-review` | Challenges a plan before approval. Nothing leaves the machine without consent. |
 | `plot-first` | Makes saved, inspected plots the evidence for each conclusion. |
-| `new-analysis` (you) | Scaffolds an analysis folder with stubs, plan, Snakefile and run scripts. |
+| `new-analysis` (you) | Scaffolds an analysis folder with stubs (`01_prepare.R`, `02_fit.R`, `03_show.R`), plot theme, plan, Snakefile and `run.sh <slug>`, which makes run folders. |
 | `analysis-report` (you) | Fills the Quarto report after a run. `analysis-report artifact <folder>` builds a checked, private evaluation page (written to `.mycelium-extra/artifacts/`) for Claude Code; publishing asks first. |
 | `repo-setup` (you) | Sets up a new analysis repository or Python package. |
 | `data-contract-check` | Checks a plan's data assumptions against the sample table, read-only. |
