@@ -2,6 +2,23 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
+## [Unreleased]
+
+### Added
+
+- **layout:** one analysis layout for every skill, written once in `docs/concepts/analysis-layout.md`. A run is a folder, `outputs/run_<date>_<slug>/`, and `outputs/current` is the only link. Each run has a `RUN.txt` with `run`, `kind`, `status`, `why` and `plan`. A resolver in `hooks/analysis_paths.py` finds the run, its figures, tables and `numbers.json`, and names a flat `outputs/` as `flat`.
+- **new-analysis:** the scaffold writes `code/theme.R` and `code/theme.py` (`theme_pubr(base_size = 8)`, a palette keyed by label), `reports/README.md` and `data/SOURCES.md`.
+- **analysis-report, verify:** the analysis `README.md` Outputs table is the index of reports, verify records and released runs; skills append rows.
+- **docs:** a roadmap tracker, `docs/roadmap/18-analysis-layout.md`, and host rows in `docs/installation.md` for `analysis-report artifact`, `explore` and `--session`, and `handoff test`.
+
+### Changed
+
+- **grill:** the Outputs line names `outputs/run_<date>_<slug>/` for a Snakemake or `run.sh` step, so `verify` can hash what the run writes. At a conflict between decisions it points to `decision-status`; at `READY` it offers `plan-review` once for scientific plans.
+- **questionnaire:** a recipient's answer is tagged `[human-stated: <role>]`; the bare `[human-stated]` stays for the user's own words. Grill's brief format accepts both.
+- **status words:** pages a person reads say `pass`, `gap`, `fail`, `stale` and `not verified`; `verify` keeps its machine words.
+- **verify, track-changes:** each points to the other for the question it does not answer.
+- **docs:** `idea` (model-invocable) and `idea-triage` (user only) have separate rows; the walkthrough shows the run folder.
+
 ## [0.23.0] - 2026-11-04
 
 ### Added

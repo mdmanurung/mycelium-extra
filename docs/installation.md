@@ -79,7 +79,10 @@ lucid-coder is optional. When it is installed, Extra uses it in five places and 
 
 | Feature | Claude Code | Codex 0.160.0+ | OpenCode V2 |
 |---|---|---|---|
-| All skills | Supported | Supported | Supported |
+| Skills | Supported | Supported | Supported |
+| `analysis-report artifact` | Supported | Prints a note, builds nothing | Prints a note, builds nothing |
+| `explore` and `--session` in `grill`, `verify` and `track-changes` | Use this session | All sessions of the last 7 days by default | All sessions of the last 7 days by default |
+| `handoff test` | Fresh subagent reads the file | Prints the prompt | Prints the prompt |
 | Independent plan review | Leads Codex + Biomni | Engineering critique only | Leads Codex + Biomni when both are available |
 | `init`, approval gate, pinned inputs, exploration | Supported | Needs enabled and trusted hooks | Supported |
 | Receipts and verification | Exit status from hook events | Exit status `unknown`: a verification gap | Exit status from the shell result |

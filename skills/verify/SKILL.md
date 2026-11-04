@@ -5,7 +5,7 @@ description: "After an approved grill plan has run, check what ran against the p
 
 # Mycelium Extra: Verify
 
-Check one approved plan against the gate's record of what ran, and record the result as provenance once the user agrees. The script judges only what the records show; it never re-runs anything, and nothing here edits receipts or approvals.
+Check one approved plan against the gate's record of what ran, and record the result as provenance once the user agrees. The script judges only what the records show; it never re-runs anything, and nothing here edits receipts or approvals. `verify` asks whether what ran matches the plan; for what changed since approval, use `/mycelium-extra:track-changes`.
 
 ## Synthetic review exercise (only when requested)
 

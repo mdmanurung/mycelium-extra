@@ -35,21 +35,22 @@ Claude Code and OpenCode: `/mycelium-extra:<skill>`. Codex: `$mycelium-extra:<sk
 |---|---|
 | `grill` | Turns a task into a sourced, numbered plan and waits for approval. |
 | `init` (you) | Turns on the approval gate in this repository. |
-| `verify` | Checks what ran against the approved plan; writes provenance after you confirm. |
+| `verify` | Checks what ran against the approved plan; writes provenance after you confirm. Reads runs as the [analysis layout](concepts/analysis-layout.md) defines them. |
 | `plan-review` | Challenges a plan before approval. Nothing leaves the machine without consent. |
 | `plot-first` | Makes saved, inspected plots the evidence for each conclusion. |
-| `new-analysis` (you) | Scaffolds an analysis folder with stubs, plan, Snakefile and run scripts. |
-| `analysis-report` (you) | Fills the Quarto report after a run. `analysis-report artifact <folder>` builds a checked, private evaluation page (written to `.mycelium-extra/artifacts/`) for Claude Code; publishing asks first. |
+| `new-analysis` (you) | Scaffolds an analysis folder with stubs, plan, Snakefile and run scripts, in the [analysis layout](concepts/analysis-layout.md). |
+| `analysis-report` (you) | Fills the Quarto report after a run. `analysis-report artifact <folder>` builds a checked, private evaluation page (written to `.mycelium-extra/artifacts/`) for Claude Code; publishing asks first. Reads the run named in the [analysis layout](concepts/analysis-layout.md). |
 | `repo-setup` (you) | Sets up a new analysis repository or Python package. |
 | `data-contract-check` | Checks a plan's data assumptions against the sample table, read-only. |
 | `decision-status` | Finds which past decision still binds a choice. |
 | `manuscript-audit` | Read-only audit of figure and table lineage in a manuscript repository. |
 | `track-changes` | Shows what changed against the approved plan, read-only. |
 | `focus` (you) | Explains the typed `focus` command. |
-| `handoff` (you) | Writes a short `HANDOFF.md` so a fresh session can resume. |
+| `handoff` (you) | Writes a short `HANDOFF.md` so a fresh session can resume; it names `outputs/current` as the [analysis layout](concepts/analysis-layout.md) defines it. |
 | `handoff test` (you) | Has a fresh reader try `HANDOFF.md` or a filled report from a staged copy and lists the gaps. An instruction, not a sandbox. |
 | `harden` (you) | Ships one learning's mitigation as a real test. |
-| `idea`, `idea-triage` (you) | Park an idea in one line; rank parked ideas. |
+| `idea` | Parks an idea in one line. The model can invoke it. |
+| `idea-triage` (you) | Ranks parked ideas. |
 | `questionnaire` (you) | Turns questions only someone else can answer into a questionnaire. |
 
 ## Limits

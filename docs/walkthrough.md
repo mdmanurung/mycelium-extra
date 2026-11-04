@@ -57,7 +57,7 @@ Approval pins the two input files and the three scripts by content hash. A chang
 
 ## 3. Run
 
-The three approved steps run. Each run leaves a receipt in `.mycelium-extra/receipts.jsonl`. Step 1 reports what it removed:
+The three approved steps run. Each run leaves a receipt in `.mycelium-extra/receipts.jsonl`. Step 1 reports what it removed. The outputs land in one run folder, `outputs/run_<date>_<slug>/`, with `RUN.txt`, `figures/`, `source_data/` and `tables/`; `outputs/current` points at the released run. The [analysis layout](concepts/analysis-layout.md) names every place.
 
 ```text
 samples in: 25, out: 24 (dropped: D03_day28_rerun)
