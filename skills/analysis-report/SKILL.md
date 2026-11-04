@@ -52,3 +52,24 @@ After a render: add `| reports/<name>.html | Quarto report (rendered <date>) |` 
 Say which tabs are filled, which conclusions are `unsupported: no inspected figure`, and whether the HTML was rendered. No `.living/` writes: findings crystallize through Mycelium's own post-action.
 
 End with one line: `Run "handoff test" on the .qmd to check that a cold reader can follow it.`
+
+## 5. Artifact: a one-off evaluation page
+
+`/mycelium-extra:analysis-report artifact <folder>` builds a Claude Artifact for a quick read of whether the run answered the question. The `.qmd` and its HTML stay the record; the page is an evaluation copy and is not stored as documentation.
+
+It runs only in Claude Code, where the Artifact tool exists. On Codex or OpenCode, print `The artifact verb needs Claude Code's Artifact tool; the record is reports/<name>.html.` and stop.
+
+1. **Read, add nothing.** Read the filled `reports/<name>.qmd`, `outputs/numbers.json`, every cited PNG and the verify status (`verify status`, else `provenance/PROVENANCE.md`; no provenance means `not verified`). The page holds no conclusion, number or figure that the report lacks. Stop and say so if the report is still the scaffold.
+2. **Write the page in one pass** to `reports/<name>.artifact.html`, following [references/artifact-page.md](references/artifact-page.md): the contract, the tokens, the Read-mode rules and the evaluator's order (answer in brief, each question with its figure and conclusion, open items and what is not verified, then methods quotes and reproducibility folded). The layout is free; the design is fixed. No template, no Quarto post-processing.
+3. **Banner.** Every page opens with a banner naming the run label, the plan hash, and the `.qmd` path with its short hash (`git hash-object <qmd>`, first 8 characters). It says `Evaluation copy. The record is reports/<name>.html`. An unverified run says `not verified`.
+4. **Figures** go in as data URIs (`data:image/png;base64,...`). The page may not pass 16 MB. When it would, stop, name the largest figures with their sizes, and ask the user which to drop or shrink. Do not downsample on your own.
+5. **Check before publishing**, from the repository root, with every option as `--flag=value`:
+
+   ```bash
+   sh <skill-dir>/../../hooks/py.sh - --page=<folder>/reports/<name>.artifact.html --report=<folder>/reports/<name>.qmd --numbers=<folder>/outputs/numbers.json < <skill-dir>/scripts/artifact_check.py
+   ```
+
+   It checks the contract, the banner, and that every number on the page is in the `.qmd` or `numbers.json`. A finding stops the publish: fix the page and run it again. Never edit the check to pass.
+6. **Publish only after the user agrees.** Ask every time. Name the page, its size and the figure count, and say the page is private by default. Never publish unasked. In the same session, a re-run for the same analysis updates the same URL. Otherwise each run makes a new page, and the URL goes in `plans/TRACKER.md` as one line: `| <date> | Artifact (evaluation copy of reports/<name>.qmd): <url> |`.
+
+The check does not judge whether a number means what the page says. Read the page once against the report before you publish.
