@@ -734,6 +734,14 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertIn("has no RUN.txt", proc.stderr)
         self.assertEqual(os.listdir(folder), ["01_prepare.rds"])
 
+    def test_run_sh_refuses_a_slug_with_a_slash_or_a_space(self):
+        self.scaffold()
+        for slug in ("a/b", "a b"):
+            proc = self.run_sh(slug)
+            self.assertEqual(proc.returncode, 1, slug)
+            self.assertIn("slug must use only", proc.stderr)
+        self.assertEqual(os.listdir(os.path.join(self.dest, "outputs")), [".gitkeep"])
+
     def test_run_sh_needs_a_slug_and_a_dry_run_leaves_no_folder(self):
         self.scaffold()
         self.assertNotEqual(self.run_sh().returncode, 0)

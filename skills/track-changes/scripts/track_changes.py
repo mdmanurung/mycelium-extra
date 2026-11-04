@@ -612,14 +612,18 @@ def run_state(root, rel):
     import analysis_paths
     folder = os.path.join(root, rel)
     status = {r["name"]: r["status"] or "" for r in analysis_paths.runs(folder) if r["layout"] == "run"}
-    link = os.path.join(analysis_paths._base(folder), "current")
+    link = os.path.join(analysis_paths.base(folder), "current")
     target = os.path.basename(os.path.realpath(link)) if os.path.islink(link) else None
     return {"status": status, "current": target}
 
 
+ROUTINE_RUN_MOVES = {("running", "done"), ("failed", "running")}  # the normal run.sh lifecycle
+
+
 def run_items(snap, root, rel):
-    """One attention item per run whose RUN.txt `status` changed since the last snapshot, and one when the
-    `current` link was retargeted. A run marked `superseded` or `current` by hand shows up here. The baseline
+    """One item per run whose RUN.txt `status` changed since the last snapshot, and one when the
+    `current` link was retargeted. `running` to `done` and `failed` to `running` are routine (the normal
+    lifecycle); every other change, a retargeted `current` and a removed run are attention. A run marked `superseded` or `current` by hand shows up here. The baseline
     is the last snapshot, not an approval. Returns the state now, which the snapshot records for the next run."""
     now = run_state(root, rel)
     base = os.path.join(root, ".mycelium-extra", "track-changes")
@@ -631,8 +635,8 @@ def run_items(snap, root, rel):
         return now
     folder = posixpath.join(rel, "results" if os.path.isdir(os.path.join(root, rel, "results")) else "outputs")
 
-    def add(key, title, old, new, summary, next_step):
-        snap.item("run", key, title, "attention", file=posixpath.join(folder, key), baseline=str(old), current=str(new),
+    def add(key, title, old, new, summary, next_step, bucket="attention"):
+        snap.item("run", key, title, bucket, file=posixpath.join(folder, key), baseline=str(old), current=str(new),
                   summary=summary, observed="Last snapshot: {}. Now: {}.".format(old, new),
                   unknown="Whether the change was intended: nothing here records who made it or why.",
                   next=[next_step], evidence=[snap.evid("file", posixpath.join(folder, key), "RUN.txt status compared with the last snapshot")])
@@ -644,7 +648,8 @@ def run_items(snap, root, rel):
         add(name + "/RUN.txt", "{}: status {} -> {}".format(name, old or "(none)", new if new is not None else "(run folder gone)"),
             old or "(none)", new if new is not None else "(run folder gone)",
             "Observed: a run's RUN.txt status differs from the last snapshot.",
-            "`git diff -- {}` shows the edit; the user confirms or reverts the status".format(posixpath.join(folder, name, "RUN.txt")))
+            "`git diff -- {}` shows the edit; the user confirms or reverts the status".format(posixpath.join(folder, name, "RUN.txt")),
+            bucket="routine" if (old, new) in ROUTINE_RUN_MOVES else "attention")
     if before.get("current") != now["current"]:
         add("current", "current: {} -> {}".format(before.get("current") or "(none)", now["current"] or "(none)"),
             before.get("current") or "(none)", now["current"] or "(none)",

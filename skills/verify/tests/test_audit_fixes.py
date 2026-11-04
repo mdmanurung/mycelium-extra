@@ -29,6 +29,15 @@ for _name in [name for name in dir(Harness) if name.startswith("test_")]:
 
 
 class AuditFixTest(Harness):
+    # journal.py loads verify with gate.load_verify() and never calls load_gate(); _paths() must still work
+    def test_paths_resolve_when_verify_is_loaded_like_journal_does(self):
+        verify = gate.load_verify()
+        folder = os.path.join(self.root, "analysis", "lazy")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "README.md"), "w") as handle:
+            handle.write("# doc\n")
+        self.assertEqual(verify._paths().find_doc(folder), os.path.join(folder, "README.md"))
+
     # X13: a match by leading digits is stated, so "verified" is not read as "equal"
     def test_how_a_claim_matches_is_stated(self):
         verify = gate.load_verify()

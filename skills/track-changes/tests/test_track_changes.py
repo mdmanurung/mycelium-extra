@@ -238,6 +238,16 @@ class RunStatusTest(Base):
         self.assertEqual(data["runs"], {"status": {self.A: "current", self.B: "superseded"}, "current": self.B})
         self.assertEqual(data["schema"], "mycelium-extra.track-changes.v1")
 
+    def test_the_normal_lifecycle_moves_are_routine_and_a_removed_run_is_not(self):
+        self.runs(a="status: done", b="status: running")
+        self.prior({"runs": {"status": {self.A: "running", self.B: "failed"}, "current": self.B}})
+        found = {i["title"].split(":")[0]: i["bucket"] for i in self.found(self.collect(analysis="analysis/a"))}
+        self.assertEqual(found, {self.A: "routine", self.B: "routine"})
+        shutil.rmtree(os.path.join(self.root, "analysis", "a", "outputs", self.A))
+        self.prior({"runs": {"status": {self.A: "running", self.B: "running"}, "current": self.B}})
+        found = {i["title"].split(":")[0]: i["bucket"] for i in self.found(self.collect(analysis="analysis/a"))}
+        self.assertEqual(found, {self.A: "attention"})
+
     def test_a_retargeted_current_is_reported(self):
         self.runs(target=self.A)
         self.prior({"runs": {"status": {self.A: "current", self.B: "current"}, "current": self.B}})

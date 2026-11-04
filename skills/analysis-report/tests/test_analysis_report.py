@@ -180,6 +180,7 @@ class RunLayoutTest(unittest.TestCase):
             return handle.read()
 
     def test_current_run_figures_pair_with_source_data(self):
+        write(os.path.join(self.dest, "outputs", "run_20261104_second", "figures", "01_b.pdf"))  # PDF and PNG share a stem
         out = self.run_script()
         outputs = json.loads(out[:out.rindex("}") + 1].split("\nwrote")[0])["outputs"]
         self.assertEqual((outputs["layout"], outputs["current"], outputs["run"]), ("run", "run_20261104_second", "run_20261104_second"))

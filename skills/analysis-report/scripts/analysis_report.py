@@ -128,8 +128,8 @@ def scan_outputs(dest):
         pngs = [f for f in ap.figures(run) if f.endswith(".png")]
         found["figures"] = [rel(f) for f in pngs]
         have = {ap.stem(f) for f in ap.source_data(run)}
-        found["source_data_missing"] = sorted({ap.stem(f): rel(f) for f in reversed(ap.figures(run))
-                                               if ap.stem(f) not in have}.values())
+        found["source_data_missing"] = sorted({ap.stem(f): rel(f) for f in sorted(ap.figures(run), key=lambda f: f.endswith(".png"))
+                                               if ap.stem(f) not in have}.values())  # PNG last, so it wins a shared stem
         found["tables"] = [rel(t) for t in ap.tables(run)]
         found["reports"] = [rel(os.path.join(h, f)) for h, _, fs in os.walk(run["path"]) for f in sorted(fs)
                             if "REPORT" in f and f.endswith(".md")]

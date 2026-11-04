@@ -135,6 +135,11 @@ def _base(folder, results_dir=None):
     return results if os.path.isdir(results) else os.path.join(folder, "outputs")
 
 
+def base(folder, results_dir=None):
+    """The folder that holds an analysis's runs: `results_dir`, else `results/` if it exists, else `outputs/`."""
+    return _base(folder, results_dir)
+
+
 def _newest(path):
     """Newest file mtime inside `path` (RUN.txt excluded: labelling a run does not make it newer), or 0."""
     newest = 0
@@ -163,7 +168,7 @@ def _flat(base):
 
 def runs(folder, results_dir=None):
     """Run folders of an analysis, oldest name first. `results_dir` if given, else `<folder>/results/`
-    if it exists, else `<folder>/outputs/`. A run is a real directory named `run_<YYYYMMDD>_<slug>`.
+    if it exists, else `<folder>/outputs/`. A run is a real directory named `run_<YYYYMMDD>_<slug>`; dotfiles such as `.gitkeep` are ignored.
     When there are none but files (or other folders) sit in the outputs folder, one entry with
     layout "flat" and the outputs folder as its path is returned, so old analyses keep working."""
     base = _base(folder, results_dir)
@@ -172,7 +177,7 @@ def runs(folder, results_dir=None):
     found, other = [], False
     for name in sorted(os.listdir(base)):
         path = os.path.join(base, name)
-        if name == "current" or os.path.islink(path):
+        if name == "current" or name.startswith(".") or os.path.islink(path):
             continue
         if os.path.isdir(path) and RUN_DIR.match(name):
             found.append(_entry(path))

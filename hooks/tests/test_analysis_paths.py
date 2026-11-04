@@ -131,6 +131,12 @@ class FlatLayout(Base):
         self.assertEqual([os.path.basename(f) for f in ap.figures(run)], ["03_fx.png"])
         self.assertEqual(ap.numbers(self.folder), self.path("outputs", "numbers.json"))
 
+    def test_dotfile_only_outputs_is_not_a_flat_layout(self):
+        touch(self.path("outputs", ".gitkeep"))
+        self.assertEqual(ap.runs(self.folder), [])
+        self.assertEqual(ap.current_run(self.folder), (None, "none"))
+        self.assertEqual(ap.base(self.folder), self.path("outputs"))
+
     def test_nothing(self):
         self.assertEqual(ap.runs(self.folder), [])
         self.assertEqual(ap.current_run(self.folder), (None, "none"))

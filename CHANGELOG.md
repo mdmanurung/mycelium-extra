@@ -8,11 +8,15 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 - **layout:** one analysis layout for every skill, written once in `docs/concepts/analysis-layout.md`. A run is a folder, `outputs/run_<date>_<slug>/`, and `outputs/current` is the only link. Each run has a `RUN.txt` with `run`, `kind`, `status`, `why` and `plan`. A resolver in `hooks/analysis_paths.py` finds the run, its figures, tables and `numbers.json`, and names a flat `outputs/` as `flat`.
 - **new-analysis:** the scaffold writes `code/theme.R` and `code/theme.py` (`theme_pubr(base_size = 8)`, a palette keyed by label), `reports/README.md` and `data/SOURCES.md`.
-- **analysis-report, verify:** the analysis `README.md` Outputs table is the index of reports, verify records and released runs; skills append rows.
+- **analysis-report, verify:** the analysis `README.md` Outputs table is the index of reports, verify records; skills append rows.
 - **docs:** a roadmap tracker, `docs/roadmap/18-analysis-layout.md`, and host rows in `docs/installation.md` for `analysis-report artifact`, `explore` and `--session`, and `handoff test`.
 
 ### Changed
 
+- **new-analysis:** `run.sh <slug>` is now required, and the Snakefile needs `--config run=`. This applies to new scaffolds only; existing folders keep their files. The default steps are renamed to `01_prepare.R, 02_fit.R, 03_show.R`; the `.py` and `.ipynb` defaults are gone.
+- **verify:** `verify runs` reports a `kind` outside analysis | figures | scratch as a gap, and lists no runs for a flat `outputs/`.
+- **analysis-report:** `artifact_check` splits comma lists before the number check.
+- **track-changes:** the viewer filter labels now read Gap and Pass. A run status change `running` to `done` or `failed` to `running` is `routine`; every other change stays `attention`.
 - **grill:** the Outputs line names `outputs/run_<date>_<slug>/` for a Snakemake or `run.sh` step, so `verify` can hash what the run writes. At a conflict between decisions it points to `decision-status`; at `READY` it offers `plan-review` once for scientific plans.
 - **questionnaire:** a recipient's answer is tagged `[human-stated: <role>]`; the bare `[human-stated]` stays for the user's own words. Grill's brief format accepts both.
 - **status words:** pages a person reads say `pass`, `gap`, `fail`, `stale` and `not verified`; `verify` keeps its machine words.

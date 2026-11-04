@@ -15,6 +15,7 @@ analysis/<name>/
 ├── plans/     PLAN.md (the draft)  TRACKER.md
 ├── config/    figure_map.tsv  manuscript_checks.json      (manuscript work only)
 ├── reports/   README.md  <name>.qmd  <name>.html  report.scss  report-dark.scss  site/
+├── logs/                 SLURM output only (`run.sbatch`); step logs live in the run
 ├── outputs/
 │   ├── run_<YYYYMMDD>_<slug>[_vNN]/
 │   │   ├── RUN.txt
@@ -32,8 +33,8 @@ In a Mycelium repository the analysis doc is `<NAME>.md` (the folder name in upp
 1. **A run is a folder.** `outputs/run_<YYYYMMDD>_<slug>/`, with `_vNN` for a later iteration of the same slug. `run.sh` creates it and writes `RUN.txt`; Snakemake writes every step output, log and benchmark inside it. A run folder is never overwritten: a run whose status is `running` or `failed` may be resumed, any other status is refused with a `_vNN` suggestion, and a folder with no `RUN.txt` is refused until someone adds one.
 2. **`current` is the only link.** `outputs/current` points at the released run and stays inside the repository; a link to scratch storage is a gap for every check that reads it. The resolver skips runs of kind `scratch` when it has to guess the newest run.
 3. **One stem, three places.** A figure `figures/NN_x.png`, its plotted values `source_data/NN_x.tsv` and any summary `tables/NN_x.tsv` share the stem of the step that made them. A figure with no source-data table is a gap: the report lists it under Open items and `verify` under `Not checked`.
-4. **`outputs/` holds runs and `current`, nothing else.** Files directly under `outputs/` are the old flat layout; the resolver reads them and names the layout `flat`, so no analysis is migrated.
-5. **The Outputs table in the analysis doc is the index.** `analysis-report` appends its rendered report, `verify write` appends its record, and the release of a run appends `current`. Skills append rows; nobody rewrites the table.
+4. **`outputs/` holds runs and `current`, nothing else.** Files directly under `outputs/` are the old flat layout; the resolver reads them and names the layout `flat`, so no analysis is migrated. `results/` is read before `outputs/` when it exists, and `RESULTS_DIR` overrides both (`verify runs`).
+5. **The Outputs table in the analysis doc is the index.** `analysis-report` appends its rendered report, and `verify write` appends its record. Skills append rows; nobody rewrites the table. A person sets `current`.
 6. **`provenance/` stays flat** with hash-named files, read through git by `verify stale` and `verify runs`.
 7. **`.snakemake/` stays at the analysis root**, one per analysis; `verify` reads its conda envs there.
 8. **Not a record:** `.mycelium-extra/artifacts/<name>.html` (the evaluation page) and a run's `logs/`.
@@ -56,10 +57,12 @@ labeled: 2026-11-04 by run.sh
 
 # links
 superseded_by:
+reads:
+version:
 notes: rerun of the 20261030 run with the corrected donor table
 ```
 
-Lines are `key: value`; blank lines and `#` lines are skipped; an inline ` #` comment is stripped. `kind` outside `analysis | figures | scratch` is a verify gap. `superseded_by` is set only when a person confirms it.
+Lines are `key: value`; blank lines and `#` lines are skipped; an inline ` #` comment is stripped. `version` (a free label) and `reads` (run names this run read) are optional keys. `kind` outside `analysis | figures | scratch` is a verify gap. `superseded_by` is set only when a person confirms it.
 
 ## `reports/README.md`
 

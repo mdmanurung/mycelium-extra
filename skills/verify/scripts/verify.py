@@ -4087,7 +4087,7 @@ def index_outputs(root, result):
     """Put one row for this plan's verify record in the `## Outputs` table of the analysis doc, replacing an
     earlier row for the same file. Returns the note to print when nothing was added, else None."""
     folder = os.path.join(root, result["analysis_dir"])
-    doc = analysis_paths.find_doc(folder)
+    doc = _paths().find_doc(folder)
     if not doc:
         return "no analysis doc in {}, so no Outputs row was added.".format(result["analysis_dir"])
     target = "provenance/verify-{}.md".format(result["hash"])
@@ -5088,7 +5088,7 @@ def list_runs(base, gated, path):
     names = sorted(os.listdir(results))
     pointers = [(n, os.readlink(os.path.join(results, n))) for n in names if os.path.islink(os.path.join(results, n))]
     found = []
-    for entry in analysis_paths.runs(analysis, results):  # the shared resolver; a flat layout has no run folders
+    for entry in _paths().runs(analysis, results):  # the shared resolver; a flat layout has no run folders
         if entry["layout"] == "run":
             run = label_run(entry["path"])
             run["kind_error"] = (entry["run_txt"] or {}).get("kind_error")

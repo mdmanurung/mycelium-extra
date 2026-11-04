@@ -10,6 +10,7 @@ cd "$(dirname "$0")"
 
 slug="${1:?usage: bash run.sh <slug> [snakemake options]}"
 shift
+case "$slug" in "" | *[!A-Za-z0-9_-]*) echo "refused: slug must use only A-Z a-z 0-9 _ -" >&2; exit 1 ;; esac
 run="run_$(date +%Y%m%d)_${slug}"
 dir="outputs/${run}"
 

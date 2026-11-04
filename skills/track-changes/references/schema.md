@@ -13,7 +13,7 @@
 | `coverage` | What was and was not read: `focus_events`, `approvals`, `snapshots`, `receipts`, `claude_transcript` (`not_requested`, `available`, `partial`, `unavailable`), `limitations[]`, `not_observed[]`. |
 | `counts` | Items per bucket. |
 | `walkthrough` | `{plan, note, rows[]}`: the current (else original) approved plan's table joined to its `<!-- plan-evidence -->` block. Each row is `{row, step, choice, depends_on[], evidence[{claim, cmd, out, more}]}`; `out` is the recorded output, capped at 40 lines, with `more` counting the rest. Nothing here ran: `verify report` re-runs the commands. |
-| `runs` | `{status: {<run folder>: RUN.txt status}, current: <run `current` points at>}`. The next snapshot compares against it and adds one `run` item (bucket `attention`) per run whose status changed and one when `current` was retargeted; each item's `baseline` and `current` hold the old and new value. Added without renaming anything, so the schema stays `v1`. |
+| `runs` | `{status: {<run folder>: RUN.txt status}, current: <run `current` points at>}`. The next snapshot compares against it and adds one `run` item per run whose status changed (bucket `attention`; `routine` for `running` to `done` and `failed` to `running`) and one (`attention`) when `current` was retargeted; each item's `baseline` and `current` hold the old and new value. Added without renaming anything, so the schema stays `v1`. |
 | `reports` | `{<path to reports/*.qmd>: [heading lines]}`: the `##` and `###` headings outside fenced code. The next snapshot compares against it and adds one `report` item per file whose headings vanished. |
 | `items`, `evidence`, `timeline` | See below. |
 
