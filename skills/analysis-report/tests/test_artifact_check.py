@@ -72,6 +72,15 @@ class ArtifactCheckTest(unittest.TestCase):
         for name, page in cases.items():
             with self.subTest(name):
                 self.assertEqual(self.check(page)[0], 1, name)
+        # A cdnjs pin carries the version as a path segment and is accepted.
+        cdnjs = read(GOOD) + '<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>'
+        self.assertEqual(self.check(cdnjs)[0], 0, "cdnjs pin")
+
+    def test_missing_numbers_file_is_not_a_crash(self):
+        args = [sys.executable, "-", "--page=" + GOOD, "--report=" + QMD, "--numbers=" + NUMBERS + ".absent"]
+        with open(SCRIPT, "rb") as script:
+            run = subprocess.run(args, stdin=script, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
+        self.assertNotIn("Traceback", run.stdout)  # numbers found only in numbers.json may now be findings; no crash
 
     def test_banner_is_required(self):
         page = read(GOOD).replace("Evaluation copy.</strong> The record is", "Copy.</strong> The record is")
@@ -84,7 +93,6 @@ class ArtifactCheckTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("16 MB", out)
 
-    @unittest.skipUnless(os.path.exists(SLOP), "tests/slop_lint.py is added by B5")
     def test_good_page_passes_slop_lint(self):
         run = subprocess.run([sys.executable, SLOP, GOOD], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
         self.assertEqual(run.returncode, 0, run.stdout)

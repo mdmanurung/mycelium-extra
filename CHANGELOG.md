@@ -2,10 +2,19 @@
 
 All notable changes to mycelium-extra are listed here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions are the `version` in the four plugin manifests. Entries from 0.9.16 to 0.9.29 were rebuilt from `git log`.
 
-## [Unreleased]
+## [0.23.0] - 2026-11-04
+
+### Added
+
+- **DESIGN.md** at the repository root: one colour and type token set, light and dark, for every page the plugin writes. The track-changes viewer, a new Quarto report theme (`reports/report.scss`, `report-dark.scss`, written beside each report and never replaced) and the docs figure script take their colours from it; `tests/test_design_tokens.py` fails when a copy drifts.
+- **handoff:** `handoff test` has a fresh reader try `HANDOFF.md`, or a filled report, from a staged copy of the file and what it points to, and lists the gaps. Handoff and analysis-report end with a one-line offer; the test never runs unasked. It is an instruction to the reader, not a sandbox. The State block gains `Assumed, not run`; each open item carries `lean (not a decision)`.
+- **analysis-report:** `analysis-report artifact <folder>` builds a one-off evaluation page from the filled report (answer first, each question with its figure, open items, methods folded), written to `.mycelium-extra/artifacts/<name>.html`. `scripts/artifact_check.py` checks the page contract, the banner (run, plan hash, report hash, "evaluation copy") and that every number on the page is in the report or `numbers.json`. Publishing asks first, every time, and runs in Claude Code only. The Quarto report stays the record.
+- **tests:** `tests/slop_lint.py`, a static lint of generated HTML (gradients, shadows, emoji markers, web fonts, colours outside the tokens, a status with no word), with 16 rules credited to taste-skill, hallmark and DESIGN.md.
 
 ### Changed
 
+- **track-changes:** the viewer shows every state as a word in a tinted pill (review rows, journal events, stale pins, failed checks). Empty reviews and zero-record journals say nothing was recorded instead of "no concerns". Long paths wrap; the detail view shows the full path. Keyboard tabs, visible focus, a `<main>` landmark, a live region for the copy result, and control borders at 3:1. The audit with its 30 findings is in `skills/track-changes/AUDIT-2026-11.md`. The example pages are regenerated; the PNG screenshots are not.
+- **docs:** the 36 hand-written diagrams are restyled from the tokens, with dark mode kept and no node removed; the diagram-design profile is committed at `docs/design/diagram-profile.md`.
 - **docs:** the website is three pages: Start here, a walkthrough of one analysis on the simulated vaccine fixture, and a commands page. Every page shows plots generated from that analysis by `docs/scenario/make_figures.py` (standard library only), which replays the real gate and `verify`. The Documentation build regenerates them and fails if the committed figures are stale; `tests/test_docs_figures.py` checks the same. The other pages stay in the repository and are linked from GitHub.
 
 ## [0.22.3] - 2026-11-03

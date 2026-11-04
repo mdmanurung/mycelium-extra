@@ -95,7 +95,7 @@ def contract(page, size):
         host = urlparse(src.group(1)).hostname if src else None
         if src and host not in SCRIPT_HOSTS:
             out.append("contract: script host not allowed: {}".format(src.group(1)))
-        elif src and not re.search(r"@\d+\.\d+\.\d+", src.group(1)):
+        elif src and not re.search(r"[@/]\d+\.\d+\.\d+", src.group(1)):  # `pkg@1.2.3` or cdnjs `/pkg/1.2.3/`
             out.append("contract: script not pinned to an exact version: {}".format(src.group(1)))
     for tagtext in re.findall(r"<link\b[^>]*>", page, re.I):
         href = re.search(r'href\s*=\s*["\']([^"\']+)', tagtext)
@@ -147,7 +147,7 @@ def main():
     page = read(args.page)
     size = os.path.getsize(args.page)
     numbers = ""
-    if args.numbers:
+    if args.numbers and os.path.isfile(args.numbers):  # not every analysis registers values; a missing file is not a finding
         numbers = json_text(json.loads(read(args.numbers)))
     findings = contract(page, size) + banner(page) + invented(page, read(args.report), numbers)
     for line in findings:

@@ -89,6 +89,7 @@ Every task uses these fields, under a `### <ID>: <title>` heading:
 - [14-newplans.md](14-newplans.md): the unified roadmap for the two 2026-10-23 plan bundles; M1 to M4 shipped in `0.16.0`; original method guides extend `grill`.
 - [15-lucidcoder.md](15-lucidcoder.md): triage of the six 2026-10-26 `plans-lucidcoder/` bundles; S1 to S6 shipped in `0.18.0`, N1 to N4 built and N5 dropped in `0.18.1`; L1 to L6 wait for a real case.
 - [16-outside-skills-2026-11.md](16-outside-skills-2026-11.md): Pocock, Codex and ericmjl skills; A1 to A3 done in `0.20.0`, B1 to B5 in `0.21.0`; C1 to C5 (package development) in `0.22.0`.
+- [17-design-skills-2026-11.md](17-design-skills-2026-11.md): DESIGN.md tokens, `handoff test`, viewer hardening, slop-lint and the artifact evaluation page; B1 to B6 and C1 to C2 in `0.23.0`, C3 parked.
 
 ## Updating this roadmap
 

@@ -39,7 +39,7 @@ Then read what the inventory names, and run nothing else:
 - **Open items.** What stays unresolved, each with the plot or check that would settle it; the same list goes to Open Questions in `<NAME>.md`.
 - **Reproducibility.** Leave as scaffolded unless the run commands changed.
 
-Write nothing outside `reports/` except the `## Outputs` row in step 3.
+Write nothing outside `reports/` except the `## Outputs` row in step 3 and, for the artifact verb (section 5), the page under `.mycelium-extra/artifacts/` and its `TRACKER.md` line.
 
 ## 3. Render and record
 
