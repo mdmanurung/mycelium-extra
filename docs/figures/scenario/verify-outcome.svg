@@ -1,49 +1,49 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
 <title id="t">Verify outcome for the approved plan</title>
 <desc id="d">Verdict CONFORMS with 7 rows: 5 passed, 2 gaps and 0 failed. Gaps are the prose validation cells and the R lint that was not run.</desc>
-<rect x="0.5" y="0.5" width="639" height="359" rx="8" fill="#ffffff" stroke="#c8c8c8"/>
+<rect x="0.5" y="0.5" width="639" height="359" rx="8" fill="#f9fbfd" stroke="#bbc2c7"/>
 <text x="20.0" y="26.0" font-size="14" font-weight="bold">Verify outcome: CONFORMS</text>
-<text x="20.0" y="44.0" font-size="12" fill="#595959">Read from `verify report 84bb5fce` after the replay.</text>
-<line x1="20.0" y1="89.0" x2="620.0" y2="89.0" stroke="#eeeeee" stroke-width="1"/>
+<text x="20.0" y="44.0" font-size="12" fill="#4d5660">Read from `verify report 84bb5fce` after the replay.</text>
+<line x1="20.0" y1="89.0" x2="620.0" y2="89.0" stroke="#edf1f4" stroke-width="1"/>
 <text x="20.0" y="78.0" font-size="12" font-weight="bold">Step 1  01_select_samples.py</text>
-<rect x="238.0" y="64.0" width="62.0" height="20.0" fill="#009E73" rx="10"/>
-<text x="269.0" y="78.0" font-size="12" text-anchor="middle" fill="#ffffff">passed</text>
+<rect x="238.0" y="64.0" width="62.0" height="20.0" fill="#277a55" rx="10"/>
+<text x="269.0" y="78.0" font-size="12" text-anchor="middle" fill="#f9fbfd">passed</text>
 <text x="312.0" y="78.0" font-size="12">ran, exit 0</text>
-<line x1="20.0" y1="120.0" x2="620.0" y2="120.0" stroke="#eeeeee" stroke-width="1"/>
+<line x1="20.0" y1="120.0" x2="620.0" y2="120.0" stroke="#edf1f4" stroke-width="1"/>
 <text x="20.0" y="109.0" font-size="12" font-weight="bold">Step 2  02_paired_test.py</text>
-<rect x="238.0" y="95.0" width="62.0" height="20.0" fill="#009E73" rx="10"/>
-<text x="269.0" y="109.0" font-size="12" text-anchor="middle" fill="#ffffff">passed</text>
+<rect x="238.0" y="95.0" width="62.0" height="20.0" fill="#277a55" rx="10"/>
+<text x="269.0" y="109.0" font-size="12" text-anchor="middle" fill="#f9fbfd">passed</text>
 <text x="312.0" y="109.0" font-size="12">ran, exit 0</text>
-<line x1="20.0" y1="151.0" x2="620.0" y2="151.0" stroke="#eeeeee" stroke-width="1"/>
+<line x1="20.0" y1="151.0" x2="620.0" y2="151.0" stroke="#edf1f4" stroke-width="1"/>
 <text x="20.0" y="140.0" font-size="12" font-weight="bold">Step 3  03_summary.R</text>
-<rect x="238.0" y="126.0" width="62.0" height="20.0" fill="#009E73" rx="10"/>
-<text x="269.0" y="140.0" font-size="12" text-anchor="middle" fill="#ffffff">passed</text>
+<rect x="238.0" y="126.0" width="62.0" height="20.0" fill="#277a55" rx="10"/>
+<text x="269.0" y="140.0" font-size="12" text-anchor="middle" fill="#f9fbfd">passed</text>
 <text x="312.0" y="140.0" font-size="12">ran, exit 0 (stand-in: no Rscript here)</text>
-<line x1="20.0" y1="182.0" x2="620.0" y2="182.0" stroke="#eeeeee" stroke-width="1"/>
+<line x1="20.0" y1="182.0" x2="620.0" y2="182.0" stroke="#edf1f4" stroke-width="1"/>
 <text x="20.0" y="171.0" font-size="12" font-weight="bold">Inputs unchanged</text>
-<rect x="238.0" y="157.0" width="62.0" height="20.0" fill="#009E73" rx="10"/>
-<text x="269.0" y="171.0" font-size="12" text-anchor="middle" fill="#ffffff">passed</text>
+<rect x="238.0" y="157.0" width="62.0" height="20.0" fill="#277a55" rx="10"/>
+<text x="269.0" y="171.0" font-size="12" text-anchor="middle" fill="#f9fbfd">passed</text>
 <text x="312.0" y="171.0" font-size="12">2 pinned files, same sha256</text>
-<line x1="20.0" y1="213.0" x2="620.0" y2="213.0" stroke="#eeeeee" stroke-width="1"/>
+<line x1="20.0" y1="213.0" x2="620.0" y2="213.0" stroke="#edf1f4" stroke-width="1"/>
 <text x="20.0" y="202.0" font-size="12" font-weight="bold">Claimed numbers</text>
-<rect x="238.0" y="188.0" width="62.0" height="20.0" fill="#009E73" rx="10"/>
-<text x="269.0" y="202.0" font-size="12" text-anchor="middle" fill="#ffffff">passed</text>
+<rect x="238.0" y="188.0" width="62.0" height="20.0" fill="#277a55" rx="10"/>
+<text x="269.0" y="202.0" font-size="12" text-anchor="middle" fill="#f9fbfd">passed</text>
 <text x="312.0" y="202.0" font-size="12">8 of 8 claimed cells match</text>
-<line x1="20.0" y1="244.0" x2="620.0" y2="244.0" stroke="#eeeeee" stroke-width="1"/>
+<line x1="20.0" y1="244.0" x2="620.0" y2="244.0" stroke="#edf1f4" stroke-width="1"/>
 <text x="20.0" y="233.0" font-size="12" font-weight="bold">Validation cells</text>
-<rect x="238.0" y="219.0" width="62.0" height="20.0" fill="#CC79A7" rx="10"/>
-<text x="269.0" y="233.0" font-size="12" text-anchor="middle">gap</text>
+<rect x="238.0" y="219.0" width="62.0" height="20.0" fill="#914a8c" rx="10"/>
+<text x="269.0" y="233.0" font-size="12" text-anchor="middle" fill="#f9fbfd">gap</text>
 <text x="312.0" y="233.0" font-size="12">3 are prose: nothing checks them</text>
-<line x1="20.0" y1="275.0" x2="620.0" y2="275.0" stroke="#eeeeee" stroke-width="1"/>
+<line x1="20.0" y1="275.0" x2="620.0" y2="275.0" stroke="#edf1f4" stroke-width="1"/>
 <text x="20.0" y="264.0" font-size="12" font-weight="bold">Lint  03_summary.R</text>
-<rect x="238.0" y="250.0" width="62.0" height="20.0" fill="#CC79A7" rx="10"/>
-<text x="269.0" y="264.0" font-size="12" text-anchor="middle">gap</text>
+<rect x="238.0" y="250.0" width="62.0" height="20.0" fill="#914a8c" rx="10"/>
+<text x="269.0" y="264.0" font-size="12" text-anchor="middle" fill="#f9fbfd">gap</text>
 <text x="312.0" y="264.0" font-size="12">not checked: Rscript not found</text>
-<rect x="20.0" y="291.0" width="12.0" height="12.0" fill="#009E73" rx="3"/>
+<rect x="20.0" y="291.0" width="12.0" height="12.0" fill="#277a55" rx="3"/>
 <text x="38.0" y="302.0" font-size="12">passed</text>
-<rect x="99.8" y="291.0" width="12.0" height="12.0" fill="#CC79A7" rx="3"/>
+<rect x="99.8" y="291.0" width="12.0" height="12.0" fill="#914a8c" rx="3"/>
 <text x="117.8" y="302.0" font-size="12">gap: not checked, not failed</text>
-<rect x="318.2" y="291.0" width="12.0" height="12.0" fill="#D55E00" rx="3"/>
+<rect x="318.2" y="291.0" width="12.0" height="12.0" fill="#b2392b" rx="3"/>
 <text x="336.2" y="302.0" font-size="12">failed</text>
-<text x="20.0" y="327.0" font-size="12" fill="#595959">A gap means no check existed, not that a check failed.</text>
+<text x="20.0" y="327.0" font-size="12" fill="#4d5660">A gap means no check existed, not that a check failed.</text>
 </svg>

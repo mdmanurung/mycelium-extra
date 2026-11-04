@@ -44,6 +44,7 @@ DIRS = ["data", "code", "plans", "outputs", "logs", "reports"]
 UNTRACKED_OK = {"outputs/", "logs/"}  # often ignored on purpose (large or regenerable files)
 OUTPUT_EXT = {"R": ".rds", "py": ".parquet"}
 MYCELIUM_TEMPLATE = os.path.join("skills", "core", "templates", "analysis-readme.md")
+THEMES = ("report.scss", "report-dark.scss")  # Quarto theme from DESIGN.md, copied under reports/
 MYCELIUM_NAME = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 FINDINGS_HINT = ("<!-- One bullet per result: the claim, its .living/findings ID once crystallized, "
                  "and a link to its saved, inspected plot and panel. Plots are the primary interpretive outputs; "
@@ -567,6 +568,8 @@ def scaffold(args):
     if not all(s["kind"] == "qmd" for s in steps):
         files[report] = report_text(read(os.path.join(templates, "report.qmd")), name, doc_name, dest_rel,
                                     steps, data_links)
+    for theme in THEMES:  # report.qmd and _quarto.yml both name these (DESIGN.md tokens)
+        files["reports/" + theme] = read(os.path.join(templates, theme))
     if args.panels:
         files.update(manuscript_files(parse_panels(args.panels), name, dest_rel.replace(os.sep, "/"), root, templates))
     folders = DIRS + (["config"] if args.panels else [])
@@ -631,7 +634,8 @@ def scaffold(args):
     print("{} {}/ (doc {} from {})".format(verb, dest_rel, doc_name, template_note))
     for path in [s["path"] for s in steps] + ["Snakefile", "run.sh", "run.sbatch", doc_name,
                                               "plans/PLAN.md", "plans/TRACKER.md"] + [
-                                                  p for p in ("_quarto.yml", report) if p in files] + sorted(
+                                                  p for p in ("_quarto.yml", report) if p in files] + [
+                                                  "reports/" + t for t in THEMES] + sorted(
                                                   p for p in files if p.startswith(("config/", "code/plot_"))) + [
                                                   d + "/" for d in folders]:
         print("  " + path)

@@ -86,7 +86,8 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertIn("[DEMO_RUN.md](../DEMO_RUN.md)", tracker)
         self.assertIn("  reports/demo-run.qmd\n", out)
         report = read(os.path.join(self.dest, "reports", "demo-run.qmd"))
-        self.assertEqual(os.listdir(os.path.join(self.dest, "reports")), ["demo-run.qmd"])
+        self.assertEqual(sorted(os.listdir(os.path.join(self.dest, "reports"))),
+                         ["demo-run.qmd", "report-dark.scss", "report.scss"])  # the report and the theme it names
         self.assertNotIn("@@", report)
         self.assertIn('title: "demo-run"', report)
         self.assertIn("[DEMO_RUN.md](../DEMO_RUN.md)", report)
@@ -321,6 +322,10 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertIn("  execute-dir: project", read(os.path.join(self.dest, "_quarto.yml")))
         self.assertIn("```{python}", read(os.path.join(self.dest, "code", "01_prep.qmd")))
         self.assertFalse(os.path.exists(os.path.join(self.dest, "reports", "demo-run.qmd")))  # the steps are the report
+        quarto = read(os.path.join(self.dest, "_quarto.yml"))  # the site's theme files exist where _quarto.yml points
+        for theme in ("report.scss", "report-dark.scss"):
+            self.assertIn("reports/" + theme, quarto)
+            self.assertTrue(os.path.isfile(os.path.join(self.dest, "reports", theme)))
 
     def test_format_names_the_default_steps_and_a_flag_beats_gate_json(self):
         write(os.path.join(self.root, ".mycelium-extra", "gate.json"), json.dumps({"step_format": "qmd"}))

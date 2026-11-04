@@ -76,6 +76,8 @@ class AnalysisReportTest(unittest.TestCase):
 
         out = self.run_script()
         self.assertIn("wrote nbs/demo/reports/demo.qmd", out)
+        self.assertIn("wrote nbs/demo/reports/report.scss", out)
+        self.assertIn("wrote nbs/demo/reports/report-dark.scss", out)
         with open(os.path.join(self.dest, "reports", "demo.qmd")) as handle:
             report = handle.read()
         self.assertNotIn("@@", report)
@@ -95,6 +97,18 @@ class AnalysisReportTest(unittest.TestCase):
             handle.write("filled\n")
         self.assertIn("kept: nbs/demo/reports/demo.qmd exists", self.run_script())
         self.assertIn("wrote", self.run_script("--overwrite"))
+
+        # The theme files the report names are written beside it; a project's own copy is kept.
+        self.assertIn("theme:\n      light: [default, report.scss]", report)
+        theme = os.path.join(self.dest, "reports", "report.scss")
+        with open(theme, "w") as handle:
+            handle.write("/* the project's own theme */\n")
+        out = self.run_script("--overwrite")
+        self.assertIn("wrote nbs/demo/reports/demo.qmd", out)
+        self.assertNotIn("reports/report.scss", out)
+        self.assertNotIn("reports/report-dark.scss", out)
+        with open(theme) as handle:
+            self.assertEqual(handle.read(), "/* the project's own theme */\n")
 
     def test_only_real_workflows_are_read_and_input_keys_name_the_script(self):
         os.makedirs(os.path.join(self.dest, "Snakefile.d"))

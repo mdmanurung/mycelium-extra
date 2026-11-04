@@ -23,6 +23,7 @@ import sys
 # Snakefile, Snakefile.<name> (not a backup copy) and <name>.smk.
 SNAKEFILE = re.compile(r"Snakefile(\.(?!(?:bak|orig|old)$)\w+)?|.+\.smk")
 
+THEMES = ("report.scss", "report-dark.scss")  # Quarto theme from DESIGN.md; report.qmd names both
 STEP = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*)\.(R|py|ipynb|qmd|marimo\.py)$")
 LANG = {"R": "r", "py": "python", "ipynb": "python", "marimo.py": "python", "qmd": "r"}  # ponytail: a qmd step in a mixed folder is quoted as r; sniff its chunk if python qmd steps mix in
 
@@ -212,13 +213,22 @@ def main(argv):
     if "@@" in text:
         print("refused: unresolved placeholder in the template")
         return 1
+    # The template's theme files sit beside the report; an existing copy is the user's and is kept.
+    themes = [t for t in THEMES if os.path.isfile(os.path.join(args.templates, t))
+              and not os.path.exists(os.path.join(dest, "reports", t))]
     if args.dry_run:
         print("would write {}/{}".format(dest_rel, report_rel))
+        for theme in themes:
+            print("would write {}/reports/{}".format(dest_rel, theme))
         return 0
     os.makedirs(os.path.dirname(report), exist_ok=True)
     with open(report, "w", encoding="utf-8") as handle:
         handle.write(text)
     print("wrote {}/{}".format(dest_rel, report_rel))
+    for theme in themes:
+        with open(os.path.join(dest, "reports", theme), "w", encoding="utf-8") as handle:
+            handle.write(read(os.path.join(args.templates, theme)))
+        print("wrote {}/reports/{}".format(dest_rel, theme))
     return 0
 
 

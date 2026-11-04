@@ -1,0 +1,37 @@
+/*-- scss:defaults --*/
+// Mycelium Extra report theme, light. Values come from DESIGN.md at the plugin root;
+// report-dark.scss redefines the colours. System fonts only, so the page reads offline.
+$paper: #f9fbfd !default;
+$paper-2: #edf1f4 !default;
+$ink: #111921 !default;
+$ink-2: #4d5660 !default;
+$rule: #d9dfe3 !default;
+$rule-strong: #bbc2c7 !default;
+$accent: #00696f !default;
+
+$body-bg: $paper;
+$body-color: $ink;
+$body-secondary-color: $ink-2;
+$primary: $accent;
+$link-color: $accent;
+$border-color: $rule;
+$code-block-bg: $paper-2;
+$code-block-border-left: $rule-strong;
+$code-color: $ink;
+$headings-font-weight: 650;
+$font-family-sans-serif: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+$font-family-monospace: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+$mermaid-bg-color: $paper;
+$mermaid-edge-color: $ink-2;
+$mermaid-node-fg-color: $ink;
+$mermaid-fg-color: $ink;
+$mermaid-fg-color--lighter: $ink-2;
+$mermaid-fg-color--lightest: $rule-strong;
+$mermaid-label-fg-color: $ink;
+$mermaid-primary-color: $paper-2;
+$mermaid-secondary-color: $paper-2;
+$mermaid-tertiary-color: $paper;
+
+/*-- scss:rules --*/
+.panel-tabset .nav-link.active { border-bottom: 2px solid $accent; }
+figcaption, .figure-caption { color: $ink-2; }

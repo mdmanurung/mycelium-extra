@@ -1,19 +1,25 @@
-/* Hallmark · component: report viewer · genre: modern-minimal · theme: custom (tinted-neutral paper, one blue accent)
-   pre-emit critique: P4 H5 E4 S4 R5 V3. Offline file: system fonts only, a CSP forbids loading any other. */
+/* Tokens come from DESIGN.md at the repo root (cool paper, one teal accent); tests/test_design_tokens.py keeps
+   them equal. Hallmark · component: report viewer · genre: modern-minimal.
+   Offline file: system fonts only, a CSP forbids loading any other. */
 :root {
-  --paper: oklch(98.6% 0.004 90);
-  --paper-2: oklch(96.2% 0.005 90);
-  --ink: oklch(22% 0.012 90);
-  --ink-2: oklch(46% 0.012 90);
-  --rule: oklch(91% 0.006 90);
-  --rule-strong: oklch(80% 0.008 90);
-  --accent: oklch(48% 0.14 255);
-  --focus: oklch(48% 0.14 255);
-  --st-attention: oklch(64% 0.14 55);
-  --st-authorized: oklch(58% 0.11 155);
-  --st-routine: oklch(68% 0.01 90);
-  --add: oklch(95.5% 0.04 155);
-  --del: oklch(95.5% 0.035 25);
+  --paper: #f9fbfd;
+  --paper-2: #edf1f4;
+  --ink: #111921;
+  --ink-2: #4d5660;
+  --rule: #d9dfe3;
+  --rule-strong: #bbc2c7;
+  --accent: #00696f;
+  --focus: var(--accent);
+  --pass: #277a55;
+  --stale: #b46d10;
+  --gap: #914a8c;
+  --fail: #b2392b;
+  --routine: #81878c;
+  --st-attention: var(--stale);
+  --st-authorized: var(--pass);
+  --st-routine: var(--routine);
+  --add: #daf9e7;
+  --del: #ffe8e4;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
   --space-xs: 4px;
@@ -25,35 +31,39 @@
   --dur: 120ms;
 }
 :root[data-theme="dark"] {
-  --paper: oklch(19% 0.008 90);
-  --paper-2: oklch(23% 0.01 90);
-  --ink: oklch(93% 0.008 90);
-  --ink-2: oklch(72% 0.01 90);
-  --rule: oklch(29% 0.01 90);
-  --rule-strong: oklch(40% 0.012 90);
-  --accent: oklch(76% 0.12 255);
-  --focus: oklch(76% 0.12 255);
-  --st-attention: oklch(76% 0.13 60);
-  --st-authorized: oklch(74% 0.11 155);
-  --st-routine: oklch(60% 0.01 90);
-  --add: oklch(28% 0.05 155);
-  --del: oklch(28% 0.05 25);
+  --paper: #0e1216;
+  --paper-2: #161b20;
+  --ink: #e3e9ed;
+  --ink-2: #9ea6ab;
+  --rule: #292f34;
+  --rule-strong: #42494f;
+  --accent: #64c3c8;
+  --pass: #75c59b;
+  --stale: #efb062;
+  --gap: #d997d2;
+  --fail: #f28979;
+  --routine: #81878c;
+  --add: #0e3020;
+  --del: #3e1e1c;
+  color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: oklch(19% 0.008 90);
-    --paper-2: oklch(23% 0.01 90);
-    --ink: oklch(93% 0.008 90);
-    --ink-2: oklch(72% 0.01 90);
-    --rule: oklch(29% 0.01 90);
-    --rule-strong: oklch(40% 0.012 90);
-    --accent: oklch(76% 0.12 255);
-    --focus: oklch(76% 0.12 255);
-    --st-attention: oklch(76% 0.13 60);
-    --st-authorized: oklch(74% 0.11 155);
-    --st-routine: oklch(60% 0.01 90);
-    --add: oklch(28% 0.05 155);
-    --del: oklch(28% 0.05 25);
+    --paper: #0e1216;
+    --paper-2: #161b20;
+    --ink: #e3e9ed;
+    --ink-2: #9ea6ab;
+    --rule: #292f34;
+    --rule-strong: #42494f;
+    --accent: #64c3c8;
+    --pass: #75c59b;
+    --stale: #efb062;
+    --gap: #d997d2;
+    --fail: #f28979;
+    --routine: #81878c;
+    --add: #0e3020;
+    --del: #3e1e1c;
+    color-scheme: dark;
   }
 }
 
@@ -195,3 +205,10 @@ pre.wout { font: 12px/1.5 var(--font-mono); background: var(--paper-2); border: 
 .journal .search { max-width: 100%; min-width: 0; }
 
 .journal-context { position: sticky; top: 0; z-index: 2; background: var(--paper); padding: 6px 0; }
+/* Status pill (DESIGN.md components.status-pill): the word always shows; colour only tints it. */
+.pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; color: var(--ink); background: color-mix(in srgb, var(--st, var(--routine)) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st, var(--routine)) 55%, transparent); }
+.pill.pass { --st: var(--pass); }
+.pill.stale { --st: var(--stale); }
+.pill.gap { --st: var(--gap); }
+.pill.fail { --st: var(--fail); }
+.pill.routine { --st: var(--routine); }

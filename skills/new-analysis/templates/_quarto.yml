@@ -8,3 +8,7 @@ format:
     embed-resources: true
     toc: true
     code-fold: true
+    theme:
+      light: [default, reports/report.scss]
+      dark: [default, reports/report.scss, reports/report-dark.scss]
+    respect-user-color-scheme: true

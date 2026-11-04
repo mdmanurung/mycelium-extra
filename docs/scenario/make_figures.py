@@ -28,8 +28,11 @@ import harness  # noqa: E402
 FIG_DIR = os.path.join(REPO, "docs", "figures", "scenario")
 FACTS = os.path.join(HERE, "facts.json")
 
-VACCINE, PLACEBO, HIGHLIGHT, GAP, PASS, INFO = "#0072B2", "#E69F00", "#D55E00", "#CC79A7", "#009E73", "#56B4E9"
-INK, MUTED, GRID = "#1a1a1a", "#595959", "#d9d9d9"
+# Data series: Okabe-Ito, colour-blind safe. UI neutrals and states: DESIGN.md tokens (tests/test_design_tokens.py).
+VACCINE, PLACEBO, HIGHLIGHT, INFO = "#0072B2", "#E69F00", "#D55E00", "#56B4E9"
+INK, MUTED, GRID, AXIS = "#111921", "#4d5660", "#d9dfe3", "#81878c"
+PAPER, FRAME, ROWLINE = "#f9fbfd", "#bbc2c7", "#edf1f4"
+PASS, GAP, FAIL = "#277a55", "#914a8c", "#b2392b"
 FONT = "system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
 CONTRAST_NULLS = ["ACTB", "GAPDH", "CD3E", "LYZ"]  # null genes drawn next to the 8 IFN genes
 W, H = 640, 360
@@ -242,7 +245,7 @@ class Canvas(object):
         self.add('<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="{}" stroke-width="{}"{}/>'.format(
             n(x1), n(y1), n(x2), n(y2), stroke, sw, attrs(stroke_dasharray=dash)))
 
-    def circle(self, x, y, r, fill, stroke="#ffffff", sw=0.8):
+    def circle(self, x, y, r, fill, stroke=PAPER, sw=0.8):
         self.add('<circle cx="{}" cy="{}" r="{}" fill="{}" stroke="{}" stroke-width="{}"/>'.format(
             n(x), n(y), n(r), fill, stroke, sw))
 
@@ -254,8 +257,8 @@ class Canvas(object):
     def render(self, title, desc):
         return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" '
                 'aria-labelledby="t d" font-family="{f}">\n<title id="t">{t}</title>\n<desc id="d">{d}</desc>\n'
-                '<rect x="0.5" y="0.5" width="{w1}" height="{h1}" rx="8" fill="#ffffff" stroke="#c8c8c8"/>\n{body}\n</svg>\n'
-                ).format(w=W, h=H, w1=W - 1, h1=H - 1, f=FONT, t=escape(title), d=escape(desc), body="\n".join(self.parts))
+                '<rect x="0.5" y="0.5" width="{w1}" height="{h1}" rx="8" fill="{paper}" stroke="{frame}"/>\n{body}\n</svg>\n'
+                ).format(w=W, h=H, w1=W - 1, h1=H - 1, f=FONT, paper=PAPER, frame=FRAME, t=escape(title), d=escape(desc), body="\n".join(self.parts))
 
 
 def scale(d0, d1, r0, r1):
@@ -294,7 +297,7 @@ def fig_samples(d, facts):
         if r["sample_id"] in used:
             c.rect(x, y, cw - 3, ch, color, rx=3)
         else:
-            c.rect(x + 1, y + 1, cw - 5, ch - 2, "#ffffff", color, 3, "4 3", 2)
+            c.rect(x + 1, y + 1, cw - 5, ch - 2, PAPER, color, 3, "4 3", 2)
             c.line(x + 5, y + 5, x + cw - 8, y + ch - 5, HIGHLIGHT, 2)
             c.line(x + cw - 8, y + 5, x + 5, y + ch - 5, HIGHLIGHT, 2)
     ex = facts["libraries_excluded"][0]
@@ -302,7 +305,7 @@ def fig_samples(d, facts):
     c.text(x0, 268, "The rerun repeats D03's day 28 library; keeping both would count D03 twice.", 12, fill=MUTED)
     c.rect(x0, 292, 14, 14, VACCINE, rx=2); c.text(x0 + 20, 304, "vaccine", 12)
     c.rect(x0 + 90, 292, 14, 14, PLACEBO, rx=2); c.text(x0 + 110, 304, "placebo", 12)
-    c.rect(x0 + 190, 292, 14, 14, "#ffffff", VACCINE, 2, "3 2", 1.5)
+    c.rect(x0 + 190, 292, 14, 14, PAPER, VACCINE, 2, "3 2", 1.5)
     c.line(x0 + 193, 295, x0 + 201, 303, HIGHLIGHT, 1.5); c.line(x0 + 201, 295, x0 + 193, 303, HIGHLIGHT, 1.5)
     c.text(x0 + 210, 304, "excluded library", 12)
     c.text(x0, 332, "{} libraries in, {} out: 12 donors x 2 visits.".format(facts["libraries_in"], facts["libraries_kept"]), 12, fill=MUTED)
@@ -322,7 +325,7 @@ def fig_paired(d, facts):
     px0, px1, py0, py1 = 58, 626, 76, 262
     y = scale(lo, hi, py1, py0)
     for t in range(lo, hi + 1):
-        c.line(px0, y(t), px1, y(t), "#8c8c8c" if t == 0 else GRID, 1.2 if t == 0 else 1)
+        c.line(px0, y(t), px1, y(t), AXIS if t == 0 else GRID, 1.2 if t == 0 else 1)
         c.text(px0 - 6, y(t) + 4, str(t), 12, "end")
     c.text(16, (py0 + py1) / 2, "log2 change (day 28 minus day 0)", 12, "middle", rotate=-90)
     col = (px1 - px0) / float(len(genes))
@@ -338,7 +341,7 @@ def fig_paired(d, facts):
             c.line(ax - 10, y(m), ax + 10, y(m), INK, 1.6)
         c.text(cx + 3, py1 + 14, g, 12, "end", HIGHLIGHT if gi < 8 else INK, rotate=-40)
     sep = px0 + 8 * col
-    c.line(sep, py0, sep, py1, "#8c8c8c", 1, "4 3")
+    c.line(sep, py0, sep, py1, AXIS, 1, "4 3")
     c.text((px0 + sep) / 2, py0 - 6, "IFN genes (4-fold up in vaccine)", 12, "middle", HIGHLIGHT)
     c.text((sep + px1) / 2, py0 - 6, "null genes", 12, "middle", MUTED)
     c.text((px0 + px1) / 2, 342, "gene", 12, "middle", MUTED)
@@ -368,13 +371,13 @@ def fig_volcano(d, facts):
         c.line(X(t), py0, X(t), py1, GRID); c.text(X(t), py1 + 16, "%.1f" % t, 12, "middle"); t += 0.5
     for t in range(0, 5):
         c.line(px0, Y(t), px1, Y(t), GRID); c.text(px0 - 6, Y(t) + 4, str(t), 12, "end")
-    c.line(X(0), py0, X(0), py1, "#8c8c8c", 1.2)
+    c.line(X(0), py0, X(0), py1, AXIS, 1.2)
     c.text(16, (py0 + py1) / 2, "-log10 p", 12, "middle", rotate=-90)
     c.text((px0 + px1) / 2, 322, "log2 change difference, vaccine minus placebo (log2 units)", 12, "middle", MUTED)
     hits = set(facts["top_hits"])
     for r, x, y in zip(de, xs, ys):
         if r["gene"] not in hits:
-            c.circle(X(x), Y(y), 3.5, "#8c8c8c")
+            c.circle(X(x), Y(y), 3.5, AXIS)
     top = sorted(((float(r["log2fc"]), r["gene"], -math.log10(float(r["p"]))) for r in de if r["gene"] in hits))
     mid = sum(X(x) for x, _, _ in top) / len(top)
     for i, (x, g, y) in enumerate(top):
@@ -385,14 +388,14 @@ def fig_volcano(d, facts):
     c.text(px1 - 4, py1 - 10, "all 8: p = {:.4f}, padj = {:.3f}".format(facts["hit_p"], facts["hit_padj"]), 12, "end")
     c.text(px1 - 4, py1 - 26, "p floor is 1/{} (exact test)".format(facts["p_floor_denominator"]), 12, "end", MUTED)
     c.circle(66, 340, 4.8, HIGHLIGHT); c.text(76, 344, "truth gene, found at padj < 0.05", 12)
-    c.circle(300, 340, 3.5, "#8c8c8c"); c.text(310, 344, "other genes (52)", 12)
+    c.circle(300, 340, 3.5, AXIS); c.text(310, 344, "other genes (52)", 12)
     return c.render("Volcano plot of the paired test",
                     "Effect (log2 change difference) against -log10 p for 60 genes. The 8 interferon truth genes sit at "
                     "p = {:.4f} (padj {:.3f}) with effects from {:.1f} to {:.1f}; the other 52 genes are not significant."
                     .format(facts["hit_p"], facts["hit_padj"], top[0][0], top[-1][0]))
 
 
-CHIP = {"passed": PASS, "gap": GAP, "failed": HIGHLIGHT}
+CHIP = {"passed": PASS, "gap": GAP, "failed": FAIL}
 
 
 def fig_verify(d, facts, rep):
@@ -402,14 +405,14 @@ def fig_verify(d, facts, rep):
     y0, rh = 62, 31
     for i, (what, detail, status) in enumerate(rows):
         y = y0 + i * rh
-        c.line(20, y + rh - 4, 620, y + rh - 4, "#eeeeee")
+        c.line(20, y + rh - 4, 620, y + rh - 4, ROWLINE)
         c.text(20, y + 16, what, 12, weight="bold")
         c.rect(238, y + 2, 62, 20, CHIP[status], rx=10)
-        c.text(269, y + 16, status, 12, "middle", "#ffffff" if status != "gap" else INK)
+        c.text(269, y + 16, status, 12, "middle", PAPER)
         c.text(312, y + 16, detail, 12)
     yy = y0 + len(rows) * rh + 12
     x = 20
-    for label, color in (("passed", PASS), ("gap: not checked, not failed", GAP), ("failed", HIGHLIGHT)):
+    for label, color in (("passed", PASS), ("gap: not checked, not failed", GAP), ("failed", FAIL)):
         c.rect(x, yy, 12, 12, color, rx=3); c.text(x + 18, yy + 11, label, 12); x += 18 + 6.3 * len(label) + 24
     c.text(20, yy + 36, "A gap means no check existed, not that a check failed.", 12, fill=MUTED)
     gaps = [r for r in rows if r[2] == "gap"]
@@ -423,13 +426,13 @@ def fig_timeline(d, facts, rep):
     c = Canvas()
     events = timeline(d, rep)
     c.title("One session, in order", "Events read from the gate's state files; numbers are the order, not clock times.")
-    color = {"plan shown": INFO, "run denied": HIGHLIGHT, "plan approved": PASS, "run receipt": PASS, "verify": VACCINE}
+    color = {"plan shown": INFO, "run denied": FAIL, "plan approved": PASS, "run receipt": PASS, "verify": VACCINE}
     y0, rh = 72, 36
-    c.line(36, y0, 36, y0 + (len(events) - 1) * rh, "#8c8c8c", 2)
+    c.line(36, y0, 36, y0 + (len(events) - 1) * rh, AXIS, 2)
     for i, (kind, detail) in enumerate(events):
         y = y0 + i * rh
-        c.circle(36, y, 11, color[kind], "#ffffff", 2)
-        c.text(36, y + 4, str(i + 1), 12, "middle", "#ffffff" if kind != "plan shown" else INK, weight="bold")
+        c.circle(36, y, 11, color[kind], PAPER, 2)
+        c.text(36, y + 4, str(i + 1), 12, "middle", PAPER if kind != "plan shown" else INK, weight="bold")
         c.text(62, y - 1, kind, 12, weight="bold")
         c.text(62, y + 14, detail, 12, fill=MUTED)
     return c.render("Session timeline of the scenario",

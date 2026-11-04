@@ -5,6 +5,10 @@ format:
   html:
     embed-resources: true
     toc: true
+    theme:
+      light: [default, report.scss]
+      dark: [default, report.scss, report-dark.scss]
+    respect-user-color-scheme: true
 engine: markdown
 ---
 
