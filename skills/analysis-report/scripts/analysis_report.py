@@ -28,33 +28,19 @@ STEP = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*)\.(R|py|ipynb|qmd|marimo
 LANG = {"R": "r", "py": "python", "ipynb": "python", "marimo.py": "python", "qmd": "r"}  # ponytail: a qmd step in a mixed folder is quoted as r; sniff its chunk if python qmd steps mix in
 
 
-def read(path):
-    with open(path, encoding="utf-8", errors="replace") as handle:
-        return handle.read()
+ap = None  # hooks/analysis_paths.py, loaded by load_paths from --templates
 
 
-def fill(text, values):
-    for key, value in values.items():
-        text = text.replace("@@" + key + "@@", value)
-    return text
-
-
-def repo_root(dest):
-    try:
-        out = subprocess.run(["git", "-C", dest, "rev-parse", "--show-toplevel"], stdout=subprocess.PIPE,
-                             stderr=subprocess.DEVNULL, encoding="utf-8")
-        if out.returncode == 0 and out.stdout.strip():
-            return os.path.realpath(out.stdout.strip())
-    except OSError:
-        pass
-    return None
-
-
-def find_doc(dest, name):
-    for candidate in (name.upper().replace("-", "_") + ".md", "README.md"):
-        if os.path.isfile(os.path.join(dest, candidate)):
-            return candidate
-    return None
+def load_paths(templates):
+    """Import the shared resolver. This script runs from stdin, so it finds hooks/ from --templates
+    (<plugin>/skills/new-analysis/templates)."""
+    global ap
+    hooks = os.path.join(os.path.abspath(templates), "..", "..", "..", "hooks")
+    sys.dont_write_bytecode = True
+    if hooks not in sys.path:
+        sys.path.insert(0, hooks)
+    import analysis_paths
+    ap = analysis_paths
 
 
 def find_steps(dest):
@@ -73,7 +59,7 @@ def find_steps(dest):
 
 def parse_snakefile(path, step_files):
     """Rules in file order, each with the step script its shell line names, plus the RUN folder."""
-    text = read(path)
+    text = ap.read(path)
     run = re.search(r'^RUN\s*=\s*"([^"]+)"', text, re.M)
     rules = []
     heads = list(re.finditer(r"^rule\s+(\w+)\s*:", text, re.M))
@@ -117,9 +103,16 @@ def scan_outputs(dest):
     current = os.path.join(base, "current")
     if os.path.islink(current):
         found["current"] = os.readlink(current)
-    for entry in sorted(os.listdir(base)):
-        if os.path.isdir(os.path.join(base, entry)) and not os.path.islink(os.path.join(base, entry)):
-            found["runs"].append(entry)
+    listed = ap.runs(dest, "outputs")
+    if listed and listed[0]["layout"] == "run":
+        found["runs"] = [r["name"] for r in listed]
+    else:  # an old layout: every folder under outputs/ counts as a run
+        for entry in sorted(os.listdir(base)):
+            if os.path.isdir(os.path.join(base, entry)) and not os.path.islink(os.path.join(base, entry)):
+                found["runs"].append(entry)
+    if ap.current_run(dest, "outputs")[1] == "outside repository":
+        found["current_gap"] = "outputs/current points outside the repository ({}); it is not used.".format(
+            found["current"])
     for folder, dirs, files in os.walk(base):
         dirs[:] = [d for d in dirs if not os.path.islink(os.path.join(folder, d)) and d not in ("cache", "logs")]
         for file in sorted(files):
@@ -176,9 +169,10 @@ def main(argv):
         print("refused: no report.qmd under " + args.templates)
         return 1
     name = os.path.basename(dest)
-    root = repo_root(dest)
+    load_paths(args.templates)
+    root = ap.git_toplevel(dest)
     dest_rel = os.path.relpath(dest, root).replace(os.sep, "/") if root else name
-    doc = find_doc(dest, name)
+    doc = os.path.basename(ap.find_doc(dest) or "") or None
     steps = find_steps(dest)
     step_files = sorted({os.path.basename(s["path"]) for s in steps})  # a shell line names the file, with or without code/
     snakefiles = [parse_snakefile(os.path.join(dest, f), step_files)
@@ -190,6 +184,8 @@ def main(argv):
     inventory = {"name": name, "folder": dest_rel, "doc": doc, "steps": [s["path"] for s in steps],
                  "snakefiles": snakefiles, "outputs": outputs}
     print(json.dumps(inventory, indent=2))
+    if "current_gap" in outputs:
+        print("gap: " + outputs["current_gap"])
     if doc is None:
         print("note: no <NAME>.md or README.md; the Overview has nothing to copy the Purpose from.")
     if not steps:
@@ -207,7 +203,7 @@ def main(argv):
     results = [results_tab(s, by_step(outputs["figures"], s["num"]), by_step(outputs["reports"], s["num"]))
                for s in steps if by_step(outputs["figures"], s["num"]) or by_step(outputs["reports"], s["num"])] or [
         results_tab(s, [], []) for s in steps]
-    text = fill(read(template), {
+    text = ap.fill(ap.read(template), {
         "NAME": name, "DOC": doc or "README.md", "DEST": dest_rel, "MERMAID": mermaid(snakefiles, steps),
         "METHODS": "\n".join(methods_tab(s) for s in steps), "RESULTS": "\n".join(results)})
     if "@@" in text:
@@ -227,7 +223,7 @@ def main(argv):
     print("wrote {}/{}".format(dest_rel, report_rel))
     for theme in themes:
         with open(os.path.join(dest, "reports", theme), "w", encoding="utf-8") as handle:
-            handle.write(read(os.path.join(args.templates, theme)))
+            handle.write(ap.read(os.path.join(args.templates, theme)))
         print("wrote {}/reports/{}".format(dest_rel, theme))
     return 0
 

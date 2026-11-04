@@ -32,6 +32,21 @@ import shutil
 import tempfile
 import sys
 
+ap = None  # hooks/analysis_paths.py, loaded by load_paths from --templates
+
+
+def load_paths(templates):
+    """Import the shared resolver. This script runs from stdin, so it finds hooks/ from --templates
+    (<plugin>/skills/new-analysis/templates)."""
+    global ap
+    hooks = os.path.join(os.path.abspath(templates), "..", "..", "..", "hooks")
+    sys.dont_write_bytecode = True
+    if hooks not in sys.path:
+        sys.path.insert(0, hooks)
+    import analysis_paths
+    ap = analysis_paths
+
+
 PANEL = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*)\.(R|py)$")
 STEP = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*)(?:\.(R|py|ipynb|qmd|marimo\.py))?$")
 FORMATS = ("R", "py", "ipynb", "qmd", "marimo")
@@ -72,24 +87,6 @@ def canonical(path):
 
 def inside(path, root):
     return root is not None and (path == root or path.startswith(root.rstrip(os.sep) + os.sep))
-
-
-def find_root(dest):
-    """The nearest ancestor of dest with .living/ at or below the git toplevel, else the toplevel, else None."""
-    start = dest
-    while not os.path.isdir(start):
-        start = os.path.dirname(start)
-    result = git(start, "rev-parse", "--show-toplevel")
-    top = os.path.realpath(result.stdout.strip()) if (
-        result is not None and result.returncode == 0 and result.stdout.strip()) else None
-    path = start
-    while True:
-        if os.path.isdir(os.path.join(path, ".living")):
-            return path
-        parent = os.path.dirname(path)
-        if path == top or parent == path:
-            return top
-        path = parent
 
 
 def display(path, root):
@@ -141,7 +138,7 @@ def interpreters(root):
     if not path or not os.path.isfile(path):
         return found, [], "environment: none recorded; run /lucid-coder:align to write lucid-coder.yaml"
     try:
-        lines = read(path).splitlines()
+        lines = ap.read(path, "strict").splitlines()
     except (OSError, ValueError):  # unreadable or not UTF-8
         return found, [], "environment: WARNING: {} could not be read; kept the bare names on PATH".format(ENV_FILE)
     named, in_env = {}, False
@@ -209,7 +206,7 @@ def manuscript_files(panels, name, dest_rel, root, templates):
         script = dest_rel + "/" + panel["path"]
         source = "{}/source_data/{}.tsv".format(current, panel["id"])
         output = "{}/figures/{}.pdf".format(current, panel["id"])
-        files[panel["path"]] = fill(read(os.path.join(templates, "plot_panel." + panel["kind"])), {
+        files[panel["path"]] = ap.fill(ap.read(os.path.join(templates, "plot_panel." + panel["kind"])), {
             "FILE": panel["file"], "PANEL": panel["id"], "NAME": name, "PATH": script, "DEST": dest_rel})
         rows.append("\t".join([panel["id"], script, source, output, "[claim]", "draft"]))
         figures.append({"id": panel["id"], "script": script, "source_data": source,
@@ -232,7 +229,7 @@ def checked(path, text):
 
 
 def manuscript_root(dest):
-    root = find_root(dest)
+    root = ap.living_root(dest)
     if root is None:
         raise Refusal("--panels needs a git or Mycelium repository: the contract names repository-relative paths")
     if root == dest:
@@ -241,12 +238,12 @@ def manuscript_root(dest):
 
 
 def figure_map_ids(path):
-    return {line.split("\t")[0] for line in read(path).splitlines()[1:]}
+    return {line.split("\t")[0] for line in ap.read(path, "strict").splitlines()[1:]}
 
 
 def contract_ids(path):
     try:
-        return {figure["id"] for figure in json.loads(read(path))["figures"]}
+        return {figure["id"] for figure in json.loads(ap.read(path, "strict"))["figures"]}
     except (ValueError, KeyError, TypeError):
         return set()
 
@@ -303,17 +300,6 @@ def plan_links(paths, kind, dest, root):
     return links
 
 
-def fill(text, values):
-    for key, value in values.items():
-        text = text.replace("@@" + key + "@@", value)
-    return text
-
-
-def read(path):
-    with open(path, encoding="utf-8") as handle:
-        return handle.read()
-
-
 def replace_line(text, prefix, lines):
     """Swap the first line starting with prefix for lines; keep the template if lines is empty."""
     if not lines:
@@ -353,7 +339,7 @@ def stub_values(step, name, data_links):
 def notebook(template, values):
     book = json.loads(template)
     for cell in book["cells"]:
-        cell["source"] = [fill(line, values) for line in cell["source"]]
+        cell["source"] = [ap.fill(line, values) for line in cell["source"]]
     return json.dumps(book, indent=1) + "\n"
 
 
@@ -451,7 +437,7 @@ def report_text(template, name, doc_name, dest_rel, steps, data_links):
             "- [Conclusion] ([figure](../{0}), panel A). [agent-derived: `{0}`]".format(figure), "",
             "![Figure N. [caption]. `{0}`](../{0})".format(figure), "",
             "Inspected `{}`: [groups, n, axes, interval type; any defect].".format(figure), ""]))
-    return fill(template, {"NAME": name, "DOC": doc_name, "DEST": dest_rel.replace(os.sep, "/"),
+    return ap.fill(template, {"NAME": name, "DOC": doc_name, "DEST": dest_rel.replace(os.sep, "/"),
                            "MERMAID": "\n".join(lines), "METHODS": "\n".join(methods),
                            "RESULTS": "\n".join(results)})
 
@@ -463,7 +449,7 @@ def find_doc_template(option, root, templates):
         return option, option
     if root:
         try:
-            plugin = read(os.path.join(root, ".mycelium", "plugin-root")).strip()
+            plugin = ap.read(os.path.join(root, ".mycelium", "plugin-root")).strip()
         except OSError:
             plugin = ""
         candidate = os.path.join(plugin, MYCELIUM_TEMPLATE) if plugin else ""
@@ -509,6 +495,7 @@ def main(argv):
     args = parser.parse_args(argv)
     if not args.templates or not os.path.isdir(args.templates):
         parser.error("--templates=<skill-dir>/templates is required when run from stdin")
+    load_paths(args.templates)
 
     try:
         return scaffold(args)
@@ -527,7 +514,7 @@ def scaffold(args):
         if args.panels:
             return add_panels(args, dest)
         raise Refusal("{} exists and is not empty; nothing was changed".format(args.dest))
-    root = manuscript_root(dest) if args.panels else find_root(dest)
+    root = manuscript_root(dest) if args.panels else ap.living_root(dest)
     if root == dest:
         raise Refusal("{} is the repository root".format(args.dest))
     mycelium = root is not None and os.path.isdir(os.path.join(root, ".living"))
@@ -547,10 +534,10 @@ def scaffold(args):
     files = {}
     for step in steps:
         values = stub_values(step, name, data_links)
-        source = read(os.path.join(templates, step["stub"]))
-        files[step["path"]] = notebook(source, values) if step["kind"] == "ipynb" else fill(source, values)
+        source = ap.read(os.path.join(templates, step["stub"]))
+        files[step["path"]] = notebook(source, values) if step["kind"] == "ipynb" else ap.fill(source, values)
     tools, env_used, env_note = interpreters(root)
-    files["Snakefile"] = fill(read(os.path.join(templates, "Snakefile")), {
+    files["Snakefile"] = ap.fill(ap.read(os.path.join(templates, "Snakefile")), {
         "NAME": json.dumps(name)[1:-1], "DEST": json.dumps(dest_rel)[1:-1],
         "RSCRIPT": json.dumps(tools["rscript"]), "PYTHON": json.dumps(tools["python"]),
         "JUPYTER": json.dumps(tools["jupyter"]),
@@ -558,29 +545,29 @@ def scaffold(args):
         "LAST_OUTPUT": steps[-1]["html"] or steps[-1]["output"],
         "RULES": "\n\n".join(rule(step, data_links) for step in steps).rstrip("\n")})
     files["logs/.gitkeep"] = files["outputs/.gitkeep"] = ""  # git drops empty folders; SLURM needs logs/ after a clone
-    files["run.sh"] = fill(read(os.path.join(templates, "run.sh")), {"NAME": name})
-    files["run.sbatch"] = fill(read(os.path.join(templates, "run.sbatch")), {"NAME": name})
-    files[doc_name] = doc_text(read(template_path), name, dest_rel, steps, data_links,
+    files["run.sh"] = ap.fill(ap.read(os.path.join(templates, "run.sh")), {"NAME": name})
+    files["run.sbatch"] = ap.fill(ap.read(os.path.join(templates, "run.sbatch")), {"NAME": name})
+    files[doc_name] = doc_text(ap.read(template_path), name, dest_rel, steps, data_links,
                                code_links, root)
     if qmd:  # the steps are the report: Quarto renders them as one site under reports/site/
-        files["_quarto.yml"] = read(os.path.join(templates, "_quarto.yml"))
+        files["_quarto.yml"] = ap.read(os.path.join(templates, "_quarto.yml"))
     report = "reports/" + name + ".qmd"
     if not all(s["kind"] == "qmd" for s in steps):
-        files[report] = report_text(read(os.path.join(templates, "report.qmd")), name, doc_name, dest_rel,
+        files[report] = report_text(ap.read(os.path.join(templates, "report.qmd")), name, doc_name, dest_rel,
                                     steps, data_links)
     for theme in THEMES:  # report.qmd and _quarto.yml both name these (DESIGN.md tokens)
-        files["reports/" + theme] = read(os.path.join(templates, theme))
+        files["reports/" + theme] = ap.read(os.path.join(templates, theme))
     if args.panels:
         files.update(manuscript_files(parse_panels(args.panels), name, dest_rel.replace(os.sep, "/"), root, templates))
     folders = DIRS + (["config"] if args.panels else [])
     inputs = ", ".join(display(l["target"], root) for l in data_links) or (
         "[repository paths of the sample table, config, or raw-data folder; or none]")
-    files["plans/PLAN.md"] = fill(read(os.path.join(templates, "PLAN.md")), {
+    files["plans/PLAN.md"] = ap.fill(ap.read(os.path.join(templates, "PLAN.md")), {
         "NAME": name, "INPUTS": inputs, "PLAN_ROWS": "\n".join(
             "| S{} | `{}/{}` | [choice] | [repo: / user / default:] | [check] |".format(
                 s["num"], dest_rel, s["path"]) for s in steps)})
     ids = ["S" + s["num"] for s in steps]
-    files["plans/TRACKER.md"] = fill(read(os.path.join(templates, "TRACKER.md")), {
+    files["plans/TRACKER.md"] = ap.fill(ap.read(os.path.join(templates, "TRACKER.md")), {
         "NAME": name, "DOC": doc_name, "DATE": today, "TRACKER_ROWS": "\n".join(
             "| {} | `{}` | todo | {} | [how to check it worked] |".format(
                 ident, s["path"], before or "—")

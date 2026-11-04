@@ -132,26 +132,25 @@ def objective_of(root, rel):
     """(objective line, doc path) from the analysis doc (`<NAME>.md` as new-analysis names it, else README.md),
     or (None, doc path or None) when the doc has none. The first `Objective:` line, or the line under an
     `## Objective` heading; never a guess from other prose."""
-    name = os.path.basename(rel)
-    for doc in (name.upper().replace("-", "_") + ".md", "README.md"):
-        path = os.path.join(root, rel, doc)
-        if not os.path.isfile(path):
-            continue
-        try:
-            with open(path, encoding="utf-8", errors="replace") as handle:
-                lines = [handle.readline() for _ in range(300)]
-        except OSError:
-            continue
-        for i, line in enumerate(lines):
-            found = OBJECTIVE.match(line)
-            if found:
-                return _one_line(found.group(1)), rel + "/" + doc
-            if OBJECTIVE_HEADING.match(line):
-                for later in lines[i + 1:i + 6]:
-                    if later.strip() and not later.lstrip().startswith("#"):
-                        return _one_line(later), rel + "/" + doc
-        return None, rel + "/" + doc
-    return None, None
+    import analysis_paths
+    path = analysis_paths.find_doc(os.path.join(root, rel))
+    if path is None:
+        return None, None
+    doc = os.path.basename(path)
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            lines = [handle.readline() for _ in range(300)]
+    except OSError:
+        return None, None
+    for i, line in enumerate(lines):
+        found = OBJECTIVE.match(line)
+        if found:
+            return _one_line(found.group(1)), rel + "/" + doc
+        if OBJECTIVE_HEADING.match(line):
+            for later in lines[i + 1:i + 6]:
+                if later.strip() and not later.lstrip().startswith("#"):
+                    return _one_line(later), rel + "/" + doc
+    return None, rel + "/" + doc
 
 
 def _one_line(text, limit=160):
