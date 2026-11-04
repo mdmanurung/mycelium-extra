@@ -1,17 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="480" height="390" viewBox="0 0 480 390" role="img" aria-labelledby="title desc">
   <title id="title">Planning and observation are independent questions</title>
   <desc id="desc">For a planned recorded step, inspect outcome and attribution. A planned step without a record is an evidence gap, not proof it never ran. For an unplanned recorded run, inspect approval and context. No observed event can be placed in the unplanned unrecorded cell.</desc>
-  <defs><style>svg{--paper:#fff;--ink:#263238;--record:#f1f6f8;--record-edge:#527b8b;--human:#f5f1f7;--human-edge:#786389;--gap:#fcf8ee;--gap-edge:#9c7e34;--arrow:#626b70}
-@media(prefers-color-scheme:dark){svg{--paper:#18222a;--ink:#e8edf0;--record:#253a45;--record-edge:#8dbbc9;--human:#352c40;--human-edge:#b9a3c9;--gap:#3b3324;--gap-edge:#d4b263;--arrow:#c2ccd2}}
-text{font-family:system-ui,sans-serif;fill:var(--ink);font-size:23px}.record{fill:var(--record);stroke:var(--record-edge);stroke-width:2}.gap{fill:var(--gap);stroke:var(--gap-edge);stroke-width:2;stroke-dasharray:6 4}.head{font-weight:650}</style></defs>
-  <rect width="480" height="390" rx="12" fill="var(--paper)"/>
+  <defs><style>svg{--paper:#f9fbfd;--paper-2:#edf1f4;--ink:#111921;--ink-2:#4d5660;--rule:#d9dfe3;--rule-strong:#bbc2c7;--accent:#00696f;--gap:#914a8c}@media(prefers-color-scheme:dark){svg{--paper:#0e1216;--paper-2:#161b20;--ink:#e3e9ed;--ink-2:#9ea6ab;--rule:#292f34;--rule-strong:#42494f;--accent:#64c3c8;--gap:#d997d2}}text{font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;fill:var(--ink);font-size:23px}.head{font-weight:650}.bg{fill:var(--paper);stroke:var(--rule);stroke-width:2}.box{fill:var(--paper-2);stroke:var(--rule-strong);stroke-width:2}.human{fill:var(--paper-2);stroke:var(--ink-2);stroke-width:2}.gap{fill:var(--paper);stroke:var(--gap);stroke-width:2;stroke-dasharray:6 4}.arrow{stroke:var(--ink-2);stroke-width:2;fill:none;marker-end:url(#tip)}#tip path{fill:var(--ink-2)}.dot{fill:var(--ink-2)}.focal{fill:var(--accent);stroke:var(--accent);stroke-width:2}.on-accent{fill:var(--paper)}.dot.on-accent{fill:var(--paper)}</style></defs>
+  <rect class="bg" width="480" height="390" rx="12"/>
   <g text-anchor="middle">
     <text class="head" x="193" y="35">Recorded</text><text class="head" x="380" y="35">Not recorded</text>
     <text class="head" x="51" y="133" style="font-size:21px">Planned</text>
     <text class="head" x="51" y="287" style="font-size:21px">Not</text><text class="head" x="51" y="314" style="font-size:21px">planned</text>
-    <rect class="record" x="106" y="57" width="174" height="146" rx="8"/><text x="193" y="105">Inspect</text><text x="193" y="135">outcome and</text><text x="193" y="165">attribution</text>
+    <rect class="focal" x="106" y="57" width="174" height="146" rx="8"/><text class="on-accent" x="193" y="105">Inspect</text><text class="on-accent" x="193" y="135">outcome and</text><text class="on-accent" x="193" y="165">attribution</text>
     <rect class="gap" x="293" y="57" width="174" height="146" rx="8"/><text x="380" y="105">Evidence gap</text><text x="380" y="135">Occurrence</text><text x="380" y="165">unknown</text>
-    <rect class="record" x="106" y="226" width="174" height="146" rx="8"/><text x="193" y="274">Inspect</text><text x="193" y="304">approval</text><text x="193" y="334">and context</text>
+    <rect class="box" x="106" y="226" width="174" height="146" rx="8"/><text x="193" y="274">Inspect</text><text x="193" y="304">approval</text><text x="193" y="334">and context</text>
     <rect class="gap" x="293" y="226" width="174" height="146" rx="8"/><text x="380" y="274">No observed</text><text x="380" y="304">event to</text><text x="380" y="334">place here</text>
   </g>
 </svg>

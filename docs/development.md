@@ -306,6 +306,8 @@ internal document links. Developer instructions, decisions, roadmap, changelog, 
 repository README are excluded from the website and its search index; the site links to the first three on GitHub.
 Generated HTML is ignored by Git.
 
+Diagram style: on a new machine, copy `docs/design/diagram-profile.md` to `~/.diagram-design/profiles/mycelium-extra.md`; the repo's `.diagram-design` marker then selects it for the diagram-design skill.
+
 The Documentation workflow builds every pull request and publishes pushes to
 `main`. In GitHub repository **Settings → Pages**, choose **GitHub Actions**
 as the source before the first deployment. The published URL will be

@@ -1,17 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="480" height="420" viewBox="0 0 480 420" role="img" aria-labelledby="title desc">
   <title id="title">Read the Journal from overview to one item to its evidence</title>
   <desc id="desc">Coverage and freshness remain visible as you move from objective, period and concerns to a selected observation, then its original sources and exact outcomes. Returning preserves navigation context. Saving a checkpoint is separate from viewing.</desc>
-  <defs><style>svg{--paper:#fff;--ink:#263238;--record:#f1f6f8;--record-edge:#527b8b;--human:#f5f1f7;--human-edge:#786389;--gap:#fcf8ee;--gap-edge:#9c7e34;--arrow:#626b70}
-@media(prefers-color-scheme:dark){svg{--paper:#18222a;--ink:#e8edf0;--record:#253a45;--record-edge:#8dbbc9;--human:#352c40;--human-edge:#b9a3c9;--gap:#3b3324;--gap-edge:#d4b263;--arrow:#c2ccd2}}
-text{font-family:system-ui,sans-serif;fill:var(--ink);font-size:22px}.head{font-size:25px;font-weight:650}.box{fill:var(--record);stroke:var(--record-edge);stroke-width:2}.coverage{fill:var(--gap);stroke:var(--gap-edge);stroke-width:2;stroke-dasharray:6 4}.arrow{stroke:var(--arrow);stroke-width:2;marker-end:url(#tip)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="var(--arrow)"/></marker></defs>
-  <rect width="480" height="420" rx="12" fill="var(--paper)"/>
+  <defs><style>svg{--paper:#f9fbfd;--paper-2:#edf1f4;--ink:#111921;--ink-2:#4d5660;--rule:#d9dfe3;--rule-strong:#bbc2c7;--accent:#00696f;--gap:#914a8c}@media(prefers-color-scheme:dark){svg{--paper:#0e1216;--paper-2:#161b20;--ink:#e3e9ed;--ink-2:#9ea6ab;--rule:#292f34;--rule-strong:#42494f;--accent:#64c3c8;--gap:#d997d2}}text{font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;fill:var(--ink);font-size:22px}.head{font-size:25px;font-weight:650}.bg{fill:var(--paper);stroke:var(--rule);stroke-width:2}.box{fill:var(--paper-2);stroke:var(--rule-strong);stroke-width:2}.human{fill:var(--paper-2);stroke:var(--ink-2);stroke-width:2}.gap{fill:var(--paper);stroke:var(--gap);stroke-width:2;stroke-dasharray:6 4}.arrow{stroke:var(--ink-2);stroke-width:2;fill:none;marker-end:url(#tip)}#tip path{fill:var(--ink-2)}.dot{fill:var(--ink-2)}.focal{fill:var(--accent);stroke:var(--accent);stroke-width:2}.on-accent{fill:var(--paper)}.dot.on-accent{fill:var(--paper)}</style><marker id="tip" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="#4d5660"/></marker></defs>
+  <rect class="bg" width="480" height="420" rx="12"/>
   <g text-anchor="middle">
-    <rect class="coverage" x="20" y="10" width="440" height="47" rx="8"/><text x="240" y="41">Coverage and freshness stay visible</text>
+    <rect class="gap" x="20" y="10" width="440" height="47" rx="8"/><text x="240" y="41">Coverage and freshness stay visible</text>
     <rect class="box" x="20" y="76" width="440" height="77" rx="8"/><text class="head" x="240" y="108">1. Overview</text><text x="240" y="137">Objective · period · concerns</text>
     <path class="arrow" d="M240 157v18"/>
     <rect class="box" x="20" y="180" width="440" height="77" rx="8"/><text class="head" x="240" y="212">2. Selected item</text><text x="240" y="241">Observation · implication · unknowns</text>
     <path class="arrow" d="M240 261v18"/>
-    <rect class="box" x="20" y="284" width="440" height="77" rx="8"/><text class="head" x="240" y="316">3. Evidence and provenance</text><text x="240" y="345">Recorded outcome · original source</text>
+    <rect class="focal" x="20" y="284" width="440" height="77" rx="8"/><text class="on-accent head" x="240" y="316">3. Evidence and provenance</text><text class="on-accent" x="240" y="345">Recorded outcome · original source</text>
     <text x="240" y="399">Back to overview preserves context</text>
   </g>
 </svg>
