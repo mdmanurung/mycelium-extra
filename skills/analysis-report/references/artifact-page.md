@@ -6,7 +6,7 @@ Rules taken from impeccable's Read mode (Apache-2.0, `reference/mode-read.md`) a
 
 ## Page contract
 
-The host wraps the page in its own skeleton. Write a fragment, not a document.
+The page file lives at `.mycelium-extra/artifacts/<name>.html` at the repository root, outside `reports/`. The host wraps the page in its own skeleton. Write a fragment, not a document.
 
 - No `<!DOCTYPE>`, `<html>`, `<head>` or `<body>` tags.
 - Start with `<title>`: a short name of two to four words, not a summary. Put it in the first 8 KB.
