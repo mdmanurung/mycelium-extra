@@ -35,7 +35,13 @@ const has = (e, cls) => e.className.split(" ").includes(cls);
 function report() {
   const nodes = walk(byId.app);
   const pills = nodes.filter(e => has(e, "pill")).map(e => [e.className, e.textContent]);
-  console.log(JSON.stringify({text: byId.app.textContent, pills, dots: nodes.filter(e => has(e, "dot")).length}));
+  const attrs = (e, k) => (e.attrs || {})[k];
+  const views = nodes.filter(e => has(e, "view")).map(e => [attrs(e, "aria-pressed"), attrs(e, "role")]);
+  const roles = nodes.map(e => attrs(e, "role")).filter(Boolean);
+  const scrollers = nodes.filter(e => attrs(e, "tabindex") === "0" && attrs(e, "aria-label")).map(e => e.className || e.tag);
+  const theme = nodes.find(e => e.tag === "button" && e.textContent === "Light / dark");
+  console.log(JSON.stringify({text: byId.app.textContent, pills, dots: nodes.filter(e => has(e, "dot")).length,
+    views, roles, scrollers, themePressed: theme && attrs(theme, "aria-pressed"), live: nodes.some(e => attrs(e, "aria-live") === "polite")}));
 }
 report();
 for (const label of process.argv.slice(3)) {

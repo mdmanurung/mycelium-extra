@@ -91,7 +91,7 @@ code { background: var(--paper-2); border-radius: 4px; padding: 1px 5px; overflo
 .title { font-size: 1.375rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; overflow-wrap: anywhere; min-width: 0; }
 .sub { color: var(--ink-2); font-size: 0.875rem; margin-top: var(--space-xs); }
 .tools { display: flex; gap: var(--space-sm); }
-.btn { background: transparent; border: 1px solid var(--rule-strong); border-radius: 6px; padding: 5px 12px; font-size: 0.875rem; line-height: 1.4; white-space: nowrap; transition: background-color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out); }
+.btn { background: transparent; border: 1px solid var(--ink-2); border-radius: 6px; padding: 5px 12px; font-size: 0.875rem; line-height: 1.4; white-space: nowrap; transition: background-color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out); }
 .btn:hover { background: var(--paper-2); }
 .btn:active { transform: translateY(1px); }
 .btn[data-state="done"] { border-color: var(--st-authorized); color: var(--st-authorized); }
@@ -108,11 +108,10 @@ details.limits summary { cursor: pointer; width: fit-content; }
 details.limits ul { margin: var(--space-sm) 0 0; padding-left: 1.1em; max-width: 72ch; }
 
 /* level 1: views */
-.views { display: flex; gap: var(--space-lg); margin-top: var(--space-lg); border-bottom: 1px solid var(--rule); overflow-x: auto; scrollbar-width: none; }
-.views::-webkit-scrollbar { display: none; }
+.views { display: flex; gap: var(--space-lg); margin-top: var(--space-lg); border-bottom: 1px solid var(--rule); }
 .view { background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 10px 0; color: var(--ink-2); font-weight: 500; white-space: nowrap; transition: color var(--dur) var(--ease-out); }
 .view:hover { color: var(--ink); }
-.view[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.view[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .view .n { margin-left: 6px; color: var(--ink-2); font-weight: 400; font-variant-numeric: tabular-nums; }
 
 /* level 2: filters inside the Review view, directly under the view strip */
@@ -121,9 +120,9 @@ details.limits ul { margin: var(--space-sm) 0 0; padding-left: 1.1em; max-width:
 .chip { background: none; border: 1px solid transparent; border-radius: 6px; padding: 3px 10px; color: var(--ink-2); font-size: 0.875rem; white-space: nowrap; transition: background-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out); }
 .chip:hover { background: var(--paper-2); color: var(--ink); }
 .chip:active { transform: translateY(1px); }
-.chip[aria-pressed="true"] { background: var(--paper-2); border-color: var(--rule-strong); color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--paper-2); border-color: var(--ink-2); color: var(--ink); }
 .chip .n { margin-left: 4px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
-.search { background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 6px; padding: 4px 10px; font-size: 0.875rem; width: 240px; max-width: 100%; }
+.search { background: var(--paper); border: 1px solid var(--ink-2); border-radius: 6px; padding: 4px 10px; font-size: 0.875rem; width: 240px; max-width: 100%; }
 .search::placeholder { color: var(--ink-2); }
 
 /* list and detail: one hairline between them, no boxes */
@@ -134,7 +133,7 @@ details.limits ul { margin: var(--space-sm) 0 0; padding-left: 1.1em; max-width:
 .row[aria-current="true"] { background: var(--paper-2); }
 .row .t { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; font-weight: 500; }
 .row .t .ttl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.row .f { display: block; margin: 2px 0 0; color: var(--ink-2); font-family: var(--font-mono); font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .f { display: block; margin: 2px 0 0; color: var(--ink-2); font-family: var(--font-mono); font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail { padding-left: var(--space-lg); min-width: 0; }
 .status { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-sm); color: var(--ink-2); font-size: 0.8125rem; }
 .detail h2 { font-size: 1.125rem; font-weight: 600; line-height: 1.35; margin-top: var(--space-sm); overflow-wrap: anywhere; }
@@ -154,7 +153,7 @@ details.limits ul { margin: var(--space-sm) 0 0; padding-left: 1.1em; max-width:
 .links .btn, .step .btn { white-space: normal; text-align: left; }
 
 /* diff, timeline, evidence */
-.diff { font: 12px/1.5 var(--font-mono); border: 1px solid var(--rule); border-radius: 6px; overflow-x: auto; margin: var(--space-sm) 0 var(--space-md); }
+.diff { font: 13px/1.5 var(--font-mono); border: 1px solid var(--rule); border-radius: 6px; overflow-x: auto; margin: var(--space-sm) 0 var(--space-md); }
 .diff div { white-space: pre; padding: 0 var(--space-sm); }
 .diff .add { background: var(--add); }
 .diff .del { background: var(--del); }
@@ -170,13 +169,13 @@ tr.pick td { background: var(--paper-2); }
 .wrow { border-top: 1px solid var(--rule); padding: var(--space-md) 0; }
 .wrow:first-of-type { border-top: 0; }
 .whead { display: flex; gap: var(--space-sm); align-items: baseline; flex-wrap: wrap; }
-.wid { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-2); flex: none; }
+.wid { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink-2); flex: none; }
 .wstep { font-weight: 500; overflow-wrap: anywhere; }
 .wchoice, .wclaim { margin-top: var(--space-xs); max-width: 68ch; }
 .wcmd { display: flex; gap: var(--space-sm); align-items: baseline; flex-wrap: wrap; margin-top: var(--space-sm); }
 .wcmd code { font-family: var(--font-mono); font-size: 0.8125rem; overflow-wrap: anywhere; }
-.btn.small { padding: 2px 8px; font-size: 0.75rem; }
-pre.wout { font: 12px/1.5 var(--font-mono); background: var(--paper-2); border: 1px solid var(--rule); border-radius: 6px; padding: var(--space-sm); margin: var(--space-xs) 0 0; overflow-x: auto; white-space: pre; max-width: 100%; }
+.btn.small { padding: 2px 8px; font-size: 0.8125rem; }
+pre.wout { font: 13px/1.5 var(--font-mono); background: var(--paper-2); border: 1px solid var(--rule); border-radius: 6px; padding: var(--space-sm); margin: var(--space-xs) 0 0; overflow-x: auto; white-space: pre; max-width: 100%; }
 
 @media (max-width: 760px) {
   .split { grid-template-columns: minmax(0, 1fr); }
@@ -196,7 +195,7 @@ pre.wout { font: 12px/1.5 var(--font-mono); background: var(--paper-2); border: 
 .journal h2 { font-size: 1.1rem; margin-top: 16px; }
 .journal-controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .journal select { max-width: 100%; padding: 6px; font: inherit; color: inherit; background: var(--paper); }
-.journal-coverage { border-left: 3px solid var(--rule-strong); padding: 4px 12px; margin: 12px 0; }
+.journal-coverage { border-left: 2px solid var(--rule-strong); padding: 4px 12px; margin: 12px 0; }
 .journal-disclosure { border-top: 1px solid var(--rule); margin: 10px 0; padding: 8px 0; }
 .journal summary { cursor: pointer; }
 .journal-concern, .journal-event { display: block; width: 100%; text-align: left; padding: 10px; margin: 6px 0; border: 1px solid var(--rule); background: var(--paper-2); border-radius: 4px; }
@@ -204,7 +203,9 @@ pre.wout { font: 12px/1.5 var(--font-mono); background: var(--paper-2); border: 
 .journal-list { max-height: 65vh; overflow: auto; }
 .journal-detail { min-width: 0; }
 .journal pre { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; overflow: auto; font-size: .85rem; }
-.journal [aria-pressed="true"] { border: 2px solid var(--accent); }
+/* Selected row: tint, dark border and weight, so it differs from the accent focus ring and the box does not grow. */
+.journal [aria-pressed="true"] { background: var(--paper); border-color: var(--ink); font-weight: 600; }
+.journal-event .pill { margin-left: var(--space-sm); font-weight: 600; }
 @media (max-width: 750px) { .journal-flow { display: block; } .journal-list { max-height: 35vh; } }
 
 .views { flex-wrap: wrap; }
@@ -219,8 +220,8 @@ pre.wout { font: 12px/1.5 var(--font-mono); background: var(--paper-2); border: 
 .pill.fail { --st: var(--fail); }
 .pill.routine { --st: var(--routine); }
 </style></head>
-<body><div id="app"></div>
-<script type="application/json" id="data">{"schema":"mycelium-extra.track-changes.v1","generated_at":"2026-11-04T14:18:57Z","root":"tmp0pzh_oey","analysis_path":"analysis/pbmc-ifn","objective":{"text":"Characterize the interferon response.","source":"analysis/pbmc-ifn/PBMC_IFN.md"},"focus":{"active_at_snapshot":false},"baselines":{"original_plan":"d587f5e7","current_plan":"5a8c61c8","current_instance":"8117c1e4632bdbed","relation":"explicit","current_selection":"newest_naming_folder","original_approved":1793801935.9246328,"current_approved":1793801936.738018},"coverage":{"focus_events":"not_requested","approvals":"available","snapshots":"available","receipts":"available","claude_transcript":"not_requested","transcript_note":"","mycelium":"absent","limitations":["inputs and exact-execution blocks of the two plans are not compared here, and bindings and outputs only for removal or redefinition; `verify diff` shows everything","cross-analysis edits not observed: no transcript was read (pass --transcript, or focus first)"],"not_observed":["shell-made edits","file reads","scripts no approval pinned and no run touched","edits to other analyses (no transcript read)"]},"counts":{"attention":3,"authorized":1,"routine":1},"items":[{"id":"P-349831cc","kind":"plan","title":"Possible lost plan coverage between plans d587f5e7 and 5a8c61c8","bucket":"attention","file":"plan 5a8c61c8","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"covered_current","historical":"different_original","consequence":"potential","attribution":"not_applicable","currency":"not_checked","summary":"Observed: the approved revision drops or redefines validation coverage.","observed":"output no longer declared: analysis/pbmc-ifn/outputs/.","potential":"Potential: a declared output the plan no longer names may no longer be produced or checked.","unknown":"Whether an equivalent check or output exists elsewhere, or the change was intended, is not recorded here.","baseline":"","current":"","authorization":"The current plan was approved by the researcher, so this is a later authorized revision, not an unexplained deviation.","context":"","next":["revise the plan with `/mycelium-extra:grill` if this was not intended, then type `approve`","`verify diff d587f5e7 5a8c61c8` lists every difference"],"evidence":["E-3d02e922","E-cd84657c"],"diff":[],"limitations":[]},{"id":"P-512a94d6","kind":"plan","title":"Plan step 1 choice: minimum 500 cells per donor → minimum 200 cells per donor","bucket":"attention","file":"plan 5a8c61c8","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"covered_current","historical":"different_original","consequence":"potential","attribution":"not_applicable","currency":"not_checked","summary":"Observed plan change between the original and the current approved plan.","observed":"Row 1, choice: was `minimum 500 cells per donor`, now `minimum 200 cells per donor`.","potential":"Potential analytical implication: a changed Choice, Step or Validation can change what is estimated; whether it does is for the researcher to assess.","unknown":"Why the plan changed is not recorded here.","baseline":"Original plan d587f5e7 (approved 11-04 15:18).","current":"Current plan 5a8c61c8 (approved 11-04 15:18).","authorization":"The current plan was approved by the researcher, so this is a later authorized revision, not an unexplained deviation.","context":"","next":["revise the plan with `/mycelium-extra:grill` if this was not intended, then type `approve`"],"evidence":["E-3d02e922","E-cd84657c"],"diff":[],"limitations":[]},{"id":"E-968606a2","kind":"execution","title":"Execution record: 3 run(s), 1 failed, 0 unmatched","bucket":"attention","file":"receipts.jsonl","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"covered_current","historical":"not_applicable","consequence":"unknown","attribution":"not_applicable","currency":"not_checked","summary":"3 run record(s) for d587f5e7, 5a8c61c8.","observed":"11-04 15:18 analysis/pbmc-ifn/scripts/01_fit.py exited 1; a later run of the same path at 11-04 15:18 exited 0 (both kept)","potential":"","unknown":"Nothing recorded says whether the runs' outputs are the ones the plan declares.","baseline":"","current":"","authorization":"Runs of the current plan carry the current instance or none is recorded.","context":"","next":["`/mycelium-extra:verify report 5a8c61c8` grades what these runs establish"],"evidence":["E-1afe72a9","E-1469ab02","E-4e19fac9"],"diff":[],"limitations":[]},{"id":"C-614daf7b","kind":"code","title":"analysis/pbmc-ifn/scripts/01_fit.py differs from the original approved code","bucket":"authorized","file":"analysis/pbmc-ifn/scripts/01_fit.py","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"covered_current","historical":"different_original","consequence":"not_assessed","attribution":"unattributed","currency":"not_checked","summary":"Observed code change.","observed":"The bytes differ from the original approval pin. Numbers dropped: 500; new: 200; other changed lines: 0.","potential":"","unknown":"Who edited it and why is not recorded here.","baseline":"Original code baseline: available (the original approval's pin).","current":"Current approval 5a8c61c8 pinned this script.","authorization":"The current approval pins these bytes.","context":"","next":[],"evidence":["E-f5b7025a","E-a505d08f"],"diff":[["ctx","@@ -1 +1 @@"],["del","-min_cells = 500"],["add","+min_cells = 200"]],"limitations":[]},{"id":"O-62b5b933","kind":"output","title":"1 declared output(s) missing","bucket":"routine","file":"analysis/pbmc-ifn/outputs_v2/","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"not_applicable","historical":"not_applicable","consequence":"unknown","attribution":"not_applicable","currency":"unknown","summary":"Declared outputs not found.","observed":"Older than the newest changed script: none. Missing: analysis/pbmc-ifn/outputs_v2/.","potential":"","unknown":"Whether any output was produced by the earlier or the later code is not established by a modification time.","baseline":"","current":"","authorization":"","context":"","next":["rerun the affected steps after `freeze`, then `/mycelium-extra:verify report 5a8c61c8`"],"evidence":["E-dfcea0d7"],"diff":[],"limitations":[]}],"evidence":[{"id":"E-1469ab02","source":"receipt","ref":"1793801936.4235973:toolu_2","detail":"receipt","ts":1793801936.4235973},{"id":"E-1afe72a9","source":"receipt","ref":"1793801936.172153:toolu_1","detail":"receipt","ts":1793801936.172153},{"id":"E-3d02e922","source":"approval","ref":"d587f5e7","detail":"original plan approved 11-04 15:18","ts":1793801935.9246328},{"id":"E-4e19fac9","source":"receipt","ref":"1793801936.9872487:toolu_3","detail":"receipt","ts":1793801936.9872487},{"id":"E-a505d08f","source":"pin","ref":"analysis/pbmc-ifn/scripts/01_fit.py72921f31c5ec9a26a92bfeef5bd9331d64a2104b5d00f8d0562ed6910f314357","detail":"original approval pin","ts":null},{"id":"E-cd84657c","source":"approval","ref":"5a8c61c8","detail":"current plan approved 11-04 15:18","ts":1793801936.738018},{"id":"E-dfcea0d7","source":"file","ref":"analysis/pbmc-ifn/outputs_v2/","detail":"output path","ts":null},{"id":"E-f5b7025a","source":"script","ref":"analysis/pbmc-ifn/scripts/01_fit.py","detail":"fingerprint now 03229066a5e9","ts":null}],"timeline":[{"ts":1793801935.9246328,"when":"11-04 15:18","kind":"approval","text":"plan d587f5e7 approved (original)","ref":null},{"ts":1793801936.172153,"when":"11-04 15:18","kind":"run","text":"python analysis/pbmc-ifn/scripts/01_fit.py · exit 1 · launch matched","ref":"E-1afe72a9"},{"ts":1793801936.4235973,"when":"11-04 15:18","kind":"run","text":"python analysis/pbmc-ifn/scripts/01_fit.py · exit 0 · launch matched","ref":"E-1469ab02"},{"ts":1793801936.738018,"when":"11-04 15:18","kind":"approval","text":"plan 5a8c61c8 approved (current)","ref":null},{"ts":1793801936.9872487,"when":"11-04 15:18","kind":"run","text":"python analysis/pbmc-ifn/scripts/01_fit.py · exit 0 · launch matched","ref":"E-4e19fac9"}],"walkthrough":{"plan":"current approved plan 5a8c61c8","note":"","rows":[{"row":"1","step":"run `analysis/pbmc-ifn/scripts/01_fit.py`","choice":"minimum 200 cells per donor","depends_on":[],"evidence":[{"claim":"the threshold this plan approved","cmd":"rg -n '^min_cells' analysis/pbmc-ifn/scripts/01_fit.py","out":"1:min_cells = 200","more":0}]},{"row":"2","step":"run `analysis/pbmc-ifn/scripts/02_plot.py`","choice":"volcano of the contrast","depends_on":["1"],"evidence":[{"claim":"the plotting entry point","cmd":"head -n 1 analysis/pbmc-ifn/scripts/02_plot.py","out":"print('volcano')","more":0}]}]},"reports":{},"brief_md":"# Review brief: analysis/pbmc-ifn\n\nSnapshot 2026-11-04T14:18:57Z · original plan d587f5e7 · current plan 5a8c61c8 · no focus open\n\nRead-only evidence summary. It approves nothing and does not judge scientific validity.\n\n## Needs attention (3)\n\n### Possible lost plan coverage between plans d587f5e7 and 5a8c61c8\n\nObserved: the approved revision drops or redefines validation coverage.\n\n- **Observed:** output no longer declared: analysis/pbmc-ifn/outputs/.\n- **Potential:** Potential: a declared output the plan no longer names may no longer be produced or checked.\n- **Unknown:** Whether an equivalent check or output exists elsewhere, or the change was intended, is not recorded here.\n- **Authorization:** The current plan was approved by the researcher, so this is a later authorized revision, not an unexplained deviation.\n- **Axes:** difference observed, focus within_path, authorization covered_current, consequence potential, attribution not_applicable, currency not_checked\n- **Evidence:** E-3d02e922, E-cd84657c\n- Next: revise the plan with `/mycelium-extra:grill` if this was not intended, then type `approve`\n- Next: `verify diff d587f5e7 5a8c61c8` lists every difference\n\n### Plan step 1 choice: minimum 500 cells per donor → minimum 200 cells per donor\n\nObserved plan change between the original and the current approved plan.\n\n- **Observed:** Row 1, choice: was `minimum 500 cells per donor`, now `minimum 200 cells per donor`.\n- **Potential:** Potential analytical implication: a changed Choice, Step or Validation can change what is estimated; whether it does is for the researcher to assess.\n- **Unknown:** Why the plan changed is not recorded here.\n- **Baseline:** Original plan d587f5e7 (approved 11-04 15:18).\n- **Current:** Current plan 5a8c61c8 (approved 11-04 15:18).\n- **Authorization:** The current plan was approved by the researcher, so this is a later authorized revision, not an unexplained deviation.\n- **Axes:** difference observed, focus within_path, authorization covered_current, consequence potential, attribution not_applicable, currency not_checked\n- **Evidence:** E-3d02e922, E-cd84657c\n- Next: revise the plan with `/mycelium-extra:grill` if this was not intended, then type `approve`\n\n### Execution record: 3 run(s), 1 failed, 0 unmatched\n\n3 run record(s) for d587f5e7, 5a8c61c8.\n\n- **Observed:** 11-04 15:18 analysis/pbmc-ifn/scripts/01_fit.py exited 1; a later run of the same path at 11-04 15:18 exited 0 (both kept)\n- **Unknown:** Nothing recorded says whether the runs' outputs are the ones the plan declares.\n- **Authorization:** Runs of the current plan carry the current instance or none is recorded.\n- **Axes:** difference observed, focus within_path, authorization covered_current, consequence unknown, attribution not_applicable, currency not_checked\n- **Evidence:** E-1afe72a9, E-1469ab02, E-4e19fac9\n- Next: `/mycelium-extra:verify report 5a8c61c8` grades what these runs establish\n\n## Changed, now authorized (1)\n\n### analysis/pbmc-ifn/scripts/01_fit.py differs from the original approved code\n\nObserved code change.\n\n- **Observed:** The bytes differ from the original approval pin. Numbers dropped: 500; new: 200; other changed lines: 0.\n- **Unknown:** Who edited it and why is not recorded here.\n- **Baseline:** Original code baseline: available (the original approval's pin).\n- **Current:** Current approval 5a8c61c8 pinned this script.\n- **Authorization:** The current approval pins these bytes.\n- **Axes:** difference observed, focus within_path, authorization covered_current, consequence not_assessed, attribution unattributed, currency not_checked\n- **Evidence:** E-f5b7025a, E-a505d08f\n\n## Routine (1)\n\n### 1 declared output(s) missing\n\nDeclared outputs not found.\n\n- **Observed:** Older than the newest changed script: none. Missing: analysis/pbmc-ifn/outputs_v2/.\n- **Unknown:** Whether any output was produced by the earlier or the later code is not established by a modification time.\n- **Axes:** difference observed, focus within_path, authorization not_applicable, consequence unknown, attribution not_applicable, currency unknown\n- **Evidence:** E-dfcea0d7\n- Next: rerun the affected steps after `freeze`, then `/mycelium-extra:verify report 5a8c61c8`\n\n## Coverage\n\n- focus_events: not_requested\n- approvals: available\n- snapshots: available\n- receipts: available\n- claude_transcript: not_requested\n- transcript_note: \n- mycelium: absent\n- Not observed: shell-made edits, file reads, scripts no approval pinned and no run touched, edits to other analyses (no transcript read)\n- inputs and exact-execution blocks of the two plans are not compared here, and bindings and outputs only for removal or redefinition; `verify diff` shows everything\n- cross-analysis edits not observed: no transcript was read (pass --transcript, or focus first)\n"}</script>
+<body><main id="app"></main>
+<script type="application/json" id="data">{"schema":"mycelium-extra.track-changes.v1","generated_at":"2026-11-04T14:54:53Z","root":"tmpy80a5z19","analysis_path":"analysis/pbmc-ifn","objective":{"text":"Characterize the interferon response.","source":"analysis/pbmc-ifn/PBMC_IFN.md"},"focus":{"active_at_snapshot":false},"baselines":{"original_plan":"d587f5e7","current_plan":"5a8c61c8","current_instance":"100e8d861780fa14","relation":"explicit","current_selection":"newest_naming_folder","original_approved":1793804092.3611665,"current_approved":1793804093.1239865},"coverage":{"focus_events":"not_requested","approvals":"available","snapshots":"available","receipts":"available","claude_transcript":"not_requested","transcript_note":"","mycelium":"absent","limitations":["inputs and exact-execution blocks of the two plans are not compared here, and bindings and outputs only for removal or redefinition; `verify diff` shows everything","cross-analysis edits not observed: no transcript was read (pass --transcript, or focus first)"],"not_observed":["shell-made edits","file reads","scripts no approval pinned and no run touched","edits to other analyses (no transcript read)"]},"counts":{"attention":3,"authorized":1,"routine":1},"items":[{"id":"P-349831cc","kind":"plan","title":"Possible lost plan coverage between plans d587f5e7 and 5a8c61c8","bucket":"attention","file":"plan 5a8c61c8","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"covered_current","historical":"different_original","consequence":"potential","attribution":"not_applicable","currency":"not_checked","summary":"Observed: the approved revision drops or redefines validation coverage.","observed":"output no longer declared: analysis/pbmc-ifn/outputs/.","potential":"Potential: a declared output the plan no longer names may no longer be produced or checked.","unknown":"Whether an equivalent check or output exists elsewhere, or the change was intended, is not recorded here.","baseline":"","current":"","authorization":"The current plan was approved by the researcher, so this is a later authorized revision, not an unexplained deviation.","context":"","next":["revise the plan with `/mycelium-extra:grill` if this was not intended, then type `approve`","`verify diff d587f5e7 5a8c61c8` lists every difference"],"evidence":["E-3d02e922","E-cd84657c"],"diff":[],"limitations":[]},{"id":"P-512a94d6","kind":"plan","title":"Plan step 1 choice: minimum 500 cells per donor → minimum 200 cells per donor","bucket":"attention","file":"plan 5a8c61c8","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"covered_current","historical":"different_original","consequence":"potential","attribution":"not_applicable","currency":"not_checked","summary":"Observed plan change between the original and the current approved plan.","observed":"Row 1, choice: was `minimum 500 cells per donor`, now `minimum 200 cells per donor`.","potential":"Potential analytical implication: a changed Choice, Step or Validation can change what is estimated; whether it does is for the researcher to assess.","unknown":"Why the plan changed is not recorded here.","baseline":"Original plan d587f5e7 (approved 11-04 15:54).","current":"Current plan 5a8c61c8 (approved 11-04 15:54).","authorization":"The current plan was approved by the researcher, so this is a later authorized revision, not an unexplained deviation.","context":"","next":["revise the plan with `/mycelium-extra:grill` if this was not intended, then type `approve`"],"evidence":["E-3d02e922","E-cd84657c"],"diff":[],"limitations":[]},{"id":"E-968606a2","kind":"execution","title":"Execution record: 3 run(s), 1 failed, 0 unmatched","bucket":"attention","file":"receipts.jsonl","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"covered_current","historical":"not_applicable","consequence":"unknown","attribution":"not_applicable","currency":"not_checked","summary":"3 run record(s) for d587f5e7, 5a8c61c8.","observed":"11-04 15:54 analysis/pbmc-ifn/scripts/01_fit.py exited 1; a later run of the same path at 11-04 15:54 exited 0 (both kept)","potential":"","unknown":"Nothing recorded says whether the runs' outputs are the ones the plan declares.","baseline":"","current":"","authorization":"Runs of the current plan carry the current instance or none is recorded.","context":"","next":["`/mycelium-extra:verify report 5a8c61c8` grades what these runs establish"],"evidence":["E-93266d61","E-6015e737","E-a147b0af"],"diff":[],"limitations":[]},{"id":"C-614daf7b","kind":"code","title":"analysis/pbmc-ifn/scripts/01_fit.py differs from the original approved code","bucket":"authorized","file":"analysis/pbmc-ifn/scripts/01_fit.py","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"covered_current","historical":"different_original","consequence":"not_assessed","attribution":"unattributed","currency":"not_checked","summary":"Observed code change.","observed":"The bytes differ from the original approval pin. Numbers dropped: 500; new: 200; other changed lines: 0.","potential":"","unknown":"Who edited it and why is not recorded here.","baseline":"Original code baseline: available (the original approval's pin).","current":"Current approval 5a8c61c8 pinned this script.","authorization":"The current approval pins these bytes.","context":"","next":[],"evidence":["E-f5b7025a","E-a505d08f"],"diff":[["ctx","@@ -1 +1 @@"],["del","-min_cells = 500"],["add","+min_cells = 200"]],"limitations":[]},{"id":"O-62b5b933","kind":"output","title":"1 declared output(s) missing","bucket":"routine","file":"analysis/pbmc-ifn/outputs_v2/","difference":"observed","focus_relation":"within_path","semantic_relation":"unassessed","authorization_relation":"not_applicable","historical":"not_applicable","consequence":"unknown","attribution":"not_applicable","currency":"unknown","summary":"Declared outputs not found.","observed":"Older than the newest changed script: none. Missing: analysis/pbmc-ifn/outputs_v2/.","potential":"","unknown":"Whether any output was produced by the earlier or the later code is not established by a modification time.","baseline":"","current":"","authorization":"","context":"","next":["rerun the affected steps after `freeze`, then `/mycelium-extra:verify report 5a8c61c8`"],"evidence":["E-dfcea0d7"],"diff":[],"limitations":[]}],"evidence":[{"id":"E-3d02e922","source":"approval","ref":"d587f5e7","detail":"original plan approved 11-04 15:54","ts":1793804092.3611665},{"id":"E-6015e737","source":"receipt","ref":"1793804092.8373942:toolu_2","detail":"receipt","ts":1793804092.8373942},{"id":"E-93266d61","source":"receipt","ref":"1793804092.5999339:toolu_1","detail":"receipt","ts":1793804092.5999339},{"id":"E-a147b0af","source":"receipt","ref":"1793804093.36314:toolu_3","detail":"receipt","ts":1793804093.36314},{"id":"E-a505d08f","source":"pin","ref":"analysis/pbmc-ifn/scripts/01_fit.py72921f31c5ec9a26a92bfeef5bd9331d64a2104b5d00f8d0562ed6910f314357","detail":"original approval pin","ts":null},{"id":"E-cd84657c","source":"approval","ref":"5a8c61c8","detail":"current plan approved 11-04 15:54","ts":1793804093.1239865},{"id":"E-dfcea0d7","source":"file","ref":"analysis/pbmc-ifn/outputs_v2/","detail":"output path","ts":null},{"id":"E-f5b7025a","source":"script","ref":"analysis/pbmc-ifn/scripts/01_fit.py","detail":"fingerprint now 03229066a5e9","ts":null}],"timeline":[{"ts":1793804092.3611665,"when":"11-04 15:54","kind":"approval","text":"plan d587f5e7 approved (original)","ref":null},{"ts":1793804092.5999339,"when":"11-04 15:54","kind":"run","text":"python analysis/pbmc-ifn/scripts/01_fit.py · exit 1 · launch matched","ref":"E-93266d61"},{"ts":1793804092.8373942,"when":"11-04 15:54","kind":"run","text":"python analysis/pbmc-ifn/scripts/01_fit.py · exit 0 · launch matched","ref":"E-6015e737"},{"ts":1793804093.1239865,"when":"11-04 15:54","kind":"approval","text":"plan 5a8c61c8 approved (current)","ref":null},{"ts":1793804093.36314,"when":"11-04 15:54","kind":"run","text":"python analysis/pbmc-ifn/scripts/01_fit.py · exit 0 · launch matched","ref":"E-a147b0af"}],"walkthrough":{"plan":"current approved plan 5a8c61c8","note":"","rows":[{"row":"1","step":"run `analysis/pbmc-ifn/scripts/01_fit.py`","choice":"minimum 200 cells per donor","depends_on":[],"evidence":[{"claim":"the threshold this plan approved","cmd":"rg -n '^min_cells' analysis/pbmc-ifn/scripts/01_fit.py","out":"1:min_cells = 200","more":0}]},{"row":"2","step":"run `analysis/pbmc-ifn/scripts/02_plot.py`","choice":"volcano of the contrast","depends_on":["1"],"evidence":[{"claim":"the plotting entry point","cmd":"head -n 1 analysis/pbmc-ifn/scripts/02_plot.py","out":"print('volcano')","more":0}]}]},"reports":{},"brief_md":"# Review brief: analysis/pbmc-ifn\n\nSnapshot 2026-11-04T14:54:53Z · original plan d587f5e7 · current plan 5a8c61c8 · no focus open\n\nRead-only evidence summary. It approves nothing and does not judge scientific validity.\n\n## Needs attention (3)\n\n### Possible lost plan coverage between plans d587f5e7 and 5a8c61c8\n\nObserved: the approved revision drops or redefines validation coverage.\n\n- **Observed:** output no longer declared: analysis/pbmc-ifn/outputs/.\n- **Potential:** Potential: a declared output the plan no longer names may no longer be produced or checked.\n- **Unknown:** Whether an equivalent check or output exists elsewhere, or the change was intended, is not recorded here.\n- **Authorization:** The current plan was approved by the researcher, so this is a later authorized revision, not an unexplained deviation.\n- **Axes:** difference observed, focus within_path, authorization covered_current, consequence potential, attribution not_applicable, currency not_checked\n- **Evidence:** E-3d02e922, E-cd84657c\n- Next: revise the plan with `/mycelium-extra:grill` if this was not intended, then type `approve`\n- Next: `verify diff d587f5e7 5a8c61c8` lists every difference\n\n### Plan step 1 choice: minimum 500 cells per donor → minimum 200 cells per donor\n\nObserved plan change between the original and the current approved plan.\n\n- **Observed:** Row 1, choice: was `minimum 500 cells per donor`, now `minimum 200 cells per donor`.\n- **Potential:** Potential analytical implication: a changed Choice, Step or Validation can change what is estimated; whether it does is for the researcher to assess.\n- **Unknown:** Why the plan changed is not recorded here.\n- **Baseline:** Original plan d587f5e7 (approved 11-04 15:54).\n- **Current:** Current plan 5a8c61c8 (approved 11-04 15:54).\n- **Authorization:** The current plan was approved by the researcher, so this is a later authorized revision, not an unexplained deviation.\n- **Axes:** difference observed, focus within_path, authorization covered_current, consequence potential, attribution not_applicable, currency not_checked\n- **Evidence:** E-3d02e922, E-cd84657c\n- Next: revise the plan with `/mycelium-extra:grill` if this was not intended, then type `approve`\n\n### Execution record: 3 run(s), 1 failed, 0 unmatched\n\n3 run record(s) for d587f5e7, 5a8c61c8.\n\n- **Observed:** 11-04 15:54 analysis/pbmc-ifn/scripts/01_fit.py exited 1; a later run of the same path at 11-04 15:54 exited 0 (both kept)\n- **Unknown:** Nothing recorded says whether the runs' outputs are the ones the plan declares.\n- **Authorization:** Runs of the current plan carry the current instance or none is recorded.\n- **Axes:** difference observed, focus within_path, authorization covered_current, consequence unknown, attribution not_applicable, currency not_checked\n- **Evidence:** E-93266d61, E-6015e737, E-a147b0af\n- Next: `/mycelium-extra:verify report 5a8c61c8` grades what these runs establish\n\n## Changed, now authorized (1)\n\n### analysis/pbmc-ifn/scripts/01_fit.py differs from the original approved code\n\nObserved code change.\n\n- **Observed:** The bytes differ from the original approval pin. Numbers dropped: 500; new: 200; other changed lines: 0.\n- **Unknown:** Who edited it and why is not recorded here.\n- **Baseline:** Original code baseline: available (the original approval's pin).\n- **Current:** Current approval 5a8c61c8 pinned this script.\n- **Authorization:** The current approval pins these bytes.\n- **Axes:** difference observed, focus within_path, authorization covered_current, consequence not_assessed, attribution unattributed, currency not_checked\n- **Evidence:** E-f5b7025a, E-a505d08f\n\n## Routine (1)\n\n### 1 declared output(s) missing\n\nDeclared outputs not found.\n\n- **Observed:** Older than the newest changed script: none. Missing: analysis/pbmc-ifn/outputs_v2/.\n- **Unknown:** Whether any output was produced by the earlier or the later code is not established by a modification time.\n- **Axes:** difference observed, focus within_path, authorization not_applicable, consequence unknown, attribution not_applicable, currency unknown\n- **Evidence:** E-dfcea0d7\n- Next: rerun the affected steps after `freeze`, then `/mycelium-extra:verify report 5a8c61c8`\n\n## Coverage\n\n- focus_events: not_requested\n- approvals: available\n- snapshots: available\n- receipts: available\n- claude_transcript: not_requested\n- transcript_note: \n- mycelium: absent\n- Not observed: shell-made edits, file reads, scripts no approval pinned and no run touched, edits to other analyses (no transcript read)\n- inputs and exact-execution blocks of the two plans are not compared here, and bindings and outputs only for removal or redefinition; `verify diff` shows everything\n- cross-analysis edits not observed: no transcript was read (pass --transcript, or focus first)\n"}</script>
 <script>(function () {
   "use strict";
   var data = JSON.parse(document.getElementById("data").textContent);
@@ -264,6 +265,8 @@ pre.wout { font: 12px/1.5 var(--font-mono); background: var(--paper-2); border: 
     if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(function () { settle(true); }, fallback);
     else fallback();
   }
+  // A scrolling box with no focusable child needs a tab stop and a name, or a keyboard cannot scroll it.
+  function scroller(el, label) { attr(el, "tabindex", "0"); attr(el, "role", "region"); return attr(el, "aria-label", label); }
   function copyButton(label, text, cls) {
     var b = btn(label, cls || "btn", function () { copy(text, b); });
     return b;
@@ -373,7 +376,7 @@ pre.wout { font: 12px/1.5 var(--font-mono); background: var(--paper-2); border: 
       any = true;
       box.appendChild(h("h2", "", i.title));
       box.appendChild(h("div", "sub", i.baseline));
-      var d = h("div", "diff");
+      var d = scroller(h("div", "diff"), "Line diff for " + i.title);
       i.diff.forEach(function (l) { d.appendChild(h("div", l[0], l[1])); });
       box.appendChild(d);
     });
@@ -420,7 +423,7 @@ pre.wout { font: 12px/1.5 var(--font-mono); background: var(--paper-2); border: 
         row.appendChild(h("code", "", e.cmd || "(no command)"));
         if (e.cmd) row.appendChild(copyButton("Copy", e.cmd, "btn small"));
         card.appendChild(row);
-        card.appendChild(h("pre", "wout", e.out || "(no output recorded)"));
+        card.appendChild(scroller(h("pre", "wout", e.out || "(no output recorded)"), "Recorded output of " + (e.cmd || "this step")));
         if (e.more) card.appendChild(h("p", "fine", e.more + " more recorded line(s), not shown."));
       });
       box.appendChild(card);
@@ -430,13 +433,16 @@ pre.wout { font: 12px/1.5 var(--font-mono); background: var(--paper-2); border: 
 
   function header() {
     var b = data.baselines, c = data.coverage, frag = h("div");
-    var tools = h("div", "tools");
+    var tools = attr(h("div", "tools"), "aria-live", "polite");  // announces "Copied"
     tools.appendChild(copyButton("Copy review brief", data.brief_md || ""));
-    tools.appendChild(btn("Light / dark", "btn", function () {
+    var theme = btn("Light / dark", "btn", function () {
       var r = document.documentElement;
       var dark = r.dataset.theme ? r.dataset.theme === "dark" : (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
       r.dataset.theme = dark ? "light" : "dark";
-    }));
+      attr(theme, "aria-pressed", String(!dark));
+    });
+    attr(theme, "aria-pressed", String(!!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches)));
+    tools.appendChild(theme);
     frag.appendChild(h("div", "head", "", h("div", "", "", h("h1", "title", data.analysis_path),
                                             h("p", "sub", "Track changes · snapshot " + data.generated_at)), tools));
     var meta = h("dl", "meta");
@@ -465,7 +471,7 @@ var journalState = {overview: true, query: "", period: "default", selected: null
                     limit: 30, routine: false, expanded: true, listScroll: 0, mode: "history", concern: null};
 function journal() {
   var j = data.journal, s = journalState, all = j.events;
-  var box = h("main", "journal");
+  var box = h("div", "journal");
   function disclosure(title, child) {
     return h("details", "journal-disclosure", "", h("summary", "", title), child);
   }
@@ -492,6 +498,16 @@ function journal() {
       if (e.detail.launch_match !== "matched") return "Launch attribution gaps";
     }
     return null;
+  }
+  // Every event row names its state: the verification outcome, the kind of concern, or routine.
+  function eventPill(e) {
+    if (e.kind === "verification" && e.detail.projection) return pill(e.detail.projection.conformity, OUTCOME[e.detail.projection.conformity] || "routine");
+    var c = concern(e);
+    if (!c) return pill("routine", "routine");
+    if (/^Failed/.test(c)) return pill("failed", "fail");
+    if (/Conflicting/.test(c)) return pill("conflict", "gap");
+    if (/attribution/.test(c)) return pill("unattributed", "gap");
+    return pill("incomplete", "stale");
   }
   var scope = periodEvents(), groups = {};
   scope.forEach(function (e) {
@@ -543,7 +559,7 @@ function journal() {
   j.limitations.forEach(function (l) { covDetail.appendChild(h("p", "", l)); });
   j.checkpoints.forEach(function (c) {
     covDetail.appendChild(disclosure("Coverage observed at checkpoint " + c.saved_at,
-      h("pre", "", JSON.stringify(c.source_coverage, null, 2))));
+      scroller(h("pre", "", JSON.stringify(c.source_coverage, null, 2)), "Source coverage at checkpoint")));
   });
   coverage.appendChild(disclosure("Inspect source coverage and freshness", covDetail));
   box.appendChild(coverage);
@@ -626,6 +642,7 @@ function journal() {
       var b = btn(e.summary + " · " + (e.occurred_at || "occurrence time unknown"), "journal-event", function () {
         s.listScroll = list.scrollTop || 0; s.selected = e.id; s.concern = null; s.expanded = true; results();
       });
+      b.appendChild(eventPill(e));
       attr(b, "aria-pressed", s.selected === e.id ? "true" : "false"); list.appendChild(b);
     });
     if ((q || s.mode !== "concerns") && visible.length > s.limit) list.appendChild(btn("Show next " + Math.min(30, visible.length - s.limit) + " records", "btn", function () {
@@ -671,15 +688,15 @@ function journal() {
         evidenceBox.appendChild(para("Source (repository relative; copy to inspect)", p));
         evidenceBox.appendChild(copyButton("Copy source path", p, "btn"));
       });
-      evidenceBox.appendChild(h("pre", "", JSON.stringify(e.detail, null, 2)));
+      evidenceBox.appendChild(scroller(h("pre", "", JSON.stringify(e.detail, null, 2)), "Recorded evidence (JSON)"));
       detailBox.appendChild(disclosure("Evidence and provenance (" + (e.sources || []).length + " references)", evidenceBox));
       var limitationBox = h("div");
       e.limitations.concat(j.limitations).forEach(function (l) { limitationBox.appendChild(h("p", "", l)); });
       detailBox.appendChild(disclosure("Coverage limitations (" + (e.limitations.length + j.limitations.length) + ")", limitationBox));
-      detailBox.appendChild(disclosure("Technical metadata (identities and independent axes)", h("pre", "", JSON.stringify({
+      detailBox.appendChild(disclosure("Technical metadata (identities and independent axes)", scroller(h("pre", "", JSON.stringify({
         id: e.id, source_identity: e.source_identity, source_digest: e.source_digest, references: e.references,
         attribution: e.attribution, difference: e.difference, authorization: e.authorization_relation
-      }, null, 2))));
+      }, null, 2)), "Technical metadata (JSON)")));
       if (j.note_observations.length) {
         var noteBox = h("div");
         j.note_observations.forEach(function (n) { noteBox.appendChild(para("Researcher note (reference only)",
@@ -704,11 +721,11 @@ function journal() {
 
   // level 1: the view strip
   function views() {
-    var bar = attr(h("div", "views"), "role", "tablist");
+    var bar = attr(attr(h("div", "views"), "role", "group"), "aria-label", "Views");
     VIEWS.forEach(function (v) {
       var t = h("button", "view", v[1], h("span", "n", v[2]()));
       t.type = "button";
-      attr(t, "role", "tab"); attr(t, "aria-selected", state.view === v[0] ? "true" : "false");
+      attr(t, "aria-pressed", state.view === v[0] ? "true" : "false");
       t.addEventListener("click", function () { state.view = v[0]; draw(); });
       bar.appendChild(t);
     });

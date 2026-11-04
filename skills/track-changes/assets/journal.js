@@ -3,7 +3,7 @@ var journalState = {overview: true, query: "", period: "default", selected: null
                     limit: 30, routine: false, expanded: true, listScroll: 0, mode: "history", concern: null};
 function journal() {
   var j = data.journal, s = journalState, all = j.events;
-  var box = h("main", "journal");
+  var box = h("div", "journal");
   function disclosure(title, child) {
     return h("details", "journal-disclosure", "", h("summary", "", title), child);
   }
@@ -30,6 +30,16 @@ function journal() {
       if (e.detail.launch_match !== "matched") return "Launch attribution gaps";
     }
     return null;
+  }
+  // Every event row names its state: the verification outcome, the kind of concern, or routine.
+  function eventPill(e) {
+    if (e.kind === "verification" && e.detail.projection) return pill(e.detail.projection.conformity, OUTCOME[e.detail.projection.conformity] || "routine");
+    var c = concern(e);
+    if (!c) return pill("routine", "routine");
+    if (/^Failed/.test(c)) return pill("failed", "fail");
+    if (/Conflicting/.test(c)) return pill("conflict", "gap");
+    if (/attribution/.test(c)) return pill("unattributed", "gap");
+    return pill("incomplete", "stale");
   }
   var scope = periodEvents(), groups = {};
   scope.forEach(function (e) {
@@ -81,7 +91,7 @@ function journal() {
   j.limitations.forEach(function (l) { covDetail.appendChild(h("p", "", l)); });
   j.checkpoints.forEach(function (c) {
     covDetail.appendChild(disclosure("Coverage observed at checkpoint " + c.saved_at,
-      h("pre", "", JSON.stringify(c.source_coverage, null, 2))));
+      scroller(h("pre", "", JSON.stringify(c.source_coverage, null, 2)), "Source coverage at checkpoint")));
   });
   coverage.appendChild(disclosure("Inspect source coverage and freshness", covDetail));
   box.appendChild(coverage);
@@ -164,6 +174,7 @@ function journal() {
       var b = btn(e.summary + " · " + (e.occurred_at || "occurrence time unknown"), "journal-event", function () {
         s.listScroll = list.scrollTop || 0; s.selected = e.id; s.concern = null; s.expanded = true; results();
       });
+      b.appendChild(eventPill(e));
       attr(b, "aria-pressed", s.selected === e.id ? "true" : "false"); list.appendChild(b);
     });
     if ((q || s.mode !== "concerns") && visible.length > s.limit) list.appendChild(btn("Show next " + Math.min(30, visible.length - s.limit) + " records", "btn", function () {
@@ -209,15 +220,15 @@ function journal() {
         evidenceBox.appendChild(para("Source (repository relative; copy to inspect)", p));
         evidenceBox.appendChild(copyButton("Copy source path", p, "btn"));
       });
-      evidenceBox.appendChild(h("pre", "", JSON.stringify(e.detail, null, 2)));
+      evidenceBox.appendChild(scroller(h("pre", "", JSON.stringify(e.detail, null, 2)), "Recorded evidence (JSON)"));
       detailBox.appendChild(disclosure("Evidence and provenance (" + (e.sources || []).length + " references)", evidenceBox));
       var limitationBox = h("div");
       e.limitations.concat(j.limitations).forEach(function (l) { limitationBox.appendChild(h("p", "", l)); });
       detailBox.appendChild(disclosure("Coverage limitations (" + (e.limitations.length + j.limitations.length) + ")", limitationBox));
-      detailBox.appendChild(disclosure("Technical metadata (identities and independent axes)", h("pre", "", JSON.stringify({
+      detailBox.appendChild(disclosure("Technical metadata (identities and independent axes)", scroller(h("pre", "", JSON.stringify({
         id: e.id, source_identity: e.source_identity, source_digest: e.source_digest, references: e.references,
         attribution: e.attribution, difference: e.difference, authorization: e.authorization_relation
-      }, null, 2))));
+      }, null, 2)), "Technical metadata (JSON)")));
       if (j.note_observations.length) {
         var noteBox = h("div");
         j.note_observations.forEach(function (n) { noteBox.appendChild(para("Researcher note (reference only)",

@@ -349,6 +349,18 @@ class JournalStatesTest(Base):
                 "unknown": "", "timestamp_basis": "", "detail": {"projection": {
                     "conformity": conformity, "findings": [["block", "a check failed"]], "qualification": {"overall": overall}}}}
 
+    def attempt(self, n, exit_status, summary):
+        return {"id": "journal:attempt:%d" % n, "kind": "attempt", "summary": summary, "limitations": [], "sources": [],
+                "references": {}, "occurred_at": None, "observed_at": None, "original_evidence": "", "unknown": "",
+                "timestamp_basis": "", "detail": {"exit_status": exit_status, "launch_match": "matched"}}
+
+    def test_every_event_row_names_its_state_in_a_pill(self):  # T14
+        events = [self.attempt(1, 1, "failed attempt"), self.attempt(2, 0, "exit 0 recorded"),
+                  self.verification("DOES_NOT_CONFORM", "not qualified")]
+        *_, rows = self.draw(events, None, "Explore history", "Show routine records")
+        pills = [word for cls, word in rows["pills"]]
+        self.assertEqual(sorted(pills), sorted(["failed", "routine", "DOES_NOT_CONFORM"]))
+
     def test_no_records_is_not_reported_as_no_concerns(self):
         (state,) = self.draw()
         self.assertIn("No journal records are loaded", state["text"])
