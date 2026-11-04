@@ -36,7 +36,7 @@ Write `HANDOFF.md` at the project root: the least a fresh session needs to keep 
   ```
 
   `approved` means nothing to carry. `pending` gives the file and hash for the Pending plan section. `none` (no gate, or no match): copy the brief into `HANDOFF.md` word for word instead.
-- If `.mycelium-extra/track-changes/<analysis>/brief.md` exists for the work in hand, list it under Read first as a pointer; do not summarise it.
+- If `.mycelium-extra/track-changes/<analysis path with `/` written as `__`>/brief.md` exists for the work in hand (a folder name two analyses share gets a `-<hash>` suffix, and `track-changes` prints the folder it wrote), list it under Read first as a pointer; do not summarise it.
 - If `HANDOFF.md` exists, read it before overwriting. If the hash it records is not an ancestor of HEAD (`git merge-base --is-ancestor <hash> HEAD` fails), tell the user it was written on another branch or history before carrying anything forward. Carry forward locked decisions, dead ends, and open items that still hold. Drop finished work, or keep it as one line with its commit hash. Before overwriting, print the first ten lines of the old file to the user and say it is replaced (the file is usually untracked, so the old copy is not kept anywhere; if the user wants it, copy it aside first).
 
 ## 2. Write
@@ -64,6 +64,7 @@ Run `git log --oneline <hash>..HEAD` and `git status --short`, with `<hash>` fro
 ## State
 - Uncommitted: <files, or "clean">
 - Tests: <passing / failing, with the failing name>
+- Run: <`outputs/current` target, or the newest run> · status <RUN.txt status> · kind <kind> (or `flat layout`, or `no run`); read from `outputs/*/RUN.txt` ([analysis layout](../../docs/concepts/analysis-layout.md))
 - Results: <conclusion> — <its inspected figure path, `table fallback: <reason>`, or `unsupported`> (one line each; see plot-first)
 - Assumed, not run: <belief not checked this session, or none>
 - <anything running: job IDs, servers, envs>

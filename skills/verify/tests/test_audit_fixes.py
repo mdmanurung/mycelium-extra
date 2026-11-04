@@ -161,5 +161,45 @@ class AuditFixTest(Harness):
         self.assertIn("run_20260101_a", self.verify("runs"))
 
 
+    # 0.24.0: `runs` reads a run-layout folder through the shared resolver and flags a bad kind
+    def test_runs_shows_kind_and_flags_a_bad_kind(self):
+        for name, kind in (("run_20261104_baseline", "analysis"), ("run_20261105_odd", "model")):
+            self.write("analysis/a/outputs/{0}/RUN.txt".format(name),
+                       "run: {}\nversion: 1\nkind: {}\nstatus: current\n".format(name, kind))
+            self.write("analysis/a/outputs/{}/figures/01_x.png".format(name), "x")
+        out = self.verify("runs", "analysis/a/outputs")
+        self.assertRegex(out, r"run_20261104_baseline \| 1 \| analysis \|")
+        self.assertIn("gap `run_20261105_odd`: kind `model` is not one of", out)
+        self.assertNotIn("gap `run_20261104_baseline`: kind", out)
+
+    def test_runs_on_a_flat_outputs_folder_lists_none(self):
+        self.write("analysis/a/outputs/01_fit.tsv", "x\n")
+        self.assertIn("No `run_<YYYYMMDD>_<slug>` folders here.", self.verify("runs", "analysis/a/outputs"))
+
+    # 0.24.0: `write` indexes the verify record in the analysis doc's Outputs table, once per hash
+    def written(self, doc_text):
+        self.write("analysis/a/README.md", doc_text)
+        digest = self.approve(test_verify.plan("run `{}`".format(test_verify.FIT)))
+        self.run_cmd("python " + test_verify.FIT)
+        return digest, self.verify("write", digest, "--analysis-dir", "analysis/a")
+
+    def test_write_appends_one_outputs_row_and_replaces_it_on_rerun(self):
+        doc = "# A\n\n## Outputs\n\n| File | Description |\n|---|---|\n| `outputs/x.tsv` | x |\n\n## Next\n\ntext\n"
+        digest, out = self.written(doc)
+        self.assertIn("indexed provenance/verify-{}.md".format(digest), out)
+        self.verify("write", digest, "--analysis-dir", "analysis/a")
+        with open(os.path.join(self.root, "analysis", "a", "README.md")) as handle:
+            text = handle.read()
+        self.assertEqual(text.count("| provenance/verify-{}.md |".format(digest)), 1, text)
+        self.assertRegex(text, r"\| x \|\n\| provenance/verify-%s\.md \| verify \w+ \(\d{4}-\d\d-\d\d\) \|\n\n## Next" % digest)
+
+    def test_write_without_an_outputs_table_adds_nothing_and_says_so(self):
+        doc = "# A\n\n## Outputs\n\nSee outputs/.\n"
+        digest, out = self.written(doc)
+        self.assertIn("note: README.md has no `## Outputs` table", out)
+        with open(os.path.join(self.root, "analysis", "a", "README.md")) as handle:
+            self.assertEqual(handle.read(), doc)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
