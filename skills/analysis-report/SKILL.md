@@ -50,3 +50,5 @@ After a render: add `| reports/<name>.html | Quarto report (rendered <date>) |` 
 ## 4. Hand off
 
 Say which tabs are filled, which conclusions are `unsupported: no inspected figure`, and whether the HTML was rendered. No `.living/` writes: findings crystallize through Mycelium's own post-action.
+
+End with one line: `Run "handoff test" on the .qmd to check that a cold reader can follow it.`

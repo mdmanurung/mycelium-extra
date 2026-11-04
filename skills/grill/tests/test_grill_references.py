@@ -12,8 +12,9 @@ SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO = os.path.dirname(os.path.dirname(SKILL))
 ROADMAP = os.path.join(REPO, "docs", "roadmap")
 
-# Developer behaviour checks, not read by the agent at run time.
-UNLINKED_OK = {"scenarios.md"}
+# scenarios.md: developer behaviour checks, not read by the agent at run time.
+# cold-reader.md: shared reference read by handoff and analysis-report, not by grill.
+UNLINKED_OK = {"scenarios.md", "cold-reader.md"}
 
 CELL_SPLIT = re.compile(r"(?<!\\)\|")
 

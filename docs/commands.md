@@ -47,6 +47,7 @@ Claude Code and OpenCode: `/mycelium-extra:<skill>`. Codex: `$mycelium-extra:<sk
 | `track-changes` | Shows what changed against the approved plan, read-only. |
 | `focus` (you) | Explains the typed `focus` command. |
 | `handoff` (you) | Writes a short `HANDOFF.md` so a fresh session can resume. |
+| `handoff test` (you) | Has a fresh reader try `HANDOFF.md` or a filled report from a staged copy and lists the gaps. An instruction, not a sandbox. |
 | `harden` (you) | Ships one learning's mitigation as a real test. |
 | `idea`, `idea-triage` (you) | Park an idea in one line; rank parked ideas. |
 | `questionnaire` (you) | Turns questions only someone else can answer into a questionnaire. |

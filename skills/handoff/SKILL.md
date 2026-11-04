@@ -65,6 +65,7 @@ Run `git log --oneline <hash>..HEAD` and `git status --short`, with `<hash>` fro
 - Uncommitted: <files, or "clean">
 - Tests: <passing / failing, with the failing name>
 - Results: <conclusion> — <its inspected figure path, `table fallback: <reason>`, or `unsupported`> (one line each; see plot-first)
+- Assumed, not run: <belief not checked this session, or none>
 - <anything running: job IDs, servers, envs>
 
 ## Locked decisions
@@ -77,13 +78,15 @@ Run `git log --oneline <hash>..HEAD` and `git status --short`, with `<hash>` fro
 - `path:line` — <why it matters>
 
 ## Open items
-- <item> — <return condition>
+- <item> — <return condition>; lean (not a decision): <one line>
 ```
 
 Rules:
 
 - Point, don't paste: cite `path:line` and commit hashes, never copy code, logs, or long output.
 - Facts, not narrative. Each bullet is one line.
+- `Assumed, not run` lists what the next session must not treat as verified: a belief from memory, a command not run, a path not opened. Write `none` when there is nothing.
+- Each open item carries `lean (not a decision): …`, the agent's leaning in one line. The user has not approved it. The next session must not read it as a decision or act on it without asking.
 - Locked decisions and dead ends earn their space: they stop the next session re-asking or re-trying. Keep the reason with each.
 - In a Mycelium repository (`.living/` exists), link to `.mycelium/last-session.md` and to `.living/decisions.md` or `learnings.md` entries by heading; do not copy them. Never write to Mycelium's files from this skill.
 - A pending plan is never summarised: point to its stored copy, or, when there is none, paste the whole brief under `## Pending plan (verbatim)`. That section does not count toward the line limit. With a pending plan, the next action is to re-present it.
@@ -92,6 +95,7 @@ Rules:
 ## 3. Finish
 
 - Check `wc -l HANDOFF.md`; if it is over about 80 lines (not counting a verbatim pending plan), cut the oldest or least actionable items.
+- `handoff test` runs a cold-reader check on `HANDOFF.md`, or on a filled report when given its `.qmd` path. It is separate from the two checks above and starts only when the user asks. Follow [cold-reader.md](../grill/references/cold-reader.md): stage the document and the files it points to in an empty folder, give a fresh reader only that path, and show the user its gap list. Fix the file only after the user says so.
 - Do not commit it or change `.gitignore`; that is the user's call.
 - If Mycelium's Stop hook asks for `.living/` updates afterwards, follow the hook.
 - End with the resume prompt on its own line, then tell the user to run `/clear` (or open a new session) and paste it:
@@ -99,3 +103,5 @@ Rules:
   `Read HANDOFF.md, run its Check first, then <next action>.`
 
   With a pending plan, the resume prompt is `Read HANDOFF.md, then print pending plan <hash> as its Pending plan section says, unchanged, as your whole reply, with nothing before or after it.` Tell the user the gate then shows a fresh card: approve the hash that card shows. It equals `<hash>` when the text is unchanged; if it differs, the reprint changed the plan, so compare it with the stored copy before approving.
+
+End with one line: `Run "handoff test" to check that a fresh reader can follow this file.`
