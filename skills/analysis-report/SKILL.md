@@ -58,13 +58,13 @@ Say which tabs are filled, which conclusions are `unsupported: no inspected figu
 It runs only in Claude Code, where the Artifact tool exists. On Codex or OpenCode, print `The artifact verb needs Claude Code's Artifact tool; the record is reports/<name>.html.` and stop.
 
 1. **Read, add nothing.** Read the filled `reports/<name>.qmd`, `outputs/numbers.json`, every cited PNG and the verify status (`verify status`, else `provenance/PROVENANCE.md`; no provenance means `not verified`). The page holds no conclusion, number or figure that the report lacks. Stop and say so if the report is still the scaffold.
-2. **Write the page in one pass** to `reports/<name>.artifact.html`, following [references/artifact-page.md](references/artifact-page.md): the contract, the tokens, the Read-mode rules and the evaluator's order (answer in brief, each question with its figure and conclusion, open items and what is not verified, then methods quotes and reproducibility folded). The layout is free; the design is fixed. No template, no Quarto post-processing.
+2. **Write the page in one pass** to `.mycelium-extra/artifacts/<name>.html` at the repository root (`init` gitignores `.mycelium-extra/`; if `git check-ignore .mycelium-extra` finds nothing, say so in one line and write there anyway), following [references/artifact-page.md](references/artifact-page.md): the contract, the tokens, the Read-mode rules and the evaluator's order (answer in brief, each question with its figure and conclusion, open items and what is not verified, then methods quotes and reproducibility folded). The layout is free; the design is fixed. No template, no Quarto post-processing.
 3. **Banner.** Every page opens with a banner naming the run label, the plan hash, and the `.qmd` path with its short hash (`git hash-object <qmd>`, first 8 characters). It says `Evaluation copy. The record is reports/<name>.html`. An unverified run says `not verified`.
 4. **Figures** go in as data URIs (`data:image/png;base64,...`). The page may not pass 16 MB. When it would, stop, name the largest figures with their sizes, and ask the user which to drop or shrink. Do not downsample on your own.
 5. **Check before publishing**, from the repository root, with every option as `--flag=value`:
 
    ```bash
-   sh <skill-dir>/../../hooks/py.sh - --page=<folder>/reports/<name>.artifact.html --report=<folder>/reports/<name>.qmd --numbers=<folder>/outputs/numbers.json < <skill-dir>/scripts/artifact_check.py
+   sh <skill-dir>/../../hooks/py.sh - --page=.mycelium-extra/artifacts/<name>.html --report=<folder>/reports/<name>.qmd --numbers=<folder>/outputs/numbers.json < <skill-dir>/scripts/artifact_check.py
    ```
 
    It checks the contract, the banner, and that every number on the page is in the `.qmd` or `numbers.json`. A finding stops the publish: fix the page and run it again. Never edit the check to pass.
