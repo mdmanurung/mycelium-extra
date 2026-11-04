@@ -51,8 +51,6 @@ After a render: add `| reports/<name>.html | Quarto report (rendered <date>) |` 
 
 Say which tabs are filled, which conclusions are `unsupported: no inspected figure`, and whether the HTML was rendered. No `.living/` writes: findings crystallize through Mycelium's own post-action.
 
-End with one line: `Run "handoff test" on the .qmd to check that a cold reader can follow it.`
-
 ## 5. Artifact: a one-off evaluation page
 
 `/mycelium-extra:analysis-report artifact <folder>` builds a Claude Artifact for a quick read of whether the run answered the question. The `.qmd` and its HTML stay the record; the page is an evaluation copy and is not stored as documentation.
@@ -73,3 +71,5 @@ It runs only in Claude Code, where the Artifact tool exists. On Codex or OpenCod
 6. **Publish only after the user agrees.** Ask every time. Name the page, its size and the figure count, and say the page is private by default. Never publish unasked. In the same session, a re-run for the same analysis updates the same URL. Otherwise each run makes a new page, and the URL goes in `plans/TRACKER.md` as one line: `| <date> | Artifact (evaluation copy of reports/<name>.qmd): <url> |`.
 
 The check does not judge whether a number means what the page says. Read the page once against the report before you publish.
+
+End every run of this skill, the report or the artifact, with one line: `Run "handoff test" on the .qmd to check that a cold reader can follow it.`

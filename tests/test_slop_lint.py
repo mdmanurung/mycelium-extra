@@ -118,21 +118,10 @@ class RealPages(unittest.TestCase):
         with open(os.path.join(REPO, "docs", "examples", name), encoding="utf-8") as handle:
             return slop_lint.lint(handle.read())
 
-    def test_pages_break_no_rule_except_token_drift(self):
+    def test_pages_break_no_rule(self):
         for name in EXAMPLES:
             with self.subTest(page=name):
-                other = [f for f in self.findings(name) if f[0] != "token-not-in-design"]
-                self.assertEqual(other, [])
-
-    # Finding: the viewer CSS still defines its tokens as oklch() values from before DESIGN.md
-    # (39 findings per page, lines 10-61). B3/B4 move the viewer to the DESIGN.md hex tokens;
-    # when they land this test passes unexpectedly and the decorator must go.
-    @unittest.expectedFailure
-    def test_pages_use_design_md_tokens(self):
-        for name in EXAMPLES:
-            with self.subTest(page=name):
-                drift = [f for f in self.findings(name) if f[0] == "token-not-in-design"]
-                self.assertEqual(drift, [])
+                self.assertEqual(self.findings(name), [])
 
 
 if __name__ == "__main__":
