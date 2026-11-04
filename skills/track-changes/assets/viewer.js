@@ -3,7 +3,6 @@
   var data = JSON.parse(document.getElementById("data").textContent);
   var state = {view: data.journal ? "journal" : "review", filter: "attention", query: "", sel: null};
   var app = document.getElementById("app");
-  var BUCKET = {attention: "Needs attention", authorized: "Authorized change", routine: "Routine"};
   var byEvidence = {};
   data.evidence.forEach(function (e) { byEvidence[e.id] = e; });
 
@@ -47,7 +46,20 @@
     return b;
   }
 
-  function dot(bucket) { return h("span", "dot " + bucket); }
+  // A status is always a word in a tinted pill (DESIGN.md status-pill); colour only tints it.
+  function pill(word, tone) { return h("span", "pill " + tone, word); }
+  function bucketPill(bucket) { return pill(bucket, {attention: "stale", authorized: "pass", routine: "routine"}[bucket] || "routine"); }
+  var OUTCOME = {CONFORMS: "pass", CONFORMS_WITH_GAPS: "gap", DOES_NOT_CONFORM: "fail", qualified: "pass", "not qualified": "fail"};
+  // "Label: <pill>; <pill> tail": a check outcome as a word, never as colour alone.
+  function outcomeLine(label, words, tail) {
+    var p = h("p", "", label + ": ");
+    words.forEach(function (w, i) {
+      if (i) p.appendChild(document.createTextNode("; "));
+      p.appendChild(pill(w, OUTCOME[w] || "routine"));
+    });
+    if (tail) p.appendChild(document.createTextNode(tail));
+    return p;
+  }
   function visible() {
     var q = state.query.toLowerCase();
     return data.items.filter(function (i) {
@@ -63,12 +75,18 @@
 
   function detail(item) {
     var box = h("div", "detail");
-    if (!item) { box.appendChild(h("div", "empty", "Select a change on the left.")); return box; }
-    box.appendChild(h("div", "status", "", dot(item.bucket), h("span", "", BUCKET[item.bucket]),
-                      h("span", "mono", item.kind + " · " + item.id)));
+    if (!item) { box.appendChild(h("div", "empty", "Select a change in the list.")); return box; }
+    var status = h("div", "status", "", bucketPill(item.bucket));
+    // A pin is stale when its script was edited after approval; an output is stale when it predates the code.
+    var pinned = item.evidence.some(function (id) { return byEvidence[id] && byEvidence[id].source === "pin"; });
+    if (item.kind === "code" && item.authorization_relation === "not_established" && pinned) status.appendChild(pill("stale pin", "stale"));
+    if (item.currency === "older_than_change") status.appendChild(pill("stale output", "stale"));
+    status.appendChild(h("span", "mono", item.kind + " · " + item.id));
+    box.appendChild(status);
     box.appendChild(h("h2", "", item.title));
     box.appendChild(rich(h("p", "lead"), item.summary));
     var dl = h("dl", "fields");
+    field(dl, "File", item.file, "path");
     field(dl, "Observed", item.observed);
     field(dl, "Potential", item.potential);
     field(dl, "Unknown", item.unknown);
@@ -107,6 +125,7 @@
 
   function review() {
     var list = visible(), wrap = h("div", "split"), col = h("div", "list");
+    if (!data.items.length) return h("div", "empty", "No changes were recorded for this analysis. That is not evidence that nothing changed or ran: see the coverage limits above.");
     if (!list.length) {
       col.appendChild(h("div", "empty", "Nothing in this filter. That is not evidence that nothing changed: see the coverage limits above."));
     }
@@ -115,9 +134,9 @@
     list.forEach(function (i) {
       var b = btn("", "row", function () { state.sel = i.id; renderBody(); });
       if (shown && shown.id === i.id) attr(b, "aria-current", "true");
-      b.appendChild(h("span", "t", "", dot(i.bucket), h("span", "", i.title)));
+      b.appendChild(h("span", "t", "", h("span", "ttl", i.title), bucketPill(i.bucket)));
       b.appendChild(h("span", "f", i.file));
-      attr(b, "title", i.title);
+      attr(b, "title", i.title + (i.file ? " (" + i.file + ")" : ""));
       col.appendChild(b);
     });
     wrap.appendChild(col);
@@ -155,6 +174,7 @@
              table(["When", "Kind", "Event"], data.timeline.map(function (e) { return [e.when, e.kind, e.text]; })));
   }
   function evidence() {
+    if (!data.evidence.length) return h("div", "empty", "No evidence records were kept. That is not evidence that nothing ran: see the coverage limits.");
     return h("div", "block", "", table(["Id", "Source", "Reference", "Detail"],
       data.evidence.map(function (e) { return [e.id, e.source, e.ref, e.detail]; }), state.sel));
   }

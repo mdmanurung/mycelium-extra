@@ -319,4 +319,53 @@ class JournalTest(Base):
         self.assertTrue(journal.findings_ok({"findings": [["gap", "x"]]}))
 
 
+class JournalStatesTest(Base):
+    """Empty and error states of the journal view, drawn under the DOM stub (needs Node)."""
+
+    def draw(self, events=(), coverage=None, *labels):
+        node = shutil.which("node")
+        if not node and os.environ.get("MX_REQUIRE_NODE"):
+            self.fail("node is required here (MX_REQUIRE_NODE is set)")
+        if not node:
+            self.skipTest("node not installed")
+        coverage = coverage if coverage is not None else {"approvals": "available", "receipts": "available"}
+        data = {"analysis_path": "analysis/a", "generated_at": "t", "objective": {"text": "o", "source": ""}, "focus": {},
+                "baselines": {"original_plan": "", "current_plan": ""}, "counts": {"attention": 0, "authorized": 0, "routine": 0},
+                "coverage": {"limitations": [], "not_observed": []}, "items": [], "evidence": [], "timeline": [],
+                "journal": {"analysis_path": "analysis/a", "objective": {"text": "o", "source": ""}, "events": list(events),
+                            "checkpoints": [], "coverage": coverage, "collection": {"omitted": 0}, "limitations": [],
+                            "note_observations": [], "refreshed_at": "t"}}
+        page = os.path.join(self.root, "state.html")
+        with open(page, "w", encoding="utf-8") as handle:
+            handle.write(tc.load_render(PLUGIN).render(data, ""))
+        proc = subprocess.run([node, os.path.join(PLUGIN, "skills/track-changes/tests/viewer_states.js"), page] + list(labels),
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        return [json.loads(line) for line in proc.stdout.splitlines()]
+
+    def verification(self, conformity, overall):
+        return {"id": "journal:verification:1", "kind": "verification", "summary": "verification", "limitations": [], "sources": [],
+                "references": {}, "occurred_at": None, "observed_at": "2026-11-01T00:00:00Z", "original_evidence": "",
+                "unknown": "", "timestamp_basis": "", "detail": {"projection": {
+                    "conformity": conformity, "findings": [["block", "a check failed"]], "qualification": {"overall": overall}}}}
+
+    def test_no_records_is_not_reported_as_no_concerns(self):
+        (state,) = self.draw()
+        self.assertIn("No journal records are loaded", state["text"])
+        self.assertNotIn("No priority concerns found", state["text"])  # an empty journal must not read like a pass
+
+    def test_missing_sources_are_named_on_the_coverage_line(self):
+        coverage = {"approvals": "absent", "receipts": "partial", "focus": "available", "scheduler": "not inspected"}
+        (state,) = self.draw(coverage=coverage)
+        self.assertIn("2 source group(s) absent or incomplete (approvals absent, receipts partial)", state["text"])
+        self.assertNotIn("focus available,", state["text"])
+
+    def test_failed_check_shows_its_outcome_as_a_word_in_a_pill(self):
+        (state,) = self.draw([self.verification("DOES_NOT_CONFORM", "not qualified")])
+        self.assertEqual([p for p in state["pills"] if p[0] == "pill fail"],
+                         [["pill fail", "DOES_NOT_CONFORM"], ["pill fail", "not qualified"]])
+        (gap,) = self.draw([self.verification("CONFORMS_WITH_GAPS", "qualified")])
+        self.assertEqual([p[0] for p in gap["pills"]], ["pill gap", "pill pass"])
+
+
 if __name__ == "__main__": unittest.main()

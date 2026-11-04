@@ -742,6 +742,106 @@ class SafetyTest(Base):
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertIn("OK clicks=", proc.stdout)
 
+    def draw_states(self, page, *labels):
+        """Draw a report page under the DOM stub (viewer_states.js); one dict per step: text, pills, dots."""
+        node = shutil.which("node")
+        if not node and os.environ.get("MX_REQUIRE_NODE"):
+            self.fail("node is required here (MX_REQUIRE_NODE is set)")
+        if not node:
+            self.skipTest("node not installed")
+        proc = subprocess.run([node, os.path.join(HERE, "viewer_states.js"), page] + list(labels), stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, universal_newlines=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        return [json.loads(line) for line in proc.stdout.splitlines()]
+
+    def page_of(self, **fields):
+        """A minimal report payload, rendered to a page in the test folder."""
+        data = {"analysis_path": "analysis/a", "generated_at": "t", "objective": {"text": "o", "source": ""}, "focus": {},
+                "baselines": {"original_plan": "", "current_plan": ""}, "counts": {"attention": 0, "authorized": 0, "routine": 0},
+                "coverage": {"limitations": [], "not_observed": []}, "items": [], "evidence": [], "timeline": []}
+        data.update(fields)
+        path = os.path.join(self.root, "state.html")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(tc.load_render(PLUGIN).render(data, ""))
+        return path
+
+    def item(self, **fields):
+        base = {"id": "I-1", "kind": "code", "title": "t", "bucket": "attention", "file": "analysis/a/s.py", "difference": "observed",
+                "focus_relation": "x", "semantic_relation": "x", "authorization_relation": "covered_current", "historical": "x",
+                "consequence": "x", "attribution": "x", "currency": "not_checked", "summary": "s", "observed": "", "potential": "",
+                "unknown": "", "baseline": "", "current": "", "authorization": "", "context": "", "limitations": [], "next": [],
+                "evidence": [], "diff": []}
+        base.update(fields)
+        return base
+
+    def test_viewer_empty_report_says_so_instead_of_a_blank_list(self):  # no runs, no changes
+        page = self.page_of()
+        review, evidence = self.draw_states(page, "Evidence")
+        self.assertIn("No changes were recorded", review["text"])
+        self.assertNotIn("Select a change", review["text"])  # nothing to select
+        self.assertIn("not evidence that nothing changed or ran", review["text"])
+        self.assertIn("No evidence records were kept", evidence["text"])
+
+    def test_viewer_status_is_a_pill_with_a_word_not_a_dot(self):
+        items = [self.item(id="I-1", bucket="attention", title="a"), self.item(id="I-2", bucket="authorized", title="b"),
+                 self.item(id="I-3", bucket="routine", title="c")]
+        (state,) = self.draw_states(self.page_of(items=items, counts={"attention": 1, "authorized": 1, "routine": 1}))
+        self.assertEqual(state["dots"], 0)
+        words = [(cls.split(" ")[1], word) for cls, word in state["pills"]]
+        self.assertIn(("stale", "attention"), words)  # the list shows the attention filter; each row carries its word
+        css = os.path.join(PLUGIN, "skills", "track-changes", "assets", "viewer.css")
+        with open(css, encoding="utf-8") as handle:
+            self.assertNotIn(".dot", handle.read())
+
+    def test_viewer_names_a_stale_pin_and_a_stale_output(self):
+        pin = {"id": "E-1", "source": "pin", "ref": "r", "detail": "d"}
+        edited = self.item(id="I-1", title="edited", authorization_relation="not_established", evidence=["E-1"])
+        brand_new = self.item(id="I-2", title="newscript", authorization_relation="not_established")  # no pin, so none to be stale
+        old_output = self.item(id="I-3", title="outputs", kind="output", currency="older_than_change")
+        page = self.page_of(items=[edited, brand_new, old_output], evidence=[pin], counts={"attention": 3, "authorized": 0, "routine": 0})
+        first, second, third = self.draw_states(page, "newscript", "outputs")
+        stale = lambda state: [word for cls, word in state["pills"] if cls == "pill stale" and word.startswith("stale ")]
+        self.assertEqual(stale(first), ["stale pin"])
+        self.assertEqual(stale(second), [])
+        self.assertEqual(stale(third), ["stale output"])
+
+    def test_viewer_long_paths_wrap_and_show_in_full(self):
+        long_path = "analysis/a/" + "very_long_directory_name/" * 12 + "01_fit.py"
+        page = self.page_of(items=[self.item(file=long_path, title="t " + "x" * 300)], counts={"attention": 1, "authorized": 0, "routine": 0})
+        (state,) = self.draw_states(page)
+        self.assertIn(long_path, state["text"])  # the row clips the path; the detail shows it whole
+        css = os.path.join(PLUGIN, "skills", "track-changes", "assets", "viewer.css")
+        with open(css, encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertRegex(text, r"#app \{[^}]*overflow-wrap: anywhere")
+        self.assertRegex(text, r"\.step \.btn \{[^}]*white-space: normal")  # a long command must not clip under overflow-x: clip
+
+    def test_viewer_text_colours_pass_wcag_aa(self):
+        css = os.path.join(PLUGIN, "skills", "track-changes", "assets", "viewer.css")
+        with open(css, encoding="utf-8") as handle:
+            text = handle.read()
+
+        def lum(hex_value):
+            rgb = [int(hex_value[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+            rgb = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+            return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+
+        def ratio(a, b):
+            hi, lo = sorted((lum(a), lum(b)), reverse=True)
+            return (hi + 0.05) / (lo + 0.05)
+
+        light = text.split(':root[data-theme="dark"]')[0]
+        dark = text.split(':root[data-theme="dark"]')[1].split("@media")[0]
+        used = set(re.findall(r"(?<![-\w])color: var\(--([\w-]+)\)", text))
+        alias = {"st-authorized": "pass", "st-attention": "stale", "st-routine": "routine"}
+        used = {alias.get(name, name) for name in used}
+        self.assertIn("fail", used)
+        for theme in (light, dark):
+            tok = dict(re.findall(r"--([\w-]+): (#[0-9a-f]{6});", theme))
+            for name in used - {"focus"}:
+                for ground in ("paper", "paper-2"):
+                    self.assertGreaterEqual(ratio(tok[name], tok[ground]), 4.5, "{} on {}".format(name, ground))
+
     def test_viewer_script_parses(self):
         node = shutil.which("node")
         if not node and os.environ.get("MX_REQUIRE_NODE"):  # set by the CI job that has Node: the viewer must not go untested
