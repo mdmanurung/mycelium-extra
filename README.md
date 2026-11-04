@@ -26,10 +26,13 @@ The skills, from planning to hand-off:
 - `init` and `approve` turn on execution checks, input pins, and run receipts; `gate off` and `/goal` switch them off.
 - `verify` checks what ran against the approved plan and writes provenance after you confirm.
 - `plot-first` makes plots the primary analysis outputs. Conclusions cite inspected figures; interpretive tables need a fallback reason. `grill` and `new-analysis` load this guidance for analysis work.
-- `focus` and `track-changes` say which analysis a session works on and show what changed against the approved plan.
-- `repo-setup`, `new-analysis`, `analysis-report`, `plan-review`, `questionnaire`, `handoff`, `harden`, `idea`,
-  `idea-triage`, `decision-status` and `data-contract-check` cover setup, structure, reporting, review,
-  continuity, and checks.
+- `focus` and `track-changes` say which analysis a session works on and show what changed against the approved plan, including a run whose `RUN.txt` status changed.
+- `new-analysis` scaffolds one [analysis layout](docs/concepts/analysis-layout.md) that every skill reads: `run.sh <slug>` makes a run folder with a `RUN.txt`, `outputs/current` names the released run, figures and their source data share a stem, and the analysis doc's Outputs table indexes every report and verify record. Plots use `ggpubr::theme_pubr` through a scaffolded `code/theme.R` or `theme.py`.
+- `analysis-report` fills the Quarto report, the record; `analysis-report artifact` builds a one-off evaluation page, checked for invented numbers, and publishes it only after you agree.
+- `handoff` writes `HANDOFF.md`; `handoff test` has a fresh reader try it, or a filled report, from a staged copy and lists what it could not follow.
+- `repo-setup`, `plan-review`, `questionnaire`, `harden`, `idea`,
+  `idea-triage`, `decision-status` and `data-contract-check` cover setup, review,
+  continuity, and checks. `DESIGN.md` at the root holds the one colour and type set the generated pages use.
 - `manuscript-audit` is a read-only audit of a manuscript repository's figure/table
   lineage and source data, with an optional small deterministic contract check. It adds
   no hook or gate; the opt-in `manuscript-reproducibility` convention pack is guidance

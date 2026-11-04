@@ -55,6 +55,8 @@ Add a tool when the project needs it. You do not need all eighteen skills.
 | An independent challenge before approval | `plan-review` |
 | Questions only a PI or collaborator can answer | `questionnaire` |
 | Continuity between sessions | `handoff` |
+| A check that a fresh reader can follow the handoff or the report | `handoff test` |
+| A quick, shareable read of whether a run answered the question | `analysis-report artifact <folder>` |
 | Which analysis this session works on | `focus <folder>` |
 | What changed against the approved plan | `track-changes` |
 | Park an idea / choose the next one | `idea` / `idea-triage` |
