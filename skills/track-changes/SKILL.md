@@ -48,6 +48,8 @@ Offer the brief to Mycelium's review before a freeze: it is one file, `brief.md`
 - Not an attribution of who edited a file: only direct editor tool calls in a transcript are listed; shell-made edits and unmarked subagent work are not observed.
 - Between two approved plans it shows one attention item when a required validation binding is gone or redefined, or a declared output is no longer named. It does not judge whether a replacement is equivalent, and it says nothing about a plan whose bindings it cannot read. Inputs and exact-execution blocks are not compared here; `verify diff <old> <new>` lists every difference.
 - A `##` or `###` heading of `reports/*.qmd` present at the last snapshot and absent now is one attention item per report (a whole-file rewrite that lost sections). The baseline is the previous snapshot, not an approval; the first snapshot records headings and says it had nothing to compare.
+- A run's `status` in `outputs/*/RUN.txt`, or the target of `outputs/current`, that differs from the last snapshot is one attention item (`run`) with the old and new value. A run marked `superseded` or `current` by hand is what it catches. Same baseline as reports: the last snapshot, so the first one only records them. Added to schema `v1` as a new field and item kind.
+- The viewer says `gap` (JSON `attention`), `pass` (`authorized`) and `routine`.
 - Field meanings and the axes: `references/schema.md`.
 
 ## Historical Analysis Journal (explicit)

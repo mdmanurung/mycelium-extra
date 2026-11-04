@@ -4,7 +4,7 @@
     sh hooks/py.sh - --plugin-root <plugin> [--repo DIR] [--analysis <folder>] [--original HASH] [--current HASH]
         [--transcript FILE] [--json] [--no-write] < track_changes.py
 
-Reads approvals, approval instances, the re-pin journal, kept script snapshots, receipts, the focus records and
+Reads approvals, approval instances, `outputs/*/RUN.txt` status and the `current` link, the re-pin journal, kept script snapshots, receipts, the focus records and
 (optionally) a Claude Code transcript. Writes only `.mycelium-extra/track-changes/<analysis>/`: snapshot.json,
 brief.md, report.html. Nothing here approves, freezes, runs, pins or re-grades anything; it never calls
 `freeze_state`, `keep_snapshot`, `verify report`, or any helper that writes gate state. What it did not observe
@@ -606,11 +606,58 @@ def report_items(snap, root, rel):
     return now
 
 
+def run_state(root, rel):
+    """What the run folders say now: `{"status": {<run name>: status}, "current": <target name or None>}`.
+    Runs and RUN.txt come from hooks/analysis_paths.py, so this reads the same layout as verify."""
+    import analysis_paths
+    folder = os.path.join(root, rel)
+    status = {r["name"]: r["status"] or "" for r in analysis_paths.runs(folder) if r["layout"] == "run"}
+    link = os.path.join(analysis_paths._base(folder), "current")
+    target = os.path.basename(os.path.realpath(link)) if os.path.islink(link) else None
+    return {"status": status, "current": target}
+
+
+def run_items(snap, root, rel):
+    """One attention item per run whose RUN.txt `status` changed since the last snapshot, and one when the
+    `current` link was retargeted. A run marked `superseded` or `current` by hand shows up here. The baseline
+    is the last snapshot, not an approval. Returns the state now, which the snapshot records for the next run."""
+    now = run_state(root, rel)
+    base = os.path.join(root, ".mycelium-extra", "track-changes")
+    prior = read_json(os.path.join(output_folder(base, rel), "snapshot.json"))
+    before = prior.get("runs") if isinstance(prior, dict) and prior.get("analysis_path") == rel else None
+    if not isinstance(before, dict) or not isinstance(before.get("status"), dict):
+        if now["status"] or now["current"]:
+            snap.limitations.append("run status and `current` have no earlier snapshot to compare")
+        return now
+    folder = posixpath.join(rel, "results" if os.path.isdir(os.path.join(root, rel, "results")) else "outputs")
+
+    def add(key, title, old, new, summary, next_step):
+        snap.item("run", key, title, "attention", file=posixpath.join(folder, key), baseline=str(old), current=str(new),
+                  summary=summary, observed="Last snapshot: {}. Now: {}.".format(old, new),
+                  unknown="Whether the change was intended: nothing here records who made it or why.",
+                  next=[next_step], evidence=[snap.evid("file", posixpath.join(folder, key), "RUN.txt status compared with the last snapshot")])
+
+    for name, old in sorted(before["status"].items()):
+        new = now["status"].get(name)
+        if new == old:
+            continue
+        add(name + "/RUN.txt", "{}: status {} -> {}".format(name, old or "(none)", new if new is not None else "(run folder gone)"),
+            old or "(none)", new if new is not None else "(run folder gone)",
+            "Observed: a run's RUN.txt status differs from the last snapshot.",
+            "`git diff -- {}` shows the edit; the user confirms or reverts the status".format(posixpath.join(folder, name, "RUN.txt")))
+    if before.get("current") != now["current"]:
+        add("current", "current: {} -> {}".format(before.get("current") or "(none)", now["current"] or "(none)"),
+            before.get("current") or "(none)", now["current"] or "(none)",
+            "Observed: the `current` link points at a different run than at the last snapshot.",
+            "check that `{}` is the run the researcher means, or retarget it".format(posixpath.join(folder, "current")))
+    return now
+
+
 def prioritize(snap):
     """Order items by bucket then kind, and only then keep the first CAP_ITEMS: the cap must never drop an
     attention item that was collected late while a routine one collected early stays. Says what it left out."""
     order = {"attention": 0, "authorized": 1, "routine": 2}
-    rank = {"plan": 0, "code": 1, "report": 2, "execution": 3, "focus": 4, "output": 5}
+    rank = {"plan": 0, "code": 1, "report": 2, "run": 2.5, "execution": 3, "focus": 4, "output": 5}
     snap.items.sort(key=lambda i: (order[i["bucket"]], rank[i["kind"]], i["id"]))
     if len(snap.items) > CAP_ITEMS:
         snap.limitations.append("{} items beyond the first {} were left out".format(len(snap.items) - CAP_ITEMS, CAP_ITEMS))
@@ -705,6 +752,7 @@ def collect(args, gate, focus, verify):
     execution_items(gate, snap, root, original, current)
     output_items(gate, snap, root, current, extra.get("last_code_change", 0))
     reports = report_items(snap, root, rel)
+    runs = run_items(snap, root, rel)
     transcript = {"status": "not_requested", "note": ""}
     path = args.transcript or (episode or {}).get("transcript_path")
     if path and os.path.isfile(path):
@@ -750,7 +798,7 @@ def collect(args, gate, focus, verify):
                          else ["edits to other analyses (no transcript read)"])},
         "counts": {b: sum(1 for i in snap.items if i["bucket"] == b) for b in ("attention", "authorized", "routine")},
         "items": snap.items, "evidence": sorted(snap.evidence.values(), key=lambda e: e["id"]), "timeline": snap.timeline,
-        "walkthrough": walk, "reports": reports,
+        "walkthrough": walk, "reports": reports, "runs": runs,
     }
 
 
