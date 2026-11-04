@@ -1,7 +1,10 @@
 """Check an Artifact evaluation page before it is published. Read-only.
 
 Run from stdin so the gate reads no script path, with every option as --flag=value:
-    sh <plugin>/hooks/py.sh - --page=<page.html> --report=<reports/name.qmd> [--numbers=<numbers.json>] < artifact_check.py
+    sh <plugin>/hooks/py.sh - --page=<page.html> --report=<reports/name.qmd> [--numbers=<numbers.json>]
+        [--hooks=<plugin>/hooks] < artifact_check.py
+Without --numbers, and with --hooks, the numbers file is the one `analysis_paths.numbers()` resolves for the
+analysis folder (the parent of reports/) and its current run.
 
 Checks the page contract (no doctype/html/head/body, a <title> in the first 8 KB, the viewport meta, the
 dark-mode token blocks, a body background, no colour literal outside the token blocks, script and
@@ -31,10 +34,22 @@ def read(path):
         return handle.read()
 
 
+THOUSANDS = re.compile(r"\d{1,3}(,\d{3})+(\.\d+)?")
+
+
+def split_lists(tokens):
+    """A token like `1,2,3` is a list of numbers; `14,231` (thousands) and `1,5` stay whole only when they
+    match the thousands pattern, so the others split at the commas."""
+    out = []
+    for token in tokens:
+        out += [token] if "," not in token or THOUSANDS.fullmatch(token) else [t for t in token.split(",") if t]
+    return out
+
+
 def numbers_in(text):
     """Number tokens as written, plus a form without thousands commas and trailing zeros."""
     found = set()
-    for token in NUMBER.findall(text):
+    for token in split_lists(NUMBER.findall(text)):
         found.add(token)
         plain = token.replace(",", "") if re.fullmatch(r"\d{1,3}(,\d{3})+(\.\d+)?", token) else token
         found.add(plain)
@@ -130,7 +145,7 @@ def banner(page):
 def invented(page, report, numbers):
     known = numbers_in(report) | numbers_in(numbers)
     seen, out = set(), []
-    for token in NUMBER.findall(page_text(page)):
+    for token in split_lists(NUMBER.findall(page_text(page))):
         variants = numbers_in(token)
         if token not in seen and not variants & known:
             out.append("number: {} is in neither the .qmd nor numbers.json".format(token))
@@ -143,10 +158,16 @@ def main():
     parser.add_argument("--page", required=True)
     parser.add_argument("--report", required=True)
     parser.add_argument("--numbers")
+    parser.add_argument("--hooks", help="the plugin's hooks/ folder; lets the default numbers file come from the resolver")
     args = parser.parse_args()
     page = read(args.page)
     size = os.path.getsize(args.page)
     numbers = ""
+    if not args.numbers and args.hooks:  # resolver default: <run>/numbers.json, else outputs/numbers.json
+        sys.path.insert(0, args.hooks)
+        import analysis_paths
+        folder = os.path.dirname(os.path.dirname(os.path.abspath(args.report)))
+        args.numbers = analysis_paths.numbers(folder, analysis_paths.current_run(folder)[0])
     if args.numbers and os.path.isfile(args.numbers):  # not every analysis registers values; a missing file is not a finding
         numbers = json_text(json.loads(read(args.numbers)))
     findings = contract(page, size) + banner(page) + invented(page, read(args.report), numbers)
