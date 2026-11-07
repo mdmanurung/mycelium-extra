@@ -80,7 +80,7 @@ confidence_notes: []
 
 Use `status: unavailable` with a reason when a reviewer cannot be reached, cannot be safely invoked, or was not sent because `verify` refused. Use `status: pending` for a launched review that has not finished. Use `status: invalid` when output cannot be attributed to the intended reviewer, lacks enough structure to recover issues, or claims work the reviewer did not do. An empty `issues` list is meaningful only with `status: complete`. Do not transform absence into agreement.
 
-The Source column is provenance, not permission. Grill's sources are `repo:`, `user`, and `default:`; a reviewer is not a source of authority. In a later revised plan, a recommendation the user accepted is sourced as `user (accepted review: codex)` or `user (accepted review: biomni; PMID ...)`, keeping the supporting repository citation or retrievable scientific reference. The approval gate ignores Source cells; only the rest of the approved plan table can authorize gated runs.
+The Source column is provenance, not permission. Grill's sources are `repo:`, `user`, `inherited:`, and `default:`; a reviewer is not a source of authority. In a later revised plan, a recommendation the user accepted is sourced as `user (accepted review: codex)` or `user (accepted review: biomni; PMID ...)`, keeping the supporting repository citation or retrievable scientific reference. The approval gate ignores Source cells; only the rest of the approved plan table can authorize gated runs.
 
 ## Material objection classification
 

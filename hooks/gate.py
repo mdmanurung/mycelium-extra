@@ -2356,12 +2356,17 @@ def first_sentence(text):
     return re.split(r"(?<=[.;])\s", text, 1)[0]
 
 
+def needs_confirm(source):
+    """A default or an inherited choice is the agent's, so the card marks it for the user to confirm."""
+    return source.lower().startswith(("default", "inherited"))
+
+
 def source_tag(cell):
     cell = " ".join(CONTROL.sub(" ", cell).replace("`", "").split())
     low = cell.lower()
     if low.startswith("user"):
         return "you"
-    if low.startswith(("default", "repo")):
+    if low.startswith(("default", "repo", "inherited")):
         return clean(cell.split(";")[0], 48)
     return clean(cell, 24)
 
@@ -2737,7 +2742,7 @@ def amendment_card(root, config, digest, text, record, paths, commands, outputs,
         lines.append("Adds".ljust(10) + "{}   ({})".format(short(rel), "new, {} lines".format(len(data.splitlines()))
                      if data is not None else "not written yet; pinned at its first run"))
     for row in new_rows:
-        is_default = row["source"].lower().startswith("default")
+        is_default = needs_confirm(row["source"])
         who = "  [{}]{}".format(source_tag(row["source"]), "*" if is_default else "") if row["source"].strip() else (
             "*" if is_default else "")
         label = quote(DONE_MARK.sub("", row["choice"]), 120) or quote(clean(row["step"]), 120)
@@ -2871,7 +2876,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
 
     pinned_lines, script_changes, script_diff_lines = script_state(root, scripts, config)
     changes = pin_changes(pins, previous) + script_changes
-    defaults = [row["num"] for row in rows if row["source"].lower().startswith("default")]
+    defaults = [row["num"] for row in rows if needs_confirm(row["source"])]
     lines = ["mycelium-extra \u00b7 plan {} ready for approval".format(digest)]
     found = baseline_plan(root, config, digest, text, paths, outputs)
     baseline = baseline_lines(root, config, digest, text, paths, outputs, pins, scripts, rows, short, found)
@@ -2889,7 +2894,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
     for row in rows[:CARD_STEPS]:
         cells = " ".join((row["step"], row["choice"], row["check"]))
         done = "  (agent says: done)" if DONE_MARK.search(cells) else ""
-        is_default = row["source"].lower().startswith("default")
+        is_default = needs_confirm(row["source"])
         name = quote(re.sub(r"/?(?:[^\s/]+/)+(?=[\w.-])", "", re.sub(r"^run\s+", "", short_runs(root, DONE_MARK.sub(
             "", row["step"])).replace("`", ""), flags=re.IGNORECASE)), 70)
         head = "{} {} {}{}{}".format("  \u2193" if len(lines) > procedure_at + 2 else "   ", row["num"], name,
@@ -2992,7 +2997,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
         compact += labelled("Goal" if objective_text(text) is not None else "Question", card_goal(text))
     choices = []
     for row in rows[:CARD_STEPS]:
-        is_default = row["source"].lower().startswith("default")
+        is_default = needs_confirm(row["source"])
         done = "  (agent says: done)" if DONE_MARK.search(" ".join((row["step"], row["choice"], row["check"]))) else ""
         said = quote(DONE_MARK.sub("", row["choice"]), 160) or quote(re.sub(
             r"/?(?:[^\s/]+/)+(?=[\w.-])", "", re.sub(r"^run\s+", "", short_runs(root, DONE_MARK.sub("", row["step"])).replace(

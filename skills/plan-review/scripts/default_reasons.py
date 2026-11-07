@@ -38,7 +38,7 @@ FILLER = {"a", "an", "the", "is", "it", "its", "it's", "this", "that", "just", "
 TABLE_ROW = re.compile(r"^\s*\|(.*)\|\s*$")
 TABLE_RULE = re.compile(r"^\s*\|(?:\s*:?-{3,}:?\s*\|)+\s*$")
 DEFAULT = re.compile(r"(?<![\w-])default\s*:", re.IGNORECASE)
-NEXT_SOURCE = re.compile(r"(?<![\w-])(?:default|repo)\s*:", re.IGNORECASE)
+NEXT_SOURCE = re.compile(r"(?<![\w-])(?:default|repo|inherited)\s*:", re.IGNORECASE)
 WORD = re.compile(r"[^\W_](?:[\w'.+/-]*[^\W_])?", re.UNICODE)
 
 

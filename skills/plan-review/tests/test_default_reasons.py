@@ -33,6 +33,11 @@ class DefaultReasonsTest(unittest.TestCase):
         self.assertEqual(flagged(plan("default:", "default: standard", BH)),
                          [("1", "no reason"), ("2", "an empty phrase, not a reason")])
 
+    def test_inherited_source_ends_a_default_reason(self):
+        text = plan("default: standard; inherited: code/02_fit.R")
+        self.assertEqual(flagged(text), [("1", "an empty phrase, not a reason")])
+        self.assertEqual(flagged(plan("inherited: code/02_fit.R")), [])
+
     def test_empty_phrases_any_case_and_trivial_punctuation(self):
         for reason in ("Standard", "STANDARD.", "standard!", "(standard)", "common practice",
                        "Common Practice.", "best practice", "best practices", "typical", "Typical;",

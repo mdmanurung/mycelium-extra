@@ -847,6 +847,16 @@ class GateTest(unittest.TestCase):
         self.write_file(".mycelium-extra/tools.json", "[1]")
         self.assertEqual(gate.lint_tools(self.root), ("scilintr", "Rscript"))
 
+    def test_inherited_source_is_marked_for_confirmation_and_keeps_its_path(self):
+        sys.path.insert(0, os.path.dirname(GATE))
+        import gate
+        path = "inherited: analysis/a/code/02_fit.R"
+        self.assertTrue(gate.needs_confirm(path))
+        self.assertTrue(gate.needs_confirm("default: standard figure"))
+        self.assertFalse(gate.needs_confirm("repo: AGENTS.md"))
+        self.assertFalse(gate.needs_confirm("user"))
+        self.assertEqual(gate.source_tag(path), path)
+
     def test_card_lines_are_capped_at_250_characters(self):
         long = "x" * 400
         card = self.card(self.CARD_PLAN.replace("exact permutation test", long).replace("Goal", "Goal"))
