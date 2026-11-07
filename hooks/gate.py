@@ -2883,13 +2883,13 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
     lines += baseline
     lines += changes
     lines += ["Question   " + card_question(text), "Goal       " + card_goal(text),
-              "Defaults to confirm: " + ("step " + ", ".join(defaults) if defaults else "none")]
+              "To confirm: " + ("step " + ", ".join(defaults) if defaults else "none")]
     facts = FACTS_LINE.search(text)
     if facts:
         lines.append(clean(facts.group(0), 160))
     procedure_at = len(lines)
     lint = lint_bullets(root, rows[:CARD_STEPS], config)
-    legend = "   (* = a default decided; confirm it)" if defaults else ""
+    legend = "   (* = a default or inherited choice; confirm it)" if defaults else ""
     lines += ["", "Sequence" + legend]
     for row in rows[:CARD_STEPS]:
         cells = " ".join((row["step"], row["choice"], row["check"]))
@@ -3009,7 +3009,7 @@ def procedure_card(root, text, config, digest, pins, outside, previous, scripts,
         choices.append("\u2026 and {} more steps in the plan above".format(len(rows) - CARD_STEPS))
     compact += ["Choices".ljust(10) + choices[0]] + [" " * 10 + line for line in choices[1:]]
     if defaults:
-        compact.append("Defaults to confirm: step " + ", ".join(defaults) + "  (* = a default decided)")
+        compact.append("To confirm: step " + ", ".join(defaults) + "  (* = a default or inherited choice)")
     written = [quote(DONE_MARK.sub("", row["check"]), 80) for row in rows if row["check"].strip()]
     compact += labelled("Checks", " \u00b7 ".join(written) if written else "none written in the plan")
     if config.get("card_coverage", True) is True:

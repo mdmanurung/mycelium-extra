@@ -58,7 +58,7 @@ Goal      Test whether the day 28 minus day 0 change in gene expression differs
 Choices   1 keep preferred_acquisition == TRUE  [repo: .living/decisions.md]
           2 median-of-ratios; exact permutation; BH, α = 0.05  [repo: .living/decisions.md]
           3 hits at padj < 0.05  [default: matches step 2]*
-Defaults to confirm: step 3  (* = a default decided)
+To confirm: step 3  (* = a default or inherited choice)
 Checks    24 rows, 12 donors x 2 visits · sample IDs identical across tables ·
           summary row count 1
 Coverage  0 steps with a bound check, 3 prose only (rows 1, 2, 3) · 0 exact steps

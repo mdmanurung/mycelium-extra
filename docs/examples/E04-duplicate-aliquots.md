@@ -30,7 +30,7 @@ Approval card for the corrected plan (regenerated):
 ```text
 Question  "does the change differ between arms within the subset"
 Choices   1 baseline contrasts inside the paired fit; keep the donor random effect  [default: repo policy keeps duplicate aliquots]*
-Defaults to confirm: step 1  (* = a default decided)
+To confirm: step 1  (* = a default or inherited choice)
 Checks    plan text no longer says 'drop donor random effect' · ...
 ```
 

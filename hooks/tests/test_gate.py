@@ -825,8 +825,8 @@ class GateTest(unittest.TestCase):
         self.assertTrue(lines[0].startswith("mycelium-extra \u00b7 plan ") and "ready for approval" in lines[0])
         self.assertRegex(lines[-1], r"^\u25b6 approve  \(or approve plan [0-9a-f]{8}\)$")
         for text in ('Question   "does A beat B?"', "Goal       Compare A with B on the cohort, no refits.",
-                     "Defaults to confirm: step 1", "Facts: 1 agent-derived, 1 human-stated, 0 agent-asserted.",
-                     "Sequence   (* = a default decided; confirm it)\n    1 Back up the old table*  (agent says: done)\n"
+                     "To confirm: step 1", "Facts: 1 agent-derived, 1 human-stated, 0 agent-asserted.",
+                     "Sequence   (* = a default or inherited choice; confirm it)\n    1 Back up the old table*  (agent says: done)\n"
                      "        - choice: keep old output\n        - assumed: nothing is lost\n        - check: md5 equal\n"
                      "  \u2193 2 02_fit.py\n        - choice: exact permutation test  [you]\n"
                      "        - check: 12 donors x 2 visits\n  \u2193 3 snakemake\n"
@@ -934,7 +934,7 @@ class GateTest(unittest.TestCase):
         self.assertLessEqual(len(lines), 22)  # 20 lines plus the Coverage row, which is on by default and takes up to two
         self.assertEqual(lines[3:7], ["Goal      Compare A with B.", "Choices   1 Exact test. Two-sided.  [you]",
                                       "          2 Print size  [default: print rules]*",
-                                      "Defaults to confirm: step 2  (* = a default decided)"])  # the whole choice
+                                      "To confirm: step 2  (* = a default or inherited choice)"])  # the whole choice
         self.assertIn("Checks    12 donors \u00b7 labels >= 6 pt", lines)
         self.assertIn("Runs      1 script (1 pinned) \u00b7 any arguments \u00b7 reads 1 pinned \u00b7 writes none named", lines)
         self.assertIn("  scripts  CHANGED: analysis/a/02_fit.py", lines)  # a changed script stays on the card
