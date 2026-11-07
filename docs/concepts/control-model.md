@@ -65,6 +65,6 @@ Example: `new-analysis` writes only inside the folder it creates; Mycelium's `an
 
 **The tool puts one sourced decision in front of you and does not bury it in noise.**
 
-The approval card is short so you can read it before typing. `grill` asks at most five questions after your opening question, and only ones you own. Defaults are starred and listed as "Defaults to confirm". Optional probes (`socratic`, `explain row N`, `challenge row N`) do not count toward the five questions and cannot approve anything. The rubber stamp is the failure to avoid: a card nobody reads is worse than no card.
+The approval card is short so you can read it before typing. `grill` asks at most five questions after your opening question, and only ones you own. Defaults are starred and listed as "To confirm". Optional probes (`socratic`, `explain row N`, `challenge row N`) do not count toward the five questions and cannot approve anything. The rubber stamp is the failure to avoid: a card nobody reads is worse than no card.
 
-Example: step 3 of a plan took its threshold from a default. The card marks `[default: matches step 2]*` and adds `Defaults to confirm: step 3`, so the one choice you did not make is the one you are asked about.
+Example: step 3 of a plan took its threshold from a default. The card marks `[default: matches step 2]*` and adds `To confirm: step 3`, so the one choice you did not make is the one you are asked about.

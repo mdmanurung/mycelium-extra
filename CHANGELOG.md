@@ -7,7 +7,7 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 ### Changed
 
 - **grill:** an impactful choice (one whose plausible alternative would change a headline estimate, a ranking, a selected feature or a conclusion) is never a `default`. It is `user`, `inherited: <path>` (a choice an earlier stage made, confirmed by the user in one line) or `repo:` for a closed repository decision. The confirmation table and `inherited:` confirms do not count toward the five-question cap, and an unplanned impactful choice during a run stops the run for a question.
-- **plan-review, hooks:** `inherited:` is a known Source. `default_reasons` ends a default's reason at it, and the approval card marks an `inherited:` row with `*` and lists it under "Defaults to confirm".
+- **plan-review, hooks:** `inherited:` is a known Source. `default_reasons` ends a default's reason at it, and the approval card marks an `inherited:` row with `*` and lists it under "To confirm" (the card line was "Defaults to confirm"; the `*` legend now reads "a default or inherited choice").
 - **new-analysis:** the `PLAN.md` row placeholder lists `inherited:`.
 
 ## [0.24.0] - 2026-11-04

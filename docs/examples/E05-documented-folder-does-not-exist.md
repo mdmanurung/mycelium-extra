@@ -31,7 +31,7 @@ Facts: 2 agent-derived, 0 human-stated, 0 agent-asserted.
 `card <hash> full` (regenerated) shows what is not established:
 
 ```text
-Sequence   (* = a default decided; confirm it)
+Sequence   (* = a default or inherited choice; confirm it)
     1 <script>*
         - choice: one palette block; every figure checks its own numbers before saving
         - assumed: no shared style exists
