@@ -46,7 +46,7 @@ For existing approved work, inspect applicable approved Plan A / Plan B, actual 
 
 ## 4. Output without changing grill's contract
 
-- Incorporate relevant scientific choices into the **existing** Plan rows, their `Source` (`repo` / `user` / `default`) and falsifiable `Validation` cells. If a crucial property is unknown, make its check the first step or mark `DECISION_REQUIRED` when the user owns the unresolved choice.
+- Incorporate relevant scientific choices into the **existing** Plan rows, their `Source` (`repo` / `user` / `inherited` / `default`) and falsifiable `Validation` cells. If a crucial property is unknown, make its check the first step or mark `DECISION_REQUIRED` when the user owns the unresolved choice.
 - Preserve the user's-own-words opening, read-only probes, maximum five consequential questions, concise brief, three existing `Plan status:` outcomes, and waiting for user approval.
 - Never assume the existing approval gate enforces scientific validity. Planned validation checks are **not implemented guards** until executable tests are separately shipped, invoked, and their evidence verified.
 - Do not execute notebooks/pipelines, write `.living/`, install packages, send project data to external services, or independently launch an external research request. The existing `evidence-assistance.md` consent rules apply unchanged.

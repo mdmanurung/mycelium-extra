@@ -52,7 +52,7 @@ A numbered table, the only table in the brief (Evidence stays as bullets, and th
 
 - **Step**: name by repository path, relative to the project root, every script, notebook, or pipeline the plan will run, including a wrapper the run goes through (such as the analysis's `run.sh`) and any figure or report script, and name `sbatch`, `snakemake`, or `nextflow` when the plan launches them. The approval gate reads only this column: a path in a Choice or Validation cell, in prose, in Evidence, or in a `repo:` citation approves nothing, so a run named only there is denied. Mark a step already done with `(done)`.
 - **Choice**: one decision, in plain scientific terms with the numbers that would show it is right (for example `A_t pd counts 37 CLR / 29 asin`), at most about 150 characters. Name runs in Step, never here.
-- **Source**: `repo: <path>`, `user`, or `default: <reason>`; the reason is one short phrase, and `plan-review` flags an empty one.
+- **Source**: `repo: <path>`, `user`, `inherited: <path>` (a choice an earlier stage made, confirmed by the user in one line), or `default: <reason>`; the reason is one short phrase, and `plan-review` flags an empty one. An impactful choice (SKILL.md section 3) is never `default`.
 - **Validation**: one check.
 
 The approval card quotes these four cells for the user to check the science. It shows each step top down with bullets for its choice and who decided it, the assumption behind a `default:`, and its check, and it cuts long lines (`hooks/gate.py` quotes a cell at up to 200 characters and a card line at 250). So one decision, assumption, or check per row, each in its own step's row rather than in prose.

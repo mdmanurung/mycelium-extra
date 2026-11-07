@@ -630,7 +630,7 @@ def scaffold(args):
         "[repository paths of the sample table, config, or raw-data folder; or none]")
     files["plans/PLAN.md"] = ap.fill(ap.read(os.path.join(templates, "PLAN.md")), {
         "NAME": name, "INPUTS": inputs, "PLAN_ROWS": "\n".join(
-            "| S{} | `{}/{}` | [choice] | [repo: / user / default:] | [check] |".format(
+            "| S{} | `{}/{}` | [choice] | [repo: / user / inherited: / default:] | [check] |".format(
                 s["num"], dest_rel, s["path"]) for s in steps)})
     ids = ["S" + s["num"] for s in steps]
     files["plans/TRACKER.md"] = ap.fill(ap.read(os.path.join(templates, "TRACKER.md")), {

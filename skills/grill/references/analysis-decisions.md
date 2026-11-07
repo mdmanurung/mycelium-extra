@@ -1,6 +1,6 @@
 # Analysis decision points
 
-A coverage list, not a question list. For each point that applies, the plan must record the choice and its source: `repo: <path>`, `user`, or `default: <reason>`. Most points should resolve from the repository or a stated default; ask only under the gate in `SKILL.md`. Skip points that do not apply.
+A coverage list, not a question list. For each point that applies, the plan must record the choice and its source: `repo: <path>`, `user`, `inherited: <path>` or `default: <reason>`. Points that are not impactful should resolve from the repository or a stated default; ask only under the gate in `SKILL.md`. A point whose alternatives would change a headline estimate, ranking, selected feature or conclusion is impactful: it is `user`, `inherited:` or (for a closed repository decision) `repo:`, never `default`. What an earlier stage's code, config or analysis doc did is not an answer: it shows only what that stage did, so cite it as `inherited:`. In the third column, such files are evidence of what was done, not of what was decided. Skip points that do not apply.
 
 | Decision point | Settle | Where evidence usually lives |
 | --- | --- | --- |
@@ -10,7 +10,7 @@ A coverage list, not a question list. For each point that applies, the plan must
 | Input and matrix state | Which file or object; `X` versus `layers`/`raw`/assay; counts, normalized, log, or scaled at each downstream call | Data manifest, loading code, a single inline probe |
 | Reference and identifiers | Genome and annotation build; gene ID type (Ensembl or symbol); species mapping; marker or gene-set source and version | Ingest provenance, config, learnings |
 | QC thresholds | Genes, counts, mitochondrial fraction, doublets, ambient RNA; for cytometry, gating and debris or dead-cell rules; their origin | Analysis doc, config, learnings, active conventions |
-| Normalization and transformation | Method, and whether every arm or batch gets the same treatment | Pipeline code, conventions |
+| Normalization and transformation | Impactful. Method, any centering, scaling or z-scoring, and whether every arm or batch gets the same treatment. Always a plan row the user approved | The user; an earlier stage's code only shows what it did (`inherited:`) |
 | Batch versus biology | Whether batch or site is confounded with the contrast; whether integration or correction could remove the signal; batch-aware alternatives | Metadata cross-tabs, decisions, prior reviews |
 | Annotation | Label source, resolution, reference; whether labels were derived from the same data that is then tested | Annotation code, findings, decisions |
 | Model or test | Why this family; assumptions and how they are checked; covariates and why (no colliders or mediators) | Model code, statistical conventions |

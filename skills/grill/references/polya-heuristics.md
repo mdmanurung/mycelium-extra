@@ -26,6 +26,6 @@ Apply only the ones the blockage calls for, and record which one produced the ro
 ## What these heuristics may not do
 
 - They never settle something the user owns: the scientific question, the estimand, or an accepted trade-off. Those stay `user` questions under the gate in `SKILL.md`.
-- They never convert absent evidence into evidence. A heuristic result is `default: <reason>`, not `repo:`.
+- They never convert absent evidence into evidence. A heuristic result is `default: <reason>`, not `repo:`. If the choice is impactful it is never `default`: it becomes a `user` question.
 - They never widen the plan: a new step added by a heuristic must trace to the claim in link 1, or it goes to Parked with a return condition.
 - They never change the brief's shape: the same 150-word brief, the same one plan table, the same statuses.
