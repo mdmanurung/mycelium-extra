@@ -11,6 +11,14 @@ import os
 import sys
 import time
 
+
+def safe_cwd():
+    """os.getcwd(), or "/" when the process folder was deleted (it would raise on every call)."""
+    try:
+        return os.getcwd()
+    except OSError:
+        return "/"
+
 sys.dont_write_bytecode = True  # leave no __pycache__ in the plugin folder
 STATE_DIR = ".mycelium-extra"
 EVENT = {}
@@ -57,7 +65,7 @@ def event_root(event):
     checked: the gate loads from the repository the run aims at, and relative paths keep
     resolving against the event's own cwd.
     """
-    cwd = event.get("cwd") or os.getcwd()
+    cwd = event.get("cwd") or safe_cwd()
     root = find_root(cwd)
     if root is not None:
         return root
@@ -203,7 +211,7 @@ def run(argv):
             decoded = json.loads(text)
         except Exception:
             decoded = None
-        if find_root((decoded.get("cwd") if isinstance(decoded, dict) else None) or os.getcwd()) is None and not (
+        if find_root((decoded.get("cwd") if isinstance(decoded, dict) else None) or safe_cwd()) is None and not (
                 isinstance(decoded, dict) and event_root(decoded)):
             return 0
         # A hooks.json registered before 0.9.76 runs python3 directly, and a directory marketplace keeps that
@@ -263,16 +271,42 @@ def run(argv):
     return gate.main(argv, text, root)
 
 
+LIMITS = {"prompt": 8, "tool": 8, "post": 17, "stop": 27}  # seconds: under hooks.json's 10, 10, 20 and 30
+
+
+class Overrun(BaseException):  # not Exception: gate.py's best-effort handlers must not swallow it
+    """The hook used its time; main reports it through error_output so the host sees a reply, not a timeout."""
+
+
+def arm_watchdog(event_name):
+    """Raise Overrun in the main thread shortly before the host would kill the hook. A hook that the host
+    kills reads as a failed hook on every call; this one answers (fails open unless on_error is deny)."""
+    import signal
+    if not hasattr(signal, "SIGALRM") or event_name not in LIMITS:
+        return
+
+    def expire(signum, frame):
+        raise Overrun("the {} hook ran past {} s and was stopped".format(event_name, LIMITS[event_name]))
+    signal.signal(signal.SIGALRM, expire)
+    signal.alarm(LIMITS[event_name])
+
+
 def main(argv):
     try:
+        arm_watchdog(argv[-1])
         return run(argv)
-    except Exception as error:  # the gate would not load: still honour on_error
+    except (Exception, Overrun) as error:  # the gate would not load: still honour on_error
         try:
             event = json.loads(EVENT.get("text", ""))
             cwd = event.get("cwd")
         except Exception:
             event, cwd = None, None
-        print(json.dumps(error_output(argv[-1], error, cwd or os.getcwd(), event, EVENT.get("host"))))
+        try:
+            import signal
+            signal.alarm(0)
+        except Exception:
+            pass
+        print(json.dumps(error_output(argv[-1], error, cwd or safe_cwd(), event, EVENT.get("host"))))
         return 0
 
 

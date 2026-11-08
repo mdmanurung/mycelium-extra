@@ -6,6 +6,8 @@
 hook=
 if [ "${1:-}" = --hook ]; then hook=1; shift; fi
 py=${MYCELIUM_EXTRA_PYTHON:-}
+# A missing or non-executable override would exit 126/127 with no JSON on every call: in hook mode ignore it.
+if [ -n "$py" ] && [ -n "$hook" ] && ! command -v "$py" >/dev/null 2>&1; then py=; fi
 if [ -z "$py" ] && [ -z "$hook" ] &&
    python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' </dev/null >/dev/null 2>&1; then
   py=python3

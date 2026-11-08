@@ -332,6 +332,9 @@ def sha256(data=b""):
 def sha256_file(path, deadline=None):
     """The file's sha256, or None if the deadline passes first."""
     digest = sha256()
+    import stat
+    if not stat.S_ISREG(os.stat(path).st_mode):  # a FIFO or device blocks open() or never ends: not a file to hash
+        return None
     with open(path, "rb") as handle:
         for block in iter(lambda: handle.read(1 << 20), b""):
             if deadline is not None and time.time() >= deadline:
@@ -4516,12 +4519,13 @@ def on_stop(event, root, config):
         digest = sha256(text.encode("utf-8")).hexdigest()[:8]
         session = safe_session(event.get("session_id"))
         path = state_path(root, "pending", session + ".json")
-        pending = [p for p in read_json(path, []) if isinstance(p, dict) and isinstance(p.get("hash"), str)]
-        previous = next((p for p in pending if p["hash"] == digest and plan_ready(p)), None)
-        pending = [p for p in pending if p["hash"] != digest]
-        entry = {"hash": digest, "ts": time.time(), "text": text, "pins": {}, "ready": False}
-        pending.append(entry)
-        write_json(path, pending[-10:])  # a timeout while pinning keeps the text, but it is not approvable yet
+        with state_lock(root, "pending-" + session):  # parallel stops of one session must not drop each other's plan
+            pending = [p for p in read_json(path, []) if isinstance(p, dict) and isinstance(p.get("hash"), str)]
+            previous = next((p for p in pending if p["hash"] == digest and plan_ready(p)), None)
+            pending = [p for p in pending if p["hash"] != digest]
+            entry = {"hash": digest, "ts": time.time(), "text": text, "pins": {}, "ready": False}
+            pending.append(entry)
+            write_json(path, pending[-10:])  # a timeout while pinning keeps the text, but it is not approvable yet
         pins, outside = pin_inputs(root, text, config)
         entry["pins"] = pins or {}
         scripts_on, notice = script_pinning(config)
@@ -4538,7 +4542,10 @@ def on_stop(event, root, config):
             entry["card"] = details
         entry["kind"] = "amendment" if "approve amendment {}".format(digest) in card else "plan"
         entry["ready"] = not errors  # pins, scripts and card are done: now the hash can be approved
-        write_json(path, pending[-10:])
+        with state_lock(root, "pending-" + session):  # re-read: another stop may have added a plan meanwhile
+            others = [p for p in read_json(path, []) if isinstance(p, dict) and isinstance(p.get("hash"), str)
+                      and p["hash"] != digest]
+            write_json(path, (others + [entry])[-10:])
         notices.append(card)
         if notice:
             notices.append(notice)
@@ -4799,7 +4806,11 @@ def lint_stop_block(root, event, config):
     of a Stop hook. Off by default; the user-only Stop line is the default backstop."""
     if config.get("lint_before_stop") is not True or config.get("lint_on_write", True) is False:
         return None
-    if event.get("stop_hook_active"):
+    counter = state_path(root, "pending", safe_session(event.get("session_id")) + ".lint-stop-count")
+    if event.get("stop_hook_active"):  # the host is already continuing because of a Stop hook
+        return None
+    streak = read_json(counter, {})  # hosts that send no stop_hook_active: cap blocks in a row
+    if isinstance(streak, dict) and streak.get("n", 0) >= 2 and time.time() - streak.get("ts", 0) < 600:
         return None
     still = open_lint_scripts(root, event.get("session_id"))
     if not still:
@@ -4816,6 +4827,9 @@ def lint_stop_block(root, event, config):
     if read_json(marker, "") == reason:
         return None
     write_json(marker, reason)
+    prior = read_json(counter, {})
+    recent = isinstance(prior, dict) and time.time() - prior.get("ts", 0) < 600
+    write_json(counter, {"n": (prior.get("n", 0) if recent else 0) + 1, "ts": time.time()})
     return reason
 
 
@@ -5237,7 +5251,8 @@ def main(argv, text=None, root=None):
     if len(argv) != 2 or argv[1] not in HANDLERS:
         print("usage: gate.py stop|prompt|tool|post", file=sys.stderr)
         return 0
-    cwd, event = os.getcwd(), None
+    from gate_run import safe_cwd
+    cwd, event = safe_cwd(), None
     try:
         event = json.loads(text if text is not None else sys.stdin.buffer.read().decode("utf-8", "replace"))
         cwd = event.get("cwd") or cwd
