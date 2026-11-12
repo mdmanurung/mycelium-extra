@@ -83,6 +83,16 @@ class RunShLog(unittest.TestCase):
         _, entries = self.entries()
         self.assertTrue(entries[0].split("\n")[0].endswith(" failed"), entries[0])
 
+    def test_failed_run_keeps_edits_for_the_next_entry(self):
+        self.run_sh()
+        time.sleep(1.1)
+        write(os.path.join(self.dir, "code", "01_a.R"), "x <- 3\n")
+        self.assertEqual(self.run_sh(FAKE_EXIT="2").returncode, 2)
+        self.assertEqual(self.run_sh().returncode, 0)
+        _, entries = self.entries()
+        self.assertIn("- code/01_a.R: changed", entries[1])
+        self.assertIn("- code/01_a.R: changed", entries[2])
+
     def test_dry_run_logs_nothing(self):
         for flag in ("-n", "--dry-run", "-np"):
             self.assertEqual(self.run_sh(flag).returncode, 0)

@@ -17,6 +17,7 @@ stamp=$(mktemp logs/.run-stamp.XXXXXX)  # one stamp per run, so runs with disjoi
 touch -d '1 second ago' "$stamp" 2> /dev/null || touch "$stamp"  # a little early, so a fast step still counts as newer
 
 if ${SNAKEMAKE:-snakemake} --cores "${CORES:-4}" "$@"; then code=0; else code=$?; fi
+set +e  # from here a logging problem must not replace Snakemake's exit status
 
 if command -v sha256sum > /dev/null 2>&1; then hasher="sha256sum"; else hasher="shasum -a 256"; fi
 hashes=logs/.code-hashes.tsv
@@ -67,6 +68,6 @@ log=logs/CHANGES.md
   if [ -n "$rewritten" ]; then printf 'outputs rewritten:\n%s\n' "$rewritten"; else printf 'outputs rewritten: none\n'; fi
 } >> "$log"
 
-mv "$now" "$hashes"
+if [ "$code" -eq 0 ]; then mv "$now" "$hashes"; else rm -f "$now"; fi  # a failed run keeps the old hashes, so the next run still lists these edits
 rm -f "$stamp"
 exit "$code"
