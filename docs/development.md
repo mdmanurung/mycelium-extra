@@ -95,6 +95,17 @@ The oracle procedure:
 
 The base stays the 0.10.2 release; `python3 tests/test_ci_pins.py` fails if `ci.yml` and the oracle name different commits.
 
+#### Oracle regeneration, 2026-11-12
+
+The `gate-diff` job runs only on pull requests, so the oracle went stale unnoticed: 95 of 173 cases were identical and 15 listed differences had changed. All 15 changed in one way. Each now also leaves an empty `.mycelium-extra/locks/pending-<session>.lock` in its state, and nothing else differs. Exit status and output are the same as in the old oracle.
+
+| Difference | Cause commit | Why intended |
+|---|---|---|
+| fuzz #12, #20, #24, #30, #35, #51, #59 (`pending-s1.lock`), fuzz #84, #106 (`pending-s2.lock`) | `87d6392` | The Stop hook now writes `pending/<session>.json` under `state_lock`, which creates the lock file. |
+| stop big plan, stop plan with inputs, stop plan without table, stop procedure card, stop procedure card with a later plan that changes a choice, stop procedure card with a later plan that only adds a step | `87d6392` | Same: these are the Stop cases that write a pending plan. |
+
+The plan card's `Coverage` line and the `approve` wording were not behind these changes. Those decisions are already in the oracle. The oracle was rewritten with `--write-expect`, and the JSON diff is 60 added lines, 15 lock-file entries and no removals.
+
 ## Skill descriptions and invocation
 
 A skill's `description:` loads into the agent's context on every turn in every host, so it is a pointer, not a summary. Keep it to one line (OpenCode reads it with a one-line regex) and at most about 60 words: a first sentence that says what the skill does and when it fires, within 150 characters (OpenCode shows only that sentence, cut at 150), then one sentence for the boundary. The body carries everything else.
