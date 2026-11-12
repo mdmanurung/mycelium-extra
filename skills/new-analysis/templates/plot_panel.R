@@ -1,8 +1,8 @@
 # @@FILE@@: manuscript panel @@PANEL@@ of @@NAME@@. [The one claim this panel carries.]
 # Inputs:  [each file it reads, with the script that produced it, or [gap]]
-# Outputs: <step dir>/source_data/@@PANEL@@.tsv, <step dir>/figures/@@PANEL@@.pdf and .png
-# Run:     Rscript @@PATH@@ <step dir>   # from the repository root
-# Release: config/figure_map.tsv and config/manuscript_checks.json name the files under the step dir,
+# Outputs: <panels dir>/source_data/@@PANEL@@.tsv, <panels dir>/figures/@@PANEL@@.pdf and .png
+# Run:     Rscript @@PATH@@ <panels dir>   # from the repository root
+# Release: config/figure_map.tsv and config/manuscript_checks.json name the files under the panels dir,
 #          and manuscript-audit checks them.
 
 suppressPackageStartupMessages({
@@ -12,10 +12,10 @@ suppressPackageStartupMessages({
 
 args <- commandArgs(trailingOnly = TRUE)
 stopifnot(length(args) == 1L)
-step_dir <- args[[1L]]
+panels_dir <- args[[1L]]
 source("@@DEST@@/code/theme.R") # theme_pubr(base_size = 8), PALETTE, save_panel()
-dir.create(file.path(step_dir, "source_data"), recursive = TRUE, showWarnings = FALSE)
-source_path <- file.path(step_dir, "source_data", "@@PANEL@@.tsv")
+dir.create(file.path(panels_dir, "source_data"), recursive = TRUE, showWarnings = FALSE)
+source_path <- file.path(panels_dir, "source_data", "@@PANEL@@.tsv")
 
 # ---- 1. Export: the values the panel draws, after every aggregation ----
 plotted <- tibble::tibble(
@@ -34,4 +34,4 @@ p <- ggplot(plotted, aes(x = label, y = y, colour = label)) +
   stat_summary(fun.data = mean_sdl, fun.args = list(mult = 1), colour = "black") +
   scale_colour_label(plotted$label) +
   labs(x = NULL, y = "[y, unit]", caption = "Points: donors. Bar: mean +/- SD.")
-save_panel(p, step_dir, "@@PANEL@@")
+save_panel(p, panels_dir, "@@PANEL@@")

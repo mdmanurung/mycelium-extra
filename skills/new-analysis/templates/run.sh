@@ -9,7 +9,8 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 for arg in "$@"; do  # a dry run (-n, -pn, -nr) or a mode that runs nothing (--dag, --summary, --lint) logs nothing
-  case "$arg" in -n* | -[!-]*n* | --dry-run | --dryrun | --dag | --rulegraph | --filegraph | --d3dag | --summary | --detailed-summary | --list | --list-* | --lint | --unlock | --version | -h | --help) exec ${SNAKEMAKE:-snakemake} --cores "${CORES:-4}" "$@" ;; esac
+  if [[ $arg =~ ^-[pnrkqFfTa]*n[pnrkqFfTa]*$ ]]; then exec ${SNAKEMAKE:-snakemake} --cores "${CORES:-4}" "$@"; fi
+  case "$arg" in --dry-run | --dryrun | --dag | --rulegraph | --filegraph | --d3dag | --summary | --detailed-summary | --list | --list-* | --lint | --unlock | --version | -h | --help) exec ${SNAKEMAKE:-snakemake} --cores "${CORES:-4}" "$@" ;; esac
 done
 
 mkdir -p logs
@@ -19,6 +20,8 @@ touch -d '1 second ago' "$stamp" 2> /dev/null || touch "$stamp"  # a little earl
 if ${SNAKEMAKE:-snakemake} --cores "${CORES:-4}" "$@"; then code=0; else code=$?; fi
 set +e  # from here a logging problem must not replace Snakemake's exit status
 
+exec 9> logs/.run.lock  # one writer at a time for the hashes and the log; held until this script exits
+if command -v flock > /dev/null 2>&1; then flock -w 120 9 || true; fi
 if command -v sha256sum > /dev/null 2>&1; then hasher="sha256sum"; else hasher="shasum -a 256"; fi
 hashes=logs/.code-hashes.tsv
 now=$(mktemp)
@@ -33,7 +36,7 @@ git_ok=false
 if git rev-parse --short HEAD > /dev/null 2>&1; then
   git_ok=true
   hash=$(git rev-parse --short HEAD)
-  [ -z "$(git status --porcelain -uno -- . 2> /dev/null)" ] || hash="$hash dirty"
+  [ -z "$(git status --porcelain -uno -- . 2> /dev/null; git status --porcelain -- code 2> /dev/null)" ] || hash="$hash dirty"  # tracked edits anywhere here, or any change (untracked included) in code/
 fi
 [ "$code" -eq 0 ] && status=ok || status=failed
 
@@ -61,7 +64,7 @@ if [ -d outputs ]; then
 fi
 
 log=logs/CHANGES.md
-[ -f "$log" ] || printf '# Change log\n\nOne entry per run.sh run: code files changed since the previous run, and output folders rewritten.\n' > "$log"
+[ -f "$log" ] || printf '# Change log\n\nOne entry per run.sh run: code files changed since the previous run, and output folders rewritten. Runs that overlap in time may list the same folders.\n' > "$log"
 {
   printf '\n## %s %s %s\n' "$(date '+%Y-%m-%d %H:%M')" "$hash" "$status"
   if [ -n "$changed" ]; then printf 'code changed:\n%s' "$changed"; else printf 'code changed: none\n'; fi

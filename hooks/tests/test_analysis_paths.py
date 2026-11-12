@@ -183,6 +183,26 @@ class StepsLayout(Base):
         self.assertEqual(ap.source_data(run), [self.path("outputs", "01_valid-tags", "source_data", "01_tags.tsv")])
         self.assertEqual(ap.tables(run), [self.path("outputs", "02b_fit", "tables", "02b_fit.tsv")])
 
+    def test_rds_only_steps_with_logs_are_steps(self):
+        touch(self.path("outputs", "01_prep", "01_prep.rds"))
+        touch(self.path("outputs", "01_prep", "logs", "01_prep.log"))
+        touch(self.path("outputs", "02_fit", "02_fit.rds"))
+        touch(self.path("outputs", "02_fit", "logs", "02_fit.log"))
+        self.assertEqual([r["layout"] for r in ap.runs(self.folder)], ["steps"])
+
+    def test_data_folder_with_a_step_like_name_stays_flat(self):
+        touch(self.path("outputs", "10x_counts", "matrix.mtx"))
+        touch(self.path("outputs", "fig.png"))
+        self.assertEqual([r["layout"] for r in ap.runs(self.folder)], ["flat"])
+
+    def test_panels_folder_is_gathered(self):
+        touch(self.path("outputs", "01_prep", "logs", "01_prep.log"))
+        touch(self.path("outputs", "panels", "figures", "Fig1a.pdf"))
+        touch(self.path("outputs", "panels", "source_data", "Fig1a.tsv"))
+        run = ap.runs(self.folder)[0]
+        self.assertEqual(ap.figures(run), [self.path("outputs", "panels", "figures", "Fig1a.pdf")])
+        self.assertEqual(ap.source_data(run), [self.path("outputs", "panels", "source_data", "Fig1a.tsv")])
+
     def test_non_step_folders_are_not_steps(self):
         touch(self.path("outputs", ".gitkeep"))
         touch(self.path("outputs", "numbers.json"), "{}")

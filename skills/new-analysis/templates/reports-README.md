@@ -1,6 +1,6 @@
 # Reports
 
-| File | What it is | From run | Owner |
+| File | What it is | From outputs | Owner |
 |---|---|---|---|
 @@REPORT_ROWS@@
 

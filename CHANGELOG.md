@@ -4,6 +4,15 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.25.1] - 2026-11-12
+
+### Fixed
+
+- **resolver:** a scaffold whose steps wrote only an `.rds` and `logs/` was read as `flat`. A step folder now counts when it holds `logs/`, `figures/`, `source_data/` or `tables/`, and `outputs/panels/` is gathered too. A data folder such as `10x_counts/` is still no step.
+- **run.sh:** a short flag with an `n` in it (such as `-Rstep01_scan`) was taken for a dry run and not logged; the match is now exact (`-n`, `-pn`, `-nr` and the like). Runs take a `flock` on `logs/.run.lock` for the hashes and the log. A new untracked script now marks the entry `dirty`.
+- **new-analysis:** manuscript panels write to `outputs/panels/`, not into the last step's folder. `save_panel(p, dir, stem)` names its argument `dir`. The `reports/README.md` column is `From outputs`.
+- **grill:** the brief writes `(overwrite)` for a step folder itself and asks only for other existing paths.
+
 ## [0.25.0] - 2026-11-12
 
 ### Changed

@@ -3,7 +3,7 @@
 Purpose: one theme, one palette and one export size for every figure of this analysis; the plotnine
          counterpart of theme.R (theme_pubr, base_size 8).
 Run:     imported, not run. Needs plotnine.
-Outputs: save_panel() writes <run>/figures/<stem>.pdf and .png at 89 x 70 mm.
+Outputs: save_panel() writes <dir>/figures/<stem>.pdf and .png at 89 x 70 mm.
 """
 
 from pathlib import Path
@@ -30,8 +30,8 @@ def palette_for(labels):
 
 # Export ----------------------------------------------------------------------
 # PDF for the manuscript and PNG for the report, same size, same stem.
-def save_panel(p, run, stem, width=89, height=70):
-    folder = Path(run) / "figures"
+def save_panel(p, dir, stem, width=89, height=70):
+    folder = Path(dir) / "figures"
     folder.mkdir(parents=True, exist_ok=True)
     for ext in ("pdf", "png"):
         p.save(folder / f"{stem}.{ext}", width=width, height=height, units="mm", dpi=300, verbose=False)

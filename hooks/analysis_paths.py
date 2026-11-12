@@ -20,7 +20,8 @@ import subprocess
 
 RUN_DIR = re.compile(r"^run_\d{8}_.+$")
 STEP_DIR = re.compile(r"^\d{2}[a-z]?_.+$")
-STEP_SUBDIRS = ("figures", "source_data", "tables")  # a step folder that has run holds at least one of these
+PANELS_DIR = "panels"  # manuscript panels (plot_<panel>.R|py) write outputs/panels/, a step folder without a number
+STEP_SUBDIRS = ("logs", "figures", "source_data", "tables")  # a step folder that has run holds at least one of these (Snakemake writes logs/ for every step)
 KINDS = ("analysis", "figures", "scratch")
 FIGURE_EXT = (".png", ".pdf")
 
@@ -196,7 +197,7 @@ def runs(folder, results_dir=None):
             continue
         if os.path.isdir(path) and RUN_DIR.match(name):
             found.append(_entry(path))
-        elif os.path.isdir(path) and STEP_DIR.match(name):
+        elif os.path.isdir(path) and (STEP_DIR.match(name) or name == PANELS_DIR):
             # a data folder such as `10x_counts` has the name but no output subfolder: it is no step
             if any(os.path.isdir(os.path.join(path, sub)) for sub in STEP_SUBDIRS):
                 has_steps = True
@@ -263,7 +264,7 @@ def _gather(run, sub):
     if isinstance(run, dict) and run.get("layout") == "steps":
         out = []
         for name in sorted(os.listdir(path)):
-            if STEP_DIR.match(name) and os.path.isdir(os.path.join(path, name)):
+            if (STEP_DIR.match(name) or name == PANELS_DIR) and os.path.isdir(os.path.join(path, name)):
                 out += _files(os.path.join(path, name, sub))
         return sorted(out)
     return _files(os.path.join(path, sub))

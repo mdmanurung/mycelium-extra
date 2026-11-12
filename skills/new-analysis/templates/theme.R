@@ -1,7 +1,7 @@
 # theme.R: the house plot style, sourced by every figure script (source("code/theme.R")).
 # Purpose: one theme, one palette and one export size for every figure of this analysis.
 # Run:     sourced, not run. Needs ggplot2 and ggpubr.
-# Outputs: save_panel() writes <run>/figures/<stem>.pdf and .png at 89 x 70 mm.
+# Outputs: save_panel() writes <dir>/figures/<stem>.pdf and .png at 89 x 70 mm.
 
 suppressPackageStartupMessages({
   library(ggplot2)
@@ -31,12 +31,12 @@ scale_fill_label <- function(labels) scale_fill_manual(values = palette_for(labe
 
 # Export ----------------------------------------------------------------------
 # PDF (cairo) for the manuscript and PNG for the report, same size, same stem.
-save_panel <- function(p, run, stem, width = 89, height = 70) {
-  dir.create(file.path(run, "figures"), recursive = TRUE, showWarnings = FALSE)
-  ggsave(file.path(run, "figures", paste0(stem, ".pdf")),
+save_panel <- function(p, dir, stem, width = 89, height = 70) {
+  dir.create(file.path(dir, "figures"), recursive = TRUE, showWarnings = FALSE)
+  ggsave(file.path(dir, "figures", paste0(stem, ".pdf")),
     plot = p, width = width, height = height, units = "mm", device = cairo_pdf
   )
-  ggsave(file.path(run, "figures", paste0(stem, ".png")),
+  ggsave(file.path(dir, "figures", paste0(stem, ".png")),
     plot = p, width = width, height = height, units = "mm", dpi = 300
   )
 }

@@ -44,7 +44,7 @@ In a Mycelium repository the analysis doc is `<NAME>.md` (the folder name in upp
 
 ## `logs/CHANGES.md`
 
-`run.sh` appends one entry after each real run (a dry run, `-n`, logs nothing). The entry has a level-2 heading, then the changes. The heading is `## <YYYY-MM-DD HH:MM> <git short hash>[ dirty] <ok|failed>`. The body lists each `code/` file whose sha256 differs from `logs/.code-hashes.tsv` (with `git diff --stat` for it when it is tracked), then each `outputs/<stem>/` folder written during the run. After a successful run `run.sh` rewrites `.code-hashes.tsv`; a failed run leaves it alone, so the next entry still lists the edits that were not yet run clean. Entries are appended, never edited.
+`run.sh` appends one entry after each real run (a dry run, `-n`, logs nothing). The entry has a level-2 heading, then the changes. The heading is `## <YYYY-MM-DD HH:MM> <git short hash>[ dirty] <ok|failed>`. The body lists each `code/` file whose sha256 differs from `logs/.code-hashes.tsv` (with `git diff --stat` for it when it is tracked), then each `outputs/<stem>/` folder written during the run. After a successful run `run.sh` rewrites `.code-hashes.tsv`; a failed run leaves it alone, so the next entry still lists the edits that were not yet run clean. Entries are appended, never edited. Runs write the log one at a time (`flock` on `logs/.run.lock`). Runs that overlap in time may list the same step folders, because a folder is attributed by file time. A new untracked script in `code/` marks the entry `dirty`. Manuscript panels write to `outputs/panels/`, a folder with no number.
 
 ```
 ## 2026-11-12 14:05 d582fa5 dirty ok
@@ -90,7 +90,7 @@ Written by the scaffold; `analysis-report` updates the run cell after a render. 
 ```
 # Reports
 
-| File | What it is | From run | Owner |
+| File | What it is | From outputs | Owner |
 |---|---|---|---|
 | `<name>.qmd` | the record | `outputs/` (steps), or a legacy run name | analysis-report |
 | `<name>.html` | its render, 2026-11-04 | same | quarto render |

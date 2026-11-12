@@ -197,7 +197,7 @@ class RunLayoutTest(unittest.TestCase):
     def test_outputs_row_appends_once_and_replaces(self):
         self.run_script()
         write(os.path.join(self.dest, "reports", "README.md"),
-              "# Reports\n\n| File | What it is | From run | Owner |\n|---|---|---|---|\n"
+              "# Reports\n\n| File | What it is | From outputs | Owner |\n|---|---|---|---|\n"
               "| `demo.qmd` | the record | `none` | analysis-report |\n| `demo.html` | its render | same | quarto render |\n")
         self.run_script("--outputs-row", "--date=2026-11-04")
         self.run_script("--outputs-row", "--date=2026-11-05")
@@ -250,7 +250,7 @@ class StepsLayoutTest(unittest.TestCase):
 
     def test_outputs_row_names_the_steps_layout(self):
         write(os.path.join(self.dest, "reports", "README.md"),
-              "# Reports\n\n| File | What it is | From run | Owner |\n|---|---|---|---|\n"
+              "# Reports\n\n| File | What it is | From outputs | Owner |\n|---|---|---|---|\n"
               "| `demo.qmd` | the record | `none` | analysis-report |\n")
         self.run_script("--outputs-row", "--date=2026-11-12")
         self.assertIn("run outputs/ (steps), last change 2026-11-12)", self.read("README.md"))

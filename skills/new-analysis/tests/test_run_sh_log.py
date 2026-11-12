@@ -93,8 +93,32 @@ class RunShLog(unittest.TestCase):
         self.assertIn("- code/01_a.R: changed", entries[1])
         self.assertIn("- code/01_a.R: changed", entries[2])
 
+    def test_short_flag_with_n_is_a_real_run(self):
+        self.assertEqual(self.run_sh("-Rstep01_scan").returncode, 0)
+        self.assertEqual(len(self.entries()[1]), 1)
+
+    def test_untracked_script_marks_dirty(self):
+        git = ["git", "-c", "user.email=a@b", "-c", "user.name=t"]
+        subprocess.run(git + ["init", "-q"], cwd=self.dir, check=True)
+        subprocess.run(git + ["add", "-A"], cwd=self.dir, check=True)
+        subprocess.run(git + ["commit", "-q", "-m", "x"], cwd=self.dir, check=True)
+        write(os.path.join(self.dir, "code", "03_new.R"), "z <- 3\n")
+        self.run_sh()
+        self.assertTrue(self.entries()[1][0].split("\n")[0].endswith(" dirty ok"), self.entries()[1][0])
+
+    def test_two_runs_at_once_keep_two_whole_entries(self):
+        procs = [subprocess.Popen(["bash", "run.sh"], cwd=self.dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                  env=dict(os.environ, SNAKEMAKE=os.path.join(self.dir, "fake_snakemake")))
+                 for _ in range(2)]
+        for proc in procs:
+            proc.communicate()
+        _, entries = self.entries()
+        self.assertEqual(len(entries), 2)
+        with open(os.path.join(self.dir, "logs", ".code-hashes.tsv")) as f:
+            self.assertEqual(len(f.read().splitlines()), 2)
+
     def test_dry_run_logs_nothing(self):
-        for flag in ("-n", "--dry-run", "-np"):
+        for flag in ("-n", "--dry-run", "-np", "-pn"):
             self.assertEqual(self.run_sh(flag).returncode, 0)
         self.assertFalse(os.path.exists(os.path.join(self.dir, "logs", "CHANGES.md")))
 

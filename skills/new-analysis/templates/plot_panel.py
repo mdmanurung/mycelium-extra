@@ -1,9 +1,9 @@
 """@@FILE@@: manuscript panel @@PANEL@@ of @@NAME@@. [The one claim this panel carries.]
 
 Inputs:  [each file it reads, with the script that produced it, or [gap]]
-Outputs: <step dir>/source_data/@@PANEL@@.tsv, <step dir>/figures/@@PANEL@@.pdf and .png
-Run:     python @@PATH@@ <step dir>   # from the repository root
-Release: config/figure_map.tsv and config/manuscript_checks.json name the files under the step dir,
+Outputs: <panels dir>/source_data/@@PANEL@@.tsv, <panels dir>/figures/@@PANEL@@.pdf and .png
+Run:     python @@PATH@@ <panels dir>   # from the repository root
+Release: config/figure_map.tsv and config/manuscript_checks.json name the files under the panels dir,
          and manuscript-audit checks them.
 """
 
@@ -16,8 +16,8 @@ from plotnine import aes, geom_jitter, ggplot, labs, position_jitter, scale_colo
 sys.path.insert(0, "@@DEST@@/code")
 from theme import palette_for, save_panel  # noqa: E402  theme_pubr-like base_size 8, PALETTE, save_panel()
 
-(step_dir,) = sys.argv[1:]
-source_path = Path(step_dir) / "source_data" / "@@PANEL@@.tsv"
+(panels_dir,) = sys.argv[1:]
+source_path = Path(panels_dir) / "source_data" / "@@PANEL@@.tsv"
 source_path.parent.mkdir(parents=True, exist_ok=True)
 
 # ---- 1. Export: the values the panel draws, after every aggregation ----
@@ -41,4 +41,4 @@ p = (
     + scale_colour_manual(values=palette_for(plotted["label"]))
     + labs(x="", y="[y, unit]", caption="Points: donors. Bar: mean +/- SD.")
 )
-save_panel(p, step_dir, "@@PANEL@@")
+save_panel(p, panels_dir, "@@PANEL@@")

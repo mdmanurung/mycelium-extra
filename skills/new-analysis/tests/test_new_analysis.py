@@ -312,8 +312,8 @@ class NewAnalysisTest(unittest.TestCase):
                          ["analysis/demo-run/code/plot_Fig1a.R", "analysis/demo-run/code/plot_Fig1b.py"])
         contract = json.loads(read(os.path.join(self.dest, "config", "manuscript_checks.json")))
         self.assertEqual(contract["data_manifest"], "data/DATA_MANIFEST.md")
-        self.assertEqual(contract["figures"][0]["source_data"], "analysis/demo-run/outputs/03_show/source_data/Fig1a.tsv")
-        self.assertEqual(contract["figures"][0]["outputs"], ["analysis/demo-run/outputs/03_show/figures/Fig1a.pdf"])
+        self.assertEqual(contract["figures"][0]["source_data"], "analysis/demo-run/outputs/panels/source_data/Fig1a.tsv")
+        self.assertEqual(contract["figures"][0]["outputs"], ["analysis/demo-run/outputs/panels/figures/Fig1a.pdf"])
         self.assertEqual(self.audit().returncode, 3)  # nothing released yet: a gap, never a pass
 
     def test_qmd_steps_render_through_a_quarto_project(self):
@@ -612,12 +612,12 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertIn("theme_set(ggpubr::theme_pubr(base_size = 8))", theme_r)
         self.assertIn("PALETTE <- c(", theme_r)
         self.assertIn("labels not in PALETTE", theme_r)
-        self.assertIn("save_panel <- function(p, run, stem, width = 89, height = 70)", theme_r)
+        self.assertIn("save_panel <- function(p, dir, stem, width = 89, height = 70)", theme_r)
         self.assertIn("device = cairo_pdf", theme_r)
         theme_py = os.path.join(self.dest, "code", "theme.py")
         compile(read(theme_py), theme_py, "exec")
         self.assertIn("raise ValueError", read(theme_py))
-        self.assertIn("def save_panel(p, run, stem, width=89, height=70)", read(theme_py))
+        self.assertIn("def save_panel(p, dir, stem, width=89, height=70)", read(theme_py))
 
     def test_panel_stubs_use_the_theme(self):
         self.scaffold("--panels=Fig1a.R,Fig1b.py")
@@ -639,7 +639,7 @@ class NewAnalysisTest(unittest.TestCase):
                          "| `cells.h5ad` | `data/anndatas/cells.h5ad` | raw-cells-v3 | |\n"
                          "| `other.csv` | `data/other.csv` | not listed | |\n")
         self.assertEqual(read(os.path.join(self.dest, "reports", "README.md")),
-                         "# Reports\n\n| File | What it is | From run | Owner |\n|---|---|---|---|\n"
+                         "# Reports\n\n| File | What it is | From outputs | Owner |\n|---|---|---|---|\n"
                          "| `demo-run.qmd` | the record | | analysis-report |\n"
                          "| `demo-run.html` | its render | | quarto render |\n"
                          "| `report.scss`, `report-dark.scss` | theme, DESIGN.md tokens | \u2014 | you |\n\n"

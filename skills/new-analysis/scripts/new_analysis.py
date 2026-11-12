@@ -211,22 +211,22 @@ def parse_panels(text):
     return panels
 
 
+PANELS_DIR = "outputs/panels"  # manuscript panels have their own folder, outside every numbered step
+
+
 def panel_dir(steps):
-    """The step folder panels write into: the figure step (NN_show), else the last step."""
-    return next((s for s in steps if s["show"]), steps[-1])["dir"]
+    """The folder panels write into: outputs/panels, whatever the steps are."""
+    return PANELS_DIR
 
 
 def existing_panel_dir(dest):
-    """Same choice for a folder that already has steps: its NN_show script, else its last numbered one."""
-    stems = sorted({os.path.splitext(n)[0].split(".")[0] for n in os.listdir(os.path.join(dest, "code"))
-                    if re.match(r"^\d{2}_", n)}) if os.path.isdir(os.path.join(dest, "code")) else []
-    show = [t for t in stems if SHOW.search(t)]
-    return "outputs/" + (show or stems or ["03_show"])[-1]
+    """The same folder for a folder that already has steps."""
+    return PANELS_DIR
 
 
 def manuscript_files(panels, panel_dir, name, dest_rel, root, templates):
     """Plot stubs, the figure map and the manuscript-audit contract, every path repository-relative."""
-    current = "{}/{}".format(dest_rel, panel_dir)  # the step folder the panels write into
+    current = "{}/{}".format(dest_rel, panel_dir)  # the folder the panels write into
     files, rows, figures = {}, [], []
     for panel in panels:
         script = dest_rel + "/" + panel["path"]

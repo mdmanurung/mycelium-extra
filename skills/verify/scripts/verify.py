@@ -5066,7 +5066,7 @@ def step_rows(entry):
     rows = []
     for name in sorted(os.listdir(entry["path"])):
         full = os.path.join(entry["path"], name)
-        if _paths().STEP_DIR.match(name) and os.path.isdir(full) and not os.path.islink(full):
+        if (_paths().STEP_DIR.match(name) or name == _paths().PANELS_DIR) and os.path.isdir(full) and not os.path.islink(full):
             newest, digest = scan_run(full)
             rows.append({"step": name, "path": full, "epoch": newest,
                          "updated": when(newest) if newest else "-", "id": digest})
