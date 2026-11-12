@@ -148,6 +148,7 @@ Codex, `plan-review` provides the engineering critique only.
 
 ```text
 focus <folder>                               # say which analysis this session works on
+where                                        # aim, where it stands, what to do next (where short, where all)
 /mycelium-extra:track-changes                # what changed against the approved plan
 /mycelium-extra:handoff                      # resume in a fresh session
 ```

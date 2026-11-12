@@ -4,6 +4,12 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-11-12
+
+### Added
+
+- **where:** type `where` for a short card on one analysis: aim, where it stands, what to do next, the approach as a checklist, later items and things to watch. `where short` gives the name and five lines, and `where all` one line per analysis. The gate answers it (gate on; on OpenCode the reply still goes to the model); `/mycelium-extra:where` runs the same code. Walks stop at about 1.5 s or 5000 files per analysis and say so; a card that cannot be built is blocked with a one-line error. Every fact comes from files (`code/`, `outputs/<step>/`, `logs/CHANGES.md`, `plans/TRACKER.md`, the analysis doc). The full card is saved to `.mycelium-extra/now/<analysis>.md`; nothing is written into the analysis folder.
+
 ## [0.25.1] - 2026-11-12
 
 ### Fixed

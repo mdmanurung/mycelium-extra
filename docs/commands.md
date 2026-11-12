@@ -24,6 +24,7 @@ Send each as the whole message. The gate answers these itself; the agent cannot 
 | `confirm write <8 hex>` | Consent to one pending write, when `confirm_writes` is on. |
 | `hints on`, `hints off` | Turn one-line command suggestions on or off. |
 | `focus <folder>` | Say which analysis this session works on. Also `focus status` and `focus end`. |
+| `where`, `where short`, `where all` | A short card for the focused analysis: aim, where it stands, what to do next. Answered by the gate (the gate must be on; otherwise use `/mycelium-extra:where`); nothing is run. |
 
 Only the exact words count. `approve it` is an ordinary message and approves nothing.
 
@@ -46,6 +47,7 @@ Claude Code and OpenCode: `/mycelium-extra:<skill>`. Codex: `$mycelium-extra:<sk
 | `manuscript-audit` | Read-only audit of figure and table lineage in a manuscript repository. |
 | `track-changes` | Shows what changed against the approved plan, read-only. |
 | `focus` (you) | Explains the typed `focus` command. |
+| `where` (you) | Shows the "what is going on" card for one analysis; the same words can be typed. |
 | `handoff` (you) | Writes a short `HANDOFF.md` so a fresh session can resume; it names `outputs/current` as the [analysis layout](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/analysis-layout.md) defines it. |
 | `handoff test` (you) | Has a fresh reader try `HANDOFF.md` or a filled report from a staged copy and lists the gaps. An instruction, not a sandbox. |
 | `harden` (you) | Ships one learning's mitigation as a real test. |

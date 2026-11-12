@@ -4291,6 +4291,34 @@ def focus_module():
     return focus
 
 
+def where_card(event, root, config, prompt):
+    """The typed `where`, `where short` or `where all` card (hooks/whereami.py), or None when the prompt is
+    anything else. A card that cannot be built comes back as a one-line error block, never as None, so the
+    typed word is not passed to the model unexplained. Reads files; grants nothing."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    try:
+        import whereami
+        verb = whereami.VERB.match(prompt)
+        if not verb:
+            return None
+        mode = (verb.group(1) or "").lower() or None
+    except Exception as error:
+        return "where: could not load the card ({}: {}).".format(type(error).__name__, error)
+    cwd = event.get("cwd") or os.getcwd()
+    try:
+        return whereami.answer(root, cwd, mode, event.get("session_id"), config)
+    except Exception as error:
+        name = None
+        try:
+            name = whereami.locate(root, cwd, event.get("session_id"))
+        except Exception:
+            pass
+        return "where: could not build the card for {} ({}: {}). Run /mycelium-extra:where to see the full error.".format(
+            name or "this folder", type(error).__name__, error)
+
+
 def on_prompt(event, root, config):
     """Typed `focus` commands first; every other prompt goes to the existing handler, and while this session
     has an open focus a bare hint (or nothing) also carries the one advisory focus line."""
@@ -4311,6 +4339,10 @@ def on_prompt(event, root, config):
                 return {"decision": "block", "reason": str(error)}
             return {"systemMessage": message,
                     "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": message}}
+    if re.match(r"\s*where\b", prompt, re.IGNORECASE):
+        card = where_card(event, root, config, prompt)
+        if card:
+            return {"decision": "block", "reason": card}
     result = prompt_commands(event, root, config)
     if os.path.isdir(state_path(root, "focus")) and (
             result is None or str(result.get("systemMessage", "")).startswith("mycelium-extra hint")):

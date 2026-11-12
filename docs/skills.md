@@ -20,6 +20,7 @@ This is a task map, not a list of commands to execute in sequence. Read the skil
 | List which conclusions in an analysis cite an inspected plot | `/mycelium-extra:plot-first <analysis folder>` |
 | Resume in a fresh session | `/mycelium-extra:handoff` |
 | Say which analysis this session works on | type `focus <folder>` |
+| Remind me where an analysis stands and what to do next | type `where` (or `/mycelium-extra:where`) |
 | See what changed against the approved plan | `/mycelium-extra:track-changes` |
 | Park a passing idea | `/mycelium-extra:idea <idea>` |
 | Choose the next idea | `/mycelium-extra:idea-triage` |
@@ -73,6 +74,10 @@ Read-only audit of a manuscript repository's figure/table lineage, source data a
 ## focus
 
 Say which analysis this session works on. See [focus](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/focus.md).
+
+## where
+
+A short card for one analysis: aim, where it stands, what to do next. See [where](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/where.md).
 
 ## track-changes
 

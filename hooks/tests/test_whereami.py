@@ -1,0 +1,386 @@
+"""Run: python3 hooks/tests/test_whereami.py
+
+`where` (hooks/whereami.py): the ADHD card for one analysis, read from files, plus the typed word through the gate."""
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, ".."))
+GATE = os.path.join(HERE, "..", "gate.py")
+
+import whereami as wh  # noqa: E402
+
+DOC = "# demo\n\n## Objective\n\nGive each cell a timepoint from its own donor's hashtags.\n"
+TRACKER = ("| ID | Item | Status | Depends on | Verify |\n|---|---|---|---|---|\n"
+           "| T1 | check the 03 figure | todo | | |\n| T2 | fill claim | in progress | | |\n"
+           "| T3 | old thing | done | | |\n")
+
+
+def touch(path, text="x", mtime=None):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as handle:
+        handle.write(text)
+    if mtime is not None:
+        os.utime(path, (mtime, mtime))
+
+
+class WhereTest(unittest.TestCase):
+    def setUp(self):
+        saved = dict(os.environ)
+        self.addCleanup(lambda: (os.environ.clear(), os.environ.update(saved)))
+        self.root = os.path.realpath(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root)
+        os.makedirs(os.path.join(self.root, ".mycelium-extra"))
+        self.rel = "analysis/demo"
+        self.folder = os.path.join(self.root, self.rel)
+        self.t0 = time.time() - 7200
+        for n, name in enumerate(("01_prep.R", "02_fit.py", "03_show.R")):
+            touch(self.p("code", name), mtime=self.t0 + n)
+        touch(self.p("DEMO.md"), DOC)
+        self.snake(("01_prep", "02_fit", "03_show"))
+
+    def snake(self, stems):
+        touch(self.p("Snakefile"), "".join('rule r{0}:\n    output: "outputs/{0}/{0}.tsv"\n'.format(t) for t in stems))
+
+    def p(self, *parts):
+        return os.path.join(self.folder, *parts)
+
+    def run_step(self, stem, mtime, benchmark=None):
+        touch(self.p("outputs", stem, stem + ".tsv"), mtime=mtime)
+        if benchmark is not None:
+            touch(self.p("outputs", stem, "logs", stem + ".benchmark.tsv"), "s\th:m:s\n{}\t0:01:00\n".format(benchmark),
+                  mtime=mtime)
+
+    def run_all(self):
+        for n, stem in enumerate(("01_prep", "02_fit", "03_show")):
+            self.run_step(stem, self.t0 + 100 + n, benchmark=120)
+
+    def card(self, mode=None):
+        return wh.answer(self.root, self.folder, mode, write=False)
+
+    def test_not_run_shows_all_todo_and_bash_run(self):
+        card = self.card()
+        self.assertTrue(card.startswith("WHERE YOU ARE: demo\n"))
+        self.assertIn("AIM\n  Give each cell a timepoint", card)
+        self.assertIn("  [ ] 01_prep\n  [ ] 02_fit\n  [ ] 03_show", card)
+        self.assertIn("1. bash run.sh", card)
+        self.assertIn("(time unknown)", card)
+
+    def test_all_current_uses_tracker_then_verify(self):
+        self.run_all()
+        touch(self.p("plans", "TRACKER.md"), TRACKER)
+        card = self.card()
+        self.assertIn("3 of 3 steps current.", card)
+        self.assertIn("  [x] 03_show", card)
+        self.assertIn("1. T1: check the 03 figure", card)
+        self.assertIn("LATER\n  - T2: fill claim", card)
+        self.assertNotIn("T3", card)
+        os.remove(self.p("plans", "TRACKER.md"))
+        self.assertIn("1. Run /mycelium-extra:verify", self.card())
+        os.makedirs(self.p("provenance"))
+        self.assertIn("Nothing pending.", self.card())
+
+    def test_edited_script_makes_it_and_later_steps_stale_with_minutes(self):
+        self.run_all()
+        touch(self.p("code", "02_fit.py"), "y", mtime=time.time() - 300)
+        card = self.card()
+        self.assertIn("  [x] 01_prep\n  [~] 02_fit\n  [~] 03_show", card)
+        self.assertIn("02_fit.py changed 5 min ago. Stale: 02, 03.", card)
+        self.assertIn("DO NEXT  (about 4 min)", card)  # two 120 s benchmarks
+        self.assertIn("RIGHT NOW\n  Step 2 of 3. 1 of 3 steps current.", card)
+
+    def test_failed_run_points_at_the_log(self):
+        self.run_step("01_prep", self.t0 + 100, benchmark=1)
+        touch(self.p("logs", "CHANGES.md"), "# Change log\n\n## 2026-11-12 22:13 abc1234 failed\ncode changed: none\n")
+        card = self.card()
+        self.assertIn("  [!] 02_fit", card)
+        self.assertIn("1. Read outputs/02_fit/logs/02_fit.log\n  2. Fix the cause, then: bash run.sh", card)
+
+    def test_watch_out_figure_without_source_data_and_empty_folder(self):
+        self.run_all()
+        touch(self.p("outputs", "03_show", "figures", "03_show.png"), mtime=self.t0 + 200)
+        os.makedirs(self.p("outputs", "02_fit", "empty-check"))
+        card = self.card()
+        self.assertIn("WATCH OUT\n  - figure 03_show has no source data", card)
+        touch(self.p("outputs", "03_show", "source_data", "03_show.tsv"), mtime=self.t0 + 200)
+        self.assertNotIn("WATCH OUT", self.card())
+
+    def test_lists_are_capped_at_five(self):
+        rows = "".join("| T{0} | item {0} | todo | | |\n".format(i) for i in range(1, 10))
+        touch(self.p("plans", "TRACKER.md"), TRACKER.split("| T1")[0] + rows)
+        self.run_all()
+        card = self.card()
+        later = card.split("LATER\n")[1]
+        self.assertIn("  - T6: item 6", later)  # T2..T6 are shown; T1 is in DO NEXT
+        self.assertNotIn("T7", later)
+        self.assertIn("  - +3 more", later)
+
+    def test_short_form_has_six_lines(self):
+        self.run_all()
+        lines = self.card("short").splitlines()
+        self.assertEqual([l.split()[0] for l in lines[1:]], ["AIM", "STATE", "NEXT", "THEN", "BLOCK"])
+        self.assertEqual(lines[0], "demo")
+
+    def test_scaffold_placeholder_is_no_aim(self):
+        touch(self.p("DEMO.md"), "# demo\n\n## Objective\n\n[What question does this analysis answer?]\n")
+        self.assertIn("not written: open analysis/demo/DEMO.md", self.card())
+
+    def test_legacy_run_folder_layout_has_no_step_marks(self):
+        touch(self.p("outputs", "run_20261101_base", "RUN.txt"), "run: x\nkind: analysis\nstatus: done\n")
+        touch(self.p("outputs", "run_20261101_base", "x.tsv"))
+        card = self.card()
+        self.assertIn("Old run-folder layout: no per-step state. Latest run: run_20261101_base (done).", card)
+        self.assertIn("  - 01_prep", card)
+        self.assertNotIn("bash run.sh", card)
+
+    def test_no_analysis_here(self):
+        other = os.path.join(self.root, "elsewhere")
+        os.makedirs(other)
+        self.assertIn("No analysis found here", wh.answer(self.root, other, None, write=False))
+
+    def test_all_lists_one_line_per_analysis(self):
+        self.run_all()
+        touch(self.p("..", "second", "code", "01_a.R"))
+        out = wh.answer(self.root, self.root, "all", write=False)
+        self.assertTrue(out.startswith("ANALYSES"))
+        self.assertEqual(len(out.splitlines()), 3)
+        self.assertIn("demo", out)
+        self.assertIn("not run", out)
+
+    def test_now_file_is_written_once_atomically_and_no_write_skips_it(self):
+        wh.answer(self.root, self.folder, None, write=False)
+        self.assertFalse(os.path.exists(os.path.join(self.root, ".mycelium-extra", "now")))
+        out = wh.answer(self.root, self.folder, "short")
+        path = os.path.join(self.root, ".mycelium-extra", "now", "analysis__demo.md")
+        self.assertIn("Saved: .mycelium-extra/now/analysis__demo.md", out)
+        with open(path) as handle:
+            body = handle.read()
+        self.assertIn("WHERE YOU ARE: demo", body)  # NOW.md always holds the full card
+        self.assertEqual(os.listdir(os.path.dirname(path)), ["analysis__demo.md"])
+
+    def test_nothing_is_written_into_the_analysis_folder(self):
+        before = sorted(os.path.join(h, n) for h, _, fs in os.walk(self.folder) for n in fs)
+        wh.answer(self.root, self.folder, None)
+        after = sorted(os.path.join(h, n) for h, _, fs in os.walk(self.folder) for n in fs)
+        self.assertEqual(before, after)
+
+
+    # --- review fixes: robust walks, failed step, state words, labels, discovery, tracker, gate errors
+
+    def test_broken_symlink_and_vanished_file_do_not_break_the_card(self):
+        self.run_all()
+        os.symlink(self.p("nowhere"), self.p("outputs", "02_fit", "dangling"))
+        os.utime(self.p("outputs", "02_fit", "dangling"), (self.t0, self.t0), follow_symlinks=False)
+        os.symlink(self.p("nowhere"), self.p("code", "dangling.txt"))
+        card = self.card()
+        self.assertIn("3 of 3 steps current.", card)
+        self.assertEqual(wh.mtime_or_zero(self.p("nowhere")), 0.0)
+        self.assertTrue(wh.answer(self.root, self.root, "all", write=False).startswith("ANALYSES"))
+
+    def test_file_cap_sets_truncated_and_prints_the_warning(self):
+        self.run_all()
+        for n in range(6):
+            touch(self.p("outputs", "03_show", "f{}.tsv".format(n)), mtime=self.t0 + 100)
+        f = wh.facts(self.root, self.rel, wh.Budget(30, 4))
+        self.assertTrue(f["truncated"])
+        self.assertEqual(f["watch"][0], "stopped counting at 4 files; state may be wrong")
+        self.assertIn("WATCH OUT\n  - stopped counting at 4 files; state may be wrong", wh.render_card(f))
+        self.assertFalse(wh.facts(self.root, self.rel)["truncated"])
+
+    def test_deadline_stops_the_walk(self):
+        self.run_all()
+        budget = wh.Budget(0.0, 5000)
+        time.sleep(0.01)
+        self.assertTrue(wh.facts(self.root, self.rel, budget)["truncated"])
+
+    def test_where_all_stops_scanning_and_says_so(self):
+        self.run_all()
+        touch(self.p("..", "second", "code", "01_a.R"))
+        out = wh.render_all(self.root, None, self.root, wh.Budget(30, 0))
+        self.assertIn("not scanned", out)
+        many = self.root
+        for n in range(9):
+            touch(os.path.join(many, "analysis", "a{}".format(n), "code", "01_a.R"))
+        self.assertIn("+3 not scanned", wh.render_all(self.root, None, self.root))
+
+    def test_failed_step_is_the_one_with_only_a_log(self):
+        self.run_step("01_prep", self.t0 + 100, benchmark=1)
+        touch(self.p("outputs", "02_fit", "logs", "02_fit.log"), "Traceback", mtime=self.t0 + 110)
+        touch(self.p("logs", "CHANGES.md"), "# Change log\n\n## 2026-11-12 22:13 abc1234 failed\n")
+        card = self.card()
+        self.assertIn("  [x] 01_prep\n  [!] 02_fit\n  [ ] 03_show", card)
+        self.assertIn("1. Read outputs/02_fit/logs/02_fit.log", card)
+        self.assertNotIn("empty output folder", card)
+        self.assertIn("failed", wh.answer(self.root, self.root, "all", write=False))
+
+    def test_failed_step_is_the_log_only_one_even_after_an_unrun_step(self):
+        touch(self.p("outputs", "03_show", "logs", "03_show.log"), "Traceback", mtime=self.t0 + 110)
+        touch(self.p("logs", "CHANGES.md"), "# Change log\n\n## 2026-11-12 22:13 abc1234 failed\n")
+        card = self.card()
+        self.assertIn("  [ ] 01_prep\n  [ ] 02_fit\n  [!] 03_show", card)
+        self.assertIn("1. Read outputs/03_show/logs/03_show.log", card)
+
+    def test_snakefile_is_read_once_per_card(self):
+        touch(self.p("Snakefile"), "rule a:\n    output: 'outputs/01_prep/x'\n")
+        reads = []
+        real = wh.ap.read
+        wh.ap.read = lambda path, *a, **k: (reads.append(path), real(path, *a, **k))[1]
+        try:
+            self.card()
+        finally:
+            wh.ap.read = real
+        self.assertEqual(sum(1 for r in reads if r.endswith("Snakefile")), 1)
+
+    def test_log_only_folder_is_not_output(self):
+        touch(self.p("outputs", "01_prep", "logs", "01_prep.log"), mtime=self.t0 + 100)
+        self.assertIn("  [ ] 01_prep", self.card())
+
+    def test_partial_state_word(self):
+        self.run_step("01_prep", self.t0 + 100, benchmark=1)
+        self.assertEqual(wh.facts(self.root, self.rel)["state"], "partial")
+        self.assertIn("partial", wh.answer(self.root, self.root, "all", write=False))
+
+    def test_state_words(self):
+        self.assertEqual(wh.facts(self.root, self.rel)["state"], "not run")
+        self.run_all()
+        self.assertEqual(wh.facts(self.root, self.rel)["state"], "current")
+        touch(self.p("code", "02_fit.py"), "y", mtime=time.time() - 300)
+        self.assertEqual(wh.facts(self.root, self.rel)["state"], "stale")
+        touch(self.p("code", "02_fit.py"), "y", mtime=self.t0 + 1)
+        os.remove(self.p("code", "01_prep.R"))
+        os.remove(self.p("code", "02_fit.py"))
+        os.remove(self.p("code", "03_show.R"))
+        self.assertEqual(wh.facts(self.root, self.rel)["state"], "no steps")
+
+    def test_stale_line_carries_the_order_caveat(self):
+        self.run_all()
+        touch(self.p("code", "02_fit.py"), "y", mtime=time.time() - 300)
+        self.assertIn("Stale: 02, 03.\n  Assumes steps run in number order.", self.card())
+        self.assertIn("Assumes steps run in number order.", self.card("short"))
+
+    def test_step_with_no_rule_in_the_snakefile_has_no_mark(self):
+        self.snake(("01_prep", "02_fit"))
+        card = self.card()
+        self.assertIn("  [ ] 01_prep\n  [ ] 02_fit\n      03_show", card)
+        self.assertEqual(wh.facts(self.root, self.rel)["state"], "not run")
+
+    def test_qmd_html_in_the_step_folder_and_old_reports_count_as_output(self):
+        touch(self.p("code", "04_page.qmd"), mtime=self.t0 + 5)
+        self.snake(("01_prep", "02_fit", "03_show", "04_page"))
+        self.run_all()
+        touch(self.p("outputs", "04_page", "04_page.html"), mtime=self.t0 + 200)
+        self.assertIn("  [x] 04_page", self.card())
+        os.remove(self.p("outputs", "04_page", "04_page.html"))
+        os.rmdir(self.p("outputs", "04_page"))
+        touch(self.p("reports", "04_page.html"), mtime=self.t0 + 200)
+        self.assertIn("  [x] 04_page", self.card())
+
+    def test_pending_plan_matches_the_path_not_a_prefix(self):
+        self.run_all()
+        os.makedirs(os.path.join(self.root, ".mycelium-extra", "pending"))
+        text = "Plan status: pending\nfolder analysis/demo-extra and analysis/demo2/code"
+        with open(os.path.join(self.root, ".mycelium-extra", "pending", "s.json"), "w") as handle:
+            json.dump([{"hash": "ab12", "text": text}], handle)
+        self.assertNotIn("approve", self.card())
+        self.assertEqual(wh.pending_plan(self.rel, [text + " and analysis/demo."]), True)
+        self.assertEqual(wh.pending_plan(self.rel, [text]), False)
+
+    def test_run_log_labels(self):
+        self.run_all()
+        self.assertEqual(wh.facts(self.root, self.rel)["ran"], "no run log")
+        self.assertIn("No run log", self.card())
+        self.assertIn("no run log", wh.answer(self.root, self.root, "all", write=False))
+        touch(self.p("logs", "CHANGES.md"), "# Change log\n\n## 20xx-bad abc1234 ok\n")
+        f = wh.facts(self.root, self.rel)
+        self.assertEqual(f["ran"], "run time unreadable")
+        self.assertIn("Last run ok: run time unreadable.", wh.render_card(f))
+
+    def test_where_all_outside_the_gated_roots(self):
+        shutil.move(self.folder, os.path.join(self.root, "work_demo_tmp"))
+        os.makedirs(os.path.join(self.root, "work"))
+        shutil.move(os.path.join(self.root, "work_demo_tmp"), os.path.join(self.root, "work", "demo"))
+        empty = wh.answer(self.root, self.root, "all", write=False)
+        self.assertIn("No analysis folders under analysis/, nbs/", empty)
+        out = wh.answer(self.root, os.path.join(self.root, "work", "demo"), "all", write=False)
+        self.assertTrue(out.startswith("ANALYSES"))
+        self.assertIn("demo", out)
+
+    def test_where_all_looks_one_level_below_a_gated_root(self):
+        shutil.rmtree(self.folder)
+        touch(os.path.join(self.root, "analysis", "group", "deep", "code", "01_a.R"))
+        out = wh.answer(self.root, self.root, "all", write=False)
+        self.assertIn("deep", out)
+
+    def test_current_analysis_skips_scaffold_tracker_rows(self):
+        self.run_all()
+        touch(self.p("plans", "TRACKER.md"), TRACKER.split("| T1")[0]
+              + "| S01 | code/01_prep.R | todo | | |\n| S02 | code/02_fit.py | todo | | |\n")
+        os.makedirs(self.p("provenance"))
+        card = self.card()
+        self.assertIn("Nothing pending.", card)
+        self.assertNotIn("LATER", card)
+        self.assertIn("tracker rows S01, S02 say open but their steps are current", card)
+
+    def test_gate_returns_a_block_naming_the_error_not_none(self):
+        import gate
+        event = {"cwd": self.folder, "session_id": "s1"}
+        self.assertIsNone(gate.where_card(event, self.root, {}, "where is the table"))
+        original = wh.facts
+        wh.facts = lambda *a, **k: (_ for _ in ()).throw(ValueError("boom"))
+        self.addCleanup(setattr, wh, "facts", original)
+        reply = gate.where_card(event, self.root, {}, "where")
+        self.assertIn("could not build the card for analysis/demo (ValueError: boom)", reply)
+
+
+class WhereGateTest(unittest.TestCase):
+    def setUp(self):
+        saved = dict(os.environ)
+        self.addCleanup(lambda: (os.environ.clear(), os.environ.update(saved)))
+        home = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, home)
+        os.environ["HOME"] = home
+        self.root = os.path.realpath(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root)
+        os.makedirs(os.path.join(self.root, ".mycelium-extra"))
+        with open(os.path.join(self.root, ".mycelium-extra", "gate.json"), "w") as handle:
+            json.dump({}, handle)
+        self.folder = os.path.join(self.root, "analysis", "demo")
+        touch(os.path.join(self.folder, "code", "01_prep.R"))
+        touch(os.path.join(self.folder, "Snakefile"))
+        touch(os.path.join(self.folder, "DEMO.md"), DOC)
+
+    def say(self, prompt, cwd=None):
+        payload = {"prompt": prompt, "cwd": cwd or self.folder, "session_id": "s1"}
+        proc = subprocess.run([sys.executable, GATE, "prompt"], input=json.dumps(payload).encode("utf-8"),
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        return json.loads(proc.stdout.decode("utf-8")) if proc.stdout.strip() else None
+
+    def test_typed_where_answers_without_the_model(self):
+        for prompt in ("where", "Where am I?", "where short", "where all"):
+            result = self.say(prompt)
+            self.assertEqual(result["decision"], "block", prompt)
+            self.assertTrue(result["reason"].strip(), prompt)
+        self.assertIn("WHERE YOU ARE: demo", self.say("where")["reason"])
+        self.assertTrue(self.say("where short")["reason"].startswith("demo\nAIM"))
+
+    def test_where_inside_a_sentence_is_not_a_command(self):
+        self.assertIsNone(self.say("where is the donor table kept?"))
+        self.assertIsNone(self.say("where do the outputs go"))
+
+    def test_typed_where_changes_no_gate_state(self):
+        before = sorted(os.listdir(os.path.join(self.root, ".mycelium-extra")))
+        self.say("where")
+        after = sorted(os.listdir(os.path.join(self.root, ".mycelium-extra")))
+        self.assertEqual(sorted(set(after) - set(before)), ["now"])
+
+
+if __name__ == "__main__":
+    unittest.main()

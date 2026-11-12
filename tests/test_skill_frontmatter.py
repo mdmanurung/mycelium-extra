@@ -13,7 +13,7 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKILLS = sorted(glob.glob(os.path.join(ROOT, "skills", "*", "SKILL.md")))
-USER_INVOKED = {"analysis-report", "focus", "handoff", "harden", "idea-triage", "init", "new-analysis", "questionnaire", "repo-setup"}
+USER_INVOKED = {"analysis-report", "focus", "handoff", "harden", "idea-triage", "init", "new-analysis", "questionnaire", "repo-setup", "where"}
 MAX_WORDS = 60
 MAX_FIRST_SENTENCE = 150
 
