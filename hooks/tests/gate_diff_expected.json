@@ -265,6 +265,10 @@
             "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 2 | params.yaml | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s2\"}"
           ],
           [
+            ".mycelium-extra/locks/pending-s2.lock",
+            ""
+          ],
+          [
             ".mycelium-extra/pending/s2.json",
             "[\n {\n  \"hash\": \"01bd1579\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 1 | snakemake | repo: `repo:` x | ok |\\n| 5 | main.nf | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: READY\",\n  \"pins\": {\n   \"analysis/x.py\": {\n    \"size\": 12,\n    \"mtime\": 0,\n    \"sha256\": \"a8ad0a2f95ddc676e0b194c84c0e347a5e9a22be88ab98d1dd65051c62510aba\"\n   },\n   \"renv.lock\": {\n    \"size\": 3,\n    \"mtime\": 0,\n    \"sha256\": \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\"\n   }\n  },\n  \"ready\": true,\n  \"scripts\": {},\n  \"card\": {\n   \"full\": \"mycelium-extra \\u00b7 plan 01bd1579 ready for approval\\nSince earlier plans: no baseline (no earlier approval names these paths)\\nQuestion   none in the plan\\nGoal       none in the plan\\nTo confirm: none\\n\\nSequence\\n    1 snakemake\\n        - check: ok\\n  \\u2193 5 main.nf\\n        - check: ok\\n\\nCAN RUN (in full) \\u00b7 broad grant: any arguments\\n  command  snakemake  (any invocation)\\nReads 2 pinned: analysis/x.py, renv.lock\\nWrites none named (no `Outputs:` line)\\nNot established before running\\n  - Validation on rows 1, 5 is prose: no validation-bindings check is bound to it\\n  Out of scope here: whether the science is right, and runs the gate's hooks do not see\\n\\u25b6 approve  (or approve plan 01bd1579)\",\n   \"checks\": \"Checks of plan 01bd1579\\n 1  ok\\n 5  ok\",\n   \"diff\": \"No script diff on this card.\"\n  },\n  \"kind\": \"plan\"\n }\n]"
           ]
@@ -641,6 +645,10 @@
             "{}"
           ],
           [
+            ".mycelium-extra/locks/pending-s1.lock",
+            ""
+          ],
+          [
             ".mycelium-extra/pending/s1.explore-seen",
             "3"
           ],
@@ -767,6 +775,10 @@
           [
             ".mycelium-extra/approvals/00000003.json",
             "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | 4 | repo: `repo:` x | ok |\\n| 8 | nextflow | repo: `repo:` x | ok |\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/locks/pending-s1.lock",
+            ""
           ],
           [
             ".mycelium-extra/pending/s1.json",
@@ -907,6 +919,10 @@
           [
             ".mycelium-extra/gate.json",
             "{}"
+          ],
+          [
+            ".mycelium-extra/locks/pending-s1.lock",
+            ""
           ],
           [
             ".mycelium-extra/pending/s1.json",
@@ -1157,6 +1173,10 @@
             "{\"hash\": \"00000008\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 3 | --configfile | repo: `repo:` x | ok |\\n| 1 | main.nf | repo: `repo:` x | ok |\\n| 1 | nbs/n.ipynb | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
           ],
           [
+            ".mycelium-extra/locks/pending-s1.lock",
+            ""
+          ],
+          [
             ".mycelium-extra/pending/s1.explore-seen",
             "2"
           ],
@@ -1287,6 +1307,10 @@
           [
             ".mycelium-extra/approvals/00000001.json",
             "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | import sys; open('analysis/x.py','w') | repo: `repo:` x | ok |\\n| 4 | -c | repo: `repo:` x | ok |\\n| 6 | analysis/x.py | repo: `repo:` x | ok |\\n| 2 | && | repo: `repo:` x | ok |\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/locks/pending-s1.lock",
+            ""
           ],
           [
             ".mycelium-extra/pending/s1.json",
@@ -1597,6 +1621,10 @@
             "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 8 | ../outside.py | repo: `repo:` x | ok |\\n| 9 | --configfile | repo: `repo:` x | ok |\\n| 3 | logs/%j.out | repo: `repo:` x | ok |\\n| 1 | -params-file | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s1\"}"
           ],
           [
+            ".mycelium-extra/locks/pending-s1.lock",
+            ""
+          ],
+          [
             ".mycelium-extra/pending/s1.explore-seen",
             "1"
           ],
@@ -1707,6 +1735,10 @@
           [
             ".mycelium-extra/approvals/00000003.json",
             "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 5 | sub/../analysis/x.py | repo: `repo:` x | ok |\\n| 8 | logs/%j.out | repo: `repo:` x | ok |\\n| 2 | -params-file | repo: `repo:` x | ok |\\n| 2 | ../outside.py | repo: `repo:` x | ok |\\n| 6 | -o | repo: `repo:` x | ok |\\nInputs: analysis/x.py, renv.lock\\n\\nPlan status: DECISION_REQUIRED\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/locks/pending-s1.lock",
+            ""
           ],
           [
             ".mycelium-extra/pending/s1.json",
@@ -2151,6 +2183,10 @@
           [
             ".mycelium-extra/approvals/00000003.json",
             "{\"hash\": \"00000003\", \"approved_at\": 0, \"plan\": \"## Plan\\n| # | step | Source | check |\\n| --- | --- | --- | --- |\\n| 4 | -o | repo: `repo:` x | ok |\\n| 5 | main.nf | repo: `repo:` x | ok |\\n| 7 | x.dat | repo: `repo:` x | ok |\\n| 6 | | | repo: `repo:` x | ok |\\n\\nno status here\", \"session_id\": \"s2\"}"
+          ],
+          [
+            ".mycelium-extra/locks/pending-s2.lock",
+            ""
           ],
           [
             ".mycelium-extra/pending/s2.explore-seen",
@@ -3073,6 +3109,10 @@
             "{}"
           ],
           [
+            ".mycelium-extra/locks/pending-s1.lock",
+            ""
+          ],
+          [
             ".mycelium-extra/pending/s1.json",
             "[\n {\n  \"hash\": \"5a43d1d1\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\n| # | step | source | check |\\n| 0 | run `analysis/dir0/mod0.py` | repo: `repo:` x | ok |\\n| 1 | run `analysis/dir1/mod1.py` | repo: `repo:` x | ok |\\n| 2 | run `analysis/dir2/mod2.py` | repo: `repo:` x | ok |\\n| 3 | run `analysis/dir3/mod3.py` | repo: `repo:` x | ok |\\n| 4 | run `analysis/dir4/mod4.py` | repo: `repo:` x | ok |\\n| 5 | run `analysis/dir5/mod5.py` | repo: `repo:` x | ok |\\n| 6 | run `analysis/dir6/mod6.py` | repo: `repo:` x | ok |\\n| 7 | run `analysis/dir0/mod7.py` | repo: `repo:` x | ok |\\n| 8 | run `analysis/dir1/mod8.py` | repo: `repo:` x | ok |\\n| 9 | run `analysis/dir2/mod9.py` | repo: `repo:` x | ok |\\n| 10 | run `analysis/dir3/mod10.py` | repo: `repo:` x | ok |\\n| 11 | run `analysis/dir4/mod11.py` | repo: `repo:` x | ok |\\n| 12 | run `analysis/dir5/mod12.py` | repo: `repo:` x | ok |\\n| 13 | run `analysis/dir6/mod13.py` | repo: `repo:` x | ok |\\n| 14 | run `analysis/dir0/mod14.py` | repo: `repo:` x | ok |\\n| 15 | run `analysis/dir1/mod15.py` | repo: `repo:` x | ok |\\n| 16 | run `analysis/dir2/mod16.py` | repo: `repo:` x | ok |\\n| 17 | run `analysis/dir3/mod17.py` | repo: `repo:` x | ok |\\n| 18 | run `analysis/dir4/mod18.py` | repo: `repo:` x | ok |\\n| 19 | run `analysis/dir5/mod19.py` | repo: `repo:` x | ok |\\n| 20 | run `analysis/dir6/mod20.py` | repo: `repo:` x | ok |\\n| 21 | run `analysis/dir0/mod21.py` | repo: `repo:` x | ok |\\n| 22 | run `analysis/dir1/mod22.py` | repo: `repo:` x | ok |\\n| 23 | run `analysis/dir2/mod23.py` | repo: `repo:` x | ok |\\n| 24 | run `analysis/dir3/mod24.py` | repo: `repo:` x | ok |\\n| 25 | run `analysis/dir4/mod25.py` | repo: `repo:` x | ok |\\n| 26 | run `analysis/dir5/mod26.py` | repo: `repo:` x | ok |\\n| 27 | run `analysis/dir6/mod27.py` | repo: `repo:` x | ok |\\n| 28 | run `analysis/dir0/mod28.py` | repo: `repo:` x | ok |\\n| 29 | run `analysis/dir1/mod29.py` | repo: `repo:` x | ok |\\n| 30 | run `analysis/dir2/mod30.py` | repo: `repo:` x | ok |\\n| 31 | run `analysis/dir3/mod31.py` | repo: `repo:` x | ok |\\n| 32 | run `analysis/dir4/mod32.py` | repo: `repo:` x | ok |\\n| 33 | run `analysis/dir5/mod33.py` | repo: `repo:` x | ok |\\n| 34 | run `analysis/dir6/mod34.py` | repo: `repo:` x | ok |\\n| 35 | run `analysis/dir0/mod35.py` | repo: `repo:` x | ok |\\n| 36 | run `analysis/dir1/mod36.py` | repo: `repo:` x | ok |\\n| 37 | run `analysis/dir2/mod37.py` | repo: `repo:` x | ok |\\n| 38 | run `analysis/dir3/mod38.py` | repo: `repo:` x | ok |\\n| 39 | run `analysis/dir4/mod39.py` | repo: `repo:` x | ok |\\n| 40 | run `analysis/dir5/mod40.py` | repo: `repo:` x | ok |\\n| 41 | run `analysis/dir6/mod41.py` | repo: `repo:` x | ok |\\n| 42 | run `analysis/dir0/mod42.py` | repo: `repo:` x | ok |\\n| 43 | run `analysis/dir1/mod43.py` | repo: `repo:` x | ok |\\n| 44 | run `analysis/dir2/mod44.py` | repo: `repo:` x | ok |\\n| 45 | run `analysis/dir3/mod45.py` | repo: `repo:` x | ok |\\n| 46 | run `analysis/dir4/mod46.py` | repo: `repo:` x | ok |\\n| 47 | run `analysis/dir5/mod47.py` | repo: `repo:` x | ok |\\n| 48 | run `analysis/dir6/mod48.py` | repo: `repo:` x | ok |\\n| 49 | run `analysis/dir0/mod49.py` | repo: `repo:` x | ok |\\n| 50 | run `analysis/dir1/mod50.py` | repo: `repo:` x | ok |\\n| 51 | run `analysis/dir2/mod51.py` | repo: `repo:` x | ok |\\n| 52 | run `analysis/dir3/mod52.py` | repo: `repo:` x | ok |\\n| 53 | run `analysis/dir4/mod53.py` | repo: `repo:` x | ok |\\n| 54 | run `analysis/dir5/mod54.py` | repo: `repo:` x | ok |\\n| 55 | run `analysis/dir6/mod55.py` | repo: `repo:` x | ok |\\n| 56 | run `analysis/dir0/mod56.py` | repo: `repo:` x | ok |\\n| 57 | run `analysis/dir1/mod57.py` | repo: `repo:` x | ok |\\n| 58 | run `analysis/dir2/mod58.py` | repo: `repo:` x | ok |\\n| 59 | run `analysis/dir3/mod59.py` | repo: `repo:` x | ok |\\n| 60 | run `analysis/dir4/mod60.py` | repo: `repo:` x | ok |\\n| 61 | run `analysis/dir5/mod61.py` | repo: `repo:` x | ok |\\n| 62 | run `analysis/dir6/mod62.py` | repo: `repo:` x | ok |\\n| 63 | run `analysis/dir0/mod63.py` | repo: `repo:` x | ok |\\n| 64 | run `analysis/dir1/mod64.py` | repo: `repo:` x | ok |\\n| 65 | run `analysis/dir2/mod65.py` | repo: `repo:` x | ok |\\n| 66 | run `analysis/dir3/mod66.py` | repo: `repo:` x | ok |\\n| 67 | run `analysis/dir4/mod67.py` | repo: `repo:` x | ok |\\n| 68 | run `analysis/dir5/mod68.py` | repo: `repo:` x | ok |\\n| 69 | run `analysis/dir6/mod69.py` | repo: `repo:` x | ok |\\n| 70 | run `analysis/dir0/mod70.py` | repo: `repo:` x | ok |\\n| 71 | run `analysis/dir1/mod71.py` | repo: `repo:` x | ok |\\n| 72 | run `analysis/dir2/mod72.py` | repo: `repo:` x | ok |\\n| 73 | run `analysis/dir3/mod73.py` | repo: `repo:` x | ok |\\n| 74 | run `analysis/dir4/mod74.py` | repo: `repo:` x | ok |\\n| 75 | run `analysis/dir5/mod75.py` | repo: `repo:` x | ok |\\n| 76 | run `analysis/dir6/mod76.py` | repo: `repo:` x | ok |\\n| 77 | run `analysis/dir0/mod77.py` | repo: `repo:` x | ok |\\n| 78 | run `analysis/dir1/mod78.py` | repo: `repo:` x | ok |\\n| 79 | run `analysis/dir2/mod79.py` | repo: `repo:` x | ok |\\n| 80 | run `analysis/dir3/mod80.py` | repo: `repo:` x | ok |\\n| 81 | run `analysis/dir4/mod81.py` | repo: `repo:` x | ok |\\n| 82 | run `analysis/dir5/mod82.py` | repo: `repo:` x | ok |\\n| 83 | run `analysis/dir6/mod83.py` | repo: `repo:` x | ok |\\n| 84 | run `analysis/dir0/mod84.py` | repo: `repo:` x | ok |\\n| 85 | run `analysis/dir1/mod85.py` | repo: `repo:` x | ok |\\n| 86 | run `analysis/dir2/mod86.py` | repo: `repo:` x | ok |\\n| 87 | run `analysis/dir3/mod87.py` | repo: `repo:` x | ok |\\n| 88 | run `analysis/dir4/mod88.py` | repo: `repo:` x | ok |\\n| 89 | run `analysis/dir5/mod89.py` | repo: `repo:` x | ok |\\n| 90 | run `analysis/dir6/mod90.py` | repo: `repo:` x | ok |\\n| 91 | run `analysis/dir0/mod91.py` | repo: `repo:` x | ok |\\n| 92 | run `analysis/dir1/mod92.py` | repo: `repo:` x | ok |\\n| 93 | run `analysis/dir2/mod93.py` | repo: `repo:` x | ok |\\n| 94 | run `analysis/dir3/mod94.py` | repo: `repo:` x | ok |\\n| 95 | run `analysis/dir4/mod95.py` | repo: `repo:` x | ok |\\n| 96 | run `analysis/dir5/mod96.py` | repo: `repo:` x | ok |\\n| 97 | run `analysis/dir6/mod97.py` | repo: `repo:` x | ok |\\n| 98 | run `analysis/dir0/mod98.py` | repo: `repo:` x | ok |\\n| 99 | run `analysis/dir1/mod99.py` | repo: `repo:` x | ok |\\n| 100 | run `analysis/dir2/mod100.py` | repo: `repo:` x | ok |\\n| 101 | run `analysis/dir3/mod101.py` | repo: `repo:` x | ok |\\n| 102 | run `analysis/dir4/mod102.py` | repo: `repo:` x | ok |\\n| 103 | run `analysis/dir5/mod103.py` | repo: `repo:` x | ok |\\n| 104 | run `analysis/dir6/mod104.py` | repo: `repo:` x | ok |\\n| 105 | run `analysis/dir0/mod105.py` | repo: `repo:` x | ok |\\n| 106 | run `analysis/dir1/mod106.py` | repo: `repo:` x | ok |\\n| 107 | run `analysis/dir2/mod107.py` | repo: `repo:` x | ok |\\n| 108 | run `analysis/dir3/mod108.py` | repo: `repo:` x | ok |\\n| 109 | run `analysis/dir4/mod109.py` | repo: `repo:` x | ok |\\n| 110 | run `analysis/dir5/mod110.py` | repo: `repo:` x | ok |\\n| 111 | run `analysis/dir6/mod111.py` | repo: `repo:` x | ok |\\n| 112 | run `analysis/dir0/mod112.py` | repo: `repo:` x | ok |\\n| 113 | run `analysis/dir1/mod113.py` | repo: `repo:` x | ok |\\n| 114 | run `analysis/dir2/mod114.py` | repo: `repo:` x | ok |\\n| 115 | run `analysis/dir3/mod115.py` | repo: `repo:` x | ok |\\n| 116 | run `analysis/dir4/mod116.py` | repo: `repo:` x | ok |\\n| 117 | run `analysis/dir5/mod117.py` | repo: `repo:` x | ok |\\n| 118 | run `analysis/dir6/mod118.py` | repo: `repo:` x | ok |\\n| 119 | run `analysis/dir0/mod119.py` | repo: `repo:` x | ok |\\n\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {},\n  \"kind\": \"plan\"\n }\n]"
           ]
@@ -3103,6 +3143,10 @@
           [
             ".mycelium-extra/gate.json",
             "{}"
+          ],
+          [
+            ".mycelium-extra/locks/pending-s1.lock",
+            ""
           ],
           [
             ".mycelium-extra/pending/s1.json",
@@ -3145,6 +3189,10 @@
             "{}"
           ],
           [
+            ".mycelium-extra/locks/pending-s1.lock",
+            ""
+          ],
+          [
             ".mycelium-extra/pending/s1.json",
             "[\n {\n  \"hash\": \"79c9acd5\",\n  \"ts\": 0,\n  \"text\": \"## Plan\\njust prose analysis/x.py\\n\\nPlan status: READY\",\n  \"pins\": {},\n  \"ready\": true,\n  \"scripts\": {},\n  \"kind\": \"plan\"\n }\n]"
           ]
@@ -3175,6 +3223,10 @@
           [
             ".mycelium-extra/gate.json",
             "{}"
+          ],
+          [
+            ".mycelium-extra/locks/pending-s1.lock",
+            ""
           ],
           [
             ".mycelium-extra/pending/s1.json",
@@ -3219,6 +3271,10 @@
           [
             ".mycelium-extra/approvals/00000001.json",
             "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"> Question (user's words): \\\"does A beat B?\\\"\\n\\n**Objective.** Compare A with B.\\n\\nOutputs: analysis/out/res.tsv\\n\\n| # | Step | Choice | Source | Validation |\\n|---|---|---|---|---|\\n| 1 | Run `analysis/x.py` | exact test | user | 12 donors |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/locks/pending-s1.lock",
+            ""
           ],
           [
             ".mycelium-extra/pending/s1.json",
@@ -3275,6 +3331,10 @@
           [
             ".mycelium-extra/approvals/00000001.json",
             "{\"hash\": \"00000001\", \"approved_at\": 0, \"plan\": \"> Question (user's words): \\\"does A beat B?\\\"\\n\\n**Objective.** Compare A with B.\\n\\nOutputs: analysis/out/res.tsv\\n\\n| # | Step | Choice | Source | Validation |\\n|---|---|---|---|---|\\n| 1 | Run `analysis/x.py` | exact test | user | 12 donors |\\n\\nPlan status: READY\", \"session_id\": \"s1\"}"
+          ],
+          [
+            ".mycelium-extra/locks/pending-s1.lock",
+            ""
           ],
           [
             ".mycelium-extra/pending/s1.json",
