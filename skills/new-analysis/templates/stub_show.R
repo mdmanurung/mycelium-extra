@@ -1,6 +1,6 @@
 # @@FILE@@: step @@NUM@@ of @@NAME@@, the figure step. [The one claim this figure carries.]
 # Input:  @@INPUT@@
-# Output: <run>/figures/@@STEM@@.png and .pdf, <run>/source_data/@@STEM@@.tsv (same stem: the table holds what the figure draws)
+# Output: @@DIR@@/figures/@@STEM@@.png and .pdf, @@DIR@@/source_data/@@STEM@@.tsv (same stem: the table holds what the figure draws)
 # Run:    Rscript @@PATH@@ @@USAGE@@   (the Snakefile passes these paths)
 # scilintr stage: replace this line with `# STAGE: <stage>` (blind_qc, selection, evaluation or library;
 #   label columns are allowed only in evaluation) so its label and stage rules run on this file.
@@ -22,8 +22,8 @@ set.seed(0)
 stop("@@FILE@@ is not written yet")
 plotted <- tibble(donor = character(), label = character(), value = numeric())
 
-dir.create(file.path(run, "source_data"), recursive = TRUE, showWarnings = FALSE)
-write_tsv(plotted, file.path(run, "source_data", "@@STEM@@.tsv"))
+dir.create(file.path(step_dir, "source_data"), recursive = TRUE, showWarnings = FALSE)
+write_tsv(plotted, file.path(step_dir, "source_data", "@@STEM@@.tsv"))
 
 # Figure ----------------------------------------------------------------------
 # Donors are the points; the summary (mean +/- SD) is named in the caption.
@@ -33,4 +33,4 @@ p <- ggplot(plotted, aes(x = label, y = value, colour = label)) +
   scale_colour_label(plotted$label) +
   labs(x = NULL, y = "[value, unit]", caption = "Points: donors. Bar: mean +/- SD.")
 
-save_panel(p, run, "@@STEM@@")
+save_panel(p, step_dir, "@@STEM@@")

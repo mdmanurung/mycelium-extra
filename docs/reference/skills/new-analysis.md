@@ -31,7 +31,7 @@ Invoke with `/mycelium-extra:new-analysis analysis/<name>: <question>`. Write ev
 
 ```
 analysis/<name>/
-  <NAME>.md  Snakefile  run.sh  run.sbatch     analysis doc (README.md outside Mycelium); `bash run.sh <slug>` makes a run folder
+  <NAME>.md  Snakefile  run.sh  run.sbatch     analysis doc (README.md outside Mycelium); `bash run.sh` runs the steps and logs changes
   code/      01_prepare.R  02_fit.R  03_show.R   numbered step stubs; 03_show writes figures/ and source_data/
              theme.R  theme.py                  theme_pubr(base_size = 8), PALETTE, save_panel()
              plot_<panel>.R|.py                (--panels) export the plotted values, then draw from them alone
@@ -39,11 +39,11 @@ analysis/<name>/
   config/    figure_map.tsv  manuscript_checks.json   (--panels) what manuscript-audit checks
   reports/   README.md  <name>.qmd         file index; Quarto report skeleton, filled by analysis-report
   data/      <links>  SOURCES.md           one row per --data link
-  outputs/   run_<YYYYMMDD>_<slug>/        RUN.txt, step outputs, figures/ source_data/ tables/ logs/
-  logs/                                    SLURM output only
+  outputs/   <step stem>/                  one folder per script, e.g. 01_prepare/; a rerun overwrites it
+  logs/      CHANGES.md  .code-hashes.tsv  SLURM output; CHANGES.md has one entry per run
 ```
 
-The layout is [analysis-layout](../../concepts/analysis-layout.md). `run.sh <slug>` writes `RUN.txt` and resumes a run whose status is `running` or `failed`; it refuses any other status with a `_vNN` slug, and a folder with no `RUN.txt`.
+The layout is [analysis-layout](../../concepts/analysis-layout.md). Each script writes to `outputs/<script stem>/` and a rerun overwrites that folder. A qmd step renders its HTML there too (`outputs/05_figures/05_figures.html`). Notebooks and figure scripts get `STEP_DIR` (their own folder) and `OUTPUTS` (the `outputs/` root). `run.sh` takes no slug and writes no `RUN.txt`; after a real run it appends the changed `code/` files and the rewritten step folders to `logs/CHANGES.md`. Run folders of older analyses stay readable.
 
 A `NN_name.marimo.py` step (or `--format=marimo`) is a marimo notebook in lucid-coder's notebook layout, run headless by the Snakefile as a Python script.
 

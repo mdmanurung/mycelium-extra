@@ -1,7 +1,5 @@
 project:
-  type: website
   render: ["code/*.qmd"]
-  output-dir: reports/site
   execute-dir: project
 format:
   html:

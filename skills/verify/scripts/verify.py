@@ -5061,6 +5061,36 @@ def run_citations(base, analysis, since):
     return found
 
 
+def step_rows(entry):
+    """The step folders under a "steps" outputs folder: name, newest file mtime, id. Read-only."""
+    rows = []
+    for name in sorted(os.listdir(entry["path"])):
+        full = os.path.join(entry["path"], name)
+        if _paths().STEP_DIR.match(name) and os.path.isdir(full) and not os.path.islink(full):
+            newest, digest = scan_run(full)
+            rows.append({"step": name, "path": full, "epoch": newest,
+                         "updated": when(newest) if newest else "-", "id": digest})
+    return rows
+
+
+def step_findings(entry):
+    """One stem names a figure, its source data and its table across the step folders. A figure with no
+    source data of that stem, source data with no figure, and a step folder with no files are gaps
+    (plot-first). RUN.txt is not looked for: a steps layout has none."""
+    ap = _paths()
+    figs = {ap.stem(f) for f in ap.figures(entry)}
+    data = {ap.stem(f) for f in ap.source_data(entry)}
+    out = [{"severity": "gap", "run": stem, "text": "figure has no source data of the same stem."}
+           for stem in sorted(figs - data)]
+    out += [{"severity": "gap", "run": stem, "text": "source data has no figure of the same stem."}
+            for stem in sorted(data - figs)]
+    for row in step_rows(entry):
+        if not any(files for _, _, files in os.walk(row["path"])):
+            out.append({"severity": "gap", "run": row["step"],
+                        "text": "step folder holds no files: the step did not run or failed."})
+    return out
+
+
 def list_runs(base, gated, path):
     """The runs in a results folder and the cross-folder citations of its analysis. Read-only."""
     plans = approved_plans(base) if gated else []
@@ -5087,27 +5117,39 @@ def list_runs(base, gated, path):
     mine = [p[0] for p in plans if guess_analysis_dir(p[2]) == os.path.relpath(analysis, base)]
     names = sorted(os.listdir(results))
     pointers = [(n, os.readlink(os.path.join(results, n))) for n in names if os.path.islink(os.path.join(results, n))]
-    found = []
+    found, steps, extra = [], [], []
     for entry in _paths().runs(analysis, results):  # the shared resolver; a flat layout has no run folders
-        if entry["layout"] == "run":
+        if entry["layout"] == "run":  # legacy run folders keep their RUN.txt checks
             run = label_run(entry["path"])
             run["kind_error"] = (entry["run_txt"] or {}).get("kind_error")
             found.append(run)
-    return {"results": rel_or_abs(base, results), "runs": found, "pointers": pointers,
-            "findings": run_findings(base, results, found, pointers),
+        elif entry["layout"] == "steps":  # no RUN.txt: the step folders and the change log stand in
+            steps, extra = step_rows(entry), step_findings(entry)
+    return {"results": rel_or_abs(base, results), "runs": found, "pointers": pointers, "steps": steps,
+            "last_change": _paths().last_change(analysis),
+            "findings": run_findings(base, results, found, pointers) + extra,
             "citations": run_citations(base, analysis, max(mine) if mine else None)}
 
 
 def render_runs(result):
     lines = ["# Runs in `{}`".format(result["results"]), ""]
+    if result["steps"]:
+        lines += ["Step folders (one per script; a rerun overwrites its folder):", "",
+                  "| Step | Updated | Id |", "|---|---|---|"]
+        lines += ["| {} | {} | {} |".format(r["step"], r["updated"], r["id"]) for r in result["steps"]]
+        lines.append("")
+        lines.append("Last change: " + (result["last_change"] or "none logged (no `logs/CHANGES.md`)."))
+        lines.append("")
     if result["runs"]:
+        if result["steps"]:
+            lines += ["Legacy run folders:", ""]
         lines += ["| Run | Version | Kind | Status | Updated | Id | Why |", "|---|---|---|---|---|---|---|"]
         for r in result["runs"]:
             f, why = r["fields"], r["fields"].get("why", "-")
             lines.append("| {} | {} | {} | {} | {} | {} | {} |".format(
                 r["run"], f.get("version", "-"), f.get("kind", "-"), r["status"],
                 r["updated"], r["id"], cell(why if len(why) <= 60 else why[:57] + "...")))
-    else:
+    elif not result["steps"]:
         lines.append("No `run_<YYYYMMDD>_<slug>` folders here.")
     if result["pointers"]:
         lines += [""] + ["`{}` -> `{}` (a pointer, not a run)".format(n, t) for n, t in result["pointers"]]

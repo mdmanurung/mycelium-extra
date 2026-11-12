@@ -1,7 +1,7 @@
 """@@FILE@@: step @@NUM@@ of @@NAME@@, the figure step. [The one claim this figure carries.]
 
 Input:  @@INPUT@@
-Output: <run>/figures/@@STEM@@.png and .pdf, <run>/source_data/@@STEM@@.tsv (same stem: the table holds what the figure draws)
+Output: @@DIR@@/figures/@@STEM@@.png and .pdf, @@DIR@@/source_data/@@STEM@@.tsv (same stem: the table holds what the figure draws)
 Run:    python @@PATH@@ @@USAGE@@   (the Snakefile passes these paths)
 """
 
@@ -22,8 +22,8 @@ SEED = 0  # pass to every RNG, e.g. np.random.default_rng(SEED)
 raise SystemExit("@@FILE@@ is not written yet")
 plotted = pd.DataFrame({"donor": [], "label": [], "value": []})
 
-(Path(run) / "source_data").mkdir(parents=True, exist_ok=True)
-plotted.to_csv(Path(run) / "source_data" / "@@STEM@@.tsv", sep="\t", index=False)
+(Path(step_dir) / "source_data").mkdir(parents=True, exist_ok=True)
+plotted.to_csv(Path(step_dir) / "source_data" / "@@STEM@@.tsv", sep="\t", index=False)
 
 # Figure ----------------------------------------------------------------------
 # Donors are the points; the summary (mean +/- SD) is named in the caption.
@@ -34,4 +34,4 @@ p = (
     + scale_colour_manual(values=palette_for(plotted["label"]))
     + labs(x="", y="[value, unit]", caption="Points: donors. Bar: mean +/- SD.")
 )
-save_panel(p, run, "@@STEM@@")
+save_panel(p, step_dir, "@@STEM@@")

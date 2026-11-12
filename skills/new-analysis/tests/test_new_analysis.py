@@ -1,6 +1,5 @@
 """Run: python3 skills/new-analysis/tests/test_new_analysis.py"""
 
-import datetime
 import json
 import os
 import re
@@ -98,12 +97,12 @@ class NewAnalysisTest(unittest.TestCase):
         chain = report.split("```{mermaid}\n")[1].split("```")[0]
         self.assertEqual(chain.splitlines(), [
             "flowchart LR",
-            '    d0[("data/cells.h5ad")] --> s01["code/01_prepare.R"] --> o01[("outputs/[run]/01_prepare.rds")]',
-            '    o01 --> s02["code/02_fit.R"] --> o02[("outputs/[run]/02_fit.rds")]',
-            '    o02 --> s03["code/03_show.R"] --> o03[("outputs/[run]/source_data/03_show.tsv")]'])
+            '    d0[("data/cells.h5ad")] --> s01["code/01_prepare.R"] --> o01[("outputs/01_prepare/01_prepare.rds")]',
+            '    o01 --> s02["code/02_fit.R"] --> o02[("outputs/02_fit/02_fit.rds")]',
+            '    o02 --> s03["code/03_show.R"] --> o03[("outputs/03_show/source_data/03_show.tsv")]'])
         self.assertEqual(report.count("### 02 fit"), 2)  # one Methods tab, one Results tab
         self.assertIn('```{.r filename="code/02_fit.R"}', report)
-        self.assertIn("[agent-derived: `outputs/[run]/figures/02_[what-it-shows].png`]", report)
+        self.assertIn("[agent-derived: `outputs/02_fit/figures/02_[what-it-shows].png`]", report)
 
     def test_readme_outside_mycelium(self):
         os.rmdir(os.path.join(self.root, ".living"))
@@ -121,7 +120,7 @@ class NewAnalysisTest(unittest.TestCase):
         doc = read(os.path.join(self.dest, "DEMO_RUN.md"))
         self.assertTrue(doc.startswith("# demo-run\n\nMARKER"))
         self.assertTrue(doc.rstrip().endswith("| 03 | `code/03_show.R` | [what it does] "
-                                              "| `outputs/<run>/source_data/03_show.tsv` |"))
+                                              "| `outputs/03_show/source_data/03_show.tsv` |"))
         self.assertIn(".living/findings ID", doc)
         self.assertIn("saved, inspected plot and panel", doc)
         self.assertIn("explicit fallback", doc)
@@ -137,7 +136,7 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertIn("cd analysis/demo-run\nbash run.sh", doc)
         self.assertIn("- `data/cells.h5ad` → `data/anndatas/cells.h5ad`", doc)
         self.assertLess(doc.index("## Steps"), doc.index("## Reproducibility"))
-        self.assertIn("| `outputs/<run>/02_fit.rds` | [description] (step 02) |", doc)
+        self.assertIn("| `outputs/02_fit/02_fit.rds` | [description] (step 02) |", doc)
         self.assertEqual(doc.count("<!--", doc.index("## Key Findings"),
                                    doc.index("## Open Questions")), 1)
 
@@ -209,8 +208,10 @@ class NewAnalysisTest(unittest.TestCase):
             self.assertRegex(cell["id"], r"^[A-Za-z0-9_-]+$")
             self.assertIsInstance(cell["source"], list)
         setup = "".join(book["cells"][1]["source"])
-        self.assertIn('RUN = Path(os.environ["RUN_DIR"])', setup)
-        self.assertIn('INPUT = RUN / "02_fit.parquet"', setup)
+        self.assertIn('STEP = Path(os.environ["STEP_DIR"])', setup)
+        self.assertIn('OUTPUTS = Path(os.environ["OUTPUTS"])', setup)
+        self.assertIn('INPUT = OUTPUTS / "02_fit" / "02_fit.parquet"', setup)
+        self.assertNotIn("RUN_DIR", setup)
         self.assertNotIn("assert ", setup)  # scilintr's runtime-assert would fail verify's lint
 
     def test_quoted_data_names_are_python_literals_in_workflow_and_notebook(self):
@@ -240,10 +241,10 @@ class NewAnalysisTest(unittest.TestCase):
         snakefile = read(os.path.join(self.dest, "Snakefile"))
         self.assertEqual(re.findall(r"^rule (\w+):", snakefile, re.M),
                          ["all", "step01_load", "step04_fit", "step07_look"])
-        self.assertIn('rule all:\n    input:\n        f"{OUT}/07_look.parquet",', snakefile)
+        self.assertIn('rule all:\n    input:\n        "outputs/07_look/07_look.parquet",', snakefile)
         self.assertIn('data=["data/cells.h5ad"],', snakefile)
-        self.assertIn('prev=f"{OUT}/01_load.tsv",\n        script="code/04_fit.R",', snakefile)
-        self.assertIn('prev=f"{OUT}/04_fit.tsv",\n        notebook="code/07_look.ipynb",', snakefile)
+        self.assertIn('prev="outputs/01_load/01_load.tsv",\n        script="code/04_fit.R",', snakefile)
+        self.assertIn('prev="outputs/04_fit/04_fit.tsv",\n        notebook="code/07_look.ipynb",', snakefile)
         self.assertIn("workdir: workflow.basedir", snakefile)
         self.assertNotIn("@@", snakefile)
         for name in ["01_load.py", "04_fit.R", "07_look.ipynb"]:
@@ -311,17 +312,25 @@ class NewAnalysisTest(unittest.TestCase):
                          ["analysis/demo-run/code/plot_Fig1a.R", "analysis/demo-run/code/plot_Fig1b.py"])
         contract = json.loads(read(os.path.join(self.dest, "config", "manuscript_checks.json")))
         self.assertEqual(contract["data_manifest"], "data/DATA_MANIFEST.md")
+        self.assertEqual(contract["figures"][0]["source_data"], "analysis/demo-run/outputs/03_show/source_data/Fig1a.tsv")
+        self.assertEqual(contract["figures"][0]["outputs"], ["analysis/demo-run/outputs/03_show/figures/Fig1a.pdf"])
         self.assertEqual(self.audit().returncode, 3)  # nothing released yet: a gap, never a pass
 
     def test_qmd_steps_render_through_a_quarto_project(self):
         out = self.scaffold("--steps=01_prep.qmd,02_fit.qmd", "--lang=python", "--data=data/anndatas/cells.h5ad")
         self.assertIn("rendered by quarto", out)
         snake = read(os.path.join(self.dest, "Snakefile"))
-        self.assertIn('"RUN_DIR={OUT:q} {QUARTO:q} render', snake.replace("THREADS + ", ""))
-        self.assertIn('f"{OUT}/02_fit.parquet"', snake)
-        self.assertIn('"reports/site/code/02_fit.html"', snake)
-        self.assertIn('input:\n        f"{OUT}/02_fit.parquet",\n        "reports/site/code/02_fit.html",', snake.split("rule all:")[1])
-        self.assertIn("  execute-dir: project", read(os.path.join(self.dest, "_quarto.yml")))
+        self.assertIn('"STEP_DIR=outputs/02_fit OUTPUTS=outputs {QUARTO:q} render {input.script:q} '
+                      '--output-dir outputs/02_fit > {log:q} 2>&1 && mv outputs/02_fit/code/02_fit.html '
+                      'outputs/02_fit/02_fit.html && rmdir outputs/02_fit/code"', snake.replace("THREADS + ", ""))
+        self.assertIn('"outputs/02_fit/02_fit.parquet"', snake)
+        self.assertIn('"outputs/02_fit/02_fit.html"', snake)
+        self.assertNotIn("reports/site", snake)
+        self.assertIn('input:\n        "outputs/02_fit/02_fit.parquet",\n        "outputs/02_fit/02_fit.html",', snake.split("rule all:")[1])
+        project = read(os.path.join(self.dest, "_quarto.yml"))
+        self.assertIn("  execute-dir: project", project)
+        self.assertNotIn("website", project)
+        self.assertNotIn("output-dir", project)
         self.assertIn("```{python}", read(os.path.join(self.dest, "code", "01_prep.qmd")))
         self.assertFalse(os.path.exists(os.path.join(self.dest, "reports", "demo-run.qmd")))  # the steps are the report
         quarto = read(os.path.join(self.dest, "_quarto.yml"))  # the site's theme files exist where _quarto.yml points
@@ -398,11 +407,10 @@ class NewAnalysisTest(unittest.TestCase):
     def check_stub_renders_from_source_only(self, interpreter, panel):
         self.scaffold("--panels=" + panel)
         stub = os.path.join(self.dest, "code", "plot_" + panel)
-        run_dir = os.path.join(self.dest, "outputs", "run_20261026_demo")
+        run_dir = os.path.join(self.dest, "outputs", "03_show")
         proc = subprocess.run([interpreter, stub, run_dir], cwd=self.root, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE, universal_newlines=True)
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        os.symlink("run_20261026_demo", os.path.join(self.dest, "outputs", "current"))
         self.assertEqual(self.audit().returncode, 0, self.audit().stdout)
         figure = os.path.join(run_dir, "figures", panel.split(".")[0] + ".pdf")
         os.remove(figure)
@@ -445,20 +453,20 @@ class NewAnalysisTest(unittest.TestCase):
         compile(text, path, "exec")
         self.assertNotIn("@@", text)
         self.assertIn("with app.setup:", text)
-        self.assertIn('INPUT = RUN / "01_prep.parquet"', text)
+        self.assertIn('INPUT = OUTPUTS / "01_prep" / "01_prep.parquet"', text)
         self.assertIn('if __name__ == "__main__":\n    app.run()', text)
         snake = read(os.path.join(self.dest, "Snakefile"))
         self.assertIn("rule step02_explore:", snake)
         self.assertIn('notebook="code/02_explore.marimo.py"', snake)
-        self.assertIn('f"{OUT}/02_explore.parquet"', snake)
-        self.assertIn("RUN_DIR={OUT:q} {PYTHON:q} -u {input.notebook:q}", snake)
+        self.assertIn('"outputs/02_explore/02_explore.parquet"', snake)
+        self.assertIn("STEP_DIR=outputs/02_explore OUTPUTS=outputs {PYTHON:q} -u {input.notebook:q}", snake)
         self.assertIn("marimo export html code/02_explore.marimo.py", out)
         marimo_python = os.environ.get("MARIMO_PYTHON")  # a python with marimo installed runs the stub for real
         if not marimo_python:
             self.skipTest("set MARIMO_PYTHON to run the stub under marimo")
-        write(os.path.join(self.dest, "outputs", "run_x", "01_prep.parquet"))
+        write(os.path.join(self.dest, "outputs", "01_prep", "01_prep.parquet"))
         proc = subprocess.run([marimo_python, "code/02_explore.marimo.py"], cwd=self.dest,
-                              env=dict(os.environ, RUN_DIR="outputs/run_x"),
+                              env=dict(os.environ, STEP_DIR="outputs/02_explore", OUTPUTS="outputs"),
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         self.assertNotEqual(proc.returncode, 0)  # the stub stops until it is written
         self.assertIn("02_explore.marimo.py is not written yet", proc.stderr)
@@ -513,14 +521,14 @@ class NewAnalysisTest(unittest.TestCase):
     def test_handoff_between_languages_is_a_tsv_and_notebooks_write_a_table(self):
         self.scaffold(MIXED)
         snake = read(os.path.join(self.dest, "Snakefile"))
-        self.assertIn('f"{OUT}/01_prepare.tsv"', snake)  # R to Python
-        self.assertIn('f"{OUT}/02_fit.parquet"', snake)  # Python to Python keeps its type
-        self.assertIn('f"{OUT}/03_explore.parquet",', snake)
-        self.assertIn('f"{OUT}/03_explore.ipynb",', snake)  # the executed copy sits in the run, not in logs/
-        self.assertIn("--output-dir {OUT:q}", snake)
+        self.assertIn('"outputs/01_prepare/01_prepare.tsv"', snake)  # R to Python
+        self.assertIn('"outputs/02_fit/02_fit.parquet"', snake)  # Python to Python keeps its type
+        self.assertIn('"outputs/03_explore/03_explore.parquet",', snake)
+        self.assertIn('"outputs/03_explore/03_explore.ipynb",', snake)  # the executed copy sits in the step folder
+        self.assertIn("--output-dir outputs/03_explore", snake)
         book = json.loads(read(os.path.join(self.dest, "code", "03_explore.ipynb")))
         setup = "".join(book["cells"][1]["source"])
-        self.assertIn('OUTPUT = RUN / "03_explore.parquet"', setup)
+        self.assertIn('OUTPUT = STEP / "03_explore.parquet"', setup)
 
     def test_mycelium_root_is_the_nearest_living_folder_inside_a_bigger_git_repo(self):
         os.rmdir(os.path.join(self.root, ".living"))
@@ -565,42 +573,37 @@ class NewAnalysisTest(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(self.dest, folder, ".gitkeep")))
 
 
-    # --- run folders, RUN.txt, theme, README and SOURCES ----------------------------------
+    # --- step folders, theme, README and SOURCES ----------------------------------
 
-    def run_sh(self, *args, status=0):
-        """bash run.sh <args> in the scaffold, with a fake snakemake that records its arguments and exits `status`."""
-        fake = os.path.join(self.root, "fake-snakemake")
-        write(fake, '#!/bin/sh\necho "$@" > "{}/snakemake.args"\nexit {}\n'.format(self.root, status))
-        os.chmod(fake, 0o755)
-        return subprocess.run(["bash", "run.sh"] + list(args), cwd=self.dest, env=dict(os.environ, SNAKEMAKE=fake),
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-
-    def today(self):
-        return datetime.date.today().strftime("%Y%m%d")
-
-    def test_every_rule_names_the_run_folder(self):
+    def test_every_rule_names_its_own_step_folder(self):
         self.scaffold(MIXED, "--data=data/anndatas/cells.h5ad")
         snake = read(os.path.join(self.dest, "Snakefile"))
-        self.assertIn('RUN = config.get("run")\nif not RUN:\n    raise ValueError(', snake)
-        self.assertIn('OUT = f"outputs/{RUN}"', snake)
+        for old in ("RUN", "OUT", "config.get(\"run\")", "run_<", "RUN.txt", "RUN_DIR"):
+            self.assertNotIn(old, snake.replace("OUTPUTS", ""))
         rules = re.split(r"^rule ", snake, flags=re.M)[1:]
         self.assertEqual(len(rules), 4)
-        for body in rules:
-            self.assertIn("{OUT}", body.split("shell:")[0], body)
-            self.assertNotRegex(body, r'"(outputs|logs)/')  # no output, log or benchmark outside the run
-        self.assertIn('f"{OUT}/logs/02_fit.log"', snake)
-        self.assertIn('f"{OUT}/logs/02_fit.benchmark.tsv"', snake)
+        for body in rules[1:]:
+            stem = re.search(r'log:\n        "outputs/(\w+)/logs/', body).group(1)
+            declared = body.split("shell:")[0]
+            for path in re.findall(r'"(outputs/[^"]*)"', declared.split("log:")[0].split("output:")[1]):
+                self.assertTrue(path.startswith("outputs/{}/".format(stem)), path)  # an output only in its own folder
+        self.assertIn('"outputs/02_fit/logs/02_fit.log"', snake)
+        self.assertIn('"outputs/02_fit/logs/02_fit.benchmark.tsv"', snake)
+        self.assertIn("each step owns outputs/<step>/".lower(), snake.lower().replace("\n", " ").replace("  ", " "))
+        self.assertIn("overwrites", snake)
+        self.assertIn("bash run.sh", snake)
 
     def test_figure_step_writes_figures_and_source_data_under_one_stem(self):
         self.scaffold()
         snake = read(os.path.join(self.dest, "Snakefile"))
         for out in ("figures/03_show.png", "figures/03_show.pdf", "source_data/03_show.tsv"):
-            self.assertEqual(snake.count('f"{OUT}/' + out + '"'), 2)  # in rule all and in the step's rule
+            self.assertEqual(snake.count('"outputs/03_show/' + out + '"'), 2)  # in rule all and in the step's rule
         stub = read(os.path.join(self.dest, "code", "03_show.R"))
         self.assertIn('source("code/theme.R")', stub)
-        self.assertIn('file.path(run, "source_data", "03_show.tsv")', stub)
-        self.assertIn('save_panel(p, run, "03_show")', stub)
-        self.assertIn("Rscript code/03_show.R outputs/<run>/02_fit.rds outputs/<run>", stub)
+        self.assertIn('file.path(step_dir, "source_data", "03_show.tsv")', stub)
+        self.assertIn('save_panel(p, step_dir, "03_show")', stub)
+        self.assertIn("Rscript code/03_show.R outputs/02_fit/02_fit.rds outputs/03_show", stub)
+        self.assertIn("outputs/03_show/figures/03_show.png", stub)
         self.assertNotIn("@@", stub)
 
     def test_theme_files_are_written_to_code(self):
@@ -642,11 +645,11 @@ class NewAnalysisTest(unittest.TestCase):
                          "| `report.scss`, `report-dark.scss` | theme, DESIGN.md tokens | \u2014 | you |\n\n"
                          "The Artifact evaluation page lives in `.mycelium-extra/artifacts/` and is not a record.\n")
 
-    def test_sources_say_not_listed_without_a_manifest_and_qmd_steps_add_the_site_row(self):
+    def test_sources_say_not_listed_without_a_manifest_and_qmd_steps_add_no_site_row(self):
         self.scaffold("--steps=01_a.qmd", "--data=data/anndatas/cells.h5ad")
         self.assertIn("| `cells.h5ad` | `data/anndatas/cells.h5ad` | not listed | |", read(os.path.join(self.dest, "data", "SOURCES.md")))
         readme = read(os.path.join(self.dest, "reports", "README.md"))
-        self.assertIn("| `site/` | step pages (qmd steps only) | \u2014 | Snakefile |", readme)
+        self.assertNotIn("site/", readme)
         self.assertNotIn("demo-run.qmd", readme)  # every step is qmd: no report skeleton
 
     def test_plan_names_the_approved_copy(self):
@@ -658,97 +661,6 @@ class NewAnalysisTest(unittest.TestCase):
         out = self.scaffold("--data=data/anndatas/cells.h5ad")
         for path in ("reports/README.md", "data/SOURCES.md", "code/theme.R", "code/theme.py"):
             self.assertIn("  " + path + "\n", out)
-
-    def test_run_sh_makes_a_run_with_run_txt_in_shape_b(self):
-        self.scaffold()
-        plan = os.path.join(self.dest, "plans", "PLAN.md")
-        write(plan, read(plan).replace("[The question and, for scientific work, the estimand or contrast.]",
-                                       "Paired titre change day 0 to 28, 8 donors."))
-        write(os.path.join(self.root, ".mycelium-extra", "approvals", "596f0693.json"), json.dumps({"hash": "596f0693"}))
-        proc = self.run_sh("baseline")
-        self.assertEqual(proc.returncode, 0, proc.stderr)
-        run_name = "run_{}_baseline".format(self.today())
-        folder = os.path.join(self.dest, "outputs", run_name)
-        self.assertEqual(read(os.path.join(folder, "RUN.txt")), (
-            "# run\nrun: {run}\nkind: analysis            # analysis | figures | scratch\n"
-            "status: done              # running | done | current | side | superseded | failed | scratch\n\n"
-            "# origin\nwhy: Paired titre change day 0 to 28, 8 donors.\nplan: 596f0693\n"
-            "labeled: {date} by run.sh\n\n# links\nsuperseded_by:\nnotes:\n").format(
-                run=run_name, date=datetime.date.today().isoformat()))
-        self.assertEqual(read(os.path.join(self.root, "snakemake.args")).split(), ["--cores", "4", "--config", "run=" + run_name])
-        sys.path.insert(0, os.path.join(SKILL, "..", "..", "hooks"))
-        import analysis_paths
-        fields = analysis_paths.parse_run_txt(os.path.join(folder, "RUN.txt"))  # the resolver reads what run.sh wrote
-        self.assertEqual((fields["kind"], fields["status"], fields["plan"]), ("analysis", "done", "596f0693"))
-        self.assertNotIn("kind_error", fields)
-
-    def test_run_sh_fills_gaps_with_placeholders_and_passes_extra_arguments(self):
-        self.scaffold()
-        proc = self.run_sh("baseline", "--forceall")
-        self.assertEqual(proc.returncode, 0, proc.stderr)
-        text = read(os.path.join(self.dest, "outputs", "run_{}_baseline".format(self.today()), "RUN.txt"))
-        self.assertIn("\nwhy: [fill in]\nplan: \nlabeled:", text)
-        self.assertIn("--forceall", read(os.path.join(self.root, "snakemake.args")))
-
-    def test_run_sh_marks_a_failed_run_and_keeps_the_exit_code(self):
-        self.scaffold()
-        proc = self.run_sh("baseline", status=3)
-        self.assertEqual(proc.returncode, 3)
-        text = read(os.path.join(self.dest, "outputs", "run_{}_baseline".format(self.today()), "RUN.txt"))
-        self.assertIn("\nstatus: failed ", text)
-
-    def test_run_sh_resumes_running_and_failed_runs(self):
-        self.scaffold()
-        for status in ("running", "failed"):
-            folder = os.path.join(self.dest, "outputs", "run_{}_baseline".format(self.today()))
-            shutil.rmtree(folder, ignore_errors=True)
-            write(os.path.join(folder, "RUN.txt"), "run: x\nstatus: {}   # note\nnotes: keep me\n".format(status))
-            write(os.path.join(folder, "01_prepare.rds"), "kept")
-            proc = self.run_sh("baseline")
-            self.assertEqual(proc.returncode, 0, proc.stderr)
-            self.assertIn("resuming", proc.stdout)
-            self.assertEqual(read(os.path.join(folder, "01_prepare.rds")), "kept")
-            self.assertEqual(read(os.path.join(folder, "RUN.txt")), "run: x\nstatus: done              # note\nnotes: keep me\n")
-
-    def test_run_sh_refuses_a_released_run_with_the_next_free_version(self):
-        self.scaffold()
-        base = os.path.join(self.dest, "outputs", "run_{}_baseline".format(self.today()))
-        write(os.path.join(base, "RUN.txt"), "run: x\nstatus: current\n")
-        proc = self.run_sh("baseline")
-        self.assertEqual(proc.returncode, 1)
-        self.assertIn("status 'current'", proc.stderr)
-        self.assertIn("bash run.sh baseline_v02", proc.stderr)
-        self.assertEqual(read(os.path.join(base, "RUN.txt")), "run: x\nstatus: current\n")  # untouched
-        self.assertFalse(os.path.exists(os.path.join(self.root, "snakemake.args")))
-        os.makedirs(base + "_v02")
-        self.assertIn("bash run.sh baseline_v03", self.run_sh("baseline").stderr)
-        write(os.path.join(base + "_v02", "RUN.txt"), "run: y\nstatus: superseded\n")
-        self.assertIn("bash run.sh baseline_v03", self.run_sh("baseline_v02").stderr)  # never baseline_v02_v02
-
-    def test_run_sh_refuses_a_folder_with_no_run_txt(self):
-        self.scaffold()
-        folder = os.path.join(self.dest, "outputs", "run_{}_baseline".format(self.today()))
-        write(os.path.join(folder, "01_prepare.rds"), "mine")
-        proc = self.run_sh("baseline")
-        self.assertEqual(proc.returncode, 1)
-        self.assertIn("has no RUN.txt", proc.stderr)
-        self.assertEqual(os.listdir(folder), ["01_prepare.rds"])
-
-    def test_run_sh_refuses_a_slug_with_a_slash_or_a_space(self):
-        self.scaffold()
-        for slug in ("a/b", "a b"):
-            proc = self.run_sh(slug)
-            self.assertEqual(proc.returncode, 1, slug)
-            self.assertIn("slug must use only", proc.stderr)
-        self.assertEqual(os.listdir(os.path.join(self.dest, "outputs")), [".gitkeep"])
-
-    def test_run_sh_needs_a_slug_and_a_dry_run_leaves_no_folder(self):
-        self.scaffold()
-        self.assertNotEqual(self.run_sh().returncode, 0)
-        proc = self.run_sh("baseline", "-n")
-        self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertEqual(os.listdir(os.path.join(self.dest, "outputs")), [".gitkeep"])
-        self.assertIn("-n", read(os.path.join(self.root, "snakemake.args")))
 
 
 if __name__ == "__main__":

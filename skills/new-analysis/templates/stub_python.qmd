@@ -7,7 +7,7 @@ jupyter: python3
 - **Purpose.** [One sentence: what this step answers or prepares.]
 - **Run.** `quarto render @@PATH@@` from the analysis folder; the Snakefile does it. Paths are relative to that folder.
 - **Inputs.** `@@INPUT@@` [producer or `[gap]`]
-- **Outputs.** `@@OUTPUT@@` [what the table holds]; this page, under `reports/site/`.
+- **Outputs.** `@@OUTPUT@@` [what the table holds]; this page, `outputs/@@STEM@@/@@STEM@@.html`.
 
 ## Parameters
 
@@ -16,7 +16,8 @@ jupyter: python3
 import os
 from pathlib import Path
 
-RUN = Path(os.environ["RUN_DIR"])  # outputs/<run>, set by the Snakefile
+STEP = Path(os.environ["STEP_DIR"])  # this step's folder, outputs/@@STEM@@, set by the Snakefile
+OUTPUTS = Path(os.environ["OUTPUTS"])  # outputs/, to read earlier steps
 INPUT = @@INPUT_PY@@
 OUTPUT = @@OUTPUT_PY@@
 SEED = 0  # pass to every RNG, e.g. np.random.default_rng(SEED)
@@ -36,5 +37,5 @@ raise NotImplementedError("@@FILE@@ is not written yet")
 from importlib.metadata import distributions
 
 versions = sorted(f"{d.metadata['Name']}=={d.version}" for d in distributions())
-(RUN / "logs" / "@@STEM@@.session.txt").write_text("\n".join(versions) + "\n")
+(STEP / "logs" / "@@STEM@@.session.txt").write_text("\n".join(versions) + "\n")
 ```

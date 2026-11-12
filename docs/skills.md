@@ -44,11 +44,11 @@ Checks what ran against the approved plan and saves provenance once you confirm.
 
 ## new-analysis
 
-Scaffolds a new analysis folder in the [analysis layout](concepts/analysis-layout.md): steps `01_prepare.R`, `02_fit.R`, `03_show.R`, a `theme.R`/`theme.py` on `ggpubr::theme_pubr`, `plans/`, a Snakefile that writes under `outputs/run_<date>_<slug>/`, and `run.sh <slug>`, which makes the run folder and its `RUN.txt`. With `--panels`, it adds a manuscript layer (a plot stub per panel, a figure map and a `manuscript-audit` contract), also to an existing folder without overwriting anything. See [new-analysis](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/new-analysis.md).
+Scaffolds a new analysis folder in the [analysis layout](concepts/analysis-layout.md): steps `01_prepare.R`, `02_fit.R`, `03_show.R`, a `theme.R`/`theme.py` on `ggpubr::theme_pubr`, `plans/`, a Snakefile that writes each step to `outputs/<script stem>/` (a rerun overwrites it), and `run.sh`, which runs the steps and logs what changed in `logs/CHANGES.md`. With `--panels`, it adds a manuscript layer (a plot stub per panel, a figure map and a `manuscript-audit` contract), also to an existing folder without overwriting anything. See [new-analysis](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/new-analysis.md).
 
 ## analysis-report
 
-Fills the Quarto report `new-analysis` scaffolds in `reports/`: Overview with a mermaid chain of the steps, Methods and Results tabs, quoted script excerpts and inspected figures from the run `outputs/current` names; figures are paired with their source data by stem, and a missing table is a gap. After a render it adds the report's row to the analysis doc's Outputs table. `analysis-report artifact <folder>` builds a one-off evaluation page from the filled report, checks every number on it against the report, and publishes only after you agree (Claude Code only). Rendering is a gated run. See [analysis-report](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/analysis-report.md).
+Fills the Quarto report `new-analysis` scaffolds in `reports/`: Overview with a mermaid chain of the steps, Methods and Results tabs, quoted script excerpts and inspected figures from the step folders (`outputs/*/figures/`; an older analysis uses `outputs/current`); figures are paired with their source data by stem, and a missing table is a gap. After a render it adds the report's row to the analysis doc's Outputs table. `analysis-report artifact <folder>` builds a one-off evaluation page from the filled report, checks every number on it against the report, and publishes only after you agree (Claude Code only). Rendering is a gated run. See [analysis-report](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/analysis-report.md).
 
 ## plot-first
 
@@ -80,7 +80,7 @@ Shows what changed against the approved plan. It is read-only. See [track-change
 
 ## handoff
 
-Writes a short `HANDOFF.md` for a fresh session: the goal, the next action, the current run and its `RUN.txt` status, what was assumed but not run, and each open item with a lean marked as not a decision. `handoff test` has a fresh reader try the file, or a filled report, from a staged copy of it and the files it points to, and lists what it could not follow. It is an instruction to the reader, not a sandbox. See [handoff](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/handoff.md).
+Writes a short `HANDOFF.md` for a fresh session: the goal, the next action, the newest `logs/CHANGES.md` entry (or, for a legacy run, its `RUN.txt` status), what was assumed but not run, and each open item with a lean marked as not a decision. `handoff test` has a fresh reader try the file, or a filled report, from a staged copy of it and the files it points to, and lists what it could not follow. It is an instruction to the reader, not a sandbox. See [handoff](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/handoff.md).
 
 ## questionnaire
 

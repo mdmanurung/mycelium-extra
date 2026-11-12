@@ -10,7 +10,7 @@ Checks the page contract (no doctype/html/head/body, a <title> in the first 8 KB
 dark-mode token blocks, a body background, no colour literal outside the token blocks, script and
 stylesheet hosts, no alert/confirm/print/download, at most 16 MB), the banner, and that every number on
 the page appears in the .qmd or in numbers.json. Numbers inside <code class="hash">, inside data URIs, in
-<style>/<script>, and glued to letters or underscores (s01, run_2, 12px) are not claims and are skipped.
+<style>/<script>, in ISO dates (YYYY-MM-DD), and glued to letters or underscores (s01, run_2, 12px) are not claims and are skipped.
 Exit 0 when clean, 1 with one finding per line. Stdlib-only; Python 3.9+.
 """
 
@@ -76,7 +76,7 @@ def page_text(page):
     text = re.sub(r'<code class="hash">.*?</code>', " ", text, flags=re.S | re.I)
     text = re.sub(r"<!--.*?-->", " ", text, flags=re.S)
     text = re.sub(r"<[^>]+>", " ", text)
-    return html.unescape(text)
+    return re.sub(r"\b\d{4}-\d{2}-\d{2}\b", " ", html.unescape(text))  # a date (the banner's last change) is not a claim
 
 
 def contract(page, size):
@@ -137,8 +137,8 @@ def banner(page):
         out.append("banner: does not name the .qmd")
     if len(re.findall(r'<code class="hash">\s*[0-9a-f]{4,}\s*</code>', block.group(2))) < 2:
         out.append("banner: needs the plan hash and the .qmd short hash, each in <code class=\"hash\">")
-    if not re.search(r"\brun\b", text, re.I):
-        out.append("banner: does not name the run label")
+    if not re.search(r"\brun\b|outputs/ \(steps\)", text, re.I):  # a steps layout has no run label
+        out.append("banner: does not name the run label or outputs/ (steps)")
     return out
 
 

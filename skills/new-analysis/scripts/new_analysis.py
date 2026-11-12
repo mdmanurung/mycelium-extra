@@ -54,7 +54,6 @@ EXT = {"marimo": "marimo.py"}  # the file suffix of a format, where it differs f
 DEFAULT_STEPS = "01_prepare.R,02_fit.R,03_show.R"
 DEFAULT_NAMES = ("01_prepare", "02_fit", "03_show")  # --format gives these one extension
 STATE_DIR = ".mycelium-extra"  # holds gate.json, whose "step_format" is the repository default
-RUN_DISPLAY = "outputs/<run>/"  # the run folder as docs and stubs name it; the Snakefile has the real one
 LANGS = {"r": "R", "python": "py"}  # --lang for a qmd step: knitr (R) or jupyter (Python)
 DIRS = ["data", "code", "plans", "outputs", "logs", "reports"]
 UNTRACKED_OK = {"outputs/", "logs/"}  # often ignored on purpose (large or regenerable files)
@@ -114,7 +113,8 @@ def parse_steps(text, fmt, lang):
         show = kind in ("R", "py") and bool(SHOW.search(stem))
         steps.append({"file": name, "path": "code/" + name, "num": match.group(1), "stem": stem, "kind": kind,
                       "lang": step_lang, "rule": "step" + re.sub(r"\W", "_", stem), "show": show,
-                      "html": "reports/site/code/{}.html".format(stem) if kind == "qmd" else None,
+                      "dir": "outputs/" + stem,  # the step's own folder; a rerun overwrites it
+                      "html": "outputs/{0}/{0}.html".format(stem) if kind == "qmd" else None,
                       "executed": name if kind == "ipynb" else None,
                       "stub": "stub_{}.qmd".format(step_lang) if kind == "qmd" else
                       "stub_marimo.py" if kind == "marimo" else "stub_show." + kind if show else "stub." + kind})
@@ -129,10 +129,11 @@ def parse_steps(text, fmt, lang):
         else:
             step["rel_out"] = step["stem"] + ext
             step["outs"] = [step["rel_out"]]
-        step["output"] = RUN_DISPLAY + step["rel_out"]  # outputs/<run>/..., for docs and stubs
+        step["output"] = "{}/{}".format(step["dir"], step["rel_out"])  # outputs/<stem>/..., for docs and stubs
     for before, step in zip([None] + steps, steps):
         step["rel_in"] = before["rel_out"] if before else None
         step["input"] = before["output"] if before else None
+        step["in_stem"] = before["stem"] if before else None
     return steps
 
 
@@ -210,9 +211,22 @@ def parse_panels(text):
     return panels
 
 
-def manuscript_files(panels, name, dest_rel, root, templates):
+def panel_dir(steps):
+    """The step folder panels write into: the figure step (NN_show), else the last step."""
+    return next((s for s in steps if s["show"]), steps[-1])["dir"]
+
+
+def existing_panel_dir(dest):
+    """Same choice for a folder that already has steps: its NN_show script, else its last numbered one."""
+    stems = sorted({os.path.splitext(n)[0].split(".")[0] for n in os.listdir(os.path.join(dest, "code"))
+                    if re.match(r"^\d{2}_", n)}) if os.path.isdir(os.path.join(dest, "code")) else []
+    show = [t for t in stems if SHOW.search(t)]
+    return "outputs/" + (show or stems or ["03_show"])[-1]
+
+
+def manuscript_files(panels, panel_dir, name, dest_rel, root, templates):
     """Plot stubs, the figure map and the manuscript-audit contract, every path repository-relative."""
-    current = dest_rel + "/outputs/current"  # the released run; the stub's Release line says how to set it
+    current = "{}/{}".format(dest_rel, panel_dir)  # the step folder the panels write into
     files, rows, figures = {}, [], []
     for panel in panels:
         script = dest_rel + "/" + panel["path"]
@@ -264,7 +278,8 @@ def add_panels(args, dest):
     """Retrofit a non-empty folder: write each missing manuscript file, keep every one that exists."""
     root = manuscript_root(dest)
     dest_rel = display(dest, root).replace(os.sep, "/")
-    files = manuscript_files(parse_panels(args.panels), os.path.basename(dest), dest_rel, root, args.templates)
+    files = manuscript_files(parse_panels(args.panels), existing_panel_dir(dest), os.path.basename(dest), dest_rel,
+                             root, args.templates)
     for folder in ("code", "config"):
         if os.path.islink(os.path.join(dest, folder)):
             raise Refusal("{}/{} is a symlink; nothing was changed".format(dest_rel, folder))
@@ -334,26 +349,27 @@ def stub_values(step, name, data_links):
     else:
         source = notebook_input = step["input"]
     usage = step["output"] if first else "{} {}".format(step["input"], step["output"])
-    if step["show"]:  # the Snakefile passes the input and the run folder; the script derives every output path
-        usage = "outputs/<run>" if first else "{} outputs/<run>".format(step["input"])
+    if step["show"]:  # the Snakefile passes the input and the step folder; the script derives every output path
+        usage = step["dir"] if first else "{} {}".format(step["input"], step["dir"])
     if step["kind"] == "R":
         code = ("output_path <- args[[1]]" if first
                 else "input_path <- args[[1]]\noutput_path <- args[[2]]")
         if step["show"]:
-            code = "run <- args[[1]]" if first else "input_path <- args[[1]]\nrun <- args[[2]]"
+            code = "step_dir <- args[[1]]" if first else "input_path <- args[[1]]\nstep_dir <- args[[2]]"
     else:
         code = ("(output_path,) = sys.argv[1:]" if first
                 else "input_path, output_path = sys.argv[1:]")
         if step["show"]:
-            code = "(run,) = sys.argv[1:]" if first else "input_path, run = sys.argv[1:]"
+            code = "(step_dir,) = sys.argv[1:]" if first else "input_path, step_dir = sys.argv[1:]"
     return {"FILE": step["file"], "PATH": step["path"], "NUM": step["num"], "NAME": name,
             "INPUT": notebook_input if step["kind"] in ("ipynb", "qmd", "marimo") else source,
             "INPUT_PY": "Path({})".format(json.dumps(notebook_input)) if first
-            else "RUN / {}".format(json.dumps(step["rel_in"])),
-            "INPUT_R": json.dumps(notebook_input) if first else "file.path(RUN, {})".format(json.dumps(step["rel_in"])),
-            "OUTPUT_PY": "RUN / {}".format(json.dumps(step["rel_out"])),
-            "OUTPUT_R": "file.path(RUN, {})".format(json.dumps(step["rel_out"])),
-            "STEM": step["stem"],
+            else "OUTPUTS / {} / {}".format(json.dumps(step["in_stem"]), json.dumps(step["rel_in"])),
+            "INPUT_R": json.dumps(notebook_input) if first
+            else "file.path(OUTPUTS, {}, {})".format(json.dumps(step["in_stem"]), json.dumps(step["rel_in"])),
+            "OUTPUT_PY": "STEP / {}".format(json.dumps(step["rel_out"])),
+            "OUTPUT_R": "file.path(STEP, {})".format(json.dumps(step["rel_out"])),
+            "STEM": step["stem"], "DIR": step["dir"],
             "OUTPUT": step["output"], "USAGE": usage, "NARGS": "1" if first else "2",
             "ARGS_CODE": code}
 
@@ -366,35 +382,37 @@ def notebook(template, values):
 
 
 def rule(step, data_links):
+    out = step["dir"]  # outputs/<stem>: this step's own folder, overwritten on a rerun
     lines = ["rule {}:".format(step["rule"]), "    input:"]
     if step["input"]:
-        lines.append('        prev=f"{{OUT}}/{}",'.format(step["rel_in"]))
+        lines.append('        prev="{}",'.format(step["input"]))
     elif data_links:
         lines.append("        data=[{}],".format(", ".join(json.dumps(l["rel"]) for l in data_links)))
     key = "notebook" if step["kind"] in ("ipynb", "marimo") else "script"
     lines.append('        {}="{}",'.format(key, step["path"]))
-    lines += ["    output:"] + ['        f"{{OUT}}/{}",{}'.format(out, "  # TODO: name the real outputs" if i == 0 else "")
-                               for i, out in enumerate(step["outs"])]
+    lines += ["    output:"] + ['        "{}/{}",{}'.format(out, o, "  # TODO: name the real outputs" if i == 0 else "")
+                               for i, o in enumerate(step["outs"])]
     if step["executed"]:
-        lines.append('        f"{{OUT}}/{}",'.format(step["executed"]))
+        lines.append('        "{}/{}",'.format(out, step["executed"]))
     if step["html"]:
         lines.append('        "{}",'.format(step["html"]))
     lines += ["    threads: 1",
-              "    log:", '        f"{{OUT}}/logs/{}.log",'.format(step["stem"]),
-              "    benchmark:", '        f"{{OUT}}/logs/{}.benchmark.tsv"'.format(step["stem"]),
+              "    log:", '        "{}/logs/{}.log",'.format(out, step["stem"]),
+              "    benchmark:", '        "{}/logs/{}.benchmark.tsv"'.format(out, step["stem"]),
               "    shell:"]
     prev = " {input.prev:q}" if step["input"] else ""
-    where = "RUN_DIR={OUT:q} "  # notebooks and qmd pages find their run folder here
+    where = "STEP_DIR={} OUTPUTS=outputs ".format(out)  # notebooks and qmd pages find their folders here
     if step["kind"] == "ipynb":
         command = (where + "{{JUPYTER:q}} nbconvert --to notebook --execute {{input.notebook:q}} "
-                   "--output-dir {{OUT:q}} --output {} > {{log:q}} 2>&1".format(step["file"]))
+                   "--output-dir {} --output {} > {{log:q}} 2>&1".format(out, step["file"]))
     elif step["kind"] == "marimo":  # a marimo notebook is a Python file: run it headless as a script
         command = where + "{PYTHON:q} -u {input.notebook:q} > {log:q} 2>&1"
-    elif step["kind"] == "qmd":  # the project in _quarto.yml runs it from this folder and writes the html
-        command = where + "{QUARTO:q} render {input.script:q} > {log:q} 2>&1"
-    else:  # a figure step gets the run folder and derives its outputs; any other script gets its one output
+    elif step["kind"] == "qmd":  # --output-dir mirrors the source path (code/), so move the page up; embed-resources leaves no other file
+        command = (where + "{{QUARTO:q}} render {{input.script:q}} --output-dir {0} > {{log:q}} 2>&1 && "
+                   "mv {0}/code/{1}.html {2} && rmdir {0}/code".format(out, step["stem"], step["html"]))
+    else:  # a figure step gets its step folder and derives its outputs; any other script gets its one output
         tool = "{RSCRIPT:q}" if step["kind"] == "R" else "{PYTHON:q} -u"
-        command = tool + " {input.script:q}" + prev + (" {OUT:q}" if step["show"] else " {output:q}") + " > {log:q} 2>&1"
+        command = tool + " {input.script:q}" + prev + (" " + out if step["show"] else " {output:q}") + " > {log:q} 2>&1"
     lines.append('        THREADS + "{}"'.format(command))
     return "\n".join(lines) + "\n"
 
@@ -410,21 +428,21 @@ def doc_text(template, name, dest_rel, steps, data_links, code_links, root):
         "- `{}` → `{}`: [what it provides]".format(l["rel"], display(l["target"], root))
         for l in code_links])
     text = replace_line(text, "| `outputs/[filename]`", [
-        "| `{}` | [description] (step {}) |".format(RUN_DISPLAY + out, s["num"])
+        "| `{}/{}` | [description] (step {}) |".format(s["dir"], out, s["num"])
         for s in steps for out in s["outs"]]
-        + ["| `outputs/<run>/numbers.json` | Reportable values, written by `register_value` |"])
+        + ["| `outputs/numbers.json` | Reportable values, written by `register_value` |"])
     if "<!-- Update as work progresses" in text:
         text = replace_line(text, "<!-- Update as work progresses", [FINDINGS_HINT])
     else:
         text = text.replace("## Key Findings\n", "## Key Findings\n\n" + FINDINGS_HINT + "\n", 1)
     section = "\n".join(
         ["## Steps", "",
-         "Run in number order; `bash run.sh <slug>` runs them all through the `Snakefile` into `outputs/run_<YYYYMMDD>_<slug>/`.",
+         "Run in number order; `bash run.sh` runs them all through the `Snakefile`. Each step writes its own folder, "
+         "`outputs/<step>/`, and a rerun overwrites it; `logs/CHANGES.md` records what changed.",
          "Plan: [plans/PLAN.md](plans/PLAN.md). Status and log: [plans/TRACKER.md](plans/TRACKER.md).", "",
          "| Step | File | Does | Output |", "|---|---|---|---|"]
         + ["| {} | `{}` | [what it does] | `{}` |".format(s["num"], s["path"], s["output"])
            for s in steps]) + "\n"
-    text = text.replace("\nbash run.sh\n", "\nbash run.sh <slug>\n")
     if "\n## Reproducibility" in text:
         return text.replace("\n## Reproducibility", "\n" + section + "\n## Reproducibility", 1)
     return text.rstrip("\n") + "\n\n" + section
@@ -434,7 +452,7 @@ def report_text(template, name, doc_name, dest_rel, steps, data_links):
     """The Quarto report: a mermaid chain of the steps, one Methods and one Results tab per step."""
     nodes = []
     for step in steps:
-        nodes.append('s{0}["{1}"] --> o{0}[("{2}")]'.format(step["num"], step["path"], step["output"].replace("<run>", "[run]")))
+        nodes.append('s{0}["{1}"] --> o{0}[("{2}")]'.format(step["num"], step["path"], step["output"]))
     lines = ["flowchart LR"]
     if data_links:
         lines.append("    " + " & ".join('d{}[("{}")]'.format(i, l["rel"]) for i, l in enumerate(data_links))
@@ -452,7 +470,7 @@ def report_text(template, name, doc_name, dest_rel, steps, data_links):
             .format(step["path"], step["output"]), "",
             '```{{.{} filename="{}"}}'.format(step["lang"], step["path"]),
             "# [the 5-15 lines that do the work, with their line range]", "```", ""]))
-        figure = "outputs/[run]/figures/{}_[what-it-shows].png".format(step["num"])
+        figure = "{}/figures/{}_[what-it-shows].png".format(step["dir"], step["num"])
         results.append("\n".join([
             title, "",
             "**Question.** [What this tab answers, as one question.]", "",
@@ -489,15 +507,13 @@ def source_rows(data_links, root):
             for l in data_links]
 
 
-def report_rows(name, has_report, has_site):
+def report_rows(name, has_report):
     """reports/README.md rows: what the scaffold wrote there, with no run yet."""
     rows = []
     if has_report:
         rows += ["| `{}.qmd` | the record | | analysis-report |".format(name),
                  "| `{}.html` | its render | | quarto render |".format(name)]
     rows.append("| `report.scss`, `report-dark.scss` | theme, DESIGN.md tokens | — | you |")
-    if has_site:
-        rows.append("| `site/` | step pages (qmd steps only) | — | Snakefile |")
     return rows
 
 
@@ -601,7 +617,7 @@ def scaffold(args):
         "RSCRIPT": json.dumps(tools["rscript"]), "PYTHON": json.dumps(tools["python"]),
         "JUPYTER": json.dumps(tools["jupyter"]),
         "ENV_NOTE": "defaults from " + ENV_FILE if env_used else "defaults are the names on PATH",
-        "LAST_OUTPUTS": "\n".join(['        f"{{OUT}}/{}",'.format(out) for out in steps[-1]["outs"]]
+        "LAST_OUTPUTS": "\n".join(['        "{}/{}",'.format(steps[-1]["dir"], out) for out in steps[-1]["outs"]]
                                   + (['        "{}",'.format(steps[-1]["html"])] if steps[-1]["html"] else [])),
         "RULES": "\n\n".join(rule(step, data_links) for step in steps).rstrip("\n")})
     files["logs/.gitkeep"] = files["outputs/.gitkeep"] = ""  # git drops empty folders; SLURM needs logs/ after a clone
@@ -613,7 +629,7 @@ def scaffold(args):
     files["run.sbatch"] = ap.fill(ap.read(os.path.join(templates, "run.sbatch")), {"NAME": name})
     files[doc_name] = doc_text(ap.read(template_path), name, dest_rel, steps, data_links,
                                code_links, root)
-    if qmd:  # the steps are the report: Quarto renders them as one site under reports/site/
+    if qmd:  # each qmd step renders its page into its own outputs/<stem>/ folder
         files["_quarto.yml"] = ap.read(os.path.join(templates, "_quarto.yml"))
     report = "reports/" + name + ".qmd"
     if not all(s["kind"] == "qmd" for s in steps):
@@ -622,9 +638,9 @@ def scaffold(args):
     for theme in THEMES:  # report.qmd and _quarto.yml both name these (DESIGN.md tokens)
         files["reports/" + theme] = ap.read(os.path.join(templates, theme))
     files["reports/README.md"] = ap.fill(ap.read(os.path.join(templates, "reports-README.md")), {
-        "REPORT_ROWS": "\n".join(report_rows(name, report in files, qmd))})
+        "REPORT_ROWS": "\n".join(report_rows(name, report in files))})
     if args.panels:
-        files.update(manuscript_files(parse_panels(args.panels), name, dest_rel.replace(os.sep, "/"), root, templates))
+        files.update(manuscript_files(parse_panels(args.panels), panel_dir(steps), name, dest_rel.replace(os.sep, "/"), root, templates))
     folders = DIRS + (["config"] if args.panels else [])
     inputs = ", ".join(display(l["target"], root) for l in data_links) or (
         "[repository paths of the sample table, config, or raw-data folder; or none]")
@@ -699,9 +715,9 @@ def scaffold(args):
         print("note: default steps are .{} ({}).".format(fmt, fmt_source))
     for step in (s for s in steps if s["kind"] == "marimo"):
         print("note: {0} runs headless as a Python script; `marimo edit {0}` opens it, and `marimo export html {0} "
-              "-o reports/site/code/{1}.html` renders a page analysis-report can link (it executes the notebook: a gated run).".format(step["path"], step["stem"]))
+              "-o {2}` renders a page analysis-report can link (it executes the notebook: a gated run).".format(step["path"], step["stem"], step["html"] or "outputs/{}/{}.html".format(step["stem"], step["stem"])))
     if qmd:
-        print("note: qmd steps are rendered by quarto into reports/site/ ({} engine); the Snakefile needs quarto "
+        print("note: qmd steps are rendered by quarto into outputs/<stem>/ ({} engine); the Snakefile needs quarto "
               "on PATH, or --config quarto=/path/to/quarto.".format("knitr" if args.lang == "r" else "jupyter"))
     for shown in sorted(hidden):
         if shown in UNTRACKED_OK:

@@ -265,6 +265,57 @@ class RunStatusTest(Base):
         self.assertTrue(any("no earlier snapshot" in l and "run status" in l for l in data["coverage"]["limitations"]))
 
 
+class ChangeLogTest(Base):
+    """A steps layout: logs/CHANGES.md entries replace RUN.txt as the run signal; .code-hashes.tsv is state."""
+    OLD = "## 2026-11-10 08:00 abc1233 ok"
+    NEW = "## 2026-11-12 09:30 abc1234 ok"
+    BAD = "## 2026-11-12 10:00 abc1235 failed"
+
+    def log(self, *heads):
+        self.write("analysis/a/outputs/01_fit/01_fit.tsv", "x\n")
+        self.write("analysis/a/logs/CHANGES.md", "# Changes\n\n" + "\n\n".join(heads) + "\n")
+        self.write("analysis/a/logs/.code-hashes.tsv", "deadbeef\tcode/01_fit.R\n")
+
+    def prior(self, heads):
+        self.write(".mycelium-extra/track-changes/analysis__a/snapshot.json", json.dumps(
+            {"analysis_path": "analysis/a", "runs": {"status": {}, "current": None, "changes": heads}}))
+
+    def found(self, data):
+        return self.items(data, "run")
+
+    def test_a_new_ok_entry_is_routine_and_a_failed_one_is_attention(self):
+        self.log(self.OLD, self.NEW, self.BAD)
+        self.prior([self.OLD])
+        data = self.collect(analysis="analysis/a")
+        found = {i["current"]: i["bucket"] for i in self.found(data)}
+        self.assertEqual(found, {self.NEW[3:]: "routine", self.BAD[3:]: "attention"})
+        self.assertEqual(data["runs"]["changes"], [self.OLD, self.NEW, self.BAD])
+
+    def test_a_dropped_entry_is_attention_and_the_hash_file_is_not_read(self):
+        self.log(self.NEW)
+        self.prior([self.OLD, self.NEW])
+        found = self.found(self.collect(analysis="analysis/a"))
+        self.assertEqual([(i["bucket"], i["current"]) for i in found], [("attention", "(gone)")])
+        self.assertNotIn("code-hashes", json.dumps(found))
+
+    def test_nothing_new_gives_no_item_and_a_first_snapshot_has_no_baseline(self):
+        self.log(self.OLD)
+        self.prior([self.OLD])
+        self.assertEqual(self.found(self.collect(analysis="analysis/a")), [])
+        shutil.rmtree(os.path.join(self.root, ".mycelium-extra", "track-changes"))
+        data = self.collect(analysis="analysis/a")
+        self.assertEqual(self.found(data), [])
+        self.assertTrue(any("CHANGES.md" in l and "no earlier snapshot" in l for l in data["coverage"]["limitations"]))
+
+    def test_an_old_snapshot_without_the_key_reports_no_entries(self):
+        self.log(self.OLD)
+        self.write(".mycelium-extra/track-changes/analysis__a/snapshot.json", json.dumps(
+            {"analysis_path": "analysis/a", "runs": {"status": {}, "current": None}}))
+        data = self.collect(analysis="analysis/a")
+        self.assertEqual(self.found(data), [])
+        self.assertTrue(any("CHANGES.md" in l for l in data["coverage"]["limitations"]))
+
+
 class ReportSectionsTest(Base):
     """A whole-file rewrite of reports/*.qmd that drops sections is an attention item at the next snapshot."""
     QMD = "analysis/a/reports/a.qmd"

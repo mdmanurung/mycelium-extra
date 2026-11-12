@@ -142,6 +142,74 @@ class FlatLayout(Base):
         self.assertEqual(ap.current_run(self.folder), (None, "none"))
 
 
+class StepsLayout(Base):
+    def make_steps(self):
+        touch(self.path("outputs", "01_valid-tags", "figures", "01_tags.png"))
+        touch(self.path("outputs", "01_valid-tags", "source_data", "01_tags.tsv"))
+        touch(self.path("outputs", "02b_fit", "figures", "02b_fit.pdf"))
+        touch(self.path("outputs", "02b_fit", "tables", "02b_fit.tsv"))
+        touch(self.path("outputs", "02b_fit", "figures", ".hidden.png"))
+        touch(self.path("outputs", "numbers.json"), "{}")
+
+    def test_steps_only(self):
+        self.make_steps()
+        found = ap.runs(self.folder)
+        self.assertEqual(found, [{"path": self.path("outputs"), "name": "outputs", "run_txt": None,
+                                  "kind": "analysis", "status": None, "layout": "steps"}])
+        self.assertEqual(ap.current_run(self.folder), (found[0], "steps layout"))
+        self.assertEqual(ap.numbers(self.folder, found[0]), self.path("outputs", "numbers.json"))
+
+    def test_steps_with_old_runs(self):
+        self.make_steps()
+        touch(self.path("outputs", "run_20261001_fit", "RUN.txt"), "kind: analysis\nstatus: current\n")
+        touch(self.path("outputs", "run_20261001_fit", "x.tsv"), mtime=time.time() + 100)
+        found = ap.runs(self.folder)
+        self.assertEqual([r["layout"] for r in found], ["steps", "run"])
+        run, why = ap.current_run(self.folder)
+        self.assertEqual((run["layout"], why), ("steps", "steps layout"))
+
+    def test_current_link_still_wins(self):
+        self.make_steps()
+        touch(self.path("outputs", "run_20261001_fit", "RUN.txt"), "kind: analysis\n")
+        os.symlink("run_20261001_fit", self.path("outputs", "current"))
+        run, why = ap.current_run(self.folder)
+        self.assertEqual((run["name"], why), ("run_20261001_fit", "current link"))
+
+    def test_gathers_across_steps(self):
+        self.make_steps()
+        run = ap.runs(self.folder)[0]
+        self.assertEqual(ap.figures(run), [self.path("outputs", "01_valid-tags", "figures", "01_tags.png"),
+                                           self.path("outputs", "02b_fit", "figures", "02b_fit.pdf")])
+        self.assertEqual(ap.source_data(run), [self.path("outputs", "01_valid-tags", "source_data", "01_tags.tsv")])
+        self.assertEqual(ap.tables(run), [self.path("outputs", "02b_fit", "tables", "02b_fit.tsv")])
+
+    def test_non_step_folders_are_not_steps(self):
+        touch(self.path("outputs", ".gitkeep"))
+        touch(self.path("outputs", "numbers.json"), "{}")
+        touch(self.path("outputs", "notes", "a.txt"))
+        touch(self.path("outputs", "1_bad", "a.txt"))
+        self.assertEqual([r["layout"] for r in ap.runs(self.folder)], ["flat"])
+
+    def test_dotfiles_and_numbers_only_is_not_steps(self):
+        touch(self.path("outputs", ".gitkeep"))
+        touch(self.path("outputs", "numbers.json"), "{}")
+        self.assertNotIn("steps", [r["layout"] for r in ap.runs(self.folder)])
+        self.assertNotEqual(ap.current_run(self.folder)[1], "steps layout")
+
+    def test_change_log(self):
+        self.assertIsNone(ap.change_log(self.folder))
+        self.assertIsNone(ap.last_change(self.folder))
+        touch(self.path("logs", "CHANGES.md"), "# Changes\n")
+        self.assertEqual(ap.change_log(self.folder), self.path("logs", "CHANGES.md"))
+        self.assertIsNone(ap.last_change(self.folder))
+        touch(self.path("logs", "CHANGES.md"),
+              "# Changes\n\n## 2026-11-12 09:30 abc1234 ok\ntext\n\n"
+              "## 2026-11-12 10:05 abc1234 dirty failed\ntext\n")
+        self.assertEqual(ap.last_change(self.folder), "## 2026-11-12 10:05 abc1234 dirty failed")
+        touch(self.path("logs", "CHANGES.md"), "## 2026-11-12 10:05 b ok\n\n## 2026-11-12 09:30 a ok\n")
+        self.assertEqual(ap.last_change(self.folder), "## 2026-11-12 10:05 b ok")
+
+
 class Docs(Base):
     def test_find_doc(self):
         self.assertIsNone(ap.find_doc(self.folder))

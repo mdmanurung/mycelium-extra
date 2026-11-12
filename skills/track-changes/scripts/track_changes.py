@@ -4,7 +4,7 @@
     sh hooks/py.sh - --plugin-root <plugin> [--repo DIR] [--analysis <folder>] [--original HASH] [--current HASH]
         [--transcript FILE] [--json] [--no-write] < track_changes.py
 
-Reads approvals, approval instances, `outputs/*/RUN.txt` status and the `current` link, the re-pin journal, kept script snapshots, receipts, the focus records and
+Reads approvals, approval instances, `logs/CHANGES.md` entries (a steps layout), `outputs/*/RUN.txt` status (old run folders) and the `current` link, the re-pin journal, kept script snapshots, receipts, the focus records and
 (optionally) a Claude Code transcript. Writes only `.mycelium-extra/track-changes/<analysis>/`: snapshot.json,
 brief.md, report.html. Nothing here approves, freezes, runs, pins or re-grades anything; it never calls
 `freeze_state`, `keep_snapshot`, `verify report`, or any helper that writes gate state. What it did not observe
@@ -607,21 +607,28 @@ def report_items(snap, root, rel):
 
 
 def run_state(root, rel):
-    """What the run folders say now: `{"status": {<run name>: status}, "current": <target name or None>}`.
-    Runs and RUN.txt come from hooks/analysis_paths.py, so this reads the same layout as verify."""
+    """What the run folders say now: `{"status": {<run name>: status}, "current": <target name or None>}`,
+    plus `"changes": [<heading line>, ...]` when the analysis has a `logs/CHANGES.md` (a steps layout; its
+    sibling `logs/.code-hashes.tsv` is state and is not read). Runs, RUN.txt and the log come from
+    hooks/analysis_paths.py, so this reads the same layout as verify."""
     import analysis_paths
     folder = os.path.join(root, rel)
     status = {r["name"]: r["status"] or "" for r in analysis_paths.runs(folder) if r["layout"] == "run"}
     link = os.path.join(analysis_paths.base(folder), "current")
     target = os.path.basename(os.path.realpath(link)) if os.path.islink(link) else None
-    return {"status": status, "current": target}
+    state = {"status": status, "current": target}
+    log = analysis_paths.change_log(folder)
+    if log:
+        state["changes"] = [l.rstrip() for l in analysis_paths.read(log).splitlines() if l.startswith("## ")]
+    return state
 
 
 ROUTINE_RUN_MOVES = {("running", "done"), ("failed", "running")}  # the normal run.sh lifecycle
 
 
 def run_items(snap, root, rel):
-    """One item per run whose RUN.txt `status` changed since the last snapshot, and one when the
+    """One item per new `logs/CHANGES.md` entry (routine when it is `ok`, attention when `failed`; attention
+    when an entry the last snapshot knew is gone, since the log is append-only), one per run whose RUN.txt `status` changed since the last snapshot, and one when the
     `current` link was retargeted. `running` to `done` and `failed` to `running` are routine (the normal
     lifecycle); every other change, a retargeted `current` and a removed run are attention. A run marked `superseded` or `current` by hand shows up here. The baseline
     is the last snapshot, not an approval. Returns the state now, which the snapshot records for the next run."""
@@ -632,8 +639,38 @@ def run_items(snap, root, rel):
     if not isinstance(before, dict) or not isinstance(before.get("status"), dict):
         if now["status"] or now["current"]:
             snap.limitations.append("run status and `current` have no earlier snapshot to compare")
+        if "changes" in now:
+            snap.limitations.append("`logs/CHANGES.md` has no earlier snapshot to compare")
         return now
     folder = posixpath.join(rel, "results" if os.path.isdir(os.path.join(root, rel, "results")) else "outputs")
+    old_log = before.get("changes")
+    if "changes" in now and not isinstance(old_log, list):
+        snap.limitations.append("`logs/CHANGES.md` has no earlier snapshot to compare")
+    elif isinstance(old_log, list):
+        log = posixpath.join(rel, "logs", "CHANGES.md")
+        evid = [snap.evid("file", log, "change log compared with the last snapshot")]
+        # headings have minute resolution, so two runs can share one: compare counts, not membership
+        seen = {}
+        for head in now.get("changes", []):
+            seen[head] = seen.get(head, 0) + 1
+            if seen[head] > old_log.count(head):
+                key = head if seen[head] == 1 else "{} #{}".format(head, seen[head])
+                snap.item("run", key, "change log: " + head[3:], "attention" if head.rstrip().endswith("failed") else "routine",
+                          file=log, baseline="(no such entry)", current=head[3:],
+                          summary="Observed: logs/CHANGES.md has an entry the last snapshot did not.",
+                          observed="New entry: {}.".format(head[3:]),
+                          unknown="Whether the run that wrote it produced results the plan covers.",
+                          next=["`{}` lists the code files and step folders that entry names".format(log)], evidence=evid)
+        gone = {}
+        for head in old_log:
+            gone[head] = gone.get(head, 0) + 1
+            if gone[head] > now.get("changes", []).count(head):
+                snap.item("run", head if gone[head] == 1 else "{} #{}".format(head, gone[head]), "change log entry gone: " + str(head)[3:], "attention", file=log,
+                          baseline=str(head)[3:], current="(gone)",
+                          summary="Observed: a logs/CHANGES.md entry from the last snapshot is absent now.",
+                          observed="Gone: {}.".format(str(head)[3:]),
+                          unknown="Whether the log was edited on purpose.",
+                          next=["`git diff -- {}` shows the edit".format(log)], evidence=evid)
 
     def add(key, title, old, new, summary, next_step, bucket="attention"):
         snap.item("run", key, title, bucket, file=posixpath.join(folder, key), baseline=str(old), current=str(new),

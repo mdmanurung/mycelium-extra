@@ -244,13 +244,13 @@ Renamed columns need an explicit mapping in the check (for example comparing the
 
 | | |
 |---|---|
-| **Claim** | A rewritten step reproduces the baseline run's tables byte for byte, so the rewrite changed how the code reads, not what it computes. |
-| **Inputs** | the baseline run's sums, written once inside the baseline run folder with `sha256sum 03_summary.tsv 03_hits.tsv > ../../checks/baseline.sha256`, and the new run folder |
-| **Expected answer** | The baseline run, recorded before the rewrite. Name every table a reader would cite; a figure's data layer is a table, its image bytes are not. |
-| **Invocation** | `python3 recipe_checks.py --out RESULT same --baseline checks/baseline.sha256 --run outputs/run_<date>_<slug>` |
-| **Pass / fail / unavailable** | Pass: every listed table has the baseline's bytes. Fail: a table differs, or is missing from the new run, because a rewrite that drops an output is not equivalent; the message names tables, never values. Unavailable: the sums file is unreadable, empty, malformed, names a path outside the run folder or repeats one, or the run folder does not exist. |
+| **Claim** | A rewritten step reproduces the baseline's tables byte for byte, so the rewrite changed how the code reads, not what it computes. |
+| **Inputs** | the baseline's sums, written once before the rewrite from the step folder with `sha256sum 03_summary.tsv 03_hits.tsv > ../../checks/baseline.sha256`, and the step folder the rewrite overwrites |
+| **Expected answer** | The baseline outputs, recorded before the rewrite. Name every table a reader would cite; a figure's data layer is a table, its image bytes are not. |
+| **Invocation** | `python3 recipe_checks.py --out RESULT same --baseline checks/baseline.sha256 --run outputs/<step stem>` |
+| **Pass / fail / unavailable** | Pass: every listed table has the baseline's bytes. Fail: a table differs, or is missing from the rewritten folder, because a rewrite that drops an output is not equivalent; the message names tables, never values. Unavailable: the sums file is unreadable, empty, malformed, names a path outside the step folder or repeats one, or the folder does not exist. |
 | **Deliberate failure** | `refactor/run_changed` changes one logFC from 0.42 to 0.43; `refactor/run_missing` lacks `hits.tsv`. |
-| **Benign control** | `refactor/run_same` passes. Run the rewrite into a new run folder; never overwrite the baseline. |
+| **Benign control** | `refactor/run_same` passes. The rewrite overwrites the step folder, so write the sums file before the rewrite and keep it outside `outputs/`. An older analysis can compare against a legacy run folder instead. |
 | **Limit** | Bytes, not meaning. A rewrite that reorders rows or prints floats differently fails although the content is equal; compare those tables with recipe 7's keyed invariants instead. A pass shows the rewrite matches the old code, not that the old code was right. |
 
 ```text
@@ -258,11 +258,11 @@ Renamed columns need an explicit mapping in the check (for example comparing the
   {"id": "same-as-baseline", "plan_row": "3", "required": true, "defined_by": "researcher-approved",
    "test_paths": ["analysis/dream/checks/recipe_checks.py", "analysis/dream/checks/baseline.sha256"],
    "invocation": ["python3", "analysis/dream/checks/recipe_checks.py", "--out", "analysis/dream/outputs/same_as_baseline.json",
-                  "same", "--baseline", "analysis/dream/checks/baseline.sha256", "--run", "analysis/dream/outputs/run_20261026_readable"],
+                  "same", "--baseline", "analysis/dream/checks/baseline.sha256", "--run", "analysis/dream/outputs/03_summary"],
    "evidence_path": "analysis/dream/outputs/same_as_baseline.json"}]} -->
 ```
 
-Pin the sums file in `test_paths`, so a baseline edited after approval reads `changed`. Keep the result file outside the run folder it compares. Once the check passes, the new run can replace the old one: label the old run `superseded_by run_20261026_readable` in its `RUN.txt`, and `verify runs` reads the pair.
+Pin the sums file in `test_paths`, so a baseline edited after approval reads `changed`. Keep the result file outside the step folder it compares. The rewrite replaces the old outputs, so the sums file is the only record of the baseline; `logs/CHANGES.md` records the code edit. In an older analysis with legacy run folders, label the old run `superseded_by <new run>` in its `RUN.txt` and `verify runs` reads the pair.
 
 ## Correcting a wrong expectation
 

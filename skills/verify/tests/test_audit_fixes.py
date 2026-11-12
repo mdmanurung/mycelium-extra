@@ -185,6 +185,39 @@ class AuditFixTest(Harness):
         self.write("analysis/a/outputs/01_fit.tsv", "x\n")
         self.assertIn("No `run_<YYYYMMDD>_<slug>` folders here.", self.verify("runs", "analysis/a/outputs"))
 
+    # 0.25.0: a steps layout has no RUN.txt; `runs` lists the step folders and the last change
+    def steps_folder(self):
+        self.write("analysis/a/outputs/01_prepare/01_prepare.tsv", "x\n")
+        self.write("analysis/a/outputs/03_show/figures/03_show.png", "x")
+        self.write("analysis/a/outputs/03_show/source_data/03_show.tsv", "x\n")
+        self.write("analysis/a/outputs/03_show/figures/03_extra.png", "x")
+        self.write("analysis/a/outputs/04_report/04_report.html", "x")
+
+    def test_runs_lists_step_folders_with_no_runtxt_gap(self):
+        self.steps_folder()
+        out = self.verify("runs", "analysis/a/outputs")
+        for step in ("01_prepare", "03_show", "04_report"):
+            self.assertRegex(out, r"\| {} \| \d{{4}}-\d\d-\d\d \d\d:\d\d \| [0-9a-f]{{8}} \|".format(step))
+        self.assertNotIn("no label", out)
+        self.assertNotIn("unlabelled", out)
+        self.assertNotIn("No `run_<YYYYMMDD>_<slug>` folders here.", out)
+        self.assertIn("Last change: none logged", out)
+        self.assertIn("- gap `03_extra`: figure has no source data", out)
+        self.assertNotIn("`03_show`:", out)  # that stem is paired
+
+    def test_runs_quotes_the_newest_change_heading_and_keeps_legacy_runs(self):
+        self.steps_folder()
+        self.write("analysis/a/logs/CHANGES.md", "# Changes\n\n## 2026-11-12 09:00 abc1234 ok\n- a\n\n"
+                   "## 2026-11-10 08:00 def5678 failed\n- b\n")
+        self.label("analysis/a/outputs/run_20261001_old", "current")
+        out = self.verify("runs", "analysis/a/outputs")
+        self.assertIn("Last change: ## 2026-11-12 09:00 abc1234 ok", out)
+        self.assertRegex(out, r"\| run_20261001_old \| 1 \| model \| current \|")  # legacy RUN.txt stays read
+        self.assertNotIn("| 01_prepare | 1 |", out)
+        data = json.loads(self.verify("runs", "analysis/a/outputs", "--json"))
+        self.assertEqual([s["step"] for s in data["steps"]], ["01_prepare", "03_show", "04_report"])
+        self.assertEqual([r["run"] for r in data["runs"]], ["run_20261001_old"])
+
     # 0.24.0: `write` indexes the verify record in the analysis doc's Outputs table, once per hash
     def written(self, doc_text):
         self.write("analysis/a/README.md", doc_text)

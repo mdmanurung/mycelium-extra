@@ -20,12 +20,12 @@ The script scans the folder and writes the skeleton; the agent reads what the in
 
 | Option | Meaning |
 |---|---|
-| `--dest` | The analysis folder (required). Any layout: steps `NN_*.R|py|ipynb` at the root or in `code/`, zero or more `Snakefile*`, runs under `outputs/`. |
+| `--dest` | The analysis folder (required). Any layout: steps `NN_*.R|py|ipynb` at the root or in `code/`, zero or more `Snakefile*`, step folders (or legacy runs) under `outputs/`. |
 | `--templates` | `new-analysis`'s `templates/` folder, which holds `report.qmd` (required). |
 | `--overwrite` | Replace an existing `reports/<name>.qmd`. Without it an existing report is kept. |
 | `--dry-run` | Print the inventory; write nothing. |
 
-The inventory (JSON on stdout) lists the analysis doc, the steps, each Snakefile with its rules, the step script each rule's shell line names and its `RUN` folder, the dated runs and the `outputs/current` target, PNG figures, `*REPORT*.md` files and `numbers.json`. The mermaid block has one subgraph per Snakefile with its rules in file order (a folder with no Snakefile chains the steps by number); the agent adds the edges between workflows.
+The inventory (JSON on stdout) lists the analysis doc, the steps, each Snakefile with its rules, the step script each rule's shell line names and its step folder, the `outputs/` layout (steps, legacy runs or flat), the last `logs/CHANGES.md` entry and any `outputs/current` target, PNG figures, `*REPORT*.md` files and `numbers.json`. The mermaid block has one subgraph per Snakefile with its rules in file order (a folder with no Snakefile chains the steps by number); the agent adds the edges between workflows.
 
 ## The report
 

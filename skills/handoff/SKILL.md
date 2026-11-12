@@ -64,7 +64,7 @@ Run `git log --oneline <hash>..HEAD` and `git status --short`, with `<hash>` fro
 ## State
 - Uncommitted: <files, or "clean">
 - Tests: <passing / failing, with the failing name>
-- Run: <`outputs/current` target, or the newest run> · status <RUN.txt status> · kind <kind> (or `flat layout`, or `no run`); read from `outputs/*/RUN.txt` ([analysis layout](../../docs/concepts/analysis-layout.md))
+- Run: <newest `logs/CHANGES.md` heading, with its changed code files and step folders> (or, for a legacy run, <`outputs/current` target, or the newest run> · status <RUN.txt status> · kind <kind>; or `flat layout`, or `no run`); read from `logs/CHANGES.md`, else `outputs/*/RUN.txt` ([analysis layout](../../docs/concepts/analysis-layout.md))
 - Results: <conclusion> — <its inspected figure path, `table fallback: <reason>`, or `unsupported`> (one line each; see plot-first)
 - Assumed, not run: <belief not checked this session, or none>
 - <anything running: job IDs, servers, envs>

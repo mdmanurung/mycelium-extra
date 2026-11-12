@@ -4,6 +4,20 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-11-12
+
+### Changed
+
+- **analysis layout:** each script owns one folder, `outputs/<script stem>/`, and a rerun overwrites it. Old outputs are not kept. New analyses have no `run_<date>_<slug>` folders, no slug, no `RUN.txt` and no `_vNN`. This supersedes decision 1 of the layout plan (a run is never overwritten) at the user's request; see `docs/roadmap/18-analysis-layout.md`.
+- **new-analysis:** `run.sh` and `run.sbatch` take no slug and refuse nothing. A qmd step renders its HTML into its own folder, `outputs/<stem>/<stem>.html`, not `reports/site/`. Notebooks, qmd pages and figure scripts get `STEP_DIR` (the step's folder) and `OUTPUTS` (the `outputs/` root). `RUN_DIR` is retired for new analyses.
+- **resolver:** `hooks/analysis_paths.py` has a layout `steps` and reads `figures/`, `source_data/` and `tables/` over all step folders. `change_log` and `last_change` read `logs/CHANGES.md`. Layouts `run_<date>` and `flat` are still read unchanged, and existing run folders stay in place.
+- **verify, analysis-report, track-changes, plot-first, handoff, grill:** each reads the step folders and the newest `logs/CHANGES.md` entry. A steps layout needs no `RUN.txt`.
+- **docs:** the layout contract has a new tree and rules 1, 2 and 4, a `logs/CHANGES.md` section and a "Legacy run folders" section for `RUN.txt`.
+
+### Added
+
+- **new-analysis:** `run.sh` appends one entry per real run to `logs/CHANGES.md` (heading `## <YYYY-MM-DD HH:MM> <git short hash>[ dirty] <ok|failed>`). It lists each `code/` file whose sha256 changed since `logs/.code-hashes.tsv` and each step folder written. A dry run logs nothing.
+
 ## [0.24.1] - 2026-11-08
 
 ### Changed

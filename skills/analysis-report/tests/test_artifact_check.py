@@ -125,6 +125,26 @@ class ArtifactCheckTest(unittest.TestCase):
         page = read(GOOD).replace('<span class="pill pass">verified</span>', "")
         self.assertIn("verified / not verified", self.check(page)[1])
 
+    def test_steps_layout_banner_and_numbers(self):
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        os.makedirs(os.path.join(root, "outputs", "01_fit"))
+        os.makedirs(os.path.join(root, "reports"))
+        shutil.copy(NUMBERS, os.path.join(root, "outputs", "numbers.json"))
+        qmd = os.path.join(root, "reports", "demo.qmd")
+        shutil.copy(QMD, qmd)
+        page = read(GOOD).replace("<li>Dose effect", "<li>14,231 genes tested. Dose effect")
+        page = page.replace("Run <code>run_20261104_il6</code>", "<code>outputs/ (steps), last change 2026-11-12</code>")
+        self.assertNotIn("run label", self.check(page)[1])
+        with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as handle:
+            handle.write(page)
+        self.addCleanup(os.unlink, handle.name)
+        hooks = os.path.join(HERE, "..", "..", "..", "hooks")
+        with open(SCRIPT, "rb") as script:  # the default numbers file is outputs/numbers.json
+            run_ = subprocess.run([sys.executable, "-", "--page=" + handle.name, "--report=" + qmd, "--hooks=" + hooks],
+                                  stdin=script, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
+        self.assertEqual(run_.returncode, 0, run_.stdout)
+
     def test_size_limit(self):
         code, out = self.check(read(GOOD) + "<!-- " + "x" * (16 * 1024 * 1024) + " -->")
         self.assertEqual(code, 1)

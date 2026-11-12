@@ -1,8 +1,14 @@
 """One place that finds an analysis's files, so every skill reads the same layout.
 
-The layout is docs/concepts/analysis-layout.md: `outputs/run_<YYYYMMDD>_<slug>[_vNN]/` folders with a
-`RUN.txt`, an `outputs/current` link, and `figures/ source_data/ tables/ numbers.json` inside a run. Old
-analyses keep files directly in `outputs/`; that is the "flat" layout and is still read.
+Three layouts are read:
+- "steps" (new): `outputs/<script stem>/` folders (`NN_name`, or `NNa_name`), one per script, each holding
+  `figures/ source_data/ tables/`. A rerun overwrites its folder. `runs()` returns one "steps" entry (path =
+  the outputs folder) first; `figures()`, `source_data()` and `tables()` gather across all step folders.
+  Changes to code and outputs are logged in `<analysis>/logs/CHANGES.md` (`change_log()`, `last_change()`).
+- "run": old `outputs/run_<YYYYMMDD>_<slug>[_vNN]/` folders with a `RUN.txt` and an `outputs/current` link.
+  They are left in place and still read, after the "steps" entry.
+- "flat": old analyses keep files directly in `outputs/`.
+An `outputs/current` link, where it exists and resolves inside the repository, still wins in `current_run()`.
 
 Stdlib-only; Python 3.9+. The gate does not import this module (hooks/gate.py keeps its own root finder).
 """
@@ -13,6 +19,8 @@ import re
 import subprocess
 
 RUN_DIR = re.compile(r"^run_\d{8}_.+$")
+STEP_DIR = re.compile(r"^\d{2}[a-z]?_.+$")
+STEP_SUBDIRS = ("figures", "source_data", "tables")  # a step folder that has run holds at least one of these
 KINDS = ("analysis", "figures", "scratch")
 FIGURE_EXT = (".png", ".pdf")
 
@@ -166,23 +174,39 @@ def _flat(base):
             "layout": "flat"}
 
 
+def _steps(base):
+    return {"path": base, "name": os.path.basename(base), "run_txt": None, "kind": "analysis", "status": None,
+            "layout": "steps"}
+
+
 def runs(folder, results_dir=None):
     """Run folders of an analysis, oldest name first. `results_dir` if given, else `<folder>/results/`
     if it exists, else `<folder>/outputs/`. A run is a real directory named `run_<YYYYMMDD>_<slug>`; dotfiles such as `.gitkeep` are ignored.
     When there are none but files (or other folders) sit in the outputs folder, one entry with
-    layout "flat" and the outputs folder as its path is returned, so old analyses keep working."""
+    layout "flat" and the outputs folder as its path is returned, so old analyses keep working.
+    When a step folder (`NN_name`, see STEP_DIR, holding a figures, source_data or tables folder) exists, the first entry has layout "steps" and the
+    outputs folder as its path; old run folders follow it."""
     base = _base(folder, results_dir)
     if not os.path.isdir(base):
         return []
-    found, other = [], False
+    found, other, has_steps, bare = [], False, False, False
     for name in sorted(os.listdir(base)):
         path = os.path.join(base, name)
         if name == "current" or name.startswith(".") or os.path.islink(path):
             continue
         if os.path.isdir(path) and RUN_DIR.match(name):
             found.append(_entry(path))
+        elif os.path.isdir(path) and STEP_DIR.match(name):
+            # a data folder such as `10x_counts` has the name but no output subfolder: it is no step
+            if any(os.path.isdir(os.path.join(path, sub)) for sub in STEP_SUBDIRS):
+                has_steps = True
+            else:
+                bare = True
         else:
             other = True
+    if has_steps:
+        return [_steps(base)] + found
+    other = other or bare
     if not found and other:
         return [_flat(base)]
     return found
@@ -190,8 +214,9 @@ def runs(folder, results_dir=None):
 
 def current_run(folder, results_dir=None):
     """(entry or None, reason). Reason is "current link" (the target of `current`, which must resolve
-    inside the repository), "outside repository" (it does not: a gap, entry None), "newest run" (by
-    newest file mtime, skipping kind `scratch`), "flat layout" or "none"."""
+    inside the repository), "outside repository" (it does not: a gap, entry None), "steps layout"
+    (the steps entry, when step folders exist), "newest run" (by newest file mtime, skipping kind
+    `scratch`), "flat layout" or "none"."""
     base = _base(folder, results_dir)
     link = os.path.join(base, "current")
     if os.path.islink(link):
@@ -201,6 +226,8 @@ def current_run(folder, results_dir=None):
         if os.path.isdir(target):
             return _entry(target), "current link"
     found = runs(folder, results_dir)
+    if found and found[0]["layout"] == "steps":
+        return found[0], "steps layout"
     if found and found[0]["layout"] == "flat":
         return found[0], "flat layout"
     live = [r for r in found if r["kind"] != "scratch"]
@@ -230,23 +257,54 @@ def _files(path, only=None):
                   and (only is None or n.lower().endswith(only)))
 
 
-def figures(run):
-    """Sorted figure files of a run: those in `<run>/figures/`, plus PNG/PDF files directly in a flat run."""
+def _gather(run, sub):
+    """Files in `<run>/<sub>/`; for a "steps" run, in `<outputs>/<step>/<sub>/` over all step folders."""
     path = _run_path(run)
-    out = _files(os.path.join(path, "figures"))
+    if isinstance(run, dict) and run.get("layout") == "steps":
+        out = []
+        for name in sorted(os.listdir(path)):
+            if STEP_DIR.match(name) and os.path.isdir(os.path.join(path, name)):
+                out += _files(os.path.join(path, name, sub))
+        return sorted(out)
+    return _files(os.path.join(path, sub))
+
+
+def figures(run):
+    """Sorted figure files of a run: those in `<run>/figures/`, plus PNG/PDF files directly in a flat run.
+    A "steps" run gathers `outputs/*/figures/` over all step folders."""
+    out = _gather(run, "figures")
     if isinstance(run, dict) and run.get("layout") == "flat":
-        out += _files(path, FIGURE_EXT)
+        out += _files(_run_path(run), FIGURE_EXT)
     return sorted(out)
 
 
 def source_data(run):
-    """Sorted files in `<run>/source_data/`."""
-    return _files(os.path.join(_run_path(run), "source_data"))
+    """Sorted files in `<run>/source_data/` (over all step folders for a "steps" run)."""
+    return _gather(run, "source_data")
 
 
 def tables(run):
-    """Sorted files in `<run>/tables/`."""
-    return _files(os.path.join(_run_path(run), "tables"))
+    """Sorted files in `<run>/tables/` (over all step folders for a "steps" run)."""
+    return _gather(run, "tables")
+
+
+# ---------------------------------------------------------------- the change log
+
+def change_log(folder):
+    """Path of `<folder>/logs/CHANGES.md` if it exists, else None."""
+    path = os.path.join(folder, "logs", "CHANGES.md")
+    return path if os.path.isfile(path) else None
+
+
+def last_change(folder):
+    """The heading line of the newest entry in the change log, else None. Entries are level-2 headings
+    `## <YYYY-MM-DD HH:MM> <git short hash>[ dirty] <ok|failed>`. Newest is by the time stamp, so entry
+    order does not matter; a tie goes to the later line."""
+    path = change_log(folder)
+    if not path:
+        return None
+    heads = [line.rstrip() for line in read(path).splitlines() if line.startswith("## ")]
+    return max(enumerate(heads), key=lambda p: (p[1][3:19], p[0]))[1] if heads else None
 
 
 def stem(path):

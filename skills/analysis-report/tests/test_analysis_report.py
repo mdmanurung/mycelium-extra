@@ -217,5 +217,54 @@ class RunLayoutTest(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(self.dest, "reports", "README.md")))
 
 
+class StepsLayoutTest(unittest.TestCase):
+    """A steps layout: outputs/<stem>/ per script, an old run folder left beside it."""
+
+    run_script, read, tearDown = RunLayoutTest.run_script, RunLayoutTest.read, RunLayoutTest.tearDown
+
+    def setUp(self):
+        RunLayoutTest.setUp(self)
+        outputs = os.path.join(self.dest, "outputs")
+        os.remove(os.path.join(outputs, "current"))
+        write(os.path.join(self.dest, "code", "02_show.qmd"), "x\n")
+        write(os.path.join(outputs, "01_fit", "tables", "01_fit.tsv"), "x\n")
+        write(os.path.join(outputs, "02_show", "figures", "02_show.png"))
+        write(os.path.join(outputs, "02_show", "figures", "02_other.png"))
+        write(os.path.join(outputs, "02_show", "source_data", "02_show.tsv"), "x\n")
+        write(os.path.join(outputs, "02_show", "02_show.html"), "<html></html>")
+        write(os.path.join(outputs, "numbers.json"), "{}")
+        write(os.path.join(self.dest, "logs", "CHANGES.md"),
+              "# Changes\n\n## 2026-11-12 09:30 abc1234 ok\n\n## 2026-11-10 08:00 abc1233 ok\n")
+
+    def test_inventory_reads_the_step_folders(self):
+        out = self.run_script("--dry-run")
+        outputs = json.loads(out[:out.rindex("}") + 1])["outputs"]
+        self.assertEqual((outputs["layout"], outputs["current"]), ("steps", None))
+        self.assertEqual(outputs["run"], "outputs/ (steps), last change 2026-11-12")
+        self.assertEqual(outputs["figures"], ["outputs/02_show/figures/02_other.png", "outputs/02_show/figures/02_show.png"])
+        self.assertEqual(outputs["source_data_missing"], ["outputs/02_show/figures/02_other.png"])
+        self.assertEqual(outputs["tables"], ["outputs/01_fit/tables/01_fit.tsv"])
+        self.assertEqual(outputs["pages"], ["outputs/02_show/02_show.html"])
+        self.assertEqual(outputs["numbers"], ["outputs/numbers.json"])
+        self.assertEqual(outputs["runs"], ["01_fit", "02_show"])
+
+    def test_outputs_row_names_the_steps_layout(self):
+        write(os.path.join(self.dest, "reports", "README.md"),
+              "# Reports\n\n| File | What it is | From run | Owner |\n|---|---|---|---|\n"
+              "| `demo.qmd` | the record | `none` | analysis-report |\n")
+        self.run_script("--outputs-row", "--date=2026-11-12")
+        self.assertIn("run outputs/ (steps), last change 2026-11-12)", self.read("README.md"))
+        self.assertIn("`outputs/ (steps), last change 2026-11-12`", self.read("reports", "README.md"))
+
+    def test_all_qmd_steps_point_at_the_step_folder(self):
+        os.remove(os.path.join(self.dest, "code", "01_fit.py"))
+        self.assertIn("outputs/<stem>/<stem>.html", self.run_script())
+
+    def test_no_change_log_leaves_the_bare_label(self):
+        os.remove(os.path.join(self.dest, "logs", "CHANGES.md"))
+        out = self.run_script("--dry-run")
+        self.assertEqual(json.loads(out[:out.rindex("}") + 1])["outputs"]["run"], "outputs/ (steps)")
+
+
 if __name__ == "__main__":
     unittest.main()

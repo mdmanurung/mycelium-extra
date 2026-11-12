@@ -82,7 +82,7 @@ The reader came to judge whether the run answered the question. The page is a do
 
 The first element after the style. It names, as text:
 
-- the run label (`run:` in the current run's `RUN.txt`, else the run folder name);
+- the run label (the newest `logs/CHANGES.md` heading; for a legacy run, `run:` in the current run's `RUN.txt`, else the run folder name);
 - the plan hash;
 - the `.qmd` path with its short hash, in `<code class="hash">`;
 - the words `Evaluation copy. The record is reports/<name>.html`;

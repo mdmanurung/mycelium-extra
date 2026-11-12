@@ -27,7 +27,8 @@ with app.setup:
     import pandas as pd
 
     SEED = 0  # pass to every RNG, e.g. np.random.default_rng(SEED)
-    RUN = Path(os.environ["RUN_DIR"])  # outputs/<run>, set by the Snakefile
+    STEP = Path(os.environ["STEP_DIR"])  # this step's folder, outputs/@@STEM@@, set by the Snakefile
+    OUTPUTS = Path(os.environ["OUTPUTS"])  # outputs/, to read earlier steps
     INPUT = @@INPUT_PY@@
     OUTPUT = @@OUTPUT_PY@@
 

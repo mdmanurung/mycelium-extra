@@ -2,7 +2,7 @@
 
 [Back to roadmap](README.md)
 
-Objective: give every analysis folder one layout that all skills read and write (run folders, `current`, `RUN.txt`, theme templates, an Outputs index, one set of status words) and route the skills to each other. Plan approved 2026-11-04; built for `0.24.0`. The contract is [the analysis layout](../concepts/analysis-layout.md).
+Objective: give every analysis folder one layout that all skills read and write (run folders, `current`, `RUN.txt`, theme templates, an Outputs index, one set of status words) and route the skills to each other. Plan approved 2026-11-04; built for `0.24.0`. Changed to overwrite-in-place for `0.25.0` (see Superseded decisions). The contract is [the analysis layout](../concepts/analysis-layout.md).
 
 Statuses: `todo`, `in progress`, `built`, `done`, `parked`, `dropped: <reason>`, `blocked: <question for the user>`.
 
@@ -18,5 +18,12 @@ Statuses: `todo`, `in progress`, `built`, `done`, `parked`, `dropped: <reason>`,
 | D7 | Shared helpers `find_doc`, `repo_root`, `read`, `fill`, `sha256` used by verify, plot-first, focus and analysis-report | integration review | `hooks/analysis_paths.py` and callers | built |
 | D8 | Status words (`pass / gap / fail / stale / not verified`) on every surface a person reads; role-tagged questionnaire answers | decision 10 | artifact page, viewer, `skills/questionnaire/SKILL.md` | built |
 | D9 | Routing: grill to decision-status and plan-review; verify and track-changes point at each other; handoff and new-analysis fixes | integration review | `skills/grill/SKILL.md`, `skills/verify/SKILL.md`, `skills/track-changes/SKILL.md` | built |
+| D10 | Overwrite-in-place layout: one `outputs/<script stem>/` folder per script, a rerun overwrites it, a qmd step renders into its own folder, `logs/CHANGES.md` records changes, resolver layout `steps`, `STEP_DIR` and `OUTPUTS` replace `RUN_DIR` | user request 2026-11-12 | `hooks/analysis_paths.py`, `skills/new-analysis/`, consumers, docs | built |
 
-Open with Mycelium: `register_value` writes one `outputs/numbers.json` per analysis, so a rerun overwrites the numbers a report cites. This plugin reads `<run>/numbers.json` first and the flat file second; the question is the user's to send.
+Open with Mycelium: `register_value` writes one `outputs/numbers.json` per analysis, so a rerun overwrites the numbers a report cites. On a legacy run folder this plugin reads `<run>/numbers.json` first and the flat file second; a steps layout reads the flat file; the question is the user's to send.
+
+## Superseded decisions
+
+Decision 1 (a run is never overwritten) is superseded on 2026-11-12 at the user's request. Four run folders in `04-timepoint-hto` and a slug to invent for every rerun made the rule cost more than it gave. New analyses overwrite `outputs/<script stem>/` on each run and keep no old outputs. What changed is logged in `logs/CHANGES.md`. Analyses made before `0.25.0` keep their `run_<date>` folders, which the resolver still reads unchanged; none is migrated.
+
+Consequences: `RUN.txt`, `outputs/current` and `_vNN` are legacy for new analyses. A `verify` record of a step goes `stale` after a rerun, which is the intended signal. The lucid-coder house rule "a run dir never overwritten" lives in a separate plugin and is not changed here.

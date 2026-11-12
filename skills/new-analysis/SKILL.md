@@ -1,7 +1,7 @@
 ---
 name: new-analysis
 disable-model-invocation: true
-description: Scaffold a new analysis folder for Mycelium (code stubs, plot theme, plan, Snakefile, run.sh that makes run folders).
+description: Scaffold a new analysis folder for Mycelium (code stubs, plot theme, plan, Snakefile, run.sh; one overwritten output folder per script).
 ---
 
 # Mycelium Extra: New analysis
@@ -19,11 +19,11 @@ analysis/<name>/
 ├── plans/     PLAN.md (the draft)  TRACKER.md
 ├── config/    figure_map.tsv  manuscript_checks.json      (--panels only)
 ├── reports/   README.md  <name>.qmd  report.scss  report-dark.scss
-├── outputs/   run_<YYYYMMDD>_<slug>/  (RUN.txt, step outputs, figures/ source_data/ tables/ logs/)   current -> run_...
-└── logs/      SLURM output only
+├── outputs/   <script stem>/  one folder per script (01_prepare/, 02_fit/ ...), overwritten on rerun; numbers.json
+└── logs/      CHANGES.md  .code-hashes.tsv  SLURM output
 ```
 
-`run.sh <slug>` makes `outputs/run_<YYYYMMDD>_<slug>/` and writes its `RUN.txt`; Snakemake writes every step output, log and benchmark inside it. `provenance/` appears when `verify` writes. After the create step, tell the user: then `/mycelium-extra:focus analysis/<name>`.
+Each script writes to `outputs/<script stem>/`, with its logs and benchmarks inside, and a rerun overwrites that folder. `run.sh` takes no slug and appends to `logs/CHANGES.md`. `provenance/` appears when `verify` writes. After the create step, tell the user: then `/mycelium-extra:focus analysis/<name>`.
 
 ## 1. Gather
 
@@ -36,17 +36,17 @@ Take these from the user's message. Ask only if the destination is missing; the 
 - **Steps.** Use the user's list, or default to `01_prepare.R,02_fit.R,03_show.R`.
   - Each step is `NN_name.R`, `.py`, `.ipynb`, `.qmd` or `.marimo.py`, numbered in increasing order.
   - Use R or Python scripts for work that needs no interaction, scripts for heavy jobs, and notebooks for exploration.
-  - **The figure step.** A script step named `NN_show` (`03_show.R`, `03_show.py`) reads the fit table the step before wrote, then writes `figures/NN_show.png` and `.pdf` and `source_data/NN_show.tsv` under the run, one stem for all three. It sources `code/theme.R` (or `theme.py`). All prose lives in `reports/<name>.qmd`.
+  - **The figure step.** A script step named `NN_show` (`03_show.R`, `03_show.py`) reads the fit table the step before wrote, then writes `figures/NN_show.png` and `.pdf` and `source_data/NN_show.tsv` under its own folder `outputs/NN_show/`, one stem for all three. It sources `code/theme.R` (or `theme.py`). All prose lives in `reports/<name>.qmd`.
   - **Format.** `--format=R|py|ipynb|qmd|marimo` gives every default step, and every bare name in `--steps`, that extension. With no flag the script reads `step_format` in `.mycelium-extra/gate.json`; set it once there for a repository. An explicit extension in `--steps` always wins.
   - **marimo steps** (`NN_name.marimo.py`) are plain Python files: the Snakefile runs them headless with `PYTHON`, and `marimo edit` opens them. The stub keeps lucid-coder's notebook layout: a Purpose/Run/Inputs/Outputs docstring, parameters in the `with app.setup:` cell, named cells, a markdown cell before and after each code cell, and it reads the table the step before wrote rather than refitting. The script prints the `marimo export html` line for a page `analysis-report` can link; that export executes the notebook, so it is a gated run like any other.
-  - **qmd steps** compute and hold their own Methods and Results prose in one file. `--lang=r|python` (default `r`) picks knitr or jupyter. The scaffold adds `_quarto.yml`, and the Snakefile runs `quarto render` on each step and writes `outputs/<run>/NN_name.rds|parquet` plus the page under `reports/site/code/`. No `reports/<name>.qmd` is written when every step is qmd: the step pages are the report.
+  - **qmd steps** compute and hold their own Methods and Results prose in one file. `--lang=r|python` (default `r`) picks knitr or jupyter. The scaffold adds `_quarto.yml`, and the Snakefile runs `quarto render` on each step and renders the page into the step's own folder, `outputs/NN_name/NN_name.html`, next to its `.rds` or `.parquet`. No `reports/<name>.qmd` is written when every step is qmd: the step pages are the report.
 - **Links.**
   - `--data=` for each file or folder the analysis reads. Prefer entries under the repository's `data/`.
   - `--code=` for shared code, such as `algorithms/<name>/`, `src/`, or `R/`.
   - The folders hold symlinks only. Mycelium's rule is to reference earlier work by path, never copy it.
 - **Panels (manuscript only).** `--panels=Fig1a.R,Fig1b.py` when the folder makes manuscript figures.
-  - Each panel gets `code/plot_<panel>`, a stub that exports the plotted values to `<run>/source_data/<panel>.tsv` and then draws the figure from that table alone, with `theme.R` or `theme.py` (donors as points over a mean and SD).
-  - It also gets a row in `config/figure_map.tsv` and an entry in `config/manuscript_checks.json`, the contract `manuscript-audit` checks. Paths are repository-relative and point at `outputs/current/`, the released run.
+  - Each panel gets `code/plot_<panel>`, a stub that exports the plotted values to `$STEP_DIR/source_data/<panel>.tsv` and then draws the figure from that table alone, with `theme.R` or `theme.py` (donors as points over a mean and SD).
+  - It also gets a row in `config/figure_map.tsv` and an entry in `config/manuscript_checks.json`, the contract `manuscript-audit` checks. Paths are repository-relative and point at the step folders under `outputs/` (or at `outputs/current/` for an older analysis with run folders).
   - On a folder that already exists, `--panels` adds only the missing manuscript files and keeps every existing one byte for byte. Use it to retrofit a manuscript folder. Edit a scaffolded file you have since filled (`<NAME>.md`, `PLAN.md`, a report) with Edit, not a whole-file Write; `analysis-report` gives the check for when a rewrite is needed.
 - **Aim.** Settled in section 2 before anything is written.
 
@@ -105,17 +105,17 @@ Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and c
   - a Snakefile rule
   - a Steps row in `<NAME>.md`
   - a `plans/TRACKER.md` row
-- **`outputs/`** holds run folders and `current`, nothing else.
-  - A step output is `outputs/<run>/NN_name.ext`. A figure is `figures/NN_x.png`, its plotted values `source_data/NN_x.tsv`, a summary `tables/NN_x.tsv`: one stem per figure.
-  - `current` is a link to the released run and stays inside the repository. A person sets it.
-  - Mycelium's `register_value` writes the flat `outputs/numbers.json`. The resolver reads `<run>/numbers.json` first and that file second.
-  - Older analyses keep files directly in `outputs/` (the flat layout); they are read as they are.
-- **`run.sh <slug>`** builds `run_<YYYYMMDD>_<slug>` and writes `RUN.txt` with `run`, `kind: analysis`, `status: running`, `why` (the Objective line of `plans/PLAN.md`, else `[fill in]`), `plan` (the newest approved plan hash, else empty) and `labeled`. It sets `status` to `done` or `failed` when snakemake returns; an interrupted run stays `running` and can be resumed. Resume rule: a folder whose status is `running` or `failed` is resumed; any other status is refused with the next free `_vNN` slug; a folder with no `RUN.txt` is refused. A dry run (`-n`) makes no folder. A person sets `current`, `side` or `superseded` in `RUN.txt`.
-- **`reports/README.md`** lists what sits in `reports/` and which run each file came from; `analysis-report` updates the run cell. **`data/SOURCES.md`** has one row per `--data` link: its target, whether `data/DATA_MANIFEST.md` lists it, and the plan that pins it (empty until a plan names the file).
-- **`run.sbatch`** submits `run.sh` to SLURM; it takes the slug (`sbatch run.sbatch <slug>`), and its output goes to `logs/slurm-%x-%j.out`.
-- **`config/` and `code/plot_<panel>`** (with `--panels`) tie each figure to its script and source data. Run a stub as `Rscript <dest>/code/plot_<panel>.R <dest>/outputs/run_<date>_<slug>` (after `run.sh` made the run), point `outputs/current` at the run to release, fill each `figure_map.tsv` claim, and replace the stub's `donor`/`label`/`y` columns in `required_columns`. Check with `manuscript-audit` (its SKILL.md says how to run the checker without opening the post-action cycle). `outputs/current` must stay inside the repository: a symlink to scratch storage makes every declared path a gap.
-- **Logs, benchmarks and executed notebooks** sit in the run: `outputs/<run>/logs/`, and `outputs/<run>/NN_name.ipynb`. The root `logs/` keeps SLURM output only.
-- **qmd steps** (`--format=qmd`) are rendered by `quarto render` through `_quarto.yml` (project at the analysis folder, `execute-dir: project`, so paths match the script steps). An executing `quarto render` is a gated run like any other. Each stub follows the lucid-coder layout: Purpose/Run/Inputs/Outputs, a Parameters chunk, 80-column block dividers, session info last. Heavy fits write their table to `outputs/<run>/` in one chunk and later chunks read it, so a figure edit does not refit.
+- **`outputs/`** holds one folder per script and `numbers.json`, nothing else.
+  - A step output is `outputs/NN_name/NN_name.ext`. Notebooks, qmd pages and figure scripts get `STEP_DIR` (their own folder) and `OUTPUTS` (the `outputs/` root, to read earlier steps). `RUN_DIR` is retired. A figure is `figures/NN_x.png`, its plotted values `source_data/NN_x.tsv`, a summary `tables/NN_x.tsv`: one stem per figure.
+  - Code is edited in place, and a rerun overwrites the step folder; old outputs are not kept. `logs/CHANGES.md` says what changed.
+  - Mycelium's `register_value` writes `outputs/numbers.json`, and the resolver reads it.
+  - Older analyses keep `run_<date>` folders (with `RUN.txt` and `outputs/current`) or files directly in `outputs/` (the flat layout); both are still read as they are.
+- **`run.sh`** runs Snakemake and, after a real run, appends one entry to `logs/CHANGES.md` (heading `## <YYYY-MM-DD HH:MM> <git short hash>[ dirty] <ok|failed>`): each `code/` file whose sha256 differs from `logs/.code-hashes.tsv`, with `git diff --stat` for a tracked file, and each `outputs/<stem>/` folder written during the run. It then rewrites `.code-hashes.tsv`. It takes no slug, writes no `RUN.txt` and refuses nothing. A dry run (`-n`) logs nothing.
+- **`reports/README.md`** lists what sits in `reports/` and which step folders (or legacy run) each file came from; `analysis-report` updates that cell. **`data/SOURCES.md`** has one row per `--data` link: its target, whether `data/DATA_MANIFEST.md` lists it, and the plan that pins it (empty until a plan names the file).
+- **`run.sbatch`** submits `run.sh` to SLURM (`sbatch run.sbatch [snakemake options]`, no slug), and its output goes to `logs/slurm-%x-%j.out`.
+- **`config/` and `code/plot_<panel>`** (with `--panels`) tie each figure to its script and source data. Run a stub as `Rscript <dest>/code/plot_<panel>.R <dest>/outputs/<step stem>` (the folder its figures go to, after `run.sh` made it), fill each `figure_map.tsv` claim, and replace the stub's `donor`/`label`/`y` columns in `required_columns`. Check with `manuscript-audit` (its SKILL.md says how to run the checker without opening the post-action cycle). In an older analysis, `outputs/current` must stay inside the repository: a symlink to scratch storage makes every declared path a gap.
+- **Logs, benchmarks and executed notebooks** sit in the step folder: `outputs/NN_name/logs/`, and `outputs/NN_name/NN_name.ipynb`. The root `logs/` keeps `CHANGES.md` and SLURM output.
+- **qmd steps** (`--format=qmd`) are rendered by `quarto render` through `_quarto.yml` (project at the analysis folder, `execute-dir: project`, so paths match the script steps). An executing `quarto render` is a gated run like any other. Each stub follows the lucid-coder layout: Purpose/Run/Inputs/Outputs, a Parameters chunk, 80-column block dividers, session info last. Heavy fits write their table to `outputs/NN_name/` in one chunk and later chunks read it, so a figure edit does not refit.
 - **`reports/<name>.qmd`** is the Quarto report skeleton (script and notebook steps): Overview (with a mermaid chain of the steps), Methods and Results tabs per step, Reproducibility. `/mycelium-extra:analysis-report` fills it after a run. Mycelium's `report` skill writes its LaTeX PDF beside it as `<name>-report.tex`.
 
 ## 6. Report and hand off

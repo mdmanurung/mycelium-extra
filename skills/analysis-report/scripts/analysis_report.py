@@ -7,7 +7,7 @@ Run from stdin so the gate reads no script path, with every option as --flag=val
 
 Finds the analysis doc (<NAME>.md or README.md), the numbered steps (NN_*.R|py|ipynb|qmd|marimo.py at the root
 or in code/), every Snakefile and *.smk and the rules and scripts it runs, the current run through
-hooks/analysis_paths.py (RUN.txt label, figures paired with source_data by stem; a flat outputs/ still works), the PNG figures, *REPORT*.md files and numbers.json. Writes
+hooks/analysis_paths.py (a steps layout: outputs/<stem>/ per script, figures and source_data gathered over the step folders and paired by stem, qmd pages at outputs/<stem>/<stem>.html; run_<date> folders with a RUN.txt label and a flat outputs/ still work), the PNG figures, *REPORT*.md files and numbers.json. Writes
 reports/<name>.qmd from new-analysis's report.qmd template: a mermaid chain per Snakefile (rules in
 file order; a folder with no Snakefile chains the steps by number), one Methods tab per step and one
 Results tab per step that has figures or a report. Prints the inventory for the agent to fill from.
@@ -96,9 +96,13 @@ def mermaid(snakefiles, steps):
 
 
 def run_label(run):
-    """The run's label: `run:` of RUN.txt, else the folder name; "flat layout" for old analyses."""
+    """The run's label: `run:` of RUN.txt, else the folder name; "flat layout" for old analyses;
+    "outputs/ (steps)" plus the date of the last logs/CHANGES.md entry for a steps layout."""
     if run is None:
         return None
+    if run["layout"] == "steps":
+        change = ap.last_change(os.path.dirname(run["path"]))
+        return "outputs/ (steps)" + (", last change " + change[3:13] if change else "")
     if run["layout"] == "flat":
         return "flat layout"
     return (run["run_txt"] or {}).get("run") or run["name"]
@@ -107,15 +111,15 @@ def run_label(run):
 def scan_outputs(dest):
     base = os.path.join(dest, "outputs")
     found = {"runs": [], "current": None, "run": None, "layout": "none", "figures": [], "reports": [], "numbers": [],
-             "source_data_missing": []}
+             "source_data_missing": [], "pages": []}
     if not os.path.isdir(base):
         return found
     rel = lambda path: os.path.relpath(path, dest).replace(os.sep, "/")
     listed = ap.runs(dest, "outputs")
-    found["runs"] = [r["name"] for r in listed] if listed and listed[0]["layout"] == "run" else [
+    found["runs"] = [r["name"] for r in listed if r["layout"] == "run"] if listed and listed[0]["layout"] in ("run", "steps") else [
         e for e in sorted(os.listdir(base)) if os.path.isdir(os.path.join(base, e)) and not os.path.islink(os.path.join(base, e))]
     run, reason = ap.current_run(dest, "outputs")
-    found["layout"] = "flat" if reason == "flat layout" else "run" if run else "none"
+    found["layout"] = "flat" if reason == "flat layout" else run["layout"] if run else "none"
     if reason == "outside repository":
         found["current_gap"] = "outputs/current points outside the repository ({}); it is not used.".format(
             os.readlink(os.path.join(base, "current")))
@@ -123,8 +127,13 @@ def scan_outputs(dest):
         found["current"], found["run"] = run["name"], run_label(run)
     elif run:
         found["run"] = run_label(run)
-    if run and run["layout"] == "run" and os.path.isdir(os.path.join(run["path"], "figures")):
-        # A run folder: figures pair with source_data and tables by stem (contract rule 3).
+    if run and run["layout"] == "steps":
+        steps = sorted(e for e in os.listdir(base) if ap.STEP_DIR.match(e) and os.path.isdir(os.path.join(base, e)))
+        found["runs"] = steps
+        found["pages"] = [rel(os.path.join(base, e, e + ".html")) for e in steps
+                          if os.path.isfile(os.path.join(base, e, e + ".html"))]
+    if run and (run["layout"] == "steps" or (run["layout"] == "run" and os.path.isdir(os.path.join(run["path"], "figures")))):
+        # A steps or run folder: figures pair with source_data and tables by stem (contract rule 3).
         pngs = [f for f in ap.figures(run) if f.endswith(".png")]
         found["figures"] = [rel(f) for f in pngs]
         have = {ap.stem(f) for f in ap.source_data(run)}
@@ -269,7 +278,7 @@ def main(argv):
         print("note: no NN_*.R|py|ipynb|qmd|marimo.py steps at the root or in code/; Methods has no tabs.")
     if steps and all(s["kind"] == "qmd" for s in steps):
         print("note: every step is a qmd that carries its own Methods and Results prose and renders to "
-              "reports/site/; no reports/{}.qmd written.".format(name))
+              "outputs/<stem>/<stem>.html; no reports/{}.qmd written.".format(name))
         return 0
 
     report = os.path.join(dest, "reports", name + ".qmd")
