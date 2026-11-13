@@ -1,0 +1,8 @@
+/.quarto/
+# Run folders are sealed records; keep their small tables, figures and RUN.txt, not the large binaries
+/outputs/**/*.rds
+/outputs/**/01b_scar/
+/outputs/**/01b_scar_*/
+/reports/site/
+/.snakemake/
+/logs/

@@ -1,0 +1,8 @@
+---
+title: "Timepoint figures"
+---
+
+```{r}
+RUN <- Sys.getenv("RUN_DIR") # the run folder that holds the tables, set by the Snakefile
+arms <- read.delim(file.path(RUN, "tables", "06_tag_dominance.tsv"))
+```

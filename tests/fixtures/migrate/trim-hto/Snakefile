@@ -1,0 +1,169 @@
+"""trim-hto: run the numbered steps in order, into one run folder.
+
+From this folder: bash run.sh <slug>   (makes outputs/run_<YYYYMMDD>_<slug>/ and its RUN.txt, then runs this file)
+Without run.sh:   snakemake -s nbs_integrated/trim-hto/Snakefile --cores 4 --config run=run_YYYYMMDD_<slug>
+One step:         add the rule name, e.g. step01_prepare
+
+Step scripts live in code/; paths are relative to this folder. Every output, log, benchmark and executed
+notebook of a step goes under outputs/<run>/ (OUT below); logs and benchmarks under outputs/<run>/logs/.
+A qmd step's page goes to reports/site/. Wrap an output in protected() once it is expensive to recompute.
+"""
+
+import os
+
+workdir: workflow.basedir
+
+RUN = config.get("run")
+if not RUN:
+    raise ValueError("name the run: bash run.sh <slug>  (or snakemake --config run=run_YYYYMMDD_<slug>)")
+OUT = f"outputs/{RUN}"
+# steps 06 to 10 read the baseline tables of BASE: this run's own steps 01 to 05 unless --config base=<run folder name> or TP_BASE=<run folder name> names another run (read only)
+_BASE_RUN = config.get("base") or os.environ.get("TP_BASE")  # run.sh passes its own --config, so TP_BASE=<run> also works
+BASE = f"outputs/{_BASE_RUN}" if _BASE_RUN else OUT
+
+RSCRIPT = config.get("rscript", "Rscript")
+PYTHON = config.get("python", "python")
+JUPYTER = config.get("jupyter", "jupyter")
+QUARTO = config.get("quarto", "quarto")
+THREADS = "OPENBLAS_NUM_THREADS={threads} OMP_NUM_THREADS={threads} MKL_NUM_THREADS={threads} "
+
+
+# The build of record: steps 01 to 02, 06, 10 and 13.
+rule all:
+    input:
+        # run-specific files: the html under reports/site/ is shared by all runs, so it alone would hide a missing run
+        expand(
+            f"{OUT}/figures/13_{{stem}}.png",
+            stem=["arm_changes", "tag_dominance"],
+        ),
+        "reports/site/code/13_timepoint-figures.html",
+
+
+rule step01_valid_tags:
+    input:
+        data=["data/outputs", "data/key_slots.tsv"],
+        script="code/01_valid-tags.R",
+    output:
+        f"{OUT}/01_valid-tags.rds",
+        f"{OUT}/tables/01_valid_tags.tsv",
+        f"{OUT}/tables/01_tags_per_donor.tsv",
+    threads: 1
+    log:
+        f"{OUT}/logs/01_valid-tags.log",
+    benchmark:
+        f"{OUT}/logs/01_valid-tags.benchmark.tsv"
+    shell:
+        THREADS + "{RSCRIPT:q} {input.script:q} {output[0]:q} > {log:q} 2>&1"
+
+
+BATCHES = ["B1a", "B1b"]
+
+
+# S01b. scAR denoising per batch on a GPU: the folder is 01b_scar, the script 01b_scar-denoise.
+rule step01b_scar_denoise:
+    input:
+        tags=f"{OUT}/tables/01_valid_tags.tsv",
+        script="code/01b_scar-denoise.py",
+        data=["data/batch_runs.tsv", "data/outputs"],
+    output:
+        info=f"{OUT}/01b_scar/{{batch}}/run_info.json",
+        grid=f"{OUT}/01b_scar/{{batch}}/ambient_grid.tsv",
+    wildcard_constraints:
+        batch="B1a|B1b",
+    threads: 8
+    resources:
+        mem_mb=32000,
+        runtime=180,
+        slurm_partition="gpu",
+        gres="gpu:1",
+    log:
+        f"{OUT}/logs/01b_scar-denoise_{{batch}}.log",
+    benchmark:
+        f"{OUT}/logs/01b_scar-denoise_{{batch}}.benchmark.tsv"
+    shell:
+        THREADS + "{PYTHON:q} -u {input.script:q} {wildcards.batch} {input.tags:q} {OUT}/01b_scar > {log:q} 2>&1"
+
+
+rule step02_restricted_calls:
+    input:
+        prev=f"{OUT}/01_valid-tags.rds",
+        scar=expand(f"{OUT}/01b_scar/{{batch}}/run_info.json", batch=BATCHES),  # the scar layer reads these
+        script="code/02_restricted-calls.R",
+    output:
+        f"{OUT}/02_restricted-calls.rds",
+    threads: 4
+    resources:
+        mem_mb=32000,
+        runtime=240,
+    log:
+        f"{OUT}/logs/02_restricted-calls.log",
+    benchmark:
+        f"{OUT}/logs/02_restricted-calls.benchmark.tsv"
+    shell:
+        THREADS + "{RSCRIPT:q} {input.script:q} {input.prev:q} {output:q} > {log:q} 2>&1"
+
+
+# Gate check: run as `bash run.sh gatecheck --until step10_gate_figures` into its own run folder.
+# Steps 06 to 10 read the baseline run in BASE and write only into OUT.
+rule step06_tag_dominance:
+    input:
+        data=["data/outputs"],
+        script="code/06_tag-dominance.R",
+        base=f"{BASE}/01_valid-tags.rds",
+        scar=expand(f"{BASE}/01b_scar/{{batch}}/run_info.json", batch=BATCHES),  # the scar layer is read
+        notes=f"{BASE}/notes/readme.txt",  # no step number in this name
+    output:
+        f"{OUT}/06_tag-dominance.rds",
+        f"{OUT}/tables/06_tag_dominance.tsv",
+    threads: 2
+    resources:
+        mem_mb=24000,
+        runtime=120,
+    log:
+        f"{OUT}/logs/06_tag-dominance.log",
+    benchmark:
+        f"{OUT}/logs/06_tag-dominance.benchmark.tsv"
+    shell:
+        THREADS + "{RSCRIPT:q} {input.script:q} {BASE:q} {output[0]:q} > {log:q} 2>&1"
+
+
+rule step10_gate_figures:
+    input:
+        tags=f"{OUT}/06_tag-dominance.rds",
+        base=f"{BASE}/tables/01_valid_tags.tsv",
+        script="code/10_gate-figures.qmd",
+    output:
+        "reports/site/code/10_gate-figures.html",
+        f"{OUT}/figures/10_null_vs_own.png",
+    threads: 1
+    resources:
+        mem_mb=16000,
+        runtime=60,
+    log:
+        f"{OUT}/logs/10_gate-figures.log",
+    benchmark:
+        f"{OUT}/logs/10_gate-figures.benchmark.tsv"
+    shell:
+        THREADS + "QUARTO_R={RSCRIPT:q} BASE_DIR={BASE:q} RUN_DIR={OUT:q} {QUARTO:q} render {input.script:q} > {log:q} 2>&1"
+
+
+# the figures of the build: reads this run's tables only
+rule step13_figures:
+    input:
+        arms=f"{OUT}/tables/06_tag_dominance.tsv",
+        script="code/13_timepoint-figures.qmd",
+    output:
+        "reports/site/code/13_timepoint-figures.html",
+        f"{OUT}/13_timepoint-figures.rds",
+        f"{OUT}/figures/13_arm_changes.png",
+        f"{OUT}/figures/13_tag_dominance.png",
+    threads: 1
+    resources:
+        mem_mb=16000,
+        runtime=60,
+    log:
+        f"{OUT}/logs/13_timepoint-figures.log",
+    benchmark:
+        f"{OUT}/logs/13_timepoint-figures.benchmark.tsv"
+    shell:
+        THREADS + "QUARTO_R={RSCRIPT:q} RUN_DIR={OUT:q} {QUARTO:q} render {input.script:q} > {log:q} 2>&1"

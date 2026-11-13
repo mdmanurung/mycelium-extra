@@ -82,8 +82,11 @@ Each stage prints its name. The run checks that:
 - step folders and `outputs/<stem>/<stem>.html` exist, with no `run_*` folder and no `RUN.txt`;
 - an edit adds a second `logs/CHANGES.md` entry that names only the edited script;
 - `-n` and `-pn` log nothing, `-Rstep01_scan` logs, and a failing step keeps the code hashes;
+- a plain rerun with a step still failing exits non-zero and logs `failed` (the stage `plain-rerun-fails`);
 - `where` reads not run, current, stale and failed correctly;
 - `verify runs` and `analysis_report` run on the result.
+
+The `new-analysis --migrate` tests (`skills/new-analysis/tests/test_migrate.py`) use the trimmed run-folder analysis in `tests/fixtures/migrate/`. They copy it to a temporary folder first, and the real `04-timepoint-hto` is never touched. Where Snakemake is on PATH, they also dry-run `Snakefile.new` with `-n`.
 
 ### Parallel test runner
 

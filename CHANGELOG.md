@@ -12,10 +12,18 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 - **tests:** `tests/run_suite.py` runs the CI test files in parallel, longest shard first, and splits `test_gate.py` and `test_verify.py` by `TestCase` class. It has stages `unit`, `ablate`, `audit`, `links`, `gate-diff` and `all`, plus `--only`, `--list` and `-j`. Timings go to `tests/.suite_timings.json` (ignored by git).
 - **layout:** the scaffold writes `outputs/.layout` (`layout: steps`, `version: 1`). With a valid marker the resolver reads the analysis as `steps` before the first step folder exists. An unreadable or unknown marker is ignored; no marker changes nothing. `analysis_paths.step_dirs` is now the one list of step folders, used by `verify` and `analysis-report`, which now also reads `outputs/panels/`.
 - **gate:** two optional `gate.json` keys. `scan_seconds` (default 5, capped at 8) sets the time limit for reading `approvals/`. `scan_mtime_filter` (default `false`) skips approval files older than `approval_hours` plus one day.
+- **new-analysis:** `--migrate --dest=<analysis>` moves a run-folder analysis (a `Snakefile` with `RUN`, `OUT` and `BASE`, results in `outputs/run_*`) to step folders. It writes `Snakefile.new`, `run.sh.new`, `run.sbatch.new`, `_quarto.yml.new` and `MIGRATE.md` next to the originals and prints a diff. Paths it cannot map keep a `# MIGRATE: check` comment, and `MIGRATE.md` lists every cross-step read in `code/` as a `file:line` checklist. `--apply` renames each original to `*.pre-0.27` under the scaffold's lock. `--seed=step=run,...` copies each step's declared outputs from the named run, writes `outputs/.layout` and logs a `migrated` entry. It never edits `code/` or deletes a run folder.
+- **where:** the card shows whether the analysis was verified since it last changed: `Verified <ago>`, `Changed since verify: code|outputs|log, <ago>`, `Verify was interrupted`, `Never verified` or `Verify record unreadable`. It reads the last row of the analysis's own `provenance/PROVENANCE.md` and `provenance/.transactions/pending.json`, and compares at the minute, so the same minute counts as verified. DO NEXT suggests `/mycelium-extra:verify` only when the record is changed, interrupted or missing.
 
 ### Changed
 
 - **gate:** a hook call reads `approvals/` once and reuses the result; any approval write clears it. `focus status` makes one scan, not three. The time limit now covers the folder listing, and the timeout message gives the file count, the seconds used and the command that moves old approvals aside. The `gate_diff` oracle is unchanged.
+
+### Fixed
+
+- **run.sh, Snakefile:** a rerun after a failed step could exit 0 and log `ok` with that step's outputs missing, because `rule all` asked only for the last step's outputs and Snakemake saw nothing to do. `rule all` now also asks for the outputs of every step.
+- **run.sh:** `outputs/panels/` is now in the list of rewritten folders in the log entry.
+- **where:** a script with no Snakefile rule naming `outputs/<stem>/` (for example `12b_scar-thinned`, whose results sit in another folder) gets no mark, so it no longer shows `not run` for ever.
 
 ## [0.26.0] - 2026-11-12
 

@@ -1,0 +1,13 @@
+# run
+run: run_20261112_gatecheck
+kind: analysis            # analysis | figures | scratch
+status: done              # running | done | current | side | superseded | failed | scratch
+
+# origin
+why: gate check, steps 06 to 10
+plan:
+labeled: 2026-11-12 by run.sh
+
+# links
+superseded_by:
+notes:

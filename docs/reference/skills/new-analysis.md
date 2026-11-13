@@ -26,6 +26,9 @@ Invoke with `/mycelium-extra:new-analysis analysis/<name>: <question>`. Write ev
 | `--panels` | Comma-separated manuscript panels, `<id>.R` or `<id>.py`. Adds a `code/plot_<id>` stub per panel, `config/figure_map.tsv` and `config/manuscript_checks.json` for [manuscript-audit](manuscript-audit.md). Needs a git or Mycelium repository. On an existing folder it adds only the missing manuscript files. |
 | `--templates` | This skill's `templates/` folder (required when run from stdin). |
 | `--dry-run` | Report what would change; write nothing. |
+| `--migrate` | Move an existing run-folder analysis (`--dest`) to step folders. See [Migrating a run-folder analysis](#migrating-a-run-folder-analysis). |
+| `--apply` | With `--migrate`: install the `.new` files and keep the originals as `*.pre-0.27`. |
+| `--seed` | With `--migrate`: `step=run,step=run`. Copy each step's declared outputs from `outputs/<run>/`. |
 
 ## What it creates
 
@@ -50,6 +53,36 @@ A `NN_name.marimo.py` step (or `--format=marimo`) is a marimo notebook in lucid-
 The Snakefile runs R and Python with the interpreters `lucid-coder.yaml` names at the repository root (`env.r`, `env.python`, and `jupyter` beside that `python`), each only if the file exists; without the file it uses the names on PATH, and the script prints which. `init --diagnose` shows the same pointer.
 
 `data/` holds symlinks only; `code/` holds the stubs and links to shared code. The analysis doc is `<NAME>.md` (folder name in UPPER_SNAKE_CASE) in a Mycelium repository, `README.md` elsewhere. Stubs stop until implemented. A panel stub writes `<run>/source_data/<panel>.tsv`, then re-reads only that table to draw `<run>/figures/<panel>.pdf`, so the released source data can redraw the panel; its toy `donor`/`label`/`y` columns are placeholders, and the contract points at `outputs/current/`, which you point at the run you release. `reports/<name>.qmd` is a static Quarto report (`engine: markdown`) with a mermaid chain of the steps and one Methods and one Results tab per step; [analysis-report](analysis-report.md) fills it after a run, and Mycelium's `report` writes its LaTeX PDF beside it. Without `--panels` it refuses a non-empty folder; with it, it adds each missing manuscript file and keeps every existing file unchanged. It also refuses a missing link target and anything it would overwrite (`refused:` line, nothing written). A `WARNING: git ignores ...` line means that file would never be committed; stop and ask. It writes nothing outside the new folder except an empty `.<name>.scaffold.lock` file in its parent folder (the lock that keeps two runs from filling the same folder; delete it if you like): not `.living/`, not `analysis/ANALYSIS_MANIFEST.md` (it prints a suggested manifest entry).
+
+## Migrating a run-folder analysis
+
+`--migrate` moves an analysis whose `Snakefile` sets `RUN`, `OUT` and `BASE` and whose results sit in `outputs/run_<date>_<slug>/` to the step-folder layout. Run it with `--dest=<existing analysis>`. It never edits a file in place, never edits `code/` and never deletes a run folder.
+
+By default it writes only new files next to the originals and prints a diff of `Snakefile` against `Snakefile.new`:
+
+| File | Content |
+|---|---|
+| `Snakefile.new` | The rewritten workflow. |
+| `run.sh.new`, `run.sbatch.new` | The current templates. |
+| `_quarto.yml.new` | The current template, when the folder has `_quarto.yml` or a qmd step. |
+| `MIGRATE.md` | Rules rewritten, unmapped paths, a `file:line` checklist of cross-step reads in `code/`, suggested `.gitignore` lines, the mixed-layout warning. |
+
+The rewrite is mechanical:
+
+- The `RUN`/`OUT`/`BASE` block and the `run` config requirement go. Interpreters, threads, resources, SLURM settings and wildcard constraints stay as written.
+- A step folder is `outputs/<stem>/`, with the stem taken from the rule's `script=` input. `{OUT}/<path>` becomes `outputs/<stem>/<path>`. A results folder that carries the step number, such as `01b_scar` for the script `01b_scar-denoise`, becomes the step folder.
+- Logs and benchmarks go to `outputs/<stem>/logs/`.
+- `{BASE}/<name>` and `{OUT}/<name>` in an input map to the rule that declares the file, else to the one rule whose script has the same step number as the file name.
+- `RUN_DIR={OUT:q}` becomes `STEP_DIR=outputs/<stem> OUTPUTS=outputs`. A qmd step gets the scaffold's render command and its page at `outputs/<stem>/<stem>.html`, not under `reports/site/`.
+- A path that maps to no rule, and a bare `{BASE}` or `{OUT}` argument, keep a `# MIGRATE: check` comment and are listed in `MIGRATE.md`.
+
+Read the diff and `MIGRATE.md`, fix each marked line in `Snakefile.new`, edit `code/` and `.gitignore` yourself, then run again with `--apply`. Under the scaffold's lock, each original is renamed to `*.pre-0.27` and the new file takes its place. An edited `Snakefile.new` is installed as it stands. It refuses when a `*.pre-0.27` file exists.
+
+`--seed` copies the files each rule declares as outputs out of a run folder into the step folder. It copies, never moves, and skips a file that exists. It writes `outputs/.layout` and a `migrated` entry in `logs/CHANGES.md`. It needs `--apply` in the same call, or an earlier apply. No single run holds every step of an older analysis, so name the run for each step: `--seed=01=run_20261111_baseline,06=run_20261112_gatecheck`.
+
+Once step folders exist, the resolver lists them first and the old run folders after. A downstream analysis that points at an old run folder keeps working, because it uses that path directly. `logs/.code-hashes.tsv` is absent after a migration, so the first `run.sh` entry lists every file in `code/` as new.
+
+It refuses a folder with no `Snakefile`, a folder that already has `outputs/.layout`, and a symlinked `code/` or `outputs/`.
 
 ## Before it writes
 

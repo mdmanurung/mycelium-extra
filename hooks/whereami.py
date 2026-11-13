@@ -218,9 +218,65 @@ def has_rule(snakefile, stem):
     return snakefile is None or "outputs/{}/".format(stem) in snakefile
 
 
-def facts(root, rel, budget=None, pending=None):
+def minute_start(seconds):
+    """`seconds` (epoch) cut down to its minute, the resolution of every time stamp verify and run.sh write."""
+    return seconds - seconds % 60
+
+
+def verify_state(folder, now, budget=None, log=None):
+    """How current the verify record is, as a dict with `state` ('verified', 'changed', 'interrupted',
+    'nonconforming', 'never' or 'unreadable'), `line` (the card text) and `changed` ('code', 'outputs', 'log' or None).
+    Reads `provenance/.transactions/pending.json` (existence only) and the last data row of
+    `provenance/PROVENANCE.md` (verify replaces a re-verified hash's row and appends, so the last row is
+    the newest). A root-level PROVENANCE.md is not the record. Changed means the newest of the last
+    CHANGES.md heading, code/ and outputs/ is in a later minute than the Verified cell; the same minute
+    counts as verified. A Status cell of DOES_NOT_CONFORM gives 'nonconforming'; CONFORMS_WITH_GAPS is shown on the line. When the shared `budget` ran out, the walks did not see every file, so a
+    'verified' line says so. `log` is the newest CHANGES.md heading line, or None."""
+    prov = os.path.join(folder, "provenance")
+    if os.path.exists(os.path.join(prov, ".transactions", "pending.json")):
+        return {"state": "interrupted", "line": "Verify was interrupted.", "changed": None}
+    row = None
+    try:
+        with open(os.path.join(prov, "PROVENANCE.md"), encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                cells = [c.strip() for c in line.strip().strip("|").split("|")]
+                if line.startswith("|") and len(cells) >= 4 and cells[0] != "Plan" and not set(cells[0]) <= set("-: "):
+                    row = cells
+    except OSError:
+        pass
+    if row is None:
+        return {"state": "never", "line": "Never verified.", "changed": None}
+    try:
+        verified = time.mktime(time.strptime(row[2], "%Y-%m-%d %H:%M"))
+    except (ValueError, OverflowError):
+        return {"state": "unreadable", "line": "Verify record unreadable.", "changed": None}
+    budget = budget or Budget()
+    seen = {}
+    if log:
+        try:
+            seen["log"] = time.mktime(time.strptime(log[3:19], "%Y-%m-%d %H:%M"))
+        except ValueError:
+            pass
+    for name in ("code", "outputs"):
+        seen[name] = newest(os.path.join(folder, name), budget)["time"] if os.path.isdir(os.path.join(folder, name)) else 0.0
+    what, when = max(seen.items(), key=lambda kv: kv[1])
+    if minute_start(when) > verified:
+        return {"state": "changed", "line": "Changed since verify: {}, {}.".format(what, ago(now - when)),
+                "changed": what}
+    status = row[3].strip() if len(row) > 3 else ""
+    line = "Verified {}".format(ago(now - verified))
+    if status.upper() in ("DOES_NOT_CONFORM", "CONFORMS_WITH_GAPS"):
+        line += ": " + status.upper()
+    if budget.truncated:  # the walks stopped early: newer files may exist
+        line += "; not every file was checked"
+    state = "nonconforming" if "DOES_NOT_CONFORM" in status.upper() else "verified"
+    return {"state": state, "line": line + ".", "changed": None}
+
+
+def facts(root, rel, budget=None, pending=None, verify=True):
     """Everything the cards print, as a dict. `budget` caps the folder walks; `pending` is the list from
-    `pending_entries`, read once by a caller that builds many cards."""
+    `pending_entries`, read once by a caller that builds many cards; `verify` False skips the verify line
+    (`where all` does not print it)."""
     folder = os.path.join(root, rel)
     budget = budget or Budget()
     now = time.time()
@@ -285,6 +341,7 @@ def facts(root, rel, budget=None, pending=None):
              if p.lower().endswith(".png") and ap.stem(p) not in sources]
     watch += ["{} has an empty output folder".format(s["stem"]) for s in steps if s["empty"]]
 
+    record = verify_state(folder, now, budget, log) if verify else None
     tracker = tracker_open(folder)
     finished = marked and bool(steps) and not redo and not failed
     if finished:  # scaffold rows such as "S01: code/01_prep.R" stay todo after the step has run
@@ -312,7 +369,7 @@ def facts(root, rel, budget=None, pending=None):
         nxt.append("Type: approve   (a plan for this folder is waiting)")
     elif tracker:
         nxt.append("{}: {}".format(tracker[0][0], tracker[0][1]))
-    elif marked and steps and not os.path.isdir(os.path.join(folder, "provenance")):
+    elif marked and steps and record and record["state"] in ("changed", "interrupted", "never", "nonconforming"):
         nxt.append("Run /mycelium-extra:verify")
     else:
         nxt.append("Nothing pending")
@@ -352,13 +409,15 @@ def facts(root, rel, budget=None, pending=None):
         ran, last_run = "no run log", "No run log (logs/CHANGES.md)."
     else:
         last_run = None
+    if record and record["state"] in ("changed", "interrupted", "unreadable", "nonconforming"):
+        watch.append(record["line"])
     if budget.truncated:
         watch.insert(0, "stopped counting at {} files; state may be wrong".format(budget.count))
     return {"rel": rel, "name": os.path.basename(rel), "aim": aim, "layout": layout, "log": log, "ran": ran,
             "last_run": last_run, "failed": failed, "steps": steps, "marked": marked, "redo": redo,
             "minutes": minutes, "next": nxt, "later": later, "watch": watch, "cause": cause,
             "cause_note": "Assumes steps run in number order." if stale else None, "state": state_word,
-            "truncated": budget.truncated,
+            "truncated": budget.truncated, "verify": record["line"] if record else None,
             "run": (entry or {}).get("name") if layout == "run" else None,
             "run_status": (entry or {}).get("status") if layout == "run" else None}
 
@@ -401,6 +460,8 @@ def render_card(f):
         lines += ["  " + f["cause"], "  " + f["cause_note"]]
     elif f["last_run"]:
         lines.append("  " + f["last_run"])
+    if f["verify"]:
+        lines.append("  " + f["verify"])
     eta = "  (about {} min)".format(f["minutes"]) if f["minutes"] and f["redo"] else (
         "  (time unknown)" if f["redo"] else "")
     lines += ["", "DO NEXT" + eta] + (["  Nothing pending."] if f["next"] == ["Nothing pending"] else
@@ -421,6 +482,8 @@ def render_card(f):
 
 def render_short(f):
     state = step_line(f) if not f["cause"] else "{} {} {}".format(step_line(f), f["cause"], f["cause_note"])
+    if f["verify"]:
+        state += " " + f["verify"]
     then = f["next"][1] if len(f["next"]) > 1 else (f["later"][0] if f["later"] else "nothing")
     return "\n".join([f["name"], "AIM    " + f["aim"], "STATE  " + state, "NEXT   " + f["next"][0],
                       "THEN   " + then, "BLOCK  " + (f["watch"][0] if f["watch"] else "none")])
@@ -474,7 +537,7 @@ def render_all(root, config=None, cwd=None, budget=None):
             lines.append("  {}  not scanned".format(name))
             continue
         try:
-            r = facts(root, rel, budget, pending)
+            r = facts(root, rel, budget, pending, verify=False)
         except OSError:
             lines.append("  {}  unreadable  -  next: where (in that folder) to see the error".format(name))
             continue

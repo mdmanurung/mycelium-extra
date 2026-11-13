@@ -62,6 +62,14 @@ class WhereTest(unittest.TestCase):
         for n, stem in enumerate(("01_prep", "02_fit", "03_show")):
             self.run_step(stem, self.t0 + 100 + n, benchmark=120)
 
+    def verified(self, when, cell=None, folder=None):
+        """Write provenance/PROVENANCE.md the way verify does, with the Verified cell at `when`."""
+        stamp = cell or time.strftime("%Y-%m-%d %H:%M", time.localtime(when))
+        header = ("# Provenance\n\nText.\n\n| Plan | Approved | Verified | Status | Files |\n|---|---|---|---|---|\n"
+                  "| aaaa | 2026-10-01 09:00 | 2026-10-01 10:00 | pass | [plan](x) |\n"
+                  "| bbbb | 2026-10-02 09:00 | {} | pass | [plan](y) |\n").format(stamp)
+        touch(os.path.join(folder or self.folder, "provenance", "PROVENANCE.md"), header)
+
     def card(self, mode=None):
         return wh.answer(self.root, self.folder, mode, write=False)
 
@@ -92,6 +100,8 @@ class WhereTest(unittest.TestCase):
         os.remove(self.p("plans", "TRACKER.md"))
         self.assertIn("1. Run /mycelium-extra:verify", self.card())
         os.makedirs(self.p("provenance"))
+        self.assertIn("1. Run /mycelium-extra:verify", self.card())  # a folder alone is no record
+        self.verified(time.time() - 60)
         self.assertIn("Nothing pending.", self.card())
 
     def test_edited_script_makes_it_and_later_steps_stale_with_minutes(self):
@@ -128,6 +138,111 @@ class WhereTest(unittest.TestCase):
         self.assertIn("  - T6: item 6", later)  # T2..T6 are shown; T1 is in DO NEXT
         self.assertNotIn("T7", later)
         self.assertIn("  - +3 more", later)
+
+    def test_verify_state_verified_changed_interrupted_never(self):
+        self.run_all()
+        now = time.time()
+        self.assertEqual(wh.verify_state(self.folder, now)["line"], "Never verified.")
+        card = self.card()
+        self.assertIn("3 of 3 steps current.\n  No run log (logs/CHANGES.md).\n  Never verified.\n", card)
+        self.assertIn("DO NEXT\n  1. Run /mycelium-extra:verify", card)
+        self.assertNotIn("WATCH OUT", card)
+        self.verified(now - 7200)
+        for name in ("01_prep.R", "02_fit.py", "03_show.R"):
+            os.utime(self.p("code", name), (now - 9000,) * 2)
+        for stem in ("01_prep", "02_fit", "03_show"):
+            for name in (stem + ".tsv", os.path.join("logs", stem + ".benchmark.tsv")):
+                os.utime(self.p("outputs", stem, name), (now - 8000,) * 2)
+        card = self.card()
+        self.assertIn("  Verified 2 h ago.\n", card)
+        self.assertIn("Nothing pending.", card)
+        self.assertEqual(wh.verify_state(self.folder, now)["state"], "verified")
+        touch(self.p("code", "helpers.R"), mtime=now - 300)  # code edited after verify
+        state = wh.verify_state(self.folder, now)
+        self.assertEqual((state["state"], state["changed"]), ("changed", "code"))
+        card = self.card()
+        self.assertIn("  Changed since verify: code, 5 min ago.\n", card)
+        self.assertIn("1. Run /mycelium-extra:verify", card)
+        self.assertIn("WATCH OUT\n  - Changed since verify: code, 5 min ago.", card)
+        touch(self.p("outputs", "panels", "p.png"), mtime=now - 120)
+        self.assertEqual(wh.verify_state(self.folder, now)["changed"], "outputs")
+        touch(self.p("logs", "CHANGES.md"), "# Change log\n\n## {} abc1234 ok\n".format(
+            time.strftime("%Y-%m-%d %H:%M", time.localtime(now - 30))))
+        log = wh.verify_state(self.folder, now, log=wh.ap.last_change(self.folder))
+        self.assertEqual(log["changed"], "log")
+        touch(self.p("provenance", ".transactions", "pending.json"), "{}")
+        card = self.card()
+        self.assertIn("  Verify was interrupted.\n", card)
+        self.assertIn("WATCH OUT\n  - Verify was interrupted.", card)
+        self.assertIn("1. Run /mycelium-extra:verify", card)
+
+    def test_verify_line_shows_failed_status_and_cut_walks(self):
+        self.run_all()
+        now = time.time()
+        self.verified(now - 7200)
+        for name in ("01_prep.R", "02_fit.py", "03_show.R"):
+            os.utime(self.p("code", name), (now - 9000,) * 2)
+        for stem in ("01_prep", "02_fit", "03_show"):
+            for name in (stem + ".tsv", os.path.join("logs", stem + ".benchmark.tsv")):
+                os.utime(self.p("outputs", stem, name), (now - 8000,) * 2)
+        path = self.p("provenance", "PROVENANCE.md")
+        with open(path) as handle:
+            text = handle.read().replace("| pass | [plan](y)", "| DOES_NOT_CONFORM | [plan](y)")
+        touch(path, text)
+        state = wh.verify_state(self.folder, now)
+        self.assertEqual((state["state"], state["line"]), ("nonconforming", "Verified 2 h ago: DOES_NOT_CONFORM."))
+        self.assertIn("Run /mycelium-extra:verify", self.card())
+        touch(path, text.replace("DOES_NOT_CONFORM", "CONFORMS"))
+        budget = wh.Budget()
+        budget.count = budget.cap  # the step walks used it up
+        state = wh.verify_state(self.folder, now, budget)
+        self.assertEqual(state["line"], "Verified 2 h ago; not every file was checked.")
+
+    def test_verify_same_minute_counts_as_verified(self):
+        self.run_all()
+        minute = int(time.time() // 60) * 60 - 600
+        self.verified(minute)
+        touch(self.p("code", "03_show.R"), mtime=minute + 59)
+        for stem in ("01_prep", "02_fit", "03_show"):
+            for name in (stem + ".tsv", os.path.join("logs", stem + ".benchmark.tsv")):
+                os.utime(self.p("outputs", stem, name), (minute,) * 2)
+        self.assertEqual(wh.verify_state(self.folder, time.time())["state"], "verified")
+        os.utime(self.p("code", "03_show.R"), (minute + 60,) * 2)
+        self.assertEqual(wh.verify_state(self.folder, time.time())["state"], "changed")
+
+    def test_root_level_provenance_file_is_ignored(self):
+        self.run_all()
+        self.verified(time.time(), folder=self.folder)
+        os.rename(self.p("provenance", "PROVENANCE.md"), self.p("PROVENANCE.md"))
+        os.rmdir(self.p("provenance"))
+        self.assertEqual(wh.verify_state(self.folder, time.time())["line"], "Never verified.")
+
+    def test_unparseable_verified_cell_says_record_unreadable(self):
+        self.run_all()
+        self.verified(0, cell="yesterday")
+        card = self.card()
+        self.assertIn("  Verify record unreadable.\n", card)
+        self.assertIn("WATCH OUT\n  - Verify record unreadable.", card)
+
+    def test_verify_line_in_short_card_and_legacy_layout(self):
+        self.run_all()
+        self.assertIn("STATE  3 of 3 steps current. Never verified.", self.card("short"))
+        shutil.rmtree(self.p("outputs"))
+        touch(self.p("outputs", "run_20261101_base", "RUN.txt"), "run: x\nkind: analysis\nstatus: done\n")
+        touch(self.p("outputs", "run_20261101_base", "x.tsv"))
+        card = self.card()
+        self.assertIn("Old run-folder layout", card)
+        self.assertIn("  Never verified.", card)
+        self.assertNotIn("Run /mycelium-extra:verify", card)
+
+    def test_where_all_skips_the_verify_walk(self):
+        self.run_all()
+        calls = []
+        saved = wh.verify_state
+        wh.verify_state = lambda *a, **k: calls.append(1) or saved(*a, **k)
+        self.addCleanup(setattr, wh, "verify_state", saved)
+        wh.render_all(self.root, None, self.folder)
+        self.assertEqual(calls, [])
 
     def test_short_form_has_six_lines(self):
         self.run_all()
@@ -329,7 +444,7 @@ class WhereTest(unittest.TestCase):
         self.run_all()
         touch(self.p("plans", "TRACKER.md"), TRACKER.split("| T1")[0]
               + "| S01 | code/01_prep.R | todo | | |\n| S02 | code/02_fit.py | todo | | |\n")
-        os.makedirs(self.p("provenance"))
+        self.verified(time.time() + 60)
         card = self.card()
         self.assertIn("Nothing pending.", card)
         self.assertNotIn("LATER", card)

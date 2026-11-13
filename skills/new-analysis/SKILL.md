@@ -129,3 +129,21 @@ Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and c
 - **Interpreters.** When `lucid-coder.yaml` at the repository root names `env.r` and `env.python` (written by `/lucid-coder:align`), the Snakefile's `RSCRIPT`, `PYTHON` and `JUPYTER` default to those paths, each only if the file exists; otherwise they stay the names on PATH and the script says so. `--config rscript=...` still overrides per run.
 - With lucid-coder installed, `/lucid-coder:align` installs the formatter configs once per repository. Its rule 6 ("scripts compute, notebooks show") does not fit qmd steps; the user's format choice outranks it. If they want that lasting, offer `/lucid-coder:learn` once.
 - Offer to commit the new folder.
+
+## 7. Migrate a run-folder analysis
+
+Use this only when the user asks to move an older analysis (a `Snakefile` with a `RUN`/`OUT`/`BASE` block and `outputs/run_<date>_<slug>/` folders) to step folders. Existing analyses are never migrated on your own initiative, and the real folder is changed only after the user has read the diff.
+
+1. **Write the new files.** From the repository root, in `--flag=value` form, from stdin as in section 3:
+
+   ```bash
+   sh <skill-dir>/../../hooks/py.sh - --dest=<existing analysis> --migrate [--dry-run] \
+     --templates=<skill-dir>/templates < <skill-dir>/scripts/new_analysis.py
+   ```
+
+   It writes `Snakefile.new`, `run.sh.new`, `run.sbatch.new`, `_quarto.yml.new` (when there is one) and `MIGRATE.md` next to the originals, and prints a diff of `Snakefile` against `Snakefile.new`. It edits no original, never touches `code/` and never deletes a run folder.
+2. **Read it with the user.** Show the diff and `MIGRATE.md`. Each `# MIGRATE: check` line in `Snakefile.new` is a path the tool could not map; the user fixes it in `Snakefile.new`. `MIGRATE.md` also lists every cross-step read in `code/` (`dirname(`, `base_dir`, `RUN_DIR`, results folders such as `01b_scar` that differ from the script stem) as a `file:line` checklist, the `.gitignore` lines it suggests, and the mixed-layout warning. The user edits `code/` and `.gitignore` themselves.
+3. **Apply.** Rerun with `--apply`. Under the scaffold's lock, each original is renamed to `*.pre-0.27` and the new file takes its place; an edited `Snakefile.new` is installed as it stands. It refuses when a `*.pre-0.27` file exists.
+4. **Seed, if wanted.** `--apply --seed=step=run,step=run` (a step is a script stem, a rule name or a step number; a run is a folder under `outputs/`) copies the files each rule declares as outputs from `outputs/<run>/` into `outputs/<stem>/`. It copies only, skips a file that exists, writes `outputs/.layout` and adds a `migrated` entry to `logs/CHANGES.md`. No single run holds every step, so name the run per step. After an apply, `--migrate --seed=...` seeds more steps.
+
+It refuses a folder with no `Snakefile`, one that already has `outputs/.layout`, and a symlinked `code/` or `outputs/`. `--dry-run` prints the same lines with `would` and writes nothing.

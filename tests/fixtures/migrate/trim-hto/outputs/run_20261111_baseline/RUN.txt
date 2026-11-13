@@ -1,0 +1,13 @@
+# run
+run: run_20261111_baseline
+kind: analysis            # analysis | figures | scratch
+status: done              # running | done | current | side | superseded | failed | scratch
+
+# origin
+why: baseline steps 01 to 05
+plan:
+labeled: 2026-11-11 by run.sh
+
+# links
+superseded_by:
+notes:

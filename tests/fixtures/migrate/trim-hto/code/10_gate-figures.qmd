@@ -1,0 +1,11 @@
+---
+title: "Gate figures"
+---
+
+Run: `quarto render code/10_gate-figures.qmd`; the Snakefile sets `RUN_DIR` and `BASE_DIR`.
+
+```{r}
+RUN <- Sys.getenv("RUN_DIR") # the gate-check run folder, set by the Snakefile
+BASE <- Sys.getenv("BASE_DIR", "outputs/run_20261111_baseline") # the baseline run
+tags <- readRDS(file.path(RUN, "06_tag-dominance.rds"))
+```

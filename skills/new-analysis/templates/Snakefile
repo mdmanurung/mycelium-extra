@@ -19,9 +19,18 @@ QUARTO = config.get("quarto", "quarto")
 THREADS = "OPENBLAS_NUM_THREADS={threads} OMP_NUM_THREADS={threads} MKL_NUM_THREADS={threads} "
 
 
+def every_step_output(wildcards):
+    # Resolved when Snakemake builds the plan, so every rule below is known by then.
+    return [out for r in workflow.rules if r.name != "all" for out in r.output]
+
+
+# Target: the last step's outputs, plus the outputs of every step. With the last step alone, Snakemake
+# reports "Nothing to be done" after a step failed, whenever the later steps still have their old outputs,
+# and run.sh would then exit 0 with that step's outputs missing.
 rule all:
     input:
 @@LAST_OUTPUTS@@
+        every_step_output,
 
 
 @@RULES@@

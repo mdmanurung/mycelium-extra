@@ -14,6 +14,7 @@ RUN_SH = os.path.join(HERE, "..", "templates", "run.sh")
 FAKE = """#!/usr/bin/env bash
 mkdir -p outputs/01_a outputs/02_b
 echo x > outputs/01_a/x.txt
+[ -z "${FAKE_PANELS:-}" ] || { mkdir -p outputs/panels outputs/scratch; echo x > outputs/panels/p.txt; echo x > outputs/scratch/s.txt; }
 exit "${FAKE_EXIT:-0}"
 """
 
@@ -116,6 +117,21 @@ class RunShLog(unittest.TestCase):
         self.assertEqual(len(entries), 2)
         with open(os.path.join(self.dir, "logs", ".code-hashes.tsv")) as f:
             self.assertEqual(len(f.read().splitlines()), 2)
+
+    def test_panels_folder_is_listed_but_other_folders_are_not(self):
+        self.run_sh(FAKE_PANELS="1")
+        _, entries = self.entries()
+        self.assertIn("- outputs/panels/", entries[0])
+        self.assertNotIn("outputs/scratch", entries[0])
+
+    def test_snakefile_targets_every_step_output(self):
+        # Snakemake with the last step's outputs alone says "Nothing to be done" after a middle step failed,
+        # while run.sh exits 0 (found by tests/e2e_real.py). rule all must also request each rule's outputs.
+        with open(os.path.join(HERE, "..", "templates", "Snakefile")) as f:
+            text = f.read()
+        head, rule_all = text.split("rule all:\n", 1)
+        self.assertIn("for r in workflow.rules if r.name != \"all\" for out in r.output", head)
+        self.assertIn("@@LAST_OUTPUTS@@\n        every_step_output,\n", rule_all)
 
     def test_dry_run_logs_nothing(self):
         for flag in ("-n", "--dry-run", "-np", "-pn"):

@@ -58,9 +58,9 @@ if [ -f "$hashes" ]; then
 fi
 
 rewritten=""
-if [ -d outputs ]; then
+if [ -d outputs ]; then  # step folders (NN_name, NNx_name) and the panels folder; other folders are not steps
   rewritten=$(find outputs -mindepth 2 -type f -newer "$stamp" 2> /dev/null | cut -d / -f 2 | LC_ALL=C sort -u |
-    grep -E '^[0-9]{2}[a-z]?_.+' | sed 's|^|- outputs/|; s|$|/|' || true)
+    grep -E '^([0-9]{2}[a-z]?_.+|panels)$' | sed 's|^|- outputs/|; s|$|/|' || true)
 fi
 
 log=logs/CHANGES.md

@@ -16,7 +16,7 @@ Everything runs in a temporary git repository with synthetic data; nothing outsi
 Each stage prints its name, so a failure says which stage broke. Fixtures: tests/fixtures/smoke/.
 
 Stages: tools, setup, scaffold, where-not-run, run-1, where-current, panel, edit-stale, run-2, change-log,
-dry-runs, flagged-run, failing-step, where-failed, plain-rerun-known-gap, repair, verify-runs, analysis-report, tables-only, no-marker.
+dry-runs, flagged-run, failing-step, where-failed, plain-rerun-fails, repair, verify-runs, analysis-report, tables-only, no-marker.
 """
 
 import os
@@ -252,19 +252,17 @@ class Smoke:
         check(marks.get("03_show") == "!", "where should mark 03_show failed: {}\n{}".format(marks, out))
 
     def plain_rerun_of_unrepaired(self):
-        # Known gap, not asserted: a plain rerun of the unrepaired script may exit 0 and log "ok" while the
-        # step's outputs are missing (Snakemake sees nothing to do). Pending a product decision, this stage
-        # reports what happens and fails only if run.sh crashes without logging anything.
+        # A plain rerun with the script still unrepaired must fail and log "failed". It once exited 0 and logged
+        # "ok": rule all asked only for the last step's outputs, so Snakemake saw "Nothing to be done" while
+        # outputs/03_show/ held no figures. rule all now also requests every step's outputs.
         shown = self.main / "outputs" / "03_show" / "figures" / "03_show.png"
         before = len(self.entries(self.main))
-        proc = self.spawn(["bash", "run.sh"] + self.config, str(self.main), subprocess.DEVNULL)
+        out = self.run_sh(self.main, ok=False)
         after = self.entries(self.main)
-        silent = proc.returncode == 0 and len(after) > before and after[-1]["heading"].endswith(" ok")
-        check(proc.returncode != 0 or silent or len(after) > before,
-              "plain rerun exited {} and logged nothing".format(proc.returncode))
-        if silent:
-            print("     KNOWN GAP: plain rerun exited 0 and logged ok with the failing script unrepaired "
-                  "(03_show outputs present: {})".format(shown.exists()), flush=True)
+        check(len(after) == before + 1 and after[-1]["heading"].endswith(" failed"),
+              "a plain rerun with 03_show unrepaired must log a failed entry (had {}, now {}): {}\n{}".format(
+                  before, len(after), after[-1:], tail(out, 8)))
+        check(not shown.exists(), "the failing step left " + str(shown))
 
     def repair(self):
         self.edit(self.main / "code" / "03_show.R", 'stop("boom")\n', "# repaired\n")
@@ -345,7 +343,7 @@ def main():
               ("edit-stale", smoke.edit_stale), ("run-2", smoke.run_2), ("change-log", smoke.change_log),
               ("dry-runs", smoke.dry_runs), ("flagged-run", smoke.flagged_run), ("failing-step", smoke.failing_step),
               ("where-failed", smoke.where_failed),
-              ("plain-rerun-known-gap", smoke.plain_rerun_of_unrepaired), ("repair", smoke.repair), ("verify-runs", smoke.verify_runs),
+              ("plain-rerun-fails", smoke.plain_rerun_of_unrepaired), ("repair", smoke.repair), ("verify-runs", smoke.verify_runs),
               ("analysis-report", smoke.analysis_report), ("tables-only", smoke.tables_only),
               ("no-marker", smoke.no_marker)]
     print("e2e_real: tools " + ", ".join("{}={}".format(k, v) for k, v in sorted(tools.items())))

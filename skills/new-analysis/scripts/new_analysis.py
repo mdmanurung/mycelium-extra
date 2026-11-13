@@ -19,10 +19,17 @@ leaves in the parent folder. Stdlib-only; runs on Python 3.9+.
 --panels adds a manuscript layer: one code/plot_<panel> stub per panel, config/figure_map.tsv and
 config/manuscript_checks.json for manuscript-audit, with repository-relative paths. On a non-empty
 <dest> it adds only the manuscript files that are missing and never overwrites one that exists.
+
+--migrate moves a run-folder analysis (a Snakefile with RUN/OUT/BASE and outputs/run_*/ folders) to the
+step-folder layout. It writes Snakefile.new, run.sh.new, run.sbatch.new, _quarto.yml.new and MIGRATE.md next to the
+originals and prints the Snakefile diff; --apply renames the originals to *.pre-0.27 and installs the new files;
+--seed step=run copies a step's declared outputs out of a run folder. It never edits code/ or deletes a run folder.
 """
 
 import argparse
+import contextlib
 import datetime
+import difflib
 import fcntl
 import json
 import os
@@ -550,6 +557,631 @@ def ignored(root, probes):
     return found
 
 
+# ---------------------------------------------------------------- --migrate: run-folder analysis to step folders
+
+OLD = ".pre-0.27"  # suffix of an original that --apply keeps
+NN = re.compile(r"^(\d{2}[a-z]?)_")  # the step number of a script, folder or file name
+RULE_HEAD = re.compile(r"^rule\s+(\w+)\s*:")
+SECTION = re.compile(r"^ {4}(\w+):")
+RUN_BLOCK = re.compile(r"^RUN\s*=\s*config\.get\(\s*[\"']run[\"']", re.M)
+SCRIPT_KEY = re.compile(r"^\s+(script|notebook)\s*=\s*[\"']code/([^\"']+)[\"']")
+SCRIPT_EXT = re.compile(r"\.(marimo\.py|R|py|qmd|ipynb)$")
+TOKEN = re.compile(r"\{(OUT|BASE)(?::q)?\}((?:/[^\s\"'>]*)?)")
+STRING = re.compile(r"(?<![\w])(?P<f>f?)(?P<q>\"[^\"\n]*\"|'[^'\n]*')|(?P<comment>#.*$)")
+RENDER = re.compile(r"\brender\s+\{input\.\w+(?::q)?\}")  # the quarto call of a qmd step, whatever the input is called
+STEP_FILE = re.compile(r"""["'/](\d{2}[a-z]?)_[\w.-]*?\.(?:rds|tsv|csv|parquet|h5ad|txt|json|RData|rda|qs|xlsx|loom|mtx|h5|png|pdf|html)\b""")
+LEFTOVER = re.compile(r"\b(OUT|BASE|RUN|_BASE_RUN)\b")
+HTML_PAGE = re.compile(r"^[\w./-]*?/code/([\w.-]+)\.html$")
+CODE_FILES = (".R", ".r", ".py", ".qmd", ".Rmd", ".rmd", ".ipynb", ".sh")
+READS = (("dirname", re.compile(r"dirname\(")), ("base_dir", re.compile(r"\b[Bb][Aa][Ss][Ee]_[Dd][Ii][Rr]\b")),
+         ("run_dir", re.compile(r"\b[Rr][Uu][Nn]_[Dd][Ii][Rr]\b")), ("file.path(run", re.compile(r"file\.path\(\s*run\b")),
+         ("TP_BASE", re.compile(r"\bTP_BASE\b")), ("old run folder", re.compile(r"outputs/run_|\brun_\d{8}_")))
+LAYOUT_TEXT = "layout: steps\nversion: 1\n"
+CHANGES_HEAD = ("# Change log\n\nOne entry per run.sh run: code files changed since the previous run, and output folders "
+                "rewritten. Runs that overlap in time may list the same folders.\n")
+
+
+def split_rules(text):
+    """Cut a Snakefile into ["text", lines, None] and ["rule", lines, name] parts. A rule runs until the next line at
+    column 0; its trailing blank lines go to the gap after it."""
+    parts, in_rule = [], False
+    for line in text.split("\n"):
+        head = RULE_HEAD.match(line)
+        if head:
+            parts.append(["rule", [line], head.group(1)])
+            in_rule = True
+        elif in_rule and (not line.strip() or line[0] in " \t"):
+            parts[-1][1].append(line)
+        else:
+            in_rule = False
+            if not parts or parts[-1][0] != "text":
+                parts.append(["text", [], None])
+            parts[-1][1].append(line)
+    out = []
+    for part in parts:
+        blanks = 0
+        if part[0] == "rule":
+            while len(part[1]) > 1 and not part[1][-1].strip():
+                part[1].pop()
+                blanks += 1
+        out.append(part)
+        if blanks:
+            out.append(["text", [""] * blanks, None])
+    return out
+
+
+def rule_script(lines):
+    """(stem, kind) of the rule's script= or notebook= input under code/, else (None, None)."""
+    for line in lines:
+        match = SCRIPT_KEY.match(line)
+        if match:
+            ext = SCRIPT_EXT.search(match.group(2))
+            if ext:
+                return match.group(2)[:ext.start()], ext.group(1)
+    return None, None
+
+
+def flag(line, note):
+    """The line with a '# MIGRATE: check' comment, or the note added to the one it has."""
+    return line + ("; " if "# MIGRATE: check:" in line else "  # MIGRATE: check: ") + note
+
+
+def code_end(line):
+    """The line without its trailing # comment."""
+    for match in STRING.finditer(line):
+        if match.group("comment"):
+            return line[:match.start()]
+    return line
+
+
+def path_key(rel):
+    """A declared path with its wildcard names blanked, so {batch} in one rule matches {b} in another."""
+    return re.sub(r"\{+\w+\}+", "{}", rel.strip("/"))
+
+
+def map_path(which, rel, section, own, producers, directory=False):
+    """(new path, reason) for {OUT}/rel or {BASE}/rel. `own` is the stem of the rule when the path is one of its
+    own output, log or benchmark paths. A directory() output named like the step keeps its folder, because the step
+    folder also holds the other outputs and the log, and Snakemake clears a directory output before the job.
+    The reason is None when the path mapped cleanly."""
+    segs = [s for s in rel.split("/") if s]
+    stem = own
+    if stem is None and path_key(rel) in producers.get("paths", {}):  # a rule declares this very file
+        stem = producers["paths"][path_key(rel)]
+    if stem is None:
+        prefix = next((NN.match(s).group(1) for s in segs if NN.match(s)), None)
+        found = producers.get(prefix, []) if prefix else []
+        if len(found) == 1:
+            stem = found[0]
+        else:
+            return "outputs/" + "/".join(segs), "no single rule outputs a file with this step number; check where it lives"
+    here = NN.match(stem).group(1) if NN.match(stem) else None
+    if segs and segs[0] != "logs" and here and NN.match(segs[0]) and NN.match(segs[0]).group(1) == here and "." not in segs[0] \
+            and not (directory and len(segs) == 1):
+        segs = segs[1:]  # the step's own results folder (01b_scar) is the step folder now
+    return "/".join(["outputs", stem] + segs), None
+
+
+def rewrite_literal(match, ctx):
+    """Rewrite one string literal of a rule line. Returns the new literal text."""
+    text, quote = match.group("q"), match.group("q")[0]
+    body, is_f = text[1:-1], bool(match.group("f"))
+    stem, kind = ctx["stem"], ctx["kind"]
+    page = HTML_PAGE.match(body)
+    if page and page.group(1) in ctx["qmd"]:  # a qmd step's page: outputs/<stem>/<stem>.html
+        name = page.group(1)
+        ctx["changed"] = True
+        ctx["page"] = True
+        return "{0}{1}outputs/{2}/{2}.html{1}".format("f" if is_f else "", quote, name)
+    new = body
+    if stem and "RUN_DIR=" in new:  # the folders a notebook or qmd page finds its input and output in
+        new, count = re.subn(r"RUN_DIR=\{OUT(?::q)?\}", "STEP_DIR=outputs/{0} OUTPUTS=outputs".format(stem), new)
+        ctx["changed"] = ctx["changed"] or bool(count)
+    if kind == "qmd" and "--output-dir" not in new and RENDER.search(new):
+        out = "outputs/" + stem
+        exact = new.endswith("render {input.script:q} > {log:q} 2>&1")  # the scaffold's own command
+        if "STEP_DIR=" not in new:
+            new, count = re.subn(r"\{QUARTO(?::q)?\}", lambda m: "STEP_DIR={0} OUTPUTS=outputs {1}".format(out, m.group(0)),
+                                 new, count=1)
+            if not count:
+                ctx["notes"].append("the qmd needs STEP_DIR={} OUTPUTS=outputs".format(out))
+        call = RENDER.search(new)
+        new = new[:call.end()] + " --output-dir " + out + new[call.end():]
+        new = "{0} && mv {1}/code/{2}.html {1}/{2}.html && rmdir {1}/code".format(new.rstrip(), out, stem)
+        if not exact:
+            ctx["notes"].append("the render command had another form; check --output-dir and the moved page")
+        ctx["changed"] = True
+    if kind == "qmd" and "--output-dir" in new:
+        ctx["rendered"] = True
+
+    def token(found):
+        which, rel = found.group(1), found.group(2)
+        ctx["changed"] = True
+        if not rel:  # a bare run folder
+            if which == "OUT" and stem:
+                ctx["notes"].append("the OUT run folder alone is now this step's folder; check the script that gets it")
+                return "outputs/" + stem
+            ctx["notes"].append("the " + which + " run folder alone is now outputs/; the script that gets it joins step folders itself")
+            return "outputs"
+        clean = rel[1:].replace("{{", "{").replace("}}", "}") if is_f else rel[1:]
+        own = stem if which == "OUT" and ctx["section"] in ("output", "log", "benchmark") else None
+        path, why = map_path(which, rel, ctx["section"], own, ctx["producers"], ctx["directory"])
+        if why:
+            ctx["notes"].append(why)
+        elif own and ctx["section"] in ("log", "benchmark") and stem in ctx["shared"]:
+            ctx["notes"].append("another rule runs this script and gets the same {}; give each rule its own file".format(
+                ctx["section"]))
+        elif own and ctx["section"] == "output" and ctx["pairs"] is not None:
+            ctx["pairs"].append((clean, path.replace("{{", "{").replace("}}", "}") if is_f else path))
+        return path
+
+    new = TOKEN.sub(token, new)
+    if is_f and new != body and "{" not in new.replace("{{", "").replace("}}", ""):  # no f-string expression is left: a plain string
+        new, is_f = new.replace("{{", "{").replace("}}", "}"), False
+    return "{0}{1}{2}{1}".format("f" if is_f else "", quote, new)
+
+
+def migrate_snakefile(text, name, dest_rel, templates):
+    """The Snakefile in the step layout and a report: (new text, info). info has rules (name, stem, kind),
+    pairs (stem -> [(old path under the run, new path)]), folders (old results folder names that differ from a stem)."""
+    parts = split_rules(text)
+    rules = []
+    for part in parts:
+        if part[0] == "rule":
+            stem, kind = rule_script(part[1])
+            rules.append({"name": part[2], "stem": stem, "kind": kind})
+    producers, qmd = {"paths": {}}, set()
+    for part in parts:  # which rule declares which output file, to tell two rules of the same step number apart
+        if part[0] != "rule":
+            continue
+        stem, section = rule_script(part[1])[0], None
+        for line in part[1]:
+            section = SECTION.match(line).group(1) if SECTION.match(line) else section
+            for literal in STRING.finditer(line):
+                for found in (TOKEN.finditer(literal.group(0)) if section == "output" and stem and not literal.group("comment") else ()):
+                    if found.group(1) == "OUT" and found.group(2):
+                        producers["paths"].setdefault(path_key(found.group(2)), stem)
+    for item in rules:
+        if item["stem"] and NN.match(item["stem"]):
+            producers.setdefault(NN.match(item["stem"]).group(1), []).append(item["stem"])
+        if item["kind"] == "qmd":
+            qmd.add(item["stem"])
+    seen_stems = [r["stem"] for r in rules if r["stem"]]
+    shared = {stem for stem in seen_stems if seen_stems.count(stem) > 1}  # two rules run one script
+    pairs, out_lines, rewritten, folders = {}, [], 0, set()
+    for part in parts:
+        if part[0] == "text":
+            out_lines.extend(part[1])
+            continue
+        info = next(r for r in rules if r["name"] == part[2])
+        ctx = {"stem": info["stem"], "kind": info["kind"], "qmd": qmd, "producers": producers, "section": None,
+               "shared": shared, "rendered": False, "directory": False, "pairs": pairs.setdefault(info["stem"], []) if info["stem"] else None}
+        changed_rule, page_at = False, None
+        for line in part[1]:
+            head = SECTION.match(line)
+            if head:
+                ctx["section"] = head.group(1)
+            ctx["notes"], ctx["changed"], ctx["page"] = [], False, False
+
+            def rewrite(m, line=line):
+                if m.group("comment"):
+                    return m.group(0)
+                ctx["directory"] = re.search(r"directory\(\s*$", line[:m.start()]) is not None
+                return rewrite_literal(m, ctx)
+
+            new = STRING.sub(rewrite, line)
+            if ctx["notes"]:
+                new = flag(new, "; ".join(dict.fromkeys(ctx["notes"])))
+            changed_rule = changed_rule or ctx["changed"]
+            if ctx["page"]:
+                page_at = len(out_lines)
+            out_lines.append(new)
+        if info["kind"] == "qmd" and page_at is not None and not ctx["rendered"]:  # the page moved but the command did not
+            out_lines[page_at] = flag(out_lines[page_at], "no render command was rewritten for this page; add "
+                                      "--output-dir outputs/{0} and move the page to outputs/{0}/{0}.html".format(info["stem"]))
+        rewritten += changed_rule
+        for old, _ in (ctx["pairs"] or []):
+            first = old.split("/")[0]
+            if info["stem"] and NN.match(first) and "." not in first and first != info["stem"]:
+                folders.add((first, info["stem"]))
+    body = "\n".join(out_lines)
+    run = re.search(r"^RUN\s*=.*\n(?:.+\n)*", body, re.M) if RUN_BLOCK.search(body) else None
+    if run is None:
+        raise Refusal("the Snakefile has no RUN = config.get(\"run\") block; it is not a run-folder analysis")
+    body = body[:run.start()] + body[run.end():].lstrip("\n")
+    head = re.match(r"\A\s*\"\"\".*?\"\"\"[ \t]*\n", body, re.S)
+    if head:
+        body = body[head.end():].lstrip("\n")
+    docstring = re.match(r"\"\"\".*?\"\"\"\n", ap.read(os.path.join(templates, "Snakefile")), re.S).group(0)
+    docstring = ap.fill(docstring, {"NAME": name, "DEST": dest_rel, "ENV_NOTE": "kept from the previous Snakefile"})
+    if not re.search(r"\bos\.", re.sub(r"^import os\n", "", body, flags=re.M)):
+        body = re.sub(r"^import os\n\n?", "", body, count=1, flags=re.M)
+    lines = (docstring + "\n" + body).split("\n")
+    for index, line in enumerate(lines):  # anything still naming the old variables is for the user to fix
+        if LEFTOVER.search(code_end(line)) and "still names OUT" not in line and index > docstring.count("\n"):
+            lines[index] = flag(line, "still names OUT, BASE or RUN")
+    new = "\n".join(lines)
+    return new.rstrip("\n") + "\n", {"rules": rules, "rewritten": rewritten, "pairs": pairs, "folders": sorted(folders)}
+
+
+def scan_code(dest, folders):
+    """[(path, line number, text, pattern)] for every cross-step read in code/: the places the user checks by hand."""
+    hits = []
+    names = [first for first, _ in folders]
+    for here, dirs, files in os.walk(os.path.join(dest, "code")):
+        dirs[:] = sorted(d for d in dirs if d != "__pycache__" and not d.startswith("."))
+        for file in sorted(files):
+            path = os.path.join(here, file)
+            if not file.endswith(CODE_FILES) or os.path.islink(path):
+                continue
+            try:
+                lines = ap.read(path).splitlines()
+            except OSError:
+                continue
+            own = NN.match(file).group(1) if NN.match(file) else None
+            for number, line in enumerate(lines, 1):
+                for label, pattern in READS:
+                    if pattern.search(line):
+                        hits.append((os.path.relpath(path, dest), number, line.strip(), label))
+                        break
+                else:
+                    other = next((m.group(1) for m in STEP_FILE.finditer(line) if m.group(1) != own), None)
+                    if other:  # a file named for another step: it is read from that step's folder now
+                        hits.append((os.path.relpath(path, dest), number, line.strip(), "file of step " + other))
+                        continue
+                    for folder in names:
+                        if re.search(r"(?<![\w-])" + re.escape(folder) + r"(?![\w-])", line):
+                            hits.append((os.path.relpath(path, dest), number, line.strip(), folder + "/"))
+                            break
+    return hits
+
+
+def short(text, width=96):
+    return text if len(text) <= width else text[:width - 3] + "..."
+
+
+def gitignore_notes(dest, root, folders, stems):
+    """Lines for MIGRATE.md about the .gitignore: what hides the new step folders, what names an old folder."""
+    notes = []
+    path = os.path.join(dest, ".gitignore")
+    patterns = []
+    if os.path.isfile(path):
+        patterns = [l.strip() for l in ap.read(path).splitlines() if l.strip() and not l.lstrip().startswith("#")]
+    for old, stem in folders:
+        for pattern in patterns:
+            if re.search(r"(?<![\w-])" + re.escape(old) + r"(?![\w-])", pattern):
+                notes.append("`{}` names the old folder `{}`; the step folder is `outputs/{}/`, so add `/outputs/{}/`"
+                             .format(pattern, old, stem, stem))
+    probes = [(os.path.join(dest, "outputs", s, "probe.txt"), "outputs/{}/".format(s)) for s in stems if s]
+    probes.append((os.path.join(dest, "logs", "CHANGES.md"), "logs/CHANGES.md"))
+    for shown, rule_text in sorted((root and ignored(root, probes) or {}).items()):
+        notes.append("git ignores `{}` ({}); it stays out of git unless you un-ignore it".format(shown, rule_text.split(":", 2)[-1]))
+    return notes
+
+
+def migrate_report(name, dest, root, info, new_text, folders_notes, hashes_missing, quarto_note):
+    stems = [r for r in info["rules"] if r["stem"]]
+    lines = ["# Migrating {} to step folders".format(name), "",
+             "Written by `new-analysis --migrate`. It edited nothing in place: the originals are untouched until you run it "
+             "again with `--apply`, and it never edits `code/` or deletes a run folder. Read `Snakefile.new` (diff printed by "
+             "the tool), fix each `# MIGRATE: check` line, then apply.", ""]
+    lines += ["## Rules rewritten", "", "{} of {} rules changed. A rule's folder is `outputs/<script stem>/`.".format(
+        info["rewritten"], len(info["rules"])), "", "| Rule | Step folder |", "|---|---|"]
+    lines += ["| `{}` | `outputs/{}/` |".format(r["name"], r["stem"]) for r in stems]
+    skipped = [r["name"] for r in info["rules"] if not r["stem"]]
+    if skipped:
+        lines += ["", "No script input, so no step folder: " + ", ".join("`{}`".format(n) for n in skipped) + "."]
+    checks = [(i + 1, l) for i, l in enumerate(new_text.split("\n")) if "# MIGRATE: check" in l]
+    lines += ["", "## Paths to check", ""]
+    if checks:
+        lines += ["- `Snakefile.new:{}` `{}` ({})".format(n, short(l.split("#")[0].strip(), 80), l.split("MIGRATE: check:")[-1].strip())
+                  for n, l in checks]
+    else:
+        lines.append("None: every `{OUT}` and `{BASE}` path mapped to a step folder.")
+    if info["folders"]:
+        lines += ["", "Results folders renamed to the step folder (the script stem): "
+                  + ", ".join("`{}` to `{}`".format(old, stem) for old, stem in info["folders"]) + "."]
+    hits = scan_code(dest, info["folders"])
+    lines += ["", "## Reads in code/ to check by hand", "",
+              "These scripts reach another step through a shared folder. `code/` is not edited. Each script now gets its own "
+              "step folder (`STEP_DIR`, or `dirname(output_path)`) and reads other steps from `outputs/<step>/`.", ""]
+    lines += (["- [ ] `{}:{}` `{}` ({})".format(p, n, short(t), pat) for p, n, t, pat in hits]
+              or ["No hits."])
+    lines += ["", "## .gitignore", ""]
+    lines += ["- " + n for n in folders_notes] or ["No pattern in `.gitignore` hides or names a step folder."]
+    lines += ["", "`.gitignore` is not edited.", "", "## Mixed layout", "",
+              "Once step folders exist, `outputs/` holds them and the old `run_*` folders side by side. The resolver lists the "
+              "step folders first and the run folders after. A downstream analysis that points at an old run folder keeps "
+              "working, because it uses that path directly. Seed a step folder with `--seed step=run` (copy only) when a "
+              "reader needs the files at the new path.", "", "## First run", ""]
+    lines.append("Comments in the Snakefile that mention OUT, BASE or a run folder are kept as written; reword them.")
+    lines.append("`logs/.code-hashes.tsv` is absent, so the first `run.sh` entry lists every file in `code/` as new."
+                 if hashes_missing else "`logs/.code-hashes.tsv` exists; the first entry compares against it.")
+    lines.append("`run.sh` takes no slug now and writes no `RUN.txt`: `bash run.sh`.")
+    if quarto_note:
+        lines.append(quarto_note)
+    return "\n".join(lines) + "\n"
+
+
+def quarto_text(dest, templates):
+    """(new _quarto.yml or None, a note on what the old one set that the template drops)."""
+    old = os.path.join(dest, "_quarto.yml")
+    has_qmd = any(f.endswith(".qmd") for _, _, files in os.walk(os.path.join(dest, "code")) for f in files)
+    if not os.path.isfile(old) and not has_qmd:
+        return None, ""
+    note = ""
+    if os.path.isfile(old):
+        text = ap.read(old)
+        site = re.search(r"^\s*output-dir:\s*(\S+)", text, re.M)
+        if re.search(r"^\s*type:\s*website", text, re.M) or site:
+            note = "`_quarto.yml.new` is the current template: qmd pages go to `outputs/<step>/<step>.html`, not {}.".format(
+                "`{}`".format(site.group(1)) if site else "a website folder")
+    return ap.read(os.path.join(templates, "_quarto.yml")), note
+
+
+@contextlib.contextmanager
+def scaffold_lock(dest):
+    """The scaffold's flock: an empty .<name>.scaffold.lock in the parent folder."""
+    lock = os.path.join(os.path.dirname(dest), "." + os.path.basename(dest) + ".scaffold.lock")
+    fd = os.open(lock, os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(fd)
+
+
+def write_new(path, text, mode=None):
+    """Write text to path through a temp file and a rename; mode sets the file mode."""
+    folder = os.path.dirname(path)
+    fd, tmp = tempfile.mkstemp(prefix=".migrate-", dir=folder)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        umask = os.umask(0)
+        os.umask(umask)
+        os.chmod(tmp, mode if mode is not None else 0o666 & ~umask)
+        os.rename(tmp, path)
+    finally:
+        if os.path.lexists(tmp):
+            os.unlink(tmp)
+
+
+def parse_seed(text, rules):
+    """{stem: run folder name} from step=run,step=run; a step is a stem, a rule name or a step number."""
+    seeds = {}
+    for item in [part.strip() for part in text.split(",") if part.strip()]:
+        step, equals, run = item.partition("=")
+        if not equals or not step or not run or "/" in run or run in (".", ".."):
+            raise Refusal("--seed takes step=run pairs, e.g. 01_valid-tags=run_20261111_baseline; got {!r}".format(item))
+        found = [r["stem"] for r in rules if r["stem"] and step in (r["stem"], r["name"], NN.match(r["stem"]).group(1) if NN.match(r["stem"]) else None)]
+        if len(found) != 1:
+            raise Refusal("--seed step {!r} matches {} rules with a script; use the script stem".format(step, len(found)))
+        if found[0] in seeds:
+            raise Refusal("--seed names step {} twice".format(found[0]))
+        seeds[found[0]] = run
+    if not seeds:
+        raise Refusal("--seed is empty")
+    return seeds
+
+
+def seed_plan(dest, seeds, pairs):
+    """[(stem, run, [(source, target)], [declared paths with no file in the run], skipped existing)] without copying."""
+    plan = []
+    for stem, run in seeds.items():
+        base = os.path.join(dest, "outputs", run)
+        if os.path.islink(base) or not os.path.isdir(base):
+            raise Refusal("outputs/{} is not a run folder; nothing was changed".format(run))
+        have = []
+        for here, dirs, files in os.walk(base):
+            dirs.sort()
+            have += [os.path.relpath(os.path.join(here, f), base).replace(os.sep, "/") for f in sorted(files)
+                     if not os.path.islink(os.path.join(here, f))]
+        copies, missing, seen = [], [], set()
+        for old, new in pairs.get(stem, []):
+            names, regex = set(), "^"
+            for index, piece in enumerate(re.split(r"\{(\w+)\}", old)):  # a {wildcard} matches one path part
+                if index % 2:
+                    regex += "(?P={})".format(piece) if piece in names else "(?P<{}>[^/]+)".format(piece)
+                    names.add(piece)
+                else:
+                    regex += re.escape(piece)
+            regex += "$"
+            hit = False
+            for rel in have:
+                found = re.match(regex, rel)
+                if found:
+                    hit = True
+                    target = new
+                    for key, value in found.groupdict().items():
+                        target = target.replace("{" + key + "}", value)
+                    if target not in seen:
+                        seen.add(target)
+                        copies.append((os.path.join(base, rel), os.path.join(dest, target)))
+            if not hit:
+                missing.append(old)
+        plan.append((stem, run, copies, missing))
+    return plan
+
+
+def seed_copy(plan, dest, dry_run):
+    """Copy what is missing; never overwrite, never move. Returns the printed lines and the seeded folders."""
+    out, seeded = [], []
+    for stem, run, copies, missing in plan:
+        made = kept = 0
+        for source, target in copies:
+            if os.path.lexists(target):
+                kept += 1
+                continue
+            made += 1
+            if not dry_run:
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                with open(source, "rb") as src, open(target, "xb") as dst:
+                    shutil.copyfileobj(src, dst)
+                shutil.copystat(source, target)
+        out.append("  {} outputs/{}/ from outputs/{}/: {} file(s), {} already there".format(
+            "would seed" if dry_run else "seeded", stem, run, made, kept))
+        for old in missing:
+            out.append("    no file in the run for declared output {}".format(old))
+        if made:
+            seeded.append((stem, run, made, kept))
+    return out, seeded
+
+
+def log_migration(dest, seeded):
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    path = os.path.join(dest, "logs", "CHANGES.md")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    entry = ["", "## {} migrated ok".format(stamp), "code changed: none", "outputs rewritten:"]
+    entry += ["- outputs/{}/ (seeded: copied {} file(s) from outputs/{}/, run folder unchanged)".format(s, n, r) for s, r, n, _ in seeded]
+    with open(path, "a", encoding="utf-8") as handle:
+        if handle.tell() == 0:
+            handle.write(CHANGES_HEAD)
+        handle.write("\n".join(entry) + "\n")
+
+
+def migrate(args, dest):
+    """Move a run-folder analysis to step folders. Writes only new files unless --apply; never edits code/ or a run folder."""
+    for flag in ("steps", "format", "data", "code", "doc_template", "panels"):
+        if getattr(args, flag):
+            raise Refusal("--migrate takes --dest, --seed, --apply and --dry-run only; got --{}".format(flag.replace("_", "-")))
+    if not args.migrate:
+        raise Refusal("--apply and --seed go with --migrate")
+    root = ap.living_root(dest) if os.path.isdir(dest) else None
+    dest_rel = display(dest, root).replace(os.sep, "/")
+    name = os.path.basename(dest)
+    if not os.path.isdir(dest) or os.path.islink(dest):
+        raise Refusal("{} is not an existing analysis folder; nothing was changed".format(dest_rel))
+    for item in ("code", "outputs", "Snakefile"):
+        if os.path.islink(os.path.join(dest, item)):
+            raise Refusal("{}/{} is a symlink; nothing was changed".format(dest_rel, item))
+    snakefile = os.path.join(dest, "Snakefile")
+    if not os.path.isfile(snakefile):
+        raise Refusal("{} has no Snakefile; nothing to migrate".format(dest_rel))
+    pre = os.path.join(dest, "Snakefile" + OLD)
+    marker = os.path.join(dest, "outputs", ".layout")
+    again = os.path.isfile(pre)  # an applied migration: --seed may copy more steps
+    if again and not args.seed:
+        raise Refusal("{} was migrated already ({} exists); use --seed step=run to copy more steps".format(dest_rel, "Snakefile" + OLD))
+    if os.path.lexists(marker) and not again:
+        raise Refusal("{} is already in the step-folder layout (outputs/.layout exists); nothing was changed".format(dest_rel))
+    if args.seed and not (args.apply or again or args.dry_run):
+        raise Refusal("--seed goes with --apply: it copies into the step folders of the new Snakefile")
+    templates = args.templates
+    source_text = ap.read(pre if again else snakefile, "strict")
+    new_text, info = migrate_snakefile(source_text, name, dest_rel, templates)
+    seeds = parse_seed(args.seed, info["rules"]) if args.seed else {}
+    plan = seed_plan(dest, seeds, info["pairs"]) if seeds else []
+    verb = "would write" if args.dry_run else "wrote"
+    if again:  # only the seed step is left to do
+        print("{} was migrated already; seeding only".format(dest_rel))
+        return run_seed(args, dest, plan)
+
+    files = {"Snakefile": new_text,
+             "run.sh": ap.fill(ap.read(os.path.join(templates, "run.sh")), {"NAME": name}),
+             "run.sbatch": ap.fill(ap.read(os.path.join(templates, "run.sbatch")), {"NAME": name})}
+    quarto, quarto_note = quarto_text(dest, templates)
+    if quarto:
+        files["_quarto.yml"] = quarto
+    stems = [r["stem"] for r in info["rules"]]
+    notes = gitignore_notes(dest, root, info["folders"], stems)
+    hashes_missing = not os.path.isfile(os.path.join(dest, "logs", ".code-hashes.tsv"))
+    report = migrate_report(name, dest, root, info, new_text, notes, hashes_missing, quarto_note)
+    if args.apply:  # a .new file the user read and perhaps edited is what gets installed, so it is what the diff shows
+        for n in files:
+            fresh, original = os.path.join(dest, n + ".new"), os.path.join(dest, n)
+            if os.path.isfile(fresh):
+                if os.path.isfile(original) and os.stat(original).st_mtime > os.stat(fresh).st_mtime:
+                    raise Refusal("{0} changed after {0}.new was written; delete {0}.new and run --migrate again. "
+                                  "Nothing was changed".format(n))
+                files[n] = ap.read(fresh, "strict")
+        new_text = files["Snakefile"]
+    elif not args.dry_run:  # a rerun never overwrites a .new file that differs: it may hold the user's fixes
+        written = [(n + ".new", text) for n, text in files.items()] + [("MIGRATE.md", report)]
+        differ = [shown for shown, text in written
+                  if os.path.isfile(os.path.join(dest, shown)) and ap.read(os.path.join(dest, shown), "strict") != text]
+        if differ:
+            raise Refusal("{} differs from a fresh migration (your edits, or the originals changed); nothing was changed. "
+                          "Delete {} to write {} again, or run --migrate --apply to install what you edited".format(
+                              ", ".join(differ), "it" if len(differ) == 1 else "them", "it" if len(differ) == 1 else "them"))
+    print("migrate {}/ (run folders to step folders; originals stay until --apply)".format(dest_rel))
+    flagged = sum(1 for l in new_text.split("\n") if "# MIGRATE: check" in l)
+    print("  {} of {} rules rewritten; {} line(s) marked '# MIGRATE: check'".format(info["rewritten"], len(info["rules"]), flagged))
+    for line in difflib.unified_diff(source_text.splitlines(), new_text.splitlines(), "Snakefile", "Snakefile.new", lineterm=""):
+        print(line)
+    held = [n + OLD for n in files if os.path.lexists(os.path.join(dest, n + OLD))]
+    if args.apply and held:
+        raise Refusal("{} exists already; nothing was changed".format(", ".join(held)))
+    if not args.dry_run:
+        with scaffold_lock(dest):
+            if args.apply:
+                install(dest, files)
+            else:
+                for n, text in files.items():
+                    write_new(os.path.join(dest, n + ".new"), text, 0o755 if n == "run.sh" else None)
+            if not (args.apply and os.path.lexists(os.path.join(dest, "MIGRATE.md"))):  # keep the report you read
+                write_new(os.path.join(dest, "MIGRATE.md"), report)
+    if args.apply:
+        print("  {} {} (originals kept as *{})".format("would install" if args.dry_run else "installed", ", ".join(files), OLD))
+    else:
+        for n in files:
+            print("  {} {}.new".format(verb, n))
+    print("  {} MIGRATE.md".format(verb))
+    for line in notes:
+        print("note: .gitignore: " + line)
+    if args.seed:
+        run_seed(args, dest, plan)
+    elif args.apply:
+        print("next: bash run.sh to build the step folders, or --migrate --seed step=run,... to copy files from a run folder.")
+    else:
+        print("next: read the diff and MIGRATE.md, fix each '# MIGRATE: check', then run again with --apply.")
+    return 0
+
+
+def install(dest, files):
+    """Rename each original to *.pre-0.27 and put the text in its place (the caller passes a user-edited *.new file's
+    text). Undo on failure. The *.new files go only after every file is installed, so a failure keeps them."""
+    done = []
+    try:
+        for n, text in files.items():
+            path = os.path.join(dest, n)
+            if os.path.lexists(path):
+                os.rename(path, path + OLD)
+                done.append((path, path + OLD))
+            write_new(path, text, 0o755 if n == "run.sh" else None)
+    except BaseException:
+        for path, kept in reversed(done):
+            if os.path.lexists(path):
+                os.unlink(path)
+            os.rename(kept, path)
+        raise
+    for n in files:
+        with contextlib.suppress(OSError):
+            os.unlink(os.path.join(dest, n + ".new"))
+
+
+def run_seed(args, dest, plan):
+    """Copy the declared outputs, write outputs/.layout, log the migration."""
+    marker = os.path.join(dest, "outputs", ".layout")
+    if args.dry_run:
+        print("\n".join(seed_copy(plan, dest, True)[0]))
+        print("  would write outputs/.layout")
+        return 0
+    with scaffold_lock(dest):
+        lines, seeded = seed_copy(plan, dest, False)
+        print("\n".join(lines))
+        if not os.path.lexists(marker):
+            os.makedirs(os.path.dirname(marker), exist_ok=True)
+            write_new(marker, LAYOUT_TEXT)
+            print("  wrote outputs/.layout")
+        if seeded:
+            log_migration(dest, seeded)
+            print("  added a 'migrated' entry to logs/CHANGES.md")
+    return 0
+
+
 def main(argv):
     parser = argparse.ArgumentParser(prog="new_analysis")
     parser.add_argument("--dest", required=True, help="folder to create, e.g. analysis/<name>")
@@ -567,6 +1199,9 @@ def main(argv):
     parser.add_argument("--templates", default=default_templates, help="this skill's templates/")
     parser.add_argument("--panels", help="comma-separated manuscript panels, e.g. Fig1a.R,Fig1b.py")
     parser.add_argument("--dry-run", action="store_true", help="report what would change, write nothing")
+    parser.add_argument("--migrate", action="store_true", help="move a run-folder analysis (--dest, existing) to step folders")
+    parser.add_argument("--apply", action="store_true", help="with --migrate: install the .new files, keep the originals as *.pre-0.27")
+    parser.add_argument("--seed", help="with --migrate and --apply: step=run,step=run; copy each step's declared outputs out of outputs/<run>/")
     args = parser.parse_args(argv)
     if not args.templates or not os.path.isdir(args.templates):
         parser.error("--templates=<skill-dir>/templates is required when run from stdin")
@@ -581,6 +1216,8 @@ def main(argv):
 
 def scaffold(args):
     dest = canonical(args.dest)
+    if args.migrate or args.apply or args.seed:
+        return migrate(args, dest)
     if os.path.islink(dest):
         raise Refusal("destination is a symlink; nothing was changed")
     if os.path.exists(dest) and not os.path.isdir(dest):
