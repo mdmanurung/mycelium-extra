@@ -67,7 +67,7 @@ def patched(tmp, target, old, new):
         shutil.copyfile(source, path)
         entry = path
     else:
-        shutil.copytree(os.path.dirname(harness.GATE_RUN), os.path.join(tmp, "hooks"))
+        shutil.copytree(os.path.dirname(harness.GATE_RUN), os.path.join(tmp, "hooks"), ignore=shutil.ignore_patterns("__pycache__"))
         path = os.path.join(tmp, "hooks", "gate_run.py" if target == "gate_run" else "gate.py")
         entry = os.path.join(tmp, "hooks", os.path.basename(harness.GATE_RUN))
     with open(path, encoding="utf-8") as handle:
