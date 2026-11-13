@@ -14,8 +14,10 @@ import unittest
 sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "..", "scripts", "scan_structure.py")
-SMELLY = os.path.join(HERE, "fixtures", "smelly")
-CLEAN = os.path.join(HERE, "fixtures", "clean")
+# Scan copies outside any git repository, so this repo's own history adds no hot spots.
+_COPY = tempfile.mkdtemp(prefix="scan_structure_")
+SMELLY = shutil.copytree(os.path.join(HERE, "fixtures", "smelly"), os.path.join(_COPY, "smelly"))
+CLEAN = shutil.copytree(os.path.join(HERE, "fixtures", "clean"), os.path.join(_COPY, "clean"))
 
 
 def scan(path, *extra):

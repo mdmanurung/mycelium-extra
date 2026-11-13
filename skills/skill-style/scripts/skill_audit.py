@@ -35,6 +35,9 @@ def parse_args(argv):
     args = list(argv)
     while args:
         arg = args.pop(0)
+        if arg in ("-h", "--help"):
+            print("usage: skill_audit.py [--root DIR] [--format table|json|both]")
+            sys.exit(0)
         if arg == "--root" and args:
             root = Path(args.pop(0))
         elif arg == "--format" and args:

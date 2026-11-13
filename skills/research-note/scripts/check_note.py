@@ -143,6 +143,9 @@ def check(text):
 
 
 def main(argv):
+    if argv in (["-h"], ["--help"]):
+        print("usage: check_note.py <note.md> [--ids]")
+        return 0
     args = [a for a in argv if a != "--ids"]
     if len(args) != 1:
         print("usage: check_note.py <note.md> [--ids]")

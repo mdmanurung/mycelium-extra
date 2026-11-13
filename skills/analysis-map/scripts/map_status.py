@@ -138,6 +138,9 @@ def find_cycle(edges):
 
 
 def main(argv):
+    if argv in (["-h"], ["--help"]):
+        print("usage: map_status.py <analysis-dir | plans-dir | MAP.md>")
+        return 0
     if len(argv) != 1:
         print("usage: map_status.py <analysis-dir | plans-dir | MAP.md>", file=sys.stderr)
         return 2

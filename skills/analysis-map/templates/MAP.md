@@ -12,7 +12,7 @@
 
 ## Decisions so far
 
-<!-- One line per closed ticket: [Title](map/NN-slug.md): gist of the answer. -->
+<!-- One line per closed ticket: `[Title](map/NN-slug.md)`: gist of the answer. -->
 
 ## Not yet specified
 
@@ -20,4 +20,4 @@
 
 ## Out of scope
 
-<!-- Closed for good. One line each: [Title](map/NN-slug.md) or a gist, then why. -->
+<!-- Closed for good. One line each: `[Title](map/NN-slug.md)` or a gist, then why. -->
