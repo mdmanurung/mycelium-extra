@@ -174,6 +174,27 @@ class GrillReferenceContractTest(unittest.TestCase):
         self.assertIn("references/evidence-assistance.md", skill)
         self.assertIn("the question may add an evidence lookup as one option", skill)
 
+    def test_recommended_is_package_default_with_named_yardstick(self):
+        for rel in (
+            "SKILL.md",
+            os.path.join("references", "brief-format.md"),
+            os.path.join("references", "analysis-decisions.md"),
+        ):
+            self.assertIn("package-defaults-first", read(os.path.join(SKILL, rel)), rel)
+
+        skill = read(os.path.join(SKILL, "SKILL.md"))
+        for phrase in (
+            "stated as package, version and default value",
+            "A seed has no package default: ask",
+            "Cap: **five questions per grill**",
+            "The user's own answer is always accepted and becomes Source `user`",
+            "flagged if it differs from the package default",
+        ):
+            self.assertIn(phrase, skill, phrase)
+        brief = read(os.path.join(SKILL, "references", "brief-format.md"))
+        self.assertIn("`<pkg> <version>: <value>`", brief)
+        self.assertIn("under Assumptions and risk, never in the Choice cell", brief)
+
     def test_questions_are_asked_in_rounds_under_the_cap(self):
         skill = read(os.path.join(SKILL, "SKILL.md"))
         socratic = read(os.path.join(SKILL, "references", "socratic.md"))

@@ -15,6 +15,7 @@ In the last column, a named tool (`data-contract-check`, `verify`, or the approv
 | Stale evidence as current | A file's existence, or an old finding, is cited as if its outputs were current | Each cited output carries its date or commit, and a step re-checks it or marks it unverified | partial: verify (outputs older than the approval, and `stale` for verified plans) |
 | Silent scope growth | Extra subgroups, cell types, or sensitivity runs appear that nobody asked for | Every step traces to the objective; extras go to Parked with a return condition | partial: approval gate (runs of unplanned scripts in gated paths, not extra work inside a planned script) |
 | Redoing settled work | The repository already holds a finding that answers the task, and the plan re-runs it without saying so | Cite the finding first; make reuse versus re-run an explicit plan row | none |
+| Unsupported alternative or tuning grid | A grid or alternative value offered with no paper, count or yardstick | List the package default alone; name the evidence or yardstick for any alternative | cross-ref: Validation and sensitivity |
 
 ## Data handling
 
