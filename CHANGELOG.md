@@ -4,6 +4,12 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-11-13
+
+### Changed
+
+- **internals:** `hooks/gate.py` and `skills/verify/scripts/verify.py` are split into smaller modules: `hooks/shellwords.py`, `hooks/plantable.py` and `skills/verify/scripts/records.py`. Behaviour is unchanged; the gate-diff check still reports the same 78 intentional differences. The new modules use only the standard library.
+
 ### Added
 
 - **check-first:** user-invoked skill that writes the check that would catch a wrong result before the analysis code, one step at a time, with the expected value taken from outside the code. Includes a red/green example.

@@ -309,7 +309,7 @@ def run():
         # Exercise every shipped Python CLI parser. No user project is the cwd.
         entrypoints = sorted(ROOT.glob('skills/*/scripts/*.py')) + [ROOT/'hooks/confirm_write.py']
         for entry in entrypoints:
-            if entry.name in ('journal.py', 'render.py'):
+            if entry.name in ('journal.py', 'render.py', 'records.py'):
                 continue  # Libraries, not commands.
             def cli_help(p=entry):
                 r = subprocess.run([sys.executable, str(p), '--help'], cwd=tmp, capture_output=True, text=True, timeout=15)

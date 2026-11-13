@@ -139,6 +139,15 @@ The plan card's `Coverage` line and the `approve` wording were not behind these 
 
 The 0.28.0 gate edits are the post-run notice (M1) and the `planning_line` write at approval (M3). `gate_diff.py --base 267d9e24... --expect hooks/tests/gate_diff_expected.json` on python3.11 reports 95 of 173 identical and 78 listed differences, each matching the oracle exactly. No case is new, missing or changed, so the oracle file is unchanged. No fixed or fuzz case runs `bash run.sh`, `snakemake` or `sbatch` with the notice on, and none sets `.living/` with an analysis doc, so neither edit shows. The regression tests are `hooks/tests/test_gate_mycelium.py` and `test_runs_mycelium_misses_get_a_post_action_reminder` in `hooks/tests/test_gate.py`.
 
+## Gate module map
+
+`hooks/gate.py` is the entry point and holds the decisions. Two stdlib-only modules beside it hold code that has no decision in it. `gate.py` imports every public name from both, so `gate.tokenize` and the rest still work for tests and other modules.
+
+- `hooks/shellwords.py`: the shell tokenizer (`tokenize`, `segments`, `scoped_segments`), folder moves (`move_folder`, `cd_target`, `UnknownFolder`), the word tables (`RUNNERS`, `SHELLS`, `WRAPPERS`, `WRAPPER_OPTIONS`, `MYCELIUM_SEES`) and the helpers that turn a word into a repository path (`repo_relative`, `gated_rel`, `paths_in_text`). `classify` stays in `gate.py`.
+- `hooks/plantable.py`: the plan table's grant cells (`plan_table`), the paths and commands they name (`plan_paths_in`, `path_in_plan`, `plan_grants`), the rows (`plan_rows`, `table_cells`) and `covered_scripts`.
+
+Keep both modules free of imports that cost time: `gate_run.py` loads `gate` on every hook call, and `hooks/tests/test_hook_limits.py` holds the latency. Their tests are `hooks/tests/test_shellwords.py` and `hooks/tests/test_plantable.py`.
+
 ## Skill descriptions and invocation
 
 A skill's `description:` loads into the agent's context on every turn in every host, so it is a pointer, not a summary. Keep it to one line (OpenCode reads it with a one-line regex) and at most about 60 words: a first sentence that says what the skill does and when it fires, within 150 characters (OpenCode shows only that sentence, cut at 150), then one sentence for the boundary. The body carries everything else.

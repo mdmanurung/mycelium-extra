@@ -172,4 +172,4 @@ The bundled template retains the
 [scilintr](https://github.com/arjunrajlaboratory/scilintr) supplies scientific
 linting; data-contract alerts use ClawBio's expected/observed/evidence format.
 
-`check-first`, `diagnose-result`, `improve-structure` and `glossary` are adapted from Matt Pocock's `tdd`, `diagnosing-bugs`, `improve-codebase-architecture` and `grill-with-docs` skills (MIT, Copyright (c) 2026 Matt Pocock).
+Matt Pocock's skills (MIT, Copyright (c) 2026 Matt Pocock) are the source for `tdd`, `diagnosing-bugs`, `improve-codebase-architecture`, `grill-with-docs`, `prototype`, `research`, `wayfinder`, `chief-of-staff`, `wizard`, `wait-what`, `writing-for-agents`, `ask-matt`, `handoff` and `claude-handoff`. The user-invoked skills `check-first`, `diagnose-result`, `improve-structure`, `glossary`, `prototype-analysis`, `research-note`, `analysis-map`, `setup-wizard`, `re-pitch`, `skill-style`, `ask-extra`, `handoff` and `handoff-resume` adapt them.
