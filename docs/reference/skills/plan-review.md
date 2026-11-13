@@ -37,6 +37,8 @@ Read-only challenge of a grill plan by independent reviewers before you approve 
 
 Any change to the packet or an attachment needs a new `prepare` and a new `send packet` from you.
 
+For how this consent maps to Five Safes and what it does not enforce, see [Five Safes and the consent step](../../five-safes.md).
+
 ## Reviewers and routes
 
 | Host leading | Reviewers |

@@ -52,6 +52,7 @@ A status describes the plan. None grants permission to run.
 | `Inputs:` | files the plan's validity rests on; the gate pins them when it shows the hash |
 | `Outputs:` | files the runs will write; `verify` checks each was written after the approval by a run of this plan |
 | plan table | the only table; columns for step, choice, source (`repo: <path>`, `user`, `default: <reason>`) and validation check |
+| optional `<!-- secondary-data -->` block | for data already collected or seen: prior exposure, target population, estimand, what would change the interpretation, sensitivity and supplementary analyses under separate labels; `verify` prints it |
 | optional `<!-- exact-execution -->`, `<!-- validation-bindings -->` blocks | for reportable runs; syntax in `references/run-plans.md` and [Advanced features](../../advanced.md) |
 | optional `<!-- plan-evidence -->` block | read-only commands and their verbatim output, one entry per fact the plan rests on; `verify` re-runs them and reports drift; syntax in `references/plan-evidence.md` |
 | `Frontier:` | one count line: branches settled by repo, by you, by default, parked, and open |

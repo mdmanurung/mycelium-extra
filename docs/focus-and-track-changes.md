@@ -113,3 +113,5 @@ records and two saved verifications. No real data or scheduler is used. The
 standalone [handoff consumer](../examples/read_evidence.py) validates saved bundles
 without plugin imports. Contract details are in the
 [journal schema](../skills/track-changes/references/schema.md#analysis-journal-v1).
+
+For how checkpoints relate to external audit, see [Five Safes and the consent step](five-safes.md#audit-trail-limit).

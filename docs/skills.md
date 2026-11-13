@@ -53,7 +53,7 @@ Sets up a new analysis repository (Mycelium init and the gate) or Python package
 
 ## verify
 
-Checks what ran against the approved plan and saves provenance once you confirm. See [verify](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/verify.md).
+Checks what ran against the approved plan and saves provenance once you confirm. `verify crate <hash>` also exports the saved bundle as a Process Run RO-Crate. When a plan carries the optional secondary-data block, the report prints it as written. See [verify](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/verify.md) and [Five Safes and the consent step](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/five-safes.md).
 
 ## new-analysis
 

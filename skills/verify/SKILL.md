@@ -129,6 +129,8 @@ After the bundle, `write` adds one row, `| provenance/verify-<hash>.md | verify 
 
 Writing again for the same plan replaces its files and its row. A non-conforming check can be written too, since its status is recorded with it. The files belong with the analysis, so commit them with it. The script warns if git ignores the folder.
 
+To also export a Process Run RO-Crate of a written bundle, ask the same confirmation, then run `<skill-dir>/../../hooks/mxpy - --plugin-root <skill-dir>/../.. crate <hash> --analysis-dir <folder> < <skill-dir>/scripts/verify.py` (details: `references/crate.md`). An output with no established producer stays in the crate as an explicit gap.
+
 ## 5. Hand off
 
 - Mycelium's Stop hook will ask for a `.living/` update. Record the verify status, and the plan's "Decisions to record" from `plan-<hash>.md`, through Mycelium's normal logging. This skill does not write `.living/`.

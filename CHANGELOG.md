@@ -21,6 +21,14 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 - **handoff:** gains a Suggested skills section, redaction of secrets and personal identifiers before writing, and `handoff bg`, which prints a `claude --bg` command for you to run.
 - **credits:** Adapted from Matt Pocock's skills (MIT, Copyright (c) 2026 Matt Pocock): `tdd`, `diagnosing-bugs`, `improve-codebase-architecture`, `grill-with-docs`, `prototype`, `research`, `wayfinder`, `chief-of-staff`, `wizard`, `wait-what`, `writing-for-agents`, `ask-matt`, `handoff` and `claude-handoff`.
 
+## [0.29.0] - 2026-11-13
+
+### Added
+
+- **verify:** `verify crate <hash> --analysis-dir DIR` writes `provenance/crate-<hash>/ro-crate-metadata.json`, a Process Run RO-Crate (RO-Crate 1.3, Process Run Crate 0.6) built from the saved evidence bundle. It holds one run action per script run, with the script and its hash as instrument, the pinned inputs as objects and the outputs with size and SHA-256 as results. An output with no established producer stays in the crate as an explicit gap. It is a record write, so it asks first like `write`. Stdlib JSON-LD writer, no new dependency. Pinned versions and sources: `skills/verify/references/crate.md`.
+- **grill:** an optional secondary-data block in `references/brief-format.md`, `scientific-conventions.md` and the `new-analysis` PLAN template. It is a comment block, so the plan table and the gate parse as before. It records prior exposure, target population, the estimand, what would change the interpretation, and sensitivity and supplementary analyses under separate labels. `verify` prints the block in its report when present, as written and not checked.
+- **docs:** `docs/five-safes.md` maps the digest-bound `send packet` consent to the Five Safes idea of a separate disclosure decision. It states that access and export enforcement belong to the host or Trusted Research Environment, and why no hash chain is built.
+
 ## [0.28.0] - 2026-11-13
 
 ### Added

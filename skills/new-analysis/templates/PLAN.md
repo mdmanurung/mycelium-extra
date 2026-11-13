@@ -32,6 +32,10 @@ HTML comments in the plan you present, not nested inside this one. See the grill
   exact-execution {"version": 1, "steps": [{"row": "S2", "argv": ["python", "<analysis folder>/02_fit.py", "--model", "mixed", "--threads", "4"], "cwd": ".", "env": {}, "operational": ["--threads"]}]}
   validation-bindings {"version": 1, "checks": [{"id": "V1", "plan_row": "S2", "required": true, "defined_by": "agent-proposed", "test_paths": ["<analysis folder>/tests/expected.tsv"], "invocation": ["python", "<analysis folder>/tests/check.py"], "evidence_path": "<analysis folder>/outputs/check.json"}]}
 
+For secondary data (already collected or already seen), a third, opt-in block records prior exposure to the outcomes, the target population, the exact quantity to estimate and what would change the interpretation. Write it as its own HTML comment, never required; syntax in the grill skill's references/brief-format.md:
+
+  secondary-data  one "label: text" line each for prior exposure, target population, estimand, interpretation would change if, sensitivity analyses, supplementary analyses
+
 Without them a path in the Step column is a broad grant (any arguments). `defined_by` is recorded, not verified.
 -->
 

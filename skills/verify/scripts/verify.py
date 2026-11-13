@@ -7,6 +7,7 @@ Mycelium's hooks do not open the post-action cycle:
     <root>/hooks/mxpy - --plugin-root <root> report <hash> [--analysis-dir DIR] [--claims DOC] [--instance ID] [--require-reportable] [--resolve-citations [--contact EMAIL]] [--json] < verify.py
     <root>/hooks/mxpy - --plugin-root <root> disclose <hash> [--analysis-dir DIR] [--resolve-citations [--contact EMAIL]] < verify.py
     <root>/hooks/mxpy - --plugin-root <root> write <hash> --analysis-dir DIR [--claims DOC] [--require-reportable] < verify.py
+    <root>/hooks/mxpy - --plugin-root <root> crate <hash> --analysis-dir DIR < verify.py
     <root>/hooks/mxpy - --plugin-root <root> stale [--content] [--json] < verify.py
     <root>/hooks/mxpy - --plugin-root <root> status [--json] < verify.py
     <root>/hooks/mxpy - --plugin-root <root> explore [--session ID | --all] [--json] < verify.py
@@ -3841,6 +3842,22 @@ def render_summary(result, saved=False):
     return ["{:<16}{}  ".format(label, cut(value)) for label, value in rows]
 
 
+def secondary_data_lines(plan):
+    """Report lines for the plan's optional `<!-- secondary-data ... -->` block, or [] when it is absent or empty.
+    Lines read `label: text`. Unknown labels and unlabelled lines are shown as written. Never raises."""
+    try:
+        found = re.findall(r"<!--\s*secondary-data\b(.*?)-->", plan or "", re.DOTALL)
+        body = [ln.strip() for ln in "\n".join(found).splitlines() if ln.strip()]
+        if not body:
+            return []
+        lines = ["", "## Secondary data", "", "The plan's own record of prior exposure and the estimand (`<!-- secondary-data -->`), "
+                 "shown as written and not checked."]
+        lines += ["- " + cell(ln) for ln in body]
+        return lines
+    except Exception:  # a bad block must not break the report
+        return []
+
+
 def render(result, all_outputs=False, saved=False):
     git = result["git"]
     head = "HEAD {} ({})".format(git["head"][:12], "uncommitted changes" if git.get("dirty") else "clean") \
@@ -3932,6 +3949,7 @@ def render(result, all_outputs=False, saved=False):
                 detail += " (recorded `{}`, now `{}`)".format(cell(entry["old"]), cell(entry["new"]))
             lines.append("- row {}: `{}` - {}{}".format(
                 cell(entry["row"]) or "?", cell(entry["cmd"]) or "(none)", entry["verdict"], detail))
+    lines += secondary_data_lines(result.get("plan"))
     if result.get("rerun"):
         lines += ["", "## Rerun evidence", "", "Entry points the plan names, never launched by verify: `declared`, `rerun attempted` "
                   "(a matched run after the outputs were saved) and `rerun reproduced specified artifacts` (equal content hashes) "
@@ -5617,6 +5635,30 @@ This rehearsal measures neither scientific validity nor a person's ability to de
     return text + "After your answer, run `verify exercise reveal` in this session to see the known answer.\n"
 
 
+def crate_command(root, args):
+    """`crate <hash> --analysis-dir DIR`: save the plan's Workflow Run RO-Crate beside its provenance bundle.
+    A record write, so it follows `write`: the user confirms the folder first, and with `confirm_writes` on
+    it needs the same consent (kind verify-write) that `write` needs."""
+    if not args.analysis_dir:
+        sys.exit("verify: `crate` needs --analysis-dir, confirmed by the user.")
+    if gate.load_config(root).get("confirm_writes") is True and not any(
+            r.get("kind") == "verify-write" for r in gate.pending_writes(root, True)):
+        sys.exit("verify: confirm_writes is on, so `crate` needs the user's confirmation: run `hooks/confirm_write.py "
+                 "prepare --kind verify-write --target <analysis folder>`, show the line it prints, and wait for them.")
+    sys.path.insert(0, os.path.join(PLUGIN_ROOT, "skills", "verify", "scripts"))
+    import crate
+    try:
+        with open(os.path.join(PLUGIN_ROOT, ".claude-plugin", "plugin.json"), encoding="utf-8") as handle:
+            version = json.load(handle)["version"]
+    except (OSError, ValueError, KeyError, TypeError):
+        version = "unknown"
+    try:
+        print("wrote " + crate.write(root, args.analysis_dir, args.hash, version))
+    except (OSError, ValueError, crate.CrateError) as error:
+        sys.exit("verify: could not write the crate: {}.".format(error))
+    return 0
+
+
 def main(argv):
     parser = argparse.ArgumentParser(prog="verify")
     parser.add_argument("--plugin-root", required=True)
@@ -5627,7 +5669,7 @@ def main(argv):
     parser.add_argument("--hash-mb", type=float, default=2000)
     parser.add_argument("--seconds", type=float, default=120)
     parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore",
-                                           "multiplicity", "runs", "refs", "disclose", "exercise"])
+                                           "multiplicity", "runs", "refs", "disclose", "exercise", "crate"])
     parser.add_argument("hash", nargs="?")
     parser.add_argument("new_hash", nargs="?")
     parser.add_argument("--sha", help="refs: the SHA256 (or at least 8 hex) of the file that was wrong")
@@ -5707,6 +5749,8 @@ def main(argv):
             sys.exit("verify: `diff` needs the old and the new plan's 8-character hashes (see `list`).")
         sys.stdout.write(diff_plans(root, args.hash, args.new_hash))
         return 0
+    if args.action == "crate":
+        return crate_command(root, args)
     if args.action == "multiplicity":
         result = multiplicity(root, args.hash)
         sys.stdout.write(json.dumps(result, indent=1) + "\n" if args.json else render_multiplicity(result))

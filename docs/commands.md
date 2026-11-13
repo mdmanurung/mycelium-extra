@@ -36,7 +36,7 @@ Claude Code and OpenCode: `/mycelium-extra:<skill>`. Codex: `$mycelium-extra:<sk
 |---|---|
 | `grill` | Turns a task into a sourced, numbered plan and waits for approval. |
 | `init` (you) | Turns on the approval gate in this repository. |
-| `verify` | Checks what ran against the approved plan; writes provenance after you confirm. Reads runs as the [analysis layout](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/analysis-layout.md) defines them. |
+| `verify` | Checks what ran against the approved plan; writes provenance after you confirm, and `verify crate <hash>` exports a Process Run RO-Crate. Prints a plan's optional secondary-data block when present. Reads runs as the [analysis layout](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/analysis-layout.md) defines them. |
 | `plan-review` | Challenges a plan before approval. Nothing leaves the machine without consent. |
 | `plot-first` | Makes saved, inspected plots the evidence for each conclusion. |
 | `new-analysis` (you) | Scaffolds an analysis folder with stubs (`01_prepare.R`, `02_fit.R`, `03_show.R`), a plot theme, plan, Snakefile and `run.sh`, which writes one overwritten folder per script and a change log in the [analysis layout](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/analysis-layout.md). |

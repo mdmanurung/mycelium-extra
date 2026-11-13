@@ -65,6 +65,23 @@ Without run blocks, a path in the table is a broad grant (any arguments), and th
 
 For a reportable run: an `<!-- exact-execution {...} -->` block that freezes the arguments of chosen steps, and a `<!-- validation-bindings {...} -->` block that pins the test and expectation files of an acceptance check the user approves. Syntax in [run-plans.md](run-plans.md). Add one only where a result depends on it, not for every sentence of the plan; an exploratory test you wrote while developing is not an approved expectation, and `defined_by` is a claim the gate records, not proof.
 
+## Secondary data (optional)
+
+When the data are secondary (already collected or already seen), offer this block once. The user may decline; never require it. It is a comment block, so the plan table, `Inputs:`, `Outputs:` and the gate parse as before.
+
+```
+<!-- secondary-data
+prior exposure: what the analysts already saw of these outcomes, and where
+target population: who the result should speak for
+estimand: population, variable, handling of intercurrent events, summary measure
+interpretation would change if: the result that would make the user read the answer differently
+sensitivity analyses (same estimand, different assumptions): one per line
+supplementary analyses (a different question): one per line
+-->
+```
+
+Keep sensitivity and supplementary analyses under separate labels: the first changes assumptions and keeps the question, the second asks another question. Each content choice in the block that changes a headline estimate also needs its own plan row. `verify` prints the block in its report when present, as written and not checked.
+
 ## Plan evidence (optional)
 
 A `<!-- plan-evidence {...} -->` block that records, for each fact the plan rests on, the read-only command that showed it and its verbatim output. Syntax in [plan-evidence.md](plan-evidence.md). Add one whenever at least two Evidence bullets rest on a file read, so `verify` can re-run the commands and report drift instead of trusting a paraphrase; skip it when the plan read nothing. It is JSON in a comment, never a table.

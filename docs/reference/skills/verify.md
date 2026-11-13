@@ -12,7 +12,7 @@ Run from inside the repository, from stdin. Invoke with `/mycelium-extra:verify`
 
 ## Subcommands
 
-`<action>` is one of twelve values. "Gate" says whether it needs `.mycelium-extra/gate.json`.
+`<action>` is one of thirteen values. "Gate" says whether it needs `.mycelium-extra/gate.json`.
 
 | Action | Arguments | Meaning | Writes | Gate |
 |---|---|---|---|---|
@@ -20,6 +20,7 @@ Run from inside the repository, from stdin. Invoke with `/mycelium-extra:verify`
 | `report` | `<hash>` | the five summary rows, then scope, findings, lint, claims, citations, validation, recovery | no | yes |
 | `report` | `<hash> --trace [ROW]` | a decision trace instead: one line per plan row, or one row's declared script, attempts, bound checks and outputs. Hash first. Refused with `--json`, `write` and other actions. | no | yes |
 | `write` | `<hash> --analysis-dir DIR` | save the frozen plan, receipts and the check into `DIR/provenance/` | yes | yes |
+| `crate` | `<hash> --analysis-dir DIR` | save the plan's Process Run RO-Crate to `DIR/provenance/crate-<hash>/ro-crate-metadata.json`; needs the bundle from `write` | yes | yes |
 | `disclose` | `<hash> [--analysis-dir DIR]` | a draft AI-use methods paragraph, one sentence per line with `[source: ...]` and `[BLANK: ...]` for what no record shows. No `--json`. | no | yes |
 | `diff` | `<old-hash> <new-hash>` | what changed between two plans: objective, rows, inputs, outputs, validation and exact-execution blocks, scope | no | yes |
 | `multiplicity` | `<hash>` | what was tried before the plan was settled: earlier plans, runs, explore runs | no | yes |
@@ -75,6 +76,10 @@ Exit codes: `report` and `write` exit 0 whatever the status. `--require-reportab
 ## Writes
 
 Only `write`, and only `<analysis-dir>/provenance/`: `plan-<hash>.md`, `receipts-<hash>.jsonl`, `outputs-<hash>.tsv`, `verify-<hash>.md`, `lint-<hash>.txt`, `PROVENANCE.md`, `complete-<hash>.json`; plus `validation-<hash>.json`, `env-<hash>.txt`, `pip-<hash>.txt` and `rule-envs-<hash>.json` when they apply, and `evidence-<hash>.json` (the portable evidence handoff). Writing again for the same plan replaces its files and its row. A non-conforming result can be written too; its status is recorded with it. The script warns if git ignores the folder. See [State files](../state-files.md).
+
+## Process Run RO-Crate
+
+`crate <hash> --analysis-dir DIR` turns the saved bundle into `DIR/provenance/crate-<hash>/ro-crate-metadata.json`, an RO-Crate 1.3 that declares the Process Run Crate 0.6 profile. It holds one run action per script run (instrument = the script with its hash, objects = the pinned inputs, results = the outputs with their size and, where the outputs table has a hash, its SHA-256; otherwise a `mx:fingerprint` note says how weak the identity is) and a file entity for each input, script and output. An output with no established producer stays in the crate, marked `mx:producerAttribution` with a `mx:producerGap` text; it is not dropped or attached to a run. The command is a record write: ask first, as for `write`, and with `confirm_writes` on it needs the same `verify-write` consent. It reads only the bundle and the approval record, so run `write` first. The output is sorted and repeatable. The crate says what the gate saw, not that the analysis is right. Pinned versions, sources and choices: `skills/verify/references/crate.md`.
 
 ## Default on or off
 
