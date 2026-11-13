@@ -57,4 +57,8 @@ Plan, manifest, provenance, run-status and `## Outputs` tables, and the tables `
 
 ## Before handing off
 
-Check every result conclusion for an inspected figure link or a `table fallback:` line. Where neither exists, write `unsupported: no inspected figure` after the conclusion in the same document and name the next plot needed; do not move it to a parked list.
+Check every result conclusion for an inspected figure link or a `table fallback:` line. Where neither exists, write `unsupported: no inspected figure` at the end of the conclusion, before its fact tag so the tag still ends the line, in the same document, and name the next plot needed; do not move it to a parked list.
+
+```markdown
+- The median is 1200 cells per donor; not tested. unsupported: no inspected figure [agent-derived: `outputs/02_cell_counts.tsv`]
+```

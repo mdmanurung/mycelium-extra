@@ -334,6 +334,57 @@ class Small(Base):
         os.makedirs(self.path(".living"))
         self.assertEqual(ap.living_root(self.path("code")), self.folder)
 
+    def test_is_analysis_and_source_dir(self):
+        bare = self.path("bare_thing")
+        os.makedirs(bare)
+        self.assertFalse(ap.is_analysis(bare))
+        os.makedirs(os.path.join(bare, "scripts"))
+        self.assertTrue(ap.is_analysis(bare))
+        self.assertEqual(ap.source_dir(bare), os.path.join(bare, "scripts"))
+        os.makedirs(os.path.join(bare, "code"))
+        self.assertEqual(ap.source_dir(bare), os.path.join(bare, "code"))  # code/ wins
+        doc_only = self.path("my-doc")
+        touch(os.path.join(doc_only, "MY_DOC.md"), "# d\n")
+        self.assertFalse(ap.is_analysis(doc_only))  # a doc alone is a container such as analysis/ideas
+        os.makedirs(os.path.join(doc_only, "outputs"))
+        self.assertTrue(ap.is_analysis(doc_only))
+        self.assertIsNone(ap.source_dir(doc_only))
+        readme_only = self.path("readme_only")
+        touch(os.path.join(readme_only, "README.md"), "# d\n")
+        self.assertFalse(ap.is_analysis(readme_only))
+
+    def test_manifest_status_reads_prose_yaml_and_table_forms(self):
+        top = os.path.join(self.repo, "analysis")
+        touch(os.path.join(top, "ANALYSIS_MANIFEST.md"), (
+            "# Manifest\n\n## alpha\n\n**Path**: `analysis/alpha/`\n**Status**: active \u2014 ran 2026-08-07\n\n"
+            "### beta\n```yaml\nname: beta\nstatus: archived\n```\n\n"
+            "| Path | Status |\n|---|---|\n| analysis/gamma | draft |\n| analysis/delta | |\n\n"
+            "## epsilon\n\nText with no status.\n"))
+        for name in ("alpha", "beta", "gamma", "delta", "epsilon", "zeta"):
+            os.makedirs(os.path.join(top, name), exist_ok=True)
+        got = {n: ap.manifest_status(os.path.join(top, n), self.repo)
+               for n in ("alpha", "beta", "gamma", "delta", "epsilon", "zeta")}
+        self.assertEqual(got, {"alpha": "listed: active", "beta": "listed: archived", "gamma": "listed: draft",
+                               "delta": "listed", "epsilon": "listed", "zeta": "not listed"})
+
+    def test_manifest_status_in_progress_and_cross_references(self):
+        top = os.path.join(self.repo, "analysis")
+        touch(os.path.join(top, "ANALYSIS_MANIFEST.md"), (
+            "## alpha\n\n**Path**: `analysis/alpha/`\n**Status**: in progress (since May)\n\n"
+            "## beta\n\n**Path**: `analysis/beta/`\n**Status**: active\nSee `analysis/ideas/2026-07-17-x/`.\n"))
+        for name in ("alpha", "beta", "ideas"):
+            os.makedirs(os.path.join(top, name), exist_ok=True)
+        self.assertEqual(ap.manifest_status(os.path.join(top, "alpha"), self.repo), "listed: in progress")
+        self.assertEqual(ap.manifest_status(os.path.join(top, "ideas"), self.repo), "not listed")
+        self.assertEqual(ap.manifest_status(os.path.join(top, "beta"), self.repo), "listed: active")
+
+    def test_manifest_status_without_a_manifest_or_a_prefix_match(self):
+        top = os.path.join(self.repo, "analysis")
+        os.makedirs(os.path.join(top, "alpha"))
+        self.assertEqual(ap.manifest_status(os.path.join(top, "alpha"), self.repo), "not listed")
+        touch(os.path.join(top, "ANALYSIS_MANIFEST.md"), "## alpha-long\n**Status**: active\n")
+        self.assertEqual(ap.manifest_status(os.path.join(top, "alpha"), self.repo), "not listed")  # a longer name
+
     def test_fill_read_sha(self):
         touch(self.path("t.txt"), "a @@X@@ b")
         self.assertEqual(ap.fill(ap.read(self.path("t.txt")), {"X": "1"}), "a 1 b")

@@ -30,6 +30,8 @@ One bullet per fact you keep. Each ends in a tag saying how it was established:
 - `[agent-derived: <artifact path>]`: read from a file, output, or probe.
 - `[agent-asserted: <source>]`: from your own knowledge; `[agent-asserted: none]` when you have no source.
 
+When the analysis has a lucid-coder contract (`contracts/<analysis>.yaml`), one bullet cites `contract.js status` for it: `Contract: <approved | not approved | approval stale> [agent-derived: contracts/<analysis>.yaml]`. The tag and the `Facts:` count work as for any bullet. An open `asks` field is a plan question, not an Evidence bullet.
+
 For a plan that runs code, one bullet names the environment it runs in: `Environment: <manager> <name> [agent-derived: lucid-coder.yaml]`, or `Environment: not recorded [agent-asserted: none]`. It stays off `Inputs:`, so the gate does not pin the pointer file.
 
 End the list with one count line, for example `Facts: 4 agent-derived, 1 human-stated, 1 agent-asserted (1 unsourced).` The tag ends the bullet, and `Facts:` starts a line: the gate and `verify` match both by position.

@@ -17,8 +17,12 @@ mkdir -p logs
 stamp=$(mktemp logs/.run-stamp.XXXXXX)  # one stamp per run, so runs with disjoint targets do not share it
 touch -d '1 second ago' "$stamp" 2> /dev/null || touch "$stamp"  # a little early, so a fast step still counts as newer
 
+if command -v sha256sum > /dev/null 2>&1; then num_hasher="sha256sum"; else num_hasher="shasum -a 256"; fi
+numbers_before=$($num_hasher outputs/numbers.json 2> /dev/null | cut -d ' ' -f 1 || true)  # Mycelium's register_value rewrites this one file in place
+
 if ${SNAKEMAKE:-snakemake} --cores "${CORES:-4}" "$@"; then code=0; else code=$?; fi
 set +e  # from here a logging problem must not replace Snakemake's exit status
+numbers_after=$($num_hasher outputs/numbers.json 2> /dev/null | cut -d ' ' -f 1 || true)
 
 exec 9> logs/.run.lock  # one writer at a time for the hashes and the log; held until this script exits
 if command -v flock > /dev/null 2>&1; then flock -w 120 9 || true; fi
@@ -62,6 +66,7 @@ if [ -d outputs ]; then  # step folders (NN_name, NNx_name) and the panels folde
   rewritten=$(find outputs -mindepth 2 -type f -newer "$stamp" 2> /dev/null | cut -d / -f 2 | LC_ALL=C sort -u |
     grep -E '^([0-9]{2}[a-z]?_.+|panels)$' | sed 's|^|- outputs/|; s|$|/|' || true)
 fi
+[ "$numbers_before" = "$numbers_after" ] || rewritten="${rewritten:+$rewritten$'\n'}- outputs/numbers.json: numbers.json changed"  # it sits in outputs/, not in a step folder
 
 log=logs/CHANGES.md
 [ -f "$log" ] || printf '# Change log\n\nOne entry per run.sh run: code files changed since the previous run, and output folders rewritten. Runs that overlap in time may list the same folders.\n' > "$log"

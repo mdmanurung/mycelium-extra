@@ -2,11 +2,13 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "..", "scripts", "analysis_report.py")
@@ -274,6 +276,75 @@ class StepsLayoutTest(unittest.TestCase):
         os.remove(os.path.join(self.dest, "logs", "CHANGES.md"))
         out = self.run_script("--dry-run")
         self.assertEqual(json.loads(out[:out.rindex("}") + 1])["outputs"]["run"], "outputs/ (steps)")
+
+
+    def rules_plugin(self, body):
+        root = os.path.join(self.root, "lucid-coder")
+        write(os.path.join(root, "scripts", "rules.js"), body)
+        return root
+
+    def test_inventory_lists_active_learned_rules_that_apply(self):
+        if not shutil.which("node"):
+            self.skipTest("node is not installed")
+        rules = [{"id": "r-0002", "topic": "user.report_embedded_figures", "scope": {"kind": "global"}, "status": "active"},
+                 {"id": "r-0017", "topic": "fig.theme", "scope": {"kind": "language", "language": "r"}, "status": "active"},
+                 {"id": "r-0020", "topic": "py.thing", "scope": {"kind": "language", "language": "python"}, "status": "active"}]
+        plugin = self.rules_plugin("if (process.argv.slice(2).join(' ') !== 'list --status active --json') process.exit(1);\n"
+                                   "console.log(JSON.stringify({}));\n".format(json.dumps(rules)))
+        with mock.patch.dict(os.environ, {"MX_LUCID_CODER_ROOT": plugin}):
+            out = self.run_script("--dry-run")
+        line = [l for l in out.splitlines() if l.startswith("info: lucid-coder learned rules")]
+        self.assertEqual(len(line), 1, out)
+        self.assertIn("(3)", line[0])  # the steps mix R and Python
+        self.assertIn("r-0002 user.report_embedded_figures", line[0])
+        self.assertIn("r-0017 fig.theme", line[0])
+        self.assertIn("not enforced", line[0])
+        self.assertIn("steps", json.loads(out[:out.rindex("}") + 1]))  # the inventory stays parseable
+
+    def test_learned_rules_fail_open_and_stay_quiet(self):
+        if not shutil.which("node"):
+            self.skipTest("node is not installed")
+        for env in ({"MX_LUCID_CODER_ROOT": os.path.join(self.root, "missing")},
+                    {"MX_LUCID_CODER_ROOT": self.rules_plugin("process.exit(1);\n")},
+                    {"MX_LUCID_CODER_ROOT": self.rules_plugin("console.log('[]');\n")}):
+            with mock.patch.dict(os.environ, env):
+                self.assertNotIn("lucid-coder learned rules", self.run_script("--dry-run"))
+
+
+class SkillTextTest(unittest.TestCase):
+    """The agent text and the fixture agree with the plot-first and r-0002 rules."""
+
+    def text(self, *parts):
+        with open(os.path.join(HERE, "..", "..", *parts), encoding="utf-8") as handle:
+            return handle.read()
+
+    def test_skill_embeds_png_and_checks_claims_before_hand_off(self):
+        skill = self.text("analysis-report", "SKILL.md")
+        self.assertIn("user.report_embedded_figures", skill)
+        self.assertIn("never as a link to a PDF", skill)
+        self.assertIn("pdftoppm -r 150 -png", skill)
+        self.assertNotIn("or the link form above", skill)
+        self.assertIn("lucid-writer", skill)
+        self.assertIn("<!-- claims -->", skill)
+        self.assertIn("report <hash> --analysis-dir <folder> --claims <folder>/reports/<name>.qmd --resolve-citations", skill)
+        self.assertIn("only if the user asks", skill)
+        self.assertIn("lucid-evidence-auditor", skill)
+
+    def test_plot_first_puts_the_marker_before_the_tag(self):
+        text = self.text("plot-first", "SKILL.md")
+        self.assertIn("before its fact tag so the tag still ends the line", text)
+        self.assertNotIn("after the conclusion in the same document", text)
+
+    def test_fixture_tags_end_the_line_and_name_an_artifact_path(self):
+        tag = re.compile(r"\[agent-derived: `([^`]+)`\]\s*$")
+        lines = [l for l in self.text("analysis-report", "tests", "fixtures", "artifact", "demo.qmd").splitlines()
+                 if l.startswith("**Conclusion.**")]
+        self.assertEqual(len(lines), 2)
+        for line in lines:
+            match = tag.search(line)
+            self.assertTrue(match, line)
+            self.assertTrue(match.group(1).startswith("outputs/") and "." in match.group(1), line)
+        self.assertRegex(lines[1], r"unsupported: no inspected figure \[agent-derived:")
 
 
 if __name__ == "__main__":

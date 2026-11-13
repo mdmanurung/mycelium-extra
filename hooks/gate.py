@@ -47,6 +47,8 @@ DEFAULTS = {
     "dev_packages": [],
     "scan_seconds": 5,
     "scan_mtime_filter": False,
+    "planning_line": True,
+    "where_mycelium": False,
 }
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s. gate.json `scan_seconds` sets it
 SCAN_SECONDS_DEFAULT = 5
@@ -95,7 +97,9 @@ CONTAINERS = {"apptainer", "singularity", "docker", "podman"}  # `exec IMAGE CMD
 # any other variable is unresolved. Add a name here if a host's own scripts are denied.
 PLUGIN_ROOT_VAR = re.compile(r"^\$\{?(MYC\w*|MYCELIUM\w*|CLAUDE_\w+|\w*PLUGIN_ROOT|\w*SKILL_DIR)\}?/")
 SHELL_C = re.compile(r"^-[A-Za-z]*c[A-Za-z]*$")  # `-c`, `-lc`, `-ec`, `-ce`: the shell runs inline code
-MYCELIUM_SEES = re.compile(r"^(python[\d.]*|Rscript|R|jupyter)$")  # Mycelium 0.7.2's run detector
+# Mycelium >= 0.8.2 opens its post-action cycle for these runners (tested with the 0.9.x line); `./run.sh` is
+# labelled by its path.
+MYCELIUM_SEES = re.compile(r"^(python[\d.]*|Rscript|R|jupyter|bash|sh|zsh|dash|ksh|snakemake|sbatch|nextflow|.*\.sh)$")
 SCRIPT_EXT = re.compile(r"(\.(py|R|r|sh|ipynb|qmd|Rmd|rmd|jl|smk|pl)$|(^|/)Snakefile$)")
 WRAPPERS = {"env", "time", "nohup", "nice", "ionice", "setsid", "command", "exec", "stdbuf", "timeout", "srun",
             "conda", "mamba", "micromamba", "pixi", "uv", "uvx", "run", "xvfb-run",
@@ -234,6 +238,8 @@ CONFIG_CHECKS = (
     ("pin_seconds", "a number of 0 or more", _number),
     ("scan_seconds", "a number of 0 or more (used between 1 and 8)", _number),
     ("scan_mtime_filter", "true or false", lambda v: isinstance(v, bool)),
+    ("planning_line", "true or false", lambda v: isinstance(v, bool)),
+    ("where_mycelium", "true or false", lambda v: isinstance(v, bool)),
 )
 
 
@@ -3261,6 +3267,80 @@ def log_approval(root, event, plan, approved_ts, checkpoint):
         pass
 
 
+PLANNING_PENDING = re.compile(r"^(\s*(?:[-*+]\s+)?)\*\*Planning\*\*:[ \t]*pending[ \t]*$")
+
+
+def has_pending_planning(doc):
+    try:
+        with open(doc, "rb") as handle:
+            lines = handle.read().decode("utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return False
+    return any(PLANNING_PENDING.match(line) for line in lines)
+
+
+def plan_analysis_docs(root, text):
+    """Analysis docs of the folders the plan table names: for each named path, the nearest folder at or above
+    it (below the repository root) that holds a doc found as hooks/analysis_paths.find_doc finds it."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    from analysis_paths import find_doc
+    real_root = os.path.realpath(root)
+    docs = []
+    for named in sorted(plan_paths_in(root, plan_table(text))):
+        folder = os.path.join(root, named)
+        if not os.path.isdir(folder):
+            folder = os.path.dirname(folder)
+        while os.path.realpath(folder).startswith(real_root + os.sep):
+            doc = find_doc(folder)
+            if doc and has_pending_planning(doc):  # a README without the line must not hide the real doc
+                if doc not in docs:
+                    docs.append(doc)
+                break
+            folder = os.path.dirname(folder)
+    return docs
+
+
+def set_planning_line(root, text, digest, approved_at, config):
+    """At approval, mark Mycelium's analysis doc `**Planning**: discussed <date> (approved plan <hash>)`, so
+    Mycelium's `analyze` does not offer a second planning discussion. Only in a repository with `.living/`, only
+    in a doc inside the repository that is not a link, only when it holds exactly one `**Planning**: pending`
+    line. Atomic write; silent on any failure (a line goes to gate-errors.jsonl when that file exists)."""
+    if config.get("planning_line") is not True or not os.path.isdir(os.path.join(root, ".living")):
+        return
+    try:
+        real_root = os.path.realpath(root)
+        for doc in plan_analysis_docs(root, text):
+            if os.path.islink(doc) or not os.path.realpath(doc).startswith(real_root + os.sep):
+                continue
+            with open(doc, "rb") as handle:
+                lines = handle.read().decode("utf-8").splitlines(keepends=True)
+            hits = [i for i, line in enumerate(lines) if PLANNING_PENDING.match(line.rstrip("\r\n"))]
+            if len(hits) != 1:
+                continue
+            ending = lines[hits[0]][len(lines[hits[0]].rstrip("\r\n")):]
+            prefix = PLANNING_PENDING.match(lines[hits[0]].rstrip("\r\n")).group(1)
+            lines[hits[0]] = "{}**Planning**: discussed {} (approved plan {}){}".format(
+                prefix, time.strftime("%Y-%m-%d", time.localtime(approved_at)), digest, ending)
+            tmp = "{}.{}.{}.tmp".format(doc, os.getpid(), os.urandom(4).hex())
+            try:
+                with open(tmp, "wb") as handle:
+                    handle.write("".join(lines).encode("utf-8"))
+                os.chmod(tmp, os.stat(doc).st_mode & 0o7777)  # keep the doc's mode
+                os.replace(tmp, doc)
+            finally:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+    except Exception as error:
+        log = state_path(root, "gate-errors.jsonl")
+        if os.path.isfile(log):
+            try:
+                append_line(log, {"ts": time.time(), "event": "planning_line", "error": clean(repr(error), 200)})
+            except OSError:
+                pass
+
+
 def log_deny(root, event, result):
     """One line per denied tool call in denies.jsonl (time, session, the reason's first sentence), to count the
     friction the gate adds. Only logged: never shown, and never allowed to change the decision."""
@@ -4602,6 +4682,8 @@ def prompt_commands(event, root, config):
         write_json(state_path(root, "approvals", wanted + ".json"), record)
         clear_scan_memo()
         log_approval(root, event, plan, record["approved_at"], checkpoint)
+        if not plan.get("freeze") and plan.get("kind") != "amendment":
+            set_planning_line(root, plan["text"], wanted, record["approved_at"], config)
         ledger = state_path(root, "script-pins", wanted + ".json")  # approving again re-baselines
         if os.path.isfile(ledger):
             os.remove(ledger)
@@ -5079,12 +5161,19 @@ def on_post(event, root, config):
     context = []
     unseen = sorted({run[1] for run in runs if not MYCELIUM_SEES.match(run[1])})
     if unseen and os.path.isdir(os.path.join(root, ".living")):
-        # Mycelium's own hooks detect only python, R and jupyter runs, so they stay silent here.
+        # Mycelium's hooks do not detect these runners (python, R, jupyter, bash/sh scripts, snakemake, sbatch
+        # and nextflow are detected since 0.8.2), so they stay silent here.
         context.append(
             "mycelium-extra: Mycelium's post-action protocol did not fire for this {} run (its hooks "
-            "detect only python, R, and jupyter). Once the run has finished (check its log or job "
+            "do not detect it). Once the run has finished (check its log or job "
             "status), follow that protocol: learnings, decisions, findings, the manifest, and the "
             "analysis doc.".format(", ".join(unseen)))
+    if any(run[1] == "sbatch" for run in runs) and os.path.isdir(os.path.join(root, ".living")):
+        # Mycelium opens its cycle at submission, but a submitted job has produced nothing yet.
+        context.append(
+            "mycelium-extra: the sbatch job may not have finished. Record no result before it has (check "
+            "the job status). If Mycelium opened its post-action protocol for this submission, follow it "
+            "then: learnings, decisions, findings, the manifest, and the analysis doc.")
     if any(run[0] for run in runs):
         # Mycelium's post-action protocol asks for findings after any run; keep this one out of results.
         context.append(

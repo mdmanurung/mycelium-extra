@@ -4,6 +4,34 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-11-13
+
+### Added
+
+- **verify:** recipe R5, "paired donor-level pseudobulk contrast", in `docs/validation-recipes.md`. The fitting script calls `extract_design.R` or `extract_design.py` (in `tests/fixtures/sc-conventions/`) after the fit. They write the design matrix, the contrast and the sample-table hash the fit used (`mycelium-extra.fit_design.v1`). `method_fidelity.py` compares them with the approved `mycelium-extra.design_expectations.v1`: the contrast must match, sign included, be estimable, and not be aliased with batch. A fit output with no design gives exit `3` (a gap), never a pass. Four hand-written fixtures give pass, block (reversed), block (confounded with batch) and gap. `tests/test_method_fidelity.py` runs them through `verify.judge_check` and fits a small limma model when `Rscript` is available.
+- **gate:** `planning_line` (default `true`) in `gate.json`. In a repository with `.living/`, approving a plan changes the analysis doc's single `**Planning**: pending` line to `**Planning**: discussed ...`, so Mycelium's `analyze` does not offer a second planning discussion. It edits only Extra's own analysis doc, never a Mycelium file, and stays silent on any failure.
+- **where:** an analysis may be a folder with `scripts/` or with its own `<NAME>.md` (Mycelium's habit), so `where all` lists them. `where all` shows the `ANALYSIS_MANIFEST.md` status word. `analysis_paths.manifest_status` reads it in the prose and YAML forms. Watch-out lines name loose files next to `outputs/.layout`, a `scripts/` folder next to `code/`, and `numbers.json` keys whose script no longer exists.
+- **where:** `where_mycelium` (default `false`) in `gate.json`. When `true`, LATER also lists open items of `todo/TODO_REGISTRY.md` that name the analysis and F-IDs from `FINDINGS_REGISTRY.md`. No topic file and no `decisions.md` is read.
+- **new-analysis:** `--wrapper=NN_name:skill-name` adds `code/NN_name.sh`, a stub that calls a pipeline skill from inside the repository (the gate ignores scripts under the plugin root). `grill`'s `references/run-plans.md` names the pattern.
+- **new-analysis:** when an active lucid-coder learned rule of kind `fig.theme` holds a `theme_set(...)` call, `theme.R` or `theme.py` uses it and the script prints which rule. Without one, the `theme_pubr(base_size = 8)` fallback stays and the script says why. The lookup fails open.
+- **verify:** info lines only. Active lucid-coder learned rules that apply; `formatter: N files would change` when `air.toml` or `ruff.toml` and the tool exist; a causal or mechanism verb in a Key Findings bullet (once per bullet); `numbers.json` keys whose script is gone; a plan's "Decisions to record" bullet or plan hash missing from `.living/decisions.md`.
+- **run.sh:** logs `numbers.json changed` when a run changes `outputs/numbers.json` and nothing else.
+- **analysis-report:** loads `lucid-writer` when installed, adds a `<!-- claims -->` block, and runs `verify report <hash> --claims ... --resolve-citations` before hand-off. It embeds report figures as PNG and adds a scripted export step when only PDFs exist. The auditor agent is offered only on request.
+- **grill:** with `contracts/<analysis>.yaml` from lucid-coder, grill runs `contract.js asks`, `data-contract-check` takes `contract.js mycelium --table`, and the brief cites `contract.js status` under Evidence.
+- **tests:** `tests/test_mycelium_detector.py` asks Mycelium's own run detector (installed copy, or `MYCELIUM_UPSTREAM`) which command forms open its post-action cycle. `tests/test_lucid_writer_contract.py` pins the file names and columns lucid-writer reads. `hooks/tests/test_gate_mycelium.py` covers the post-run notice and the planning line.
+- **docs:** "With lucid-writer" and "With Mycelium" sections in `docs/installation.md`, with the marker mapping and the deliverable versus record table.
+
+### Changed
+
+- **gate:** after `bash run.sh`, `snakemake` and `sbatch`, the post-run notice no longer says Mycelium's post-action protocol "did not fire". Mycelium has detected these runners since 0.8.2. For `sbatch` the notice says to follow the protocol once the job has finished. The tested range is Mycelium 0.9.x. The `gate_diff` oracle is unchanged: no fixed or fuzz case reaches the changed text.
+- **new-analysis:** every stub opens with Purpose, Run, Inputs and Outputs, a `# Parameters ---` block and 80-column dividers, and writes session info last.
+- **new-analysis, init:** a pixi repository set up by `/lucid-coder:align` (only `manager`, `name`, `prefix`) now resolves `<prefix>/bin/Rscript` and `<prefix>/bin/python`. `gate_init --diagnose` reads only the `env:` block and no longer reports a false problem; scilintr falls back from `tools.json` to `env`.
+- **docs:** the `Open with Mycelium` item of roadmap 18 is closed. The `CHANGES.md` example in `docs/concepts/analysis-layout.md` shows `code changed:`, as `run.sh` writes it. `skills/plot-first/SKILL.md` puts `unsupported: no inspected figure` before the fact tag and no longer contradicts itself.
+
+### Known
+
+- Mycelium 0.9.3 treats `sh <file>.sh` as a shell runner, so Extra's helper calls (`sh .../hooks/py.sh - ... < script.py`) open its post-action cycle. `tests/test_mycelium_detector.py` pins this. An extensionless launcher is ignored by the detector; the switch is planned, not done.
+
 ## [0.27.0] - 2026-11-13
 
 ### Added

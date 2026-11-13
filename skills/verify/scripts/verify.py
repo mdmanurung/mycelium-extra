@@ -1748,7 +1748,8 @@ def section_bullets(text, label):
 
 def fact_tags(where, items, report):
     """D7, advisory: count each fact's provenance tag and flag an untagged fact, an `agent-derived`
-    one without its artifact, and an `agent-asserted` one without a source. Info only."""
+    one without its artifact, and an `agent-asserted` one without a source. Info only. Also notes a
+    causal or mechanism verb in a bullet (W2), whatever its tag."""
     if not items:
         return
     counts, flags = collections.Counter(), []
@@ -1765,11 +1766,50 @@ def fact_tags(where, items, report):
     if counts["untagged"] == len(items):
         report.add("info", "Fact tags: {} fact(s) in {}, none tagged (written before D7, or untagged).".format(
             len(items), where))
-        return
-    shown = ", ".join("{} {}".format(counts[t], t) for t in ("agent-derived", "human-stated", "agent-asserted",
-                                                            "untagged") if counts[t])
-    report.add("info", "Fact tags in {}: {}{}.".format(where, shown, "; flagged: " + "; ".join(flags)
-                                                       if flags else ""))
+    else:
+        shown = ", ".join("{} {}".format(counts[t], t) for t in ("agent-derived", "human-stated", "agent-asserted",
+                                                                "untagged") if counts[t])
+        report.add("info", "Fact tags in {}: {}{}.".format(where, shown, "; flagged: " + "; ".join(flags)
+                                                           if flags else ""))
+    causal_wording(where, items, report)
+
+
+# ---------------------------------------------------------------- wording (W2)
+
+CAUSAL_VERBS = ("proves", "causes", "caused", "drives", "driven", "determines", "regulates", "protects", "mediates")
+CAUSAL_WORD = re.compile(r"(?<![\w-])(" + "|".join(CAUSAL_VERBS) + r")(?![\w-])", re.I)  # not `data-driven`
+NOUN_BEFORE = re.compile(r"\b(?:the|these|those|its|their|our|main|root|other|possible|likely|known|several|many|"
+                         r"two|three|of|and)\s+$", re.I)  # `the causes of`, `the drives`: a noun, not a claim
+QUOTED_OR_CODE = re.compile(r'`[^`\n]*`|"[^"\n]*"|\u201c[^\u201d\n]*\u201d|\]\([^)\n]*\)')
+WORDING_MAX = 8
+
+
+def causal_words(item):
+    """The causal or mechanism verbs a bullet uses outside quotes, code spans and link targets, in order,
+    once each. The trailing fact tag is not text. `is associated with` is not on the list."""
+    text = QUOTED_OR_CODE.sub(" ", FACT_TAG.sub("", item))
+    found = []
+    for match in CAUSAL_WORD.finditer(text):
+        word = match.group(1).lower()
+        if word in ("causes", "drives") and NOUN_BEFORE.search(text[:match.start()]):
+            continue
+        if word not in found:
+            found.append(word)
+    return found
+
+
+def causal_wording(where, items, report):
+    """W2, info only: one line per bullet that uses a causal or mechanism verb. The list is built in;
+    nothing here reads lucid-writer."""
+    hits = [(line, causal_words(item)) for line, item in items]
+    hits = [(line, words) for line, words in hits if words]
+    for line, words in hits[:WORDING_MAX]:
+        report.add("info", "Wording in {}: L{} uses {}; keep it only if the design shows the cause or "
+                           "mechanism, else say what was observed or associated.".format(
+                               where, line, ", ".join("`{}`".format(w) for w in words)))
+    if len(hits) > WORDING_MAX:
+        report.add("info", "Wording in {}: {} more bullet(s) use a causal or mechanism verb.".format(
+            where, len(hits) - WORDING_MAX))
 
 
 # ---------------------------------------------------------------- claims (D1)
@@ -2694,6 +2734,172 @@ def exact_findings(report, mine, execution):
     return len(off)
 
 
+# ---------------------------------------------------------------- integration lines (0.28, info only)
+
+RULES_TIMEOUT = 10
+FORMATTER_TIMEOUT = 10
+DECISIONS_MAX_BYTES = 2 * 1024 * 1024
+RULES_SHOWN = 12
+LEFTOVER_SHOWN = 5
+
+
+def lucid_coder_root():
+    """The installed lucid-coder plugin root, or None. `MX_LUCID_CODER_ROOT` is for tests only; otherwise
+    the user-scope (then any) install in Claude Code's `installed_plugins.json`, else the newest cache folder."""
+    forced = os.environ.get("MX_LUCID_CODER_ROOT")
+    if forced:
+        return forced if os.path.isfile(os.path.join(forced, "scripts", "rules.js")) else None
+    base = os.path.expanduser("~/.claude")
+    try:
+        with open(os.path.join(base, "plugins", "installed_plugins.json"), encoding="utf-8") as handle:
+            installs = [i for k, v in (json.load(handle).get("plugins") or {}).items()
+                        if k.split("@")[0] == "lucid-coder" for i in v if isinstance(i, dict)]
+        installs.sort(key=lambda i: i.get("scope") != "user")
+        for item in installs:
+            path = item.get("installPath")
+            if path and os.path.isfile(os.path.join(path, "scripts", "rules.js")):
+                return path
+    except (OSError, ValueError, AttributeError, TypeError):
+        pass
+    found = sorted(glob.glob(os.path.join(base, "plugins", "cache", "lucid-coder", "lucid-coder", "*", "scripts", "rules.js")))
+    return os.path.dirname(os.path.dirname(found[-1])) if found else None
+
+
+def active_lucid_rules(root):
+    """Active learned rules from lucid-coder's CLI (`rules.js list --status active --json`), read only.
+    Any failure (no node, no plugin, a timeout, bad JSON) gives []: lucid-coder owns its rules."""
+    plugin, node = lucid_coder_root(), shutil.which("node")
+    if not plugin or not node:
+        return []
+    try:
+        done = subprocess.run([node, os.path.join(plugin, "scripts", "rules.js"), "list", "--status", "active", "--json"],
+                              cwd=root, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=RULES_TIMEOUT,
+                              universal_newlines=True)
+        rules = json.loads(done.stdout) if done.returncode == 0 else []
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return []
+    return [r for r in rules if isinstance(r, dict) and r.get("status") == "active" and r.get("id")] \
+        if isinstance(rules, list) else []
+
+
+def rule_applies(rule, files):
+    """A global rule; a language rule when the analysis has code in that language; a file-glob rule when a
+    code file matches. A repo-scoped rule is not matched here (verify does not know lucid-coder's repo id)."""
+    scope = rule.get("scope") if isinstance(rule.get("scope"), dict) else {}
+    kind = scope.get("kind")
+    if kind == "global":
+        return True
+    exts = {os.path.splitext(f)[1] for f in files}
+    if kind == "language":
+        if scope.get("language") == "r":
+            return bool(exts & {".r", ".R", ".Rmd", ".rmd"})
+        return scope.get("language") == "python" and bool(exts & {".py", ".ipynb"})
+    if kind == "file-glob" and scope.get("glob"):
+        import fnmatch
+        return any(fnmatch.fnmatch(f, scope["glob"]) or fnmatch.fnmatch(os.path.basename(f), scope["glob"])
+                   for f in files)
+    return False
+
+
+def learned_rules_line(root, files, report):
+    """L4, info only: name the active lucid-coder learned rules that apply. Verify does not enforce them."""
+    try:
+        rules = [r for r in active_lucid_rules(root) if rule_applies(r, files)]
+        if not rules:
+            return
+        shown = "; ".join("{} {}".format(r["id"], r.get("topic", "")).strip() for r in rules[:RULES_SHOWN])
+        more = " and {} more".format(len(rules) - RULES_SHOWN) if len(rules) > RULES_SHOWN else ""
+        report.add("info", "lucid-coder learned rules that apply ({}): {}{}. Reported, not enforced; "
+                           "`/lucid-coder:rules` shows the text.".format(len(rules), shown, more))
+    except Exception:  # fail open: a rules reader must never change a verify result
+        return
+
+
+def formatter_lines(root, analysis_dir, report, timeout=FORMATTER_TIMEOUT, path=None):
+    """L6, info only: `formatter: N files would change (air|ruff)` when `air.toml` or `ruff.toml` sits in the
+    analysis folder or the repository root and the tool is on PATH. Nothing otherwise. The whole check shares
+    one `timeout`; a timeout or an unreadable answer prints nothing. Never a finding."""
+    folder = os.path.join(root, analysis_dir) if analysis_dir else root
+    deadline = time.monotonic() + timeout
+    for tool, config in (("air", "air.toml"), ("ruff", "ruff.toml")):
+        if not any(os.path.isfile(os.path.join(d, config)) for d in {folder, root}):
+            continue
+        exe = shutil.which(tool, path=path)
+        left = deadline - time.monotonic()
+        if not exe or left <= 0:
+            continue
+        try:
+            done = subprocess.run([exe, "format", "--check", "."], cwd=folder, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE, timeout=left, universal_newlines=True)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if done.returncode not in (0, 1):
+            continue
+        text = done.stdout + "\n" + done.stderr
+        counted = [int(m) for m in re.findall(r"(\d+) files? would be reformatted", text)]
+        listed = len(re.findall(r"^Would reformat: ", text, re.M)) + len(re.findall(r"^unformatted: ", text, re.M))
+        count = max(counted + [listed])
+        if done.returncode == 1 and count == 0:
+            continue  # it said "would change" but we cannot count: say nothing rather than guess
+        report.add("info", "formatter: {} files would change ({})".format(count, tool))
+
+
+def numbers_leftovers(root, analysis_dir, report):
+    """M5, info only: keys in `outputs/numbers.json` whose `computed_at` script no longer exists.
+    Mycelium's `register_value` never deletes a key. Report only; the file is never changed."""
+    if not analysis_dir:
+        return
+    folder = os.path.join(root, analysis_dir)
+    try:
+        with open(os.path.join(folder, "outputs", "numbers.json"), encoding="utf-8") as handle:
+            values = json.load(handle).get("values")
+    except (OSError, ValueError, AttributeError):
+        return
+    gone = []
+    for item in values if isinstance(values, list) else []:
+        site = item.get("computed_at") if isinstance(item, dict) else None
+        if not isinstance(site, str) or not site.strip():
+            continue
+        script = re.sub(r":L?\d+(-L?\d+)?$", "", site.strip())
+        # `<stdin>` or an absolute path (a caller outside the analysis root) names no file in the analysis
+        if script and not script.startswith(("<", "/")) and not any(os.path.exists(os.path.join(d, script)) for d in (folder, root)):
+            gone.append("{} ({})".format(item.get("key", "?"), script))
+    if gone:
+        report.add("info", "numbers.json has {} key(s) whose script no longer exists: {}{}. Mycelium's "
+                           "`register_value` never deletes keys, so these may be stale; the file is not changed.".format(
+                               len(gone), ", ".join(gone[:LEFTOVER_SHOWN]),
+                               " and {} more".format(len(gone) - LEFTOVER_SHOWN) if len(gone) > LEFTOVER_SHOWN else ""))
+
+
+def plain_text(text):
+    return re.sub(r"\s+", " ", re.sub(r"[`*_]", "", text)).strip().lower()
+
+
+def decisions_recorded(root, plan, digest, report):
+    """M7, info only: a bullet of the plan's `Decisions to record` that `.living/decisions.md` lacks, when
+    the plan hash is not there either. Reads only that file, at most its last 2 MB (entries are appended)."""
+    path = os.path.join(root, ".living", "decisions.md")
+    bullets = [(line, FACT_TAG.sub("", item).strip()) for line, item in section_bullets(plan, "Decisions to record")]
+    bullets = [(line, item) for line, item in bullets if plain_text(item) not in ("", "none", "n/a")]
+    if not bullets or not os.path.isfile(path):
+        return
+    try:
+        size = os.path.getsize(path)
+        with open(path, "rb") as handle:
+            handle.seek(max(0, size - DECISIONS_MAX_BYTES))
+            raw = handle.read(DECISIONS_MAX_BYTES).decode("utf-8", errors="replace")
+    except OSError:
+        return
+    text, flat = raw.lower(), plain_text(raw)
+    if any(h and h.lower() in text for h in {digest, digest[:8], digest[:12]}):
+        return
+    absent = [line for line, item in bullets if plain_text(item)[:60] not in flat]
+    if absent:
+        report.add("info", "Decisions to record: {} of {} bullet(s) (plan lines {}) and the plan hash {} are not in "
+                           ".living/decisions.md. Mycelium's own logging records them; this check writes nothing.".format(
+                               len(absent), len(bullets), ", ".join("L{}".format(n) for n in absent[:6]), digest[:8]))
+
+
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
           rscript="Rscript", claims=(), instance=None, resolve_citations=False, contact=None):
     config = gate.load_config(root)
@@ -3153,6 +3359,10 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                            os.path.basename(analysis_dir).upper().replace("-", "_") + ".md")
         fact_tags("`{}` Key Findings".format(doc), section_bullets(read_text(os.path.join(root, doc)),
                                                                    "Key Findings"), report)
+    learned_rules_line(root, code_files(root, analysis_dir, planned), report)
+    formatter_lines(root, analysis_dir, report)
+    numbers_leftovers(root, analysis_dir, report)
+    decisions_recorded(root, plan, digest, report)
     envs = conda_snapshots(root, mine, report)
     rule_env_list = rule_envs(root, mine, report)
     wrapped_rule_env_gaps(root, smk, mine, report)
@@ -4395,8 +4605,13 @@ HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")
 
 
 def first_word(text):
-    match = re.search(r"[A-Za-z][\w-]*", text)
-    return match.group(0).lower() if match else ""
+    """The status in a Status line: its first word, or the two words of a status such as `in progress`."""
+    match = re.search(r"[A-Za-z][\w'-]*", text)
+    if not match:
+        return ""
+    lowered = re.sub(r"\s+", " ", text[match.start():].lower())
+    return next((m for m in ("in progress", "on hold", "not started", "in review") if lowered.startswith(m)),
+                match.group(0).lower())
 
 
 def manifest_status(root, folder):
@@ -4407,7 +4622,7 @@ def manifest_status(root, folder):
     listed = gate.git(root, "ls-files", "-co", "--exclude-standard", "--", "*ANALYSIS_MANIFEST.md")
     files = listed.split() if listed is not None else [
         f for f in ["analysis/ANALYSIS_MANIFEST.md"] if os.path.isfile(os.path.join(root, f))]
-    path = re.compile(r"(?<![\w./-])" + re.escape(folder.rstrip("/")) + r"(?![\w.-])")
+    path = re.compile(r"(?<![\w./-])" + re.escape(folder.rstrip("/")) + r"(?![\w.-]|/[\w.-])")
     found = False
     for rel in files:
         lines = read_text(os.path.join(root, rel)).splitlines()

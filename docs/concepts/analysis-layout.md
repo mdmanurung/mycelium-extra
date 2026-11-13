@@ -50,13 +50,17 @@ In a Mycelium repository the analysis doc is `<NAME>.md` (the folder name in upp
 ```
 ## 2026-11-12 14:05 d582fa5 dirty ok
 
-Code changed:
-- code/02_fit.R (2 files changed, 6 insertions(+), 2 deletions(-))
+code changed:
+- code/02_fit.R: changed (1 file changed, 6 insertions(+), 2 deletions(-))
+- code/04_new.R: new
 
-Outputs rewritten:
+outputs rewritten:
 - outputs/02_fit/
 - outputs/03_show/
+- outputs/numbers.json: numbers.json changed
 ```
+
+Each list line is `- <path>: changed`, `new` or `removed`. A tracked file that changed also gets the first line of `git diff --stat`. When nothing changed, the line reads `code changed: none` or `outputs rewritten: none`. `run.sh` hashes `outputs/numbers.json` before and after the run, because Mycelium's `register_value` rewrites that one file in place and it sits outside every step folder. `run.sh` only logs the change; it never resets the file.
 
 `track-changes` watches this file, `verify runs` and `analysis-report` show the newest heading, and `handoff` quotes it. `analysis_paths.change_log(folder)` returns its path and `last_change(folder)` returns the newest heading line.
 

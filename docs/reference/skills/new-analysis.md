@@ -7,7 +7,7 @@ Scaffolds a new, self-contained analysis folder that plugs into Mycelium. Guide:
 You type this skill; the agent does not start it on its own (`disable-model-invocation: true`, and Codex's `allow_implicit_invocation: false`).
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb] [--data=PATH ...] [--code=PATH ...] [--doc-template=FILE] [--panels=Fig1a.R,...] --templates=<skill-dir>/templates [--dry-run] < <skill-dir>/scripts/new_analysis.py
+sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb] [--data=PATH ...] [--code=PATH ...] [--doc-template=FILE] [--panels=Fig1a.R,...] [--wrapper=NN_name:skill-name ...] --templates=<skill-dir>/templates [--dry-run] < <skill-dir>/scripts/new_analysis.py
 ```
 
 Invoke with `/mycelium-extra:new-analysis analysis/<name>: <question>`. Write every option as `--flag=value`: the gate reads a bare `analysis/...` argument as a script being run and blocks it. Never run the script by path.
@@ -24,6 +24,7 @@ Invoke with `/mycelium-extra:new-analysis analysis/<name>: <question>`. Write ev
 | `--code` | File or folder to link into `code/` (repeatable). |
 | `--doc-template` | Analysis doc template. Default: Mycelium's `analysis-readme.md`, found through `.mycelium/plugin-root`, else a bundled copy. |
 | `--panels` | Comma-separated manuscript panels, `<id>.R` or `<id>.py`. Adds a `code/plot_<id>` stub per panel, `config/figure_map.tsv` and `config/manuscript_checks.json` for [manuscript-audit](manuscript-audit.md). Needs a git or Mycelium repository. On an existing folder it adds only the missing manuscript files. |
+| `--wrapper` | `NN_name:skill-name`, repeatable. Adds `code/NN_name.sh`, a stub that runs a pipeline skill's script through `${CLAUDE_PLUGIN_ROOT}/skills/<skill>/...` and writes only `outputs/NN_name/`, plus a plan row and a tracker row. It is not in the Snakefile. The number and name must not repeat a step's. New scaffolds only. |
 | `--templates` | This skill's `templates/` folder (required when run from stdin). |
 | `--dry-run` | Report what would change; write nothing. |
 | `--migrate` | Move an existing run-folder analysis (`--dest`) to step folders. See [Migrating a run-folder analysis](#migrating-a-run-folder-analysis). |
@@ -36,7 +37,8 @@ Invoke with `/mycelium-extra:new-analysis analysis/<name>: <question>`. Write ev
 analysis/<name>/
   <NAME>.md  Snakefile  run.sh  run.sbatch     analysis doc (README.md outside Mycelium); `bash run.sh` runs the steps and logs changes
   code/      01_prepare.R  02_fit.R  03_show.R   numbered step stubs; 03_show writes figures/ and source_data/
-             theme.R  theme.py                  theme_pubr(base_size = 8), PALETTE, save_panel()
+             theme.R  theme.py                  the theme (your learned rule, else theme_pubr), PALETTE, save_panel()
+             NN_name.sh                        (--wrapper) calls a pipeline skill's script
              plot_<panel>.R|.py                (--panels) export the plotted values, then draw from them alone
   plans/     PLAN.md  TRACKER.md               the one plan, the tracker
   config/    figure_map.tsv  manuscript_checks.json   (--panels) what manuscript-audit checks
@@ -50,9 +52,17 @@ The layout is [analysis-layout](../../concepts/analysis-layout.md). Each script 
 
 A `NN_name.marimo.py` step (or `--format=marimo`) is a marimo notebook in lucid-coder's notebook layout, run headless by the Snakefile as a Python script.
 
-The Snakefile runs R and Python with the interpreters `lucid-coder.yaml` names at the repository root (`env.r`, `env.python`, and `jupyter` beside that `python`), each only if the file exists; without the file it uses the names on PATH, and the script prints which. `init --diagnose` shows the same pointer.
+The Snakefile runs R and Python with the interpreters `lucid-coder.yaml` names at the repository root (`env.r`, `env.python`, and `jupyter` beside that `python`), each only if the file exists; without the file it uses the names on PATH, and the script prints which. The pixi form that `/lucid-coder:align` writes has only `manager`, `name` and `prefix`. The interpreters are then `<prefix>/bin/Rscript` and `<prefix>/bin/python`, and a pixi env with no prefix is looked up in `.pixi/envs/<name>`. If the env lacks one, the name on PATH stays and the script suggests `pixi run -e <name> bash run.sh`. `init --diagnose` shows the same pointer. `init --tools` falls back to the env's Rscript and `scilintr` when no flag or environment variable names one.
 
-`data/` holds symlinks only; `code/` holds the stubs and links to shared code. The analysis doc is `<NAME>.md` (folder name in UPPER_SNAKE_CASE) in a Mycelium repository, `README.md` elsewhere. Stubs stop until implemented. A panel stub writes `<run>/source_data/<panel>.tsv`, then re-reads only that table to draw `<run>/figures/<panel>.pdf`, so the released source data can redraw the panel; its toy `donor`/`label`/`y` columns are placeholders, and the contract points at `outputs/current/`, which you point at the run you release. `reports/<name>.qmd` is a static Quarto report (`engine: markdown`) with a mermaid chain of the steps and one Methods and one Results tab per step; [analysis-report](analysis-report.md) fills it after a run, and Mycelium's `report` writes its LaTeX PDF beside it. Without `--panels` it refuses a non-empty folder; with it, it adds each missing manuscript file and keeps every existing file unchanged. It also refuses a missing link target and anything it would overwrite (`refused:` line, nothing written). A `WARNING: git ignores ...` line means that file would never be committed; stop and ask. It writes nothing outside the new folder except an empty `.<name>.scaffold.lock` file in its parent folder (the lock that keeps two runs from filling the same folder; delete it if you like): not `.living/`, not `analysis/ANALYSIS_MANIFEST.md` (it prints a suggested manifest entry).
+Every stub opens with Purpose, Run, Inputs and Outputs, has a `# Parameters ---` block and 80-column dividers, and writes session info last. The R stubs name their `stopifnot`. Stubs still stop on purpose.
+
+`data/` holds symlinks only; `code/` holds the stubs and links to shared code. The analysis doc is `<NAME>.md` (folder name in UPPER_SNAKE_CASE) in a Mycelium repository, `README.md` elsewhere. Stubs stop until implemented. A panel stub writes `<run>/source_data/<panel>.tsv`, then re-reads only that table to draw `<run>/figures/<panel>.pdf`, so the released source data can redraw the panel; its toy `donor`/`label`/`y` columns are placeholders, and the contract points at `outputs/panels/`. `reports/<name>.qmd` is a static Quarto report (`engine: markdown`) with a mermaid chain of the steps and one Methods and one Results tab per step; [analysis-report](analysis-report.md) fills it after a run, and Mycelium's `report` writes its LaTeX PDF beside it. Without `--panels` it refuses a non-empty folder; with it, it adds each missing manuscript file and keeps every existing file unchanged. It also refuses a missing link target and anything it would overwrite (`refused:` line, nothing written). A `WARNING: git ignores ...` line means that file would never be committed; stop and ask. It writes nothing outside the new folder except an empty `.<name>.scaffold.lock` file in its parent folder (the lock that keeps two runs from filling the same folder; delete it if you like): not `.living/`, not `analysis/ANALYSIS_MANIFEST.md` (it prints a suggested manifest entry).
+
+### The theme
+
+`theme.R` and `theme.py` take the theme from your learned rules. The script runs `node <lucid-coder>/scripts/rules.js list --status active --json` (found through `~/.claude/plugins/installed_plugins.json`; read only). When an active `fig.theme` rule scoped to the stub's language holds a `theme_set(...)` call, that call goes into the file, the package it names is loaded, and the script prints `theme from learned rule <id>`. A call with `;`, a backtick, `system(` or similar is not written. Otherwise `theme.R` sets `ggpubr::theme_pubr(base_size = 8)`, `theme.py` uses plotnine's `theme_classic(base_size=8)`, and a note says why. The lookup fails open: no lucid-coder, no `node`, a run over 5 seconds, bad JSON or no rule each give the fallback and never an error.
+
+The analysis doc's Steps section tells Mycelium's agent that scripts live in `code/` and each writes only `outputs/<its stem>/`.
 
 ## Migrating a run-folder analysis
 

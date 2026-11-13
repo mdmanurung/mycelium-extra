@@ -20,7 +20,7 @@ Statuses: `todo`, `in progress`, `built`, `done`, `parked`, `dropped: <reason>`,
 | D9 | Routing: grill to decision-status and plan-review; verify and track-changes point at each other; handoff and new-analysis fixes | integration review | `skills/grill/SKILL.md`, `skills/verify/SKILL.md`, `skills/track-changes/SKILL.md` | built |
 | D10 | Overwrite-in-place layout: one `outputs/<script stem>/` folder per script, a rerun overwrites it, a qmd step renders into its own folder, `logs/CHANGES.md` records changes, resolver layout `steps`, `STEP_DIR` and `OUTPUTS` replace `RUN_DIR` | user request 2026-11-12 | `hooks/analysis_paths.py`, `skills/new-analysis/`, consumers, docs | built |
 
-Open with Mycelium: `register_value` writes one `outputs/numbers.json` per analysis, so a rerun overwrites the numbers a report cites. On a legacy run folder this plugin reads `<run>/numbers.json` first and the flat file second; a steps layout reads the flat file; the question is the user's to send.
+Closed with Mycelium (0.28.0): `register_value` writes one `outputs/numbers.json` per analysis, so a rerun overwrites the numbers a report cites. This plugin reports and never resets the file. `run.sh` hashes it before and after a run and logs `numbers.json changed` in `logs/CHANGES.md`. `verify` and `where` list a key whose recorded script no longer exists, because `register_value` never deletes keys. On a legacy run folder the plugin reads `<run>/numbers.json` first and the flat file second; a steps layout reads the flat file. Nothing is sent to Mycelium.
 
 ## Superseded decisions
 

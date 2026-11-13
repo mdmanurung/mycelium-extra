@@ -21,6 +21,7 @@ HPC_SNAKEMAKE = "/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/sn
 sys.path.insert(0, os.path.join(SKILL, "..", "..", "hooks"))
 import analysis_paths as ap  # noqa: E402
 
+os.environ.setdefault("MX_LUCID_CODER_ROOT", "")  # no learned-rules lookup in these tests
 BASELINE, GATECHECK = "run_20261111_baseline", "run_20261112_gatecheck"
 
 

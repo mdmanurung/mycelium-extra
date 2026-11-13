@@ -100,6 +100,119 @@ def find_doc(folder):
     return None
 
 
+def source_dir(folder):
+    """The folder of an analysis's numbered scripts: `code/` (Extra's steps layout), else `scripts/` (Mycelium's
+    layout), else None. `code/` wins when both exist."""
+    for name in ("code", "scripts"):
+        if os.path.isdir(os.path.join(folder, name)):
+            return os.path.join(folder, name)
+    return None
+
+
+_SCRIPT_SUFFIXES = (".r", ".py", ".qmd", ".rmd", ".ipynb", ".sh", ".jl")
+
+
+def is_analysis(folder):
+    """True for a folder with `code/` or `scripts/`, or with its own `<NAME>.md` doc (a Mycelium analysis) and
+    a sign that it runs something: `outputs/`, `logs/`, a Snakefile or a script file in it. A container such as
+    `analysis/ideas/` (IDEAS.md and notes) or `analysis/todo/` has the doc alone and is not an analysis."""
+    folder = os.path.abspath(folder)
+    if source_dir(folder):
+        return True
+    if not os.path.isfile(os.path.join(folder, os.path.basename(folder).upper().replace("-", "_") + ".md")):
+        return False
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        return False
+    return any(n in ("outputs", "logs", "Snakefile") or n.lower().endswith(_SCRIPT_SUFFIXES) for n in names)
+
+
+# ---------------------------------------------------------------- the analysis manifest
+
+MANIFEST_NAME = "ANALYSIS_MANIFEST.md"
+_MANIFEST_STATUS = re.compile(r"^[\s#>*-]*status[\s*]*:(.*)$", re.IGNORECASE)
+_HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")
+_TABLE_ROW = re.compile(r"^\s*\|(.*)\|\s*$")
+_TABLE_RULE = re.compile(r"^\s*\|?[\s|:]*-[\s|:-]*$")
+
+
+_MULTI_STATUS = ("in progress", "on hold", "not started", "in review")
+
+
+def _first_word(text):
+    """The status in a Status line: its first word, or the two words of a status such as `in progress`."""
+    match = re.search(r"[A-Za-z][\w'-]*", text)
+    if not match:
+        return ""
+    lowered = re.sub(r"\s+", " ", text[match.start():].lower())
+    return next((m for m in _MULTI_STATUS if lowered.startswith(m)), match.group(0).lower())
+
+
+def manifest_files(folder, root=None):
+    """The ANALYSIS_MANIFEST.md files that can list `folder`: one in each ancestor folder up to `root` (the
+    repository root; the parent only when `root` is None). No git call, no scan."""
+    folder = os.path.abspath(folder)
+    top = os.path.abspath(root) if root else os.path.dirname(folder)
+    found, path = [], os.path.dirname(folder)
+    while inside(path, top):
+        candidate = os.path.join(path, MANIFEST_NAME)
+        if os.path.isfile(candidate):
+            found.append(candidate)
+        if path == top or os.path.dirname(path) == path:
+            break
+        path = os.path.dirname(path)
+    return found
+
+
+def manifest_status(folder, root=None):
+    """`listed: <first status word>`, `listed`, or `not listed` for `folder` in an ANALYSIS_MANIFEST.md. A copy
+    of verify's manifest_status (skills/verify/scripts/verify.py) that finds the manifests by walking up from
+    the folder instead of asking git. An entry is a table row or a heading's section naming the folder's path
+    (relative to `root`), or a heading that is the folder's name; Mycelium's YAML `status:`, the prose
+    `**Status**:` line and a table's Status cell are read."""
+    folder = os.path.abspath(folder)
+    rel = os.path.relpath(folder, os.path.abspath(root)).replace(os.sep, "/") if root else os.path.basename(folder)
+    path = re.compile(r"(?<![\w./-])" + re.escape(rel.rstrip("/")) + r"(?![\w.-]|/[\w.-])")  # not a sub-path
+    found = False
+    for manifest in manifest_files(folder, root):
+        try:
+            lines = read(manifest).splitlines()
+        except OSError:
+            continue
+        header, section, matched, fenced = None, [], False, False
+        for i, line in enumerate(lines + ["# end"]):
+            if line.lstrip().startswith("```"):
+                fenced = not fenced
+            heading = not fenced and _HEADING.match(line)
+            if heading:
+                if matched:
+                    for text in section:
+                        status = _MANIFEST_STATUS.match(text)
+                        if status and _first_word(status.group(1)):
+                            return "listed: " + _first_word(status.group(1))
+                    found = True
+                section, matched = [], heading.group(1).strip("`* ") == os.path.basename(folder)
+                continue
+            row = _TABLE_ROW.match(line)
+            if row and not _TABLE_RULE.match(line):
+                cells = [c.strip().lower() for c in row.group(1).split("|")]
+                following = lines[i + 1] if i + 1 < len(lines) else ""
+                if _TABLE_RULE.match(following):
+                    header = cells
+                elif path.search(line):
+                    found = True
+                    if header and "status" in header and header.index("status") < len(cells):
+                        word = _first_word(cells[header.index("status")])
+                        if word:
+                            return "listed: " + word
+                continue
+            header = None if not row else header
+            section.append(line)
+            matched = matched or bool(path.search(line))
+    return "listed" if found else "not listed"
+
+
 # ---------------------------------------------------------------- RUN.txt
 
 def _strip_comment(value):

@@ -135,6 +135,10 @@ The `gate-diff` job runs only on pull requests, so the oracle went stale unnotic
 
 The plan card's `Coverage` line and the `approve` wording were not behind these changes. Those decisions are already in the oracle. The oracle was rewritten with `--write-expect`, and the JSON diff is 60 added lines, 15 lock-file entries and no removals.
 
+#### Oracle check for 0.28.0, 2026-11-13
+
+The 0.28.0 gate edits are the post-run notice (M1) and the `planning_line` write at approval (M3). `gate_diff.py --base 267d9e24... --expect hooks/tests/gate_diff_expected.json` on python3.11 reports 95 of 173 identical and 78 listed differences, each matching the oracle exactly. No case is new, missing or changed, so the oracle file is unchanged. No fixed or fuzz case runs `bash run.sh`, `snakemake` or `sbatch` with the notice on, and none sets `.living/` with an analysis doc, so neither edit shows. The regression tests are `hooks/tests/test_gate_mycelium.py` and `test_runs_mycelium_misses_get_a_post_action_reminder` in `hooks/tests/test_gate.py`.
+
 ## Skill descriptions and invocation
 
 A skill's `description:` loads into the agent's context on every turn in every host, so it is a pointer, not a summary. Keep it to one line (OpenCode reads it with a one-line regex) and at most about 60 words: a first sentence that says what the skill does and when it fires, within 150 characters (OpenCode shows only that sentence, cut at 150), then one sentence for the boundary. The body carries everything else.

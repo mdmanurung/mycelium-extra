@@ -342,3 +342,50 @@ python3.12 tests/test_method_fidelity.py
 ```
 
 Both checker and tests use Python 3.6-compatible syntax and standard-library interfaces; optional HDF5 checks retain their existing reader requirement. A scientist must separately validate the fit extractor and establish that the runtime record actually came from the fitted model. Writing the approved settings back into a record can pass R3 without fitting anything; no generic JSON comparison can resolve that authenticity boundary.
+
+## R5: paired donor-level pseudobulk contrast
+
+R5 reads the design matrix and contrast that the fitting code used, not a record someone typed. Use it when a plan approves a contrast such as stimulated minus control, with donors as replicates and a batch term.
+
+The fitting script calls one snippet after the fit. The R snippet is `tests/fixtures/sc-conventions/extract_design.R` (limma or edgeR style, `model.matrix` and `makeContrasts`). The Python snippet is `tests/fixtures/sc-conventions/extract_design.py` (patsy or a plain array). Both write `mycelium-extra.fit_design.v1`:
+
+- `formula`, `design_columns` and `design` (one row per sample)
+- `coefficient` and `contrast` (design column name to weight; zero weights are left out)
+- `sample_table_sha256`, the SHA-256 of the sample table file the fit read
+
+Take the design and contrast from the fit objects (`fit$design`, `fit$contrasts`), not from variables the script set up on the side. `tests/fixtures/sc-conventions/r5_fit_demo.R` shows this on a small real limma fit.
+
+The approved side is `mycelium-extra.design_expectations.v1`. It holds `contrast` (design column to weight, sign included), `batch_columns` (an empty list means no batch term), and optionally `formula` and `sample_table_sha256`. The checker reads this schema when `--expected` names it. The R3 schemas work as before.
+
+```bash
+sh hooks/py.sh - --expected tests/fixtures/sc-conventions/r5_expected.json --observed tests/fixtures/sc-conventions/r5_design_reversed.json --result-json /tmp/sc-r5-red.json < skills/verify/scripts/method_fidelity.py
+# exit 2; the fitted contrast has the opposite sign
+sh hooks/py.sh - --expected tests/fixtures/sc-conventions/r5_expected.json --observed tests/fixtures/sc-conventions/r5_design_pass.json --result-json /tmp/sc-r5-green.json < skills/verify/scripts/method_fidelity.py
+# exit 0; contrast matches, is estimable, and is not aliased with batch
+```
+
+The checks, in the existing `mycelium-extra.contract_result.v1` envelope:
+
+| Check id | Blocks when |
+|---|---|
+| `fit-formula` (only if approved) | the formula differs; spacing is ignored |
+| `fit-sample-table` (only if approved) | the sample table hash differs |
+| `fit-contrast` | the fitted contrast differs from the approved one in any weight, sign included |
+| `fit-estimable` | the contrast is not in the row space of the design (rank by Gaussian elimination, relative tolerance 1e-9); the message says whether it is estimable without the batch columns, which means batch aliases it |
+| `fit-batch-term` | an approved batch column is missing from the fitted design |
+| `fit-batch-confounding` | the contrast's group indicator (design times contrast) is a function of the batch columns and an intercept |
+
+Exit `3` / `gap` has a reason in the first check: the file is unreadable, the schema is wrong, or the fit output holds no `design` and `design_columns`. A gap is never a pass.
+
+Four fixtures, written by hand, not by the extraction code. All use four donors, each at control and stimulated, over two batches.
+
+| Fixture | Result |
+|---|---|
+| `r5_design_pass.json` | exit 0; contrast `conditionstimulated` = 1, design has full rank 6 |
+| `r5_design_reversed.json` | exit 2; same design, contrast weight -1 |
+| `r5_design_confounded.json` | exit 2; stimulated samples all in batch b2, so `conditionstimulated` and `batchb2` are the same column and the contrast is not estimable |
+| `r5_design_missing.json` | exit 3; the fit output has a formula and contrast but no design |
+
+`tests/test_method_fidelity.py` runs the four through the real `verify.judge_check` (passed, failed, failed, not run). It also fits the same model in limma and runs `extract_design.R` on the fit, and it round-trips `extract_design.py`. The R test skips when `Rscript` with limma, jsonlite and digest is not on `PATH`; set `RSCRIPT` to point at one.
+
+A green R5 result shows that the design matrix and contrast the fitting code wrote match the approved ones, and that the contrast is estimable and not aliased with batch in that matrix. It does not show that the record came from the fit that produced the results, that the analysis is scientifically valid, that the model suits the data, or that the batch columns listed are the right ones. Pin the extraction call in the plan's `Validation:` row and the fitting script with it. A script can write a design it did not use.

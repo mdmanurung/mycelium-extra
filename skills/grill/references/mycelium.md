@@ -1,6 +1,6 @@
 # Mycelium repository lookup
 
-Use this reference once `.living/` is detected. The project's files are the contract; this skill does not depend on Mycelium's scripts, hooks, or plugin path. Checked against Mycelium 0.7.2. Follow the project's own guidance where its structure differs.
+Use this reference once `.living/` is detected. The project's files are the contract; this skill does not depend on Mycelium's scripts, hooks, or plugin path. Checked against Mycelium 0.9.x (last 0.9.3). Follow the project's own guidance where its structure differs.
 
 ## Detect
 
@@ -33,13 +33,14 @@ Read only the entries connected to the task.
 
 ## Stay hook-safe
 
-Checked against the 0.6.0 and 0.7.2 hook detectors:
+Checked against the 0.9.x hook detector (runner detection since 0.8.2):
 
 | Action | Mycelium effect |
 | --- | --- |
 | Reading files, `rg`, `head` | Logged only; no enforcement |
 | `python3 -c`, `Rscript -e`, heredoc on stdin, including under `conda run`/`mamba run`/`pixi run`/`uv run` | Does not open the post-action cycle |
 | `python path/script.py`, `Rscript path/script.R`, `jupyter nbconvert`/`execute`, with or without an environment wrapper | Opens the post-action cycle; Stop blocks until `.living/` is updated |
+| `bash run.sh`, `./run.sh`, `snakemake`, `sbatch`, `nextflow run` (dry runs, syntax checks and help excepted) | Opens the post-action cycle; for `sbatch` the job has not finished yet, so record results only after it has |
 
 Run probes with the interpreter or environment named in `AGENTS.md`, `CLAUDE.md`, or `ENVIRONMENTS_INSTALLATIONS.md`; the system `python3` often lacks the project's packages. Calling the documented interpreter by absolute path (for example `<env>/bin/Rscript -e ...`) is equally hook-safe and works when `conda` is not on `PATH`. For large objects, read headers or use backed/lazy reads; never load a multi-GB object fully.
 

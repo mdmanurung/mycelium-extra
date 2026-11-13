@@ -262,5 +262,25 @@ class AuditFixTest(Harness):
             self.assertEqual(handle.read(), doc)
 
 
+    # 0.28: the sibling-plugin info lines reach a real report and never change its status
+    def test_report_prints_wording_leftover_and_decision_lines_as_info(self):
+        evidence = "\n**Evidence**\n- IL7R is associated with day 28 [agent-derived: `data/meta.tsv:1`]\n"
+        decisions = "\n## Decisions to record\n\n- Pairing by donor, not by visit\n"
+        digest = self.approve(test_verify.plan("run `{}`".format(test_verify.FIT)).replace(
+            "\nOutputs:", evidence + decisions + "\nOutputs:"))
+        self.run_cmd("python " + test_verify.FIT)
+        self.write("analysis/a/A.md", "# a\n\n## Key Findings\n\n- Drug X drives IL7R [agent-derived: `outputs/de.tsv`]\n")
+        self.write("analysis/a/outputs/numbers.json", json.dumps({"namespace": "a", "values": [
+            {"key": "n_old", "value": 1, "computed_at": "scripts/gone.py:L3"}]}))
+        self.write(".living/decisions.md", "# Decisions\n\n- something else\n")
+        base = self.verify("report", digest)
+        self.assertIn("Wording in `analysis/a/A.md` Key Findings: L5 uses `drives`", base)
+        self.assertNotIn("Wording in the plan's Evidence", base)
+        self.assertIn("numbers.json has 1 key(s) whose script no longer exists: n_old (scripts/gone.py)", base)
+        self.assertIn("Decisions to record: 1 of 1 bullet(s)", base)
+        for text in ("Wording in", "numbers.json has", "Decisions to record:"):
+            self.assertNotRegex(base, r"\*\*(?:gap|block)\*\*: " + text)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

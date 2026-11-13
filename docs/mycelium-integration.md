@@ -6,7 +6,7 @@ You can use Extra in an ordinary repository. Add
 [Mycelium](https://github.com/arjunrajlaboratory/mycelium) when you want its
 project memory, analysis conventions, code review, and reports.
 
-**Tested with Mycelium 0.6.0 and 0.7.2.** Extra's hook and file checks (for example, that a
+**Tested with Mycelium 0.9.x (last checked against 0.9.3).** Extra's hook and file checks (for example, that a
 script piped through stdin is not counted as a post-action run, and that `Status` in
 `decisions.md` is read as body text) were checked against those versions. `/mycelium-extra:init`
 reads the version that `.mycelium/plugin-root` points at and prints one line when it is another
@@ -85,9 +85,9 @@ status through Mycelium's normal memory updates.
 This is everything the shipped code reads, plus what its skills tell the agent to
 read. Upstream paths are in [Mycelium](https://github.com/arjunrajlaboratory/mycelium)
 (checked at commit `8f8b167`, plugin version 0.9.1; the versions in this guide are
-three different checks: 0.6.0 and 0.7.2 are the releases Extra's hooks were tested
-against, 0.9.1 is the upstream the lineage format and this table were read from, and
-the fixture project follows 0.8.1). Extra never imports Mycelium's code, and the one
+two different checks: the 0.9.x line is the one Extra's hooks are tested against
+(0.9.3 for the run detector), and 0.9.1 is the upstream the lineage format and this
+table were read from; the fixture project follows 0.8.1). Extra never imports Mycelium's code, and the one
 place it runs any is `idea`, which calls Mycelium's `upsert_table_row.py` as a
 subprocess; the one test that imports it,
 `tests/test_contract_compatibility.py`, loads upstream's `data_contract_check.py`
@@ -99,7 +99,7 @@ there is none.
 | Data-lineage manifest | `.living/log/data-lineage/<session>.json`, written at Stop by `skills/core/scripts/extract_data_lineage.py` (format: `skills/core/references/data-lineage.md`) | `verify` (`lineage_actions`): each action's `ts`, `script`, `bash_cmd`, `bash_exit`, `io_detection`, `outputs` (path, `sha256`, `_missing`), `lineage_warnings` and the manifest's `extraction_warnings` and session id | A script that lineage saw run in the plan's window, that the gate did not record and the plan does not name, is a gap; script-less (inline) commands are counted and not checked. An action that lists an output is also a `lineage-record` candidate producer for it, only when joined to one matched attempt, never `supported` (see below) | No lineage gaps and no message; unreadable files are skipped |
 | Analysis manifest | `analysis/ANALYSIS_MANIFEST.md` (any `*ANALYSIS_MANIFEST.md` that git lists, else that path) | `verify status`: the entry's status word | A `manifest` column | Shown as `not listed` |
 | Registered values | `analysis/<name>/outputs/numbers.json`, written by `skills/core/scripts/register_value.py` | `verify`, only when a `<!-- claims -->` line names the file | The claimed number is compared with that cell, read as ordinary JSON: dotted keys, and list entries by position (the fragment's `values` list is not looked up by `key`) | The claim is a gap ("unverified"), not a pass |
-| Pointer to the Mycelium install | `.mycelium/plugin-root` | `init` (version notice, `--diagnose`), `new-analysis`, `idea` (to find the helper) | A one-line note when the version is not 0.6.0 or 0.7.2; Mycelium's `skills/core/templates/analysis-readme.md` for the analysis doc | No note; `new-analysis` uses its bundled copy of the 0.7.2 template |
+| Pointer to the Mycelium install | `.mycelium/plugin-root` | `init` (version notice, `--diagnose`), `new-analysis`, `idea` (to find the helper) | A one-line note when the version is outside the tested range; Mycelium's `skills/core/templates/analysis-readme.md` for the analysis doc | No note; `new-analysis` uses its bundled copy of the 0.7.2 template |
 | `.living/` folder | `.living/` | `gate`, `new-analysis` | Whether the repository is a Mycelium project: the unignored-state warning, post-run reminders to follow Mycelium's post-action protocol, the `UPPER_SNAKE_CASE.md` analysis-doc name | Treated as an ordinary repository |
 | Todo registry | `todo/TODO_REGISTRY.md` and `todo/<slug>.md`, rows written with Mycelium's `skills/core/scripts/upsert_table_row.py` (found through `.mycelium/plugin-root`, else `~/.claude/plugins/installed_plugins.json`) | `idea` (writes), `idea-triage` (reads, annotates, sets a picked item's Status) | A parked idea in Mycelium's own todo format; the next idea to work on | `idea` creates `todo/` and the registry; `idea-triage` says there is nothing to triage |
 | Decisions and learnings | `.living/decisions.md`, `.living/learnings.md` | `decision-status` script (`learnings.md` only with `--include-learnings`); `harden` (instructions) | Which decision still binds; the learning to harden | The skill says so and stops |
@@ -115,9 +115,10 @@ conventions (`grill`'s instructions do point the agent at the last two).
   detects a run from the command line and finds its inputs and outputs by static
   scanning (`io_detection: "static"` or `"unresolved"`), then writes the manifest when
   a session stops. It covers finished sessions only, and which commands it detects
-  depends on the Mycelium version: Extra's post-run reminder assumes the 0.7.2
-  detector (python, R, jupyter), while the 0.9.1 lineage reference also lists pipeline
-  runners. A lineage record is candidate producer evidence only: it is used for an
+  depends on the Mycelium version. Since 0.8.2 it detects `bash run.sh`, `./run.sh`,
+  `snakemake`, `sbatch` and `nextflow run` as well as python, R and jupyter, and Extra's
+  post-run reminder follows that list. For `sbatch` the reminder says to follow the
+  protocol once the job has finished, because the submit call produces nothing yet. A lineage record is candidate producer evidence only: it is used for an
   output when an explicit id or a unique session, command, script and time match joins it to one
   matched attempt, the join is stated as inferred, and it is ignored for
   `unresolved` detection, a nonzero exit, a missing path, a hash that differs from the file,

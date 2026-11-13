@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.join(HERE, "..")
@@ -16,6 +17,7 @@ TEMPLATES = os.path.join(SKILL, "templates")
 GATE = os.path.join(SKILL, "..", "..", "hooks", "gate.py")
 AUDIT = os.path.join(SKILL, "..", "manuscript-audit", "scripts", "manuscript_audit.py")
 STEPS = ["01_prepare.R", "02_fit.R", "03_show.R"]
+os.environ.setdefault("MX_LUCID_CODER_ROOT", "")  # the learned-rules reader finds no lucid-coder here, so the shipped theme is written
 MIXED = "--steps=01_prepare.R,02_fit.py,03_explore.ipynb"  # one step of each kind, for the tests that need Python and a notebook
 
 
@@ -42,7 +44,9 @@ def git(cwd, *args):
                    stderr=subprocess.DEVNULL, check=True)
 
 
-class NewAnalysisTest(unittest.TestCase):
+class ScaffoldCase(unittest.TestCase):
+    """A temporary Mycelium repository and a scaffold helper; holds no test, so subclasses do not repeat each other's."""
+
     def setUp(self):
         self.root = os.path.realpath(tempfile.mkdtemp())
         git(self.root, "init", "-q")
@@ -60,6 +64,8 @@ class NewAnalysisTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         return proc.stdout
 
+
+class NewAnalysisTest(ScaffoldCase):
     def test_dry_run_writes_nothing(self):
         out = self.scaffold("--data=data/anndatas/cells.h5ad", "--dry-run")
         self.assertIn("would create analysis/demo-run/", out)
@@ -398,16 +404,16 @@ class NewAnalysisTest(unittest.TestCase):
     def render_only(self, interpreter, stub, run_dir):
         """Run the stub without its export section: the panel must redraw from the released table alone."""
         text = read(stub)
-        head, _, rest = text.partition("# ---- 1.")
+        head, _, rest = text.partition("# Export -")
         script = os.path.join(self.root, "render_only" + os.path.splitext(stub)[1])
-        write(script, head + "# ---- 2." + rest.partition("# ---- 2.")[2])
+        write(script, head + "# Render -" + rest.partition("# Render -")[2])
         return subprocess.run([interpreter, script, run_dir], cwd=self.root, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE, universal_newlines=True)
 
     def check_stub_renders_from_source_only(self, interpreter, panel):
         self.scaffold("--panels=" + panel)
         stub = os.path.join(self.dest, "code", "plot_" + panel)
-        run_dir = os.path.join(self.dest, "outputs", "03_show")
+        run_dir = os.path.join(self.dest, "outputs", "panels")
         proc = subprocess.run([interpreter, stub, run_dir], cwd=self.root, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE, universal_newlines=True)
         self.assertEqual(proc.returncode, 0, proc.stderr)
@@ -670,6 +676,294 @@ class NewAnalysisTest(unittest.TestCase):
         out = self.scaffold("--data=data/anndatas/cells.h5ad")
         for path in ("reports/README.md", "data/SOURCES.md", "code/theme.R", "code/theme.py"):
             self.assertIn("  " + path + "\n", out)
+
+
+RULES_JS = """const wanted = "list --status active --json";
+if (process.argv.slice(2).join(" ") !== wanted) { console.error("unexpected arguments"); process.exit(1); }
+%s
+"""
+
+R_RULE = {"id": "r-0017", "topic": "fig.theme", "scope": {"kind": "language", "language": "r"}, "status": "active",
+          "statement": 'Set theme_set(ggprism::theme_prism(base_size = 7, base_family = "Nimbus Sans (v)", '
+                       'base_line_size = 0.4)) once per script; bold plot title.'}
+PY_RULE = {"id": "r-0020", "topic": "fig.theme", "scope": {"kind": "language", "language": "python"},
+           "status": "active", "statement": "Use theme_set(theme_bw(base_size=7) + theme(legend_position=\"none\")) once."}
+
+
+@unittest.skipUnless(shutil.which("node"), "node is not installed")
+class LearnedThemeTest(unittest.TestCase):
+    """The scaffold reads lucid-coder's active rules through its own CLI and fails open."""
+
+    def setUp(self):
+        self.root = os.path.realpath(tempfile.mkdtemp())
+        git(self.root, "init", "-q")
+        os.mkdir(os.path.join(self.root, ".living"))
+        os.mkdir(os.path.join(self.root, "analysis"))
+        self.dest = os.path.join(self.root, "analysis", "demo-run")
+        self.coder = os.path.join(self.root, "lucid-coder-root")
+
+    def tearDown(self):
+        shutil.rmtree(self.root)
+
+    def fake_rules(self, body):
+        write(os.path.join(self.coder, "scripts", "rules.js"), RULES_JS % body)
+
+    def scaffold(self, *args, **env):
+        with mock.patch.dict(os.environ, dict({"MX_LUCID_CODER_ROOT": self.coder}, **env)):
+            proc = run(self.root, "--dest=analysis/demo-run", *args)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        return proc.stdout
+
+    def code(self, name):
+        return read(os.path.join(self.dest, "code", name))
+
+    def test_an_active_r_rule_with_a_theme_call_becomes_theme_r(self):
+        self.fake_rules("console.log(JSON.stringify(%s));" % json.dumps([R_RULE, PY_RULE]))
+        out = self.scaffold()
+        theme = self.code("theme.R")
+        self.assertIn('theme_set(ggprism::theme_prism(base_size = 7, base_family = "Nimbus Sans (v)", '
+                      'base_line_size = 0.4))', theme)  # the call, parentheses inside a string kept
+        self.assertIn("  library(ggprism)", theme)
+        self.assertNotIn("ggpubr", theme.split("# Palette scales")[0].replace("Needs", ""))
+        self.assertIn("From learned rule r-0017", theme)
+        self.assertIn("theme from learned rule r-0017 in code/theme.R.", out)
+        py = self.code("theme.py")
+        self.assertIn('theme_set(theme_bw(base_size=7) + theme(legend_position="none"))', py)
+        self.assertIn("from plotnine import theme, theme_bw, theme_set", py)
+        self.assertIn("theme from learned rule r-0020 in code/theme.py.", out)
+        compile(py, "theme.py", "exec")
+
+    def test_the_newest_matching_rule_wins_and_other_scopes_are_ignored(self):
+        older = dict(R_RULE, id="r-0013", statement="Use theme_set(theme_bw()) always.")
+        wrong = dict(R_RULE, id="r-0030", scope={"kind": "global"})
+        retired = dict(R_RULE, id="r-0040", status="retired")
+        other = dict(R_RULE, id="r-0050", topic="fig.size")
+        self.fake_rules("console.log(JSON.stringify(%s));" % json.dumps([older, R_RULE, wrong, retired, other]))
+        self.scaffold()
+        self.assertIn("theme_prism", self.code("theme.R"))
+        self.assertIn("From learned rule r-0017", self.code("theme.R"))
+
+    def check_fallback(self, out, why):
+        theme = self.code("theme.R")
+        self.assertIn("theme_set(ggpubr::theme_pubr(base_size = 8))", theme)
+        self.assertIn("library(ggpubr)", theme)
+        self.assertIn("code/theme.R uses the shipped theme_pubr(base_size = 8) fallback", out)
+        self.assertIn(why, out)
+        self.assertNotIn("theme from learned rule", out)
+
+    def test_it_fails_open(self):
+        cases = {
+            "no rule": ("console.log('[]');", "no active fig.theme rule for R"),
+            "not json": ("console.log('{oops');", "printed no JSON"),
+            "not a list": ("console.log('{}');", "printed no list"),
+            "exit code": ("process.exit(3);", "exited 3"),
+            "no call": ("console.log(JSON.stringify([%s]));" % json.dumps(dict(R_RULE, statement="Use a clean theme.")),
+                        "no active fig.theme rule for R"),
+            "unclosed call": ("console.log(JSON.stringify([%s]));" % json.dumps(dict(R_RULE, statement="theme_set(a(b")),
+                              "no active fig.theme rule for R"),
+        }
+        for label, (body, why) in cases.items():
+            with self.subTest(label):
+                shutil.rmtree(self.dest, ignore_errors=True)
+                self.fake_rules(body)
+                self.check_fallback(self.scaffold(), why)
+
+    def test_a_call_that_runs_other_code_is_not_written(self):
+        for statement in ('Use theme_set(theme_bw()); system("rm -rf x")', 'Use theme_set(theme_bw(base_size = system("id")))',
+                          "Use theme_set(theme_bw(`x`))", 'Use theme_set(get("system")("touch x"))',
+                          'Use theme_set(do.call("system", list("id")))'):
+            with self.subTest(statement):
+                shutil.rmtree(self.dest, ignore_errors=True)
+                self.fake_rules("console.log(JSON.stringify([%s]));" % json.dumps(dict(R_RULE, statement=statement)))
+                self.assertNotIn("system", self.code_after_scaffold("theme.R"))
+
+    def test_a_ggplot2_theme_without_a_package_does_not_need_ggpubr(self):
+        self.fake_rules("console.log(JSON.stringify([%s]));" % json.dumps(dict(R_RULE, statement="Use theme_set(theme_bw())")))
+        self.scaffold()
+        theme = self.code("theme.R")
+        self.assertIn("From learned rule r-0017", theme)
+        self.assertNotIn("ggpubr", theme)
+        self.assertIn("Needs ggplot2.", theme)
+
+    def code_after_scaffold(self, name):
+        self.scaffold()
+        return self.code(name)
+
+    def test_a_slow_rules_script_times_out(self):
+        self.fake_rules("setTimeout(() => console.log('[]'), 5000);")
+        self.check_fallback(self.scaffold(MX_RULES_SECONDS="0.3"), "took more than 0.3 s")
+
+    def test_no_lucid_coder_and_no_node_fall_back(self):
+        shutil.rmtree(self.coder, ignore_errors=True)
+        self.check_fallback(self.scaffold(), "lucid-coder is not installed")
+        shutil.rmtree(self.dest)
+        self.fake_rules("console.log(JSON.stringify([%s]));" % json.dumps(R_RULE))
+        self.check_fallback(self.scaffold(PATH=self.root), "node is not on PATH")
+
+    def test_the_root_comes_from_installed_plugins_and_the_data_pointer_reaches_rules_js(self):
+        config = os.path.join(self.root, "claude-config")
+        write(os.path.join(config, "plugins", "installed_plugins.json"), json.dumps({"plugins": {
+            "lucid-coder@lucid-coder": [{"scope": "project", "installPath": os.path.join(self.root, "gone")},
+                                        {"scope": "user", "installPath": self.coder, "lastUpdated": "2026-11-03"}]}}))
+        write(os.path.join(config, ".lucid-coder-data"), os.path.join(self.root, "store") + "\n")
+        self.fake_rules("""const rules = process.env.CLAUDE_PLUGIN_DATA === %s ? [%s] : [];
+console.log(JSON.stringify(rules));""" % (json.dumps(os.path.join(self.root, "store")), json.dumps(R_RULE)))
+        with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": config, "CLAUDE_PLUGIN_DATA": "/wrong/place"}):
+            os.environ.pop("MX_LUCID_CODER_ROOT")
+            proc = run(self.root, "--dest=analysis/demo-run")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("theme from learned rule r-0017", proc.stdout)
+
+
+class WrapperTest(ScaffoldCase):
+    """--wrapper=NN_name:skill writes a code/NN_name.sh stub for a pipeline skill."""
+
+    def test_wrapper_stub_plan_row_and_listing(self):
+        out = self.scaffold("--wrapper=04_de:pseudobulk-de", "--wrapper=05_enrich:enrichment")
+        path = os.path.join(self.dest, "code", "04_de.sh")
+        text = read(path)
+        self.assertTrue(os.access(path, os.X_OK))
+        self.assertEqual(subprocess.run(["bash", "-n", path]).returncode, 0)
+        self.assertIn('SKILL_DIR="$PLUGIN_ROOT/skills/pseudobulk-de"', text)
+        self.assertIn("OUT=outputs/04_de", text)
+        self.assertNotIn("@@", text)
+        self.assertIn("  code/04_de.sh\n", out)
+        self.assertIn("note: code/04_de.sh calls the pseudobulk-de skill and is not in the Snakefile", out)
+        plan = read(os.path.join(self.dest, "plans", "PLAN.md"))
+        self.assertIn("| S04 | `analysis/demo-run/code/04_de.sh` | runs the pseudobulk-de skill script |", plan)
+        self.assertIn("| S05 | `analysis/demo-run/code/05_enrich.sh`", plan)
+        self.assertIn("| S04 | `code/04_de.sh` | todo |", read(os.path.join(self.dest, "plans", "TRACKER.md")))
+        self.assertNotIn("04_de", read(os.path.join(self.dest, "Snakefile")))
+
+    def test_wrapper_fails_until_written_and_without_the_plugin_root(self):
+        self.scaffold("--wrapper=04_de:pseudobulk-de")
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PLUGIN_ROOT"}
+        proc = subprocess.run(["bash", "code/04_de.sh"], cwd=self.dest, env=env, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, universal_newlines=True)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("set CLAUDE_PLUGIN_ROOT", proc.stderr)
+        env["CLAUDE_PLUGIN_ROOT"] = self.root
+        proc = subprocess.run(["bash", "code/04_de.sh"], cwd=self.dest, env=env, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, universal_newlines=True)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("04_de.sh is not written yet", proc.stderr)
+        self.assertTrue(os.path.isdir(os.path.join(self.dest, "outputs", "04_de", "logs")))  # only its own folder
+
+    def test_wrapper_refusals(self):
+        for bad in ("de:skill", "04_de", "04_de:Bad Skill", "04_de:"):
+            with self.subTest(bad):
+                proc = run(self.root, "--dest=analysis/demo-run", "--wrapper=" + bad)
+                self.assertEqual(proc.returncode, 1)
+                self.assertIn("--wrapper", proc.stdout)
+                self.assertFalse(os.path.exists(self.dest))
+        for clash in ("01_prepare:skill", "02_other:skill"):  # a step's number or name
+            proc = run(self.root, "--dest=analysis/demo-run", "--wrapper=" + clash)
+            self.assertEqual(proc.returncode, 1, proc.stdout)
+            self.assertIn("reuses the number or name", proc.stdout)
+        proc = run(self.root, "--dest=analysis/demo-run", "--wrapper=04_a:x", "--wrapper=04_b:y")
+        self.assertIn("reuses the number or name", proc.stdout)
+
+
+class StubStyleTest(ScaffoldCase):
+    """Every stub follows the house style: header, Parameters block, 80-column dividers, session info last."""
+
+    def stubs(self):
+        self.scaffold("--steps=01_a.R,02_b.py,03_show.R,04_show.py,05_c.ipynb", "--panels=Fig1a.R,Fig1b.py")
+        code = os.path.join(self.dest, "code")
+        return {name: read(os.path.join(code, name)) for name in sorted(os.listdir(code))}
+
+    def test_header_parameters_dividers_and_session_info(self):
+        for name, text in self.stubs().items():
+            with self.subTest(name):
+                if name.endswith(".ipynb"):
+                    book = json.loads(text)
+                    text = "\n".join("".join(c["source"]) for c in book["cells"])
+                    self.assertIn("Purpose:", text)
+                    self.assertIn("Inputs:", text)
+                    self.assertIn("Outputs:", text)
+                    self.assertIn("Run:", text)
+                else:
+                    head = "\n".join(text.splitlines()[:12])
+                    for word in ("Purpose:", "Run:", "Outputs:") + (("Inputs:",) if "helpers" not in name else ()):
+                        self.assertIn(word, head)
+                dividers = [l for l in text.splitlines() if re.match(r"^# [A-Z][A-Za-z ]* -{3,}$", l)]
+                self.assertTrue(dividers, name)
+                for line in dividers:
+                    self.assertEqual(len(line), 80, line)
+                if name.startswith("theme"):
+                    continue
+                self.assertTrue(any(l.startswith("# Parameters -") for l in dividers))
+                if name.endswith(".ipynb"):
+                    self.assertTrue(any("session.txt" in l for l in json.loads(text if False else read(
+                        os.path.join(self.dest, "code", name)))["cells"][-1]["source"]))
+                else:
+                    self.assertTrue(dividers[-1].startswith("# Session info -"), dividers[-1])
+                    self.assertIn("session", text.rsplit("# Session info -", 1)[1].lower())
+
+    def test_stubs_fail_on_purpose_and_r_stubs_name_their_stopifnot(self):
+        stubs = self.stubs()
+        for name in ("01_a.R", "03_show.R"):
+            self.assertIn('stopifnot("the Snakefile passes', stubs[name])
+        for name in ("01_a.R", "02_b.py", "03_show.R", "04_show.py"):
+            self.assertIn("is not written yet", stubs[name])
+        self.assertLess(stubs["01_a.R"].index("not written yet"), stubs["01_a.R"].index("sessionInfo()"))
+
+    def test_python_stub_writes_versions_of_the_packages_it_names(self):
+        stubs = self.stubs()
+        self.assertIn("importlib.metadata", stubs["02_b.py"])
+        self.assertIn("sc.logging.print_versions()", stubs["02_b.py"])
+        self.assertIn('PACKAGES = ["pandas", "plotnine"]', stubs["04_show.py"])
+
+    def test_the_steps_note_for_mycelium_agent(self):
+        self.scaffold()
+        doc = read(os.path.join(self.dest, "DEMO_RUN.md"))
+        self.assertIn("scripts live in `code/`, not in a `scripts/` folder", doc)
+        self.assertIn("only `outputs/<its stem>/`", doc)
+
+
+class PixiEnvTest(ScaffoldCase):
+    """The pixi form /lucid-coder:align writes names manager, name and prefix only."""
+
+    def pixi(self, body, bins=("Rscript", "python", "jupyter")):
+        for name in bins:
+            write(os.path.join(self.root, ".pixi", "envs", "dev", "bin", name))
+        write(os.path.join(self.root, "lucid-coder.yaml"), "version: 1\nenv:\n" + body)
+        return os.path.join(self.root, ".pixi", "envs", "dev", "bin")
+
+    def test_prefix_gives_the_interpreters(self):
+        bindir = self.pixi("  manager: pixi\n  name: dev\n  prefix: .pixi/envs/dev   # no r or python\n")
+        out = self.scaffold()
+        snake = read(os.path.join(self.dest, "Snakefile"))
+        for key, name in (("rscript", "Rscript"), ("python", "python"), ("jupyter", "jupyter")):
+            self.assertIn('config.get("{}", {})'.format(key, json.dumps(os.path.join(bindir, name))), snake)
+        self.assertIn("environment: jupyter, python, rscript from lucid-coder.yaml (from the prefix: python, rscript)", out)
+        self.assertNotIn("WARNING", out)
+
+    def test_explicit_r_wins_over_the_prefix(self):
+        bindir = self.pixi("  manager: pixi\n  name: dev\n  prefix: .pixi/envs/dev\n  r: .pixi/envs/dev/bin/python\n")
+        self.scaffold()
+        snake = read(os.path.join(self.dest, "Snakefile"))
+        self.assertIn('config.get("rscript", {})'.format(json.dumps(os.path.join(bindir, "python"))), snake)
+
+    def test_name_alone_with_pixi_finds_the_default_prefix(self):
+        bindir = self.pixi("  manager: pixi\n  name: dev\n")
+        self.scaffold()
+        self.assertIn(json.dumps(os.path.join(bindir, "Rscript")), read(os.path.join(self.dest, "Snakefile")))
+
+    def test_a_python_only_env_keeps_the_bare_rscript_without_a_warning_and_names_pixi_run(self):
+        self.pixi("  manager: pixi\n  name: dev\n  prefix: .pixi/envs/dev\n", bins=("python", "jupyter"))
+        out = self.scaffold()
+        snake = read(os.path.join(self.dest, "Snakefile"))
+        self.assertIn('config.get("rscript", "Rscript")', snake)
+        self.assertNotIn("WARNING", out)
+        self.assertIn("pixi run -e dev bash run.sh", out)
+
+    def test_a_conda_prefix_without_r_or_python_keys_works_the_same(self):
+        write(os.path.join(self.root, "env", "bin", "Rscript"))
+        write(os.path.join(self.root, "lucid-coder.yaml"), "env:\n  manager: conda\n  prefix: env\n")
+        self.scaffold()
+        self.assertIn(json.dumps(os.path.join(self.root, "env", "bin", "Rscript")),
+                      read(os.path.join(self.dest, "Snakefile")))
 
 
 if __name__ == "__main__":

@@ -88,6 +88,13 @@ Two optional keys help a large `approvals/` folder or a slow disk:
 
 A hook call reads `approvals/` once and reuses the result for every check in that call. Any approval write clears the saved result. Nothing is stored on disk, so no index file can go stale or be mistaken for an approval. If the time limit runs out, the gate blocks the run. The message gives the number of files seen, the seconds used and the exact command that moves old approvals aside. The command moves files to `approvals-old/`; `verify` reads `approvals/` only, so move back any approval it needs.
 
+Two keys concern Mycelium repositories:
+
+| Key | Default | Meaning |
+|---|---|---|
+| `planning_line` | `true` | In a repository with `.living/`, approving a plan changes the analysis doc's single `**Planning**: pending` line to `**Planning**: discussed <date> (approved plan <hash>)`, so Mycelium's `analyze` does not offer a second planning discussion. It edits only a doc inside the repository that is not a link and holds exactly one such line. `false` turns it off. |
+| `where_mycelium` | `false` | When `true`, `where` also reads open items and findings from Mycelium's registries. |
+
 Other optional keys, the `.mycelium-extra/` file layout, lint-on-write, command hints and Mycelium's post-action reminder are in the [complete reference](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/approval-gate-full.md#settings).
 
 ## Limits

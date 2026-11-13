@@ -5,7 +5,7 @@
     where all        one line per analysis
 
 Typed as a whole prompt it is answered by the gate hook (needs the gate on); `/mycelium-extra:where` runs it
-from the skill. On Claude Code no model call runs; OpenCode passes the card to the model as the rewritten prompt. Every fact comes from files (`code/`, `outputs/<step>/`, `logs/CHANGES.md`, `plans/TRACKER.md`, the
+from the skill. On Claude Code no model call runs; OpenCode passes the card to the model as the rewritten prompt. Every fact comes from files (`code/` or `scripts/`, `outputs/<step>/`, `logs/CHANGES.md`, `plans/TRACKER.md`, the
 analysis doc, `provenance/`); nothing is written by a model. The one write is the full card to
 `.mycelium-extra/now/<analysis path, "/" as "__">.md`, plugin state outside the analysis and outside git.
 
@@ -33,6 +33,8 @@ CAP = 5  # items per list; the rest is "+N more"
 WIDTH = 46
 SCRIPT = re.compile(r"^(\d{2}[a-z]?_[^.]+)\.(?:marimo\.py|R|r|py|qmd|Rmd|rmd|ipynb|jl)$")
 OPEN_STATUS = ("todo", "in progress", "blocked")
+CLOSED_STATUS = ("done", "closed", "complete", "cancel", "drop", "reject", "wontfix", "wont", "won't", "resolved")
+LOOSE_OK = ("numbers.json",)  # a file Mycelium's register_value writes directly in outputs/
 VERB = re.compile(r"^\s*where(?:\s+am\s+i)?(?:\s+(short|all))?\s*[?.!]?\s*$", re.IGNORECASE)
 
 
@@ -40,7 +42,8 @@ VERB = re.compile(r"^\s*where(?:\s+am\s+i)?(?:\s+(short|all))?\s*[?.!]?\s*$", re
 
 def locate(root, cwd, session_id=None):
     """Repository-relative path of the analysis: the open focus, else the nearest folder above `cwd` that has a
-    `code/` folder and a Snakefile, `plans/` or `outputs/`; else None."""
+    `code/` (or Mycelium's `scripts/`) folder and a Snakefile, `plans/` or `outputs/`, or its own `<NAME>.md`
+    doc; else None."""
     if session_id:
         try:
             episode = focus.open_episode(focus.read(root, session_id))
@@ -51,8 +54,8 @@ def locate(root, cwd, session_id=None):
     path = os.path.realpath(cwd)
     top = os.path.realpath(root)
     while ap.inside(path, top) and path != top:
-        if os.path.isdir(os.path.join(path, "code")) and any(
-                os.path.exists(os.path.join(path, n)) for n in ("Snakefile", "plans", "outputs")):
+        if ap.is_analysis(path) and (ap.source_dir(path) is None or ap.find_doc(path) is not None or any(
+                os.path.exists(os.path.join(path, n)) for n in ("Snakefile", "plans", "outputs"))):
             return os.path.relpath(path, top)
         path = os.path.dirname(path)
     return None
@@ -257,7 +260,7 @@ def verify_state(folder, now, budget=None, log=None):
             seen["log"] = time.mktime(time.strptime(log[3:19], "%Y-%m-%d %H:%M"))
         except ValueError:
             pass
-    for name in ("code", "outputs"):
+    for name in ("code", "scripts", "outputs"):
         seen[name] = newest(os.path.join(folder, name), budget)["time"] if os.path.isdir(os.path.join(folder, name)) else 0.0
     what, when = max(seen.items(), key=lambda kv: kv[1])
     if minute_start(when) > verified:
@@ -273,10 +276,111 @@ def verify_state(folder, now, budget=None, log=None):
     return {"state": state, "line": line + ".", "changed": None}
 
 
-def facts(root, rel, budget=None, pending=None, verify=True):
+def numbers_leftovers(folder, entry):
+    """Keys of `outputs/numbers.json` whose recorded script file no longer exists. Mycelium's register_value
+    writes `{"namespace": ..., "values": [{"key", "value", "provenance", "computed_at": "scripts/x.py:L42"}]}`
+    and never deletes a key, so a renamed or removed script leaves its keys behind. The script path is read
+    from `computed_at`, relative to the analysis folder. A file of another shape, or an entry without a
+    `computed_at`, gives nothing. Report only."""
+    path = ap.numbers(folder, entry)
+    try:
+        if not path or os.path.getsize(path) > 2_000_000:
+            return []
+        data = json.loads(ap.read(path))
+    except (OSError, ValueError):
+        return []
+    if not isinstance(data, dict):
+        return []
+    values = data.get("values")
+    items = values if isinstance(values, list) else [dict(v, key=k) for k, v in data.items() if isinstance(v, dict)]
+    left = []
+    for item in items:
+        site = item.get("computed_at") if isinstance(item, dict) else None
+        match = re.fullmatch(r"(.+?):L?\d+(?:-L?\d+)?", site) if isinstance(site, str) else None
+        # A caller outside the analysis root (absolute path) or a notebook or stdin (`<stdin>`) has no file here.
+        if match and not match.group(1).startswith(("<", "/")) and not os.path.exists(
+                os.path.join(folder, match.group(1))):
+            left.append(str(item.get("key")))
+    return left
+
+
+def loose_outputs(folder):
+    """Names of files directly in `outputs/` when `outputs/.layout` marks the steps layout (`numbers.json` is
+    Mycelium's own and is fine). Steps write `outputs/<stem>/`; Mycelium's habit is flat files here."""
+    top = os.path.join(folder, "outputs")
+    if not ap.layout_marker(top):
+        return []
+    try:
+        names = sorted(os.listdir(top))
+    except OSError:
+        return []
+    return [n for n in names if not n.startswith(".") and n not in LOOSE_OK and os.path.isfile(os.path.join(top, n))]
+
+
+def where_mycelium(root):
+    """True when `<root>/.mycelium-extra/gate.json` has `where_mycelium` true. Read as plain JSON, no gate
+    import; anything unreadable is off."""
+    try:
+        with open(os.path.join(root, ".mycelium-extra", "gate.json"), encoding="utf-8") as handle:
+            return json.load(handle).get("where_mycelium") is True
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
+def table_rows(path):
+    """The data rows of the first markdown table in `path` as dicts keyed by the lower-cased header cells."""
+    try:
+        lines = ap.read(path).splitlines()
+    except OSError:
+        return []
+    header, rows = None, []
+    for line in lines:
+        if not line.startswith("|"):
+            if header and rows:
+                break
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if header is None:
+            header = [c.lower() for c in cells]
+        elif not set("".join(cells)) <= set("-: "):
+            rows.append(dict(zip(header, cells)))
+    return rows
+
+
+def plain(text):
+    """A table cell without backticks, bold marks and link targets."""
+    return focus._one_line(re.sub(r"[`*]", "", re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)))
+
+
+def mycelium_later(root, rel):
+    """LATER rows read from Mycelium's registries, only when `where_mycelium` is on: open rows of
+    `todo/TODO_REGISTRY.md` that name this analysis path, and the F-IDs of `.living/findings/FINDINGS_REGISTRY.md`
+    that the analysis doc cites or whose Topic is the analysis, with their status. Registry files only: no topic
+    file, no decisions.md."""
+    folder = os.path.join(root, rel)
+    named = re.compile(r"(?<![\w-])" + re.escape(rel) + r"(?![\w-])")
+    out = []
+    for row in table_rows(os.path.join(root, "todo", "TODO_REGISTRY.md")):
+        status = (row.get("status") or "").lower()
+        if named.search(" ".join(row.values())) and not status.startswith(CLOSED_STATUS):
+            out.append("{}: {}{}".format(row.get("id") or "todo", plain(row.get("item") or row.get("title") or ""),
+                                         " ({})".format(status) if status else ""))
+    doc = ap.find_doc(folder)
+    cited = set(re.findall(r"\bF-\d+\b", ap.read(doc))) if doc else set()
+    for row in table_rows(os.path.join(root, ".living", "findings", "FINDINGS_REGISTRY.md")):
+        fid = plain(row.get("id") or "")
+        if fid in cited or plain(row.get("topic") or "") == os.path.basename(rel) or named.search(" ".join(row.values())):
+            claim = plain(row.get("claim") or "")
+            out.append("{} ({}): {}".format(fid, plain(row.get("status") or "no status"),
+                                            claim if len(claim) <= 70 else claim[:67] + "..."))
+    return out
+
+
+def facts(root, rel, budget=None, pending=None, verify=True, mycelium=None):
     """Everything the cards print, as a dict. `budget` caps the folder walks; `pending` is the list from
     `pending_entries`, read once by a caller that builds many cards; `verify` False skips the verify line
-    (`where all` does not print it)."""
+    (`where all` does not print it); `mycelium` False skips the opt-in Mycelium LATER rows, None reads the
+    `where_mycelium` key of gate.json."""
     folder = os.path.join(root, rel)
     budget = budget or Budget()
     now = time.time()
@@ -298,7 +402,7 @@ def facts(root, rel, budget=None, pending=None, verify=True):
 
     snake_path = os.path.join(folder, "Snakefile")
     snakefile = ap.read(snake_path) if os.path.isfile(snake_path) else None  # read once, not once per step
-    code = os.path.join(folder, "code")
+    code = ap.source_dir(folder) or os.path.join(folder, "code")  # Mycelium analyses keep their scripts in scripts/
     scripts = sorted(n for n in (os.listdir(code) if os.path.isdir(code) else []) if SCRIPT.match(n))
     steps, marked = [], layout in ("steps", "none")
     since = 0.0  # newest script or upstream output so far: a step older than this is stale
@@ -340,6 +444,16 @@ def facts(root, rel, budget=None, pending=None, verify=True):
     watch = ["figure {} has no source data".format(ap.stem(p)) for p in figures
              if p.lower().endswith(".png") and ap.stem(p) not in sources]
     watch += ["{} has an empty output folder".format(s["stem"]) for s in steps if s["empty"]]
+    loose = loose_outputs(folder)
+    if loose:
+        watch.append("{} loose file{} in outputs/ ({}); steps write outputs/<stem>/".format(
+            len(loose), "" if len(loose) == 1 else "s", ", ".join(loose[:3]) + (", ..." if len(loose) > 3 else "")))
+    if os.path.isdir(os.path.join(folder, "scripts")) and os.path.isdir(os.path.join(folder, "code")):
+        watch.append("scripts/ sits next to code/; steps belong in code/")
+    left = numbers_leftovers(folder, entry)
+    if left:
+        watch.append("numbers.json keys with a missing script: {}{}".format(
+            ", ".join(left[:CAP]), " +{} more".format(len(left) - CAP) if len(left) > CAP else ""))
 
     record = verify_state(folder, now, budget, log) if verify else None
     tracker = tracker_open(folder)
@@ -376,6 +490,10 @@ def facts(root, rel, budget=None, pending=None, verify=True):
     later = ["{}: {}".format(i, item) + ("  (blocked)" if st == "blocked" else "") for i, item, st in tracker]
     if nxt and tracker and nxt[0].startswith(tracker[0][0] + ":"):
         later = later[1:]
+    if mycelium is None:
+        mycelium = where_mycelium(root)
+    if mycelium:
+        later += mycelium_later(root, rel)
 
     cause = None
     stale = [s for s in steps if s["state"] == "stale"]
@@ -441,7 +559,7 @@ def wrapped(text, indent="  "):
 def step_line(facts_):
     steps = facts_["steps"]
     if not steps:
-        return "No numbered scripts in code/ yet."
+        return "No numbered scripts in code/ or scripts/ yet."
     if not facts_["marked"]:
         return "Old {} layout: no per-step state.".format("run-folder" if facts_["layout"] == "run" else "flat") + (
             " Latest run: {} ({}).".format(facts_["run"], facts_["run_status"] or "no status") if facts_["run"] else "")
@@ -490,8 +608,9 @@ def render_short(f):
 
 
 def with_code(root, rels):
-    """The folders among `rels` (repository-relative) that have a code/ folder."""
-    return [r for r in rels if os.path.isdir(os.path.join(root, r, "code"))]
+    """The folders among `rels` (repository-relative) that are analyses: a code/ or scripts/ folder, or their
+    own `<NAME>.md` doc (see analysis_paths.is_analysis)."""
+    return [r for r in rels if ap.is_analysis(os.path.join(root, r))]
 
 
 def subfolders(root, rel):
@@ -504,14 +623,44 @@ def subfolders(root, rel):
     return [(rel + "/" if rel not in ("", ".") else "") + n for n in names]
 
 
+def read_config(root):
+    """`<root>/.mycelium-extra/gate.json` as a dict, or None. Plain JSON, no gate import; `where all` run from
+    the command line has no config from the gate, so it reads the roots the gate would use."""
+    try:
+        with open(os.path.join(root, ".mycelium-extra", "gate.json"), encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def manifest_roots(root, skip):
+    """Top-level folders (not in `skip`) that hold an ANALYSIS_MANIFEST.md: where a Mycelium repository keeps
+    its analyses when the gate names other roots or none."""
+    try:
+        names = sorted(os.listdir(root))
+    except OSError:
+        return []
+    return [n for n in names if n not in skip and not n.startswith(".")
+            and os.path.isfile(os.path.join(root, n, ap.MANIFEST_NAME))]
+
+
 def find_analyses(root, config=None, cwd=None):
     """(analysis folders, roots searched). The folders directly under each gated root; when there are none,
-    one level further down and the folders next to the current directory."""
+    one level further down and the folders next to the current directory, and the top-level folders that hold
+    an ANALYSIS_MANIFEST.md. With no config, the gate.json of the repository names the roots."""
+    config = config or read_config(root)
     roots = focus.roots_of(config) if config and config.get("gated_paths") else ["analysis", "nbs"]
     top = focus.analyses(root, roots)
     found = with_code(root, top)
     if found:
         return found, roots
+    extra = manifest_roots(root, roots)
+    if extra:
+        top += focus.analyses(root, extra)
+        found = with_code(root, top)
+        if found:
+            return found, roots + extra
     for rel in top:
         found += with_code(root, subfolders(root, rel))
     if cwd:
@@ -537,12 +686,15 @@ def render_all(root, config=None, cwd=None, budget=None):
             lines.append("  {}  not scanned".format(name))
             continue
         try:
-            r = facts(root, rel, budget, pending, verify=False)
+            r = facts(root, rel, budget, pending, verify=False, mycelium=False)
         except OSError:
             lines.append("  {}  unreadable  -  next: where (in that folder) to see the error".format(name))
             continue
-        lines.append("  {}  {:8}  {}  next: {}{}".format(name, r["state"], r["ran"] or "never run", r["next"][0],
-                                                         "  (state may be wrong)" if r["truncated"] else ""))
+        listed = ap.manifest_status(os.path.join(root, rel), root)
+        status = listed.partition(": ")[2]  # the manifest's status word, when the manifest lists one
+        lines.append("  {}  {:8}  {}  next: {}{}{}".format(
+            name, r["state"], r["ran"] or "never run", r["next"][0], "  [manifest: {}]".format(status) if status else "",
+            "  (state may be wrong)" if r["truncated"] else ""))
     if len(ranked) > 8:
         lines.append("  +{} not scanned".format(len(ranked) - 8))
     return "\n".join(lines)

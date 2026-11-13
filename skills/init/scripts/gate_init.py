@@ -39,6 +39,8 @@ DEFAULTS = {
     "pin_seconds": 5,
     "scan_seconds": 5,
     "scan_mtime_filter": False,
+    "planning_line": True,
+    "where_mycelium": False,
     "pin_scripts": True,
     "card_lint": True,
     "card_coverage": True,
@@ -133,6 +135,53 @@ def find_tool(flag, env, name):
     return os.path.abspath(os.path.expanduser(value)) if value and os.sep in value else value
 
 
+ENV_KEY = re.compile(r"^\s+(manager|name|prefix|r|python):\s*[\"']?([^\"'#\s]+)")
+
+
+def env_block(path):
+    """The values under the top-level env: block of lucid-coder.yaml, first of each key (manager, name,
+    prefix, r, python). Reads only; {} when the file is unreadable."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            lines = handle.read().splitlines()
+    except OSError:
+        return {}
+    values, in_env = {}, False
+    for line in lines:
+        if line.strip() and not line.startswith((" ", "\t", "#")):
+            in_env = bool(re.match(r"^env:\s*(#.*)?$", line))
+        match = in_env and ENV_KEY.match(line)
+        if match:
+            values.setdefault(match.group(1), match.group(2))
+    return values
+
+
+def env_tools(folder):
+    """[(key, path, from prefix?)] for r and python in folder/lucid-coder.yaml: env.r and env.python as
+    written, else <prefix>/bin/Rscript and <prefix>/bin/python (the pixi form /lucid-coder:align writes names
+    manager, name and prefix only; a pixi env without a prefix lives in .pixi/envs/<name>)."""
+    values = env_block(os.path.join(folder, "lucid-coder.yaml"))
+    prefix = values.get("prefix") or (".pixi/envs/" + values["name"]
+                                      if values.get("manager") == "pixi" and values.get("name") else None)
+    found = []
+    for key, exe in (("r", "Rscript"), ("python", "python")):
+        if key in values:
+            found.append((key, os.path.abspath(os.path.join(folder, os.path.expanduser(values[key]))), False))
+        elif prefix:
+            found.append((key, os.path.abspath(os.path.join(folder, os.path.expanduser(prefix), "bin", exe)), True))
+    return found
+
+
+def env_tool(folder, key, program=None):
+    """Path of the env's r or python, when it is a file; with `program`, that program in the same bin/ folder
+    (such as scilintr). None when the env names none or the file is missing."""
+    for found_key, path, _ in env_tools(folder):
+        candidate = os.path.join(os.path.dirname(path), program) if program else path
+        if found_key == key and os.path.isfile(candidate):
+            return candidate
+    return None
+
+
 def run_tool(command):
     try:
         return subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8",
@@ -169,8 +218,10 @@ def record_tools(root, flags, dry_run):
     if not isinstance(tools, dict):
         print("note: {} is not a JSON object; rebuilding it from checked tools.".format(path))
         tools = {}
-    python = find_tool(flags[0], "MX_SCILINTR", "scilintr")
-    rscript = find_tool(flags[1], "MX_RSCRIPT", "Rscript")
+    # order: flag, environment variable, the env lucid-coder.yaml names, PATH
+    python = find_tool(flags[0] or os.environ.get("MX_SCILINTR") or env_tool(root, "python", program="scilintr"),
+                       "MX_SCILINTR", "scilintr")
+    rscript = find_tool(flags[1] or os.environ.get("MX_RSCRIPT") or env_tool(root, "r"), "MX_RSCRIPT", "Rscript")
     version = r_scilintr_version(rscript) if rscript else None
     if python and check_scilintr(python):
         tools["scilintr"] = python
@@ -258,6 +309,8 @@ CONFIG_RULES = {
     "pin_seconds": ("a number of 0 or more", lambda v: _number(v) and v >= 0),
     "scan_seconds": ("a number of 0 or more (used between 1 and 8)", lambda v: _number(v) and v >= 0),
     "scan_mtime_filter": ("true or false", lambda v: isinstance(v, bool)),
+    "planning_line": ("true or false", lambda v: isinstance(v, bool)),
+    "where_mycelium": ("true or false", lambda v: isinstance(v, bool)),
     "pin_scripts": ("true or false", lambda v: isinstance(v, bool)),
     "card_lint": ("true or false", lambda v: isinstance(v, bool)),
     "card_coverage": ("true or false", lambda v: isinstance(v, bool)),
@@ -275,7 +328,7 @@ CONFIG_RULES = {
 
 # What the gate does with an invalid value (hooks/gate.py reads each key its own way); keep in step with it.
 INVALID_EFFECT = {
-    "scan_seconds": "5", "scan_mtime_filter": "off",
+    "scan_seconds": "5", "scan_mtime_filter": "off", "planning_line": "on", "where_mycelium": "off",
     "pin_scripts": "pinning is on", "card_lint": "on", "lint_on_write": "on", "card_coverage": "off",
     "focus_notices": "off", "confirm_writes": "off", "lint_before_stop": "off", "lint_before_run": "off", "on_error": "allow",
     "max_runs_per_approval": "no limit", "checkpoint_steps": "off", "dev_packages": "none",
@@ -405,11 +458,16 @@ def diagnose(root, plugin_root):
         out.append("environment: no lucid-coder.yaml; new-analysis uses Rscript and python from PATH "
                    "(/lucid-coder:align writes one).")
     else:
-        with open(env_file, encoding="utf-8", errors="replace") as handle:
-            named = re.findall(r"(?m)^\s+(r|python):\s*[\"']?([^\"'#\s]+)", handle.read())
-        out.append("environment: {}: {}.".format(env_file, "; ".join(
-            "{} {} ({})".format(key, path, "found" if os.path.isfile(path) else "PROBLEM: not a file")
-            for key, path in named) or "PROBLEM: names no r or python"))
+        named = []
+        for key, path, derived in env_tools(gated or root):
+            if not derived:
+                named.append("{} {} ({})".format(key, path, "found" if os.path.isfile(path) else "PROBLEM: not a file"))
+            elif os.path.isfile(path):
+                named.append("{} {} (found, from the prefix)".format(key, path))
+            else:
+                named.append("{} not found at {} (from the prefix; new-analysis keeps the name on PATH)".format(key, path))
+        out.append("environment: {}: {}.".format(env_file, "; ".join(named) or "PROBLEM: names no r or python, "
+                                                 "and no prefix or pixi env name to find them in"))
     recorded = load_json(os.path.join(state, "tools.json"))[0]
     recorded = recorded if isinstance(recorded, dict) else {}
     out.append("optional readers and linters (presence only; nothing is run):")

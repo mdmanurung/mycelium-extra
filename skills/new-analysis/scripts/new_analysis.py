@@ -5,6 +5,7 @@ Run from stdin so Mycelium's hooks stay closed, with every option in --flag=valu
     sh <plugin>/hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb,04_d.qmd,05_e.marimo.py]
               [--format=R|py|ipynb|qmd|marimo] [--lang=r|python]
               [--data=PATH ...] [--code=PATH ...] [--doc-template=PATH] [--panels=Fig1a.R,Fig1b.py]
+              [--wrapper=NN_name:skill-name ...]
               --templates=<skill-dir>/templates [--dry-run] < new_analysis.py
 
 Creates <dest>/ with numbered step stubs in code/, a Snakefile that runs them in
@@ -15,6 +16,10 @@ mermaid chain of the steps and one Methods and Results tab per step, for analysi
 linked shared code. Refuses a non-empty <dest>, never
 overwrites, and writes nothing outside <dest> except an empty lock file, .<name>.scaffold.lock, that it
 leaves in the parent folder. Stdlib-only; runs on Python 3.9+.
+
+--wrapper=NN_name:skill-name adds code/NN_name.sh, a stub that runs a pipeline skill's script from inside the
+repository (the gate ignores scripts outside it), with a plan row and a tracker row; it is not in the Snakefile.
+The theme files take a theme_set(...) call from an active lucid-coder fig.theme rule when there is one.
 
 --panels adds a manuscript layer: one code/plot_<panel> stub per panel, config/figure_map.tsv and
 config/manuscript_checks.json for manuscript-audit, with repository-relative paths. On a non-empty
@@ -144,15 +149,17 @@ def parse_steps(text, fmt, lang):
     return steps
 
 
-ENV_FILE = "lucid-coder.yaml"  # lucid-coder's env pointer: env.r and env.python are the interpreters to run
+ENV_FILE = "lucid-coder.yaml"  # lucid-coder's env pointer: env.r and env.python, or env.prefix, name the interpreters
 # ponytail: line match on lucid-coder's flat env block, no YAML parser; parse properly if the file grows nested r:/python: keys
-ENV_LINE = re.compile(r"^\s+(r|python):\s*[\"']?([^\"'#\s]+)")
+ENV_LINE = re.compile(r"^\s+(manager|name|prefix|r|python):\s*[\"']?([^\"'#\s]+)")
 ENV_HEAD = re.compile(r"^env:\s*(#.*)?$")
 
 
 def interpreters(root):
     """Rscript, python and jupyter from lucid-coder.yaml at the root, each kept only when the file exists;
-    bare names otherwise. Returns (paths, used, note)."""
+    bare names otherwise. env.r and env.python win; without them (the pixi form /lucid-coder:align writes:
+    manager, name, prefix) the interpreters are <prefix>/bin/Rscript and <prefix>/bin/python.
+    Returns (paths, used, note)."""
     found = {"rscript": "Rscript", "python": "python", "jupyter": "jupyter"}
     path = os.path.join(root, ENV_FILE) if root else None
     if not path or not os.path.isfile(path):
@@ -161,23 +168,222 @@ def interpreters(root):
         lines = ap.read(path, "strict").splitlines()
     except (OSError, ValueError):  # unreadable or not UTF-8
         return found, [], "environment: WARNING: {} could not be read; kept the bare names on PATH".format(ENV_FILE)
-    named, in_env = {}, False
+    values, in_env = {}, False
     for line in lines:  # only the top-level env: block counts
         if line.strip() and not line.startswith((" ", "\t", "#")):
             in_env = bool(ENV_HEAD.match(line))
         match = in_env and ENV_LINE.match(line)
         if match:
-            named[("rscript" if match.group(1) == "r" else "python")] = os.path.abspath(
-                os.path.join(root, os.path.expanduser(match.group(2))))
-    if "python" in named:
-        named["jupyter"] = os.path.join(os.path.dirname(named["python"]), "jupyter")
-    used = sorted(k for k, v in named.items() if os.path.isfile(v))
-    missing = sorted(k for k in named if k not in used and k != "jupyter")
-    found.update({k: named[k] for k in used})
+            values.setdefault(match.group(1), match.group(2))
+    named = {tool: os.path.abspath(os.path.join(root, os.path.expanduser(values[key])))
+             for key, tool in (("r", "rscript"), ("python", "python")) if key in values}
+    prefix = values.get("prefix") or (".pixi/envs/" + values["name"]
+                                      if values.get("manager") == "pixi" and values.get("name") else None)
+    derived = {}  # from the prefix: kept only when the file exists, so a python-only env raises no warning
+    if prefix:
+        bindir = os.path.abspath(os.path.join(root, os.path.expanduser(prefix), "bin"))
+        derived = {tool: os.path.join(bindir, exe) for tool, exe in (("rscript", "Rscript"), ("python", "python"))
+                   if tool not in named}
+    chosen = dict(derived, **named)
+    if "python" in chosen:
+        chosen["jupyter"] = os.path.join(os.path.dirname(chosen["python"]), "jupyter")
+    used = sorted(k for k, v in chosen.items() if os.path.isfile(v))
+    missing = sorted(k for k in named if k not in used)
+    found.update({k: chosen[k] for k in used})
     note = "environment: {} from {}".format(", ".join(used) or "nothing", ENV_FILE)
+    if any(k in derived for k in used):
+        note += " (from the prefix: " + ", ".join(sorted(k for k in used if k in derived)) + ")"
     if missing:
         note += "; WARNING: {} in {} is not a file, kept the bare name".format(", ".join(missing), ENV_FILE)
+    unresolved = [exe for tool, exe in (("rscript", "Rscript"), ("python", "python")) if tool not in used]
+    if unresolved and values.get("manager") == "pixi" and values.get("name"):
+        note += "; no {} found for the pixi env, so run the Snakefile as `pixi run -e {} bash run.sh`".format(
+            " or ".join("bin/" + exe for exe in unresolved), values["name"])
     return found, used, note
+
+
+RULES_SECONDS = 5  # a slow or hung rules.js must never hold up a scaffold
+CALL_CHARS = re.compile(r"^[A-Za-z0-9_.:,=()\"' +*/<>~!&|-]{1,400}$")  # no ; ` $ { } # newline: one plain call
+THEME_TOKEN = re.compile(
+    r"\s*(?:(?P<string>\"[^\"]*\"|'[^']*')|(?P<number>\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)"
+    r"|(?P<name>[A-Za-z_][A-Za-z0-9_.]*(?:::[A-Za-z_][A-Za-z0-9_.]*)?)|(?P<punct>[(),=+-]))")
+GGPLOT2_THEMES = {"theme_grey", "theme_gray", "theme_bw", "theme_linedraw", "theme_light", "theme_dark",
+                  "theme_minimal", "theme_classic", "theme_void", "theme_test"}
+THEME_HELPERS = re.compile(r"theme|element_[a-z_]+|unit|margin|rel|c")
+THEME_CONSTANTS = {"TRUE", "FALSE", "NULL", "NA", "Inf", "True", "False", "None"}
+
+
+def safe_theme_call(call, lang):
+    """The packages a `theme_set(...)` call names with `::` when the call is only a chain of theme functions
+    with literal arguments, else None. An allow-list: the outer call is theme_set; every other call is a
+    ggplot2 theme, `pkg::theme_*`, `theme`, `element_*`, `unit`, `margin`, `rel` or `c` (Python: `theme_*`,
+    `theme`, `element_*`, `plotnine.` ones); arguments are strings, numbers, TRUE/FALSE/NULL/NA, names before
+    `=`, and `+`. So `get("system")(...)` and `do.call(...)` are refused, not only `system(`."""
+    if not CALL_CHARS.match(call) or not call.startswith("theme_set(") or not call.endswith(")"):
+        return None
+    packages, pos, prev = [], 0, None
+    while pos < len(call):
+        match = THEME_TOKEN.match(call, pos)
+        if not match or match.end() == pos:
+            return None if call[pos:].strip() else packages
+        pos, kind = match.end(), match.lastgroup
+        text = match.group(kind)
+        following = call[pos:].lstrip()[:1]
+        if kind == "name":
+            package, _, func = text.rpartition("::") if "::" in text else ("", "", text)
+            if following == "(":
+                if lang == "R":
+                    ok = (func == "theme_set" and not package and prev is None) or (
+                        func.startswith("theme_") if package else func in GGPLOT2_THEMES) or (
+                        not package and THEME_HELPERS.fullmatch(func))
+                else:
+                    head, dot, tail = text.rpartition(".")
+                    ok = (text == "theme_set" and prev is None) or (
+                        (not dot or head == "plotnine") and re.fullmatch(r"theme(_[a-z0-9_]+)?|element_[a-z_]+", tail))
+                if not ok or "." in package:
+                    return None
+                if package and package not in packages:
+                    packages.append(package)
+            elif not (following == "=" or text in THEME_CONSTANTS):
+                return None
+        prev = text
+    return packages
+
+
+def lucid_coder_root():
+    """lucid-coder's plugin folder, or None. MX_LUCID_CODER_ROOT (tests only) names it directly, "" for none;
+    otherwise installed_plugins.json lists it: the user-scope entry first, then the newest."""
+    override = os.environ.get("MX_LUCID_CODER_ROOT")
+    if override is not None:
+        return override or None
+    config = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+    try:
+        with open(os.path.join(config, "plugins", "installed_plugins.json"), encoding="utf-8") as handle:
+            plugins = json.load(handle)["plugins"]
+        entries = [e for key, found in plugins.items() if key.split("@")[0] == "lucid-coder" for e in found]
+        entries.sort(key=lambda e: (e.get("scope") == "user", str(e.get("lastUpdated", ""))), reverse=True)
+        return next((e["installPath"] for e in entries if os.path.isfile(
+            os.path.join(e["installPath"], "scripts", "rules.js"))), None)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+
+
+def active_rules():
+    """(rules, why not): lucid-coder's active learned rules through its own CLI, read only.
+    Never raises: node missing, a timeout, an error exit or malformed JSON each give ([], reason)."""
+    root = lucid_coder_root()
+    if not root or not os.path.isfile(os.path.join(root, "scripts", "rules.js")):
+        return [], "lucid-coder is not installed"
+    node = shutil.which("node")
+    if not node:
+        return [], "node is not on PATH"
+    env = dict(os.environ)  # rules.js reads its store from the data folder the lucid-coder hooks left a pointer to
+    env.pop("CLAUDE_PLUGIN_DATA", None)  # this plugin's own data folder is not lucid-coder's
+    pointer = os.path.join(env.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude"), ".lucid-coder-data")
+    try:
+        with open(pointer, encoding="utf-8") as handle:
+            pointed = handle.read().strip()
+        if pointed:
+            env["CLAUDE_PLUGIN_DATA"] = pointed
+    except OSError:
+        pass
+    seconds = float(os.environ.get("MX_RULES_SECONDS") or RULES_SECONDS)  # the override is for tests
+    try:
+        done = subprocess.run([node, os.path.join(root, "scripts", "rules.js"), "list", "--status", "active", "--json"],
+                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
+                              encoding="utf-8", errors="replace", timeout=seconds, env=env)
+    except subprocess.TimeoutExpired:
+        return [], "reading the rules took more than {:g} s".format(seconds)
+    except (OSError, subprocess.SubprocessError):
+        return [], "rules.js could not run"
+    if done.returncode != 0:
+        return [], "rules.js exited {}".format(done.returncode)
+    try:
+        rules = json.loads(done.stdout)
+    except ValueError:
+        return [], "rules.js printed no JSON"
+    if not isinstance(rules, list):
+        return [], "rules.js printed no list"
+    return [r for r in rules if isinstance(r, dict)], None
+
+
+def theme_call(text):
+    """The first theme_set(...) call in a rule's text, parentheses balanced and quotes skipped; None when
+    the text has none or never closes it."""
+    found = re.search(r"\btheme_set\(", text or "")
+    if not found:
+        return None
+    depth, quote, i = 0, None, found.end() - 1
+    while i < len(text):
+        char = text[i]
+        if quote:
+            if char == "\\":
+                i += 1
+            elif char == quote:
+                quote = None
+        elif char in "\"'":
+            quote = char
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return text[found.start():i + 1]
+        i += 1
+    return None
+
+
+def language_tag(lang):
+    return "R" if lang == "R" else "py"
+
+
+def learned_theme(rules, lang):
+    """(rule id, theme_set call) of the newest active fig.theme rule scoped to this language ("r" or "py")
+    whose text holds a plain theme_set(...) call; None otherwise."""
+    language = "r" if lang == "R" else "python"
+    found = []
+    for rule in rules:
+        scope = rule.get("scope") if isinstance(rule.get("scope"), dict) else {}
+        call = theme_call(rule.get("statement") if isinstance(rule.get("statement"), str) else "")
+        if (rule.get("topic") == "fig.theme" and rule.get("status", "active") == "active"
+                and scope.get("kind") == "language" and scope.get("language") == language
+                and isinstance(rule.get("id"), str) and call
+                and safe_theme_call(call, language_tag(lang)) is not None):
+            found.append((rule["id"], call))
+    return max(found) if found else None
+
+
+def theme_text(template, lang, rules, why):
+    """(theme file text, note) for code/theme.R (lang "R") or code/theme.py ("py")."""
+    name = "code/theme." + lang
+    language = "R" if lang == "R" else "Python"
+    learned = learned_theme(rules, lang)
+    if lang == "R":
+        # A learned call names its own packages (`pkg::`); the template already attaches ggplot2.
+        packages = [p for p in safe_theme_call(learned[1], "R") if p != "ggplot2"] if learned else ["ggpubr"]
+        fallback = "theme_set(ggpubr::theme_pubr(base_size = 8))"
+        values = {"THEME_NEEDS": " and ".join(["ggplot2"] + packages),
+                  "THEME_LIBRARIES": "\n".join("  library({})".format(p) for p in packages),
+                  "THEME_CALL": learned[1] if learned else fallback}
+        used = "theme_pubr(base_size = 8)"
+    else:
+        fallback = 'theme_set(theme_classic(base_size=8) + theme(legend_position="top", plot_caption=element_text(ha="left")))'
+        call = learned[1] if learned else fallback
+        modules = sorted(set(re.findall(r"(?<![\w.])([A-Za-z_]\w*)\.\w+\(", call)))
+        names = sorted(set(re.findall(r"(?<![\w.])([A-Za-z_]\w*)\(", call)) - set(modules) | {"theme_set"})
+        values = {"THEME_NEEDS": "plotnine", "THEME_CALL": call,
+                  "THEME_IMPORTS": "\n".join(["import " + m for m in modules]
+                                             + ["from plotnine import " + ", ".join(names)])}
+        used = "plotnine theme_classic(base_size=8)"
+    if learned:
+        values["THEME_SOURCE"] = ("From learned rule {} (lucid-coder, topic fig.theme); "
+                                  "change it with /lucid-coder:learn.".format(learned[0]))
+        note = "theme from learned rule {} in {}.".format(learned[0], name)
+    else:
+        reason = "no active fig.theme rule for {}{}".format(language, "; " + why if why else "")
+        values["THEME_SOURCE"] = "The shipped fallback ({}).".format(reason)
+        note = "{} uses the shipped {} fallback ({}).".format(name, used, reason)
+    return ap.fill(template, values), note
 
 
 def step_format(args, root):
@@ -218,6 +424,38 @@ def parse_panels(text):
     return panels
 
 
+WRAPPER = re.compile(r"^(\d{2})_([A-Za-z0-9][A-Za-z0-9_-]*):([a-z0-9][a-z0-9-]*)$")
+
+
+def parse_wrappers(values, steps):
+    """--wrapper=NN_name:skill-name, repeatable: a code/NN_name.sh stub that calls a pipeline skill's script."""
+    wrappers = []
+    for value in values or []:
+        match = WRAPPER.match(value)
+        if not match:
+            raise Refusal("--wrapper {!r} must look like NN_name:skill-name (e.g. 04_de:pseudobulk-de)".format(value))
+        stem = "{}_{}".format(match.group(1), match.group(2))
+        if any(stem == w["stem"] or match.group(1) == w["num"] for w in wrappers) or any(
+                match.group(1) == s["num"] or stem == s["stem"] for s in steps):
+            raise Refusal("wrapper {} reuses the number or name of another step or wrapper".format(stem))
+        wrappers.append({"file": stem + ".sh", "path": "code/" + stem + ".sh", "num": match.group(1), "stem": stem,
+                         "skill": match.group(3), "dir": "outputs/" + stem})
+    return wrappers
+
+
+def wrapper_text(template, wrapper, name):
+    """The wrapper stub; names the skill's own scripts when lucid-coder's folder holds that skill."""
+    root = lucid_coder_root()
+    skill_dir = os.path.join(root, "skills", wrapper["skill"]) if root else None
+    scripts = sorted(os.listdir(os.path.join(skill_dir, "scripts"))) if skill_dir and os.path.isdir(
+        os.path.join(skill_dir, "scripts")) else []
+    return ap.fill(template, {
+        "FILE": wrapper["file"], "NUM": wrapper["num"], "NAME": name, "SKILL": wrapper["skill"],
+        "PATH": wrapper["path"], "DIR": wrapper["dir"],
+        "SCRIPT_HINT": "# Scripts in the skill: " + ", ".join(scripts[:8]) if scripts else
+        "# Name the script and its arguments below; the skill's SKILL.md lists them."})
+
+
 PANELS_DIR = "outputs/panels"  # manuscript panels have their own folder, outside every numbered step
 
 
@@ -243,7 +481,7 @@ def manuscript_files(panels, panel_dir, name, dest_rel, root, templates):
             "FILE": panel["file"], "PANEL": panel["id"], "NAME": name, "PATH": script, "DEST": dest_rel})
         rows.append("\t".join([panel["id"], script, source, output, "[claim]", "draft"]))
         figures.append({"id": panel["id"], "script": script, "source_data": source,
-                        "required_columns": ["x", "y"], "outputs": [output]})
+                        "required_columns": ["label", "y"], "outputs": [output]})
     files["config/figure_map.tsv"] = "\n".join(["figure\tscript\tsource_data\toutput\tclaim\tstatus"] + rows) + "\n"
     contract = {"schema": "mycelium-extra.manuscript_checks.v1", "figure_map": dest_rel + "/config/figure_map.tsv",
                 "figures": figures}
@@ -447,6 +685,8 @@ def doc_text(template, name, dest_rel, steps, data_links, code_links, root):
          "Run in number order; `bash run.sh` runs them all through the `Snakefile`. Each step writes its own folder, "
          "`outputs/<step>/`, and a rerun overwrites it; `logs/CHANGES.md` records what changed.",
          "Plan: [plans/PLAN.md](plans/PLAN.md). Status and log: [plans/TRACKER.md](plans/TRACKER.md).", "",
+         "Note for the agent: scripts live in `code/`, not in a `scripts/` folder. Each script writes only "
+         "`outputs/<its stem>/`, never loose files next to `outputs/.layout`.", "",
          "| Step | File | Does | Output |", "|---|---|---|---|"]
         + ["| {} | `{}` | [what it does] | `{}` |".format(s["num"], s["path"], s["output"])
            for s in steps]) + "\n"
@@ -1198,6 +1438,8 @@ def main(argv):
                          if here and os.path.isfile(here) else None)
     parser.add_argument("--templates", default=default_templates, help="this skill's templates/")
     parser.add_argument("--panels", help="comma-separated manuscript panels, e.g. Fig1a.R,Fig1b.py")
+    parser.add_argument("--wrapper", action="append", help="NN_name:skill-name, repeatable: a code/NN_name.sh stub that "
+                        "calls that pipeline skill's script (the gate ignores scripts outside the repository)")
     parser.add_argument("--dry-run", action="store_true", help="report what would change, write nothing")
     parser.add_argument("--migrate", action="store_true", help="move a run-folder analysis (--dest, existing) to step folders")
     parser.add_argument("--apply", action="store_true", help="with --migrate: install the .new files, keep the originals as *.pre-0.27")
@@ -1217,6 +1459,8 @@ def main(argv):
 def scaffold(args):
     dest = canonical(args.dest)
     if args.migrate or args.apply or args.seed:
+        if args.wrapper:
+            raise Refusal("--wrapper applies to a new scaffold, not to --migrate")
         return migrate(args, dest)
     if os.path.islink(dest):
         raise Refusal("destination is a symlink; nothing was changed")
@@ -1224,6 +1468,8 @@ def scaffold(args):
         raise Refusal("{} exists and is not a folder".format(args.dest))
     if os.path.isdir(dest) and os.listdir(dest):
         if args.panels:
+            if args.wrapper:
+                raise Refusal("--wrapper applies to a new scaffold, not to adding panels")
             return add_panels(args, dest)
         raise Refusal("{} exists and is not empty; nothing was changed".format(args.dest))
     root = manuscript_root(dest) if args.panels else ap.living_root(dest)
@@ -1259,8 +1505,15 @@ def scaffold(args):
         "RULES": "\n\n".join(rule(step, data_links) for step in steps).rstrip("\n")})
     files["logs/.gitkeep"] = files["outputs/.gitkeep"] = ""  # git drops empty folders; SLURM needs logs/ after a clone
     files["outputs/.layout"] = "layout: steps\nversion: 1\n"  # the explicit marker ap.runs() reads
+    rules, rules_why = active_rules()  # learned fig.theme rules; fails open to the shipped theme
+    theme_notes = []
     for theme in CODE_THEMES:  # every figure script sources the one theme
-        files["code/" + theme] = ap.read(os.path.join(templates, theme))
+        files["code/" + theme], note = theme_text(ap.read(os.path.join(templates, theme)), theme.split(".")[1],
+                                                  rules, rules_why)
+        theme_notes.append(note)
+    wrappers = parse_wrappers(args.wrapper, steps)
+    for wrapper in wrappers:
+        files[wrapper["path"]] = wrapper_text(ap.read(os.path.join(templates, "wrapper.sh")), wrapper, name)
     files["data/SOURCES.md"] = ap.fill(ap.read(os.path.join(templates, "SOURCES.md")), {
         "SOURCE_ROWS": "\n".join(source_rows(data_links, root))})
     files["run.sh"] = ap.fill(ap.read(os.path.join(templates, "run.sh")), {"NAME": name})
@@ -1282,16 +1535,18 @@ def scaffold(args):
     folders = DIRS + (["config"] if args.panels else [])
     inputs = ", ".join(display(l["target"], root) for l in data_links) or (
         "[repository paths of the sample table, config, or raw-data folder; or none]")
+    plan_rows = ["| S{} | `{}/{}` | [choice] | [repo: / user / inherited: / default:] | [check] |".format(
+        s["num"], dest_rel, s["path"]) for s in steps]
+    plan_rows += ["| S{} | `{}/{}` | runs the {} skill script | [repo: / user / inherited: / default:] | [check] |".format(
+        w["num"], dest_rel, w["path"], w["skill"]) for w in wrappers]
     files["plans/PLAN.md"] = ap.fill(ap.read(os.path.join(templates, "PLAN.md")), {
-        "NAME": name, "INPUTS": inputs, "PLAN_ROWS": "\n".join(
-            "| S{} | `{}/{}` | [choice] | [repo: / user / inherited: / default:] | [check] |".format(
-                s["num"], dest_rel, s["path"]) for s in steps)})
+        "NAME": name, "INPUTS": inputs, "PLAN_ROWS": "\n".join(plan_rows)})
     ids = ["S" + s["num"] for s in steps]
+    tracker_rows = ["| {} | `{}` | todo | {} | [how to check it worked] |".format(ident, s["path"], before or "\u2014")
+                    for ident, before, s in zip(ids, [None] + ids, steps)]
+    tracker_rows += ["| S{} | `{}` | todo | \u2014 | [how to check it worked] |".format(w["num"], w["path"]) for w in wrappers]
     files["plans/TRACKER.md"] = ap.fill(ap.read(os.path.join(templates, "TRACKER.md")), {
-        "NAME": name, "DOC": doc_name, "DATE": today, "TRACKER_ROWS": "\n".join(
-            "| {} | `{}` | todo | {} | [how to check it worked] |".format(
-                ident, s["path"], before or "—")
-            for ident, before, s in zip(ids, [None] + ids, steps))})
+        "NAME": name, "DOC": doc_name, "DATE": today, "TRACKER_ROWS": "\n".join(tracker_rows)})
 
     probes = [(os.path.join(dest, path), path) for path in sorted(files) if not path.endswith(".gitkeep")]
     probes += [(os.path.join(dest, d, "placeholder"), d + "/") for d in folders]
@@ -1323,6 +1578,8 @@ def scaffold(args):
                         handle.flush()
                         os.fsync(handle.fileno())
                 os.chmod(os.path.join(stage, "run.sh"), 0o755)
+                for wrapper in wrappers:
+                    os.chmod(os.path.join(stage, wrapper["path"]), 0o755)
                 umask = os.umask(0)
                 os.umask(umask)
                 os.chmod(stage, 0o777 & ~umask)  # mkdtemp makes it 0700; a lab folder follows the umask
@@ -1339,7 +1596,7 @@ def scaffold(args):
             os.close(fd)
 
     print("{} {}/ (doc {} from {})".format(verb, dest_rel, doc_name, template_note))
-    for path in [s["path"] for s in steps] + ["Snakefile", "run.sh", "run.sbatch", doc_name,
+    for path in [s["path"] for s in steps] + [w["path"] for w in wrappers] + ["Snakefile", "run.sh", "run.sbatch", doc_name,
                                               "plans/PLAN.md", "plans/TRACKER.md", "reports/README.md", "data/SOURCES.md"] + [
                                                   p for p in ("_quarto.yml", report) if p in files] + [
                                                   "reports/" + t for t in THEMES] + ["code/" + t for t in CODE_THEMES] + sorted(
@@ -1349,6 +1606,11 @@ def scaffold(args):
     for link in data_links + code_links:
         print("  {} -> {}".format(link["rel"], link["value"]))
     print("note: " + env_note + ".")
+    for note in theme_notes:
+        print("note: " + note)
+    for wrapper in wrappers:
+        print("note: {0} calls the {1} skill and is not in the Snakefile; run it with `bash {0}`, or add a rule that "
+              "does. Set CLAUDE_PLUGIN_ROOT to the plugin that ships the skill.".format(wrapper["path"], wrapper["skill"]))
     if fmt:
         print("note: default steps are .{} ({}).".format(fmt, fmt_source))
     for step in (s for s in steps if s["kind"] == "marimo"):

@@ -25,7 +25,7 @@ Does drug X raise IL6 in stimulated monocytes, with donors as the replicates?
 
 **Approach.** Pseudobulk per donor, paired test, one family of 2 contrasts, FDR across genes.
 
-**Conclusion.** IL6 is higher after drug X in 5 of 6 donors, paired log2 fold change 1.8, FDR 0.003. It does not show a dose effect. [Figure 1](../outputs/03_il6_by_donor.png) (panel A) [agent-derived: paired test on donor pseudobulk]
+**Conclusion.** IL6 is higher after drug X in 5 of 6 donors, paired log2 fold change 1.8, FDR 0.003. It does not show a dose effect. [Figure 1](../outputs/03_il6_by_donor.png) (panel A) [agent-derived: `outputs/03_il6_by_donor.png`]
 
 Figure 1. Each line joins one donor before and after drug X. `outputs/03_il6_by_donor.png`
 
@@ -37,7 +37,7 @@ Inspected `outputs/03_il6_by_donor.png`: 6 donors, lines paired, y axis log2 CPM
 
 **Approach.** Counts per donor, no test.
 
-**Conclusion.** The median is 1200 cells per donor; not tested. [agent-derived: descriptive count] unsupported: no inspected figure
+**Conclusion.** The median is 1200 cells per donor; not tested. unsupported: no inspected figure [agent-derived: `outputs/02_cell_counts.tsv`]
 
 ## Open items
 

@@ -75,6 +75,39 @@ lucid-coder is optional. When it is installed, Extra uses it in five places and 
 - **Figures.** `plot-first` and `analysis-report` defer to lucid-coder's `figure-style` for theme, palette and size; Extra's integrity rules still apply.
 - **Single-cell exploration.** `plot-first` points AnnData exploration at lucid-coder's `sc-qc` and `sc-embed`.
 
+## With lucid-writer
+
+lucid-writer is optional. It sets how prose reads and how strongly a claim is worded. Extra never edits its files, and Extra's checks work without it.
+
+- **Report prose.** When lucid-writer is installed, `analysis-report` loads it before it writes the Answer, the Question/Approach/Conclusion text and Key Findings. Then it runs `verify report <hash> --claims reports/<name>.qmd --resolve-citations` on the report. The evidence auditor agent is offered only when you ask for it.
+- **Evidence files.** lucid-writer reads `provenance/verify-<hash>.md`, `outputs-<hash>.tsv`, `PROVENANCE.md` and `outputs/numbers.json`. It reads the `status` of `manuscript-audit` (`pass`, `gap` or `block`) and never recomputes it. `tests/test_lucid_writer_contract.py` pins these names.
+
+lucid-writer rewrites deliverables only. A format-fixed record keeps Extra's format.
+
+| Deliverable (lucid-writer applies) | Format-fixed record (Extra's format) |
+|---|---|
+| Report `.qmd` prose | `HANDOFF.md` |
+| Key Findings | `PLAN.md` and the grill brief |
+| Manuscript text | `TRACKER.md` |
+| | The `where` card |
+| | Hook notices |
+
+Extra's markers map to lucid-writer's when text moves from a record into a deliverable:
+
+| Extra marker | lucid-writer marker |
+|---|---|
+| `unsupported: no inspected figure` | `[EVIDENCE NEEDED]` |
+| `source data missing` | `[EVIDENCE NEEDED]` |
+| `[BLANK: ...]` | `[EVIDENCE NEEDED]` |
+
+Keep the Extra marker in the record. Use the lucid-writer marker only in the deliverable.
+
+## With Mycelium
+
+Mycelium is optional. Extra is tested against Mycelium 0.9.x and complements it: it writes no file under `.living/` and none of Mycelium's own files.
+
+Mycelium 0.9.x adopted four skills that began in Extra: grill planning, decision-status, harden and data-contract-check. Extra's versions are the gated ones, because they tie to the approval gate and its plan hash. Use Extra's when you want the gate to check the result. See [Mycelium integration](mycelium-integration.md).
+
 ## Host compatibility
 
 | Feature | Claude Code | Codex 0.160.0+ | OpenCode V2 |

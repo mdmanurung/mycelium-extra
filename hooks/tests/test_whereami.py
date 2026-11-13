@@ -450,6 +450,175 @@ class WhereTest(unittest.TestCase):
         self.assertNotIn("LATER", card)
         self.assertIn("tracker rows S01, S02 say open but their steps are current", card)
 
+    # ---- Mycelium analyses (0.28.0)
+
+    def mycelium_folder(self, name="vax-study"):
+        """A Mycelium-style analysis: scripts/ with numbered files and a <NAME>.md doc, no code/."""
+        rel = "analysis/" + name
+        folder = os.path.join(self.root, rel)
+        for n, script in enumerate(("01_load.py", "02_test.R")):
+            touch(os.path.join(folder, "scripts", script), mtime=self.t0 + n)
+        touch(os.path.join(folder, name.upper().replace("-", "_") + ".md"), DOC)
+        return rel, folder
+
+    def test_scripts_folder_is_an_analysis_with_steps(self):
+        rel, folder = self.mycelium_folder()
+        card = wh.answer(self.root, folder, None, write=False)
+        self.assertIn("WHERE YOU ARE: vax-study", card)
+        self.assertIn("01_load", card)
+        self.assertIn("02_test", card)
+
+    def test_where_all_lists_scripts_and_doc_only_analyses(self):
+        self.mycelium_folder("vax-study")
+        os.makedirs(os.path.join(self.root, "analysis", "doc-only", "outputs"))
+        touch(os.path.join(self.root, "analysis", "doc-only", "DOC_ONLY.md"), DOC)
+        os.makedirs(os.path.join(self.root, "analysis", "ideas"))  # a container: its doc alone is no analysis
+        touch(os.path.join(self.root, "analysis", "ideas", "IDEAS.md"), DOC)
+        shutil.rmtree(self.folder)
+        out = wh.answer(self.root, self.root, "all", write=False)
+        self.assertIn("vax-study", out)
+        self.assertIn("doc-only", out)
+        self.assertNotIn("ideas", out)
+
+    def test_where_all_shows_the_manifest_status_word(self):
+        self.mycelium_folder("vax-study")
+        touch(os.path.join(self.root, "analysis", "ANALYSIS_MANIFEST.md"),
+              "## vax-study\n\n**Path**: `analysis/vax-study/`\n**Status**: active \u2014 ran today\n")
+        out = wh.answer(self.root, self.root, "all", write=False)
+        line = next(l for l in out.splitlines() if "vax-study" in l)
+        self.assertIn("[manifest: active]", line)
+        self.assertNotIn("manifest", next(l for l in out.splitlines() if "demo" in l))
+
+    def test_where_all_reads_roots_from_the_repo_gate_json_and_the_manifest_folder(self):
+        shutil.move(self.folder, os.path.join(self.root, "demo_tmp"))
+        os.makedirs(os.path.join(self.root, "nbs_integrated"))
+        shutil.move(os.path.join(self.root, "demo_tmp"), os.path.join(self.root, "nbs_integrated", "demo"))
+        touch(self.p("..", "..", ".mycelium-extra", "gate.json"), json.dumps({"gated_paths": ["nbs_integrated/**"]}))
+        out = wh.answer(self.root, self.root, "all", write=False)  # no config handed in: read from gate.json
+        self.assertIn("demo", out)
+        os.remove(os.path.join(self.root, ".mycelium-extra", "gate.json"))
+        touch(os.path.join(self.root, "nbs_integrated", "ANALYSIS_MANIFEST.md"), "# m\n")
+        self.assertIn("demo", wh.answer(self.root, self.root, "all", write=False))  # found by its manifest
+
+    def numbers(self, folder, entries):
+        touch(os.path.join(folder, "outputs", "numbers.json"), json.dumps({"namespace": "x", "values": entries}))
+
+    def test_leftover_numbers_keys_are_a_watch_out_line(self):
+        rel, folder = self.mycelium_folder()
+        self.numbers(folder, [
+            {"key": "n_ok", "value": 1, "provenance": "p", "computed_at": "scripts/01_load.py:L4"},
+            {"key": "n_gone", "value": 2, "provenance": "p", "computed_at": "scripts/09_removed.py:L8"},
+            {"key": "n_none", "value": 3, "provenance": "p"}])
+        card = wh.answer(self.root, folder, None, write=False)
+        self.assertIn("numbers.json keys with a missing script: n_gone", card)
+        self.assertNotIn("n_ok,", card)
+        self.assertNotIn("n_none", card)
+
+    def test_numbers_keys_from_a_notebook_stdin_or_outside_the_root_are_not_leftovers(self):
+        rel, folder = self.mycelium_folder()
+        self.numbers(folder, [
+            {"key": "k1", "computed_at": "<stdin>:L3"}, {"key": "k2", "computed_at": "/tmp/ipykernel_1/55.py:L2"},
+            {"key": "k3", "computed_at": "scripts/gone.py:L10-L20"}, {"key": "k4", "computed_at": "scripts/gone.py:7"}])
+        self.assertEqual(wh.numbers_leftovers(folder, None), ["k3", "k4"])
+
+    def test_leftover_numbers_keys_are_capped_at_five(self):
+        rel, folder = self.mycelium_folder()
+        self.numbers(folder, [{"key": "k{}".format(i), "value": i, "computed_at": "scripts/gone.py:L1"} for i in range(8)])
+        card = wh.answer(self.root, folder, None, write=False)
+        self.assertIn("k0, k1, k2, k3, k4 +3 more", card)
+        self.assertNotIn("k5", card)
+
+    def test_numbers_json_of_another_shape_or_bad_json_gives_no_line(self):
+        rel, folder = self.mycelium_folder()
+        touch(os.path.join(folder, "outputs", "numbers.json"), json.dumps({"a": {"value": 1}, "b": 2}))
+        self.assertNotIn("numbers.json keys", wh.answer(self.root, folder, None, write=False))
+        touch(os.path.join(folder, "outputs", "numbers.json"), "{not json")
+        self.assertNotIn("numbers.json keys", wh.answer(self.root, folder, None, write=False))
+
+    def test_loose_files_next_to_the_layout_marker_are_a_watch_out_line(self):
+        touch(self.p("outputs", ".layout"), "layout: steps\nversion: 1\n")
+        touch(self.p("outputs", "numbers.json"), "{}")
+        self.assertNotIn("loose file", self.card())  # numbers.json is Mycelium's own and fine
+        touch(self.p("outputs", "summary.tsv"))
+        touch(self.p("outputs", "plot.png"))
+        self.assertIn("2 loose files in outputs/ (plot.png, summary.tsv); steps write outputs/<stem>/", self.card())
+
+    def test_loose_files_without_the_marker_are_not_flagged(self):
+        touch(self.p("outputs", "summary.tsv"))
+        self.assertNotIn("loose file", self.card())
+
+    def test_scripts_folder_next_to_code_is_a_watch_out_line(self):
+        self.assertNotIn("scripts/ sits next to code/", self.card())
+        touch(self.p("scripts", "01_x.py"))
+        self.assertIn("scripts/ sits next to code/; steps belong in code/", self.card())
+        self.assertIn("01_prep", self.card())  # code/ still gives the steps
+
+    def gate_json(self, **keys):
+        touch(os.path.join(self.root, ".mycelium-extra", "gate.json"), json.dumps(keys))
+
+    def registries(self):
+        touch(os.path.join(self.root, "todo", "TODO_REGISTRY.md"),
+              "# TODO registry\n\n| ID | Item | Status |\n|----|------|--------|\n"
+              "| T-001 | Re-check `analysis/demo` at day 90 | open |\n"
+              "| T-002 | Old thing in analysis/demo | done |\n"
+              "| T-003 | Something for analysis/other | open |\n"
+              "| T-004 | Longer path analysis/demo-two | open |\n")
+        touch(os.path.join(self.root, ".living", "findings", "FINDINGS_REGISTRY.md"),
+              "# Findings registry\n\n| ID | Topic | Claim | Status |\n|----|-------|-------|--------|\n"
+              "| F-001 | demo | Genes rise after the shot | preliminary |\n"
+              "| F-002 | [other](other.md) | Cited in the doc | supported |\n"
+              "| F-003 | other | Not ours | supported |\n")
+        touch(self.p("DEMO.md"), DOC + "\nSee F-002.\n")
+
+    def test_mycelium_later_rows_are_off_by_default_and_read_nothing(self):
+        self.registries()
+        self.gate_json()
+        opened = []
+        real_read = wh.ap.read
+        wh.ap.read = lambda path, *a, **k: (opened.append(path), real_read(path, *a, **k))[1]
+        self.addCleanup(setattr, wh.ap, "read", real_read)
+        card = self.card()
+        self.assertNotIn("T-001", card)
+        self.assertNotIn("F-001", card)
+        self.assertFalse([p for p in opened if p.endswith("REGISTRY.md")])
+
+    def test_mycelium_later_rows_when_the_key_is_on(self):
+        self.registries()
+        self.gate_json(where_mycelium=True)
+        later = self.card().split("LATER")[1]
+        self.assertIn("T-001: Re-check analysis/demo at day 90 (open)", later)
+        self.assertIn("F-001 (preliminary): Genes rise after the shot", later)  # its Topic is this analysis
+        self.assertIn("F-002 (supported): Cited in the doc", later)  # cited by the analysis doc
+        for absent in ("T-002", "T-003", "T-004", "F-003"):
+            self.assertNotIn(absent, later)
+
+    def test_mycelium_later_skips_wont_do_rows(self):
+        self.registries()
+        self.gate_json(where_mycelium=True)
+        touch(os.path.join(self.root, "todo", "TODO_REGISTRY.md"),
+              "| ID | Item | Status |\n|----|------|--------|\n"
+              "| T-010 | fix analysis/demo thing | wont-do |\n| T-011 | fix analysis/demo other | open |\n")
+        later = self.card().split("LATER")[1]
+        self.assertNotIn("T-010", later)
+        self.assertIn("T-011", later)
+
+    def test_mycelium_later_rows_are_capped_and_where_all_skips_them(self):
+        self.registries()
+        self.gate_json(where_mycelium=True)
+        touch(self.p("plans", "TRACKER.md"), TRACKER + "| T5 | more | todo | | |\n| T6 | even more | todo | | |\n")
+        later = self.card().split("LATER")[1].split("\n\n")[0]
+        self.assertIn("  - +2 more", later)  # four tracker rows plus three registry rows, five shown
+        self.assertNotIn("T-001", wh.answer(self.root, self.root, "all", write=False))
+
+    def test_mycelium_registries_missing_is_fine_and_gate_json_garbage_is_off(self):
+        self.gate_json(where_mycelium=True)
+        self.assertIn("WHERE YOU ARE", self.card())
+        touch(os.path.join(self.root, ".mycelium-extra", "gate.json"), "[1,")
+        self.registries()
+        self.assertNotIn("T-001", self.card())
+        self.gate_json(where_mycelium="yes")
+        self.assertNotIn("T-001", self.card())
+
     def test_gate_returns_a_block_naming_the_error_not_none(self):
         import gate
         event = {"cwd": self.folder, "session_id": "s1"}

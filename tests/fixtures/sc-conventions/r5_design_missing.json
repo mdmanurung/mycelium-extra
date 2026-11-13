@@ -1,0 +1,7 @@
+{
+  "schema": "mycelium-extra.fit_design.v1",
+  "formula": "~ condition + batch + donor",
+  "coefficient": "conditionstimulated",
+  "contrast": {"conditionstimulated": 1},
+  "sample_table_sha256": "3568698ed7c2543bac0a1434e5f076f470607922dd0955f2852b6892a563b798"
+}

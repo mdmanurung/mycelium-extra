@@ -1,0 +1,18 @@
+{
+  "schema": "mycelium-extra.fit_design.v1",
+  "formula": "~ condition + batch + donor",
+  "design_columns": ["(Intercept)", "conditionstimulated", "batchb2", "donord2", "donord3", "donord4"],
+  "design": [
+    [1, 0, 0, 0, 0, 0],
+    [1, 1, 1, 0, 0, 0],
+    [1, 0, 0, 1, 0, 0],
+    [1, 1, 1, 1, 0, 0],
+    [1, 0, 0, 0, 1, 0],
+    [1, 1, 1, 0, 1, 0],
+    [1, 0, 0, 0, 0, 1],
+    [1, 1, 1, 0, 0, 1]
+  ],
+  "coefficient": "conditionstimulated",
+  "contrast": {"conditionstimulated": 1},
+  "sample_table_sha256": "c2743df104022f1cad1568ae0423e7496edf0001dfb3f3e0fdded05fb4532af9"
+}

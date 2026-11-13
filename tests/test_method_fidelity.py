@@ -5,15 +5,22 @@ import json
 import os
 import subprocess
 import sys
+import shutil
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'skills/verify/scripts'))
+sys.path.insert(0, str(ROOT / 'hooks'))
+import gate
+import validation
 import method_fidelity
 import verify
+
+verify.gate = gate  # the module verify loads from --plugin-root, needed by judge_check
 
 FIXTURES = ROOT / 'tests/fixtures/sc-conventions'
 SCRIPT = ROOT / 'skills/verify/scripts/method_fidelity.py'
@@ -129,6 +136,191 @@ class MethodFidelity(unittest.TestCase):
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             self.assertEqual(proc.returncode, 3)
             self.assertEqual(expected.read_bytes(), before)
+
+
+R5_EXPECTED = FIXTURES / 'r5_expected.json'
+R5_TABLE_SHA = hashlib.sha256((FIXTURES / 'r5_samples.tsv').read_bytes()).hexdigest()
+
+
+def r5(name):
+    return json.loads((FIXTURES / ('r5_design_' + name + '.json')).read_text())
+
+
+class DesignFidelity(unittest.TestCase):
+    """R5: the design matrix and contrast the fitting code wrote, against the approved ones."""
+
+    def check(self, observed, expected=None):
+        with tempfile.TemporaryDirectory() as folder:
+            expected_path, observed_path = Path(folder) / 'expected.json', Path(folder) / 'observed.json'
+            expected_path.write_text(json.dumps(expected or json.loads(R5_EXPECTED.read_text())))
+            observed_path.write_text(observed if isinstance(observed, str) else json.dumps(observed))
+            return method_fidelity.compare(str(expected_path), str(observed_path))
+
+    def statuses(self, result):
+        return {c['id']: c['status'] for c in result['checks']}
+
+    def test_known_direction_paired_design_passes(self):
+        result = self.check(r5('pass'))
+        self.assertEqual((result['status'], result['exit_code']), ('pass', 0))
+        self.assertEqual(set(self.statuses(result).values()), {'pass'})
+        self.assertEqual(result['schema'], 'mycelium-extra.contract_result.v1')
+
+    def test_reversed_contrast_blocks_on_sign_only(self):
+        result = self.check(r5('reversed'))
+        self.assertEqual(result['exit_code'], 2)
+        self.assertEqual([c['id'] for c in result['checks'] if c['status'] == 'block'], ['fit-contrast'])
+
+    def test_condition_confounded_with_batch_blocks(self):
+        result = self.check(r5('confounded'))
+        self.assertEqual(result['exit_code'], 2)
+        states = self.statuses(result)
+        self.assertEqual((states['fit-estimable'], states['fit-batch-confounding']), ('block', 'block'))
+        self.assertEqual(states['fit-contrast'], 'pass')
+        estimable = [c for c in result['checks'] if c['id'] == 'fit-estimable'][0]
+        self.assertTrue(estimable['estimable_without_batch'])
+        self.assertIn('aliased with batch', estimable['message'])
+
+    def test_fit_output_without_a_design_is_a_gap_with_a_reason(self):
+        result = self.check(r5('missing'))
+        self.assertEqual((result['status'], result['exit_code']), ('gap', 3))
+        self.assertIn('no design matrix', result['checks'][0]['message'])
+
+    def test_unreadable_or_malformed_fit_output_is_a_gap(self):
+        good = r5('pass')
+        bad = ['not json', '[]', json.dumps(dict(good, schema='other.v1')),
+               json.dumps(dict(good, design=[[1, 0]])), json.dumps(dict(good, design=[[1, 0, 0, 0, 0, True]] * 8)),
+               json.dumps(dict(good, design_columns=['a'] * 6)), json.dumps(dict(good, contrast={'nope': 1})),
+               json.dumps(dict(good, contrast={})), json.dumps(dict(good, design=[]))]
+        for observed in bad:
+            with self.subTest(observed=observed[:50]):
+                self.assertEqual(self.check(observed)['exit_code'], 3)
+        result = method_fidelity.compare(str(R5_EXPECTED), str(FIXTURES / 'does_not_exist.json'))
+        self.assertEqual(result['exit_code'], 3)
+        self.assertIn('observed:', result['checks'][0]['message'])
+
+    def test_malformed_expected_record_is_a_gap(self):
+        base = json.loads(R5_EXPECTED.read_text())
+        for expected in (dict(base, contrast={'conditionstimulated': 0}), dict(base, contrast={}),
+                         dict(base, batch_columns='batchb2'), dict(base, surprise=1),
+                         {k: v for k, v in base.items() if k != 'batch_columns'}):
+            self.assertEqual(self.check(r5('pass'), expected)['exit_code'], 3)
+
+    def test_formula_spacing_is_benign_and_a_changed_formula_blocks(self):
+        self.assertEqual(self.check(dict(r5('pass'), formula='~condition+batch+donor'))['status'], 'pass')
+        result = self.check(dict(r5('pass'), formula='~ condition + donor'))
+        self.assertEqual([c['id'] for c in result['checks'] if c['status'] == 'block'], ['fit-formula'])
+
+    def test_sample_table_hash_is_compared_when_the_approval_pins_it(self):
+        expected = dict(json.loads(R5_EXPECTED.read_text()), sample_table_sha256=R5_TABLE_SHA)
+        self.assertEqual(self.check(r5('pass'), expected)['status'], 'pass')
+        other = hashlib.sha256((FIXTURES / 'r5_samples_confounded.tsv').read_bytes()).hexdigest()
+        result = self.check(dict(r5('pass'), sample_table_sha256=other), expected)
+        self.assertEqual([c['id'] for c in result['checks'] if c['status'] == 'block'], ['fit-sample-table'])
+
+    def test_missing_batch_term_blocks_and_no_batch_is_allowed(self):
+        good = r5('pass')
+        drop = [0, 1, 3, 4, 5]
+        no_batch = dict(good, design_columns=[good['design_columns'][i] for i in drop],
+                        design=[[row[i] for i in drop] for row in good['design']])
+        result = self.check(no_batch)
+        self.assertEqual([c['id'] for c in result['checks'] if c['status'] == 'block'], ['fit-batch-term'])
+        expected = dict(json.loads(R5_EXPECTED.read_text()), batch_columns=[])
+        self.assertEqual(self.check(no_batch, expected)['status'], 'pass')
+
+    def test_one_large_scale_column_does_not_hide_an_aliased_contrast(self):
+        cond = [i % 2 for i in range(40)]
+        columns = ['(Intercept)', 'a', 'b', 'depth']
+        expected = {'schema': method_fidelity.DESIGN_EXPECTED, 'contrast': {'a': 1}, 'batch_columns': []}
+        for depth in (1, 1e8):
+            observed = {'schema': method_fidelity.FIT_DESIGN, 'design_columns': columns, 'contrast': {'a': 1},
+                        'design': [[1, c, c, depth * (1 + i % 5)] for i, c in enumerate(cond)]}  # b copies a
+            result = method_fidelity.compare_design([{'path': 'x', 'sha256': 'y', 'role': 'r'}], expected, observed, None)
+            self.assertEqual(self.statuses(result)['fit-estimable'], 'block', depth)
+
+    def test_rank_by_elimination(self):
+        self.assertEqual(method_fidelity.rank([[1, 2], [2, 4], [0, 0]]), 1)
+        self.assertEqual(method_fidelity.rank([[1, 0, 0], [0, 1, 0], [1, 1, 1e-14]]), 2)
+        self.assertEqual(method_fidelity.rank(r5('pass')['design']), 6)
+        self.assertEqual(method_fidelity.rank(r5('confounded')['design']), 5)
+        self.assertEqual(method_fidelity.rank([[0, 0]]), 0)
+
+    def test_cli_exit_codes_and_the_real_verify_judge(self):
+        # Same path as a live run: a bound invocation, an attributable run record, verify.judge_check.
+        for observed, code, outcome in (('pass', 0, 'passed'), ('reversed', 2, 'failed'),
+                                        ('confounded', 2, 'failed'), ('missing', 3, 'not run')):
+            with self.subTest(observed=observed), tempfile.TemporaryDirectory() as folder:
+                os.makedirs(os.path.join(folder, 'checks'))
+                script, contract = 'checks/method_fidelity.py', 'checks/r5_expected.json'
+                shutil.copyfile(SCRIPT, os.path.join(folder, script))
+                shutil.copyfile(R5_EXPECTED, os.path.join(folder, contract))
+                shutil.copyfile(FIXTURES / ('r5_design_' + observed + '.json'), os.path.join(folder, 'fit_design.json'))
+                declaration = {'id': 'fit-design', 'plan_row': '4', 'required': True, 'defined_by': 'researcher-approved',
+                               'test_paths': [script, contract], 'evidence_path': 'result.json',
+                               'invocation': [sys.executable, script, '--expected', contract, '--observed',
+                                              'fit_design.json', '--result-json', 'result.json']}
+                text = '<!-- validation-bindings ' + json.dumps({'version': 1, 'checks': [declaration]}) + ' -->'
+                binding, errors = validation.read_bindings(text, ['4'], folder)
+                self.assertEqual(errors, [])
+                check = binding['checks'][0]
+                proc = subprocess.run(check['invocation'], cwd=folder, stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE, universal_newlines=True)
+                self.assertEqual(proc.returncode, code, proc.stderr)
+                run = {'attempt_id': 'c' * 16, 'ts': time.time() + 1, 'exit_status': proc.returncode,
+                       'outputs_observation': 'observed', 'outputs_changed': {'created': ['result.json']}}
+                self.assertEqual(verify.judge_check(folder, check, [run], {}, False)['outcome'], outcome)
+                if code == 0:
+                    # A harmless whitespace edit after approval changes the pinned bytes; the next run is "changed".
+                    with open(os.path.join(folder, contract), 'a') as target:
+                        target.write('\n')
+                    subprocess.run(check['invocation'], cwd=folder, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    self.assertEqual(verify.judge_check(folder, check, [run], {}, False)['outcome'], 'changed')
+
+    def test_python_extraction_snippet_round_trips_through_the_checker(self):
+        sys.path.insert(0, str(FIXTURES))
+        try:
+            from extract_design import extract_design
+        finally:
+            sys.path.remove(str(FIXTURES))
+        good = r5('pass')
+        with tempfile.TemporaryDirectory() as folder:
+            out = os.path.join(folder, 'fit_design.json')
+            extract_design(good['design'], {'conditionstimulated': 1, 'batchb2': 0}, '~ condition + batch + donor',
+                           FIXTURES / 'r5_samples.tsv', out, columns=good['design_columns'],
+                           coefficient='conditionstimulated')
+            written = json.loads(Path(out).read_text())
+            self.assertEqual(written['contrast'], {'conditionstimulated': 1.0})
+            self.assertEqual(written['sample_table_sha256'], R5_TABLE_SHA)
+            self.assertEqual(self.check(Path(out).read_text())['status'], 'pass')
+            try:
+                import numpy as np
+                import patsy
+            except ImportError:
+                return  # the list path above is the portable one; patsy is optional
+            table = {'condition': ['control', 'stimulated'] * 4, 'batch': ['b1', 'b2', 'b2', 'b1'] * 2,
+                     'donor': [d for d in ('d1', 'd2', 'd3', 'd4') for _ in range(2)]}
+            matrix = patsy.dmatrix('C(condition) + C(batch) + C(donor)', table)
+            self.assertEqual(matrix.design_info.column_names[1], 'C(condition)[T.stimulated]')
+            extract_design(np.asarray(matrix), {'C(condition)[T.stimulated]': 1}, 'patsy',
+                           FIXTURES / 'r5_samples.tsv', out, columns=matrix.design_info.column_names)
+            self.assertEqual(len(json.loads(Path(out).read_text())['design']), 8)
+
+    def test_r_extraction_snippet_on_a_real_limma_fit(self):
+        rscript = os.environ.get('RSCRIPT') or shutil.which('Rscript')
+        if not rscript:
+            self.skipTest('Rscript not available')
+        probe = subprocess.run([rscript, '-e', 'for (p in c("limma","jsonlite","digest")) library(p, character.only = TRUE)'],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if probe.returncode:
+            self.skipTest('limma, jsonlite or digest not installed')
+        for flag, outcome in ((None, 'pass'), ('reverse', 'block')):
+            with self.subTest(flag=flag), tempfile.TemporaryDirectory() as folder:
+                out = os.path.join(folder, 'fit_design.json')
+                command = [rscript, str(FIXTURES / 'r5_fit_demo.R'), str(FIXTURES), out] + ([flag] if flag else [])
+                proc = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+                self.assertEqual(proc.returncode, 0, proc.stderr)
+                written = json.loads(Path(out).read_text())
+                self.assertEqual(written['design'], r5('pass')['design'])  # hand-written fixture agrees with model.matrix
+                self.assertEqual(self.check(Path(out).read_text())['status'], outcome)
 
 
 if __name__ == '__main__':

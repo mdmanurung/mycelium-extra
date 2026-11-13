@@ -16,9 +16,12 @@ Refuses to overwrite an existing report unless --overwrite. Stdlib-only; Python 
 
 import argparse
 import datetime
+import fnmatch
+import glob
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -230,6 +233,53 @@ def outputs_row(dest, name, run, date):
     return out
 
 
+def lucid_coder_root():
+    """The installed lucid-coder root, or None. MX_LUCID_CODER_ROOT is for tests only; otherwise the user-scope
+    (then any) install in installed_plugins.json, else the newest folder in the plugin cache."""
+    forced = os.environ.get("MX_LUCID_CODER_ROOT")
+    if forced:
+        return forced if os.path.isfile(os.path.join(forced, "scripts", "rules.js")) else None
+    base = os.path.expanduser("~/.claude")
+    try:
+        with open(os.path.join(base, "plugins", "installed_plugins.json"), encoding="utf-8") as handle:
+            installs = [i for k, v in (json.load(handle).get("plugins") or {}).items()
+                        if k.split("@")[0] == "lucid-coder" for i in v if isinstance(i, dict)]
+        for item in sorted(installs, key=lambda i: i.get("scope") != "user"):
+            path = item.get("installPath")
+            if path and os.path.isfile(os.path.join(path, "scripts", "rules.js")):
+                return path
+    except (OSError, ValueError, AttributeError, TypeError):
+        pass
+    found = sorted(glob.glob(os.path.join(base, "plugins", "cache", "lucid-coder", "lucid-coder", "*", "scripts", "rules.js")))
+    return os.path.dirname(os.path.dirname(found[-1])) if found else None
+
+
+def learned_rules(steps, cwd):
+    """Active lucid-coder learned rules that apply to this analysis (global; a language the steps are written in;
+    a file-glob that matches a step), as `id topic` strings. Read only, through lucid-coder's own CLI; any failure gives []."""
+    plugin, node = lucid_coder_root(), shutil.which("node")
+    if not plugin or not node:
+        return []
+    try:
+        done = subprocess.run([node, os.path.join(plugin, "scripts", "rules.js"), "list", "--status", "active", "--json"],
+                              cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=10, universal_newlines=True)
+        rules = json.loads(done.stdout) if done.returncode == 0 else []
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return []
+    langs = {LANG[s["kind"]] for s in steps}
+    paths = [s["path"] for s in steps] + ["reports/x.qmd"]
+    found = []
+    for rule in rules if isinstance(rules, list) else []:
+        scope = rule.get("scope") if isinstance(rule, dict) and isinstance(rule.get("scope"), dict) else {}
+        if not isinstance(rule, dict) or rule.get("status") != "active" or not rule.get("id"):
+            continue
+        if scope.get("kind") == "global" or (scope.get("kind") == "language" and scope.get("language") in langs) or (
+                scope.get("kind") == "file-glob" and scope.get("glob") and any(
+                    fnmatch.fnmatch(p, scope["glob"]) or fnmatch.fnmatch(os.path.basename(p), scope["glob"]) for p in paths)):
+            found.append("{} {}".format(rule["id"], rule.get("topic", "")).strip())
+    return found
+
+
 def main(argv):
     parser = argparse.ArgumentParser(prog="analysis_report")
     parser.add_argument("--dest", required=True, help="the analysis folder")
@@ -272,6 +322,10 @@ def main(argv):
     print(json.dumps(inventory, indent=2))
     if "current_gap" in outputs:
         print("gap: " + outputs["current_gap"])
+    rules = learned_rules(steps, dest)
+    if rules:
+        print("info: lucid-coder learned rules that apply ({}): {}. Follow them in the report text and figures; "
+              "`/lucid-coder:rules` shows each one. They are reported here, not enforced.".format(len(rules), "; ".join(rules)))
     if doc is None:
         print("note: no <NAME>.md or README.md; the Overview has nothing to copy the Purpose from.")
     if not steps:

@@ -15,6 +15,7 @@ FAKE = """#!/usr/bin/env bash
 mkdir -p outputs/01_a outputs/02_b
 echo x > outputs/01_a/x.txt
 [ -z "${FAKE_PANELS:-}" ] || { mkdir -p outputs/panels outputs/scratch; echo x > outputs/panels/p.txt; echo x > outputs/scratch/s.txt; }
+[ -z "${FAKE_NUMBERS:-}" ] || { mkdir -p outputs; echo "$FAKE_NUMBERS" > outputs/numbers.json; }
 exit "${FAKE_EXIT:-0}"
 """
 
@@ -70,6 +71,28 @@ class RunShLog(unittest.TestCase):
         self.assertNotIn("outputs/02_b", second)
         self.assertFalse(os.path.exists(os.path.join(self.dir, "logs", ".run-stamp")))
         self.assertTrue(os.path.exists(os.path.join(self.dir, "logs", ".code-hashes.tsv")))
+
+    def test_numbers_json_change_is_logged_and_a_same_run_is_not(self):
+        # a run that rewrites only outputs/numbers.json (Mycelium's register_value) used to log "none"
+        self.run_sh(FAKE_NUMBERS='{"values": []}')
+        self.run_sh(FAKE_NUMBERS='{"values": []}')  # same bytes again: no change
+        self.run_sh(FAKE_NUMBERS='{"values": [1]}')
+        _, entries = self.entries()
+        self.assertIn("- outputs/numbers.json: numbers.json changed", entries[0])  # absent before, present after
+        self.assertNotIn("numbers.json", entries[1])
+        self.assertIn("- outputs/numbers.json: numbers.json changed", entries[2])
+        self.assertIn("outputs rewritten:\n- outputs/01_a/\n- outputs/numbers.json", entries[2])
+
+    def test_numbers_json_alone_replaces_none(self):
+        os.makedirs(os.path.join(self.dir, "outputs"))
+        write(os.path.join(self.dir, "outputs", "numbers.json"), "{}")
+        no_steps = os.path.join(self.dir, "fake_snakemake")
+        write(no_steps, '#!/usr/bin/env bash\necho \'{"values": [1]}\' > outputs/numbers.json\n')
+        os.chmod(no_steps, os.stat(no_steps).st_mode | stat.S_IXUSR)
+        self.run_sh()
+        _, entries = self.entries()
+        self.assertIn("outputs rewritten:\n- outputs/numbers.json: numbers.json changed\n", entries[0])
+        self.assertNotIn("outputs rewritten: none", entries[0])
 
     def test_removed_file(self):
         self.run_sh()

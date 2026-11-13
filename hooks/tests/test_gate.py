@@ -2198,14 +2198,17 @@ class GateTest(unittest.TestCase):
         self.assertNotIn("post-action", context(self.post("bash analysis/x/run.sh", {"stdout": ""})),
                          "no .living/: not a Mycelium repository")
         os.makedirs(os.path.join(self.root, ".living"))
-        for command in ["bash analysis/x/run.sh", "snakemake -s analysis/x/Snakefile",
-                        "sbatch analysis/x/job.sh"]:
-            self.assertIn("post-action protocol did not fire", context(self.post(command, {"stdout": ""})),
-                          command)
+        # Mycelium 0.9.3 detects these runners, so Extra no longer says its protocol did not fire.
+        for command in ["bash analysis/x/run.sh", "snakemake -s analysis/x/Snakefile"]:
+            self.assertNotIn("did not fire", context(self.post(command, {"stdout": ""})), command)
+        sbatch = context(self.post("sbatch analysis/x/job.sh", {"stdout": ""}))
+        self.assertNotIn("did not fire", sbatch)
+        self.assertIn("may not have finished", sbatch)
+        self.assertIn("If Mycelium opened", sbatch)
         for command in ["python analysis/x.py", "Rscript analysis/x.R"]:
             self.assertNotIn("post-action", context(self.post(command, {"stdout": ""})), command)
         both = context(self.post("MYCELIUM_EXTRA_EXPLORE=1 bash analysis/x/run.sh", {"stdout": ""}))
-        self.assertIn("post-action protocol did not fire", both)
+        self.assertNotIn("did not fire", both)
         self.assertIn("Exploratory run (not reportable)", both)
 
     def test_planned_run_suggests_ledger_cell_with_plan(self):

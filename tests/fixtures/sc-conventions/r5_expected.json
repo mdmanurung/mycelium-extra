@@ -1,0 +1,10 @@
+{
+  "schema": "mycelium-extra.design_expectations.v1",
+  "formula": "~ condition + batch + donor",
+  "contrast": {
+    "conditionstimulated": 1
+  },
+  "batch_columns": [
+    "batchb2"
+  ]
+}

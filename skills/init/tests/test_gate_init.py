@@ -163,6 +163,17 @@ class GateInitTest(unittest.TestCase):
         os.chmod(path, 0o755)
         return path
 
+    def test_tools_fall_back_to_the_env_rscript(self):
+        rscript = self.fake("rscript-env", "0.1.1")
+        bindir = os.path.join(self.root, "env", "bin")
+        os.makedirs(bindir)
+        os.replace(rscript, os.path.join(bindir, "Rscript"))
+        with open(os.path.join(self.root, "lucid-coder.yaml"), "w") as handle:
+            handle.write("env:\n  manager: conda\n  prefix: env\n")
+        out = run(self.root, "--tools", "--scilintr", self.fake("lint", ""))
+        self.assertEqual(json.loads(read(os.path.join(self.root, ".mycelium-extra", "tools.json")))["rscript"],
+                         os.path.join(bindir, "Rscript"), out)
+
     def test_tools_are_recorded_beside_an_existing_gate(self):
         run(self.root)
         gate_before = read(self.gate_json)
@@ -313,6 +324,43 @@ class DiagnoseTest(unittest.TestCase):
         out = self.diagnose()
         self.assertIn("r /nowhere/Rscript (PROBLEM: not a file)", out)
         self.assertIn("python {} (found)".format(python), out)
+
+    def test_diagnose_reads_the_pixi_form_without_a_false_problem(self):
+        prefix = os.path.join(self.root, ".pixi", "envs", "dev", "bin")
+        for tool in ("Rscript", "python"):
+            os.makedirs(prefix, exist_ok=True)
+            open(os.path.join(prefix, tool), "w").close()
+        with open(os.path.join(self.root, "lucid-coder.yaml"), "w") as handle:
+            handle.write("version: 1\nenv:\n  manager: pixi\n  name: dev\n  prefix: .pixi/envs/dev\n"
+                         "run_dir_root: results\n")
+        out = self.diagnose()
+        self.assertIn("r {} (found, from the prefix)".format(os.path.join(prefix, "Rscript")), out)
+        self.assertIn("python {} (found, from the prefix)".format(os.path.join(prefix, "python")), out)
+        self.assertNotIn("PROBLEM: names no r or python", out)
+        self.assertNotIn("environment: " + os.path.join(self.root, "lucid-coder.yaml") + ": PROBLEM", out)
+
+    def test_diagnose_reports_a_missing_prefix_tool_without_calling_it_a_problem(self):
+        prefix = os.path.join(self.root, "env", "bin")
+        os.makedirs(prefix)
+        open(os.path.join(prefix, "python"), "w").close()
+        with open(os.path.join(self.root, "lucid-coder.yaml"), "w") as handle:
+            handle.write("env:\n  manager: conda\n  prefix: env\n")
+        out = self.diagnose()
+        self.assertIn("python {} (found, from the prefix)".format(os.path.join(prefix, "python")), out)
+        self.assertIn("r not found at {}".format(os.path.join(prefix, "Rscript")), out)
+        self.assertNotIn("PROBLEM", out.split("environment:")[1].splitlines()[0])
+
+    def test_diagnose_reads_only_the_env_block(self):
+        with open(os.path.join(self.root, "lucid-coder.yaml"), "w") as handle:
+            handle.write("packages:\n  python: /not/this\nenv:\n  r: /nowhere/Rscript\n")
+        out = self.diagnose()
+        self.assertNotIn("/not/this", out)
+        self.assertIn("r /nowhere/Rscript (PROBLEM: not a file)", out)
+
+    def test_diagnose_with_only_manager_and_name_names_the_problem(self):
+        with open(os.path.join(self.root, "lucid-coder.yaml"), "w") as handle:
+            handle.write("env:\n  manager: conda\n  name: R4\n")
+        self.assertIn("PROBLEM: names no r or python", self.diagnose())
 
     def test_diagnose_writes_nothing_with_or_without_state(self):
         before = self.listing()

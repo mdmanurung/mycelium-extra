@@ -14,7 +14,7 @@ The layout is the contract in [../../docs/concepts/analysis-layout.md](../../doc
 analysis/<name>/
 ├── README.md             the analysis doc (<NAME>.md in a Mycelium repository)
 ├── Snakefile  run.sh  run.sbatch
-├── code/      01_prepare.R  02_fit.R  03_show.R  theme.R  theme.py  plot_<panel>.R  <shared-code links>
+├── code/      01_prepare.R  02_fit.R  03_show.R  theme.R  theme.py  plot_<panel>.R  NN_<skill>.sh  <shared-code links>
 ├── data/      <links only>  SOURCES.md
 ├── plans/     PLAN.md (the draft)  TRACKER.md
 ├── config/    figure_map.tsv  manuscript_checks.json      (--panels only)
@@ -48,6 +48,9 @@ Take these from the user's message. Ask only if the destination is missing; the 
   - Each panel gets `code/plot_<panel>`, a stub that exports the plotted values to `outputs/panels/source_data/<panel>.tsv` and then draws the figure from that table alone, with `theme.R` or `theme.py` (donors as points over a mean and SD).
   - It also gets a row in `config/figure_map.tsv` and an entry in `config/manuscript_checks.json`, the contract `manuscript-audit` checks. Paths are repository-relative and point at `outputs/panels/`, a folder of its own outside the numbered steps (or at `outputs/current/` for an older analysis with run folders).
   - On a folder that already exists, `--panels` adds only the missing manuscript files and keeps every existing one byte for byte. Use it to retrofit a manuscript folder. Edit a scaffolded file you have since filled (`<NAME>.md`, `PLAN.md`, a report) with Edit, not a whole-file Write; `analysis-report` gives the check for when a rewrite is needed.
+- **Pipeline-skill wrapper.** `--wrapper=NN_name:skill-name` (repeatable) adds `code/NN_name.sh`, a stub that runs a script of a pipeline skill, such as `--wrapper=04_de:pseudobulk-de`.
+  - The approval gate ignores scripts outside the repository (mycelium-extra#5), so the plan's Step column names this wrapper and the skill script runs from inside it. The stub calls `${CLAUDE_PLUGIN_ROOT}/skills/<skill>/...`, writes only `outputs/NN_name/`, and fails until you write the call.
+  - The wrapper gets a plan row and a tracker row (`SNN`). It is not in the Snakefile: run it with `bash code/NN_name.sh`, or add a rule. The number and name must not repeat a step's. It applies to a new scaffold only.
 - **Aim.** Settled in section 2 before anything is written.
 
 ## 2. Aim: ask, restate, check
@@ -63,7 +66,7 @@ Take these from the user's message. Ask only if the destination is missing; the 
 Run from the repository root, from stdin:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb,04_d.qmd] [--format=R|py|ipynb|qmd|marimo] [--lang=r|python] [--data=PATH ...] [--code=PATH ...] [--panels=Fig1a.R,...] \
+sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb,04_d.qmd] [--format=R|py|ipynb|qmd|marimo] [--lang=r|python] [--data=PATH ...] [--code=PATH ...] [--panels=Fig1a.R,...] [--wrapper=04_de:pseudobulk-de] \
   --templates=<skill-dir>/templates --dry-run < <skill-dir>/scripts/new_analysis.py
 ```
 
@@ -99,7 +102,11 @@ Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and c
   - `/mycelium:analyze` reads this file, and its post-action hook updates it.
 - **`plans/PLAN.md`** is the one plan. Revise it in place and log each change in `TRACKER.md`. Never start a second plan file.
 - **`plans/TRACKER.md`** holds each item's status and a dated log. Project-wide todos stay in `todo/`.
-- **`code/theme.R` and `theme.py`** set `theme_pubr(base_size = 8)` (plotnine's closest theme in Python), hold `PALETTE` keyed by label and fail on a label it lacks, and `save_panel(p, dir, stem)` writes PDF (cairo) and PNG at 89 by 70 mm. Add every plotted label to `PALETTE`. Needs ggplot2 and ggpubr (R) or plotnine (Python).
+- **`code/theme.R` and `theme.py`** set the plot theme, hold `PALETTE` keyed by label and fail on a label it lacks, and `save_panel(p, dir, stem)` writes PDF (cairo) and PNG at 89 by 70 mm. Add every plotted label to `PALETTE`.
+  - **Your learned rule wins.** The script reads lucid-coder's active rules (`node <lucid-coder>/scripts/rules.js list --status active --json`, read only). When an active `fig.theme` rule for the stub's language holds a `theme_set(...)` call, the theme file uses that call, loads the package the call names, and the script prints `theme from learned rule <id>`. With several, the highest id wins. A call with `;`, a backtick, `system(` or similar is not written.
+  - **Fallback.** With no such rule, `theme.R` sets `ggpubr::theme_pubr(base_size = 8)` and `theme.py` uses plotnine's `theme_classic(base_size=8)`, and the script prints a note that says why. The lookup never fails a scaffold: no lucid-coder, no `node`, a run over 5 s, bad JSON or no rule each fall back.
+  - Needs ggplot2 and the theme's package (R), or plotnine (Python). A missing package fails at `source("code/theme.R")`, loudly.
+- **Stub style.** Every stub (`.R`, `.py`, notebook, figure step, panel) opens with Purpose, Run, Inputs and Outputs, then a `# Parameters ---` block, then blocks in run order with 80-column dividers. It writes session info last: R writes `sessionInfo()` to the step folder; a Python step writes the versions of every package it imported, read from `sys.modules` (scanpy users may replace that with `sc.logging.print_versions()`). Stubs still stop on purpose until you write them.
 - **Numbered steps** sit in `code/`, with helpers and checks beside them. Steps run from the analysis folder, so a helper is sourced as `code/<file>`. A new step needs four things:
   - the next number
   - a Snakefile rule
@@ -113,7 +120,7 @@ Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and c
 - **`run.sh`** runs Snakemake and, after a real run, appends one entry to `logs/CHANGES.md` (heading `## <YYYY-MM-DD HH:MM> <git short hash>[ dirty] <ok|failed>`): each `code/` file whose sha256 differs from `logs/.code-hashes.tsv`, with `git diff --stat` for a tracked file, and each `outputs/<stem>/` folder written during the run. After a successful run it rewrites `.code-hashes.tsv`; a failed run leaves it, so the next entry still lists those edits. It takes no slug, writes no `RUN.txt` and refuses nothing. A dry run (`-n`) logs nothing.
 - **`reports/README.md`** lists what sits in `reports/` and which step folders (or legacy run) each file came from; `analysis-report` updates that cell. **`data/SOURCES.md`** has one row per `--data` link: its target, whether `data/DATA_MANIFEST.md` lists it, and the plan that pins it (empty until a plan names the file).
 - **`run.sbatch`** submits `run.sh` to SLURM (`sbatch run.sbatch [snakemake options]`, no slug), and its output goes to `logs/slurm-%x-%j.out`.
-- **`config/` and `code/plot_<panel>`** (with `--panels`) tie each figure to its script and source data. Run a stub as `Rscript <dest>/code/plot_<panel>.R <dest>/outputs/panels` (the folder its figures go to; the stub makes it), fill each `figure_map.tsv` claim, and replace the stub's `donor`/`label`/`y` columns in `required_columns`. Check with `manuscript-audit` (its SKILL.md says how to run the checker without opening the post-action cycle). In an older analysis, `outputs/current` must stay inside the repository: a symlink to scratch storage makes every declared path a gap.
+- **`config/` and `code/plot_<panel>`** (with `--panels`) tie each figure to its script and source data. Run a stub as `Rscript <dest>/code/plot_<panel>.R <dest>/outputs/panels` (the folder its figures go to; the stub makes it), fill each `figure_map.tsv` claim, and replace the stub's `donor`/`label`/`y` columns, and the `label` and `y` in `required_columns`, with your own. Check with `manuscript-audit` (its SKILL.md says how to run the checker without opening the post-action cycle). In an older analysis, `outputs/current` must stay inside the repository: a symlink to scratch storage makes every declared path a gap.
 - **Logs, benchmarks and executed notebooks** sit in the step folder: `outputs/NN_name/logs/`, and `outputs/NN_name/NN_name.ipynb`. The root `logs/` keeps `CHANGES.md` and SLURM output.
 - **qmd steps** (`--format=qmd`) are rendered by `quarto render` through `_quarto.yml` (project at the analysis folder, `execute-dir: project`, so paths match the script steps). An executing `quarto render` is a gated run like any other. Each stub follows the lucid-coder layout: Purpose/Run/Inputs/Outputs, a Parameters chunk, 80-column block dividers, session info last. Heavy fits write their table to `outputs/NN_name/` in one chunk and later chunks read it, so a figure edit does not refit.
 - **`reports/<name>.qmd`** is the Quarto report skeleton (script and notebook steps): Overview (with a mermaid chain of the steps), Methods and Results tabs per step, Reproducibility. `/mycelium-extra:analysis-report` fills it after a run. Mycelium's `report` skill writes its LaTeX PDF beside it as `<name>-report.tex`.
@@ -126,7 +133,7 @@ Read [../plot-first/SKILL.md](../plot-first/SKILL.md) for analysis outputs and c
   1. Plan the work with `/mycelium-extra:grill`. It quotes the aim recorded in `<NAME>.md` instead of asking again. A plan whose table names this folder's scripts or its `run.sh` lets the approval gate pass them.
   2. Run `/mycelium:analyze <name>`. It continues the existing folder, adds the manifest entry (the script printed a suggested one), and records decisions.
   3. For a reportable run, once the code is written and linted, grill a run plan that freezes it (grill's `references/run-plans.md`): it revises this `plans/PLAN.md` in place and shows the job list from `bash run.sh -n`, run under the first plan's approval.
-- **Interpreters.** When `lucid-coder.yaml` at the repository root names `env.r` and `env.python` (written by `/lucid-coder:align`), the Snakefile's `RSCRIPT`, `PYTHON` and `JUPYTER` default to those paths, each only if the file exists; otherwise they stay the names on PATH and the script says so. `--config rscript=...` still overrides per run.
+- **Interpreters.** When `lucid-coder.yaml` at the repository root names `env.r` and `env.python` (written by `/lucid-coder:align`), the Snakefile's `RSCRIPT`, `PYTHON` and `JUPYTER` default to those paths, each only if the file exists; otherwise they stay the names on PATH and the script says so. A pixi repository set up by `/lucid-coder:align` has only `manager`, `name` and `prefix`: the interpreters are then `<prefix>/bin/Rscript` and `<prefix>/bin/python` (a pixi env with no prefix is looked up in `.pixi/envs/<name>`). If the env has no Rscript or python, the name on PATH stays, and the script tells you to run `pixi run -e <name> bash run.sh`. `--config rscript=...` still overrides per run.
 - With lucid-coder installed, `/lucid-coder:align` installs the formatter configs once per repository. Its rule 6 ("scripts compute, notebooks show") does not fit qmd steps; the user's format choice outranks it. If they want that lasting, offer `/lucid-coder:learn` once.
 - Offer to commit the new folder.
 
