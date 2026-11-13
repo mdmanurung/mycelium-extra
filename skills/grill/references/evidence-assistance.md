@@ -32,7 +32,7 @@ The lookup works like a librarian: it finds and organises sources, and hands the
 - `Alternatives:` each option, what it assumes, and when it fails.
 - `Not found:` what was searched and came back empty. Absence is reported, not hidden.
 - `Disagreement:` where sources conflict.
-- `Yours to decide:` the choice, with no recommendation hidden in the summary.
+- `Yours to decide:` the choice, with no recommendation hidden in the summary. The package-default rule applies to the Q-round, not the dossier.
 
 Keep "the source says" apart from "I infer". Queries use method and field vocabulary only.
 
