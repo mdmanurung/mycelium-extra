@@ -567,6 +567,15 @@ class NewAnalysisTest(unittest.TestCase):
         write(os.path.join(self.root, ".mycelium-extra", "gate.json"), "{not json")
         self.assertIn("gate.json does not parse", self.scaffold())
 
+    def test_scaffold_writes_the_layout_marker(self):
+        self.scaffold()
+        marker = os.path.join(self.dest, "outputs", ".layout")
+        with open(marker, encoding="utf-8") as handle:
+            self.assertEqual(handle.read(), "layout: steps\nversion: 1\n")
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "hooks"))
+        import analysis_paths as ap
+        self.assertEqual([r["layout"] for r in ap.runs(self.dest)], ["steps"])
+
     def test_logs_and_outputs_survive_a_clone(self):
         self.scaffold()
         for folder in ("logs", "outputs"):

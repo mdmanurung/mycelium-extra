@@ -71,6 +71,32 @@ The comparison skips `denies.jsonl` (the deny log records no decision), so a new
 
 Before changing `hooks/gate.py`, also run `python3 hooks/tests/gate_diff.py`: with no options it compares the committed gate (`HEAD`) with the working tree and must report every case identical, except the decisions you meant to change. To reproduce the CI result locally, run the two commands above.
 
+### Real end-to-end smoke test
+
+`python3.11 tests/e2e_real.py` scaffolds an analysis in a temporary git repository, runs it with real Snakemake, Rscript, Python and Quarto, and reads the results back. The fake-tool tests cannot catch a scaffold whose stubs or rules do not run, which is how two 0.25 bugs got through. It takes about 3 to 10 minutes on a quiet machine and longer on a busy one.
+
+It is opt-in. The name does not start with `test_`, so no CI loop picks it up, and CI images have no R, Snakemake or Quarto. A missing tool fails the run with a message and is never skipped. Tools come from `MX_RSCRIPT`, `MX_SNAKEMAKE`, `MX_QUARTO` and `MX_PYTHON`; each defaults to the HPC path when that file exists. Pass an absolute `quarto`, because the shim in the R4_51 env is broken. Set `MX_E2E_KEEP=1` to keep the temporary folder. The tiny working scripts are in `tests/fixtures/smoke/`.
+
+Each stage prints its name. The run checks that:
+
+- step folders and `outputs/<stem>/<stem>.html` exist, with no `run_*` folder and no `RUN.txt`;
+- an edit adds a second `logs/CHANGES.md` entry that names only the edited script;
+- `-n` and `-pn` log nothing, `-Rstep01_scan` logs, and a failing step keeps the code hashes;
+- `where` reads not run, current, stale and failed correctly;
+- `verify runs` and `analysis_report` run on the result.
+
+### Parallel test runner
+
+`python3.12 tests/run_suite.py` runs the CI test files as parallel shards and prints one line per shard with its seconds. Each hook call starts a Python that recompiles `gate.py` or `verify.py`, so the 30-minute files are slow because of process spawns. On four cores the gain comes from running files and shards side by side, not from threads.
+
+- It finds the files with CI's globs, runs the longest shards first (from `tests/.suite_timings.json`, ignored by git) and uses `-j` workers (default `min(4, cpus)`).
+- `hooks/tests/test_gate.py` and `skills/verify/tests/test_verify.py` split into one shard per `TestCase` class.
+- Stages: `unit` (the test files), `ablate`, `audit`, `links`, `gate-diff` and `all`. `--only PATTERN` keeps shards whose name contains or globs the pattern; `--list` prints the shards.
+- Failed shards print the tail of their output. The exit code is 0 when all shards pass and 1 otherwise.
+- It restarts itself under a newer Python when run with one older than 3.9.
+
+CI still runs its own loop. Switch it to the runner only after one full green comparison.
+
 ### Oracle and mutation tests
 
 A check that has never failed is untested. These rules keep the evidence for a checker (gate, verify, data-contract-check, manuscript-audit, a validation recipe) honest. They are adapted from the `grader-mutation-evidence` skill.

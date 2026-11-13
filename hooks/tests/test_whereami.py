@@ -65,6 +65,13 @@ class WhereTest(unittest.TestCase):
     def card(self, mode=None):
         return wh.answer(self.root, self.folder, mode, write=False)
 
+    def test_fresh_scaffold_with_marker_shows_all_steps_not_run(self):
+        touch(self.p("outputs", ".layout"), "layout: steps\nversion: 1\n")
+        touch(self.p("outputs", ".gitkeep"), "")
+        card = self.card()
+        self.assertIn("  [ ] 01_prep\n  [ ] 02_fit\n  [ ] 03_show", card)
+        self.assertIn("1. bash run.sh", card)
+
     def test_not_run_shows_all_todo_and_bash_run(self):
         card = self.card()
         self.assertTrue(card.startswith("WHERE YOU ARE: demo\n"))

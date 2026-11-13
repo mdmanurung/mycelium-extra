@@ -1,0 +1,34 @@
+---
+title: "04_page.qmd"
+subtitle: "Step 04 of smoke"
+---
+
+- **Purpose.** Summarise the fit per label; a tiny working step for tests/e2e_real.py.
+- **Inputs.** `outputs/03_show/source_data/03_show.tsv`
+- **Outputs.** `outputs/04_page/04_page.rds` (mean fit per label); this page, `outputs/04_page/04_page.html`.
+
+## Parameters
+
+```{r}
+# Parameters -------------------------------------------------------------------
+STEP <- Sys.getenv("STEP_DIR") # this step's folder, outputs/04_page, set by the Snakefile
+OUTPUTS <- Sys.getenv("OUTPUTS") # outputs/, to read earlier steps
+INPUT <- file.path(OUTPUTS, "03_show", "source_data/03_show.tsv")
+OUTPUT <- file.path(STEP, "04_page.rds")
+```
+
+## Summary
+
+```{r}
+# Summary ----------------------------------------------------------------------
+summary_table <- aggregate(fit ~ label, data = read.delim(INPUT), FUN = mean)
+saveRDS(summary_table, OUTPUT)
+summary_table
+```
+
+## Session
+
+```{r}
+# Session info -----------------------------------------------------------------
+writeLines(capture.output(sessionInfo()), file.path(STEP, "logs", "04_page.session.txt"))
+```

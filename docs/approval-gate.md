@@ -79,7 +79,16 @@ Claude Code's `/goal <condition>` pauses the gate the same way, for that session
 | `approval_hours` | `24` | How long an approval covers runs |
 | `on_error` | `"allow"` | What a PreToolUse hook does when the gate itself breaks; `"deny"` blocks every call it could not check |
 
-Optional keys, the `.mycelium-extra/` file layout, lint-on-write, command hints and Mycelium's post-action reminder are in the [complete reference](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/approval-gate-full.md#settings).
+Two optional keys help a large `approvals/` folder or a slow disk:
+
+| Key | Default | Meaning |
+|---|---|---|
+| `scan_seconds` | `5` | Seconds the gate may spend reading `approvals/`, including the folder listing. Values below 1 count as 1 and values above 8 count as 8, because the host kills the hook at 10 s. |
+| `scan_mtime_filter` | `false` | When `true`, the gate skips approval files last written more than `approval_hours` plus one day ago. Off by default: with it off, every file is read, so a corrupt old file still blocks runs. |
+
+A hook call reads `approvals/` once and reuses the result for every check in that call. Any approval write clears the saved result. Nothing is stored on disk, so no index file can go stale or be mistaken for an approval. If the time limit runs out, the gate blocks the run. The message gives the number of files seen, the seconds used and the exact command that moves old approvals aside. The command moves files to `approvals-old/`; `verify` reads `approvals/` only, so move back any approval it needs.
+
+Other optional keys, the `.mycelium-extra/` file layout, lint-on-write, command hints and Mycelium's post-action reminder are in the [complete reference](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/approval-gate-full.md#settings).
 
 ## Limits
 

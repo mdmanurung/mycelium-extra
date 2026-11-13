@@ -285,7 +285,7 @@ def status(gate, root, config, event):
     lines.append("Objective  {}".format("{} ({})".format(objective, doc) if objective else
                                         "not stated in {}".format(doc) if doc else "no analysis doc found"))
     original = current.get("original_plan_hash")
-    approvals = gate.all_approvals(root)
+    approvals = gate.all_approvals(root, config)  # one scan: the two active_approvals calls below reuse it
     touching = [r for r in approvals or [] if plan_touches(gate, root, r, rel)]
     lines.append("Plan       original {}  ·  newest approved naming this folder: {}".format(
         original + " (selected)" if original else "not selected",

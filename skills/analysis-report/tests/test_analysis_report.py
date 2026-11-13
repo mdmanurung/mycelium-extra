@@ -248,6 +248,16 @@ class StepsLayoutTest(unittest.TestCase):
         self.assertEqual(outputs["numbers"], ["outputs/numbers.json"])
         self.assertEqual(outputs["runs"], ["01_fit", "02_show"])
 
+    def test_inventory_lists_panels_and_a_fresh_marked_scaffold(self):
+        write(os.path.join(self.dest, "outputs", "panels", "figures", "plot_a.png"))
+        out = self.run_script("--dry-run")
+        self.assertEqual(json.loads(out[:out.rindex("}") + 1])["outputs"]["runs"], ["01_fit", "02_show", "panels"])
+        shutil.rmtree(os.path.join(self.dest, "outputs"))  # a fresh scaffold: marker only
+        write(os.path.join(self.dest, "outputs", ".layout"), "layout: steps\nversion: 1\n")
+        out = self.run_script("--dry-run")
+        outputs = json.loads(out[:out.rindex("}") + 1])["outputs"]
+        self.assertEqual((outputs["layout"], outputs["runs"], outputs["figures"]), ("steps", [], []))
+
     def test_outputs_row_names_the_steps_layout(self):
         write(os.path.join(self.dest, "reports", "README.md"),
               "# Reports\n\n| File | What it is | From outputs | Owner |\n|---|---|---|---|\n"

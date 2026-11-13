@@ -4,6 +4,19 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-11-13
+
+### Added
+
+- **tests:** `tests/e2e_real.py`, an opt-in smoke test that runs a scaffolded analysis with real Snakemake, Rscript, Python and Quarto in a temporary git repository. A missing tool is a failure, not a skip. Tools come from `MX_RSCRIPT`, `MX_SNAKEMAKE`, `MX_QUARTO` and `MX_PYTHON`. It checks step folders, `logs/CHANGES.md` entries, dry runs, a failing step, `where`, `verify runs` and `analysis_report`. Fixtures are in `tests/fixtures/smoke/`. CI does not run it.
+- **tests:** `tests/run_suite.py` runs the CI test files in parallel, longest shard first, and splits `test_gate.py` and `test_verify.py` by `TestCase` class. It has stages `unit`, `ablate`, `audit`, `links`, `gate-diff` and `all`, plus `--only`, `--list` and `-j`. Timings go to `tests/.suite_timings.json` (ignored by git).
+- **layout:** the scaffold writes `outputs/.layout` (`layout: steps`, `version: 1`). With a valid marker the resolver reads the analysis as `steps` before the first step folder exists. An unreadable or unknown marker is ignored; no marker changes nothing. `analysis_paths.step_dirs` is now the one list of step folders, used by `verify` and `analysis-report`, which now also reads `outputs/panels/`.
+- **gate:** two optional `gate.json` keys. `scan_seconds` (default 5, capped at 8) sets the time limit for reading `approvals/`. `scan_mtime_filter` (default `false`) skips approval files older than `approval_hours` plus one day.
+
+### Changed
+
+- **gate:** a hook call reads `approvals/` once and reuses the result; any approval write clears it. `focus status` makes one scan, not three. The time limit now covers the folder listing, and the timeout message gives the file count, the seconds used and the command that moves old approvals aside. The `gate_diff` oracle is unchanged.
+
 ## [0.26.0] - 2026-11-12
 
 ### Added

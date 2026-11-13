@@ -128,7 +128,7 @@ def scan_outputs(dest):
     elif run:
         found["run"] = run_label(run)
     if run and run["layout"] == "steps":
-        steps = sorted(e for e in os.listdir(base) if ap.STEP_DIR.match(e) and os.path.isdir(os.path.join(base, e)))
+        steps = ap.step_dirs(run)
         found["runs"] = steps
         found["pages"] = [rel(os.path.join(base, e, e + ".html")) for e in steps
                           if os.path.isfile(os.path.join(base, e, e + ".html"))]

@@ -1,0 +1,33 @@
+---
+title: "02_page.qmd"
+subtitle: "Step 02 of tables_only"
+jupyter: python3
+---
+
+- **Purpose.** Double the values; a tiny working step for tests/e2e_real.py. It writes a table and this page, no figure.
+- **Inputs.** `outputs/01_calc/01_calc.parquet`
+- **Outputs.** `outputs/02_page/02_page.parquet` (the doubled values); this page, `outputs/02_page/02_page.html`.
+
+## Parameters
+
+```{python}
+# Parameters -------------------------------------------------------------------
+import os
+from pathlib import Path
+
+import pandas as pd
+
+STEP = Path(os.environ["STEP_DIR"])  # this step's folder, outputs/02_page, set by the Snakefile
+OUTPUTS = Path(os.environ["OUTPUTS"])  # outputs/, to read earlier steps
+INPUT = OUTPUTS / "01_calc" / "01_calc.parquet"
+OUTPUT = STEP / "02_page.parquet"
+```
+
+## Doubled values
+
+```{python}
+# Doubled values ---------------------------------------------------------------
+doubled = pd.read_parquet(INPUT).assign(value=lambda d: d["value"] * 2)
+doubled.to_parquet(OUTPUT)
+doubled
+```

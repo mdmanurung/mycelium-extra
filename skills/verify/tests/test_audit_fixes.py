@@ -205,6 +205,25 @@ class AuditFixTest(Harness):
         self.assertIn("- gap `03_extra`: figure has no source data", out)
         self.assertNotIn("`03_show`:", out)  # that stem is paired
 
+    def test_runs_skips_a_linked_step_folder(self):
+        self.steps_folder()
+        os.symlink(os.path.join(self.root, "analysis", "a", "outputs", "03_show"),
+                   os.path.join(self.root, "analysis", "a", "outputs", "05_link"))
+        data = json.loads(self.verify("runs", "analysis/a/outputs", "--json"))
+        self.assertNotIn("05_link", [s["step"] for s in data["steps"]])
+
+    def test_runs_lists_a_fresh_marked_scaffold_and_panels(self):
+        self.write("analysis/a/outputs/.layout", "layout: steps\nversion: 1\n")
+        data = json.loads(self.verify("runs", "analysis/a/outputs", "--json"))
+        self.assertEqual((data["steps"], data["runs"], data["findings"]), ([], [], []))
+        out = self.verify("runs", "analysis/a/outputs")
+        self.assertIn("Step folders: none yet.", out)
+        self.assertIn("Last change: none logged", out)
+        self.assertNotIn("No `run_<YYYYMMDD>_<slug>` folders here.", out)
+        self.write("analysis/a/outputs/panels/figures/plot_a.png", "x")
+        data = json.loads(self.verify("runs", "analysis/a/outputs", "--json"))
+        self.assertEqual([s["step"] for s in data["steps"]], ["panels"])
+
     def test_runs_quotes_the_newest_change_heading_and_keeps_legacy_runs(self):
         self.steps_folder()
         self.write("analysis/a/logs/CHANGES.md", "# Changes\n\n## 2026-11-12 09:00 abc1234 ok\n- a\n\n"

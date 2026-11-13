@@ -230,6 +230,74 @@ class StepsLayout(Base):
         self.assertEqual(ap.last_change(self.folder), "## 2026-11-12 10:05 b ok")
 
 
+class LayoutMarker(Base):
+    MARKER = "layout: steps\nversion: 1\n"
+
+    def marker(self, text=None, where="outputs"):
+        touch(self.path(where, ".layout"), self.MARKER if text is None else text)
+
+    def test_marker_with_empty_outputs_is_steps(self):
+        self.marker()
+        found = ap.runs(self.folder)
+        self.assertEqual([r["layout"] for r in found], ["steps"])
+        self.assertEqual(found[0]["path"], self.path("outputs"))
+        self.assertEqual(ap.current_run(self.folder)[1], "steps layout")
+        self.assertEqual(ap.step_dirs(found[0]), [])
+        self.assertEqual(ap.figures(found[0]), [])
+
+    def test_marker_with_other_files_is_still_steps(self):
+        self.marker()
+        touch(self.path("outputs", "numbers.json"), "{}")
+        touch(self.path("outputs", "stray.tsv"))
+        self.assertEqual([r["layout"] for r in ap.runs(self.folder)], ["steps"])
+
+    def test_marker_then_old_runs(self):
+        self.marker()
+        touch(self.path("outputs", "run_20260101_old", "RUN.txt"), "run: old\n")
+        self.assertEqual([r["layout"] for r in ap.runs(self.folder)], ["steps", "run"])
+
+    def test_garbage_marker_falls_back_to_the_folder_names(self):
+        for text in ("\x00\xff not a marker", "", "layout: flat\nversion: 1\n", "layout: steps\nversion: 2\n",
+                     "layout: steps\n"):
+            with self.subTest(text=text):
+                os.makedirs(self.path("outputs"), exist_ok=True)
+                with open(self.path("outputs", ".layout"), "wb") as handle:
+                    handle.write(text.encode("latin-1"))
+                self.assertEqual(ap.runs(self.folder), [])
+        touch(self.path("outputs", "01_prep", "tables", "t.tsv"))
+        self.assertEqual([r["layout"] for r in ap.runs(self.folder)], ["steps"])  # the heuristic still works
+
+    def test_unreadable_marker_is_ignored(self):
+        os.makedirs(self.path("outputs", ".layout"))  # a directory, not a file
+        self.assertEqual(ap.runs(self.folder), [])
+
+    def test_current_link_still_wins(self):
+        self.marker()
+        touch(self.path("outputs", "run_20260101_a", "RUN.txt"), "run: a\n")
+        os.symlink(self.path("outputs", "run_20260101_a"), self.path("outputs", "current"))
+        entry, reason = ap.current_run(self.folder)
+        self.assertEqual((entry["name"], reason), ("run_20260101_a", "current link"))
+
+    def test_marker_in_results(self):
+        self.marker(where="results")
+        os.makedirs(self.path("outputs"))
+        found = ap.runs(self.folder)
+        self.assertEqual([r["layout"] for r in found], ["steps"])
+        self.assertEqual(found[0]["path"], self.path("results"))
+
+    def test_step_dirs_lists_steps_and_panels_only(self):
+        self.marker()
+        for name in ("02_fit", "01_prep", "01b_x", "panels", "notes", "1_short"):
+            os.makedirs(self.path("outputs", name))
+        touch(self.path("outputs", "03_file"))  # a file, not a folder
+        os.symlink(self.path("outputs", "01_prep"), self.path("outputs", "04_link"))  # a step kept on scratch
+        entry = ap.runs(self.folder)[0]
+        want = ["01_prep", "01b_x", "02_fit", "04_link", "panels"]
+        self.assertEqual(ap.step_dirs(entry), want)
+        self.assertEqual(ap.step_dirs(self.path("outputs")), want)
+        self.assertEqual(ap.step_dirs(self.path("missing")), [])
+
+
 class Docs(Base):
     def test_find_doc(self):
         self.assertIsNone(ap.find_doc(self.folder))

@@ -45,8 +45,14 @@ DEFAULTS = {
     "card_coverage": True,
     "confirm_writes": False,
     "dev_packages": [],
+    "scan_seconds": 5,
+    "scan_mtime_filter": False,
 }
-SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s
+SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s. gate.json `scan_seconds` sets it
+SCAN_SECONDS_DEFAULT = 5
+SCAN_SECONDS_MAX = 8  # the hook is killed at 10 s; leave room to answer
+SCAN_MEMO = {}  # one approvals scan per process and folder state; every approval write path clears it
+SCAN_NOTE = {}  # what the last timed-out scan saw, for the SCAN_TIMEOUT message
 LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call that never reported back
 EXPLORE_VAR = "MYCELIUM_EXTRA_EXPLORE"
 APPROVE = re.compile(r"^\s*approve(?:\s+(?:plan|amendment|freeze))?(?:\s+([0-9a-f]{8}))?(?:\s+(\d{1,4}))?\s*[.!]?\s*$", re.IGNORECASE)
@@ -226,6 +232,8 @@ CONFIG_CHECKS = (
     ("approval_hours", "a number of 0 or more", _number),
     ("pin_hash_mb", "a number of 0 or more", _number),
     ("pin_seconds", "a number of 0 or more", _number),
+    ("scan_seconds", "a number of 0 or more (used between 1 and 8)", _number),
+    ("scan_mtime_filter", "true or false", lambda v: isinstance(v, bool)),
 )
 
 
@@ -1428,24 +1436,87 @@ def read_script_pins(root, digest):
     return pins
 
 
+def scan_limit(root, config=None):
+    """Seconds one approvals scan may take. A patched `SCAN_SECONDS` wins (tests); else gate.json `scan_seconds`,
+    clamped to 1..8 because the hook is killed at 10 s; else 5."""
+    if SCAN_SECONDS != SCAN_SECONDS_DEFAULT:
+        return SCAN_SECONDS
+    if config is None:
+        try:
+            config = load_config(root)
+        except (OSError, ValueError):
+            config = {}
+    value = config.get("scan_seconds", SCAN_SECONDS_DEFAULT)
+    if not _number(value):
+        value = SCAN_SECONDS_DEFAULT
+    return min(max(float(value), 1.0), float(SCAN_SECONDS_MAX))
+
+
+def clear_scan_memo():
+    SCAN_MEMO.clear()
+
+
+def scan_approvals(root, config, min_mtime=None):
+    """The approval records in file-name order, or None when the time limit ran out (listing or reading).
+    The limit covers the directory listing too. A corrupt file raises InvalidApproval. `min_mtime` skips files
+    last written before it (`scan_mtime_filter`); None skips nothing. Memoized per process while the folder is
+    unchanged; every approval write path clears the memo. Records are shared: do not change them."""
+    folder = state_path(root, "approvals")
+    limit = scan_limit(root, config)
+    key = (root, min_mtime is not None)
+    try:
+        stamp = os.stat(folder).st_mtime_ns
+    except OSError:
+        stamp = None
+    if limit > 0 and key in SCAN_MEMO and SCAN_MEMO[key][0] == stamp:
+        return SCAN_MEMO[key][1]
+    SCAN_NOTE.clear()  # only a scan that times out leaves a note
+    start = time.time()
+    deadline = start + limit
+    seen, records = 0, []
+    if os.path.isdir(folder):
+        entries = []
+        with os.scandir(folder) as listed:
+            for entry in listed:
+                if not entry.name.endswith(".json"):
+                    continue
+                seen += 1
+                if time.time() >= deadline:
+                    return scan_timed_out(root, config, seen, start)
+                entries.append(entry)
+        for entry in sorted(entries, key=lambda e: e.name):
+            if time.time() >= deadline:
+                return scan_timed_out(root, config, seen, start)
+            if min_mtime is not None:
+                try:
+                    if entry.stat().st_mtime < min_mtime:
+                        continue
+                except OSError:
+                    pass  # cannot tell its age: read it, so a bad file still denies
+            records.append(read_approval(entry.path))
+    if limit > 0:
+        SCAN_MEMO[key] = (stamp, records)
+    return records
+
+
+def scan_timed_out(root, config, seen, start):
+    hours = float((config or {}).get("approval_hours", DEFAULTS["approval_hours"]))
+    SCAN_NOTE.update(root=root, files=seen, seconds=time.time() - start, hours=hours)
+    return None
+
+
 def active_approvals(root, config, session_id=None):
     """Approvals from the last `approval_hours`, or None if reading them ran out of time.
     Approval files are kept (verify reads old ones), so the folder only grows."""
-    folder = state_path(root, "approvals")
     horizon = time.time() - float(config["approval_hours"]) * 3600
-    deadline = time.time() + SCAN_SECONDS
-    approvals = []
-    if os.path.isdir(folder):
-        for name in sorted(os.listdir(folder)):
-            if not name.endswith(".json"):
-                continue
-            if time.time() >= deadline:
-                return None
-            record = read_approval(os.path.join(folder, name))
-            if (record and record.get("approved_at", 0) >= horizon
-                    and (session_id is None or bool(session_id) and record.get("session_id") == session_id)):
-                approvals.append(record)
-    return approvals
+    # opt-in: a file untouched since well before the horizon cannot hold an active approval
+    min_mtime = horizon - 86400 if config.get("scan_mtime_filter") is True else None
+    records = scan_approvals(root, config, min_mtime)
+    if records is None:
+        return None
+    return [record for record in records
+            if record and record.get("approved_at", 0) >= horizon
+            and (session_id is None or bool(session_id) and record.get("session_id") == session_id)]
 
 
 def call_id(event):
@@ -1469,6 +1540,7 @@ def abandon_launch(folder, name, stamp):
 
 def create_exclusive(path, data):
     """Write `data` at `path` only if nothing is there yet; False when a record already is."""
+    clear_scan_memo()
     tmp = "{}.{}.{}.tmp".format(path, os.getpid(), os.urandom(4).hex())
     write_json(tmp, data)
     try:
@@ -1734,6 +1806,7 @@ def write_instance(root, record, complete):
     that exact freeze is already there, and return its id. The id covers the frozen content (plan, pins, scripts,
     preparation, limitations) but not the approval time or session, so approving the same freeze again reuses the
     instance; different pins under the same prose make a second one. Instances are never rewritten."""
+    clear_scan_memo()
     limitations = []
     if not complete:
         limitations.append("prepared before readiness was recorded (legacy entry without `ready`): that pinning "
@@ -2448,19 +2521,12 @@ def names(items, short):
     return lead + ", ".join(shown) + more
 
 
-def all_approvals(root):
+def all_approvals(root, config=None):
     """Every approval on record, newest first, or None when reading them ran out of time."""
-    folder = state_path(root, "approvals")
-    deadline = time.time() + SCAN_SECONDS
-    found = []
-    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
-        if not name.endswith(".json"):
-            continue
-        if time.time() >= deadline:
-            return None
-        record = read_approval(os.path.join(folder, name))
-        if record and record.get("plan"):
-            found.append(record)
+    records = scan_approvals(root, config)
+    if records is None:
+        return None
+    found = [record for record in records if record and record.get("plan")]
     return sorted(found, key=lambda record: record.get("approved_at", 0), reverse=True)
 
 
@@ -2481,7 +2547,7 @@ def read_receipts(root):
 def baseline_plan(root, config, digest, text, paths, outputs):
     """(the newest earlier approval whose plan covers a path this one covers or writes, why not).
     Any age: this is the frozen plan history, not the last 24 hours."""
-    approvals = all_approvals(root)
+    approvals = all_approvals(root, config)
     if approvals is None:
         return None, "time limit"
     table = plan_table(text)
@@ -3181,6 +3247,7 @@ def checkpoint_question(rows, digest):
 def log_approval(root, event, plan, approved_ts, checkpoint):
     """One line per approval in approvals.jsonl: when the plan was shown, when it was approved, its size, and
     the checkpoint result when one ran. Only logged: never shown, and never allowed to fail the approval."""
+    clear_scan_memo()
     shown = plan.get("ts")
     record = {"hash": plan["hash"], "session_id": event.get("session_id"), "shown_ts": shown,
               "approved_ts": approved_ts,
@@ -3599,7 +3666,7 @@ def on_tool(event, root, config):
         if approvals is None:
             approvals = active_approvals(root, config, event.get("session_id") or "")
             if approvals is None:
-                return deny(SCAN_TIMEOUT)
+                return deny(scan_timeout_message(root))
         records, used = covering_any(root, label, paths, run_cwd, approvals)
         wrapped = wrapped_gated_paths(root, config, tokens, run_cwd, paths) if label == "sbatch" else []
         if wrapped:  # one plan must name sbatch and what its --wrap payload runs, as the receipt requires
@@ -3794,11 +3861,26 @@ def lint_before_run(root, rels, config):
     return None, "\n".join(lines), "\n".join(lines)
 
 
-SCAN_TIMEOUT = (
-    "mycelium-extra gate: blocked because reading {}/approvals/ took longer than {} s, so the gate "
-    "cannot tell whether an approved plan covers this run. This happens when that folder holds very "
-    "many files or sits on a slow filesystem. The user can move approvals they no longer need to "
-    "verify out of it. Do not work around this block.".format(STATE_DIR, SCAN_SECONDS))
+def scan_timeout_message(root=None):
+    """The deny text for an approvals scan that ran out of time: the limit, what it saw, and the exact command
+    that moves approvals nobody needs any more out of the folder (verify reads the moved files from there)."""
+    import shlex
+    note = SCAN_NOTE if root is None or SCAN_NOTE.get("root") == root else {}
+    base = root if root is not None else note.get("root")
+    limit = scan_limit(base) if base is not None else SCAN_SECONDS
+    folder = state_path(base, "approvals") if base is not None else "{}/approvals".format(STATE_DIR)
+    # approval_hours plus one day of margin; -mmin is exact where -mtime +N would match only files N+1 days old
+    old_hours = int(math.ceil(note.get("hours", DEFAULTS["approval_hours"]))) + 24
+    move = "mkdir -p {dest} && find {src} -maxdepth 1 -name '*.json' -mmin +{minutes} -exec mv -t {dest} {{}} +".format(
+        dest=shlex.quote(folder + "-old"), src=shlex.quote(folder), minutes=old_hours * 60)
+    seen = ""
+    if note:
+        seen = " (it had seen {} files after {:.1f} s)".format(note.get("files", 0), note.get("seconds", 0.0))
+    return ("mycelium-extra gate: blocked because reading {}/approvals/ took longer than {:g} s{}, so the gate "
+            "cannot tell whether an approved plan covers this run. This happens when that folder holds very "
+            "many files or sits on a slow filesystem. The user can move approvals older than {} hours out of "
+            "it with `{}`, or raise `scan_seconds` in gate.json (at most 8). Do not work around this "
+            "block.".format(STATE_DIR, limit, seen, old_hours, move))
 
 
 def deny(reason):
@@ -3831,7 +3913,7 @@ def make_explore_scope(root, config, session_id, digest):
     instance, the analysis paths and commands its plan grants, and its declared protected files and steps."""
     approvals = active_approvals(root, config, session_id or "")
     if approvals is None:
-        return None, SCAN_TIMEOUT
+        return None, scan_timeout_message(root)
     record = next((r for r in approvals if r["hash"] == digest), None)
     if record is None:
         return None, ("mycelium-extra: no active approved plan {} in this session (active: {}), so no scoped "
@@ -4516,7 +4598,9 @@ def prompt_commands(event, root, config):
                   "plan": plan["text"], "pins": pins, "scripts": scripts}
         record.update((key, plan[key]) for key in ("validation", "execution") if plan.get(key))
         record["instance_id"] = write_instance(root, record, bool(plan.get("ready")))
+        clear_scan_memo()
         write_json(state_path(root, "approvals", wanted + ".json"), record)
+        clear_scan_memo()
         log_approval(root, event, plan, record["approved_at"], checkpoint)
         ledger = state_path(root, "script-pins", wanted + ".json")  # approving again re-baselines
         if os.path.isfile(ledger):

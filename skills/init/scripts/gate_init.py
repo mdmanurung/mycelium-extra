@@ -37,6 +37,8 @@ DEFAULTS = {
     "approval_hours": 24,
     "pin_hash_mb": 200,
     "pin_seconds": 5,
+    "scan_seconds": 5,
+    "scan_mtime_filter": False,
     "pin_scripts": True,
     "card_lint": True,
     "card_coverage": True,
@@ -254,6 +256,8 @@ CONFIG_RULES = {
     "approval_hours": ("a number of 0 or more", lambda v: _number(v) and v >= 0),
     "pin_hash_mb": ("a number of 0 or more", lambda v: _number(v) and v >= 0),
     "pin_seconds": ("a number of 0 or more", lambda v: _number(v) and v >= 0),
+    "scan_seconds": ("a number of 0 or more (used between 1 and 8)", lambda v: _number(v) and v >= 0),
+    "scan_mtime_filter": ("true or false", lambda v: isinstance(v, bool)),
     "pin_scripts": ("true or false", lambda v: isinstance(v, bool)),
     "card_lint": ("true or false", lambda v: isinstance(v, bool)),
     "card_coverage": ("true or false", lambda v: isinstance(v, bool)),
@@ -271,6 +275,7 @@ CONFIG_RULES = {
 
 # What the gate does with an invalid value (hooks/gate.py reads each key its own way); keep in step with it.
 INVALID_EFFECT = {
+    "scan_seconds": "5", "scan_mtime_filter": "off",
     "pin_scripts": "pinning is on", "card_lint": "on", "lint_on_write": "on", "card_coverage": "off",
     "focus_notices": "off", "confirm_writes": "off", "lint_before_stop": "off", "lint_before_run": "off", "on_error": "allow",
     "max_runs_per_approval": "no limit", "checkpoint_steps": "off", "dev_packages": "none",

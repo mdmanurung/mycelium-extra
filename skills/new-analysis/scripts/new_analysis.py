@@ -621,6 +621,7 @@ def scaffold(args):
                                   + (['        "{}",'.format(steps[-1]["html"])] if steps[-1]["html"] else [])),
         "RULES": "\n\n".join(rule(step, data_links) for step in steps).rstrip("\n")})
     files["logs/.gitkeep"] = files["outputs/.gitkeep"] = ""  # git drops empty folders; SLURM needs logs/ after a clone
+    files["outputs/.layout"] = "layout: steps\nversion: 1\n"  # the explicit marker ap.runs() reads
     for theme in CODE_THEMES:  # every figure script sources the one theme
         files["code/" + theme] = ap.read(os.path.join(templates, theme))
     files["data/SOURCES.md"] = ap.fill(ap.read(os.path.join(templates, "SOURCES.md")), {

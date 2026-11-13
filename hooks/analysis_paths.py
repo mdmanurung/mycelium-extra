@@ -8,6 +8,7 @@ Three layouts are read:
 - "run": old `outputs/run_<YYYYMMDD>_<slug>[_vNN]/` folders with a `RUN.txt` and an `outputs/current` link.
   They are left in place and still read, after the "steps" entry.
 - "flat": old analyses keep files directly in `outputs/`.
+A marker file `outputs/.layout` (`layout: steps`, `version: 1`) says "steps" outright, so a fresh scaffold with no step folder yet reads as steps. Without a valid marker the folder names decide.
 An `outputs/current` link, where it exists and resolves inside the repository, still wins in `current_run()`.
 
 Stdlib-only; Python 3.9+. The gate does not import this module (hooks/gate.py keeps its own root finder).
@@ -22,6 +23,8 @@ RUN_DIR = re.compile(r"^run_\d{8}_.+$")
 STEP_DIR = re.compile(r"^\d{2}[a-z]?_.+$")
 PANELS_DIR = "panels"  # manuscript panels (plot_<panel>.R|py) write outputs/panels/, a step folder without a number
 STEP_SUBDIRS = ("logs", "figures", "source_data", "tables")  # a step folder that has run holds at least one of these (Snakemake writes logs/ for every step)
+LAYOUT_MARKER = ".layout"  # `<outputs>/.layout`: two lines, `layout: steps` and `version: 1`; the scaffold writes it
+LAYOUT_VERSIONS = {"steps": ("1",)}
 KINDS = ("analysis", "figures", "scratch")
 FIGURE_EXT = (".png", ".pdf")
 
@@ -180,13 +183,43 @@ def _steps(base):
             "layout": "steps"}
 
 
+def layout_marker(base):
+    """"steps" when `<base>/.layout` is a readable marker with a known layout and version, else None.
+    An unreadable, unknown-layout or unknown-version marker is ignored."""
+    try:
+        text = read(os.path.join(base, LAYOUT_MARKER), errors="strict")
+    except (OSError, ValueError):
+        return None
+    fields = {}
+    for line in text.splitlines():
+        key, colon, value = line.partition(":")
+        if colon:
+            fields[key.strip()] = value.strip()
+    kind = fields.get("layout")
+    return kind if kind in LAYOUT_VERSIONS and fields.get("version") in LAYOUT_VERSIONS[kind] else None
+
+
+def step_dirs(entry):
+    """Sorted names of the step folders of a "steps" entry: `NN_name` folders (see STEP_DIR) and `panels`,
+    directories only (a link to a directory counts, as it always did). The one place that decides what a
+    step folder is."""
+    path = _run_path(entry)
+    try:
+        names = sorted(os.listdir(path))
+    except OSError:
+        return []
+    return [n for n in names if (STEP_DIR.match(n) or n == PANELS_DIR)
+            and os.path.isdir(os.path.join(path, n))]
+
+
 def runs(folder, results_dir=None):
     """Run folders of an analysis, oldest name first. `results_dir` if given, else `<folder>/results/`
     if it exists, else `<folder>/outputs/`. A run is a real directory named `run_<YYYYMMDD>_<slug>`; dotfiles such as `.gitkeep` are ignored.
     When there are none but files (or other folders) sit in the outputs folder, one entry with
     layout "flat" and the outputs folder as its path is returned, so old analyses keep working.
     When a step folder (`NN_name`, see STEP_DIR, holding a figures, source_data or tables folder) exists, the first entry has layout "steps" and the
-    outputs folder as its path; old run folders follow it."""
+    outputs folder as its path; old run folders follow it. A valid `.layout` marker (see layout_marker) in the
+    outputs folder gives the "steps" entry first even when no step folder exists yet."""
     base = _base(folder, results_dir)
     if not os.path.isdir(base):
         return []
@@ -205,7 +238,7 @@ def runs(folder, results_dir=None):
                 bare = True
         else:
             other = True
-    if has_steps:
+    if has_steps or layout_marker(base):
         return [_steps(base)] + found
     other = other or bare
     if not found and other:
@@ -262,11 +295,7 @@ def _gather(run, sub):
     """Files in `<run>/<sub>/`; for a "steps" run, in `<outputs>/<step>/<sub>/` over all step folders."""
     path = _run_path(run)
     if isinstance(run, dict) and run.get("layout") == "steps":
-        out = []
-        for name in sorted(os.listdir(path)):
-            if (STEP_DIR.match(name) or name == PANELS_DIR) and os.path.isdir(os.path.join(path, name)):
-                out += _files(os.path.join(path, name, sub))
-        return sorted(out)
+        return sorted(f for name in step_dirs(run) for f in _files(os.path.join(path, name, sub)))
     return _files(os.path.join(path, sub))
 
 

@@ -5064,12 +5064,13 @@ def run_citations(base, analysis, since):
 def step_rows(entry):
     """The step folders under a "steps" outputs folder: name, newest file mtime, id. Read-only."""
     rows = []
-    for name in sorted(os.listdir(entry["path"])):
+    for name in _paths().step_dirs(entry):
         full = os.path.join(entry["path"], name)
-        if (_paths().STEP_DIR.match(name) or name == _paths().PANELS_DIR) and os.path.isdir(full) and not os.path.islink(full):
-            newest, digest = scan_run(full)
-            rows.append({"step": name, "path": full, "epoch": newest,
-                         "updated": when(newest) if newest else "-", "id": digest})
+        if os.path.islink(full):  # a pointer to another place is not a step of this analysis
+            continue
+        newest, digest = scan_run(full)
+        rows.append({"step": name, "path": full, "epoch": newest,
+                     "updated": when(newest) if newest else "-", "id": digest})
     return rows
 
 
@@ -5117,15 +5118,16 @@ def list_runs(base, gated, path):
     mine = [p[0] for p in plans if guess_analysis_dir(p[2]) == os.path.relpath(analysis, base)]
     names = sorted(os.listdir(results))
     pointers = [(n, os.readlink(os.path.join(results, n))) for n in names if os.path.islink(os.path.join(results, n))]
-    found, steps, extra = [], [], []
+    found, steps, extra, steps_layout = [], [], [], False
     for entry in _paths().runs(analysis, results):  # the shared resolver; a flat layout has no run folders
         if entry["layout"] == "run":  # legacy run folders keep their RUN.txt checks
             run = label_run(entry["path"])
             run["kind_error"] = (entry["run_txt"] or {}).get("kind_error")
             found.append(run)
         elif entry["layout"] == "steps":  # no RUN.txt: the step folders and the change log stand in
-            steps, extra = step_rows(entry), step_findings(entry)
+            steps, extra, steps_layout = step_rows(entry), step_findings(entry), True
     return {"results": rel_or_abs(base, results), "runs": found, "pointers": pointers, "steps": steps,
+            "steps_layout": steps_layout,
             "last_change": _paths().last_change(analysis),
             "findings": run_findings(base, results, found, pointers) + extra,
             "citations": run_citations(base, analysis, max(mine) if mine else None)}
@@ -5138,10 +5140,13 @@ def render_runs(result):
                   "| Step | Updated | Id |", "|---|---|---|"]
         lines += ["| {} | {} | {} |".format(r["step"], r["updated"], r["id"]) for r in result["steps"]]
         lines.append("")
+    elif result.get("steps_layout"):
+        lines += ["Step folders: none yet.", ""]
+    if result.get("steps_layout"):
         lines.append("Last change: " + (result["last_change"] or "none logged (no `logs/CHANGES.md`)."))
         lines.append("")
     if result["runs"]:
-        if result["steps"]:
+        if result.get("steps_layout"):
             lines += ["Legacy run folders:", ""]
         lines += ["| Run | Version | Kind | Status | Updated | Id | Why |", "|---|---|---|---|---|---|---|"]
         for r in result["runs"]:
@@ -5149,7 +5154,7 @@ def render_runs(result):
             lines.append("| {} | {} | {} | {} | {} | {} | {} |".format(
                 r["run"], f.get("version", "-"), f.get("kind", "-"), r["status"],
                 r["updated"], r["id"], cell(why if len(why) <= 60 else why[:57] + "...")))
-    elif not result["steps"]:
+    elif not result.get("steps_layout"):
         lines.append("No `run_<YYYYMMDD>_<slug>` folders here.")
     if result["pointers"]:
         lines += [""] + ["`{}` -> `{}` (a pointer, not a run)".format(n, t) for n, t in result["pointers"]]

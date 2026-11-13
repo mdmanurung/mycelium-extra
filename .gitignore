@@ -9,3 +9,6 @@ HANDOFF.md
 # local evidence logs and planning scratch (not part of the plugin)
 docs/plans/evidence/
 /plans/
+
+# test runner timings (written by tests/run_suite.py)
+tests/.suite_timings.json
