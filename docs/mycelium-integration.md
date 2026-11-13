@@ -171,3 +171,5 @@ The bundled template retains the
 [Mycelium MIT notice](https://github.com/mdmanurung/mycelium-extra/blob/main/skills/new-analysis/templates/MYCELIUM_LICENSE).
 [scilintr](https://github.com/arjunrajlaboratory/scilintr) supplies scientific
 linting; data-contract alerts use ClawBio's expected/observed/evidence format.
+
+`check-first`, `diagnose-result`, `improve-structure` and `glossary` are adapted from Matt Pocock's `tdd`, `diagnosing-bugs`, `improve-codebase-architecture` and `grill-with-docs` skills (MIT, Copyright (c) 2026 Matt Pocock).

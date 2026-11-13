@@ -1,0 +1,11 @@
+rule step01_prepare:
+    output: "outputs/01_prepare/01_prepare.rds"
+    script: "code/01_prepare.R"
+
+rule step02_fit:
+    output: "outputs/02_fit/02_fit.rds"
+    script: "code/02_fit.R"
+
+rule step03_show:
+    output: "outputs/03_show/03_show.html"
+    shell: "quarto render code/03_show.qmd"

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Diagnose Result"
+  short_description: "Find why an analysis result looks wrong, unstable or slow"
+  default_prompt: "Use $mycelium-extra:diagnose-result to build a feedback loop for the result I describe, then list ranked hypotheses before testing any of them."
+policy:
+  allow_implicit_invocation: false

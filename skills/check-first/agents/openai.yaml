@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Check First"
+  short_description: "Write the check that catches a wrong result before the analysis code"
+  default_prompt: "Use $mycelium-extra:check-first to agree the seams of the next analysis step with me, then write its known-answer check before the code."
+policy:
+  allow_implicit_invocation: false

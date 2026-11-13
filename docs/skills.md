@@ -22,6 +22,18 @@ This is a task map, not a list of commands to execute in sequence. Read the skil
 | Say which analysis this session works on | type `focus <folder>` |
 | Remind me where an analysis stands and what to do next | type `where` (or `/mycelium-extra:where`) |
 | See what changed against the approved plan | `/mycelium-extra:track-changes` |
+| Write the check for a deciding step before its code | `/mycelium-extra:check-first` |
+| Find why a result looks wrong, unstable or slow | `/mycelium-extra:diagnose-result` |
+| Review how an analysis folder is organised | `/mycelium-extra:improve-structure` |
+| Fix the words of an analysis, log exploratory loops | `/mycelium-extra:glossary` |
+| Test a method or panel before a plan commits to it | `/mycelium-extra:prototype-analysis` |
+| Get a sourced answer in the background | `/mycelium-extra:research-note` |
+| Chart a program too big for one session | `/mycelium-extra:analysis-map` |
+| Walk through cluster setup steps only you can do | `/mycelium-extra:setup-wizard` |
+| Get the last message again in plain words | `/mycelium-extra:re-pitch` |
+| Write or audit a document an agent reads | `/mycelium-extra:skill-style` |
+| Not sure which skill fits | `/mycelium-extra:ask-extra` |
+| Hand off, restart and resume in one chain | `/mycelium-extra:handoff-resume` |
 | Park a passing idea | `/mycelium-extra:idea <idea>` |
 | Choose the next idea | `/mycelium-extra:idea-triage` |
 
@@ -85,7 +97,7 @@ Shows what changed against the approved plan. It is read-only. See [track-change
 
 ## handoff
 
-Writes a short `HANDOFF.md` for a fresh session: the goal, the next action, the newest `logs/CHANGES.md` entry (or, for a legacy run, its `RUN.txt` status), what was assumed but not run, and each open item with a lean marked as not a decision. `handoff test` has a fresh reader try the file, or a filled report, from a staged copy of it and the files it points to, and lists what it could not follow. It is an instruction to the reader, not a sandbox. See [handoff](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/handoff.md).
+Writes a short `HANDOFF.md` for a fresh session: the goal, the next action, the newest `logs/CHANGES.md` entry (or, for a legacy run, its `RUN.txt` status), what was assumed but not run, and each open item with a lean marked as not a decision. `handoff test` has a fresh reader try the file, or a filled report, from a staged copy of it and the files it points to, and lists what it could not follow. It is an instruction to the reader, not a sandbox. The handoff has a Suggested skills section, redacts secrets and personal identifiers before writing, and `handoff bg` prints a `claude --bg` command seeded from `HANDOFF.md` for you to run. See [handoff](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/handoff.md).
 
 ## questionnaire
 
@@ -102,3 +114,51 @@ Ranks the open ideas so you can pick the next one. See [idea-triage](https://git
 ## harden
 
 Turns a learning's mitigation into a test. See [harden](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/harden.md).
+
+## check-first
+
+Writes the check that would catch a wrong result before the analysis code, one step at a time. The expected value comes from outside the code. See [check-first](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/check-first.md).
+
+## diagnose-result
+
+Finds why a result looks wrong, unstable or slow, or why a step fails: a feedback loop first, then ranked hypotheses and one probe each. See [diagnose-result](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/diagnose-result.md).
+
+## improve-structure
+
+Read-only review of how an analysis folder or lab repo is organised. Shows up to five candidates and hands your pick to `grill`. See [improve-structure](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/improve-structure.md).
+
+## glossary
+
+Fixes the terms of one analysis in `GLOSSARY.md` and logs each exploratory loop in `ITERATIONS.md`. Approves and runs nothing. See [glossary](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/glossary.md).
+
+## prototype-analysis
+
+Builds a throwaway prototype that answers one analytic question: does a method behave sensibly, or what should a panel look like. Use it before a plan row commits to either. It runs nothing on its own and grants nothing. See [prototype-analysis](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/prototype-analysis.md).
+
+## research-note
+
+Sends one sourced question to a background agent that writes one cited note while you keep working. The note reports what papers, docs and source code say, never what your data show. See [research-note](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/research-note.md).
+
+## analysis-map
+
+Charts a research program too big for one session as a map of decision tickets, then resolves them one at a time. It plans decisions, runs no analysis and writes no plan rows. See [analysis-map](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/analysis-map.md).
+
+## setup-wizard
+
+Generates a bash wizard that walks you through cluster setup steps only you can do, such as SLURM access, environments, data downloads and keys, and records what you did. See [setup-wizard](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/setup-wizard.md).
+
+## re-pitch
+
+Rewrites the last message in short plain sentences when you lost the thread. It weakens no claim, reads no project state and numbers the decisions at the end. See [re-pitch](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/re-pitch.md).
+
+## skill-style
+
+A reference and a read-only audit for the documents agents read: skills, `AGENTS.md`, `CLAUDE.md`, reference files and hook notices. See [skill-style](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/skill-style.md).
+
+## ask-extra
+
+Names one to three skills that fit your situation, grouped by what you are doing. It only hints and starts none of them. See [ask-extra](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/ask-extra.md).
+
+## handoff-resume
+
+Writes the handoff, arms a marker and makes the next session read `HANDOFF.md` first. You type `/clear`, then any message. Three hooks keep the links in order: `Stop`, `UserPromptSubmit` and `PostToolUse`. Approvals do not carry over. See [handoff-resume](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/handoff-resume.md).

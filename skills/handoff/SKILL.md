@@ -8,6 +8,8 @@ description: Write a short HANDOFF.md so a fresh session can resume from one sma
 
 Write `HANDOFF.md` at the project root: the least a fresh session needs to keep working. The next session reads this file plus the pointers it names, and nothing else. Every line costs tokens on every resume, so cut anything git, the code, or Mycelium's memory already holds.
 
+If the same person continues soon, `where` shows the live state for free; write a handoff when the session ends or the context resets. Adapted from Matt Pocock's handoff and claude-handoff skills (MIT).
+
 ## 1. Gather cheaply
 
 - Find the project root (`git rev-parse --show-toplevel`, else the working directory).
@@ -43,6 +45,8 @@ Write `HANDOFF.md` at the project root: the least a fresh session needs to keep 
 
 Overwrite, never append. Keep it under about 80 lines. Omit a section that would be empty; never pad one.
 
+Redact before writing. Replace secrets and tokens with a name (`SLURM_TOKEN set`), and personal identifiers with a count or a pseudonymous label (`donor_A`, `12 donors`). Personal identifiers are donor or patient IDs that identify people, genotype data and sample sheets. Point to the protected file by path; never copy its rows. One exception: a pending plan pasted under `## Pending plan (verbatim)` is not redacted, because any edit changes its hash.
+
 ```markdown
 # Handoff — <topic>
 
@@ -75,6 +79,9 @@ Run `git log --oneline <hash>..HEAD` and `git status --short`, with `<hash>` fro
 ## Dead ends — do not redo
 - <approach> — <evidence that killed it>
 
+## Suggested skills
+- `<skill>` — <why the next session calls it> (mycelium-extra or lucid-coder skills, for example `focus`, `plot-first`, `verify`, `lucid-coder:sc-de`)
+
 ## Read first
 - `path:line` — <why it matters>
 
@@ -91,12 +98,13 @@ Rules:
 - Locked decisions and dead ends earn their space: they stop the next session re-asking or re-trying. Keep the reason with each.
 - In a Mycelium repository (`.living/` exists), link to `.mycelium/last-session.md` and to `.living/decisions.md` or `learnings.md` entries by heading; do not copy them. Never write to Mycelium's files from this skill.
 - A pending plan is never summarised: point to its stored copy, or, when there is none, paste the whole brief under `## Pending plan (verbatim)`. That section does not count toward the line limit. With a pending plan, the next action is to re-present it.
-- Leave out secrets, tokens, and credentials.
+- Suggested skills names only skills that fit the next action; the next session invokes them itself. Omit the section when none apply.
 
 ## 3. Finish
 
 - Check `wc -l HANDOFF.md`; if it is over about 80 lines (not counting a verbatim pending plan), cut the oldest or least actionable items.
 - `handoff test` runs a cold-reader check on `HANDOFF.md`, or on a filled report when given its `.qmd` path. It is separate from the two checks above and starts only when the user asks. Follow [cold-reader.md](../grill/references/cold-reader.md): stage the document and the files it points to in an empty folder, give a fresh reader only that path, and show the user its gap list. Fix the file only after the user says so.
+- `handoff bg` prints a Background pickup command, only when the user asks. Read [references/background.md](references/background.md) first. It is printed text for the user to run; the skill never launches the agent.
 - Do not commit it or change `.gitignore`; that is the user's call.
 - If Mycelium's Stop hook asks for `.living/` updates afterwards, follow the hook.
 - End with the resume prompt on its own line, then tell the user to run `/clear` (or open a new session) and paste it:

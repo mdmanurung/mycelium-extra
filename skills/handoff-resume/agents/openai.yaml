@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Handoff Resume"
+  short_description: "Hand off, restart and resume in one chain"
+  default_prompt: "Use $mycelium-extra:handoff-resume to write the handoff, arm the resume marker and tell me what to type."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Re-pitch"
+  short_description: "Re-explain my last message in short plain sentences"
+  default_prompt: "Use $mycelium-extra:re-pitch to re-pitch your last message: two lines of context, short plain sentences, nothing weakened, and one numbered decision at the end."
+policy:
+  allow_implicit_invocation: false
