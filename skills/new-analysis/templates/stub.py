@@ -10,7 +10,7 @@ Register numbers a report would quote with Mycelium's register_value
 """
 
 import sys
-from importlib.metadata import packages_distributions, version
+import importlib.metadata as metadata
 from pathlib import Path
 
 # Parameters -------------------------------------------------------------------
@@ -31,7 +31,10 @@ raise SystemExit("@@FILE@@ is not written yet")
 # A script that uses scanpy writes sc.logging.print_versions() here instead.
 (step_dir / "logs").mkdir(exist_ok=True)
 # Every package imported above, found from sys.modules, so no list to keep by hand.
-owners = packages_distributions()
-packages = sorted({d for m in {n.split(".")[0] for n in sys.modules} for d in owners.get(m, [])})
-notes = [f"python {sys.version.split()[0]}"] + [f"{name} {version(name)}" for name in packages]
+modules = {n.split(".")[0] for n in sys.modules}
+installed = {d.metadata["Name"].lower(): d.version for d in metadata.distributions() if d.metadata["Name"]}
+# Python 3.9 has no packages_distributions(): fall back to distributions named like the module.
+owners = metadata.packages_distributions() if hasattr(metadata, "packages_distributions") else {m: [m] for m in modules}
+packages = sorted({d for m in modules for d in owners.get(m, []) if d.lower() in installed})
+notes = [f"python {sys.version.split()[0]}"] + [f"{name} {installed[name.lower()]}" for name in packages]
 (step_dir / "logs" / "@@STEM@@.session.txt").write_text("\n".join(notes) + "\n")

@@ -164,6 +164,12 @@ class RunSuiteTest(unittest.TestCase):
             alive = True
         except OSError:
             alive = False
+        if alive:  # in a container with no init to reap it, a killed process stays a zombie
+            try:
+                with open("/proc/%d/stat" % pid, encoding="utf-8") as handle:
+                    alive = handle.read().rsplit(")", 1)[1].split()[0] != "Z"
+            except OSError:
+                pass
         self.assertFalse(alive, "the sleep grandchild survived the timeout")
 
 
