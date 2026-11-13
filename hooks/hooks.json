@@ -7,6 +7,11 @@
             "type": "command",
             "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then sh \"${CLAUDE_PLUGIN_ROOT}/hooks/py.sh\" --hook \"${CLAUDE_PLUGIN_ROOT}/hooks/gate_run.py\" prompt; fi",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then sh \"${CLAUDE_PLUGIN_ROOT}/hooks/py.sh\" --hook \"${CLAUDE_PLUGIN_ROOT}/hooks/resume_run.py\" --hook prompt; fi",
+            "timeout": 10
           }
         ]
       }
@@ -31,6 +36,11 @@
             "type": "command",
             "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then sh \"${CLAUDE_PLUGIN_ROOT}/hooks/py.sh\" --hook \"${CLAUDE_PLUGIN_ROOT}/hooks/gate_run.py\" post; fi",
             "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then sh \"${CLAUDE_PLUGIN_ROOT}/hooks/py.sh\" --hook \"${CLAUDE_PLUGIN_ROOT}/hooks/resume_run.py\" --hook post; fi",
+            "timeout": 10
           }
         ]
       },
@@ -64,6 +74,11 @@
             "type": "command",
             "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then sh \"${CLAUDE_PLUGIN_ROOT}/hooks/py.sh\" --hook \"${CLAUDE_PLUGIN_ROOT}/hooks/gate_run.py\" stop; fi",
             "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then sh \"${CLAUDE_PLUGIN_ROOT}/hooks/py.sh\" --hook \"${CLAUDE_PLUGIN_ROOT}/hooks/resume_run.py\" --hook stop; fi",
+            "timeout": 10
           }
         ]
       }

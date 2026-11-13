@@ -48,9 +48,21 @@ Claude Code and OpenCode: `/mycelium-extra:<skill>`. Codex: `$mycelium-extra:<sk
 | `track-changes` | Shows what changed against the approved plan, read-only. |
 | `focus` (you) | Explains the typed `focus` command. |
 | `where` (you) | Shows the "what is going on" card for one analysis; the same words can be typed. |
-| `handoff` (you) | Writes a short `HANDOFF.md` so a fresh session can resume; it names `outputs/current` as the [analysis layout](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/analysis-layout.md) defines it. |
+| `handoff` (you) | Writes a short `HANDOFF.md` with Suggested skills, redacted of secrets and personal identifiers, so a fresh session can resume; `handoff bg` prints a `claude --bg` command; it names `outputs/current` as the [analysis layout](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/concepts/analysis-layout.md) defines it. |
 | `handoff test` (you) | Has a fresh reader try `HANDOFF.md` or a filled report from a staged copy and lists the gaps. An instruction, not a sandbox. |
 | `harden` (you) | Ships one learning's mitigation as a real test. |
+| `check-first` (you) | Writes the check for a deciding step before its code. The expected value comes from outside the code. |
+| `diagnose-result` (you) | Finds why a result looks wrong, unstable or slow, or why a step fails. |
+| `improve-structure` (you) | Read-only review of how an analysis is organised; hands your pick to `grill`. |
+| `glossary` (you) | Fixes an analysis's terms and logs exploratory loops. |
+| `prototype-analysis` (you) | Builds a throwaway prototype that answers one analytic question before a plan row commits to it. |
+| `research-note` (you) | Sends a sourced question to a background agent that writes one cited note. |
+| `analysis-map` (you) | Charts a program too big for one session as decision tickets and resolves them one at a time. |
+| `setup-wizard` (you) | Generates a bash wizard for cluster setup steps only you can do. |
+| `re-pitch` (you) | Rewrites the last message in short plain sentences. |
+| `skill-style` (you) | Writes or audits a document an agent reads. Read-only audit of the plugin's skills. |
+| `ask-extra` (you) | Names the skills that fit your situation. Starts none. |
+| `handoff-resume` (you) | Writes the handoff, arms a marker; type `/clear` and any message to resume. |
 | `idea` | Parks an idea in one line. The model can invoke it. |
 | `idea-triage` (you) | Ranks parked ideas. |
 | `questionnaire` (you) | Turns questions only someone else can answer into a questionnaire. |

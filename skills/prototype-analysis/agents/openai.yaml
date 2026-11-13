@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Prototype Analysis"
+  short_description: "Throwaway prototype that answers one analytic question"
+  default_prompt: "Use $mycelium-extra:prototype-analysis to pick the branch for my question and build the throwaway prototype."
+policy:
+  allow_implicit_invocation: false

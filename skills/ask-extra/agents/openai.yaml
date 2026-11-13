@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Ask"
+  short_description: "Find which Mycelium Extra skill fits my situation"
+  default_prompt: "Use $mycelium-extra:ask-extra to ask me one question about my situation, then name one to three skills to type and why."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,20 @@
+rule step01_prepare:
+    input: "data/counts.rds"
+    output: "outputs/01_prepare/01_prepare.rds"
+    script: "code/01_prepare.R"
+
+rule step02_fit:
+    output: "outputs/02_fit/02_fit.rds"
+    script: "code/02_fit.R"
+
+rule step03_plot:
+    output: "outputs/03_plot/figures/03_plot.png"
+    script: "code/03_plot.R"
+
+rule step04_combine:
+    output: "outputs/04_combine/figures/04_combine.png"
+    script: "code/04_combine.R"
+
+rule step06_explore:
+    output: "outputs/06_explore/06_explore.html"
+    shell: "quarto render code/06_explore.qmd"

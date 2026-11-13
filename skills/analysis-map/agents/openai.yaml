@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Analysis map"
+  short_description: "Map a multi-step analysis as decision tickets"
+  default_prompt: "Use $mycelium-extra:analysis-map to chart or work through the decision map for my analysis."
+policy:
+  allow_implicit_invocation: false

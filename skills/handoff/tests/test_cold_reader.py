@@ -57,6 +57,20 @@ class ColdReader(unittest.TestCase):
         self.assertIn(path, grill)
         self.assertNotIn("track-changes/<analysis>/brief.md", HANDOFF)
 
+    def test_pocock_additions(self):
+        self.assertIn("## Suggested skills", HANDOFF)
+        self.assertIn("Redact before writing", HANDOFF)
+        self.assertIn("donor or patient IDs", HANDOFF)
+        self.assertIn("genotype data", HANDOFF)
+        background = read(SKILLS, "handoff", "references", "background.md")
+        self.assertIn("references/background.md", HANDOFF)
+        self.assertIn("claude --bg --name", background)
+        self.assertIn("never runs it", background)
+        self.assertIn("'approve'", background)
+        self.assertIn("personal identifiers", background)
+        self.assertIn("is not redacted", HANDOFF)
+        self.assertIn("`where`", HANDOFF)
+
     def test_no_banned_words(self):
         for word in ("leverage", "robust", "seamless", "comprehensive"):
             self.assertIsNone(re.search(word, REFERENCE, re.I), word)

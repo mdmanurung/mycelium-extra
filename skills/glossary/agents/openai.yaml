@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Glossary"
+  short_description: "Sharpen an analysis's terms and keep an iteration log"
+  default_prompt: "Use $mycelium-extra:glossary to grill me on the terms of this analysis, update its GLOSSARY.md, and log this exploratory loop in ITERATIONS.md."
+policy:
+  allow_implicit_invocation: false

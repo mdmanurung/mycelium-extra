@@ -1,0 +1,13 @@
+---
+title: "Show"
+---
+
+Donor scores.
+
+```{r}
+source("code/theme.R")
+scores <- readRDS(file.path(Sys.getenv("OUTPUTS"), "01_prepare", "01_prepare.rds"))
+ggplot(scores, aes(PC1, PC2)) +
+  geom_point() +
+  scale_colour_manual(values = PALETTE)
+```

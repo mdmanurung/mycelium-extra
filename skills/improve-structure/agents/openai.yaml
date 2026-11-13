@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Improve Structure"
+  short_description: "Review how an analysis is organised and propose deepening candidates"
+  default_prompt: "Use $mycelium-extra:improve-structure to scan the analysis I am working on, show up to five structure candidates, and hand my pick to grill."
+policy:
+  allow_implicit_invocation: false

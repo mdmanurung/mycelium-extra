@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Skill style"
+  short_description: "Write and audit the documents agents read"
+  default_prompt: "Use $mycelium-extra:skill-style to audit the skills in this plugin and tell me the top findings."
+policy:
+  allow_implicit_invocation: false

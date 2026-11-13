@@ -13,8 +13,15 @@ You type this skill; the agent does not start it on its own (`disable-model-invo
 1. Gathers cheaply: `git status --short`, `git log --oneline -15`, `git diff --stat`; everything else comes from the conversation.
 2. If the last grill brief ended `READY` or `READY_WITH_ASSUMPTIONS` and you have not approved it, it looks the brief up by content in `.mycelium-extra/pending/*.json` and points `HANDOFF.md` at the stored copy (or pastes the whole brief when there is none). It never summarises a pending plan.
 3. If `HANDOFF.md` exists, reads it, carries forward only what still holds, and prints its first ten lines to you before overwriting.
-4. Writes `HANDOFF.md`, under about 80 lines (a verbatim pending plan does not count). The first line carries the time and commit copied from `date` and `git rev-parse`; then Check first (the `git log <hash>..HEAD` and `git status` the next session runs to see what changed since), Goal, Next action, Pending plan, State, Locked decisions, Dead ends, Read first, Open items. Empty sections are omitted.
+4. Writes `HANDOFF.md`, under about 80 lines (a verbatim pending plan does not count). The first line carries the time and commit copied from `date` and `git rev-parse`; then Check first (the `git log <hash>..HEAD` and `git status` the next session runs to see what changed since), Goal, Next action, Pending plan, State, Locked decisions, Dead ends, Suggested skills (which mycelium-extra or lucid-coder skills the next session should call), Read first, Open items. Empty sections are omitted.
 5. Ends with a resume prompt: `Read HANDOFF.md, run its Check first, then <next action>.` With a pending plan the prompt tells the new session to print the stored plan unchanged; the gate then shows a fresh card, and you approve the hash that card shows.
+
+6. Redacts before writing: secrets and tokens become names, and personal identifiers (donor or patient IDs that identify people, genotype data, sample sheets) become counts or pseudonymous labels, with a pointer to the protected file. A pending plan pasted verbatim is not redacted, because an edit changes its hash.
+7. `handoff bg` (only when you ask) prints a `claude --bg --name "<descriptive name>" -- "..."` command seeded from `HANDOFF.md`. You run it; the skill never launches the agent. If the verbatim plan holds personal identifiers, the skill asks before printing the command, because the prompt is stored in the agent's job list. Approvals are per session, so the new agent has no approved plan: the prompt tells it to ask for `approve` before any gated run, and `HANDOFF.md` names the pending plan hash.
+
+When the same person continues soon, `where` shows the live state at no cost; use the handoff for a reset or a new person or agent.
+
+Adapted from Matt Pocock's handoff and claude-handoff skills (MIT).
 
 ## Reads and writes
 

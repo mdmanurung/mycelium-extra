@@ -1,0 +1,11 @@
+---
+title: "Explore"
+---
+
+Clusters of the donors.
+
+```{r}
+obj <- FindNeighbors(obj)
+obj <- FindClusters(obj)
+saveRDS(obj, "outputs/06_explore/06_explore.rds")
+```

@@ -33,6 +33,8 @@ The skills, from planning to hand-off:
 - `repo-setup`, `plan-review`, `questionnaire`, `harden`, `idea`,
   `idea-triage`, `decision-status` and `data-contract-check` cover setup, review,
   continuity, and checks. `DESIGN.md` at the root holds the one colour and type set the generated pages use.
+- `check-first`, `diagnose-result`, `improve-structure` and `glossary` are skills you invoke. `check-first` writes the check for a deciding step before its code. `diagnose-result` finds why a result looks wrong, unstable or slow. `improve-structure` reviews how an analysis is organised and hands your pick to `grill`. `glossary` fixes an analysis's terms and logs exploratory loops. They add no hook or gate.
+- `prototype-analysis`, `research-note`, `analysis-map`, `setup-wizard`, `re-pitch`, `skill-style` and `ask-extra` are also skills you invoke. They prototype a method, write a cited note in the background, chart a large program as decision tickets, generate a cluster setup wizard, restate the last message in plain words, audit documents agents read, and name the skill that fits. `handoff-resume` writes the handoff and arms a marker so the next session reads `HANDOFF.md` first; it is the one skill here with hooks (`hooks/resume_run.py`).
 - `manuscript-audit` is a read-only audit of a manuscript repository's figure/table
   lineage and source data, with an optional small deterministic contract check. It adds
   no hook or gate; the opt-in `manuscript-reproducibility` convention pack is guidance
