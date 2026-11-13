@@ -22,7 +22,7 @@ Send each as the whole prompt. The gate answers it; the agent does not run it.
 
 ## What you do
 
-- To list folders a focus can name: `sh <skill-dir>/../../hooks/py.sh - list < <skill-dir>/../../hooks/focus.py`. Read-only. Then tell the user the exact line to type.
+- To list folders a focus can name: `<skill-dir>/../../hooks/mxpy - list < <skill-dir>/../../hooks/focus.py`. Read-only. Then tell the user the exact line to type.
 - Never write `.mycelium-extra/focus/` yourself and never type a focus command for the user. Only the user's typed command changes a focus.
 - While a focus is open the gate adds one advisory line to each prompt. Stay on that analysis unless the user directs otherwise. If the user asks something that clearly belongs to another analysis, say so in one line and offer `focus switch <folder>`; still answer them, and never refuse ordinary conversation.
 - Focus is not permission. A run needs an approved plan as before; `focus status` shows that separately.

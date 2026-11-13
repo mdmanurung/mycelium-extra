@@ -1,7 +1,7 @@
 """Check an Artifact evaluation page before it is published. Read-only.
 
 Run from stdin so the gate reads no script path, with every option as --flag=value:
-    sh <plugin>/hooks/py.sh - --page=<page.html> --report=<reports/name.qmd> [--numbers=<numbers.json>]
+    <plugin>/hooks/mxpy - --page=<page.html> --report=<reports/name.qmd> [--numbers=<numbers.json>]
         [--hooks=<plugin>/hooks] < artifact_check.py
 Without --numbers, and with --hooks, the numbers file is the one `analysis_paths.numbers()` resolves for the
 analysis folder (the parent of reports/) and its current run.

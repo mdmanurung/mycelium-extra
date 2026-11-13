@@ -91,6 +91,7 @@ PLAN_STATUS = re.compile(
     re.IGNORECASE | re.MULTILINE)
 RUNNERS = re.compile(
     r"^(python[\d.]*|Rscript|R|bash|sh|zsh|jupyter|papermill|quarto|julia|perl|node|source|\.)$")
+LAUNCHERS = ("py.sh", "mxpy")  # the plugin's Python launcher, as hooks/py.sh and as hooks/mxpy
 SHELLS = {"bash", "sh", "zsh", "dash", "ksh", "fish", "csh", "tcsh"}
 CONTAINERS = {"apptainer", "singularity", "docker", "podman"}  # `exec IMAGE CMD`: CMD is read as if run directly
 # ponytail: a plugin or tool root (`$MYC/skills/..`, `$CLAUDE_PLUGIN_ROOT/..`) is never a planned analysis script;
@@ -794,9 +795,12 @@ def _classify(tokens, root, cwd, config, info=None):
             return gated_rel(root, cwd, token, config)
         # in an unknown folder any script counts, not only one under a gated path: the folder may be one
         return repo_relative(root, cwd, token) if direct or SCRIPT_EXT.search(token) else None
-    # the plugin's launcher (`sh <plugin>/hooks/py.sh [--hook] ARGS`) runs `python3 ARGS`; a gated py.sh stays a script
-    if word in SHELLS and rest and os.path.basename(rest[0]) == "py.sh" and not script_rel(rest[0], True):
+    # the plugin's launcher (`sh <plugin>/hooks/py.sh|mxpy [--hook] ARGS`) runs `python3 ARGS`; a gated py.sh stays a script
+    if word in SHELLS and rest and os.path.basename(rest[0]) in LAUNCHERS and not script_rel(rest[0], True):
         word, rest = "python3", rest[2:] if rest[1:2] == ["--hook"] else rest[1:]
+    # the same launcher called directly (`<plugin>/hooks/mxpy ARGS`, no `sh`: the form Mycelium's detector ignores)
+    elif word == "mxpy" and not script_rel(head, True):
+        word, rest = "python3", rest[1:] if rest[:1] == ["--hook"] else rest
     for j, token in enumerate(rest):
         if token == "<" and j + 1 < len(rest):
             rel = gated_rel(root, cwd, rest[j + 1], config)

@@ -7,7 +7,7 @@ Finds why an analysis result looks wrong, surprising or unstable, or why a step 
 You type this skill; the agent does not start it on its own (`disable-model-invocation: true`, and Codex's `allow_implicit_invocation: false`).
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - OLD NEW --key donor,gene [--rtol 1e-6] [--atol 1e-8] [--max-rows 10] [--redact-keys] < <skill-dir>/scripts/diff_tables.py
+<skill-dir>/../../hooks/mxpy - OLD NEW --key donor,gene [--rtol 1e-6] [--atol 1e-8] [--max-rows 10] [--redact-keys] < <skill-dir>/scripts/diff_tables.py
 ```
 
 The script is the only code in the skill. The rest is the agent's procedure.

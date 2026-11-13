@@ -35,7 +35,7 @@ Two ways to run it, never a third:
 - **Ad hoc, before approval**: stream the script on stdin so no file in the repository runs by path (running a script by path opens Mycelium's post-action cycle) and write no file:
 
   ```bash
-  sh <skill-dir>/../../hooks/py.sh - --root . --config config/manuscript_checks.json < <skill-dir>/scripts/manuscript_audit.py
+  <skill-dir>/../../hooks/mxpy - --root . --config config/manuscript_checks.json < <skill-dir>/scripts/manuscript_audit.py
   ```
 
   Its result is a `test-executed` finding for this session only; `verify` cannot attribute it to a plan.

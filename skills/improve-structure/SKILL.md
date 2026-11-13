@@ -29,7 +29,7 @@ Say which folder or steps you chose and why, in one line. If the changes are sca
 ## 2. Scan
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - PATH [--json] < <skill-dir>/scripts/scan_structure.py
+<skill-dir>/../../hooks/mxpy - PATH [--json] < <skill-dir>/scripts/scan_structure.py
 ```
 
 `PATH` is an analysis folder or a folder of analyses. The script is read-only and prints a text summary (or JSON). It reports:

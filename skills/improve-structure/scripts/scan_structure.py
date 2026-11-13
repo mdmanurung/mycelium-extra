@@ -1,6 +1,6 @@
 """Scan one analysis folder, or a folder of analyses, for structural friction. Read-only, stdlib only.
 
-Run: sh <skill-dir>/../../hooks/py.sh - PATH [--json] [--dup-lines 8] [--long-script 300] [--long-pipe 15] < <skill-dir>/scripts/scan_structure.py
+Run: <skill-dir>/../../hooks/mxpy - PATH [--json] [--dup-lines 8] [--long-script 300] [--long-pipe 15] < <skill-dir>/scripts/scan_structure.py
 
 PATH is an analysis folder (it has code/) or a folder holding analyses (each with code/). The scan
 reads code/, the Snakefile, plans/, logs/CHANGES.md and git history. It writes nothing.

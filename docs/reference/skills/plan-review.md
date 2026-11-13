@@ -7,9 +7,9 @@ Read-only challenge of a grill plan by independent reviewers before you approve 
 `/mycelium-extra:plan-review` (Codex: `$mycelium-extra:plan-review`). The skill runs three scripts.
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --plan <(cat <<'EOF' ... EOF) < <skill-dir>/scripts/default_reasons.py
-sh <skill-dir>/../../hooks/py.sh - --packet <(cat <<'EOF' ... EOF) [--repo DIR] [--json] < <skill-dir>/scripts/presend_check.py
-sh <skill-dir>/../../hooks/py.sh <skill-dir>/scripts/review_packet.py (prepare|preview|verify) [--packet FILE] [--attach FILE ...] [--digest HEX] [--root DIR]
+<skill-dir>/../../hooks/mxpy - --plan <(cat <<'EOF' ... EOF) < <skill-dir>/scripts/default_reasons.py
+<skill-dir>/../../hooks/mxpy - --packet <(cat <<'EOF' ... EOF) [--repo DIR] [--json] < <skill-dir>/scripts/presend_check.py
+<skill-dir>/../../hooks/mxpy <skill-dir>/scripts/review_packet.py (prepare|preview|verify) [--packet FILE] [--attach FILE ...] [--digest HEX] [--root DIR]
 ```
 
 `review_packet.py` is the one script that runs by path.
@@ -27,7 +27,7 @@ sh <skill-dir>/../../hooks/py.sh <skill-dir>/scripts/review_packet.py (prepare|p
 | | `verify` | With `--digest`: recomputes hashes; refuses if any byte differs, an unlisted file is present, an attachment changed, or the consent record does not name this digest or is not newer than the packet. Prints the one list of files to send. |
 | | `--root` | Project root (default: nearest folder with `.mycelium-extra/gate.json`). |
 
-`presend_check.py` exits: 0 no flags (not a clearance: it is pattern-based), 2 flags with `redactions:` filled in (show them to you), 3 flags with missing or malformed `redactions:`, no single `redactions:` line, or missing input coverage (do not send), 1 did not run. Exit 1 with `needs Python 3.9 or later` is `py.sh` finding no Python.
+`presend_check.py` exits: 0 no flags (not a clearance: it is pattern-based), 2 flags with `redactions:` filled in (show them to you), 3 flags with missing or malformed `redactions:`, no single `redactions:` line, or missing input coverage (do not send), 1 did not run. Exit 1 with `needs Python 3.9 or later` is `mxpy` finding no Python.
 
 ## The consent step
 

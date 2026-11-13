@@ -5,7 +5,7 @@ Read-only, source-grounded audit of a manuscript repository's data products, fig
 ## Synopsis
 
 ```bash
-sh <plugin>/hooks/py.sh - --root . --config config/manuscript_checks.json [--result-json PATH] < <plugin>/skills/manuscript-audit/scripts/manuscript_audit.py
+<plugin>/hooks/mxpy - --root . --config config/manuscript_checks.json [--result-json PATH] < <plugin>/skills/manuscript-audit/scripts/manuscript_audit.py
 ```
 
 The audit itself is a skill the agent performs by reading the repository; the script is the optional deterministic part, run only as a separate user-approved command. Streamed on stdin it runs ad hoc; bound in an approved plan it runs as a copy inside the project (see the skill's step 4).

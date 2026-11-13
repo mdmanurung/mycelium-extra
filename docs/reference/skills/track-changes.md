@@ -5,7 +5,7 @@ A read-only account of how one analysis moved from what you approved. It reuses 
 ## Synopsis
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. [--repo DIR] [--analysis FOLDER] [--session ID] [--original HASH] [--current HASH] [--transcript FILE] [--json] [--no-write] [--explain ITEM_ID] [--journal [--save-checkpoint] [--note TEXT]] < <skill-dir>/scripts/track_changes.py
+<skill-dir>/../../hooks/mxpy - --plugin-root <skill-dir>/../.. [--repo DIR] [--analysis FOLDER] [--session ID] [--original HASH] [--current HASH] [--transcript FILE] [--json] [--no-write] [--explain ITEM_ID] [--journal [--save-checkpoint] [--note TEXT]] < <skill-dir>/scripts/track_changes.py
 ```
 
 Invoke with `/mycelium-extra:track-changes`. Run from stdin, never by path.

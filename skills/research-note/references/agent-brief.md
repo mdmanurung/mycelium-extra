@@ -17,7 +17,7 @@ Read first: `{skill-dir}/references/note-format.md` and `{skill-dir}/references/
 Do this:
 1. Find the primary source that owns each claim (sources.md says what counts). Open it and read the passage. Quote or copy the value. A secondary write-up is a lead: follow it to the source, or leave the claim `unsupported: no source`.
 2. Write the note in the format of note-format.md. Every Evidence row cites a reference id defined in References. Every reference carries a version, release, year or date.
-3. Run `sh {skill-dir}/../../hooks/py.sh - {path} < {skill-dir}/scripts/check_note.py` and fix the note until it exits 0.
+3. Run `{skill-dir}/../../hooks/mxpy - {path} < {skill-dir}/scripts/check_note.py` and fix the note until it exits 0.
 4. Return only the note path and the two-line answer.
 
 Rules:

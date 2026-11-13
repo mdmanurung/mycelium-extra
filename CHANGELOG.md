@@ -40,14 +40,11 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Changed
 
+- **hooks, skills:** skill and doc helper calls run `<plugin>/hooks/mxpy ...` instead of `sh <plugin>/hooks/py.sh ...`. Mycelium 0.9.3 reads `sh <file>.sh` as a shell runner and opened its post-action cycle on every helper call; the extensionless `mxpy` is ignored (`tests/test_mycelium_detector.py`). `mxpy` holds the interpreter choice; `py.sh` delegates to it, so hook registrations are unchanged. The gate reads `mxpy`, with or without `sh`, as `python3` (`hooks/tests/test_gate.py`, `hooks/tests/test_mxpy.py`).
 - **gate:** after `bash run.sh`, `snakemake` and `sbatch`, the post-run notice no longer says Mycelium's post-action protocol "did not fire". Mycelium has detected these runners since 0.8.2. For `sbatch` the notice says to follow the protocol once the job has finished. The tested range is Mycelium 0.9.x. The `gate_diff` oracle is unchanged: no fixed or fuzz case reaches the changed text.
 - **new-analysis:** every stub opens with Purpose, Run, Inputs and Outputs, a `# Parameters ---` block and 80-column dividers, and writes session info last.
 - **new-analysis, init:** a pixi repository set up by `/lucid-coder:align` (only `manager`, `name`, `prefix`) now resolves `<prefix>/bin/Rscript` and `<prefix>/bin/python`. `gate_init --diagnose` reads only the `env:` block and no longer reports a false problem; scilintr falls back from `tools.json` to `env`.
 - **docs:** the `Open with Mycelium` item of roadmap 18 is closed. The `CHANGES.md` example in `docs/concepts/analysis-layout.md` shows `code changed:`, as `run.sh` writes it. `skills/plot-first/SKILL.md` puts `unsupported: no inspected figure` before the fact tag and no longer contradicts itself.
-
-### Known
-
-- Mycelium 0.9.3 treats `sh <file>.sh` as a shell runner, so Extra's helper calls (`sh .../hooks/py.sh - ... < script.py`) open its post-action cycle. `tests/test_mycelium_detector.py` pins this. An extensionless launcher is ignored by the detector; the switch is planned, not done.
 
 ## [0.27.0] - 2026-11-13
 

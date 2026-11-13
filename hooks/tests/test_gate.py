@@ -143,6 +143,11 @@ class GateTest(unittest.TestCase):
             self.assertTrue(self.denied(self.bash("python3 " + command.replace("--hook ", ""))), command)
         self.assertIsNone(self.bash(launcher + "- --contract /tmp/c.json < /plugin/check.py"))
         self.assertTrue(self.denied(self.bash("sh analysis/py.sh")))  # a gated py.sh is a script, not the launcher
+        for launcher in ("sh /plugin/hooks/mxpy ", "/plugin/hooks/mxpy "):
+            for command in ["analysis/x.py", "- < analysis/x.py", "--hook analysis/x.py"]:
+                self.assertTrue(self.denied(self.bash(launcher + command)), launcher + command)
+            self.assertIsNone(self.bash(launcher + "- --contract /tmp/c.json < /plugin/check.py"), launcher)
+        self.assertTrue(self.denied(self.bash("analysis/mxpy")))  # a gated mxpy is a script, not the launcher
 
     # wrapper options: a known option's value is skipped, not read as the command (ME-04)
     def test_wrapper_option_values_do_not_hide_gated_runs(self):

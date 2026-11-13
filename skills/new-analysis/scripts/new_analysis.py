@@ -2,7 +2,7 @@
 
 Run from stdin so Mycelium's hooks stay closed, with every option in --flag=value form
 (the approval gate reads a bare analysis/... argument as a script to run):
-    sh <plugin>/hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb,04_d.qmd,05_e.marimo.py]
+    <plugin>/hooks/mxpy - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb,04_d.qmd,05_e.marimo.py]
               [--format=R|py|ipynb|qmd|marimo] [--lang=r|python]
               [--data=PATH ...] [--code=PATH ...] [--doc-template=PATH] [--panels=Fig1a.R,Fig1b.py]
               [--wrapper=NN_name:skill-name ...]

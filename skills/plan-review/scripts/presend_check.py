@@ -5,7 +5,7 @@ like a secret, a contact detail, a home-directory path, or a participant identif
 input tables. It is conservative and pattern-based: a clean result is not evidence that nothing sensitive
 remains. It reports, the user decides, and it never prints a matched value in full.
 
-    sh <plugin>/hooks/py.sh - --packet <(cat <<'EOF'
+    <plugin>/hooks/mxpy - --packet <(cat <<'EOF'
     <the packet>
     EOF
     ) [--repo <repository root>] < presend_check.py

@@ -1,6 +1,6 @@
 """Compare two delimited tables by a key and report how they differ. Read-only, stdlib only.
 
-Run: sh <skill-dir>/../../hooks/py.sh - OLD NEW --key donor,gene [--rtol 1e-6] [--atol 1e-8] [--max-rows 10] [--redact-keys] < <skill-dir>/scripts/diff_tables.py
+Run: <skill-dir>/../../hooks/mxpy - OLD NEW --key donor,gene [--rtol 1e-6] [--atol 1e-8] [--max-rows 10] [--redact-keys] < <skill-dir>/scripts/diff_tables.py
 
 Reads .csv, .tsv and either one gzipped (.gz). Any other name is sniffed from its first line.
 Exit 0: identical. Exit 1: different. Exit 2: unusable input (missing file or key, empty key,

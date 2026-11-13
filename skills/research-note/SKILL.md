@@ -29,13 +29,13 @@ Start one background agent from the brief in `references/agent-brief.md`. Fill i
 When the agent finishes, run the format check:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - <note> < <skill-dir>/scripts/check_note.py
+<skill-dir>/../../hooks/mxpy - <note> < <skill-dir>/scripts/check_note.py
 ```
 
 Then check the citations. With an approved plan hash, `verify` resolves every DOI, PMID and arXiv id in the note against Crossref, NCBI and arXiv. Read only its `## Citations` section:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. report <hash> --claims <note> --resolve-citations < <skill-dir>/../verify/scripts/verify.py
+<skill-dir>/../../hooks/mxpy - --plugin-root <skill-dir>/../.. report <hash> --claims <note> --resolve-citations < <skill-dir>/../verify/scripts/verify.py
 ```
 
 With no plan hash, run `check_note.py <note> --ids` and look up each id with the PubMed or Europe PMC tools. Compare title and first author. Done when every reference is `resolved`, `mismatch`, `unresolved`, `no identifier` or `not checked`. A check that did not run is a gap, never a pass.

@@ -5,7 +5,7 @@ Works out which past decision still binds a task when `.living/decisions.md` hol
 ## Synopsis
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - [--living-dir DIR] [--tag TAG ...] [--term REGEX ...] [--include-learnings] [--json] < <skill-dir>/scripts/decision_threads.py
+<skill-dir>/../../hooks/mxpy - [--living-dir DIR] [--tag TAG ...] [--term REGEX ...] [--include-learnings] [--json] < <skill-dir>/scripts/decision_threads.py
 ```
 
 Invoke with `/mycelium-extra:decision-status`. Run from stdin, never by path.

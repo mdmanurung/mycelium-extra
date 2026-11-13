@@ -9,7 +9,7 @@ You type this skill; the agent does not start it on its own (`disable-model-invo
 `/mycelium-extra:skill-style` (Codex: `$mycelium-extra:skill-style`). The audit script:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - [--root DIR] [--format table|json|both] < <skill-dir>/scripts/skill_audit.py
+<skill-dir>/../../hooks/mxpy - [--root DIR] [--format table|json|both] < <skill-dir>/scripts/skill_audit.py
 ```
 
 `--root` is a repository (it reads `skills/*/SKILL.md`) or a skills folder. Default format is `both`: a table, then `JSON:` and the JSON report.

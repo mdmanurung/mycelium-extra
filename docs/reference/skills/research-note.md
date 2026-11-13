@@ -7,7 +7,7 @@ Sends one sourced question to a background agent that writes one cited Markdown 
 You type this skill; the agent does not start it on its own (`disable-model-invocation: true`, and Codex's `allow_implicit_invocation: false`). Adapted from Matt Pocock's research skill (MIT).
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - <note> [--ids] < <skill-dir>/scripts/check_note.py
+<skill-dir>/../../hooks/mxpy - <note> [--ids] < <skill-dir>/scripts/check_note.py
 ```
 
 The script checks a finished note against the format and exits 0 or 1. `--ids` also lists each DOI, PMID and arXiv id.

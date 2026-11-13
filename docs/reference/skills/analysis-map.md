@@ -7,7 +7,7 @@ Charts a research program too big for one session as a map of decision tickets, 
 You type this skill; the agent does not start it on its own (`disable-model-invocation: true`, and Codex's `allow_implicit_invocation: false`). Run it as `/mycelium-extra:analysis-map` (Codex: `$mycelium-extra:analysis-map`). The status script is read-only:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - analysis/<name> < <skill-dir>/scripts/map_status.py
+<skill-dir>/../../hooks/mxpy - analysis/<name> < <skill-dir>/scripts/map_status.py
 ```
 
 ## Files

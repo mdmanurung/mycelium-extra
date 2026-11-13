@@ -35,7 +35,7 @@ Done when no claim about a skill rests on the table line alone.
 `references/router-table.md` is generated from each skill's own frontmatter. Do not edit it by hand. To rebuild it:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --repo . < <skill-dir>/scripts/make_router_table.py > <skill-dir>/references/router-table.md
+<skill-dir>/../../hooks/mxpy - --repo . < <skill-dir>/scripts/make_router_table.py > <skill-dir>/references/router-table.md
 ```
 
 A new user-invoked skill needs a group in `GROUPS` in that script. Until then it lists under "Other" and `tests/test_ask_extra.py` warns.

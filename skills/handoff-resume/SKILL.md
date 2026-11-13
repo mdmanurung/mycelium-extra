@@ -8,7 +8,7 @@ description: Hand off, restart and resume in one chain; hooks check each link an
 
 Claude cannot restart its own session. This skill writes the handoff, arms a marker, and a hook makes the next session read `HANDOFF.md` before anything else. You type two things: `/clear`, then any message.
 
-Run the helper as `sh <skill-dir>/../../hooks/py.sh <skill-dir>/../../hooks/resume_run.py <mode>`.
+Run the helper as `<skill-dir>/../../hooks/mxpy <skill-dir>/../../hooks/resume_run.py <mode>`.
 
 1. Run mode `request`. Done when it prints `handoff-resume requested`. From here the Stop hook blocks the end of your turn until step 3 is done.
 2. Write `HANDOFF.md` by following the handoff skill (`../handoff/SKILL.md`, sections 1 and 2). Done when the file has a `## Next action` section.

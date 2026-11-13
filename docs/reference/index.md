@@ -4,7 +4,7 @@ One page per skill, then the pages about the gate, its settings and its files. E
 
 ## Skills
 
-Every skill is a slash command in Claude Code (`/mycelium-extra:<name>`), a `$` command in Codex (`$mycelium-extra:<name>`) and a `/` command in OpenCode. The scripts behind them run from stdin through `hooks/py.sh`, never by path, so Mycelium's own hooks stay closed; the one exception is `plan-review`'s `review_packet.py`, which loads a sibling module and runs by path.
+Every skill is a slash command in Claude Code (`/mycelium-extra:<name>`), a `$` command in Codex (`$mycelium-extra:<name>`) and a `/` command in OpenCode. The scripts behind them run from stdin through `hooks/mxpy`, never by path, so Mycelium's own hooks stay closed; the one exception is `plan-review`'s `review_packet.py`, which loads a sibling module and runs by path.
 
 | Skill | One line | Writes |
 |---|---|---|

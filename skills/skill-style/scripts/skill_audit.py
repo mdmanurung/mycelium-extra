@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Read-only style audit of a plugin's skills (advisory; exit 0 always).
 
-Run: sh <skill-dir>/../../hooks/py.sh - [--root DIR] [--format table|json|both] < <this file>
+Run: <skill-dir>/../../hooks/mxpy - [--root DIR] [--format table|json|both] < <this file>
 Reads <root>/skills/*/SKILL.md and each skill's references/ folder. Writes nothing.
 Exit 0 always, 2 when the root or its skills folder is unusable.
 """

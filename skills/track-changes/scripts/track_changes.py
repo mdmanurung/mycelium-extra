@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """track-changes: a read-only view of how one analysis moved away from its approved intent.
 
-    sh hooks/py.sh - --plugin-root <plugin> [--repo DIR] [--analysis <folder>] [--original HASH] [--current HASH]
+    hooks/mxpy - --plugin-root <plugin> [--repo DIR] [--analysis <folder>] [--original HASH] [--current HASH]
         [--transcript FILE] [--json] [--no-write] < track_changes.py
 
 Reads approvals, approval instances, `logs/CHANGES.md` entries (a steps layout), `outputs/*/RUN.txt` status (old run folders) and the `current` link, the re-pin journal, kept script snapshots, receipts, the focus records and

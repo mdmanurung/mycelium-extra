@@ -1,9 +1,9 @@
 """Read an analysis folder and write the Quarto report skeleton for it.
 
 Run from stdin so the gate reads no script path, with every option as --flag=value:
-    sh <plugin>/hooks/py.sh - --dest=analysis/<name> --templates=<plugin>/skills/new-analysis/templates
+    <plugin>/hooks/mxpy - --dest=analysis/<name> --templates=<plugin>/skills/new-analysis/templates
               [--overwrite] [--dry-run] < analysis_report.py
-    sh <plugin>/hooks/py.sh - --dest=... --templates=... --outputs-row [--date=YYYY-MM-DD] < analysis_report.py
+    <plugin>/hooks/mxpy - --dest=... --templates=... --outputs-row [--date=YYYY-MM-DD] < analysis_report.py
 
 Finds the analysis doc (<NAME>.md or README.md), the numbered steps (NN_*.R|py|ipynb|qmd|marimo.py at the root
 or in code/), every Snakefile and *.smk and the rules and scripts it runs, the current run through

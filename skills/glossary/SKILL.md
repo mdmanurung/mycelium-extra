@@ -29,7 +29,7 @@ A term that changes a headline estimate, ranking, selection or conclusion depend
 To see drift, run (read-only, from stdin):
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --analysis analysis/<name> < <skill-dir>/scripts/check_terms.py
+<skill-dir>/../../hooks/mxpy - --analysis analysis/<name> < <skill-dir>/scripts/check_terms.py
 ```
 
 It lists each term, how often it appears, and every `_Avoid_` word found in the analysis doc, `code/` comments and table headers. Exit 0: none found. Exit 1: drift, or an `_Avoid_` word that is also a defined term. Exit 2: it could not run, which is a gap and never a pass. `--json` gives raw output. Show the user the hits and ask; do not rewrite their prose or code.

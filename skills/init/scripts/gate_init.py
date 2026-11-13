@@ -1,9 +1,9 @@
 """Turn on the mycelium-extra approval gate in a repository.
 
 Run from stdin so Mycelium's hooks stay closed:
-    sh <plugin>/hooks/py.sh - [--root DIR] [--paths GLOB ...] [--commands CMD ...] [--hours N] [--dry-run]
+    <plugin>/hooks/mxpy - [--root DIR] [--paths GLOB ...] [--commands CMD ...] [--hours N] [--dry-run]
         [--tools [--scilintr PATH] [--rscript PATH]] < gate_init.py
-    sh <plugin>/hooks/py.sh - --diagnose [--root DIR] [--plugin-root DIR] < gate_init.py
+    <plugin>/hooks/mxpy - --diagnose [--root DIR] [--plugin-root DIR] < gate_init.py
 
 
 Creates .mycelium-extra/gate.json and ignores .mycelium-extra/ in .gitignore.

@@ -11,7 +11,7 @@ You type this skill; the agent does not start it on its own (`disable-model-invo
 ```
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --dest=<folder> --templates=<skill-dir>/../new-analysis/templates [--overwrite] [--dry-run] < <skill-dir>/scripts/analysis_report.py
+<skill-dir>/../../hooks/mxpy - --dest=<folder> --templates=<skill-dir>/../new-analysis/templates [--overwrite] [--dry-run] < <skill-dir>/scripts/analysis_report.py
 ```
 
 The script scans the folder and writes the skeleton; the agent reads what the inventory names, fills the `.qmd`, and renders it.

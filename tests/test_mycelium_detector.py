@@ -63,18 +63,24 @@ class PostActionDetector(unittest.TestCase):
         self.assertIn(result.returncode, (0, 1), result.stderr)
         return result.returncode == 0
 
-    def test_extra_helper_form_currently_opens_the_cycle(self):
-        # The form every Extra skill uses. This pins today's verdict, not a wish: if Mycelium exempts
-        # Extra's helper, this test should flip. VERDICT 2026-11-13, Mycelium 0.9.3: it opens the cycle,
-        # because the detector reads `sh <file>.sh` as a shell runner and does not exempt Extra's plugin root.
+    def test_old_sh_py_sh_form_opens_the_cycle_and_mxpy_does_not(self):
+        # VERDICT 2026-11-13, Mycelium 0.9.3: the detector reads `sh <file>.sh` as a shell runner, so the old
+        # helper form `sh .../hooks/py.sh` opens the cycle. Extra's skills now call the extensionless
+        # `hooks/mxpy`, which the detector ignores. py.sh stays for hooks, which are not agent Bash calls.
         skill = ROOT / "skills/verify"
         for command in (
             "sh {}/../../hooks/py.sh - --plugin-root {}/../.. status < {}/scripts/verify.py".format(skill, skill, skill),
-            "sh {}/../../hooks/py.sh - status < script.py".format(skill),
             "sh {}/hooks/py.sh script.py status".format(ROOT),
         ):
             with self.subTest(command=command):
                 self.assertTrue(self.opens_cycle(command))
+        for command in (
+            "{}/../../hooks/mxpy - --plugin-root {}/../.. status < {}/scripts/verify.py".format(skill, skill, skill),
+            "{}/hooks/mxpy - status < script.py".format(ROOT),
+            "{}/hooks/mxpy script.py status".format(ROOT),
+        ):
+            with self.subTest(command=command):
+                self.assertFalse(self.opens_cycle(command))
 
     def test_forms_that_open_the_cycle(self):
         for command in ("bash run.sh", "snakemake -j1", "sbatch job.sbatch", "python script.py"):

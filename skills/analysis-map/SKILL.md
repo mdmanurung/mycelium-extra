@@ -66,7 +66,7 @@ After each close, ask what in the environment would make the next ticket cheaper
 Read-only, stdlib only. It prints the frontier, blocked, claimed and fog counts. It flags cycles, tickets that name a missing ticket, and closed tickets without a Resolution. Exit 0 sound, 1 problems.
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - analysis/<name> < <skill-dir>/scripts/map_status.py
+<skill-dir>/../../hooks/mxpy - analysis/<name> < <skill-dir>/scripts/map_status.py
 ```
 
 ## Finish

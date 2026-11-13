@@ -7,7 +7,7 @@ Shows what is going on in one analysis, shaped for a reader who loses the thread
 You type the words; the gate answers before the agent sees them. The typed word needs the gate on and a gated repository. While the gate is off or paused by `/goal`, use `/mycelium-extra:where`. The skill (`/mycelium-extra:where`) runs the same code (`disable-model-invocation: true`, and Codex's `allow_implicit_invocation: false`):
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - [short|all] [--no-write] < <skill-dir>/../../hooks/whereami.py
+<skill-dir>/../../hooks/mxpy - [short|all] [--no-write] < <skill-dir>/../../hooks/whereami.py
 ```
 
 ## Typed commands

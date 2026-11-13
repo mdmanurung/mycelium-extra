@@ -25,7 +25,7 @@ The analysis is the open `focus` folder, else the analysis folder of the current
 Run the same code from the slash command and paste its output unchanged. Add nothing.
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - [short|all] < <skill-dir>/../../hooks/whereami.py
+<skill-dir>/../../hooks/mxpy - [short|all] < <skill-dir>/../../hooks/whereami.py
 ```
 
 `--no-write` skips the save. Then give the user one thing to type next, taken from the card's DO NEXT.

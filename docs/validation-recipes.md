@@ -294,21 +294,21 @@ R1, R2 and R4 compose the shipped `data-contract-check`; R3 adds recorded method
 | R3 recorded method | Exact approved formula, contrast numerator/denominator/sign, random effects, covariates, assay and exclusions | `r3_wrong_sign.json`; tests mutate every field | `r3_observed.json`; JSON key order and ordering within declared lists may vary | Agreement of the recorded model fields with approved expectations; no extraction or authentication of the actual fit |
 
 ```bash
-sh hooks/py.sh - --contract tests/fixtures/sc-conventions/r1_missing_pair.json --root . --result-json /tmp/sc-r1-red.json < skills/data-contract-check/scripts/data_contract_check.py
+hooks/mxpy - --contract tests/fixtures/sc-conventions/r1_missing_pair.json --root . --result-json /tmp/sc-r1-red.json < skills/data-contract-check/scripts/data_contract_check.py
 # exit 2; missing donor pair blocks
-sh hooks/py.sh - --contract tests/fixtures/sc-conventions/r1_design.json --root . --result-json /tmp/sc-r1-green.json < skills/data-contract-check/scripts/data_contract_check.py
+hooks/mxpy - --contract tests/fixtures/sc-conventions/r1_design.json --root . --result-json /tmp/sc-r1-green.json < skills/data-contract-check/scripts/data_contract_check.py
 # exit 0; these declared design checks pass
-sh hooks/py.sh - --contract tests/fixtures/sc-conventions/r2_wrong_keys.json --root . --result-json /tmp/sc-r2-red.json < skills/data-contract-check/scripts/data_contract_check.py
+hooks/mxpy - --contract tests/fixtures/sc-conventions/r2_wrong_keys.json --root . --result-json /tmp/sc-r2-red.json < skills/data-contract-check/scripts/data_contract_check.py
 # exit 2; independently listed sample keys differ
-sh hooks/py.sh - --contract tests/fixtures/sc-conventions/r2_keys.json --root . --result-json /tmp/sc-r2-green.json < skills/data-contract-check/scripts/data_contract_check.py
+hooks/mxpy - --contract tests/fixtures/sc-conventions/r2_keys.json --root . --result-json /tmp/sc-r2-green.json < skills/data-contract-check/scripts/data_contract_check.py
 # exit 0; key sets agree
-sh hooks/py.sh - --contract tests/fixtures/sc-conventions/r4_cell_level.json --root . --result-json /tmp/sc-r4-red.json < skills/data-contract-check/scripts/data_contract_check.py
+hooks/mxpy - --contract tests/fixtures/sc-conventions/r4_cell_level.json --root . --result-json /tmp/sc-r4-red.json < skills/data-contract-check/scripts/data_contract_check.py
 # exit 2; donors repeat within a cell type x condition cell
-sh hooks/py.sh - --contract tests/fixtures/sc-conventions/r4_unit.json --root . --result-json /tmp/sc-r4-green.json < skills/data-contract-check/scripts/data_contract_check.py
+hooks/mxpy - --contract tests/fixtures/sc-conventions/r4_unit.json --root . --result-json /tmp/sc-r4-green.json < skills/data-contract-check/scripts/data_contract_check.py
 # exit 0; one row per donor per cell
-sh hooks/py.sh - --expected tests/fixtures/sc-conventions/r3_expected.json --observed tests/fixtures/sc-conventions/r3_wrong_sign.json --result-json /tmp/sc-r3-red.json < skills/verify/scripts/method_fidelity.py
+hooks/mxpy - --expected tests/fixtures/sc-conventions/r3_expected.json --observed tests/fixtures/sc-conventions/r3_wrong_sign.json --result-json /tmp/sc-r3-red.json < skills/verify/scripts/method_fidelity.py
 # exit 2; recorded contrast sign differs
-sh hooks/py.sh - --expected tests/fixtures/sc-conventions/r3_expected.json --observed tests/fixtures/sc-conventions/r3_observed.json --result-json /tmp/sc-r3-green.json < skills/verify/scripts/method_fidelity.py
+hooks/mxpy - --expected tests/fixtures/sc-conventions/r3_expected.json --observed tests/fixtures/sc-conventions/r3_observed.json --result-json /tmp/sc-r3-green.json < skills/verify/scripts/method_fidelity.py
 # exit 0; recorded fields agree
 ```
 
@@ -358,9 +358,9 @@ Take the design and contrast from the fit objects (`fit$design`, `fit$contrasts`
 The approved side is `mycelium-extra.design_expectations.v1`. It holds `contrast` (design column to weight, sign included), `batch_columns` (an empty list means no batch term), and optionally `formula` and `sample_table_sha256`. The checker reads this schema when `--expected` names it. The R3 schemas work as before.
 
 ```bash
-sh hooks/py.sh - --expected tests/fixtures/sc-conventions/r5_expected.json --observed tests/fixtures/sc-conventions/r5_design_reversed.json --result-json /tmp/sc-r5-red.json < skills/verify/scripts/method_fidelity.py
+hooks/mxpy - --expected tests/fixtures/sc-conventions/r5_expected.json --observed tests/fixtures/sc-conventions/r5_design_reversed.json --result-json /tmp/sc-r5-red.json < skills/verify/scripts/method_fidelity.py
 # exit 2; the fitted contrast has the opposite sign
-sh hooks/py.sh - --expected tests/fixtures/sc-conventions/r5_expected.json --observed tests/fixtures/sc-conventions/r5_design_pass.json --result-json /tmp/sc-r5-green.json < skills/verify/scripts/method_fidelity.py
+hooks/mxpy - --expected tests/fixtures/sc-conventions/r5_expected.json --observed tests/fixtures/sc-conventions/r5_design_pass.json --result-json /tmp/sc-r5-green.json < skills/verify/scripts/method_fidelity.py
 # exit 0; contrast matches, is estimable, and is not aliased with batch
 ```
 

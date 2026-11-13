@@ -13,7 +13,7 @@ Adapted from Matt Pocock's writing-for-agents skill (MIT). Use it when you write
 Run it before you edit; it is read-only and always exits 0 (2 on a bad root):
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --root <repo> < <skill-dir>/scripts/skill_audit.py
+<skill-dir>/../../hooks/mxpy - --root <repo> < <skill-dir>/scripts/skill_audit.py
 ```
 
 It prints one table row per skill and then JSON. Done when you can name the three worst rows. Read each flag as a prompt to look, not a verdict: `steps?` and duplicate sentences are heuristics.

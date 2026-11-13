@@ -13,7 +13,7 @@ You type this skill; the agent does not start it on its own (`disable-model-invo
 Rebuild the table the skill reads (read-only; prints to stdout):
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --repo . < <skill-dir>/scripts/make_router_table.py
+<skill-dir>/../../hooks/mxpy - --repo . < <skill-dir>/scripts/make_router_table.py
 ```
 
 ## What you get

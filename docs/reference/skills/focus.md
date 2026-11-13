@@ -9,7 +9,7 @@ You type this skill; the agent does not start it on its own (`disable-model-invo
 You type the commands; the gate answers them before the agent sees them. The skill (`/mycelium-extra:focus`) only explains and lists folders:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - list [--repo DIR] < <skill-dir>/../../hooks/focus.py
+<skill-dir>/../../hooks/mxpy - list [--repo DIR] < <skill-dir>/../../hooks/focus.py
 ```
 
 ## Typed commands

@@ -10,7 +10,7 @@ A read-only account of how one analysis moved from what the researcher approved.
 ## 1. Run it
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. [--analysis <folder>] [--original <hash>] [--current <hash>] [--transcript <file>] [--json] [--no-write] [--explain <item_id>] < <skill-dir>/scripts/track_changes.py
+<skill-dir>/../../hooks/mxpy - --plugin-root <skill-dir>/../.. [--analysis <folder>] [--original <hash>] [--current <hash>] [--transcript <file>] [--json] [--no-write] [--explain <item_id>] < <skill-dir>/scripts/track_changes.py
 ```
 
 - The analysis is this session's open `focus` (the session comes from `$CLAUDE_CODE_SESSION_ID`, or `--session`). A focus left open by another session is never used. Codex and OpenCode do not set that variable: pass `--session` or `--analysis` there. With no focus for this session, pass `--analysis`. Never guess one.

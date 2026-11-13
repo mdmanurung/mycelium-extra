@@ -14,10 +14,10 @@ Settle which past decision binds the current task. Retrieve only the entries the
 - Run the parser beside this file, from stdin so Mycelium's hooks stay closed:
 
   ```bash
-  sh <skill-dir>/../../hooks/py.sh - --living-dir .living --tag <tag> --term '<regex>' < <skill-dir>/scripts/decision_threads.py
+  <skill-dir>/../../hooks/mxpy - --living-dir .living --tag <tag> --term '<regex>' < <skill-dir>/scripts/decision_threads.py
   ```
 
-  `--tag` and `--term` repeat; `--include-learnings` adds `learnings.md`; `--json` gives the raw records. Running the script by path opens Mycelium's post-action cycle, so never do that. If the command fails (for example `py.sh` finds no Python 3.9 or later), fall back to `rg -n '^#{2,3} .*<term>' .living/decisions.md` and read the entries directly.
+  `--tag` and `--term` repeat; `--include-learnings` adds `learnings.md`; `--json` gives the raw records. Running the script by path opens Mycelium's post-action cycle, so never do that. If the command fails (for example `mxpy` finds no Python 3.9 or later), fall back to `rg -n '^#{2,3} .*<term>' .living/decisions.md` and read the entries directly.
 - The output is extraction only. `status`, `supersedes`, `scope`, and `revisit` are raw field text (both `**Field**:` and `**Field:**` are read); `hints` are status words found in the heading. None of them is a verdict.
 - Read the body of every listed entry that could bind the task before resolving anything. A heading word such as "held" may be qualified in the body.
 
@@ -40,7 +40,7 @@ An entry with no status is `unknown`, not `current`. You may say an entry looks 
 
 ## 4. Record the user's answer
 
-The agent asks first because this skill says so; nothing enforces it unless `.mycelium-extra/gate.json` sets `confirm_writes` to true. Then, before the append, run `sh <skill-dir>/../../hooks/py.sh <skill-dir>/../../hooks/confirm_write.py prepare --kind decision-status --target .living/decisions.md`, show the user the `confirm write <id>` line it prints, and append only after they type it: the gate denies the write before.
+The agent asks first because this skill says so; nothing enforces it unless `.mycelium-extra/gate.json` sets `confirm_writes` to true. Then, before the append, run `<skill-dir>/../../hooks/mxpy <skill-dir>/../../hooks/confirm_write.py prepare --kind decision-status --target .living/decisions.md`, show the user the `confirm write <id>` line it prints, and append only after they type it: the gate denies the write before.
 
 Once the user explicitly confirms a resolution in the conversation, append one new entry to the end of `.living/decisions.md`. Never edit, reorder, renumber, or delete an existing entry. Match the file's heading level (`###` unless the file uses `##`):
 

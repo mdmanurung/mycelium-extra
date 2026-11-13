@@ -71,7 +71,7 @@ If no correct seam exists, that is the finding. Say what blocks the check, for e
 Read-only. Exit 0 identical, 1 different, 2 unusable input (missing file, missing or empty key, duplicate keys or column names, a row wider than the header).
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - OLD NEW --key donor,gene [--rtol 1e-6] [--atol 1e-8] [--max-rows 10] [--redact-keys] < <skill-dir>/scripts/diff_tables.py
+<skill-dir>/../../hooks/mxpy - OLD NEW --key donor,gene [--rtol 1e-6] [--atol 1e-8] [--max-rows 10] [--redact-keys] < <skill-dir>/scripts/diff_tables.py
 ```
 
 It reports rows and columns present on one side only, type-like changes (integer, number, text) and numeric differences beyond the tolerances, with the first rows that differ. It also reports a changed column order. Text compares exactly, so `007` differs from `7` and `NA` from an empty cell. An infinite value differs from anything but itself. Use `--redact-keys` when keys are donor IDs: it hides key values, text cell values and column names (rows and columns show by position).

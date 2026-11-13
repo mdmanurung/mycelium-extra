@@ -9,7 +9,7 @@ You type this skill; the agent does not start it on its own (`disable-model-invo
 The drift check is read-only and runs from stdin:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --analysis analysis/<name> [--json] [--max-hits N] [--glossary PATH] < <skill-dir>/scripts/check_terms.py
+<skill-dir>/../../hooks/mxpy - --analysis analysis/<name> [--json] [--max-hits N] [--glossary PATH] < <skill-dir>/scripts/check_terms.py
 ```
 
 ## What it does

@@ -99,8 +99,8 @@ claude -p "$PROMPT3" --resume "$SID" $COMMON \
 
 # verify, from the shell (read-only), as skills/verify documents it.
 HASH=$(printf '%s' "$APPROVAL" | sed 's/^approve plan //')
-sh "$PLUGIN/hooks/py.sh" - --plugin-root "$PLUGIN" report "$HASH" < "$PLUGIN/skills/verify/scripts/verify.py" > "$HOST/verify_report.md" 2> "$HOST/verify_report.err" || true
-sh "$PLUGIN/hooks/py.sh" - --plugin-root "$PLUGIN" report "$HASH" --json < "$PLUGIN/skills/verify/scripts/verify.py" > "$HOST/verify_report.json" 2> "$HOST/verify_report_json.err" || true
+"$PLUGIN/hooks/mxpy" - --plugin-root "$PLUGIN" report "$HASH" < "$PLUGIN/skills/verify/scripts/verify.py" > "$HOST/verify_report.md" 2> "$HOST/verify_report.err" || true
+"$PLUGIN/hooks/mxpy" - --plugin-root "$PLUGIN" report "$HASH" --json < "$PLUGIN/skills/verify/scripts/verify.py" > "$HOST/verify_report.json" 2> "$HOST/verify_report_json.err" || true
 
 # One bundle: the project (without .git) and the host records.
 cd "$WORK"

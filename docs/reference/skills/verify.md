@@ -5,7 +5,7 @@ Checks one approved plan against the gate's record of what ran, and records the 
 ## Synopsis
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. <action> [args] [options] < <skill-dir>/scripts/verify.py
+<skill-dir>/../../hooks/mxpy - --plugin-root <skill-dir>/../.. <action> [args] [options] < <skill-dir>/scripts/verify.py
 ```
 
 Run from inside the repository, from stdin. Invoke with `/mycelium-extra:verify`. Never put the state folder's name on the command line; the script finds it.
@@ -66,7 +66,7 @@ It opens with `# Verify plan <hash>: <status>` and five rows: `Ran as planned`, 
 
 A gap is not a failure and a pass is not a scientific judgement. Qualification is separate from status and is not a score. See [Gaps and passes](../../concepts/gaps-and-passes.md).
 
-Exit codes: `report` and `write` exit 0 whatever the status. `--require-reportable` exits 3 when not qualified. A `verify:` error, or `py.sh` finding no Python 3.9 or later, exits 1.
+Exit codes: `report` and `write` exit 0 whatever the status. `--require-reportable` exits 3 when not qualified. A `verify:` error, or `mxpy` finding no Python 3.9 or later, exits 1.
 
 ## Reads
 

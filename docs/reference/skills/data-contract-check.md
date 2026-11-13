@@ -5,7 +5,7 @@ Tests a plan's data assumptions against the actual sample table before an analys
 ## Synopsis
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --contract <(cat <<'EOF'
+<skill-dir>/../../hooks/mxpy - --contract <(cat <<'EOF'
 {"schema": "mycelium-extra.data_contract.v1", "table": "...", "checks": [...]}
 EOF
 ) [--root DIR] [--json] [--result-json PATH] < <skill-dir>/scripts/data_contract_check.py
@@ -51,7 +51,7 @@ One line per check: `PASS`, `WARN`, `GAP` or `BLOCK`, with the rows it ran on; a
 | Exit | Meaning |
 |---|---|
 | 0 | clean, or warnings only |
-| 1 | malformed contract (bad JSON, unknown kind or key, missing key, `max_share` out of range); also `py.sh` finding no Python 3.9 or later |
+| 1 | malformed contract (bad JSON, unknown kind or key, missing key, `max_share` out of range); also `mxpy` finding no Python 3.9 or later |
 | 2 | blocking alert |
 | 3 | a gap and nothing blocking |
 

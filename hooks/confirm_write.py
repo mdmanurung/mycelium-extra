@@ -1,6 +1,6 @@
 """Prepare a pending write for the gate's `confirm_writes` setting (gate.json).
 
-    sh <plugin>/hooks/py.sh <plugin>/hooks/confirm_write.py prepare --kind KIND --target PATH [--target PATH ...] [--root DIR]
+    <plugin>/hooks/mxpy <plugin>/hooks/confirm_write.py prepare --kind KIND --target PATH [--target PATH ...] [--root DIR]
 
 KIND is verify-write, harden, decision-status or idea-triage. Each --target is a repository path the write will
 touch (for verify-write, the analysis folder). Writes `.mycelium-extra/write-pending/<id>.json` and prints the

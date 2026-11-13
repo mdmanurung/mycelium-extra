@@ -7,7 +7,7 @@ Writes the handoff, arms a marker, and makes the next session read `HANDOFF.md` 
 You type this skill; the agent does not start it on its own (`disable-model-invocation: true`, and Codex's `allow_implicit_invocation: false`). Run it as `/mycelium-extra:handoff-resume` (Codex: `$mycelium-extra:handoff-resume`). The skill calls the helper:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh <skill-dir>/../../hooks/resume_run.py request|arm|cancel|status
+<skill-dir>/../../hooks/mxpy <skill-dir>/../../hooks/resume_run.py request|arm|cancel|status
 ```
 
 ## The chain

@@ -2,8 +2,8 @@
 
 Read-only. Run from stdin so Mycelium's hooks stay closed:
 
-    sh <skill-dir>/../../hooks/py.sh - --repo . < <skill-dir>/scripts/make_router_table.py
-    sh <skill-dir>/../../hooks/py.sh - --repo . --check <skill-dir>/references/router-table.md < <skill-dir>/scripts/make_router_table.py
+    <skill-dir>/../../hooks/mxpy - --repo . < <skill-dir>/scripts/make_router_table.py
+    <skill-dir>/../../hooks/mxpy - --repo . --check <skill-dir>/references/router-table.md < <skill-dir>/scripts/make_router_table.py
 
 Reads skills/*/SKILL.md frontmatter. Every user-invoked skill (disable-model-invocation: true)
 is listed. A user-invoked skill the group map does not know goes under "Other" and is

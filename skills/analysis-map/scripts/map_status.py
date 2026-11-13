@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Read-only status of an analysis map (plans/MAP.md and plans/map/NN-slug.md).
 
-Run: sh <skill-dir>/../../hooks/py.sh - <analysis-dir | plans-dir | MAP.md> < <this file>
+Run: <skill-dir>/../../hooks/mxpy - <analysis-dir | plans-dir | MAP.md> < <this file>
 Prints the frontier, blocked, claimed and closed tickets and the fog count.
 Exit 0 when the map is sound, 1 when it has problems, 2 on a usage error.
 Writes nothing.

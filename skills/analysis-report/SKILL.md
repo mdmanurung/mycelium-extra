@@ -15,7 +15,7 @@ Invoke with `/mycelium-extra:analysis-report <folder>`. The folder need not come
 Run from the repository root, from stdin, every option as `--flag=value` (a bare path is read as a script run and blocked):
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --dest=<folder> --templates=<skill-dir>/../new-analysis/templates [--overwrite] [--dry-run] < <skill-dir>/scripts/analysis_report.py
+<skill-dir>/../../hooks/mxpy - --dest=<folder> --templates=<skill-dir>/../new-analysis/templates [--overwrite] [--dry-run] < <skill-dir>/scripts/analysis_report.py
 ```
 
 It prints an inventory (analysis doc, numbered steps at the root or in `code/`, each `Snakefile*` with its rules, scripts and step folder, the `outputs/` layout read through the shared resolver (step folders; an `outputs/current` link or the newest `run_<date>` folder in an older analysis; a flat `outputs/` still works), the newest `logs/CHANGES.md` heading (or, for a legacy run, the label from `RUN.txt`), PNG figures, any figure with no `source_data/` table, `*REPORT*.md`, `numbers.json`) and writes `reports/<name>.qmd`: a mermaid chain per Snakefile, one Methods tab per step, one Results tab per step that has figures or a report. When every step is `.qmd` it writes nothing: those step pages (each rendered into its own `outputs/<stem>/` folder) carry their own Methods and Results, so fill the Question / Approach / Conclusion prose inside each step. It keeps an existing report unless `--overwrite`; a report you have already filled is replaced only when you ask. Never run it by path.
@@ -51,7 +51,7 @@ Run `quarto render <folder>/reports/<name>.qmd`. The gate lets it through withou
 After a render, record it with the script, not by hand (same stdin form as step 1; `--date=YYYY-MM-DD` is optional and defaults to today):
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --dest=<folder> --templates=<skill-dir>/../new-analysis/templates --outputs-row < <skill-dir>/scripts/analysis_report.py
+<skill-dir>/../../hooks/mxpy - --dest=<folder> --templates=<skill-dir>/../new-analysis/templates --outputs-row < <skill-dir>/scripts/analysis_report.py
 ```
 
 It adds `| reports/<name>.html | Quarto report (rendered <date>, run <run>) |` to the `## Outputs` table of the analysis doc, once per render: a row for the same path is replaced, never doubled. The run is the date and hash in the newest `logs/CHANGES.md` heading, or, for a legacy run, the label in the current run's `RUN.txt`. When `reports/README.md` exists, it also sets the run cell of the `<name>.qmd` and `<name>.html` rows. Mycelium's `analysis/ANALYSIS_MANIFEST.md` has a `report:` field; suggest the HTML path for it and let `/mycelium:analyze` or the user write it.
@@ -61,7 +61,7 @@ It adds `| reports/<name>.html | Quarto report (rendered <date>, run <run>) |` t
 Before the hand-off, check the report's numbers and citations against the run. Get the plan hash from `verify list`, then run, from the repository root:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --plugin-root <skill-dir>/../.. report <hash> --analysis-dir <folder> --claims <folder>/reports/<name>.qmd --resolve-citations < <skill-dir>/../verify/scripts/verify.py
+<skill-dir>/../../hooks/mxpy - --plugin-root <skill-dir>/../.. report <hash> --analysis-dir <folder> --claims <folder>/reports/<name>.qmd --resolve-citations < <skill-dir>/../verify/scripts/verify.py
 ```
 
 It is read-only. `--resolve-citations` sends one request per DOI, PMID or arXiv id to Crossref, NCBI and arXiv; leave out `--contact` unless the user gives an address. Quote the five rows at the top of its output as printed. A claim the cell contradicts is a report error to fix in the text (ask the user which side is wrong; never edit the output). A claim or citation it could not check stays an open item in the hand-off. If no approved plan covers the run, say `numbers not checked: no approved plan` and skip it.
@@ -81,7 +81,7 @@ It runs only in Claude Code, where the Artifact tool exists. On Codex or OpenCod
 5. **Check before publishing**, from the repository root, with every option as `--flag=value`:
 
    ```bash
-   sh <skill-dir>/../../hooks/py.sh - --page=.mycelium-extra/artifacts/<name>.html --report=<folder>/reports/<name>.qmd --hooks=<skill-dir>/../../hooks < <skill-dir>/scripts/artifact_check.py
+   <skill-dir>/../../hooks/mxpy - --page=.mycelium-extra/artifacts/<name>.html --report=<folder>/reports/<name>.qmd --hooks=<skill-dir>/../../hooks < <skill-dir>/scripts/artifact_check.py
    ```
 
    Without `--numbers`, `--hooks` makes the check read the numbers file through `numbers()`. It checks the contract, the banner, and that every number on the page is in the `.qmd` or `numbers.json`; a list like `1,2,3` is checked number by number. A finding stops the publish: fix the page and run it again. Never edit the check to pass.

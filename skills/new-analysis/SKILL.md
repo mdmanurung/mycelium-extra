@@ -66,7 +66,7 @@ Take these from the user's message. Ask only if the destination is missing; the 
 Run from the repository root, from stdin:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb,04_d.qmd] [--format=R|py|ipynb|qmd|marimo] [--lang=r|python] [--data=PATH ...] [--code=PATH ...] [--panels=Fig1a.R,...] [--wrapper=04_de:pseudobulk-de] \
+<skill-dir>/../../hooks/mxpy - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb,04_d.qmd] [--format=R|py|ipynb|qmd|marimo] [--lang=r|python] [--data=PATH ...] [--code=PATH ...] [--panels=Fig1a.R,...] [--wrapper=04_de:pseudobulk-de] \
   --templates=<skill-dir>/templates --dry-run < <skill-dir>/scripts/new_analysis.py
 ```
 
@@ -144,7 +144,7 @@ Use this only when the user asks to move an older analysis (a `Snakefile` with a
 1. **Write the new files.** From the repository root, in `--flag=value` form, from stdin as in section 3:
 
    ```bash
-   sh <skill-dir>/../../hooks/py.sh - --dest=<existing analysis> --migrate [--dry-run] \
+   <skill-dir>/../../hooks/mxpy - --dest=<existing analysis> --migrate [--dry-run] \
      --templates=<skill-dir>/templates < <skill-dir>/scripts/new_analysis.py
    ```
 

@@ -7,7 +7,7 @@ Parks a passing idea in one line, with no questions, so the main work keeps its 
 `/mycelium-extra:idea <idea>`, or say "idea:", "park this", "note this for later". The skill runs:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --plugin-root=<plugin> --root=<project> --helper=<upsert_table_row.py> --python=<Mycelium Python> (--text-file=<file> | --recover) [--context=<text>] < <skill-dir>/scripts/capture.py
+<skill-dir>/../../hooks/mxpy - --plugin-root=<plugin> --root=<project> --helper=<upsert_table_row.py> --python=<Mycelium Python> (--text-file=<file> | --recover) [--context=<text>] < <skill-dir>/scripts/capture.py
 ```
 
 | Option | Meaning |

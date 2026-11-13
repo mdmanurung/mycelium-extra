@@ -1,6 +1,6 @@
 """Check a research note against the format in references/note-format.md.
 
-Run: sh <skill-dir>/../../hooks/py.sh - <note.md> [--ids] < <skill-dir>/scripts/check_note.py
+Run: <skill-dir>/../../hooks/mxpy - <note.md> [--ids] < <skill-dir>/scripts/check_note.py
 Exit 0 when the note fits the format, 1 when it does not or cannot be read. Stdlib only.
 `--ids` also prints each DOI, PMID and arXiv id in the References section.
 """

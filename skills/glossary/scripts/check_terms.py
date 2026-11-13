@@ -2,7 +2,7 @@
 
 Read-only. Run from stdin so Mycelium's hooks stay closed:
 
-    sh <skill-dir>/../../hooks/py.sh - --analysis analysis/NAME < <skill-dir>/scripts/check_terms.py
+    <skill-dir>/../../hooks/mxpy - --analysis analysis/NAME < <skill-dir>/scripts/check_terms.py
 
 Exit 0: no _Avoid_ word found and nothing was skipped. Exit 1: at least one found
 (drift), or an _Avoid_ word is also a defined term. Exit 2: the check could not run

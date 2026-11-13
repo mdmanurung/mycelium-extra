@@ -45,7 +45,7 @@ If the plan binds no check to that step, the report says so under `Not checked`.
 Your approved plan should declare the alignment check from [recipe 1](validation-recipes.md#1-sample-and-key-join). Run it on the intact data, then blank one sample label and run it again:
 
 ```bash
-sh hooks/py.sh - --contract checks/sample_alignment_contract.json --root . --result-json out.json \
+hooks/mxpy - --contract checks/sample_alignment_contract.json --root . --result-json out.json \
   < skills/data-contract-check/scripts/data_contract_check.py
 ```
 

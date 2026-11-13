@@ -48,7 +48,7 @@ OpenCode V2 loads skills and plugins from configured folders, so point both at a
 
 Start a new session and run `/mycelium-extra:grill <task>`. To update, pull the checkout and start a new session.
 
-- Keep each skill folder inside the checkout: skills call `../../hooks/py.sh` relative to themselves. If you copy the plugin folder, pass `{ "package": ".../opencode", "options": { "root": "/path/to/mycelium-extra" } }`.
+- Keep each skill folder inside the checkout: skills call `../../hooks/mxpy` relative to themselves. If you copy the plugin folder, pass `{ "package": ".../opencode", "options": { "root": "/path/to/mycelium-extra" } }`.
 - The plugin is inert in repositories without `.mycelium-extra/gate.json`. When the gate cannot answer, it adds a gate-error note and lets the call through, unless `gate.json` sets `"on_error": "deny"`.
 - Qualified on OpenCode 2.0.32. Receipts record the shell tool's exit code; a result with none is recorded `unknown` and verification reports a gap.
 :::
@@ -61,7 +61,7 @@ Pick the matching host tab below, then check that its hooks are active. The comp
 
 ## Requirements
 
-- **Python 3.9 or later.** Hooks run through `hooks/py.sh`, which uses `MYCELIUM_EXTRA_PYTHON` if set, else `python3` when it is 3.9 or later (hooks skip that probe), else the newest `python3.N` on `PATH`. On RHEL 8, `python3` is 3.6 but `python3.11` or `python3.12` usually exist. Set `MYCELIUM_EXTRA_PYTHON` to choose one.
+- **Python 3.9 or later.** Skill commands run through `hooks/mxpy` (no `.sh` suffix, so Mycelium's post-action detector ignores it). Hooks run through `hooks/py.sh`, which hands over to it and uses `MYCELIUM_EXTRA_PYTHON` if set, else `python3` when it is 3.9 or later (hooks skip that probe), else the newest `python3.N` on `PATH`. On RHEL 8, `python3` is 3.6 but `python3.11` or `python3.12` usually exist. Set `MYCELIUM_EXTRA_PYTHON` to choose one.
 - **Scientific checks** use the tools for the files you have: R with scilintr, Python scilintr, or h5py for H5AD. A missing tool is reported as a gap, never as a pass. On a cluster, record where they are with `gate_init.py --tools` (see [Verification](verification.md)).
 - **Independent plan review** needs a Codex CLI and a connected Biomni MCP in a Claude Code or OpenCode session. Missing reviewers are reported unavailable, and a packet leaves the machine only after you agree.
 

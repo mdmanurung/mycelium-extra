@@ -1,8 +1,8 @@
 """Bind a plan-review packet to the exact bytes the user consented to send (roadmap C11).
 
-    sh <plugin>/hooks/py.sh <plugin>/skills/plan-review/scripts/review_packet.py prepare --packet <file> [--attach <repo-relative file> ...] [--root <project root>]
-    sh <plugin>/hooks/py.sh <plugin>/skills/plan-review/scripts/review_packet.py preview --digest <hex, at least 12>
-    sh <plugin>/hooks/py.sh <plugin>/skills/plan-review/scripts/review_packet.py verify --digest <hex, at least 12>
+    <plugin>/hooks/mxpy <plugin>/skills/plan-review/scripts/review_packet.py prepare --packet <file> [--attach <repo-relative file> ...] [--root <project root>]
+    <plugin>/hooks/mxpy <plugin>/skills/plan-review/scripts/review_packet.py preview --digest <hex, at least 12>
+    <plugin>/hooks/mxpy <plugin>/skills/plan-review/scripts/review_packet.py verify --digest <hex, at least 12>
 
 `prepare` runs the pre-send scan (`presend_check.py`) and refuses what it says not to send. It then writes, under
 `<root>/.mycelium-extra/review-packets/<digest>/`, `packet.txt` (the packet's bytes), `workspace/<path>` (a copy

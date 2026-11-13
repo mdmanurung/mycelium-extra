@@ -9,7 +9,7 @@ You type this skill; the agent does not start it on its own (`disable-model-invo
 `/mycelium-extra:improve-structure` (Codex: `$mycelium-extra:improve-structure`). Name a direction (a step, a folder, a pain) or let it find the hot spots. The scan runs read-only from stdin:
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - PATH [--json] [--dup-lines 8] [--long-script 300] [--long-pipe 15] < <skill-dir>/scripts/scan_structure.py
+<skill-dir>/../../hooks/mxpy - PATH [--json] [--dup-lines 8] [--long-script 300] [--long-pipe 15] < <skill-dir>/scripts/scan_structure.py
 ```
 
 `PATH` is an analysis folder (it has `code/`) or a folder holding analyses. Exit 0, or 2 for a path with no analysis.

@@ -7,7 +7,7 @@ Scaffolds a new, self-contained analysis folder that plugs into Mycelium. Guide:
 You type this skill; the agent does not start it on its own (`disable-model-invocation: true`, and Codex's `allow_implicit_invocation: false`).
 
 ```bash
-sh <skill-dir>/../../hooks/py.sh - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb] [--data=PATH ...] [--code=PATH ...] [--doc-template=FILE] [--panels=Fig1a.R,...] [--wrapper=NN_name:skill-name ...] --templates=<skill-dir>/templates [--dry-run] < <skill-dir>/scripts/new_analysis.py
+<skill-dir>/../../hooks/mxpy - --dest=analysis/<name> [--steps=01_a.R,02_b.py,03_c.ipynb] [--data=PATH ...] [--code=PATH ...] [--doc-template=FILE] [--panels=Fig1a.R,...] [--wrapper=NN_name:skill-name ...] --templates=<skill-dir>/templates [--dry-run] < <skill-dir>/scripts/new_analysis.py
 ```
 
 Invoke with `/mycelium-extra:new-analysis analysis/<name>: <question>`. Write every option as `--flag=value`: the gate reads a bare `analysis/...` argument as a script being run and blocks it. Never run the script by path.
