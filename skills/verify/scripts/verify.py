@@ -14,6 +14,7 @@ Mycelium's hooks do not open the post-action cycle:
     <root>/hooks/mxpy - --plugin-root <root> runs [RESULTS_DIR] [--json] < verify.py
     <root>/hooks/mxpy - --plugin-root <root> diff <old-hash> <new-hash> < verify.py
     <root>/hooks/mxpy - --plugin-root <root> multiplicity <hash> [--json] < verify.py
+    <root>/hooks/mxpy - --plugin-root <root> reproduce --analysis-dir DIR [--claims DOC] [--json] < verify.py
 
 It reuses the approval gate's own parsers (`<root>/hooks/gate.py`), so a plan
 covers here exactly the scripts it let through. `report` only reads. `write`
@@ -2717,6 +2718,12 @@ def recovery_history(root, config, report, mine, jobs, execution):
                              "outcome": kind, "text": text, "changes": notes})
         verdict, final = None, attempts[-1]
         failed = [(a, r) for a, r in zip(attempts[:-1], runs[:-1]) if a["outcome"] == "failed"]
+        failed_count = sum(1 for a in attempts if a["outcome"] == "failed")
+        if failed_count >= 2:
+            report.add("info", "Step `{}` has {} failed attempts. After two fixes fail the same check, the premise stop "
+                               "was due: write the one assumption both fixes made, test it, and ask the researcher one "
+                               "question before a third fix (diagnose-result). This is an unplanned impactful choice.".format(
+                                   label, failed_count))
         if final["outcome"] == "ok" and failed:
             diffs = [attempt_changes(root, config, r, runs[-1], operational) for _, r in failed]
             verdict = "changed command" if any(d[1] for d in diffs) else \
@@ -2914,6 +2921,182 @@ def decisions_recorded(root, plan, digest, report):
         report.add("info", "Decisions to record: {} of {} bullet(s) (plan lines {}) and the plan hash {} are not in "
                            ".living/decisions.md. Mycelium's own logging records them; this check writes nothing.".format(
                                len(absent), len(bullets), ", ".join("L{}".format(n) for n in absent[:6]), digest[:8]))
+
+
+# ---------------------------------------------------------------- decision log, explain, reproduce (0.31)
+
+DECISION_COLUMNS = ("ts", "phase", "decision", "why", "evidence", "result", "plan_row", "source")
+DECISION_LOG = os.path.join("logs", "decisions.tsv")
+EXPLAIN_BLOCK = re.compile(r"<!--\s*explain\b(.*?)-->", re.S)
+REPRODUCE_BLOCK = re.compile(r"<!--\s*reproduce\b(.*?)-->", re.S)
+UNSUPPORTED = "unsupported: no inspected figure"
+
+
+def decision_log(root, analysis_dir, plan, report):
+    """The run's decision log (`<analysis>/logs/decisions.tsv`) against the approved plan. A row whose `plan_row`
+    is empty or names no plan row is an unplanned choice (block); a row linked to a `default:` row is info,
+    because an impactful choice is never a default; a missing log is info when the plan has a `user` or
+    `inherited:` row, else nothing is said. `start` rows only mark a run. Returns the rows read."""
+    rows = plan_rows(plan)[0]
+    asked = [k for k, r in rows.items() if re.match(r"^(user|inherited)", r.get("source", ""), re.I)]
+    path = os.path.join(root, analysis_dir or "", DECISION_LOG) if analysis_dir else None
+    if not path or not os.path.isfile(path):
+        if asked:
+            report.add("info", "No decision log at `{}`: {} plan row(s) are `user` or `inherited:`, and no record shows "
+                               "which run decisions were taken or that they match the plan.".format(
+                                  os.path.join(analysis_dir or "<analysis>", DECISION_LOG), len(asked)))
+        return []
+    lines = read_text(path).splitlines()
+    if not lines or tuple(lines[0].split("\t")) != DECISION_COLUMNS:
+        report.add("gap", "The decision log `{}` does not start with the header `{}`, so it was not read.".format(
+            os.path.join(analysis_dir, DECISION_LOG), "\t".join(DECISION_COLUMNS)))
+        return []
+    entries = []
+    for number, line in enumerate(lines[1:], 2):
+        cells = line.split("\t")
+        if len(cells) != len(DECISION_COLUMNS):
+            report.add("gap", "Decision log line {} has {} cells, not {}; it was skipped.".format(
+                number, len(cells), len(DECISION_COLUMNS)))
+            continue
+        entry = dict(zip(DECISION_COLUMNS, cells), line=number)
+        if entry["phase"] == "start":
+            continue
+        entries.append(entry)
+    for entry in entries:
+        where = "decision log line {} (`{}`)".format(entry["line"], cut(entry["decision"], 60))
+        key = entry["plan_row"].strip()
+        if not key or key not in rows:
+            report.add("block", "{}: no plan row{} - a run decision the approved plan did not list; an unplanned "
+                                "impactful choice stops the run for the researcher's answer.".format(
+                                    where, " `{}`".format(key) if key else ""))
+        elif re.match(r"^default", rows[key].get("source", ""), re.I):
+            report.add("info", "{}: linked to plan row {}, a `default:` row. Check it is not an impactful choice, "
+                               "which is never a default.".format(where, key))
+    if entries:
+        report.add("info", "Decision log: {} decision row(s) read from `{}`.".format(
+            len(entries), os.path.join(analysis_dir, DECISION_LOG)))
+    return entries
+
+
+def explain_blocks(root, analysis_dir, outputs, extra, report):
+    """Each `<!-- explain -->` line, `number | factor | figure path`, in the documents verify reads for claims.
+    A figure file that does not exist is a gap; `unsupported: no inspected figure` is stated honestly and is info."""
+    found = []
+    for doc in document_set(root, analysis_dir, outputs, extra):
+        full = os.path.join(root, doc)
+        for block in EXPLAIN_BLOCK.finditer(read_text(full) if os.path.isfile(full) else ""):
+            for line in block.group(1).splitlines():
+                parts = [x.strip() for x in line.split("|")]
+                if len(parts) != 3 or not all(parts):
+                    if line.strip():
+                        report.add("gap", "`{}`: an `explain` line is not `number | factor | figure path`: `{}`.".format(
+                            doc, cut(line.strip(), 80)))
+                    continue
+                number_, factor, figure = parts
+                if figure.lower().startswith("unsupported"):
+                    verdict = "unsupported"
+                    report.add("info", "`{}`: number {} - factor `{}` has {}.".format(doc, number_, factor, UNSUPPORTED))
+                else:
+                    candidates = [os.path.join(root, analysis_dir or "", figure), os.path.join(root, figure)]
+                    verdict = "figure found" if any(os.path.isfile(c) for c in candidates) else "figure missing"
+                    if verdict == "figure missing":
+                        report.add("gap", "`{}`: number {} - factor `{}` cites `{}`, which is not a file.".format(
+                            doc, number_, factor, figure))
+                found.append({"doc": doc, "number": number_, "factor": factor, "figure": figure, "verdict": verdict})
+    return found
+
+
+def reproduce_entries(text):
+    """(entries, bad): the `<!-- reproduce -->` lines of a findings document, `finding | read-only command |
+    expected | intent`. `expected` is the printed output the command must give (trailing whitespace ignored)."""
+    entries, bad = [], []
+    for block in REPRODUCE_BLOCK.finditer(text or ""):
+        for line in block.group(1).splitlines():
+            if not line.strip():
+                continue
+            parts = [x.strip() for x in line.split("|")]
+            if len(parts) == 4 and all(parts):
+                entries.append(dict(zip(("finding", "cmd", "expected", "intent"), parts)))
+            else:
+                bad.append(line.strip())
+    return entries, bad
+
+
+def run_once(root, command, seconds):
+    """(lines, why): the command's output lines, or why it could not run. Read-only commands only."""
+    allowed, why = evidence_command(command)
+    if not allowed:
+        return None, "not re-run: " + why
+    try:
+        proc = subprocess.run(["/bin/sh", "-c", command], cwd=root, stdin=subprocess.DEVNULL,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=seconds,
+                              env=dict(os.environ, GIT_PAGER="cat", PAGER="cat"))
+    except subprocess.TimeoutExpired:
+        return None, "not re-run: timed out"
+    except OSError as error:
+        return None, "not re-run: " + cell(str(error))[:80]
+    if proc.returncode not in (0, 1):
+        return None, "not re-run: exit {}".format(proc.returncode)
+    return evidence_lines(proc.stdout.decode("utf-8", "replace")), ""
+
+
+def reproduce(root, docs, seconds=EVIDENCE_SECONDS):
+    """Reproduce-or-drop, read-only. Each finding's command runs twice. `reproduced`: both runs print the expected
+    output, which is the failure or number the finding claims, so it still breaks the stated intent. `unreproduced`:
+    both ran and a run differed, so the finding is dropped and listed with its reason. `inconclusive`: a run could
+    not happen (not read-only, timed out, errored); the verdict names which half. Nothing is written or fixed."""
+    results, bad = [], []
+    for doc in docs:
+        full = os.path.join(root, doc)
+        entries, unparsed = reproduce_entries(read_text(full) if os.path.isfile(full) else "")
+        bad += [(doc, line) for line in unparsed]
+        for entry in entries[:EVIDENCE_MAX_ENTRIES]:
+            expected = evidence_lines(entry["expected"].replace("\\n", "\n"))
+            outs, notes = [], []
+            for _ in range(2):
+                out, why = run_once(root, entry["cmd"], seconds)
+                outs.append(out)
+                notes.append(why)
+            if all(o is not None for o in outs):
+                if all(o == expected for o in outs):
+                    verdict, reason = "reproduced", ""
+                else:
+                    differing = next(i for i, o in enumerate(outs) if o != expected)
+                    verdict, reason = "unreproduced", "run {} printed `{}`, expected `{}`".format(
+                        differing + 1, cut(" / ".join(outs[differing]), 100) or "(nothing)", cut(entry["expected"], 100))
+            else:
+                missing = [i + 1 for i, o in enumerate(outs) if o is None]
+                verdict = "inconclusive"
+                reason = "run {} could not be measured ({})".format("+".join(map(str, missing)), next(n for n in notes if n))
+            results.append(dict(entry, doc=doc, verdict=verdict, reason=reason))
+    return {"results": results, "unparsed": bad}
+
+
+def render_reproduce(result):
+    results = result["results"]
+    counts = collections.Counter(r["verdict"] for r in results)
+    lines = ["# Reproduce or drop", "",
+             "Each finding's read-only command ran twice. Read-only: nothing was fixed, edited or written. "
+             "A reproduced finding printed its expected output both times; that shows the claim holds under this "
+             "command, not that the command tests the right thing.", "",
+             "{} finding(s): {} reproduced, {} unreproduced (dropped), {} inconclusive.".format(
+                 len(results), counts.get("reproduced", 0), counts.get("unreproduced", 0), counts.get("inconclusive", 0)), ""]
+    for title, verdict in (("Reproduced", "reproduced"), ("Unreproduced (dropped)", "unreproduced"),
+                           ("Inconclusive", "inconclusive")):
+        rows = [r for r in results if r["verdict"] == verdict]
+        lines.append("## " + title)
+        lines += ["- `{}` - {} (intent: {}; `{}`){}".format(
+            cell(r["doc"]), cell(r["finding"]), cell(r["intent"]), cell(cut(r["cmd"], 80)),
+            "; " + cell(r["reason"]) if r["reason"] else "") for r in rows] or ["- none"]
+        lines.append("")
+    if result["unparsed"]:
+        lines.append("## Not read")
+        lines += ["- `{}`: not `finding | command | expected | intent`: `{}`".format(d, cut(l, 80)) for d, l in result["unparsed"]]
+        lines.append("")
+    if not results:
+        lines.append("No `<!-- reproduce -->` block found.")
+    return "\n".join(lines) + "\n"
+
 
 
 def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=120, scilintr="scilintr",
@@ -3385,6 +3568,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds,
                   choices=[(" ".join(row.values()), row.get("choice", "")) for row in plan_rows(plan)[0].values()])
     claimed = check_claims(root, analysis_dir, outputs, claims, report, budget["bytes"])
+    decided = decision_log(root, analysis_dir, plan, report)
+    explained = explain_blocks(root, analysis_dir, outputs, claims, report)
     cited = check_citations(root, analysis_dir, outputs, claims, report, resolve_citations, contact)
     elsewhere = set(r.get("validation_check") for r in receipts if digest in r.get("plans", []) and not r.get("explore")
                     and chosen and r.get("approval_instance") != chosen)
@@ -3405,7 +3590,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
             "git_repo": gate.git(root, "rev-parse", "--git-dir") is not None, "runs": len(mine),
             "scripts": scripts, "folders": folders, "commands": commands, "inputs": inputs,
             "outputs": outputs, "outputs_named": words, "findings": report.findings, "lint": linted, "envs": envs, "rule_envs": rule_env_list,
-            "claims": claimed, "citations": cited, "recovery": recovery, "validation": validated,
+            "claims": claimed, "decisions": decided, "explain": explained, "citations": cited, "recovery": recovery, "validation": validated,
             "validation_binding": binding, "evidence": evidence_checked,
             "status": report.status(), "plan": plan, "plan_intact": plan_intact,
             # Kept for the record (a scaffolder call can explain a moved input), marked as not runs.
@@ -4005,6 +4190,15 @@ def render(result, all_outputs=False, saved=False):
                              "not which run wrote it.".format(cov["registered"]))
     if not result.get("claims"):
         lines.append("No document with a `<!-- claims -->` block.")
+    decided = result.get("decisions") or []
+    if decided:
+        lines += ["", "## Decisions", "", "- {} decision row(s) in the decision log; each is checked against the plan's rows "
+                  "in Findings.".format(len(decided))]
+    explained = result.get("explain") or []
+    if explained:
+        lines += ["", "## Explain the number", ""]
+        lines += ["- number {} - factor `{}`: {} (`{}`)".format(cell(e["number"]), cell(e["factor"]), e["verdict"],
+                                                              cell(e["figure"])) for e in explained[:SHOWN_OUTPUTS]]
     lines += ["", "## Citations", ""]
     citations = result.get("citations") or []
     if citations:
@@ -5484,8 +5678,10 @@ def main(argv):
     parser.add_argument("--rscript", help="default: the path in tools.json, else `Rscript` on PATH")
     parser.add_argument("--hash-mb", type=float, default=2000)
     parser.add_argument("--seconds", type=float, default=120)
+    parser.add_argument("--seconds-each", type=float, default=EVIDENCE_SECONDS,
+                        help="reproduce: the time one command run may take (default 10)")
     parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore",
-                                           "multiplicity", "runs", "refs", "disclose", "exercise", "crate"])
+                                           "multiplicity", "runs", "refs", "disclose", "exercise", "crate", "reproduce"])
     parser.add_argument("hash", nargs="?")
     parser.add_argument("new_hash", nargs="?")
     parser.add_argument("--sha", help="refs: the SHA256 (or at least 8 hex) of the file that was wrong")
@@ -5557,6 +5753,13 @@ def main(argv):
         return 0
     if args.action == "list":
         sys.stdout.write(list_plans(root))
+        return 0
+    if args.action == "reproduce":  # read-only: each finding's command runs twice; nothing is fixed or written
+        folder = rel_or_abs(root, args.analysis_dir) if args.analysis_dir else None
+        if not folder and not args.claims:
+            sys.exit("verify: `reproduce` needs --analysis-dir (its document's `<!-- reproduce -->` block) or --claims DOC.")
+        result = reproduce(root, document_set(root, folder, [], args.claims), args.seconds_each)
+        sys.stdout.write(json.dumps(result, indent=1) + "\n" if args.json else render_reproduce(result))
         return 0
     if not args.hash or not re.match(r"^[0-9a-f]{8}$", args.hash):
         sys.exit("verify: give the plan's 8-character hash (see `list`).")

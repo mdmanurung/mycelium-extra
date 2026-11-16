@@ -1,6 +1,6 @@
 ---
 name: verify
-description: "After an approved grill plan has run, check what ran against the plan and, once the user confirms, write provenance. Subcommands: exercise, list, report, write, disclose, diff, stale, status, multiplicity, explore, runs, refs. Not for planning (grill) or code quality (Mycelium's review)."
+description: "After an approved grill plan has run, check what ran against the plan and, once the user confirms, write provenance. Subcommands: exercise, list, report, write, disclose, diff, stale, status, multiplicity, explore, runs, refs, reproduce. Not for planning (grill) or code quality (Mycelium's review)."
 ---
 
 # Mycelium Extra: Verify
@@ -37,6 +37,10 @@ It also checks the reason on each `default:` in the frozen plan's Source column,
 It also checks claims: each `<!-- claims -->` block in the analysis doc (`<NAME>.md`, Mycelium's analysis doc), in a Markdown file on the `Outputs:` line, or in a document passed with `--claims <path>` (repeatable). Each block line names a value and the output cell it came from, `value | file column [row]`, with the file relative to the analysis folder or the repository. `row` is the first-column label; a table with more than one row needs it, so a common value such as `0.05` never verifies against some row of a column. `rows` as the column is the table's data-row count, and a JSON output takes a dotted path (`qc.n`, `qc.kept.1`). A value may start with `<`, `>`, `<=` or `>=`, and end with `%` (also tried against a fraction, reported as via transform). A value agrees when the cell, rounded half-up, half-even, or truncated to the value's last digit, equals it. The `## Claims` section counts each document's verdicts. A claim the cell contradicts, or one read from an output an explore run wrote, blocks; a claim whose file, column or row cannot be found, a file over `--hash-mb`, or a block line that does not parse is a gap. Numbers in the block's section (heading to heading) that no claim covers are listed as `info`: the block, not the prose, is the checked record.
 
 It also reads citations: each DOI (`10.<4-9 digits>/<suffix>`), `PMID: <n>` and `arXiv: <id>` in the documents it checks for claims, one entry per identifier, plus each reference-shaped line under a `References` heading that carries no identifier (`no identifier`: listed, never resolvable). Offline, which is the default, an identifier is `not checked (offline)` and is a gap: verify never shows a citation as resolved that it did not resolve. `report <hash> --resolve-citations [--contact <email>]` queries Crossref, NCBI E-utilities and arXiv with stdlib `urllib`, one request per identifier with a wait between them, and compares the returned title and first author with the citation line: `resolved` when both appear in it, `mismatch` when they do not, `unresolved` when the service has no such record, `not checked (request failed)` when the request never reached a service (no network, a timeout, an error other than 404). The `## Citations` section counts each verdict. A mismatch or an unresolved identifier blocks; a reference with no identifier is info; a failed request is a gap. A resolved citation shows that the identifier exists and that its title and first author appear in the text, not that the paper supports the sentence citing it. The contact address, which Crossref and NCBI both ask for, is sent only when you pass it.
+
+It also reads the run's decision log, `<analysis>/logs/decisions.tsv` ([format](../grill/references/decision-log.md)), against the plan's rows. A decision row whose `plan_row` is empty or names no plan row **blocks**: it is an unplanned impactful choice, which should have stopped the run for the user's answer. A row linked to a `default:` row is info (an impactful choice is never a default). A missing log is an info line when the plan has a `user` or `inherited:` row (it is not yet a gap, so plans without a log keep their status). `## Decisions` counts the rows read. This checks the log against the plan, not the code against the log.
+
+It also reads each `<!-- explain -->` block in the documents it checks for claims (`number | factor | figure path`, see plot-first's "Explain the number"). A cited figure that is not a file is a gap, `unsupported: no inspected figure` is info, and the section `## Explain the number` lists each line. It does not judge whether the figure supports the line.
 
 The report opens with `# Verify plan <hash>: <status>` and five rows: `Ran as planned`, `Numbers match`, `Code checks`, `Not checked` and `Next`. Each starts `yes`, `no` or `partly` with its reason, or `n/a` when the plan gave the check nothing to judge (for example no `<!-- claims -->` block), so a row is never `yes` while a problem is open. Quote these five rows to the user first, as printed, then the details below them. In the file `write` saves, `Next` says the provenance is saved.
 
@@ -102,6 +106,22 @@ When you write findings or a report in a gated repository, declare the numbers a
 ```
 
 Never add, edit, or drop a claims line to make a failing check pass.
+
+## Reproduce or drop
+
+After a run, re-check each claimed finding, read-only. Idea from pstack's `interrogate` and benny's reproduce rule.
+
+```bash
+<skill-dir>/../../hooks/mxpy - --plugin-root <skill-dir>/../.. reproduce --analysis-dir <folder> [--claims DOC] [--json] < <skill-dir>/scripts/verify.py
+```
+
+It reads each `<!-- reproduce -->` block in the analysis doc and any `--claims` document. A line is `finding | read-only command | expected | intent`. Each command runs twice, through the same read-only allowlist as plan evidence (no writer, no redirect, no substitution, 10 seconds a run). The verdict is one of:
+
+- `reproduced`: both runs printed the expected output, so the finding holds under that command.
+- `unreproduced`: both runs ran and one printed something else. The finding is dropped and listed with what it printed.
+- `inconclusive`: a run could not happen (not read-only, timed out, errored). The reason names which half.
+
+Quote the three lists as printed. Do not fix, edit or re-run anything because of a dropped finding: the user decides, and a wrong output needs a new grill plan. A reproduced finding is not a verified analysis: the command may test the wrong thing. Rerunning a script is a run, so it needs an approved plan.
 
 ## 4. Write provenance, after the user confirms
 

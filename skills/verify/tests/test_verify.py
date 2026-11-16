@@ -3017,6 +3017,20 @@ sys.exit(1 if hits else 0)
         self.assertNotIn("**gap**", out)
         self.ends(out, "CONFORMS")
 
+    def test_two_failed_attempts_on_one_step_name_the_premise_stop(self):  # 0.31, from pstack attack-the-premise
+        digest = self.fit_plan()
+        self.run_cmd("python {} --model a".format(FIT), exit_code=1)
+        self.run_cmd("python {} --model b".format(FIT), exit_code=1)
+        out = self.verify("report", digest)
+        self.assertIn("**info**: Step `{}` has 2 failed attempts. After two fixes fail the same check".format(FIT), out)
+        self.assertIn("unplanned impactful choice", out)
+
+    def test_one_failed_attempt_does_not_name_the_premise_stop(self):  # control
+        digest = self.fit_plan()
+        self.run_cmd("python {} --model a".format(FIT), exit_code=1)
+        self.run_cmd("python {} --model b".format(FIT), writes={self.OUT: "x\n"})
+        self.assertNotIn("premise stop", self.verify("report", digest))
+
     def exact_plan(self, argv, operational, second=False):
         step = {"row": "1", "argv": argv, "cwd": ".", "env": {}, "operational": operational}
         rows = ["run `{}`".format(FIT)] + (["run `analysis/a/scripts/02_plot.py`"] if second else [])
@@ -4067,7 +4081,7 @@ class DecisionTraceTest(unittest.TestCase):
             "hash", "approved_at", "start", "session_id", "instance", "scope", "analysis_dir", "git", "git_repo", "runs", "scripts",
             "folders", "commands", "inputs", "outputs", "outputs_named", "findings", "lint", "envs", "rule_envs", "claims",
             "citations", "recovery", "validation", "validation_binding", "status", "plan", "plan_intact", "receipts",
-            "qualification", "rerun", "evidence"})
+            "qualification", "rerun", "evidence", "decisions", "explain"})
         # Calling the trace must not perturb what the plain report and --json print, byte for byte.
         self.trace(digest)
         self.trace(digest, "1")
