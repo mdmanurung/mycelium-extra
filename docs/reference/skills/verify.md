@@ -12,7 +12,7 @@ Run from inside the repository, from stdin. Invoke with `/mycelium-extra:verify`
 
 ## Subcommands
 
-`<action>` is one of thirteen values. "Gate" says whether it needs `.mycelium-extra/gate.json`.
+`<action>` is one of fourteen values. "Gate" says whether it needs `.mycelium-extra/gate.json`.
 
 | Action | Arguments | Meaning | Writes | Gate |
 |---|---|---|---|---|
@@ -29,6 +29,7 @@ Run from inside the repository, from stdin. Invoke with `/mycelium-extra:verify`
 | `status` | none | one table: plans approved or verified, runs, status, stale, lint, manifest listing | no | no |
 | `runs` | `[RESULTS_DIR]` | step folders of `outputs/` with their mtime and the last `logs/CHANGES.md` entry, plus legacy labelled run folders (default `results/`, else `outputs/`; `run_<YYYYMMDD>_<slug>`, `_vNN`, `RUN.txt`) | no | no |
 | `refs` | `<path> [--sha SHA256]` | which saved plans pinned a file; `definite` when the SHA256 matches, `possible` otherwise | no | no |
+| `reproduce` | `--analysis-dir DIR [--claims DOC] [--seconds-each N]` | read-only: runs each `<!-- reproduce -->` line's command twice and lists findings as `reproduced`, `unreproduced` (dropped) or `inconclusive`; fixes nothing | no | yes |
 | `exercise` | `[reveal]` | a labelled synthetic claim-mismatch rehearsal; prints only ([exercise](../../exercise.md)) | no | no |
 
 `stale`, `status`, `runs` and `refs` read committed provenance, so they work on a clone with no gate; `exercise` needs neither. With no hash, list the plans and ask which one.
@@ -65,7 +66,7 @@ It opens with `# Verify plan <hash>: <status>` and five rows: `Ran as planned`, 
 | `CONFORMS_WITH_GAPS` | something the records cannot show: a run with no receipt, an unknown exit status, an output not tied to a run, code a linter could not check, a citation not checked, a required validation check not established |
 | `DOES_NOT_CONFORM` | at least one block: a failed run, a planned script edited after its run, a failed required check, a changed pinned input, an unfixed unwaived lint finding, an `Outputs:` file written before the approval, an incomplete Snakemake job, a claim its cell contradicts, a citation that does not resolve or match |
 
-A gap is not a failure and a pass is not a scientific judgement. Qualification is separate from status and is not a score. See [Gaps and passes](../../concepts/gaps-and-passes.md).
+The decision log adds a block when a run decision has no plan row; a missing `explain` figure is a gap, a missing log is an info line, and a non-reproducing finding is dropped, never passed. A gap is not a failure and a pass is not a scientific judgement. Qualification is separate from status and is not a score. See [Gaps and passes](../../concepts/gaps-and-passes.md).
 
 Exit codes: `report` and `write` exit 0 whatever the status. `--require-reportable` exits 3 when not qualified. A `verify:` error, or `mxpy` finding no Python 3.9 or later, exits 1.
 

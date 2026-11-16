@@ -63,3 +63,7 @@ Reads the grill brief, repository instructions, `.living/` decisions and finding
 | Showing you the packet and reviewers first; not typing or paraphrasing your consent; never calling a missing review complete | The agent's instruction |
 
 Raw reviewer transcripts stay local and ephemeral; a Biomni task persists in your Phylo project until you delete it.
+
+## After a run
+
+Optionally, the same route, packet checks and `send packet` consent can send the run's decision log and `verify report` to a second reader, who returns an `Attention` list: what deserves your scrutiny, each item naming the log row or report line. It applies nothing. A reviewer that did not run is `unavailable`, never an empty list.

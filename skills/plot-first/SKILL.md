@@ -49,6 +49,27 @@ Separate what the plot shows from the interpretation and its limits. In `.living
 
 Before reusing a figure from an earlier run, check it against `provenance/outputs-<hash>.tsv` or run verify `stale`; a figure with no recorded producer is `unsupported`, not stale by eye. Do not invent a citation or treat a planned figure as an observed result.
 
+## Explain the number
+
+Before a headline estimate is reported, say what limits or drives it. A headline estimate is a number a conclusion rests on: an effect size, a count of hits, a correlation. Name each factor that could set it, and cite the inspected figure that shows it for each.
+
+- Prompts, not a complete list: one batch, depth or library size, one donor, one cohort, a filter that removed more than intended, a step that never ran, a baseline left on defaults.
+- One line per factor: the factor, and what the figure shows (or does not show) about it. The figure rules above apply: a saved figure you opened, named with its step folder.
+- A factor with no figure is `unsupported: no inspected figure`. Do not drop the factor. Making the missing plot needs a grill plan.
+- If no limiter can be named from the figures, the estimate is `inconclusive`. Say which half is missing.
+- Keep the result that would change the decision, and the run-to-run spread where it exists, next to the number.
+
+Record the lines in the analysis doc as a block, so `verify` can find the figure files:
+
+```markdown
+<!-- explain
+log2FC 1.8 for IL6 | one donor | outputs/03_show/figures/03_by_donor.pdf
+log2FC 1.8 for IL6 | batch | unsupported: no inspected figure
+-->
+```
+
+`verify` reports a cited figure that is not a file as a gap. It does not judge whether the figure supports the line.
+
 ## Tables as a last resort
 
 First try a plot suited to the question. Use an interpretive table only when the evidence cannot be read faithfully from a plot, such as an exact lookup of identifiers or values. Write `table fallback: <reason>` immediately before the link to the saved table. Size or convenience alone is not a reason.

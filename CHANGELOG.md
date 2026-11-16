@@ -4,6 +4,21 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-11-16
+
+Ideas from the pstack plugin (`cursor/plugins`), read in full and adapted to the plan gate.
+
+### Added
+
+- **verify:** `## Decisions`: the run's decision log (`<analysis>/logs/decisions.tsv`) is checked against the plan. A row with no plan row blocks, a row linked to a `default:` row is info, a missing log is an info line. Format in `skills/grill/references/decision-log.md`; `skills/verify/scripts/decision_log.py` appends a row.
+- **verify:** `reproduce --analysis-dir DIR`: each `<!-- reproduce -->` line (finding, read-only command, expected output, intent) runs twice through the plan-evidence allowlist. Findings are `reproduced`, `unreproduced` (dropped, with the reason) or `inconclusive`. Read-only; nothing is fixed.
+- **verify:** `## Explain the number`: each `<!-- explain -->` line cites a figure per limiting factor; a cited file that is missing is a gap.
+- **verify:** an info line when a step has two failed attempts, naming the premise stop.
+- **plot-first:** a new "Explain the number" section. Existing rules are unchanged.
+- **grill:** the premise stop (two failed fixes sharing one premise: write the premise, propose one read-only test, ask one question; an unplanned impactful choice with no default); an arbiter and a decision-changing result for each headline estimate.
+- **diagnose-result:** restate the problem before reading the user's theory of the cause; the same premise stop.
+- **plan-review:** an optional post-run Attention review of the decision log and verify report, with the same packet checks and consent.
+
 ## [0.30.0] - 2026-11-13
 
 ### Changed

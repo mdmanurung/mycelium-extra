@@ -71,6 +71,8 @@ On when invoked. Nothing in the gate depends on grill having run: any message th
 | Approving a plan | Enforced: only your typed `approve plan <hash>` ([Gate](../gate.md#typed-commands)) |
 | The hash | Enforced: the Stop hook computes and shows it. The agent must never print or guess one. |
 | Read-only, no edits, no execution during grill | The agent's instruction |
+| The premise stop (two failed fixes sharing one premise: write it, propose one read-only test, ask one question, no default) | The agent's instruction |
+| The per-run decision log (`<analysis>/logs/decisions.tsv`) | The agent's instruction to write it; `verify` blocks on a row with no plan row |
 | The five-question cap | The agent's instruction |
 | Offline-first, same-turn consent, untrusted retrieved text | The agent's instruction; the gate's `PreToolUse` matcher does not see web or MCP tools |
 

@@ -26,7 +26,7 @@ Before reading any file or data (except the Purpose of the target analysis doc, 
 
 ## 2. Reconstruct and challenge
 
-For analysis work, read [../plot-first/SKILL.md](../plot-first/SKILL.md). Make plots the primary interpretive outputs. Carry each question's figure path, source data, and visual check into the existing plan; use tables only with a stated fallback reason. This remains read-only and adds no interview questions.
+For analysis work, read [../plot-first/SKILL.md](../plot-first/SKILL.md). Make plots the primary interpretive outputs. Carry each question's figure path, source data, and visual check into the existing plan; use tables only with a stated fallback reason. This remains read-only and adds no interview questions. For each headline estimate, the Validation cell also names two things beyond its check: an external arbiter, what other than the agent or the user would show the result right (a held-out cohort, a positive control, an orthogonal assay), and the result that would change the decision, with the noise floor. Naming them is the user's call when they are impactful, so they follow the impactful-choices rule: asked, never a `default`. The plot-first skill's "Explain the number" section says what the report must then show.
 
 For scientific and statistical work, use [references/scientific-conventions.md](references/scientific-conventions.md) **after** obtaining the user's question and retrieving project evidence. Identify only *activated* domain guidance, selectively read its relevant sections, and carry consequential scientific rules, exceptions, sources, and falsifiable checks into the existing plan. Never mistake a convention for proof that a dataset or implementation satisfies it. This adds no interview questions, approval authority, execution, or external retrieval.
 
@@ -98,7 +98,7 @@ Then the sections below, in order. The rules for each (what qualifies, how to ci
 - **Assumptions and risk**: each `default` row in one line, then the key failure mode and how the plan detects it.
 - **Parked**: deferred items, each with a return condition.
 - **Frontier**: one line, for example `Frontier: 6 repo, 2 user, 1 default, 1 parked; 0 open.`
-- **Decisions to record**: user answers and defaults the executing workflow should log once work begins: to `.living/decisions.md` in a Mycelium repository, otherwise as an ADR under `docs/adr/` only when the three tests in brief-format.md hold.
+- **Decisions to record**: user answers and defaults the executing workflow should log once work begins: to `.living/decisions.md` in a Mycelium repository, otherwise as an ADR under `docs/adr/` only when the three tests in brief-format.md hold. The executing agent also keeps a per-run decision log of every impactful choice and fork, one row per choice linked to its plan row: [references/decision-log.md](references/decision-log.md).
 - **Terms to record**: terms the plan settled, for `GLOSSARY.md`; omit when none.
 - **Next action**: approve or edit the plan, then the execution route: Mycelium's analyze skill in a Mycelium repository, otherwise the repository's normal workflow.
 
@@ -108,7 +108,7 @@ Then stop, unless the gate is off (`.mycelium-extra/off.json` exists): the switc
 
 ## Resume, debug, freeze
 
-Use the same skill for all three; there is no second questionnaire. Resuming or debugging an approved plan: restate the user's already stated question and claim (section 0), and ask only about a choice that is consequential and still unresolved; do not re-ask what the approved plan, a decision entry, or the user has settled. Debugging inside the approved scope needs no new plan: the user can type `allow explore <plan hash>` for exploration bounded to that plan's analysis paths. Freezing: when a protected test or expectation, or a frozen step's arguments, must change, or the user wants a reportable run, write the revised run plan (see [references/run-plans.md](references/run-plans.md)) with fresh `Outputs:` paths for approval. Explore outputs are never relabelled as results.
+Use the same skill for all three; there is no second questionnaire. Resuming or debugging an approved plan: restate the user's already stated question and claim (section 0), and ask only about a choice that is consequential and still unresolved; do not re-ask what the approved plan, a decision entry, or the user has settled. After two fixes that share one premise fail the same check, stop: do not try a third. Write the premise in one sentence (what both fixes assumed), propose one read-only test that would come out differently if it were false, and ask the user one question. This is an unplanned impactful choice: no default, and the five-question cap does not apply. Revert what a refuted hypothesis motivated. Debugging inside the approved scope needs no new plan: the user can type `allow explore <plan hash>` for exploration bounded to that plan's analysis paths. Freezing: when a protected test or expectation, or a frozen step's arguments, must change, or the user wants a reportable run, write the revised run plan (see [references/run-plans.md](references/run-plans.md)) with fresh `Outputs:` paths for approval. Explore outputs are never relabelled as results.
 
 ## Promote explore runs
 

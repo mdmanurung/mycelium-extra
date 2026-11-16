@@ -20,6 +20,8 @@ You usually have no gold standard. The signal is then a saved figure you have op
 
 ## Phase 1: Build a loop
 
+Before anything else, restate the problem in your own words: the expected state, the observed state, and where they differ. Do this before you read the user's guess at the cause. A stated guess narrows the search to wherever it points. Then check the guess as one hypothesis in Phase 3, not as the starting point.
+
 This is the skill. A loop is one command that gives the same verdict each run and can go red on this symptom. Spend most of the effort here. [references/loops.md](references/loops.md) lists the kinds of loop for analyses and how to tighten them.
 
 Pick the first that fits:
@@ -57,6 +59,17 @@ One probe per hypothesis, one variable at a time, each tagged. Prefer a saved fi
 Turn the minimal repro into a regression check at a seam where the real pattern occurs, and place it outside the gated paths (for example `tests/`). Watch it fail. If you forced the red by editing code or a fixture, diff against a pristine copy to prove the edit landed before you trust the failure. Then apply the fix, watch it pass, then rerun the Phase 1 loop on the original scenario. A fix that edits gated code needs an approved plan and a rerun through `run.sh`.
 
 If no correct seam exists, that is the finding. Say what blocks the check, for example a step that mixes loading, filtering and fitting.
+
+### Stop after two failed fixes
+
+When two fixes that share one premise have failed the same check, stop. Do not try a third.
+
+1. Write the premise in one sentence: what both fixes assumed (for example "the batch term removes the donor effect").
+2. Propose one read-only test that would come out differently if the premise were false. Look at how the failures are distributed, not only at their size. Show it before you run it when it needs a rerun.
+3. Ask the user one question. This is an unplanned impactful choice: it has no default, and a question cap never applies.
+4. Revert what a refuted hypothesis motivated. Keep only the smallest change the evidence justifies.
+
+`verify report` adds an info line when a step has two failed attempts, so the stop shows in the record.
 
 ## Phase 6: Clean up
 

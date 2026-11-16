@@ -52,6 +52,8 @@ Off until you invoke `/mycelium-extra:diagnose-result`. It adds no hook, notice 
 | Gated paths cannot be edited without an approved plan | Enforced by the approval gate |
 | A change to a preprocessing step, filter, threshold, model, covariate or seed is a labelled probe, and you decide whether it enters the analysis | The agent's instruction |
 | Showing hypotheses before testing, redacting identifiers, tagging debug output | The agent's instruction |
+| Restating the problem before reading your theory of the cause | The agent's instruction |
+| After two failed fixes that share one premise: stop, name the premise, propose one read-only test, ask you one question (no default) | The agent's instruction; `verify report` adds an info line at two failed attempts |
 | `diff_tables.py` never writes | Enforced by the script (it opens files read-only) |
 
 See [where](where.md) to find stale steps and [track-changes](track-changes.md) to review what changed against the approved intent.

@@ -60,4 +60,10 @@ Challenge a proposed plan before approval. This skill is consultation only: do n
 
 State which reviewers actually ran, what evidence each saw (the digest and the attachment list they received), any redactions or missing context, the pre-send check's result, and whether each result was complete, unavailable, or invalid. Provide the synthesis and one concrete next action. Keep raw reviewer transcripts ephemeral locally (a Biomni task persists in the user's Phylo project until they delete it); do not write `.mycelium-extra/reviews/` or durable provenance in this first version.
 
+## 5. After a run: Attention review (optional)
+
+When the user asks for a second reader of a finished run, use the same route, packet checks and consent as sections 1 to 4 on the run's records instead of the plan: the decision log (`<analysis>/logs/decisions.tsv`), the `verify report` text and the approved plan. Idea from pstack's `show-me-your-work`. Build the packet per [review-contract.md](references/review-contract.md), with the log and report in place of the draft plan, and send nothing without `prepare`, `preview` and the user's `send packet` prompt.
+
+Ask the reviewer one thing: what deserves the user's scrutiny. The reply is an `Attention` list, each item naming the log row or report line it comes from and why it matters. It applies nothing and rewrites nothing. A reviewer that did not run is `unavailable`, never an empty list. Keep it advice: the user decides.
+
 Stop here. Execution remains with Mycelium's analyze skill after the normal Mycelium Extra approval; verification remains with Mycelium Extra verify.
