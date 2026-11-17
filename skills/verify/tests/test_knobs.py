@@ -80,6 +80,20 @@ class Parse(Tmp):
         names = {k[0] for k in verify.script_knobs(self.write("a/fit.py", PY_SCRIPT))}
         self.assertEqual(names, {"FDR", "MODEL", "USE_BATCH"})  # ROOT and DATA_FILE are paths; LOCAL is indented
 
+    def test_short_names_digit_names_annotations_and_r_integers_are_knobs(self):  # planted break: missed knobs
+        body = "K = 30\nFC = 2\nTOP50 = True\nSEED: int = 1\nLOG2FC <- 1\nN_PC <- 10L\nALPHA = 1/20\nSUBSET = \"CD4/CD8\"\n"
+        knobs = {k[0]: k[1] for k in verify.script_knobs(self.write("a/k.py", body))}
+        self.assertEqual(knobs, {"K": "30", "FC": "2", "TOP50": "True", "SEED": "1", "LOG2FC": "1", "N_PC": "10L",
+                                 "ALPHA": "1/20", "SUBSET": "\"CD4/CD8\""})
+
+    def test_only_path_looking_values_are_dropped(self):  # control
+        body = "A = \"./x\"\nB = \"data/x.tsv\"\nC = Path(\"x\")\nD <- file.path(\"a\", \"b\")\nE <- \"~/y\"\nF = \"nb\"\n"
+        self.assertEqual({k[0] for k in verify.script_knobs(self.write("a/p.py", body))}, {"F"})
+
+    def test_mixed_case_and_comparisons_are_not_knobs(self):
+        body = "Fit = 3\nX == 3\nx = 3\n"
+        self.assertEqual(verify.script_knobs(self.write("a/m.py", body)), [])
+
     def test_another_language_and_a_missing_file_give_nothing(self):
         self.assertEqual(verify.script_knobs(self.write("a/x.sh", "FDR=0.1\n")), [])
         self.assertEqual(verify.script_knobs(os.path.join(self.dir, "nope.R")), [])
@@ -113,9 +127,28 @@ class Coverage(Tmp):
         _, found = self.run_check(plan(("a/fit.R", "FDR 0.01, min 10, ctrl trt, seed 7")))
         self.assertEqual([f["name"] for f in found], ["PADJ_MAX"])
 
-    def test_a_script_no_row_names_is_matched_against_every_choice(self):
+    def test_a_script_no_row_names_is_matched_by_name_only(self):
         _, found = self.run_check(plan(("a/other.R", "FDR 0.05, min 10, ctrl trt, seed 7")))
+        self.assertEqual({f["name"] for f in found}, {"PADJ_MAX", "MIN_COUNT", "CONTRAST_LEVELS"})  # SEED named
+        _, found = self.run_check(plan(("a/other.R", "padj max, min count, contrast levels, seed")))
         self.assertEqual(found, [])
+
+    def test_a_number_in_another_scripts_row_does_not_cover_a_knob(self):  # planted break: "top 10 genes" over-match
+        body = "MIN_CELLS <- 10\n"
+        _, found = self.run_check(plan(("a/fit.R", "edgeR fit"), ("a/plot.R", "label top 10 genes")), "a/fit.R", body)
+        self.assertEqual([f["name"] for f in found], ["MIN_CELLS"])
+
+    def test_a_number_in_the_scripts_own_row_covers_it(self):  # control
+        body = "MIN_CELLS <- 10\n"
+        _, found = self.run_check(plan(("a/fit.R", "keep at least 10 cells"), ("a/plot.R", "x")), "a/fit.R", body)
+        self.assertEqual(found, [])
+
+    def test_an_r_integer_and_an_arithmetic_value_are_covered_by_their_numbers(self):
+        body = "K <- 30L\nALPHA <- 1/20\n"
+        _, found = self.run_check(plan(("a/fit.R", "30 neighbours, level 1/20")), "a/fit.R", body)
+        self.assertEqual(found, [])
+        _, found = self.run_check(plan(("a/fit.R", "30 neighbours, level 1/10")), "a/fit.R", body)
+        self.assertEqual([f["name"] for f in found], ["ALPHA"])
 
     def test_python_boolean_knob_needs_its_name(self):
         _, found = self.run_check(plan(("a/fit.py", "FDR 0.1 with model nb")), "a/fit.py", PY_SCRIPT)

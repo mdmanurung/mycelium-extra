@@ -2926,11 +2926,19 @@ def decisions_recorded(root, plan, digest, report):
 
 # ---------------------------------------------------------------- knobs against plan rows (0.32)
 
-KNOB_LINE = re.compile(r"^([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+|[A-Z]{3,})\s*(?:<-|=(?!=))\s*(\S.*?)\s*$")
+KNOB_LINE = re.compile(r"^([A-Z][A-Z0-9_]*)(?:\s*:\s*[\w\[\], .|]+?)?\s*(?:<-|=(?!=))\s*(\S.*?)\s*$")
 KNOB_PATH_NAME = re.compile(r"(^|_)(ROOT|DIR|DIRS|PATH|PATHS|FILE|FILES|OUTDIR|HERE|CWD)(_|$)")
-KNOB_PATH_VALUE = re.compile(r"/|\bhere\s*\(|\bPath\s*\(|os\.path|\bfile\.path\s*\(|\.(?:tsv|csv|rds|h5ad|json|pdf|png|R|py)\b")
+KNOB_PATH_CALL = re.compile(r"\bhere\s*\(|\bPath\s*\(|os\.path|\bfile\.path\s*\(")
+KNOB_PATH_STRING = re.compile(r"[\"'](?:\./|\.\./|/|~)|\.(?:tsv|csv|txt|rds|rda|h5ad|h5|json|ya?ml|pdf|png|svg|R|py|parquet|loom|mtx|gz)[\"']")
+KNOB_NUMBER = re.compile(r"(?<![\w.])-?\d*\.?\d+(?:[eE][-+]?\d+)?(?=L?(?![\w.]))")
 KNOB_LANGUAGES = (".py", ".R", ".r")
 MAX_KNOBS_SHOWN = 6
+
+
+def knob_value_is_path(value):
+    """Whether a knob value builds or names a path: a path-building call, or a quoted string that starts like a path
+    or ends in a file extension. Arithmetic (1/20) and labels ("CD4/CD8") are values, not paths."""
+    return bool(KNOB_PATH_CALL.search(value) or KNOB_PATH_STRING.search(value))
 
 
 def script_knobs(path):
@@ -2952,20 +2960,24 @@ def script_knobs(path):
         name, rest = found.groups()
         value, _, reason = rest.partition("#")
         value = value.strip().rstrip(",;")
-        if KNOB_PATH_NAME.search(name) or KNOB_PATH_VALUE.search(value) or not value:
+        if KNOB_PATH_NAME.search(name) or not value or knob_value_is_path(value):
             continue
         knobs.append((name, value, number, reason.strip()))
     return knobs
 
 
-def knob_named(knob, choices_text):
-    """Whether a plan Choice names the knob: by its name (the underscores may read as spaces), or by every number in
-    its value, or by its quoted text. A boolean or a bare name is matched by name only."""
+def knob_named(knob, choices_text, by_number=True):
+    """Whether a plan Choice names the knob: by its name (the underscores may read as spaces), or, when by_number,
+    by every number in its value (R `10L` reads as 10), or by its quoted text. A boolean or a bare name is matched
+    by name only."""
     name, value = knob[0].lower(), knob[1]
     text = choices_text.lower()
-    if name in text or name.replace("_", " ") in re.sub(r"[^a-z0-9.]+", " ", text):
+    spaced = re.sub(r"[^a-z0-9.]+", " ", text)
+    if name in text or name.replace("_", " ") in spaced or re.sub(r"(?<=[a-z])(?=\d)", " ", name).replace("_", " ") in spaced:
         return True
-    numbers = {float(n) for n in CHOICE_NUMBER.findall(value)}
+    if not by_number:
+        return False
+    numbers = {float(n) for n in KNOB_NUMBER.findall(value)}
     have = {float(n) for n in CHOICE_NUMBER.findall(choices_text)}
     if numbers and numbers <= have:
         return True
@@ -2976,7 +2988,8 @@ def knob_named(knob, choices_text):
 def knob_coverage(root, planned, plan, report):
     """Info: a knob in a planned script that no plan Choice names is a value a reader may change that the approved
     plan never listed, so it may be an unplanned impactful choice. Info only: verify does not know which knobs
-    change a headline estimate. A script no row names is matched against every Choice, as the threshold check is."""
+    change a headline estimate. A number counts only in a Choice of a row that names the script; a script no row names
+    is matched by name only, against every Choice, so a number in an unrelated row ("top 10 genes") covers nothing."""
     rows = plan_rows(plan)[0]
     cells = [(" ".join(r.values()), r.get("choice", "")) for r in rows.values()]
     if not cells:
@@ -2986,9 +2999,9 @@ def knob_coverage(root, planned, plan, report):
         knobs = script_knobs(os.path.join(root, rel))
         if not knobs:
             continue
-        mine = [choice for text, choice in cells if rel in text] or [choice for _, choice in cells]
-        text = " ".join(mine)
-        missing = [k for k in knobs if not knob_named(k, text)]
+        mine = [choice for text, choice in cells if rel in text]
+        text = " ".join(mine or [choice for _, choice in cells])
+        missing = [k for k in knobs if not knob_named(k, text, by_number=bool(mine))]
         found += [dict(script=rel, name=k[0], value=k[1], line=k[2]) for k in missing]
         if missing:
             shown = "; ".join("{} = {} (line {})".format(k[0], cut(k[1], 40), k[2]) for k in missing[:MAX_KNOBS_SHOWN])
