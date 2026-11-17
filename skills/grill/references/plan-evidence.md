@@ -41,7 +41,12 @@ One block per message, below the plan table, beside the other comment blocks:
   either can write from inside its own script.
 - A flag is checked too, because an allowed program can write or run another program: `sort -o`,
   `sort --compress-program`, `git log --output`, `git grep -O`, `git -c <key>=<value>`, `rg --pre`,
-  `find -fls` and `file -C` are all rejected.
+  `rg --hostname-bin`, `find -fls` and `file -C` are all rejected, also when bundled (`-ro`,
+  `-nO'cmd'`), given an attached value (`-oFILE`) or abbreviated (`--outp=`).
+- `git` takes its reader subcommand first: a global option before it (`git -C . log`) is rejected.
+- Any unquoted `>` is a redirection and is rejected, `2>&1` included; a quoted `">"` is an argument.
+- An unquoted `{` or `}` is rejected, because the shell's brace expansion can build a writer flag.
+  Quote it when a program needs it: `jq '{a: .x}' f.json`.
 - Record a command whose output is stable. A timestamp, a duration, a colour code or an absolute
   path that differs per machine turns every later check into `changed`.
 - Exit 1 is fine, since a reader uses it to say "no match" or "differs". Exit 2 or more is `not checked`

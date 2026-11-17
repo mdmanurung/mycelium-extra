@@ -13,7 +13,7 @@ Path: `<analysis>/logs/decisions.tsv`, committed with the analysis. A step folde
 - `why`: the reason in plain words.
 - `evidence`: a pointer, never prose: a path, `file:line` or a commit.
 - `result`: what happened (`ran`, `reverted`, `inconclusive`, `open`) or the value it gave.
-- `plan_row`: the approved plan's step number. It is required. A plan table with an ID column (`#`, `id`, `no`) is matched by that ID; one without (grill's Step, Choice, Source, Validation) by the row's 1-based position in its tables.
+- `plan_row`: the approved plan's step number. It is required. A plan table with an ID column (`#`, `id`, `no`) is matched by that ID; one without (grill's Step, Choice, Source, Validation) by the row's 1-based position in the step table (the table whose header has Step or Choice), so a Gate or Value table elsewhere in the plan does not shift the numbers.
 - `source`: that row's Source cell (`user`, `inherited: <path>`, `repo: <path>`).
 
 ## Rules
