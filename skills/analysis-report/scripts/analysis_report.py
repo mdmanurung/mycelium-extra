@@ -254,10 +254,12 @@ def lucid_coder_root():
     return os.path.dirname(os.path.dirname(found[-1])) if found else None
 
 
-def verify_record_lines(dest, doc):
+def verify_record_lines(dest, doc, dest_rel=None):
     """info lines for what verify 0.31 reads in the analysis: the decision log, `<!-- reproduce -->` findings and
     `<!-- explain -->` factors. Read only; a line says what the report must use (the log in Methods, only reproduced
-    findings in Key Findings, the explain lines under a headline number), not whether any of it is right."""
+    findings in Key Findings, the explain lines under a headline number), not whether any of it is right. dest_rel is
+    the folder relative to the repository root, which is what verify resolves --analysis-dir against. Lines count
+    across all blocks of a kind; a malformed line (verify skips it) is counted apart."""
     lines = []
     log = os.path.join(dest, "logs", "decisions.tsv")
     if os.path.isfile(log):
@@ -269,15 +271,21 @@ def verify_record_lines(dest, doc):
     if doc:
         with open(os.path.join(dest, doc), encoding="utf-8", errors="replace") as handle:
             text = handle.read()
+    # reproduce: finding | command | ... | expected/intent (4+ cells, first and last non-empty); explain: exactly 3 cells
+    well_formed = {"reproduce": lambda c: len(c) >= 4 and bool(c[0] and c[-1]),
+                   "explain": lambda c: len(c) == 3 and all(c)}
     for tag, what in (("reproduce", "run `verify reproduce --analysis-dir {}` (read-only) and report only the findings "
                                     "it reproduces; an unreproduced finding is dropped, an inconclusive one is hedged"),
                       ("explain", "put each factor's line under its headline number; a factor with no figure stays "
                                   "`unsupported: no inspected figure`")):
-        found = re.search(r"<!--\s*" + tag + r"\b(.*?)-->", text, re.S)
-        if found:
-            count = len([l for l in found.group(1).splitlines() if l.strip()])
-            lines.append("info: {} `<!-- {} -->` line(s) in {}: {}.".format(
-                count, tag, doc, what.format(os.path.basename(dest)) if "{}" in what else what))
+        blocks = re.findall(r"<!--\s*" + tag + r"\b(.*?)-->", text, re.S)
+        if blocks:
+            rows = [[c.strip() for c in l.split("|")] for b in blocks for l in b.splitlines() if l.strip()]
+            good = len([r for r in rows if well_formed[tag](r)])
+            bad = len(rows) - good
+            lines.append("info: {} `<!-- {} -->` line(s) in {}{}: {}.".format(
+                good, tag, doc, " ({} malformed line(s) not counted; verify skips them)".format(bad) if bad else "",
+                what.format(dest_rel or os.path.basename(dest)) if "{}" in what else what))
     return lines
 
 
@@ -353,7 +361,7 @@ def main(argv):
     if rules:
         print("info: lucid-coder learned rules that apply ({}): {}. Follow them in the report text and figures; "
               "`/lucid-coder:rules` shows each one. They are reported here, not enforced.".format(len(rules), "; ".join(rules)))
-    for line in verify_record_lines(dest, doc):
+    for line in verify_record_lines(dest, doc, dest_rel):
         print(line)
     if doc is None:
         print("note: no <NAME>.md or README.md; the Overview has nothing to copy the Purpose from.")
