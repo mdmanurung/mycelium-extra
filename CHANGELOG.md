@@ -4,6 +4,28 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.32.1] - 2026-11-17
+
+Fixes from a review of 0.32.0.
+
+### Fixed
+
+- **verify (F1):** the plan-evidence allowlist now needs the read-only git subcommand first, refuses `>` redirection hidden in operators like `>&2x`, bundled or prefix-spelled writer flags, and accepts a quoted `">"` as an argument.
+- **verify (F2):** the decision log check ignores rows stamped before approval and counts them as info; an unparsable stamp is a gap.
+- **verify (F3):** a decision row finds its plan row by ID when the plan has an ID column, else by position; a duplicate or missing ID is a gap.
+- **gate (F4):** a repeated gate error is still written to the journal; only the shown message is deduped. `on_error deny` still denies every call.
+- **verify (F5):** one info line lists user and inherited plan rows with no decision row, and says verify cannot tell which are impactful.
+- **verify (F6):** reproduce lines keep a `|` inside the command, so pipelines parse and run.
+- **verify (F7):** a quoted `">"` in an evidence command is no longer read as a redirection.
+- **verify (F8):** output grading skips `logs/decisions.tsv`, so a log written after approval is not a gap.
+- **verify (F9):** knob detection accepts single-letter, digit and annotated names, R `10L` values, and path-like values by shape; plan coverage by number only counts Choice cells of rows that name the script.
+- **verify (F10):** an explain row whose third cell starts with `inconclusive` is its own info verdict.
+- **verify (F11):** an explain figure must be an image or PDF file inside the repository, else a gap names why.
+- **verify (F12):** reproduce says how many findings past the 40-entry cap were not run, and has a 300 s total time budget.
+- **analysis-report (F13):** the verify record lines print the analysis folder path, count across all blocks and name malformed lines.
+- **verify (F14):** the premise-stop line no longer claims a shared cause or a plan due date it cannot see.
+- **gate (F15):** the seen file is keyed by session, capped at 40 stamps and written atomically.
+
 ## [0.32.0] - 2026-11-17
 
 Closer integration with lucid-coder and lucid-writer.
