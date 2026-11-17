@@ -9,6 +9,7 @@ file is there, or when the event cannot be read, so gate.py reports it as it alw
 import json
 import os
 import sys
+import tempfile
 import time
 
 
@@ -87,40 +88,50 @@ def identity(event, host=None):
                 for key, value in found.items())
 
 
-class _Quiet(Exception):
-    """A repeat of an error already reported this session: nothing to record."""
-
-
 SEEN = "gate-errors.seen.json"
+SEEN_CAP = 40  # stamps kept across all sessions
 REPEAT_SECONDS = 3600  # a broken gate is said again after this long, so a fix that broke again is not silent
 
 
 def already_reported(root, session, name, error, outcome=""):
     """True when this session already saw this error for this event, with the same outcome (allow or deny, and
-    the note), within the last hour: a broken gate says so once per event kind, not on every tool call. Remembers
-    one session at a time in `gate-errors.seen.json`; best effort, and with no session id or no state folder
-    nothing is ever a repeat."""
+    the note), within the last hour: a broken gate says so once per event kind, not on every tool call. This
+    dedupes the shown message only; the journal line is always written. Remembers a few sessions at once in
+    `gate-errors.seen.json` ({"sessions": {session: {key: stamp}}}, at most SEEN_CAP stamps, oldest evicted
+    first) and writes it through a temp file and os.replace. Best effort; with no session id or no state
+    folder nothing is ever a repeat."""
     if not root or not isinstance(session, str) or not session:
         return False
-    path, now = os.path.join(root, STATE_DIR, SEEN), time.time()
+    folder = os.path.join(root, STATE_DIR)
+    path, now = os.path.join(folder, SEEN), time.time()
     key = "{}\t{}\t{}".format(name, error, outcome)
     try:
         with open(path, encoding="utf-8") as handle:
-            seen = json.load(handle)
-        keys = seen.get("keys", {}) if isinstance(seen, dict) and seen.get("session") == session else {}
-        if not isinstance(keys, dict):
-            keys = {}
+            loaded = json.load(handle).get("sessions", {})
+        sessions = dict((sid, dict((k, v) for k, v in keys.items() if isinstance(v, (int, float))))
+                        for sid, keys in loaded.items() if isinstance(keys, dict))
     except Exception:
-        keys = {}
-    stamp = keys.get(key)
+        sessions = {}
+    stamp = sessions.get(session, {}).get(key)
     if isinstance(stamp, (int, float)) and 0 <= now - stamp < REPEAT_SECONDS:
         return True
-    keys[key] = now
+    sessions.setdefault(session, {})[key] = now
+    entries = sorted(((v, sid, k) for sid, keys in sessions.items() for k, v in keys.items()), reverse=True)
+    sessions = {}
+    for stamp, sid, k in entries[:SEEN_CAP]:  # the newest stamps survive, whoever wrote them
+        sessions.setdefault(sid, {})[k] = stamp
+    temp = None
     try:
-        with open(path, "w", encoding="utf-8") as handle:
-            json.dump({"session": session, "keys": dict(list(keys.items())[-19:])}, handle)
+        handle, temp = tempfile.mkstemp(prefix=SEEN + ".", dir=folder)
+        with os.fdopen(handle, "w", encoding="utf-8") as out:
+            json.dump({"sessions": sessions}, out)
+        os.replace(temp, path)
     except Exception:
-        pass
+        if temp:
+            try:
+                os.remove(temp)
+            except OSError:
+                pass
     return False
 
 
@@ -146,21 +157,17 @@ def error_output(name, error, cwd, event=None, host=None, root=None):
         note = " gate.json {}, so it cannot say what to do on an error; allowing.".format(what) if root else ""
     repeat = already_reported(root, identity(event, host).get("session_id"), name, error,
                                "{}|{}|{}".format(policy, note, host or ""))
-    try:  # best-effort record; a failed write never changes the decision and leaves no record at all
-        if repeat:
-            raise _Quiet()
+    try:  # best-effort record, always written: verify counts the journal, so a repeat must leave a line
         line = json.dumps(dict(identity(event, host), ts=int(time.time()), event=name, error=str(error),
                                decision="deny" if policy == "deny" and name == "tool" else "allow")) + "\n"
         with open(os.path.join(root, STATE_DIR, "gate-errors.jsonl"), "a", encoding="utf-8") as log:
             log.write(line)
-    except _Quiet:
-        pass
     except Exception:
         if root:
             note += " The error could not be recorded in gate-errors.jsonl."
     message = "mycelium-extra gate error ({}): {}; the gate did not run.".format(name, error)
     if repeat and not (policy == "deny" and name == "tool"):
-        return {}  # told once this session; a repeat neither logs nor shows the message again
+        return {}  # told once this session; a repeat is journaled but its message is not shown again
     if policy == "deny" and name == "tool":
         return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
                 "permissionDecisionReason": message.replace("the gate did not run.",
