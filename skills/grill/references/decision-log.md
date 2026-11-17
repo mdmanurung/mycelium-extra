@@ -13,12 +13,13 @@ Path: `<analysis>/logs/decisions.tsv`, committed with the analysis. A step folde
 - `why`: the reason in plain words.
 - `evidence`: a pointer, never prose: a path, `file:line` or a commit.
 - `result`: what happened (`ran`, `reverted`, `inconclusive`, `open`) or the value it gave.
-- `plan_row`: the approved plan's step number. It is required.
+- `plan_row`: the approved plan's step number. It is required. A plan table with an ID column (`#`, `id`, `no`) is matched by that ID; one without (grill's Step, Choice, Source, Validation) by the row's 1-based position in its tables.
 - `source`: that row's Source cell (`user`, `inherited: <path>`, `repo: <path>`).
 
 ## Rules
 
 - Log every impactful choice (see the grill skill) and every fork the run took, at the time it happens. Do not log every action.
+- The log is one file kept across runs. `verify` judges only rows whose `ts` is at or after the plan's approval; earlier rows are counted and left alone, and a `ts` that is not ISO 8601 UTC is a gap.
 - Append only. A wrong row gets a later row that supersedes it. Never edit or delete a row.
 - Write a `start` row when a run begins, so a reader sees where one run ends and the next starts.
 - A choice with no approved plan row is an unplanned impactful choice. Do not log it: stop and ask the researcher. `verify` blocks on a row whose `plan_row` is empty or unknown.
