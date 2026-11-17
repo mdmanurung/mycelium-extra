@@ -8,6 +8,10 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 Ideas from the pstack plugin (`cursor/plugins`), read in full and adapted to the plan gate.
 
+### Changed
+
+- **gate hooks:** a broken gate (for example an unreadable `gate.json`) logs and shows each error once per event kind, session and hour, not on every Pre/Post/Stop/Prompt call. The memory is `.mycelium-extra/gate-errors.seen.json`. A first error is still logged, `on_error: deny` still blocks every tool call, and an error with no session id is never treated as a repeat.
+
 ### Added
 
 - **verify:** `## Decisions`: the run's decision log (`<analysis>/logs/decisions.tsv`) is checked against the plan. A row with no plan row blocks, a row linked to a `default:` row is info, a missing log is an info line. Format in `skills/grill/references/decision-log.md`; `skills/verify/scripts/decision_log.py` appends a row.
