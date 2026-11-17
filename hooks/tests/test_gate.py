@@ -3765,9 +3765,6 @@ class AttemptEvidenceTest(unittest.TestCase):
     def test_a_gate_error_records_event_decision_host_session_and_call(self):
         for entry in (GATE, LAUNCHER):
             self.config({})
-            seen = self.path("gate-errors.seen.json")
-            if os.path.exists(seen):
-                os.remove(seen)  # the second entry point reports the same error again: one record per entry point
             payload = {"tool_name": "Bash", "tool_input": {"command": self.BROKEN}, "tool_use_id": "t9",
                        "session_id": "sX", "cwd": self.root}
             reply = self.run_entry(entry, ["tool"], payload)

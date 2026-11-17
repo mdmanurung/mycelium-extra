@@ -29,7 +29,7 @@ The `.jsonl` logs and `explore.log` only grow. Nothing trims them.
 | `launches/` | gate (pre hook) | gate (post hook), `verify` | one record per gated launch until its call reports back; `launches/abandoned/` keeps records never taken | Not listed |
 | `denies.jsonl` | gate | nothing | one line per denied tool call | No |
 | `gate-errors.jsonl` | gate hook entry point (`gate_run.py`) | `verify` (a gap in the plan's window), `init --diagnose` | internal gate errors | Not listed; `verify` reads it, so decide at 1.0 |
-| `gate-errors.seen.json` | gate hook entry point (`gate_run.py`) | the same entry point | which gate errors this session already reported (event, error, outcome, host), so a broken gate is logged and shown once per hour per kind, not on every tool call | Not listed; safe to delete |
+| `gate-errors.seen.json` | gate hook entry point (`gate_run.py`) | the same entry point | which gate errors recent sessions already showed (event, error, outcome, host; a few sessions, oldest stamps evicted), so a broken gate's message is shown once per hour per kind, not on every tool call. `gate-errors.jsonl` still gets a line for every error | Not listed; safe to delete |
 | `explore-grants/<session>.json` | gate, on `allow explore` | gate | the session's explore permission, with its scope if bounded | No |
 | `explore.log` | gate | gate (Stop notice) | one line per explore run | No |
 | `hints.json` | gate, on `hints on` | gate | the hints switch | No: hint rules are not frozen |
