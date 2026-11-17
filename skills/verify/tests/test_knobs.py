@@ -119,6 +119,13 @@ class Coverage(Tmp):
         self.assertEqual(found, [])
         self.assertEqual(report.findings, [])
 
+    def test_a_short_name_is_matched_as_a_whole_word(self):  # planted break: "knockout" named K
+        self.assertFalse(verify.knob_named(("K", "30"), "knockout of genes", by_number=False))
+        self.assertFalse(verify.knob_named(("N", "20"), "normalise counts", by_number=False))
+        self.assertTrue(verify.knob_named(("K", "30"), "k neighbours", by_number=False))  # control
+        self.assertTrue(verify.knob_named(("MIN_CELLS", "10"), "min cells per donor", by_number=False))
+        self.assertTrue(verify.knob_named(("TOP50", "50"), "top 50 genes", by_number=False))
+
     def test_the_number_alone_covers_a_knob(self):
         _, found = self.run_check(plan(("a/fit.R", "FDR 0.05, min 10, ctrl trt, seed 7")))
         self.assertEqual(found, [])

@@ -1592,8 +1592,29 @@ EVIDENCE_GIT = frozenset((
 EVIDENCE_WRITERS = {"find": ("-exec", "-execdir", "-ok", "-okdir", "-delete", "-fprint", "-fprint0", "-fprintf",
                              "-fls"),
                     "sort": ("-o", "--output", "--compress-program"),  # -o writes; --compress-program runs a program
-                    "rg": ("--pre",),                                  # --pre runs a program on each file
-                    "file": ("-C", "--compile")}                       # -C writes the compiled magic database
+                    "rg": ("--pre", "--hostname-bin"),                 # each runs a program
+                    "file": ("-C", "--compile"),                       # -C writes the compiled magic database
+                    "git": ("--output", "--open-files-in-pager", "-O")}  # writes a file; runs a pager program
+
+
+def unquoted_brace(command):
+    """True when `{` or `}` appears outside quotes. Bash brace expansion turns `{--output=x,}` into a
+    writer flag after the token check has passed, so an unquoted brace never runs."""
+    quote = None
+    escaped = False
+    for char in command:
+        if escaped:
+            escaped = False
+        elif char == "\\" and quote != "'":
+            escaped = True
+        elif quote:
+            if char == quote:
+                quote = None
+        elif char in "'\"":
+            quote = char
+        elif char in "{}":
+            return True
+    return False
 
 
 def evidence_command(command):
@@ -1607,6 +1628,8 @@ def evidence_command(command):
     for bad in ("`", "$(", "${", "<(", ">(", "\n", "\r"):
         if bad in command:
             return False, "contains a substitution, a newline or a redirect from a script"
+    if unquoted_brace(command):
+        return False, "contains an unquoted brace, which the shell expands"
     operators = []
     words, current, segments = gate.tokenize(command, operators=operators), [], []
     if any(">" in op for op in operators):  # decided on the shell's own operators: a quoted ">" is an argument
@@ -1630,21 +1653,21 @@ def evidence_command(command):
             # take a value that looks like one, or name a program git runs.
             if not args or args[0] not in EVIDENCE_GIT:
                 return False, "`git {}` can write or run a program".format(args[0] if args else "")
-            for token in args:  # a reader flag that writes or runs a program
-                if token in ("--output", "--open-files-in-pager", "-O") \
-                        or token.startswith(("--output=", "--open-files-in-pager=")):
-                    return False, "`git {} {}` writes or runs a program".format(args[0], token)
+        name = program
+        if program == "git":
+            name, args = "git " + args[0], args[1:]  # reader flags are checked below, bundles and abbreviations included
         if program in EVIDENCE_WRITERS:
             for token in args:
                 for flag in EVIDENCE_WRITERS[program]:
                     if token == flag or token.startswith(flag + "="):
-                        return False, "`{} {}` can write".format(program, token)
+                        return False, "`{} {}` writes or runs a program".format(name, token)
                     if flag.startswith("--") and token.startswith("--") and len(token) > 2 \
                             and flag.startswith(token.split("=", 1)[0]):
-                        return False, "`{} {}` can write (an abbreviation of `{}`)".format(program, token, flag)
+                        return False, "`{} {}` writes or runs a program (an abbreviation of `{}`)".format(
+                            name, token, flag)
                     if len(flag) == 2 and flag[1] != "-" and token.startswith("-") and not token.startswith("--") \
                             and flag[1] in token[1:]:  # a short flag bundles or carries its value: `-ro`, `-oFILE`
-                        return False, "`{} {}` can write".format(program, token)
+                        return False, "`{} {}` writes or runs a program".format(name, token)
         if program == "uniq" and len([t for t in args if not t.startswith("-")]) > 1:
             return False, "`uniq` writes its second file argument"
     return True, ""
@@ -2335,19 +2358,25 @@ def gate_error_gaps(root, report, approved_at, sessions):
         report.add("gap", "The gate's error journal `{}` is unreadable or has {} malformed record(s) (lines {}); "
                    "observation history unavailable, so errors in this plan's window may be missing.".format(
                        os.path.relpath(path, root), len(invalid), ", ".join(map(str, invalid[:12]))))
-    counted = 0
+    counted, groups = 0, {}
     for error in errors:
         session = error.get("session_id")
         if int(approved_at) <= error["ts"] <= time.time() + TOLERANCE \
                 and (not isinstance(session, str) or not session or session in sessions):
             counted += 1
-            event, decision = error.get("event"), error.get("decision")
-            report.add("gap", "Gate error at {} (event `{}`{}{}); observation is incomplete there: the gate did "
-                       "not check or record what it saw, so a run in that period may be missing from the "
-                       "receipts. This is not a record that any specific action went unobserved.".format(
-                           when(error["ts"]), str(event)[:40] if event else "unknown",
-                           ", decision {}".format(str(decision)[:20]) if decision else "",
-                           ", session {}".format(session) if isinstance(session, str) and session else ""))
+            # A gate broken on every call journals every call; one gap per event kind and session keeps the report short.
+            key = (str(error.get("event") or ""), str(error.get("decision") or ""),
+                   session if isinstance(session, str) else "")
+            groups.setdefault(key, []).append(error["ts"])
+    for (event, decision, session), stamps in groups.items():
+        span = "at {}".format(when(stamps[0])) if len(stamps) == 1 else "{} times, {} to {}".format(
+            len(stamps), when(min(stamps)), when(max(stamps)))
+        report.add("gap", "Gate error {} (event `{}`{}{}); observation is incomplete there: the gate did "
+                   "not check or record what it saw, so a run in that period may be missing from the "
+                   "receipts. This is not a record that any specific action went unobserved.".format(
+                       span, event[:40] if event else "unknown",
+                       ", decision {}".format(decision[:20]) if decision else "",
+                       ", session {}".format(session) if session else ""))
     return counted
 
 
@@ -2983,7 +3012,12 @@ def knob_named(knob, choices_text, by_number=True):
     name, value = knob[0].lower(), knob[1]
     text = choices_text.lower()
     spaced = re.sub(r"[^a-z0-9.]+", " ", text)
-    if name in text or name.replace("_", " ") in spaced or re.sub(r"(?<=[a-z])(?=\d)", " ", name).replace("_", " ") in spaced:
+
+    def word(needle, haystack):  # a whole word, so `K` is not named by "knockout"
+        return re.search(r"(?<![a-z0-9_])" + re.escape(needle) + r"(?![a-z0-9_])", haystack) is not None
+
+    if word(name, text) or word(name.replace("_", " "), spaced) \
+            or word(re.sub(r"(?<=[a-z])(?=\d)", " ", name).replace("_", " "), spaced):
         return True
     if not by_number:
         return False
@@ -3047,22 +3081,34 @@ def decision_plan_rows(plan):
     (Step, Choice, Source, Validation) have none, and the Step cell is a script path. unusable: the IDs that
     cannot be matched (used twice, or missing)."""
     rows, unusable, columns = plan_rows(plan)
-    if any(name in ID_HEADERS for name in columns):
+    lines = plan.splitlines()
+
+    def tables(steps_only):
+        table, header, keyed = [], None, False
+        for i, line in enumerate(lines):
+            match = gate.TABLE_ROW.match(line)
+            if not match:
+                header = None
+                continue
+            if gate.TABLE_RULE.match(line):
+                continue
+            cells = [squash(cell.replace("\0", "|")) for cell in match.group(1).replace("\\|", "\0").split("|")]
+            following = lines[i + 1] if i + 1 < len(lines) else ""
+            if gate.TABLE_ROW.match(following) and gate.TABLE_RULE.match(following):
+                header = [cell.lower() for cell in cells]
+                if steps_only and not ({"step", "choice"} & set(header)):
+                    header = None  # only the step table counts: a Gate|Value table must not shift the positions
+                elif set(header) & set(ID_HEADERS):
+                    keyed = True
+            elif header:
+                table.append((str(len(table) + 1), dict(zip(header, cells))))
+        return table, keyed
+
+    table, keyed = tables(True)
+    if not table:  # no Step or Choice column anywhere: number every table's rows, as before
+        table, keyed = tables(False)
+    if keyed:
         return list(rows.items()), unusable
-    table, header, lines = [], None, plan.splitlines()
-    for i, line in enumerate(lines):
-        match = gate.TABLE_ROW.match(line)
-        if not match:
-            header = None
-            continue
-        if gate.TABLE_RULE.match(line):
-            continue
-        cells = [squash(cell.replace("\0", "|")) for cell in match.group(1).replace("\\|", "\0").split("|")]
-        following = lines[i + 1] if i + 1 < len(lines) else ""
-        if gate.TABLE_ROW.match(following) and gate.TABLE_RULE.match(following):
-            header = [cell.lower() for cell in cells]
-        elif header:
-            table.append((str(len(table) + 1), dict(zip(header, cells))))
     return table, {}
 
 
@@ -3185,10 +3231,11 @@ def explain_blocks(root, analysis_dir, outputs, extra, report):
                             doc, cut(line.strip(), 80)))
                     continue
                 number_, factor, figure = parts
-                if figure.lower().startswith("unsupported"):
+                # A verdict word, not a file named after one (`inconclusive_pca.png` is a figure to check).
+                if re.match(r"unsupported\b(?![._/-])", figure, re.I):
                     verdict = "unsupported"
                     report.add("info", "`{}`: number {} - factor `{}` has {}.".format(doc, number_, factor, UNSUPPORTED))
-                elif figure.lower().startswith("inconclusive"):
+                elif re.match(r"inconclusive\b(?![._/-])", figure, re.I):
                     verdict = "inconclusive"
                     report.add("info", "`{}`: number {} - factor `{}` is inconclusive: {}.".format(
                         doc, number_, factor, cut(figure, 80)))
@@ -3204,17 +3251,20 @@ def explain_blocks(root, analysis_dir, outputs, extra, report):
 def reproduce_entries(text):
     """(entries, bad): the `<!-- reproduce -->` lines of a findings document, `finding | read-only command |
     expected | intent`. `expected` is the printed output the command must give (trailing whitespace ignored).
-    The first cell is the finding and the last two are expected and intent; the cells between, re-joined with
-    `|`, are the command, so a command may hold a pipeline."""
+    The first cell is the finding and the last two are expected and intent; the text between, kept as written,
+    is the command, so a command may hold a pipeline or `||`."""
     entries, bad = [], []
     for block in REPRODUCE_BLOCK.finditer(text or ""):
         for line in block.group(1).splitlines():
             if not line.strip():
                 continue
-            parts = [x.strip() for x in line.split("|")]
-            if len(parts) >= 4 and all(parts):
-                entries.append({"finding": parts[0], "cmd": " | ".join(parts[1:-2]),
-                                "expected": parts[-2], "intent": parts[-1]})
+            bars = [i for i, char in enumerate(line) if char == "|"]
+            parts = []
+            if len(bars) >= 3:
+                parts = [line[:bars[0]], line[bars[0] + 1:bars[-2]], line[bars[-2] + 1:bars[-1]], line[bars[-1] + 1:]]
+                parts = [x.strip() for x in parts]
+            if parts and all(parts):
+                entries.append({"finding": parts[0], "cmd": parts[1], "expected": parts[2], "intent": parts[3]})
             else:
                 bad.append(line.strip())
     return entries, bad

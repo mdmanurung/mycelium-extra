@@ -348,12 +348,22 @@ class VerifyTest(unittest.TestCase):
         self.assertIn("observation history unavailable", out)  # the malformed line is reported, not skipped
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
 
+    def test_repeated_gate_errors_are_one_gap_with_a_count(self):  # a gate broken on every call journals every call
+        digest, approved = self.conforming_run()
+        now = int(time.time())
+        self.gate_errors(*[{"ts": now, "event": "tool", "decision": "allow", "session_id": "s1", "error": "boom"}
+                           for _ in range(5)])
+        out = self.verify("report", digest)
+        self.assertIn("1 open gap(s), first: Gate error 5 times", out)
+        self.assertNotIn("Gate error at", out)
+        self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS_WITH_GAPS"), out)
+
     def test_gate_error_before_approval_or_other_session_is_ignored(self):
         digest, approved = self.conforming_run()
         self.gate_errors({"ts": int(approved) - 100, "event": "tool", "session_id": "s1", "error": "old"},
                          {"ts": int(time.time()), "event": "post", "session_id": "another-session", "error": "else"})
         out = self.verify("report", digest)
-        self.assertNotIn("Gate error at", out)
+        self.assertNotIn("Gate error ", out)
         self.assertNotIn("observation history", out)
         self.assertTrue(out.rstrip().endswith("Verify status: CONFORMS"), out)
 
@@ -3136,7 +3146,7 @@ sys.exit(1 if hits else 0)
         self.assertIn("`uniq` writes its second file argument", out)
         self.assertIn("`git log --output=data/log.txt` writes or runs a program", out)
         self.assertIn("`git -c` can write or run a program", out)
-        self.assertIn("`rg --pre` can write", out)
+        self.assertIn("`rg --pre` writes or runs a program", out)
         self.assertFalse(os.path.exists(os.path.join(self.root, "data/log.txt")))
         self.ends(out, "CONFORMS_WITH_GAPS")
 

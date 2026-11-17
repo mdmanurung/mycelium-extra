@@ -45,6 +45,19 @@ class Refused(unittest.TestCase):
         self.check("cat a.txt 2>out")
         self.check("cat a.txt >out")
 
+    def test_brace_expansion_builds_a_writer_flag(self):  # bash turns {--output=o,} into --output=o
+        self.check("git log {--output=o2,}")
+        self.check("sort {-o,}x in")
+
+    def test_git_pager_flag_bundled_attached_or_abbreviated(self):
+        self.check("git grep -Otouch\\ o6 hello")
+        self.check("git grep -nO'touch o7' hello")
+        self.check("git grep --open-f='touch o8' hello")
+        self.check("git log --outp=o")
+
+    def test_rg_hostname_bin_runs_a_program(self):
+        self.check("rg --hostname-bin=cmd x")
+
 
 class Allowed(unittest.TestCase):
     def check(self, command):
@@ -64,6 +77,11 @@ class Allowed(unittest.TestCase):
         self.check("grep -c '>' seqs.fa")
         self.check('grep -c ">>" seqs.fa')
         self.check('rg ">chr1" seqs.fa')
+
+    def test_a_quoted_brace_is_an_argument(self):  # control for the brace refusal
+        self.check("jq '{a: .x}' f.json")
+        self.check('grep -c "{" f')
+        self.check("git log --oneline -n 5")
 
 
 if __name__ == "__main__":

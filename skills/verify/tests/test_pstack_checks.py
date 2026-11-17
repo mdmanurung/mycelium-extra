@@ -158,6 +158,18 @@ class DecisionLog(Tmp):
         report, _ = self.run_check(grill)
         self.assertEqual(report.status(), "DOES_NOT_CONFORM")
 
+    def test_a_table_besides_the_step_table_does_not_shift_positions(self):  # planted break
+        extra = "\n".join(["| Gate | Value |", "|---|---|", "| mode | on |", "",
+                           "| Step | Choice | Source |", "|---|---|---|",
+                           "| code/01.R | filter | user |", "| code/02.R | seed 7 | user |", "",
+                           "| # | Note |", "|---|---|", "| 1 | aside |"])
+        self.log(self.row("2"))
+        report, entries = self.run_check(extra)
+        self.assertEqual(report.status(), "CONFORMS")
+        self.log(self.row("3"))  # the Gate row would have made a third position
+        report, _ = self.run_check(extra)
+        self.assertEqual(report.status(), "DOES_NOT_CONFORM")
+
     def test_a_plan_with_an_id_column_matches_by_id_not_position(self):  # F3 control
         withid = "\n".join(["| Step | # | Choice | Source |", "|---|---|---|---|",
                             "| a | 10 | x | user |", "| b | 20 | y | default: z |"])
@@ -267,6 +279,12 @@ class Explain(Tmp):
         self.assertEqual(found[0]["verdict"], "inconclusive")
         self.assertEqual(report.status(), "CONFORMS")
 
+    def test_a_figure_named_after_a_verdict_is_still_checked(self):  # planted break
+        self.doc("log2FC 1.8 | batch | inconclusive_pca.png")
+        report, found = self.run_check()
+        self.assertEqual(found[0]["verdict"], "figure missing")
+        self.assertEqual(report.status(), "CONFORMS_WITH_GAPS")
+
     def test_a_table_is_not_a_figure(self):  # planted break: any file passed
         write(os.path.join(self.dir, "an", "outputs", "de.tsv"), "x")
         self.doc("log2FC 1.8 | batch | outputs/de.tsv")
@@ -321,6 +339,11 @@ class Reproduce(Tmp):
         self.doc("w | echo hi > an/out.txt | hi | writes")
         self.assertEqual(self.run_all()["w"]["verdict"], "inconclusive")
         self.assertFalse(os.path.exists(os.path.join(self.dir, "an", "out.txt")))
+
+    def test_a_command_with_a_double_bar_is_read_as_written(self):  # planted break: `||` became an empty cell
+        entries, bad = verify.reproduce_entries("<!-- reproduce\nf | grep x a || true | 1 | intent\n-->")
+        self.assertEqual(bad, [])
+        self.assertEqual(entries[0]["cmd"], "grep x a || true")
 
     def test_a_line_with_the_wrong_shape_is_listed_not_read(self):
         self.doc("only | three | parts")

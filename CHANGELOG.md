@@ -25,6 +25,11 @@ Fixes from a review of 0.32.0.
 - **analysis-report (F13):** the verify record lines print the analysis folder path, count across all blocks and name malformed lines.
 - **verify (F14):** the premise-stop line no longer claims a shared cause or a plan due date it cannot see.
 - **gate (F15):** the seen file is keyed by session, capped at 40 stamps and written atomically.
+- **verify (verifier pass):** the allowlist refuses an unquoted brace (`git log {--output=o,}` expands to a writer flag), checks git's `-O` and `--output` like the other writer flags (bundled `-nO'cmd'`, attached `-Ocmd`, abbreviated `--open-f=`), and refuses `rg --hostname-bin`.
+- **verify (verifier pass):** a knob name matches a plan Choice only as a whole word, so `K` is no longer named by "knockout".
+- **verify (verifier pass):** decision rows number only the step table (a header with Step or Choice); a Gate|Value table no longer shifts the positions.
+- **verify (verifier pass):** a reproduce command keeps `||`; an explain figure named `inconclusive_pca.png` is checked as a figure; repeated gate errors of one kind and session are one gap with a count.
+- **analysis-report (verifier pass):** a reproduce line counts as well formed by the same rule verify uses.
 
 ## [0.32.0] - 2026-11-17
 

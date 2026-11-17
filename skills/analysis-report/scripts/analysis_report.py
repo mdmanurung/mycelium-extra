@@ -271,8 +271,9 @@ def verify_record_lines(dest, doc, dest_rel=None):
     if doc:
         with open(os.path.join(dest, doc), encoding="utf-8", errors="replace") as handle:
             text = handle.read()
-    # reproduce: finding | command | ... | expected/intent (4+ cells, first and last non-empty); explain: exactly 3 cells
-    well_formed = {"reproduce": lambda c: len(c) >= 4 and bool(c[0] and c[-1]),
+    # reproduce: finding | command (may hold `|`) | expected | intent, as verify reads it: the finding, the command
+    # text and the last two cells all non-empty; explain: exactly 3 non-empty cells
+    well_formed = {"reproduce": lambda c: len(c) >= 4 and bool(c[0] and c[-2] and c[-1] and "|".join(c[1:-2]).strip("| ")),
                    "explain": lambda c: len(c) == 3 and all(c)}
     for tag, what in (("reproduce", "run `verify reproduce --analysis-dir {}` (read-only) and report only the findings "
                                     "it reproduces; an unreproduced finding is dropped, an inconclusive one is hedged"),
