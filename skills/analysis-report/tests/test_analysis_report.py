@@ -290,6 +290,24 @@ class StepsLayoutTest(unittest.TestCase):
         self.assertIn("2 `<!-- reproduce -->` line(s) in README.md", out)
         self.assertIn("1 `<!-- explain -->` line(s) in README.md", out)
 
+    def test_reproduce_hint_names_the_folder_relative_to_the_repo_root(self):
+        write(os.path.join(self.dest, "README.md"), RUN_DOC + "\n<!-- reproduce\na | cat x | 1 | i\n-->\n")
+        out = self.run_script("--dry-run")
+        self.assertIn("--analysis-dir nbs/demo`", out)
+        self.assertNotIn("--analysis-dir demo`", out)
+
+    def test_counts_span_all_blocks_and_only_well_formed_lines(self):
+        write(os.path.join(self.dest, "README.md"), RUN_DOC + "\n<!-- reproduce\na | cat x | 1 | i\nbroken line\n-->\n"
+              "<!-- reproduce\nb | cat y | 2 | j\n-->\n<!-- explain\n1.8 | batch | a.pdf\n1.2 | two cells\n-->\n")
+        out = self.run_script("--dry-run")
+        self.assertIn("2 `<!-- reproduce -->` line(s) in README.md", out)
+        self.assertIn("1 malformed", out)
+        self.assertIn("1 `<!-- explain -->` line(s) in README.md", out)
+
+    def test_well_formed_blocks_mention_no_malformed_line(self):  # control
+        write(os.path.join(self.dest, "README.md"), RUN_DOC + "\n<!-- reproduce\na | cat x | 1 | i\n-->\n")
+        self.assertNotIn("malformed", self.run_script("--dry-run"))
+
     def test_scan_is_quiet_without_a_log_or_blocks(self):  # control
         out = self.run_script("--dry-run")
         self.assertNotIn("decision log", out)
