@@ -1606,34 +1606,43 @@ def evidence_command(command):
     for bad in ("`", "$(", "${", "<(", ">(", "\n", "\r"):
         if bad in command:
             return False, "contains a substitution, a newline or a redirect from a script"
-    for segment in gate.segments(command):
+    operators = []
+    words, current, segments = gate.tokenize(command, operators=operators), [], []
+    if any(">" in op for op in operators):  # decided on the shell's own operators: a quoted ">" is an argument
+        return False, "contains an output redirection"
+    for token in words:
+        if gate.is_separator(token):
+            segments.append(current)
+            current = []
+        else:
+            current.append(token)
+    segments.append(current)
+    for segment in segments:
         if not segment:
             continue
         program = os.path.basename(segment[0])
         if program not in EVIDENCE_PROGRAMS:
             return False, "`{}` is not a read-only command".format(program)
         args = segment[1:]
-        for token in args:
-            # `< file` reads; only an output redirection can write.
-            if token in (">", ">>", ">|", ">&", "&>", "&>>") or re.match(r"^\d*>>?$", token):
-                return False, "contains an output redirection"
         if program == "git":
-            readers = [t for t in args if not t.startswith("-")]
-            if not readers or readers[0] not in EVIDENCE_GIT:
-                return False, "`git {}` can write".format(readers[0] if readers else "")
+            # The subcommand must come first: a global option (`--namespace log`, `-c alias.x=!cmd`) can
+            # take a value that looks like one, or name a program git runs.
+            if not args or args[0] not in EVIDENCE_GIT:
+                return False, "`git {}` can write or run a program".format(args[0] if args else "")
             for token in args:  # a reader flag that writes or runs a program
                 if token in ("--output", "--open-files-in-pager", "-O") \
                         or token.startswith(("--output=", "--open-files-in-pager=")):
-                    return False, "`git {} {}` writes or runs a program".format(readers[0], token)
-            for token in args[:args.index(readers[0])]:  # global options can name a program git runs
-                if token in ("--config-env", "--paginate") or token.startswith(("--config-env=", "-c", "-p")):
-                    return False, "`git {} {}` writes or runs a program".format(readers[0], token)
+                    return False, "`git {} {}` writes or runs a program".format(args[0], token)
         if program in EVIDENCE_WRITERS:
             for token in args:
                 for flag in EVIDENCE_WRITERS[program]:
-                    if token == flag or token.startswith(flag + "=") or (
-                            flag.startswith("-") and not flag.startswith("--") and token.startswith(flag)
-                            and len(flag) == 2):  # a short flag may carry its value: `sort -oFILE`
+                    if token == flag or token.startswith(flag + "="):
+                        return False, "`{} {}` can write".format(program, token)
+                    if flag.startswith("--") and token.startswith("--") and len(token) > 2 \
+                            and flag.startswith(token.split("=", 1)[0]):
+                        return False, "`{} {}` can write (an abbreviation of `{}`)".format(program, token, flag)
+                    if len(flag) == 2 and flag[1] != "-" and token.startswith("-") and not token.startswith("--") \
+                            and flag[1] in token[1:]:  # a short flag bundles or carries its value: `-ro`, `-oFILE`
                         return False, "`{} {}` can write".format(program, token)
         if program == "uniq" and len([t for t in args if not t.startswith("-")]) > 1:
             return False, "`uniq` writes its second file argument"
