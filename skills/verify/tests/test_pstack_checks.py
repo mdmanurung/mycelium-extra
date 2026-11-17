@@ -187,6 +187,33 @@ class Explain(Tmp):
         self.assertEqual(found, [])
         self.assertEqual(report.status(), "CONFORMS_WITH_GAPS")
 
+    def test_inconclusive_is_its_own_verdict_and_info(self):  # planted break: it was read as a path
+        self.doc("log2FC 1.8 | none named | inconclusive: no limiter found")
+        report, found = self.run_check()
+        self.assertEqual(found[0]["verdict"], "inconclusive")
+        self.assertEqual(report.status(), "CONFORMS")
+
+    def test_a_table_is_not_a_figure(self):  # planted break: any file passed
+        write(os.path.join(self.dir, "an", "outputs", "de.tsv"), "x")
+        self.doc("log2FC 1.8 | batch | outputs/de.tsv")
+        report, found = self.run_check()
+        self.assertEqual(found[0]["verdict"], "figure invalid")
+        self.assertIn("image or PDF", report.findings[0][1])
+        self.assertEqual(report.status(), "CONFORMS_WITH_GAPS")
+
+    def test_a_figure_outside_the_repository_is_a_gap(self):  # planted break
+        write(os.path.join(os.path.dirname(self.dir), "x_outside.png"), "x")
+        self.addCleanup(os.remove, os.path.join(os.path.dirname(self.dir), "x_outside.png"))
+        self.doc("log2FC 1.8 | batch | ../../x_outside.png")
+        report, found = self.run_check()
+        self.assertEqual(found[0]["verdict"], "figure invalid")
+        self.assertIn("outside the repository", report.findings[0][1])
+
+    def test_a_png_inside_the_repository_is_found(self):  # control
+        write(os.path.join(self.dir, "an", "outputs", "a.PNG"), "x")
+        self.doc("log2FC 1.8 | batch | outputs/a.PNG")
+        self.assertEqual(self.run_check()[1][0]["verdict"], "figure found")
+
 
 class Reproduce(Tmp):
     def doc(self, *lines):
@@ -226,6 +253,34 @@ class Reproduce(Tmp):
         result = verify.reproduce(self.dir, ["an/AN.md"], 5)
         self.assertEqual(result["results"], [])
         self.assertEqual(len(result["unparsed"]), 1)
+
+    def test_a_pipeline_command_is_read_and_run(self):  # planted break: split on every pipe
+        write(os.path.join(self.dir, "an", "n.txt"), "a\nb\nc\n")
+        self.doc("3 lines | grep -c . an/n.txt | cat | wc -l | 1 | the file has lines")
+        result = verify.reproduce(self.dir, ["an/AN.md"], 5)
+        self.assertEqual(result["unparsed"], [])
+        entry = result["results"][0]
+        self.assertEqual(entry["cmd"], "grep -c . an/n.txt | cat | wc -l")
+        self.assertEqual(entry["verdict"], "reproduced")
+
+    def test_entries_past_the_cap_are_counted_not_silent(self):  # planted break
+        self.doc(*["f{0} | echo 1 | 1 | i".format(i) for i in range(verify.EVIDENCE_MAX_ENTRIES + 3)])
+        result = verify.reproduce(self.dir, ["an/AN.md"], 5, budget=1000)
+        self.assertEqual(len(result["results"]), verify.EVIDENCE_MAX_ENTRIES)
+        self.assertEqual(result["dropped"], 3)
+        self.assertIn("3 more finding(s)", verify.render_reproduce(result))
+
+    def test_under_the_cap_nothing_is_dropped(self):  # control
+        self.doc("a | echo 1 | 1 | i")
+        result = verify.reproduce(self.dir, ["an/AN.md"], 5)
+        self.assertEqual(result["dropped"], 0)
+        self.assertNotIn("more finding(s)", verify.render_reproduce(result))
+
+    def test_an_exhausted_budget_makes_the_rest_inconclusive(self):  # planted break
+        self.doc("a | echo 1 | 1 | i", "b | echo 1 | 1 | i")
+        result = verify.reproduce(self.dir, ["an/AN.md"], 5, budget=0)
+        self.assertEqual([r["verdict"] for r in result["results"]], ["inconclusive"] * 2)
+        self.assertIn("time budget ran out", result["results"][0]["reason"])
 
     def test_the_report_lists_the_dropped_finding_and_says_nothing_was_fixed(self):
         write(os.path.join(self.dir, "an", "n.txt"), "7\n")

@@ -56,7 +56,7 @@ Before a headline estimate is reported, say what limits or drives it. A headline
 - Prompts, not a complete list: one batch, depth or library size, one donor, one cohort, a filter that removed more than intended, a step that never ran, a baseline left on defaults.
 - One line per factor: the factor, and what the figure shows (or does not show) about it. The figure rules above apply: a saved figure you opened, named with its step folder.
 - A factor with no figure is `unsupported: no inspected figure`. Do not drop the factor. Making the missing plot needs a grill plan.
-- If no limiter can be named from the figures, the estimate is `inconclusive`. Say which half is missing.
+- If no limiter can be named from the figures, the estimate is `inconclusive`. Say which half is missing. In the block below, write it as a line whose third cell starts `inconclusive`, for example `inconclusive: no limiter found`.
 - Keep the result that would change the decision, and the run-to-run spread where it exists, next to the number.
 
 Record the lines in the analysis doc as a block, so `verify` can find the figure files:
@@ -68,7 +68,7 @@ log2FC 1.8 for IL6 | batch | unsupported: no inspected figure
 -->
 ```
 
-`verify` reports a cited figure that is not a file as a gap. It does not judge whether the figure supports the line.
+`verify` reports a cited figure as a gap when it is not a file, not an image or PDF (`.png .pdf .svg .jpg .jpeg .tif .tiff`), or outside the repository. It does not judge whether the figure supports the line.
 
 ## Tables as a last resort
 

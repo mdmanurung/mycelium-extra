@@ -1578,6 +1578,7 @@ EVIDENCE_MAX_LINES = 40     # output lines the reader is shown in a plan (track-
 EVIDENCE_MAX_CHARS = 500
 EVIDENCE_SECONDS = 10.0  # one command
 EVIDENCE_BUDGET = 60.0   # all of them, so a slow `rg` cannot hold the report
+REPRODUCE_BUDGET = 300.0  # all `verify reproduce` runs; entries after it are inconclusive
 # The programs an evidence entry may run. Every one reads to stdout and writes nothing; `git` is
 # restricted to its readers below. `sed`, `awk` and `find -exec` are out: each can write from
 # inside its own script or action, and a guard on their arguments is guesswork.
@@ -2721,10 +2722,10 @@ def recovery_history(root, config, report, mine, jobs, execution):
         failed = [(a, r) for a, r in zip(attempts[:-1], runs[:-1]) if a["outcome"] == "failed"]
         failed_count = sum(1 for a in attempts if a["outcome"] == "failed")
         if failed_count >= 2:
-            report.add("info", "Step `{}` has {} failed attempts. After two fixes fail the same check, the premise stop "
-                               "was due: write the one assumption both fixes made, test it, and ask the researcher one "
-                               "question before a third fix (diagnose-result). This is an unplanned impactful choice.".format(
-                                   label, failed_count))
+            report.add("info", "Step `{}` has {} failed attempts. If both fixes shared one premise, the premise stop "
+                               "applies: write the one assumption both made, test it, and ask the researcher one "
+                               "question before a third fix (diagnose-result). The records do not show whether "
+                               "the failures shared a cause.".format(label, failed_count))
         if final["outcome"] == "ok" and failed:
             diffs = [attempt_changes(root, config, r, runs[-1], operational) for _, r in failed]
             verdict = "changed command" if any(d[1] for d in diffs) else \
@@ -3068,9 +3069,30 @@ def decision_log(root, analysis_dir, plan, report):
     return entries
 
 
+EXPLAIN_FIGURE_EXTENSIONS = (".png", ".pdf", ".svg", ".jpg", ".jpeg", ".tif", ".tiff")
+
+
+def explain_figure(root, analysis_dir, figure):
+    """(verdict, why): whether a cited path is an image or PDF file inside the repository, and if not, why."""
+    if not figure.lower().endswith(EXPLAIN_FIGURE_EXTENSIONS):
+        return "figure invalid", "which is not an image or PDF ({})".format(", ".join(EXPLAIN_FIGURE_EXTENSIONS))
+    base = os.path.realpath(root)
+    found = False
+    for candidate in (os.path.join(root, analysis_dir or "", figure), os.path.join(root, figure)):
+        real = os.path.realpath(candidate)
+        if os.path.isfile(real):
+            if real.startswith(base + os.sep):
+                return "figure found", ""
+            found = True
+    if found:
+        return "figure invalid", "which is outside the repository"
+    return "figure missing", "which is not a file"
+
+
 def explain_blocks(root, analysis_dir, outputs, extra, report):
     """Each `<!-- explain -->` line, `number | factor | figure path`, in the documents verify reads for claims.
-    A figure file that does not exist is a gap; `unsupported: no inspected figure` is stated honestly and is info."""
+    A cited figure must be an image or PDF inside the repository; a missing, non-figure or outside path is a gap.
+    `unsupported: no inspected figure` and `inconclusive...` are stated honestly and are info."""
     found = []
     for doc in document_set(root, analysis_dir, outputs, extra):
         full = os.path.join(root, doc)
@@ -3086,27 +3108,33 @@ def explain_blocks(root, analysis_dir, outputs, extra, report):
                 if figure.lower().startswith("unsupported"):
                     verdict = "unsupported"
                     report.add("info", "`{}`: number {} - factor `{}` has {}.".format(doc, number_, factor, UNSUPPORTED))
+                elif figure.lower().startswith("inconclusive"):
+                    verdict = "inconclusive"
+                    report.add("info", "`{}`: number {} - factor `{}` is inconclusive: {}.".format(
+                        doc, number_, factor, cut(figure, 80)))
                 else:
-                    candidates = [os.path.join(root, analysis_dir or "", figure), os.path.join(root, figure)]
-                    verdict = "figure found" if any(os.path.isfile(c) for c in candidates) else "figure missing"
-                    if verdict == "figure missing":
-                        report.add("gap", "`{}`: number {} - factor `{}` cites `{}`, which is not a file.".format(
-                            doc, number_, factor, figure))
+                    verdict, why = explain_figure(root, analysis_dir, figure)
+                    if why:
+                        report.add("gap", "`{}`: number {} - factor `{}` cites `{}`, {}.".format(
+                            doc, number_, factor, figure, why))
                 found.append({"doc": doc, "number": number_, "factor": factor, "figure": figure, "verdict": verdict})
     return found
 
 
 def reproduce_entries(text):
     """(entries, bad): the `<!-- reproduce -->` lines of a findings document, `finding | read-only command |
-    expected | intent`. `expected` is the printed output the command must give (trailing whitespace ignored)."""
+    expected | intent`. `expected` is the printed output the command must give (trailing whitespace ignored).
+    The first cell is the finding and the last two are expected and intent; the cells between, re-joined with
+    `|`, are the command, so a command may hold a pipeline."""
     entries, bad = [], []
     for block in REPRODUCE_BLOCK.finditer(text or ""):
         for line in block.group(1).splitlines():
             if not line.strip():
                 continue
             parts = [x.strip() for x in line.split("|")]
-            if len(parts) == 4 and all(parts):
-                entries.append(dict(zip(("finding", "cmd", "expected", "intent"), parts)))
+            if len(parts) >= 4 and all(parts):
+                entries.append({"finding": parts[0], "cmd": " | ".join(parts[1:-2]),
+                                "expected": parts[-2], "intent": parts[-1]})
             else:
                 bad.append(line.strip())
     return entries, bad
@@ -3130,21 +3158,28 @@ def run_once(root, command, seconds):
     return evidence_lines(proc.stdout.decode("utf-8", "replace")), ""
 
 
-def reproduce(root, docs, seconds=EVIDENCE_SECONDS):
+def reproduce(root, docs, seconds=EVIDENCE_SECONDS, budget=REPRODUCE_BUDGET):
     """Reproduce-or-drop, read-only. Each finding's command runs twice. `reproduced`: both runs print the expected
     output, which is the failure or number the finding claims, so it still breaks the stated intent. `unreproduced`:
     both ran and a run differed, so the finding is dropped and listed with its reason. `inconclusive`: a run could
-    not happen (not read-only, timed out, errored); the verdict names which half. Nothing is written or fixed."""
-    results, bad = [], []
+    not happen (not read-only, timed out, errored, or the total `budget` in seconds ran out); the verdict names which half.
+    Entries past EVIDENCE_MAX_ENTRIES (per document) are not run and are counted in `dropped`. Nothing is
+    written or fixed."""
+    results, bad, dropped = [], [], 0
+    deadline = time.time() + max(0.0, float(budget))
     for doc in docs:
         full = os.path.join(root, doc)
         entries, unparsed = reproduce_entries(read_text(full) if os.path.isfile(full) else "")
         bad += [(doc, line) for line in unparsed]
+        dropped += max(0, len(entries) - EVIDENCE_MAX_ENTRIES)
         for entry in entries[:EVIDENCE_MAX_ENTRIES]:
+            if time.time() >= deadline:
+                results.append(dict(entry, doc=doc, verdict="inconclusive", reason="time budget ran out"))
+                continue
             expected = evidence_lines(entry["expected"].replace("\\n", "\n"))
             outs, notes = [], []
             for _ in range(2):
-                out, why = run_once(root, entry["cmd"], seconds)
+                out, why = run_once(root, entry["cmd"], max(0.1, min(seconds, deadline - time.time())))
                 outs.append(out)
                 notes.append(why)
             if all(o is not None for o in outs):
@@ -3159,7 +3194,7 @@ def reproduce(root, docs, seconds=EVIDENCE_SECONDS):
                 verdict = "inconclusive"
                 reason = "run {} could not be measured ({})".format("+".join(map(str, missing)), next(n for n in notes if n))
             results.append(dict(entry, doc=doc, verdict=verdict, reason=reason))
-    return {"results": results, "unparsed": bad}
+    return {"results": results, "unparsed": bad, "dropped": dropped}
 
 
 def render_reproduce(result):
@@ -3179,6 +3214,9 @@ def render_reproduce(result):
             cell(r["doc"]), cell(r["finding"]), cell(r["intent"]), cell(cut(r["cmd"], 80)),
             "; " + cell(r["reason"]) if r["reason"] else "") for r in rows] or ["- none"]
         lines.append("")
+    if result.get("dropped"):
+        lines += ["{} more finding(s) past the {}-entry cap per document were not run.".format(
+            result["dropped"], EVIDENCE_MAX_ENTRIES), ""]
     if result["unparsed"]:
         lines.append("## Not read")
         lines += ["- `{}`: not `finding | command | expected | intent`: `{}`".format(d, cut(l, 80)) for d, l in result["unparsed"]]
