@@ -15,6 +15,7 @@ Mycelium's hooks do not open the post-action cycle:
     <root>/hooks/mxpy - --plugin-root <root> diff <old-hash> <new-hash> < verify.py
     <root>/hooks/mxpy - --plugin-root <root> multiplicity <hash> [--json] < verify.py
     <root>/hooks/mxpy - --plugin-root <root> reproduce --analysis-dir DIR [--claims DOC] [--json] < verify.py
+    <root>/hooks/mxpy - --plugin-root <root> knobs SCRIPT [SCRIPT ...] < verify.py
 
 It reuses the approval gate's own parsers (`<root>/hooks/gate.py`), so a plan
 covers here exactly the scripts it let through. `report` only reads. `write`
@@ -2923,6 +2924,91 @@ def decisions_recorded(root, plan, digest, report):
                                len(absent), len(bullets), ", ".join("L{}".format(n) for n in absent[:6]), digest[:8]))
 
 
+# ---------------------------------------------------------------- knobs against plan rows (0.32)
+
+KNOB_LINE = re.compile(r"^([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+|[A-Z]{3,})\s*(?:<-|=(?!=))\s*(\S.*?)\s*$")
+KNOB_PATH_NAME = re.compile(r"(^|_)(ROOT|DIR|DIRS|PATH|PATHS|FILE|FILES|OUTDIR|HERE|CWD)(_|$)")
+KNOB_PATH_VALUE = re.compile(r"/|\bhere\s*\(|\bPath\s*\(|os\.path|\bfile\.path\s*\(|\.(?:tsv|csv|rds|h5ad|json|pdf|png|R|py)\b")
+KNOB_LANGUAGES = (".py", ".R", ".r")
+MAX_KNOBS_SHOWN = 6
+
+
+def script_knobs(path):
+    """[(name, value, line, reason)] for the top-level `UPPER_SNAKE <- value` or `UPPER_SNAKE = value` lines of an R or
+    Python script, the values lucid-coder's house style keeps in a block after the header. The reason is the trailing
+    comment. A name that is a path or root, and a value that builds a path, are not knobs: a path is not an impactful choice."""
+    if not path.endswith(KNOB_LANGUAGES):
+        return []
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            lines = handle.read().splitlines()
+    except OSError:
+        return []
+    knobs = []
+    for number, line in enumerate(lines, 1):
+        found = KNOB_LINE.match(line)
+        if not found:
+            continue
+        name, rest = found.groups()
+        value, _, reason = rest.partition("#")
+        value = value.strip().rstrip(",;")
+        if KNOB_PATH_NAME.search(name) or KNOB_PATH_VALUE.search(value) or not value:
+            continue
+        knobs.append((name, value, number, reason.strip()))
+    return knobs
+
+
+def knob_named(knob, choices_text):
+    """Whether a plan Choice names the knob: by its name (the underscores may read as spaces), or by every number in
+    its value, or by its quoted text. A boolean or a bare name is matched by name only."""
+    name, value = knob[0].lower(), knob[1]
+    text = choices_text.lower()
+    if name in text or name.replace("_", " ") in re.sub(r"[^a-z0-9.]+", " ", text):
+        return True
+    numbers = {float(n) for n in CHOICE_NUMBER.findall(value)}
+    have = {float(n) for n in CHOICE_NUMBER.findall(choices_text)}
+    if numbers and numbers <= have:
+        return True
+    quoted = re.findall(r"[\"']([^\"']{2,})[\"']", value)
+    return bool(quoted) and all(q.lower() in text for q in quoted)
+
+
+def knob_coverage(root, planned, plan, report):
+    """Info: a knob in a planned script that no plan Choice names is a value a reader may change that the approved
+    plan never listed, so it may be an unplanned impactful choice. Info only: verify does not know which knobs
+    change a headline estimate. A script no row names is matched against every Choice, as the threshold check is."""
+    rows = plan_rows(plan)[0]
+    cells = [(" ".join(r.values()), r.get("choice", "")) for r in rows.values()]
+    if not cells:
+        return []
+    found = []
+    for rel in planned:
+        knobs = script_knobs(os.path.join(root, rel))
+        if not knobs:
+            continue
+        mine = [choice for text, choice in cells if rel in text] or [choice for _, choice in cells]
+        text = " ".join(mine)
+        missing = [k for k in knobs if not knob_named(k, text)]
+        found += [dict(script=rel, name=k[0], value=k[1], line=k[2]) for k in missing]
+        if missing:
+            shown = "; ".join("{} = {} (line {})".format(k[0], cut(k[1], 40), k[2]) for k in missing[:MAX_KNOBS_SHOWN])
+            more = " and {} more".format(len(missing) - MAX_KNOBS_SHOWN) if len(missing) > MAX_KNOBS_SHOWN else ""
+            report.add("info", "`{}`: {} knob(s) that no plan Choice names: {}{}. A value a reader may change that the "
+                               "approved plan never listed may be an unplanned impactful choice; check which can move a "
+                               "headline estimate. Not enforced.".format(rel, len(missing), shown, more))
+    return found
+
+
+def render_knobs(paths):
+    lines = ["# Knobs", "", "The top-level `UPPER_SNAKE` values of each script, read only. Path-valued names are skipped.", ""]
+    for path in paths:
+        knobs = script_knobs(path)
+        lines.append("## " + path)
+        lines += ["- `{}` = `{}` (line {}){}".format(n, v, i, " - " + r if r else "") for n, v, i, r in knobs] or ["- none found"]
+        lines.append("")
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------- decision log, explain, reproduce (0.31)
 
 DECISION_COLUMNS = ("ts", "phase", "decision", "why", "evidence", "result", "plan_row", "source")
@@ -3573,6 +3659,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                   choices=[(" ".join(row.values()), row.get("choice", "")) for row in plan_rows(plan)[0].values()])
     claimed = check_claims(root, analysis_dir, outputs, claims, report, budget["bytes"])
     decided = decision_log(root, analysis_dir, plan, report)
+    knob_coverage(root, planned, plan, report)
     explained = explain_blocks(root, analysis_dir, outputs, claims, report)
     cited = check_citations(root, analysis_dir, outputs, claims, report, resolve_citations, contact)
     elsewhere = set(r.get("validation_check") for r in receipts if digest in r.get("plans", []) and not r.get("explore")
@@ -5685,9 +5772,11 @@ def main(argv):
     parser.add_argument("--seconds-each", type=float, default=EVIDENCE_SECONDS,
                         help="reproduce: the time one command run may take (default 10)")
     parser.add_argument("action", choices=["list", "report", "write", "stale", "status", "diff", "explore",
-                                           "multiplicity", "runs", "refs", "disclose", "exercise", "crate", "reproduce"])
+                                           "multiplicity", "runs", "refs", "disclose", "exercise", "crate", "reproduce",
+                                           "knobs"])
     parser.add_argument("hash", nargs="?")
     parser.add_argument("new_hash", nargs="?")
+    parser.add_argument("more", nargs="*", help="knobs: further script paths")
     parser.add_argument("--sha", help="refs: the SHA256 (or at least 8 hex) of the file that was wrong")
     parser.add_argument("--analysis-dir")
     parser.add_argument("--instance", help="report/write: check this approval instance (16 hex, or a unique prefix) "
@@ -5733,6 +5822,12 @@ def main(argv):
         else:
             rows = status(base, args.hash_mb, args.seconds)
             sys.stdout.write(json.dumps(rows, indent=1) + "\n" if args.json else render_status(rows))
+        return 0
+    if args.action == "knobs":  # read-only; the positionals are script paths, no gate needed
+        paths = [p for p in [args.hash, args.new_hash] + args.more if p]
+        if not paths:
+            sys.exit("verify: `knobs` needs at least one R or Python script path.")
+        sys.stdout.write(render_knobs(paths))
         return 0
     if args.action == "refs":  # the positional after the action is the file's path; read-only, no gate needed
         if not args.hash or (args.sha and not re.fullmatch(r"[0-9a-fA-F]{8,64}", args.sha)):

@@ -67,20 +67,24 @@ Pick the matching host tab below, then check that its hooks are active. The comp
 
 ## With lucid-coder
 
-lucid-coder is optional. When it is installed, Extra uses it in five places and never edits its files:
+lucid-coder is optional. When it is installed, Extra uses it in nine places and never edits its files:
 
 - **Environment.** `/lucid-coder:align` writes `lucid-coder.yaml` at the repository root: the conda, pixi or uv environment and its `Rscript` and `python`. `new-analysis` uses those paths in the Snakefile, `grill` names the environment in the plan's Evidence, and `init --diagnose` shows whether the paths exist. Without the file, the Snakefile uses the names on `PATH`.
 - **Setup.** `repo-setup` runs `/lucid-coder:align` after laying out the repository.
 - **Step stubs.** R, Python, qmd and marimo stubs follow lucid-coder's layout: a Purpose, Run, Inputs and Outputs header, parameters first, a seed, and notebooks that read tables a script wrote.
 - **Figures.** `plot-first` and `analysis-report` defer to lucid-coder's `figure-style` for theme, palette and size; Extra's integrity rules still apply.
 - **Single-cell exploration.** `plot-first` points AnnData exploration at lucid-coder's `sc-qc` and `sc-embed`.
+- **Contracts.** `grill` reads `contracts/<analysis>.yaml` through `contract.js asks` and `status`; each field still set to `ask` becomes a `user` question, and `data-contract-check` translates an approved contract.
+- **Learned rules.** `verify report` and the `analysis-report` scan name the active learned rules that apply (`rules.js list`), as info. Extra reports them and does not enforce them; lucid-coder stays their authority.
+- **Knobs.** lucid-coder keeps every changeable value of a script in one `UPPER_SNAKE` block after the header. `verify knobs <script>` lists them, `grill` turns each impactful one into an `inherited:` plan row for your one-line confirm, and `verify report` lists any knob of a planned script that no plan Choice names (info, not enforced).
+- **Threshold lint.** A threshold finding in a planned script is info, not a block, when every number on its line appears in a plan Choice: the plan approved it.
 
 ## With lucid-writer
 
 lucid-writer is optional. It sets how prose reads and how strongly a claim is worded. Extra never edits its files, and Extra's checks work without it.
 
 - **Report prose.** When lucid-writer is installed, `analysis-report` loads it before it writes the Answer, the Question/Approach/Conclusion text and Key Findings. Then it runs `verify report <hash> --claims reports/<name>.qmd --resolve-citations` on the report. The evidence auditor agent is offered only when you ask for it.
-- **Evidence files.** lucid-writer reads `provenance/verify-<hash>.md`, `outputs-<hash>.tsv`, `PROVENANCE.md` and `outputs/numbers.json`. It reads the `status` of `manuscript-audit` (`pass`, `gap` or `block`) and never recomputes it. `tests/test_lucid_writer_contract.py` pins these names.
+- **Evidence files.** lucid-writer reads `provenance/verify-<hash>.md`, `outputs-<hash>.tsv`, `PROVENANCE.md` and `outputs/numbers.json`, and the run's `logs/decisions.tsv` (verify 0.31, columns `ts phase decision why evidence result plan_row source`). It reads the `status` of `manuscript-audit` (`pass`, `gap` or `block`) and never recomputes it. `tests/test_lucid_writer_contract.py` pins these names.
 
 lucid-writer rewrites deliverables only. A format-fixed record keeps Extra's format.
 
@@ -99,8 +103,11 @@ Extra's markers map to lucid-writer's when text moves from a record into a deliv
 | `unsupported: no inspected figure` | `[EVIDENCE NEEDED]` |
 | `source data missing` | `[EVIDENCE NEEDED]` |
 | `[BLANK: ...]` | `[EVIDENCE NEEDED]` |
+| `unreproduced` (`verify reproduce`) | drop the sentence; `[EVIDENCE NEEDED]` if you keep it |
+| `inconclusive` (`verify reproduce` or an `explain` line) | word it as a description, add `[AUTHOR CHECK]` |
+| An `explain` factor with `unsupported: no inspected figure` | `[EVIDENCE NEEDED]` |
 
-Keep the Extra marker in the record. Use the lucid-writer marker only in the deliverable.
+Keep the Extra marker in the record. Use the lucid-writer marker only in the deliverable. A choice the decision log does not show is not reported as a method; a decision row with no plan row blocks `verify`, so it is fixed before the text moves.
 
 ## With Mycelium
 

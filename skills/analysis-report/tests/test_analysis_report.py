@@ -278,6 +278,23 @@ class StepsLayoutTest(unittest.TestCase):
         self.assertEqual(json.loads(out[:out.rindex("}") + 1])["outputs"]["run"], "outputs/ (steps)")
 
 
+    def test_scan_reports_the_decision_log_and_the_reproduce_and_explain_blocks(self):  # 0.32
+        write(os.path.join(self.dest, "logs", "decisions.tsv"),
+              "ts\tphase\tdecision\twhy\tevidence\tresult\tplan_row\tsource\n"
+              "t\tstart\t\t\t\t\t\t\n"
+              "t\tfit\tdrop donor 4\tw\tx\tran\t1\tuser\n")
+        write(os.path.join(self.dest, "README.md"), RUN_DOC + "\n<!-- reproduce\na | cat x | 1 | i\nb | cat y | 2 | j\n-->\n"
+              "<!-- explain\n1.8 | batch | outputs/a.pdf\n-->\n")
+        out = self.run_script("--dry-run")
+        self.assertIn("info: decision log logs/decisions.tsv has 1 decision row(s)", out)
+        self.assertIn("2 `<!-- reproduce -->` line(s) in README.md", out)
+        self.assertIn("1 `<!-- explain -->` line(s) in README.md", out)
+
+    def test_scan_is_quiet_without_a_log_or_blocks(self):  # control
+        out = self.run_script("--dry-run")
+        self.assertNotIn("decision log", out)
+        self.assertNotIn("<!-- reproduce -->", out)
+
     def rules_plugin(self, body):
         root = os.path.join(self.root, "lucid-coder")
         write(os.path.join(root, "scripts", "rules.js"), body)

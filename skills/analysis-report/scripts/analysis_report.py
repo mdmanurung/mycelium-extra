@@ -254,6 +254,33 @@ def lucid_coder_root():
     return os.path.dirname(os.path.dirname(found[-1])) if found else None
 
 
+def verify_record_lines(dest, doc):
+    """info lines for what verify 0.31 reads in the analysis: the decision log, `<!-- reproduce -->` findings and
+    `<!-- explain -->` factors. Read only; a line says what the report must use (the log in Methods, only reproduced
+    findings in Key Findings, the explain lines under a headline number), not whether any of it is right."""
+    lines = []
+    log = os.path.join(dest, "logs", "decisions.tsv")
+    if os.path.isfile(log):
+        with open(log, encoding="utf-8", errors="replace") as handle:
+            rows = [r for r in handle.read().splitlines()[1:] if r.strip() and r.split("\t")[1:2] != ["start"]]
+        lines.append("info: decision log logs/decisions.tsv has {} decision row(s). List them in Methods, each with its "
+                     "plan row; do not report a choice the log does not show.".format(len(rows)))
+    text = ""
+    if doc:
+        with open(os.path.join(dest, doc), encoding="utf-8", errors="replace") as handle:
+            text = handle.read()
+    for tag, what in (("reproduce", "run `verify reproduce --analysis-dir {}` (read-only) and report only the findings "
+                                    "it reproduces; an unreproduced finding is dropped, an inconclusive one is hedged"),
+                      ("explain", "put each factor's line under its headline number; a factor with no figure stays "
+                                  "`unsupported: no inspected figure`")):
+        found = re.search(r"<!--\s*" + tag + r"\b(.*?)-->", text, re.S)
+        if found:
+            count = len([l for l in found.group(1).splitlines() if l.strip()])
+            lines.append("info: {} `<!-- {} -->` line(s) in {}: {}.".format(
+                count, tag, doc, what.format(os.path.basename(dest)) if "{}" in what else what))
+    return lines
+
+
 def learned_rules(steps, cwd):
     """Active lucid-coder learned rules that apply to this analysis (global; a language the steps are written in;
     a file-glob that matches a step), as `id topic` strings. Read only, through lucid-coder's own CLI; any failure gives []."""
@@ -326,6 +353,8 @@ def main(argv):
     if rules:
         print("info: lucid-coder learned rules that apply ({}): {}. Follow them in the report text and figures; "
               "`/lucid-coder:rules` shows each one. They are reported here, not enforced.".format(len(rules), "; ".join(rules)))
+    for line in verify_record_lines(dest, doc):
+        print(line)
     if doc is None:
         print("note: no <NAME>.md or README.md; the Overview has nothing to copy the Purpose from.")
     if not steps:

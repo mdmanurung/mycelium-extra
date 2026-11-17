@@ -87,6 +87,17 @@ class ExtraSideContract(Harness):
         self.assertIn("| Plan | Approved | Verified | Status | Files |", index)
         self.assertRegex(index, r"\| %s \|" % digest)
 
+    def test_the_decision_log_columns_and_new_blocks_are_pinned(self):
+        """verify 0.31: lucid-writer is told the log's columns and the block names, so a rename breaks here."""
+        self.assertEqual(test_verify.gate.load_verify().DECISION_COLUMNS,
+                         ("ts", "phase", "decision", "why", "evidence", "result", "plan_row", "source"))
+        skill = (ROOT / "skills/verify/SKILL.md").read_text(encoding="utf-8")
+        for text in ("<!-- reproduce -->", "<!-- explain -->", "logs/decisions.tsv", "`unreproduced`"):
+            self.assertIn(text, skill)
+        installation = (ROOT / "docs/installation.md").read_text(encoding="utf-8")
+        for text in ("`unreproduced` (`verify reproduce`)", "`inconclusive`", "logs/decisions.tsv"):
+            self.assertIn(text, installation)
+
     def test_numbers_json_keys_read_from_values_computed_at(self):
         digest, _ = self.written()
         self.write("analysis/a/outputs/numbers.json", json.dumps({"namespace": "a", "values": [

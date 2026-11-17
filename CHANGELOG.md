@@ -4,6 +4,18 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-11-17
+
+Closer integration with lucid-coder and lucid-writer.
+
+### Added
+
+- **verify:** `knobs SCRIPT [SCRIPT ...]` lists the top-level `UPPER_SNAKE` values of R or Python scripts (the parameter block lucid-coder's house style keeps after the header). `report` adds one info line per planned script for a knob that no plan Choice names. Not enforced.
+- **grill:** an existing script's impactful knobs become `inherited:` plan rows for the user's one-line confirm.
+- **analysis-report:** the scan prints info lines for the decision log and for `<!-- reproduce -->` and `<!-- explain -->` blocks, and the skill says how the report uses them (Methods from the log, only reproduced findings in Key Findings).
+- **docs:** `installation.md` lists nine lucid-coder integration points and the lucid-writer marker rows for `unreproduced`, `inconclusive` and `explain` factors.
+- **tests:** `test_lucid_writer_contract.py` pins the decision-log columns and the new block names.
+
 ## [0.31.0] - 2026-11-16
 
 Ideas from the pstack plugin (`cursor/plugins`), read in full and adapted to the plan gate.
