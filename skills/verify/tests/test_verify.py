@@ -82,7 +82,7 @@ class VerifyTest(unittest.TestCase):
         os.makedirs(os.path.join(self.root, ".mycelium-extra"))
         self.write(".mycelium-extra/gate.json", "{}")
         self.write(FIT, "print(1)\n", mtime=time.time() - 3600)  # scripts predate their plan
-        self.write("analysis/a/logs/decisions.tsv", DECISION_HEADER, mtime=time.time() - 3600)  # a run's log exists; a missing one is a gap (0.31)
+        self.write("analysis/a/logs/decisions.tsv", DECISION_HEADER)  # a run's log exists; a missing one is a gap (0.31)
         self.sacct = self.fake_sacct("")
         self.scilintr = self.fake_tool("bin/scilintr", "", 0)
         self.rscript = self.fake_tool("bin/Rscript", "", 0)
@@ -3541,6 +3541,14 @@ class QualificationTest(unittest.TestCase):
         self.assertEqual(dims["lineage"][0], "not established")
         self.assertIn("no file under the declared output", dims["lineage"][1])
         self.assertEqual(record["overall"], "not qualified")
+
+    def test_the_decision_log_appended_after_approval_is_not_an_output_gap(self):
+        digest = self.approve(plan("run `{}`".format(FIT), outputs="analysis/a/"))
+        self.run_cmd("python " + FIT, writes={"analysis/a/outputs/r.tsv": "x\n",
+                                              "analysis/a/logs/decisions.tsv": DECISION_HEADER})  # appended mid-run
+        text = self.verify("report", digest)
+        self.assertNotIn("decisions.tsv", text.split("## Decisions")[0] if "## Decisions" in text else text)
+        self.assertIn("r.tsv", text)  # control: a real output in the same folder is still graded
 
     def test_a_check_that_ran_before_the_output_changed_is_stale(self):
         text = self.bound_plan().replace("Outputs: " + self.EVID, "Outputs: {} {}".format(self.EVID, self.OUT))

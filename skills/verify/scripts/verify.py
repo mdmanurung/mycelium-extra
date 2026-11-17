@@ -3018,13 +3018,51 @@ REPRODUCE_BLOCK = re.compile(r"<!--\s*reproduce\b(.*?)-->", re.S)
 UNSUPPORTED = "unsupported: no inspected figure"
 
 
-def decision_log(root, analysis_dir, plan, report):
-    """The run's decision log (`<analysis>/logs/decisions.tsv`) against the approved plan. A row whose `plan_row`
-    is empty or names no plan row is an unplanned choice (block); a row linked to a `default:` row is info,
-    because an impactful choice is never a default; a missing log is a gap when the plan has a `user` or
-    `inherited:` row, else nothing is said. `start` rows only mark a run. Returns the rows read."""
-    rows = plan_rows(plan)[0]
-    asked = [k for k, r in rows.items() if re.match(r"^(user|inherited)", r.get("source", ""), re.I)]
+def decision_plan_rows(plan):
+    """([(key, row)], unusable) for the plan rows a decision row can name. The key is the ID cell when the plan
+    has an ID column (`#`, `id`, `no`), else the row's 1-based position in its tables: grill's own columns
+    (Step, Choice, Source, Validation) have none, and the Step cell is a script path. unusable: the IDs that
+    cannot be matched (used twice, or missing)."""
+    rows, unusable, columns = plan_rows(plan)
+    if any(name in ID_HEADERS for name in columns):
+        return list(rows.items()), unusable
+    table, header, lines = [], None, plan.splitlines()
+    for i, line in enumerate(lines):
+        match = gate.TABLE_ROW.match(line)
+        if not match:
+            header = None
+            continue
+        if gate.TABLE_RULE.match(line):
+            continue
+        cells = [squash(cell.replace("\0", "|")) for cell in match.group(1).replace("\\|", "\0").split("|")]
+        following = lines[i + 1] if i + 1 < len(lines) else ""
+        if gate.TABLE_ROW.match(following) and gate.TABLE_RULE.match(following):
+            header = [cell.lower() for cell in cells]
+        elif header:
+            table.append((str(len(table) + 1), dict(zip(header, cells))))
+    return table, {}
+
+
+def decision_time(stamp):
+    """Epoch seconds of a decision row's `ts` (ISO 8601 UTC, as decision_log.py writes it), or None."""
+    try:
+        parsed = datetime.datetime.strptime(stamp.strip(), "%Y-%m-%dT%H:%M:%SZ")
+        return int(parsed.replace(tzinfo=datetime.timezone.utc).timestamp())
+    except ValueError:
+        return None
+
+
+def decision_log(root, analysis_dir, plan, report, approved_at=None):
+    """The run's decision log (`<analysis>/logs/decisions.tsv`) against the approved plan. The log is one
+    append-only file kept across runs, so only rows written at or after `approved_at` are judged; earlier rows
+    are an info count, and a row whose `ts` does not parse is a gap. A row whose `plan_row` is empty or names no
+    plan row is an unplanned choice (block); a plan row used twice cannot be matched (gap); a row linked to a
+    `default:` row is info, because an impactful choice is never a default. A missing log is a gap when the plan
+    has a `user` or `inherited:` row, else nothing is said. `user`/`inherited:` rows with no decision row get
+    one info line. `start` rows only mark a run. Returns the rows judged."""
+    table, unusable = decision_plan_rows(plan)
+    rows = dict(table)
+    asked = [k for k, r in table if re.match(r"^(user|inherited)", r.get("source", ""), re.I)]
     path = os.path.join(root, analysis_dir or "", DECISION_LOG) if analysis_dir else None
     if not analysis_dir:
         if asked:
@@ -3041,7 +3079,7 @@ def decision_log(root, analysis_dir, plan, report):
         report.add("gap", "The decision log `{}` does not start with the header `{}`, so it was not read.".format(
             os.path.join(analysis_dir, DECISION_LOG), "\t".join(DECISION_COLUMNS)))
         return []
-    entries = []
+    entries, earlier = [], 0
     for number, line in enumerate(lines[1:], 2):
         cells = line.split("\t")
         if len(cells) != len(DECISION_COLUMNS):
@@ -3051,20 +3089,40 @@ def decision_log(root, analysis_dir, plan, report):
         entry = dict(zip(DECISION_COLUMNS, cells), line=number)
         if entry["phase"] == "start":
             continue
+        written = decision_time(entry["ts"])
+        if written is None:
+            report.add("gap", "Decision log line {} has a `ts` (`{}`) that is not ISO 8601 UTC, so it cannot be "
+                              "placed against the approval and was not judged.".format(number, cut(entry["ts"], 30)))
+            continue
+        if approved_at is not None and written < int(approved_at):
+            earlier += 1
+            continue
         entries.append(entry)
     for entry in entries:
         where = "decision log line {} (`{}`)".format(entry["line"], cut(entry["decision"], 60))
         key = entry["plan_row"].strip()
-        if not key or key not in rows:
+        if key in unusable:
+            report.add("gap", "{}: plan row `{}` cannot be matched ({}).".format(where, key, unusable[key]))
+        elif not key or key not in rows:
             report.add("block", "{}: no plan row{} - a run decision the approved plan did not list; an unplanned "
                                 "impactful choice stops the run for the researcher's answer.".format(
                                     where, " `{}`".format(key) if key else ""))
         elif re.match(r"^default", rows[key].get("source", ""), re.I):
             report.add("info", "{}: linked to plan row {}, a `default:` row. Check it is not an impactful choice, "
                                "which is never a default.".format(where, key))
+    if earlier:
+        report.add("info", "Decision log: {} row(s) in `{}` were written before this approval and were not "
+                           "judged.".format(earlier, os.path.join(analysis_dir, DECISION_LOG)))
     if entries:
         report.add("info", "Decision log: {} decision row(s) read from `{}`.".format(
             len(entries), os.path.join(analysis_dir, DECISION_LOG)))
+    named = set(e["plan_row"].strip() for e in entries)
+    silent = [k for k in asked if k not in named]
+    if silent:
+        report.add("info", "Plan rows {} have no decision row in this approval's window. verify cannot tell which "
+                           "`user`/`inherited:` rows are impactful, so this is a prompt to check, not a gap.".format(
+                               ", ".join("{} ({})".format(k, "user" if re.match(r"^user", rows[k]["source"], re.I)
+                                                          else "inherited") for k in silent)))
     return entries
 
 
@@ -3545,6 +3603,8 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
                 report.add("gap", "Output `{}` does not exist.".format(word))
             older = 0
             for rel in files:
+                if analysis_dir and os.path.normpath(rel) == os.path.normpath(os.path.join(analysis_dir, DECISION_LOG)):
+                    continue  # the decision log is appended to after approval by design, never an output
                 full = os.path.join(root, rel)
                 try:
                     mtime = os.stat(full).st_mtime
@@ -3658,7 +3718,7 @@ def check(root, digest, analysis_dir=None, sacct="sacct", hash_mb=2000, seconds=
     linted = lint(root, code_files(root, analysis_dir, planned), report, scilintr, rscript, seconds,
                   choices=[(" ".join(row.values()), row.get("choice", "")) for row in plan_rows(plan)[0].values()])
     claimed = check_claims(root, analysis_dir, outputs, claims, report, budget["bytes"])
-    decided = decision_log(root, analysis_dir, plan, report)
+    decided = decision_log(root, analysis_dir, plan, report, approved_at)
     knob_coverage(root, planned, plan, report)
     explained = explain_blocks(root, analysis_dir, outputs, claims, report)
     cited = check_citations(root, analysis_dir, outputs, claims, report, resolve_citations, contact)

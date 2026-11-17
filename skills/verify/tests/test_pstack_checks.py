@@ -99,7 +99,81 @@ class DecisionLog(Tmp):
     def test_a_header_only_log_has_no_gap(self):  # control: the log exists and holds no decisions
         self.log()
         report, entries = self.run_check()
-        self.assertEqual((entries, report.findings), ([], []))
+        self.assertEqual(entries, [])
+        self.assertEqual(report.status(), "CONFORMS")
+
+    def test_user_rows_with_no_decision_row_get_one_info_line(self):  # F5 planted break: an empty log passed silently
+        self.log(self.row("1"))
+        report, _ = self.run_check()
+        said = [t for l, t in report.findings if "no decision row" in t]
+        self.assertEqual(len(said), 1)
+        self.assertIn("2 (inherited)", said[0])
+        self.assertNotIn("1 (user)", said[0])
+        self.assertEqual(report.status(), "CONFORMS")
+
+    def test_start_rows_only_still_lists_the_silent_plan_rows(self):
+        self.log(self.row("", phase="start", decision=""))
+        report, _ = self.run_check()
+        self.assertTrue(any("1 (user), 2 (inherited)" in t for l, t in report.findings))
+
+    def test_all_asked_rows_covered_is_quiet(self):  # F5 control
+        self.log(self.row("1"), self.row("2", source="inherited: code/a.R"))
+        report, _ = self.run_check()
+        self.assertFalse(any("no decision row" in t for l, t in report.findings))
+
+    def stamped(self, plan_row, stamp):
+        return self.row(plan_row).replace("2026-11-16T10:00:00Z", stamp)
+
+    def test_rows_before_the_approval_are_counted_not_judged(self):  # F2 planted break: old rows blocked a revised plan
+        self.log(self.stamped("9", "2026-11-01T10:00:00Z"), self.stamped("1", "2026-11-16T10:00:00Z"))
+        report = verify.Report()
+        approved = verify.decision_time("2026-11-10T00:00:00Z")
+        entries = verify.decision_log(self.dir, "an", PLAN, report, approved)
+        self.assertEqual(len(entries), 1)
+        self.assertNotIn("block", [l for l, _ in report.findings])
+        self.assertTrue(any("1 row(s)" in t and "before this approval" in t for l, t in report.findings))
+
+    def test_a_row_after_the_approval_with_an_unknown_row_still_blocks(self):  # F2 control
+        self.log(self.stamped("9", "2026-11-16T10:00:00Z"))
+        report = verify.Report()
+        verify.decision_log(self.dir, "an", PLAN, report, verify.decision_time("2026-11-10T00:00:00Z"))
+        self.assertEqual(report.status(), "DOES_NOT_CONFORM")
+
+    def test_a_row_with_a_bad_ts_is_a_gap_and_not_judged(self):
+        self.log(self.stamped("9", "yesterday"))
+        report = verify.Report()
+        self.assertEqual(verify.decision_log(self.dir, "an", PLAN, report, 0), [])
+        self.assertEqual(report.status(), "CONFORMS_WITH_GAPS")
+
+    def test_a_grill_shaped_plan_without_an_id_column_matches_by_position(self):  # F3 planted break
+        grill = "\n".join(["| Step | Choice | Source | Validation |", "|---|---|---|---|",
+                           "| code/01_prep.R | filter genes below 10 counts | user | counts table |",
+                           "| code/02_fit.R | seed 7 | inherited: code/a.R | rerun |",
+                           "| code/03_plot.R | file layout | default: the repo's naming | listing |"])
+        self.log(self.row("1"), self.row("2", source="inherited: code/a.R"))
+        report, entries = self.run_check(grill)
+        self.assertEqual(len(entries), 2)
+        self.assertEqual(report.status(), "CONFORMS")
+        self.log(self.row("4"))  # control: a position past the table still blocks
+        report, _ = self.run_check(grill)
+        self.assertEqual(report.status(), "DOES_NOT_CONFORM")
+
+    def test_a_plan_with_an_id_column_matches_by_id_not_position(self):  # F3 control
+        withid = "\n".join(["| Step | # | Choice | Source |", "|---|---|---|---|",
+                            "| a | 10 | x | user |", "| b | 20 | y | default: z |"])
+        self.log(self.row("10"))
+        report, _ = self.run_check(withid)
+        self.assertEqual(report.status(), "CONFORMS")
+        self.log(self.row("1"))
+        report, _ = self.run_check(withid)
+        self.assertEqual(report.status(), "DOES_NOT_CONFORM")
+
+    def test_a_duplicate_id_is_a_gap_not_a_block(self):  # F3
+        dup = "\n".join(["| # | Choice | Source |", "|---|---|---|", "| 1 | x | user |", "| 1 | y | user |"])
+        self.log(self.row("1"))
+        report, _ = self.run_check(dup)
+        self.assertEqual(report.status(), "CONFORMS_WITH_GAPS")
+        self.assertNotIn("block", [l for l, _ in report.findings])
 
     def test_a_missing_log_is_quiet_when_every_row_is_a_default(self):
         only = "\n".join(["| Step | Choice | Source | Validation |", "|---|---|---|---|", "| 1 | naming | default: repo | ls |"])
