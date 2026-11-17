@@ -14,7 +14,7 @@ Ideas from the pstack plugin (`cursor/plugins`), read in full and adapted to the
 
 ### Added
 
-- **verify:** `## Decisions`: the run's decision log (`<analysis>/logs/decisions.tsv`) is checked against the plan. A row with no plan row blocks, a row linked to a `default:` row is info, a missing log is an info line. Format in `skills/grill/references/decision-log.md`; `skills/verify/scripts/decision_log.py` appends a row.
+- **verify:** `## Decisions`: the run's decision log (`<analysis>/logs/decisions.tsv`) is checked against the plan. A row with no plan row blocks, a row linked to a `default:` row is info, a missing log is a gap when the plan has a `user` or `inherited:` row. Format in `skills/grill/references/decision-log.md`; `skills/verify/scripts/decision_log.py` appends a row.
 - **verify:** `reproduce --analysis-dir DIR`: each `<!-- reproduce -->` line (finding, read-only command, expected output, intent) runs twice through the plan-evidence allowlist. Findings are `reproduced`, `unreproduced` (dropped, with the reason) or `inconclusive`. Read-only; nothing is fixed.
 - **verify:** `## Explain the number`: each `<!-- explain -->` line cites a figure per limiting factor; a cited file that is missing is a gap.
 - **verify:** an info line when a step has two failed attempts, naming the premise stop.

@@ -30,6 +30,7 @@ sys.dont_write_bytecode = True
 import gate  # noqa: E402
 
 FIT = "analysis/a/scripts/01_fit.py"
+DECISION_HEADER = "ts\tphase\tdecision\twhy\tevidence\tresult\tplan_row\tsource\n"
 
 
 def hermetic(test):
@@ -81,6 +82,7 @@ class VerifyTest(unittest.TestCase):
         os.makedirs(os.path.join(self.root, ".mycelium-extra"))
         self.write(".mycelium-extra/gate.json", "{}")
         self.write(FIT, "print(1)\n", mtime=time.time() - 3600)  # scripts predate their plan
+        self.write("analysis/a/logs/decisions.tsv", DECISION_HEADER, mtime=time.time() - 3600)  # a run's log exists; a missing one is a gap (0.31)
         self.sacct = self.fake_sacct("")
         self.scilintr = self.fake_tool("bin/scilintr", "", 0)
         self.rscript = self.fake_tool("bin/Rscript", "", 0)

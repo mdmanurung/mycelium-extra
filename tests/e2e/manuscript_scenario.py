@@ -200,6 +200,7 @@ def write_project(root, scenario):
     shutil.copyfile(CHECKER, os.path.join(root, CHECK_COPY))
     os.utime(os.path.join(root, CHECK_COPY), (old, old))
     write(root, "PLAN.md", plan_text(), old)
+    write(root, BASE + "/logs/decisions.tsv", "ts\tphase\tdecision\twhy\tevidence\tresult\tplan_row\tsource\n", old)
     if scenario in NATIVE:
         write(root, "PROMPTS.md", prompts(scenario), old)
     write(root, ".gitignore", "__pycache__/\n", old)

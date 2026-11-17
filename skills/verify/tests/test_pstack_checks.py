@@ -84,11 +84,22 @@ class DecisionLog(Tmp):
         self.assertEqual(len(entries), 1)
         self.assertEqual(report.status(), "CONFORMS")
 
-    def test_a_missing_log_is_info_when_the_plan_has_user_rows(self):  # planted break: no log at all
+    def test_a_missing_log_is_a_gap_when_the_plan_has_user_rows(self):  # planted break: no log at all
         report, entries = self.run_check()
         self.assertEqual(entries, [])
-        self.assertEqual([l for l, _ in report.findings], ["info"])
+        self.assertEqual([l for l, _ in report.findings], ["gap"])
         self.assertIn("No decision log", report.findings[0][1])
+        self.assertEqual(report.status(), "CONFORMS_WITH_GAPS")
+
+    def test_with_no_analysis_folder_a_user_plan_gets_an_info_line_not_a_gap(self):
+        report = verify.Report()
+        self.assertEqual(verify.decision_log(self.dir, None, PLAN, report), [])
+        self.assertEqual([l for l, _ in report.findings], ["info"])
+
+    def test_a_header_only_log_has_no_gap(self):  # control: the log exists and holds no decisions
+        self.log()
+        report, entries = self.run_check()
+        self.assertEqual((entries, report.findings), ([], []))
 
     def test_a_missing_log_is_quiet_when_every_row_is_a_default(self):
         only = "\n".join(["| Step | Choice | Source | Validation |", "|---|---|---|---|", "| 1 | naming | default: repo | ls |"])

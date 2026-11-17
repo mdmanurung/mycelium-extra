@@ -2935,15 +2935,19 @@ UNSUPPORTED = "unsupported: no inspected figure"
 def decision_log(root, analysis_dir, plan, report):
     """The run's decision log (`<analysis>/logs/decisions.tsv`) against the approved plan. A row whose `plan_row`
     is empty or names no plan row is an unplanned choice (block); a row linked to a `default:` row is info,
-    because an impactful choice is never a default; a missing log is info when the plan has a `user` or
+    because an impactful choice is never a default; a missing log is a gap when the plan has a `user` or
     `inherited:` row, else nothing is said. `start` rows only mark a run. Returns the rows read."""
     rows = plan_rows(plan)[0]
     asked = [k for k, r in rows.items() if re.match(r"^(user|inherited)", r.get("source", ""), re.I)]
     path = os.path.join(root, analysis_dir or "", DECISION_LOG) if analysis_dir else None
-    if not path or not os.path.isfile(path):
+    if not analysis_dir:
         if asked:
-            report.add("info", "No decision log at `{}`: {} plan row(s) are `user` or `inherited:`, and no record shows "
-                               "which run decisions were taken or that they match the plan.".format(
+            report.add("info", "No analysis folder was found, so no decision log was looked for; pass --analysis-dir.")
+        return []
+    if not os.path.isfile(path):
+        if asked:
+            report.add("gap", "No decision log at `{}`: {} plan row(s) are `user` or `inherited:`, and no record shows "
+                              "which run decisions were taken or that they match the plan.".format(
                                   os.path.join(analysis_dir or "<analysis>", DECISION_LOG), len(asked)))
         return []
     lines = read_text(path).splitlines()

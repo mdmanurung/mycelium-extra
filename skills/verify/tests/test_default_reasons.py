@@ -53,6 +53,7 @@ class VerifyDefaultReasonsTest(unittest.TestCase):
         os.makedirs(os.path.join(self.root, ".mycelium-extra"))
         self.write(".mycelium-extra/gate.json", "{}")
         self.write(FIT, "print(1)\n", mtime=time.time() - 3600)
+        self.write("analysis/a/logs/decisions.tsv", "ts\tphase\tdecision\twhy\tevidence\tresult\tplan_row\tsource\n")
         self.tools = {name: self.tool("bin/" + name) for name in ("sacct", "scilintr", "Rscript")}
 
     def tearDown(self):

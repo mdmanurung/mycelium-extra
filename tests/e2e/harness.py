@@ -11,6 +11,7 @@ line is `Exit code N`. The failure event reaches the gate only if hooks.json reg
 import base64
 import datetime
 import json
+import glob
 import os
 import re
 import shutil
@@ -447,7 +448,17 @@ class Project(object):
             words, script)
         return documented, run
 
+    DECISION_HEADER = "ts\tphase\tdecision\twhy\tevidence\tresult\tplan_row\tsource\n"
+
     def verify(self, *args):
+        # A run keeps a decision log (verify 0.31 reports a missing one as a gap): give each analysis folder a
+        # header-only one, so a scenario about something else keeps its status.
+        for folder in sorted(glob.glob(os.path.join(self.root, "analysis", "*", ""))):
+            log = os.path.join(folder, "logs", "decisions.tsv")
+            if not os.path.exists(log):
+                os.makedirs(os.path.dirname(log), exist_ok=True)
+                with open(log, "w") as handle:
+                    handle.write(self.DECISION_HEADER)
         documented, run = self.verify_command(*args)
         return self.skill("verify", documented, run)
 
