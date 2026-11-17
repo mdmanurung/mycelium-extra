@@ -42,7 +42,7 @@ It also reads the run's decision log, `<analysis>/logs/decisions.tsv` ([format](
 
 It also reads the top-level `UPPER_SNAKE` values of each planned R or Python script, the knob block lucid-coder's house style keeps after the header, and lists every knob that no plan Choice names (by its name, by every number in its value, or by its quoted text). Path-valued names are skipped. It is one info line per script: a value a reader may change that the plan never listed may be an unplanned impactful choice, but verify cannot tell which knob moves a headline estimate, so it is not enforced. `knobs SCRIPT [SCRIPT ...]` prints the same list read-only and needs no gate; grill uses it.
 
-It also reads each `<!-- explain -->` block in the documents it checks for claims (`number | factor | figure path`, see plot-first's "Explain the number"). A cited figure that is not a file is a gap, `unsupported: no inspected figure` is info, and the section `## Explain the number` lists each line. It does not judge whether the figure supports the line.
+It also reads each `<!-- explain -->` block in the documents it checks for claims (`number | factor | figure path`, see plot-first's "Explain the number"). A cited figure must be an image or PDF (`.png .pdf .svg .jpg .jpeg .tif .tiff`) inside the repository; a missing file, another file type or a path outside the repository is a gap. `unsupported: no inspected figure` and a third cell starting `inconclusive` are info, and the section `## Explain the number` lists each line. It does not judge whether the figure supports the line.
 
 The report opens with `# Verify plan <hash>: <status>` and five rows: `Ran as planned`, `Numbers match`, `Code checks`, `Not checked` and `Next`. Each starts `yes`, `no` or `partly` with its reason, or `n/a` when the plan gave the check nothing to judge (for example no `<!-- claims -->` block), so a row is never `yes` while a problem is open. Quote these five rows to the user first, as printed, then the details below them. In the file `write` saves, `Next` says the provenance is saved.
 
@@ -117,11 +117,11 @@ After a run, re-check each claimed finding, read-only. Idea from pstack's `inter
 <skill-dir>/../../hooks/mxpy - --plugin-root <skill-dir>/../.. reproduce --analysis-dir <folder> [--claims DOC] [--json] < <skill-dir>/scripts/verify.py
 ```
 
-It reads each `<!-- reproduce -->` block in the analysis doc and any `--claims` document. A line is `finding | read-only command | expected | intent`. Each command runs twice, through the same read-only allowlist as plan evidence (no writer, no redirect, no substitution, 10 seconds a run). The verdict is one of:
+It reads each `<!-- reproduce -->` block in the analysis doc and any `--claims` document. A line is `finding | read-only command | expected | intent`: the first cell is the finding, the last two are the expected output and the intent, and everything between (re-joined with `|`) is the command, so a pipeline such as `rg -c x f | wc -l` works. Commands run from the repository root. Each command runs twice, through the same read-only allowlist as plan evidence (no writer, no redirect, no substitution, 10 seconds a run). A document's first 40 entries run; the rest are counted and the count is printed, not run. All runs share a 300-second budget (`REPRODUCE_BUDGET`); entries after it are `inconclusive` with `time budget ran out`. The verdict is one of:
 
 - `reproduced`: both runs printed the expected output, so the finding holds under that command.
 - `unreproduced`: both runs ran and one printed something else. The finding is dropped and listed with what it printed.
-- `inconclusive`: a run could not happen (not read-only, timed out, errored). The reason names which half.
+- `inconclusive`: a run could not happen (not read-only, timed out, errored, or the time budget ran out). The reason names which half.
 
 Quote the three lists as printed. Do not fix, edit or re-run anything because of a dropped finding: the user decides, and a wrong output needs a new grill plan. A reproduced finding is not a verified analysis: the command may test the wrong thing. Rerunning a script is a run, so it needs an approved plan.
 

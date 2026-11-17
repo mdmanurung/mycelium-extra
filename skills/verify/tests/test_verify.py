@@ -3024,8 +3024,10 @@ sys.exit(1 if hits else 0)
         self.run_cmd("python {} --model a".format(FIT), exit_code=1)
         self.run_cmd("python {} --model b".format(FIT), exit_code=1)
         out = self.verify("report", digest)
-        self.assertIn("**info**: Step `{}` has 2 failed attempts. After two fixes fail the same check".format(FIT), out)
-        self.assertIn("unplanned impactful choice", out)
+        self.assertIn("**info**: Step `{}` has 2 failed attempts. If both fixes shared one premise".format(FIT), out)
+        self.assertIn("If both fixes shared one premise, the premise stop applies", out)
+        self.assertNotIn("unplanned impactful choice", out)
+        self.assertNotIn("was due", out)
 
     def test_one_failed_attempt_does_not_name_the_premise_stop(self):  # control
         digest = self.fit_plan()

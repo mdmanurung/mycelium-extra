@@ -105,7 +105,7 @@ Extra's markers map to lucid-writer's when text moves from a record into a deliv
 | `[BLANK: ...]` | `[EVIDENCE NEEDED]` |
 | `unreproduced` (`verify reproduce`) | drop the sentence; `[EVIDENCE NEEDED]` if you keep it |
 | `inconclusive` (`verify reproduce` or an `explain` line) | word it as a description, add `[AUTHOR CHECK]` |
-| An `explain` factor with `unsupported: no inspected figure` | `[EVIDENCE NEEDED]` |
+| An `explain` factor with `unsupported: no inspected figure` (a third cell starting `inconclusive` is the line above) | `[EVIDENCE NEEDED]` |
 
 Keep the Extra marker in the record. Use the lucid-writer marker only in the deliverable. A choice the decision log does not show is not reported as a method; a decision row with no plan row blocks `verify`, so it is fixed before the text moves.
 
