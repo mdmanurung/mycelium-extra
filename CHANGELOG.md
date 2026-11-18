@@ -4,6 +4,22 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-11-18
+
+A research loop: a tree of experiments on one fixed command.
+
+### Added
+
+- **iterate:** user-invoked skill. Each variant is a git branch `exp/<slug>`, frozen once a run answers it and repaired in place up to a cap. The run command, readout, repair cap and stop rule are plan rows you approve; none has a default. Ideas from OpenResearch (MIT, alphaXiv): the experiment tree, the fixed command, the repair cap, the stop rule, reading results from logs, and one line per node each turn.
+- **iterate:** `scripts/tree.py` keeps an append-only log, `plans/tree.jsonl` (`add`, `run`, `answer`, `repair`, `stop`), and answers `status`, `summary`, `frozen` and `stop-check` (exit 0 when the stop rule is met or a stop is recorded, 3 when not, 2 with no tree). A run cites a line of `.mycelium-extra/receipts.jsonl`.
+- **hooks:** `hooks/loop_guard.py`, off unless `gate.json` sets `"loops": "warn"` or `"block"`. It works with the gate on or off and leaves `hooks/gate.py` alone. It refuses or notes a `git commit` on a frozen `exp/*` branch and the fixed run command run behind an env var, and blocks the end of a turn once while the tree's stop rule is not met. Registered in `hooks/hooks.json`, `hooks/codex.json` and `opencode/index.js`.
+- **init:** `loops` is a `gate.json` key that `--diagnose` checks.
+
+### Changed
+
+- **glossary:** `ITERATIONS.md` points to the tree for loops that have a metric and a fixed command.
+- **ask-extra:** the router table lists `iterate` under "I am exploring".
+
 ## [0.32.1] - 2026-11-17
 
 Fixes from a review of 0.32.0.
