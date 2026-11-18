@@ -10,18 +10,18 @@ You type this skill; the agent does not start it on its own (`disable-model-invo
 
 ## The correct ladder
 
-Before a test is written, the skill asks which level removes the repeated mistake, and takes the highest that works: structure, then types, then a lint whose message names the fix, then a test, then docs. A docs-only fix leaves the learning `ambient-awareness`. Levels 1 to 3 change package or repository code only after you approve, never analysis code. Idea from pstack (MIT, cursor/plugins).
+Before a test is written, the skill asks which level removes the repeated mistake, and takes the highest that works: structure, then types, then a lint whose message names the fix, then a test, then docs. A docs-only fix leaves the learning `ambient-awareness`. Levels 1 to 3 change package or repository code only after you approve, never analysis code. The agent shows the change and the reproduction, then proves the change on it: before, the mistake goes through; after, it fails loudly. It records the changed file or lint rule in place of a test path. Idea from pstack (MIT, cursor/plugins).
 
 ## Steps
 
 1. **Find a candidate.** Requires `.living/learnings.md`. Greps for `structural_mitigation_candidate`; keeps entries whose `mitigation_type` is not `structural` and whose candidate names a concrete check (a function, file, column or assertion). Shows at most five, newest first; you pick one. A candidate placed in analysis code qualifies only if a test can read the same file; it is marked "(check moves to a test)".
 2. **Place the test** in the repository's own test setup (`pytest.ini`, `pyproject.toml`, `tests/testthat/`, existing `test_*.py`), else `tests/test_<slug>.py` or `tests/testthat/test-<slug>.R`. Never under `gated_paths`, never edits analysis code.
 3. **Prove it guards something.** It shows you the proposed test and its reproduction and asks whether that reproduction really is the problem. Only after you say yes does it write the file. It then runs the test against a minimal reproduction (must fail) and against current code (must pass). If it cannot fail on the reproduction it deletes the test file and leaves the entry `ambient-awareness`. If it fails on current code the problem is live; it reports that and does not mark the learning.
-4. **Record, after you confirm.** Edits only that entry: `**mitigation_type**: structural`, and appends ` Shipped: \`<test path>\` (YYYY-MM-DD).` to the candidate line. No commit.
+4. **Record, after you confirm.** Edits only that entry: `**mitigation_type**: structural`, and appends ` Shipped: \`<test path>\` (YYYY-MM-DD).` to the candidate line (the changed file or lint rule for a level 1 to 3 fix). No commit.
 
 ## Reads and writes
 
-Reads `.living/learnings.md`, test setup files, `README`, `AGENTS.md`, `CLAUDE.md`, and a data file when the test needs one. Writes one test file in the test folder (after your yes) and one edited entry in `.living/learnings.md` (after your confirmation).
+Reads `.living/learnings.md`, test setup files, `README`, `AGENTS.md`, `CLAUDE.md`, and a data file when the test needs one. Writes one test file in the test folder (level 4) or the approved package or repository change (levels 1 to 3), each after your yes, and one edited entry in `.living/learnings.md` (after your confirmation).
 
 ## Default on or off
 
