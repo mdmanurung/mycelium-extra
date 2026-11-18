@@ -31,3 +31,10 @@ Decision for the user: filter genes (min_cells) before HVG? It changes the selec
 
 - S1 scanpy 1.10.3 documentation, `scanpy.pp.highly_variable_genes`, https://scanpy.readthedocs.io/en/1.10.3/, read 2026-11-13.
 - S2 Stuart T, Comprehensive integration of single-cell data. Cell 2019. doi:10.1016/j.cell.2019.05.031
+
+## Retrieval log
+
+Window: none
+Difficulty: 2 (one method, one package), 0 follow-up rounds
+
+- Consensus search "seurat_v3 highly variable genes": 10 results; kept doi:10.1016/j.cell.2019.05.031

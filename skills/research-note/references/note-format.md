@@ -12,8 +12,11 @@ One file. Sections in this order. `scripts/check_note.py` checks the shape; it c
 | `## Not established` | What the sources do not settle: other versions, claims with no source, lookups that failed. |
 | `## Next step` | The one thing to do with this. A fact that implies a different impactful choice is written `Decision for the user: <choice>, because <fact> (S<n>)`. |
 | `## References` | One line per source, starting `S1`, `S2`. Each has the author or package, the title, a version, release, year or date, and a DOI, PMID, arXiv id, URL or file path. |
+| `## Retrieval log` | After References. Needed when a reference carries a DOI, PMID or arXiv id. A `Window:` line, then one line per search with the tool, the query and the ids kept. Every cited id appears here (`lit-policy.md`). |
 
 ## Evidence rules
+
+- A paper id (DOI, PMID, arXiv) cited in References must also appear in the retrieval log. `check_note.py` fails the note otherwise.
 
 - Source cell: a reference id plus the location inside it (`S1 Methods, "Cell isolation"`, `S2 source, R/fit.R:112`, `S3 supplement table S4`). Or exactly `unsupported: no source`.
 - An unsupported row has confidence `low`. The claim stays in the table so the reader sees what was not backed.

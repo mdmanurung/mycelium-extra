@@ -6,7 +6,7 @@ description: "Delegate a sourced question to a background agent that writes one 
 
 # Mycelium Extra: Research note
 
-Hand the reading to a background agent. It checks one question against primary sources and writes one cited Markdown note. You keep working. Adapted from Matt Pocock's research skill (MIT).
+Hand the reading to a background agent. It checks one question against primary sources and writes one cited Markdown note. You keep working. Adapted from Matt Pocock's research skill (MIT). Idea from OpenResearch orx-lit-review (MIT, alphaXiv): the paper retrieval policy.
 
 The note answers from papers, docs, source code and release notes. It says nothing about what the user's own data show: such a claim stays `unsupported: no inspected figure`.
 
@@ -14,6 +14,7 @@ The note answers from papers, docs, source code and release notes. It says nothi
 
 - Write the question in one sentence and name the decision it feeds. If the user gave a topic, turn it into a question and show it. Done when one question line exists.
 - A question about the user's data or a result is analysis work. Say so and stop; point to `grill` (a plan) or `diagnose-result` when present.
+- If the question needs papers, ask for the date window. A window changes which papers can be cited, so it is the user's choice, and `none` is a valid answer. Done when the window or `none` is written down.
 - Pick the slug (`<topic>-<year>`) and the folder: `analysis/<name>/plans/research/` for a question about one analysis; otherwise the notes folder the repo already has (look for `notes/`, `docs/notes/`, `research/`); if none exists, `notes/research/`. Say the path. Done when the path is printed.
 
 ## 2. Pin versions
@@ -22,7 +23,7 @@ Read what the active environment has, with read-only queries: `pip show <pkg>`, 
 
 ## 3. Launch the agent
 
-Start one background agent from the brief in `references/agent-brief.md`. Fill in the question, the pins, the target path and the analysis folder. Done when the agent runs and the user has the target path. Then return to the user's work.
+Start one background agent from the brief in `references/agent-brief.md`. Fill in the question, the pins, the window, the target path and the analysis folder. The agent runs its own paper searches under `references/lit-policy.md`; it never hands them to another agent. Done when the agent runs and the user has the target path. Then return to the user's work.
 
 ## 4. Check the note
 
@@ -48,4 +49,4 @@ Give the two-line answer, the note path, the format result and each unresolved o
 - A finding enters `.living/` only when the user confirms it and `decision-status` writes it. This skill never writes there.
 - If the gate blocks the note's write, report that. Do not route around it.
 
-Detail: `references/note-format.md` (the format and an example), `references/sources.md` (what counts as a source, which tool for which question). The agent reads both.
+Detail: `references/note-format.md` (the format and an example), `references/sources.md` (what counts as a source, which tool for which question), `references/lit-policy.md` (paper retrieval: difficulty budget, one window, dedupe, rank then read, retrieval log). The agent reads both.

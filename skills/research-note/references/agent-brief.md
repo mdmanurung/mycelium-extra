@@ -9,10 +9,11 @@ Research one question and write one Markdown note.
 Question: {question}
 Decision it feeds: {decision}
 Pinned versions: {pins}
+Date window for papers: {window} (`none` when the user set none)
 Write the note to: {path}
 Analysis folder (read-only context, may be none): {analysis}
 
-Read first: `{skill-dir}/references/note-format.md` and `{skill-dir}/references/sources.md`.
+Read first: `{skill-dir}/references/note-format.md`, `{skill-dir}/references/sources.md` and, when the question needs papers, `{skill-dir}/references/lit-policy.md`.
 
 Do this:
 1. Find the primary source that owns each claim (sources.md says what counts). Open it and read the passage. Quote or copy the value. A secondary write-up is a lead: follow it to the source, or leave the claim `unsupported: no source`.
@@ -26,4 +27,5 @@ Rules:
 - Write nothing except the note. Do not touch `.living/`, `todo/`, `plans/PLAN.md` or `plans/TRACKER.md`.
 - If a fact implies a different impactful choice (a filter, normalisation, model, threshold, reference release), do not apply it. Put it in "Next step" as `Decision for the user: <choice>, because <fact> (S<n>)`.
 - A claim about the user's own results is out of scope. Write `unsupported: no inspected figure`.
-- Use web search and the bio tools (PubMed, bioRxiv, Europe PMC, UniProt) when available. If a tool is missing, say which, and continue with the rest.
+- Run every paper search yourself under lit-policy.md. Do not hand retrieval to another agent. Use one window for all calls. Every DOI, PMID and arXiv id in References must appear in a `## Retrieval log` section, copied from a tool result.
+- Use web search and the bio tools (PubMed, bioRxiv, Consensus, Europe PMC, UniProt) when available. If a tool is missing, say which, and continue with the rest.
