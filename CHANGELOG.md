@@ -4,6 +4,40 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.36.1] - 2026-11-18
+
+Fixes from a Fable review of 0.33.0-0.36.0.
+
+### Fixed
+
+- `tree.py freeze-evaluator --refreeze` without `--file` no longer drops the scorer, splits and labels the first freeze hashed. It keeps every earlier file and folder, hashes them again, and names any that is gone.
+- A benchmark card changed with `plan --card` after the freeze now counts as evaluator drift until the user refreezes. A card that is a folder now reports files added to it.
+- A frozen folder now follows symlinked subfolders, so linked label data is hashed and watched. A dangling link in a frozen folder ends with a clear message, not a traceback.
+- `stop --reason rule` is refused before the iteration floor even after another stop was recorded.
+- A stop rule recorded as user-approved words (`--stop-rule` with no `--stop-after`) now counts as the plan row. `stop-check` says it cannot judge the rule and tells the agent to ask the user; only `stop --reason rule` after the user says so ends the loop.
+- A run now stores the status `tree.py` saw (`seen_status`), so a clone or worktree without `.mycelium-extra/receipts.jsonl` replays the same states. A receipt with no integer exit status gives `unknown`, not `failed`; it spends no repair and `status` shows `[unknown]`.
+- `add --kind baseline|sanity` with no tree, and event lines missing a required field or holding a non-list `folders`, end with a clean message and exit 1 or 2, not a traceback.
+- `loop-rules.md` now lists all eight event kinds in `tree.jsonl`.
+- Loop guard: a `git checkout`, `git switch` (and `-b`, `-c`, `-B`, `-C`) earlier in one command now sets the branch the later commit lands on. `git checkout exp/a && git commit` is denied, and `git checkout main && git commit` or `git switch -c exp/b && git commit` from a frozen branch is no longer denied by mistake.
+- Loop guard: `git branch -f/-m/-d`, `update-ref`, `push .` or `fetch .` into a frozen `exp/*` ref, `checkout -B`, `switch -C` and a `reset` of the frozen HEAD are denied. `rebase BASE exp/a` from another branch, `symbolic-ref` and `git worktree` are not covered.
+- Loop guard: the Stop hook hashes frozen evaluator files inside its 7 s budget, with a size and mtime cache in `loop_guard_hashes.json`, and records a reported state only after the reply is out. A file it cannot hash in time is named once and left to `tree.py check-evaluator`. `evaluator_drift` in `tree.py` takes an optional `hasher`.
+- Loop guard: a second drift of the same evaluator file is reported again, and a state noted under `loops: warn` is still blocked once after the switch to `block` (the seen key carries the mode, and the tusoskill key too).
+- Loop guard: `env -i`, `sudo -u`, `time -p`, `xargs`, `srun`, `uv run`, `conda run`, container `exec` and a shell heredoc no longer hide a commit or an env-prefixed run command. `python -u code/run.py`, `cd code && python run.py` and an absolute script path match the fixed run command.
+- Loop guard: a bare shell assignment (`LOG=run.log; python code/run.py`) and a subshell assignment no longer count as an env var in front of the run command unless the variable is already exported.
+- Loop guard: `git commit --dry-run`, `--help`, `-h` and `git pull --help` are not treated as commits on a frozen branch.
+- `check_summary.py` no longer reads a failed check as clean: a step that ends `... ERROR` (such as `creating vignettes`), a bare ` ERROR` line after a test run, and an `R CMD check` log with no `Status:` line (killed or cut short) now count, and `--exit-code` exits 1 for them.
+- `check_summary.py` takes the last devtools summary when an input holds several, and `--notes` lists the NOTE headings of that counted run only.
+- `check_summary.py` reads the `testthat` line `[ FAIL n | WARN n | SKIP n | PASS n ]` (`--kind testthat`), so `Rscript -e 'testthat::test_local()'` gives a readout.
+- `check_summary.py` reads the old pytest `in 0.12 seconds` summary, counts the findings left by `ruff check --fix` (`Found 3 errors (1 fixed, 2 remaining).`), and treats a pytest run in which every test was deselected as no tests.
+- `--exit-code` keeps `no tests ran` (pytest exit 5, all deselected, testthat with `PASS 0`) as a failure. SKILL.md, the script docstring and the reference page now say so; the 0.34.0 line that said exit 1 happens "only" for an ERROR, a failed test or a ruff finding was wrong.
+- package-loop step 3 no longer pipes the check to `tee`, which hid its exit status. It writes the log, prints the real exit status in the same call, and records the run with `tree.py run --exit <status>`, because the check commands write no gate receipt. A run that exited 0 with no summary is no longer sent to `tree.py repair`, which refuses it.
+- harden gives steps for a level 1 to 3 fix (show the change, prove it on the reproduction, record the changed file or lint rule), and its reference page no longer says it writes only one test file.
+- `verify --resolve-citations` skips a `## Retrieval log` section, so a correctly logged id no longer reports a false `mismatch`.
+- `research-note` `check_note.py` keeps parentheses inside a DOI (`10.1016/S0140-6736(20)30183-5`), so two Lancet-style DOIs no longer compare equal.
+- `check_note.py` matches a DOI inside a publisher URL (bioRxiv `v1`/`v1.full`, OUP path, `?query`) against the bare DOI in the log.
+- `check_note.py` reads ids on wrapped reference lines, old-style and `arxiv.org/abs/` arXiv ids, `PMID=` and PMID lists, and ignores backticks, bold and quotes around an id.
+- README: `handoff-resume` is no longer called the only skill with hooks, since `iterate` registers `hooks/loop_guard.py`.
+
 ## [0.36.0] - 2026-11-18
 
 ### Added
