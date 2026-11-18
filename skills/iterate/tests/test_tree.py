@@ -306,6 +306,20 @@ class TreeTest(unittest.TestCase):
         self.assertEqual((nodes["a"]["state"], nodes["b"]["state"]), ("ran", "failed"))
         self.assertEqual(self.call("answer", "a", "--outcome", "better", "--summary", "s")[0], 0)
 
+    def test_receipts_of_a_folder_above_the_repository_are_not_read(self):
+        outer = self.receipts(1)  # an unrelated project's receipts, one folder above the repository
+        repo = os.path.join(self.tmp, "repo")
+        self.analysis = os.path.join(repo, "analysis", "demo")
+        os.makedirs(self.analysis)
+        os.makedirs(os.path.join(repo, ".mycelium-extra"))  # the repository's own receipts are gone
+        self.root()
+        self.call("add", "c", "--parent", "base")
+        code, text = self.call("run", "c", "--receipt", "1")
+        self.assertEqual(code, 1, text)
+        self.assertEqual(tree.load(self.analysis)["nodes"]["c"]["state"], "new")
+        self.assertIsNone(tree.find_receipts(self.analysis))
+        self.assertTrue(os.path.isfile(outer))
+
     def test_old_run_event_with_no_receipt_is_unknown_not_failed(self):
         self.root()
         self.call("add", "a", "--parent", "base")

@@ -31,7 +31,7 @@ The `.jsonl` logs and `explore.log` only grow. Nothing trims them.
 | `gate-errors.jsonl` | gate hook entry point (`gate_run.py`) | `verify` (a gap in the plan's window), `init --diagnose` | internal gate errors | Not listed; `verify` reads it, so decide at 1.0 |
 | `gate-errors.seen.json` | gate hook entry point (`gate_run.py`) | the same entry point | which gate errors recent sessions already showed (event, error, outcome, host; a few sessions, oldest stamps evicted), so a broken gate's message is shown once per hour per kind, not on every tool call. `gate-errors.jsonl` still gets a line for every error | Not listed; safe to delete |
 | `loop_guard_seen.json` | `loop_guard.py` (Stop) | the same hook | which research-tree states, evaluator drifts and tusoskill run states the loop guard already reported (state fingerprint per key), so each is reported once and an unchanged tusoskill run is not rechecked | No |
-| `loop_guard_hashes.json` | `loop_guard.py` (Stop) | the same hook | size, mtime and sha256 of each frozen evaluator file the Stop hook hashed, so an unchanged file is not read again | Not listed; safe to delete |
+| `loop_guard_hashes.json` | `loop_guard.py` (Stop) | the same hook | size, mtime and sha256 of each frozen evaluator file the Stop hook hashed, so an unchanged file is not read again; a file too big for the Stop budget is kept with no hash | Not listed; safe to delete |
 | `explore-grants/<session>.json` | gate, on `allow explore` | gate | the session's explore permission, with its scope if bounded | No |
 | `explore.log` | gate | gate (Stop notice) | one line per explore run | No |
 | `hints.json` | gate, on `hints on` | gate | the hints switch | No: hint rules are not frozen |

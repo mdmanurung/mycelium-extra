@@ -222,7 +222,8 @@ class LoopGuardTest(unittest.TestCase):
         for command in ("git branch -f other exp/a", "git branch --list", "git branch -c exp/a copy",
                         "git push origin HEAD:exp/a", "git update-ref refs/heads/other HEAD", "git reset --hard"):
             self.assertEqual(self.bash(command), {}, command)
-        self.git("checkout", "-q", "exp/a")
+        self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "next")
+        self.git("checkout", "-q", "exp/a")  # main is now one commit ahead of exp/a
         self.assertTrue(self.denied(self.bash("git reset --soft main")))
         for command in ("git reset", "git reset HEAD", "git reset --hard", "git reset -- f.txt"):
             self.assertEqual(self.bash(command), {}, command)
@@ -254,6 +255,49 @@ class LoopGuardTest(unittest.TestCase):
         self.assertTrue(self.denied(self.bash("MX_TEST_EXPORTED=2; python code/run.py", env=exported)))  # reaches the child
         self.assertTrue(self.denied(self.bash("export MX_LATER; MX_LATER=2; python code/run.py")))
         self.assertTrue(self.denied(self.bash("export A=1; python code/run.py")))
+
+    def test_a_reset_that_leaves_the_frozen_branch_where_it_is_passes(self):
+        self.freeze_a()
+        with open(os.path.join(self.root, "f.txt"), "w") as handle:
+            handle.write("x\n")
+        self.git("add", "f.txt")
+        self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "second")  # HEAD~1 exists
+        for command in ("git reset HEAD~1 -- f.txt", "git reset HEAD~1 f.txt", "git reset -p HEAD~1",
+                        "git reset --hard exp/a", "git reset --hard @", "git reset --hard HEAD"):
+            self.assertEqual(self.bash(command), {}, command)
+        for command in ("git reset --hard HEAD~1", "git reset --soft main", "git reset HEAD~1"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+
+    def test_a_checkout_followed_across_a_folder_an_alias_a_variable_and_the_previous_branch(self):
+        self.freeze_a()
+        os.makedirs(os.path.join(self.root, "sub"))
+        self.git("config", "alias.co", "checkout")
+        self.git("config", "alias.swm", "switch main")
+        self.git("checkout", "-q", "main")
+        for command in ("git -C sub checkout exp/a && git commit -m x",
+                        "cd sub && git checkout exp/a && cd .. && git commit -m x",
+                        "git checkout exp/a && cd sub && git commit -m x", "git co exp/a && git commit -m x",
+                        "B=exp/a; git checkout $B && git commit -m x",
+                        "B=exp/a; git checkout ${B} && git commit -m x",
+                        "git -c alias.go=checkout go exp/a && git commit -m x"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+        self.git("checkout", "-q", "exp/a")
+        self.git("checkout", "-q", "main")  # the previous branch is exp/a
+        self.assertTrue(self.denied(self.bash("git switch - && git commit -m x")))
+        self.assertTrue(self.denied(self.bash("git checkout - && git commit -m x")))
+        self.assertEqual(self.bash("git checkout exp/a && git swm && git commit -m x"), {})
+        self.assertEqual(self.bash("B=main; git checkout $B && git commit -m x"), {})
+
+    def test_an_assignment_exported_later_or_under_set_a_reaches_the_run(self):
+        self.freeze_a()
+        self.git("checkout", "-q", "main")
+        for command in ("SEED=2; export SEED; python code/run.py", "set -a; SEED=2; python code/run.py",
+                        "set -o allexport; SEED=2; python code/run.py",
+                        "export SEED; SEED=2; python code/run.py"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+        for command in ("N=3; echo $N; python code/run.py", "SEED=2; export OTHER; python code/run.py",
+                        "set -a; set +a; SEED=2; python code/run.py", "set -e; SEED=2; python code/run.py"):
+            self.assertEqual(self.bash(command), {}, command)
 
     def test_git_calls_that_commit_nothing_pass_on_a_frozen_branch(self):
         self.freeze_a()

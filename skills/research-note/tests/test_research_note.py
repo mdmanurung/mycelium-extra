@@ -226,6 +226,35 @@ class CheckNote(unittest.TestCase):
         code, out = self.ref(self.BASE + ":")
         self.assertIn("ID S2 doi 10.1016/j.cell.2019.05.031\n", out)
 
+    def test_a_url_doi_that_extends_a_logged_doi_is_a_different_paper(self):
+        cases = (("https://x.org/doi/10.1002/abc.123.456", "10.1002/abc.123"),
+                 ("https://x.org/doi/10.1002/abcv2", "10.1002/abc"),
+                 ("https://x.org/doi/10.1016/S0140-6736(20)30183-5", "10.1016/S0140-6736(20)30183"))
+        for url, doi in cases:
+            with self.subTest(url):
+                code, out = self.ref("- S2 Stuart T 2019, " + url, "kept doi:" + doi)
+                self.assertEqual(code, 1, out)
+        code, out = self.ref("- S2 Stuart T 2019, https://academic.oup.com/nar/article/doi/10.1093/nar/gkaa1100/6012345",
+                             "kept doi:10.1093/nar/gkaa1100")
+        self.assertEqual(code, 0, out)
+        self.assertIn("ID S2 doi 10.1093/nar/gkaa1100\n", out)  # the DOI, not the publisher's path after it
+        code, out = self.ref("- S2 Stuart T 2019, https://x.org/c/10.1002/abc.123.full.pdf", "kept doi:10.1002/abc.123")
+        self.assertEqual(code, 0, out)
+
+    def test_a_number_after_a_pmid_is_not_another_pmid(self):
+        for tail in (" 2019", ", 2019", "; 2019;177:1888", " and 12 co-authors 2019", ", 1888-1902 2019"):
+            with self.subTest(tail):
+                code, out = self.ref("- S2 Stuart T. Title. Cell. PMID 31178118" + tail, self.LOGGED + " PMID 31178118")
+                self.assertEqual(code, 0, out)
+                self.assertNotIn("pmid 2019", out)
+                self.assertEqual(out.count(" pmid "), 1, out)
+        for tail in (", 10 results", "; 12 results"):  # a count in the log does not log a PMID
+            with self.subTest(tail):
+                code, out = self.ref(self.BASE + " PMID 10", self.LOGGED + " PMID 31178118" + tail)
+                self.assertEqual(code, 1, out)
+        code, out = self.ref(self.BASE + " PMIDs 31178118, 31178119", self.LOGGED + " PMID 31178118, 31178119")
+        self.assertEqual(code, 0, out)
+
     def test_verify_skips_the_retrieval_log(self):
         import importlib.util
         spec = importlib.util.spec_from_file_location(

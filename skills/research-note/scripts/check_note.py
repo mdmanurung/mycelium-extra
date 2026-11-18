@@ -19,8 +19,10 @@ REF_LINE = re.compile(r"^\s*(?:[-*]\s*)?\[?(S\d+)\]?[:.)\s]\s*(.*)$")
 SOURCE_ID = re.compile(r"\bS\d+\b")
 # Parentheses stay in a DOI (`10.1016/S0140-6736(20)30183-5`); `clean_doi` drops an unbalanced `)`.
 DOI = re.compile(r"\b10\.\d{4,9}/[^\s,;>\]\"'`*<]+")
-# `PMID 1`, `PMID: 1`, `PMID=1`, `PMID 1, 2` and `PMIDs 1 2`.
-PMID = re.compile(r"\bPMID(s?)\s*[:=]?\s*(\d+(?:(?:\s*[,;&]\s*|\s+and\s+|\s+)(?:PMID\s*[:=]?\s*)?\d+)*)", re.I)
+# `PMID 1`, `PMID: 1`, `PMID 1, PMID 2`, and a list `PMID 1, 2`, `PMIDs 1 2` whose bare numbers have 7 to 9 digits, so
+# a year, a page or a count after a PMID (`PMID 31178118, 2019`, `, 12 co-authors`) is not read as another PMID.
+PMID = re.compile(r"\bPMIDs?\s*[:=]?\s*(\d+(?:(?:\s*[,;&]\s*|\s+and\s+|\s+)(?:PMID\s*[:=]?\s*\d+|\d{7,9}\b))*)", re.I)
+PMID_LABELLED = re.compile(r"\bPMIDs?\s*[:=]?\s*\d+", re.I)
 ARXIV_ID = r"(\d{4}\.\d{4,5}|[a-z-]+(?:\.[a-z]{2})?/\d{7})(?:v\d+)?"
 ARXIV = re.compile(r"\barXiv\s*[:=]?\s*" + ARXIV_ID + r"|\barxiv\.org/(?:abs|pdf)/" + ARXIV_ID, re.I)
 LOG_SECTION = "Retrieval log"
@@ -30,7 +32,7 @@ VERSION = re.compile(r"\b(?:19|20)\d{2}\b|\b\d+\.\d+|\b(?:v|release|build|rel\.?
 
 def has_version(text):
     """True when the text names a version, release, year or date outside its identifiers."""
-    for pattern in (DOI, PMID, ARXIV):
+    for pattern in (DOI, PMID_LABELLED, ARXIV):
         text = pattern.sub(" ", text)
     return bool(VERSION.search(text))
 
@@ -56,25 +58,22 @@ def find_ids(text):
             value = re.sub(r"v\d+(?:\.[a-z-]+)*$", "", value)
         found.append(("doi", value, in_url))
     for m in PMID.finditer(text):
-        digits = re.findall(r"\d+", m.group(2))
-        if not m.group(1) and not re.search(r"[,;&]|\band\b", m.group(2)):
-            digits = digits[:1]  # `PMID 31178118 2019`: the second number is not a PMID
-        found += [("pmid", d, False) for d in digits]
+        found += [("pmid", d, False) for d in re.findall(r"\d+", m.group(1))]
     for m in ARXIV.finditer(text):
         found.append(("arxiv", (m.group(1) or m.group(2)).lower(), False))
     return found
 
 
 def logged(kind, value, in_url, pool):
-    """True when the log pool holds the id. A DOI taken from a publisher URL also matches a logged DOI that is
-    a prefix of it followed by a version, path or extension (`...123456v1.full`, `.../gkaa1100/6012345`)."""
+    """The logged id that matches, or None. A DOI taken from a publisher URL also matches a logged DOI that is a
+    prefix of it followed by a path segment (`.../gkaa1100/6012345`) or a file extension (`.full`, `.full.pdf`)."""
     if (kind, value) in pool:
-        return True
+        return value
     if kind == "doi" and in_url:
-        return any(k == "doi" and value.startswith(v)
-                   and (not value[len(v):][:1].isalnum() or re.match(r"v\d+", value[len(v):]))
-                   for k, v in pool)
-    return False
+        for k, v in sorted(pool, key=lambda pair: -len(pair[1])):
+            if k == "doi" and value.startswith(v) and re.fullmatch(r"(?:/[a-z0-9]+)+|(?:\.[a-z]+)+", value[len(v):]):
+                return v
+    return None
 
 
 def normal_id(kind, value):
@@ -217,8 +216,11 @@ def check_log(sections, ids):
     if not re.search(r"^\s*Window:[ \t]*\S", text, re.M | re.I):
         problems.append("`## {}` has no `Window:` line (write `Window: none` when no window was set)".format(LOG_SECTION))
     pool = {(kind, normal_id(kind, value)) for kind, value, _ in find_ids(text)}
-    for ident, kind, value, in_url in ids:
-        if logged(kind, normal_id(kind, value), in_url, pool):
+    for index, (ident, kind, value, in_url) in enumerate(ids):
+        match = logged(kind, normal_id(kind, value), in_url, pool)
+        if match:
+            if match != normal_id(kind, value):
+                ids[index] = (ident, kind, match, in_url)  # the DOI itself, not the publisher's path after it
             continue
         problems.append("reference {} cites {} {}, which is not in the `## {}`".format(
             ident, kind.upper() if kind != "arxiv" else "arXiv", value, LOG_SECTION))

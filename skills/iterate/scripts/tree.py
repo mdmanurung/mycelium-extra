@@ -115,11 +115,15 @@ def read_events(path):
 
 
 def find_receipts(start):
+    """The repository's receipts.jsonl: the nearest one at or above `start`, never above the repository root (the
+    first folder with a `.git` or a `.mycelium-extra`), so another project's receipts are never read."""
     path = os.path.abspath(start)
     while True:
         candidate = os.path.join(path, RECEIPTS)
         if os.path.isfile(candidate):
             return candidate
+        if any(os.path.exists(os.path.join(path, marker)) for marker in (".git", ".mycelium-extra")):
+            return None
         parent = os.path.dirname(path)
         if parent == path:
             return None

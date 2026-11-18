@@ -166,6 +166,43 @@ class EvaluatorTest(Base):
             self.assertIn(self.score, json.load(handle))
         self.assertEqual(self.hook("stop", session_id="s4"), {})  # the cached hash is used while size and mtime hold
 
+    def load_guard(self):
+        sys.path.insert(0, os.path.join(PLUGIN, "hooks"))
+        self.addCleanup(sys.path.remove, os.path.join(PLUGIN, "hooks"))
+        import loop_guard
+        return loop_guard
+
+    def test_a_file_too_big_for_one_stop_is_skipped_at_no_cost_afterwards(self):
+        guard = self.load_guard()
+        big, small = os.path.join(self.root, "big.bin"), os.path.join(self.root, "small.txt")
+        with open(big, "wb") as handle:
+            handle.write(b"x" * (3 << 20))  # three 1 MiB chunks
+        with open(small, "w") as handle:
+            handle.write("card\n")
+        clock = [0.0]
+        reads = []
+
+        def tick():
+            reads.append(1)
+            clock[0] += 1.0
+            return clock[0]
+
+        self.addCleanup(setattr, guard.time, "monotonic", guard.time.monotonic)
+        guard.time.monotonic = tick
+        skipped = []
+        hasher, save = guard.evaluator_hasher(self.root, 2.5, skipped)  # the clock passes 2.5 inside the big file
+        self.assertIsNone(hasher(big))
+        self.assertIsNone(hasher(small))  # the budget is gone: left for the next Stop, not marked as too big
+        save()
+        self.assertEqual(skipped, [big, small])
+        skipped, before = [], len(reads)
+        hasher, save = guard.evaluator_hasher(self.root, 1000.0, skipped)
+        self.assertIsNone(hasher(big))  # remembered by size and mtime: no read, no clock tick
+        self.assertEqual(len(reads), before)
+        self.assertEqual(skipped, [big])
+        self.assertIsNotNone(hasher(small))  # the small file is hashed now
+        self.assertEqual(skipped, [big])
+
     def test_a_state_is_recorded_only_after_the_reply_is_decided(self):
         import importlib.util
         spec = importlib.util.spec_from_file_location("loop_guard_under_test", GUARD)
@@ -266,6 +303,21 @@ class BridgeTest(Base):
         with open(os.path.join(self.run_dir, "state", "ledger.jsonl"), "w") as handle:
             handle.write("{}\n")  # a ledger write is a state change
         self.assertEqual(self.hook("stop", session_id="s4")["decision"], "block")
+
+    def test_hashing_leaves_half_the_budget_for_method_runs(self):
+        sys.path.insert(0, os.path.join(PLUGIN, "hooks"))
+        import loop_guard
+        os.environ["MYCELIUM_TUSOSKILL_SCRIPT"] = STUB
+        self.addCleanup(os.environ.pop, "MYCELIUM_TUSOSKILL_SCRIPT")
+        import time
+        seen = []
+        real = loop_guard.evaluator_hasher
+        loop_guard.evaluator_hasher = lambda root, deadline, skipped: (seen.append(deadline - time.monotonic()),
+                                                                      real(root, deadline, skipped))[1]
+        self.addCleanup(setattr, loop_guard, "evaluator_hasher", real)
+        reply = loop_guard.stop_hook({"cwd": self.root}, "block", self.root, [])
+        self.assertIn("STOP-GATE", reply["reason"])
+        self.assertLess(seen[0], loop_guard.STOP_BUDGET / 2 + 0.5)
 
     def test_runs_past_the_deadline_are_named_not_run(self):
         sys.path.insert(0, os.path.join(PLUGIN, "hooks"))

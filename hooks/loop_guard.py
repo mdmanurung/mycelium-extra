@@ -142,6 +142,14 @@ def wrapper_value_flags(wrapper):
     return shellwords.WRAPPER_OPTIONS.get(wrapper, (set(), set()))[0] | EXTRA_VALUE_FLAGS.get(wrapper, set())
 
 
+def expand_variables(word, values):
+    """`word` with `$NAME` and `${NAME}` replaced by the literal value of an earlier bare assignment."""
+    if "$" not in word or not values:
+        return word
+    return re.sub(r"\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))",
+                  lambda m: values.get(m.group(1) or m.group(2), m.group(0)), word)
+
+
 def simple_commands(command, folder, env=frozenset(), depth=0):
     """Yield (words, folder, env) for each simple command: wrappers and block words stripped, `sh -c` bodies,
     shell heredocs and container `exec` commands followed, `cd` tracked, and a `( ... )` subshell scoped. `env` is
@@ -149,17 +157,20 @@ def simple_commands(command, folder, env=frozenset(), depth=0):
     assignment of a variable that is already exported, or by an outer command."""
     import shellwords
     env, exported, stack = set(env), set(), []
+    values, assigned, allexport = {}, set(), False  # literal values of bare assignments; shell-only variable names
     for tokens, opened, closed, heredocs, _before in shellwords.scoped_segments(command):
         for _ in range(closed):
             if stack:
-                folder, env = stack.pop()
+                folder, env, values = stack.pop()
         for _ in range(opened):
-            stack.append((folder, set(env)))
-        words, own = list(tokens), set()
+            stack.append((folder, set(env), dict(values)))
+        words, own, own_values = list(tokens), set(), {}
         while words:
             word = words[0]
             if shellwords.is_assignment(word):
-                own.add(word.split("=", 1)[0])
+                name, _eq, value = word.partition("=")
+                own.add(name)
+                own_values[name] = value
                 words.pop(0)
             elif word in OPENERS:
                 words.pop(0)
@@ -182,13 +193,26 @@ def simple_commands(command, folder, env=frozenset(), depth=0):
         if not words:
             # a bare `A=1` sets a shell variable for the commands after it; the child sees it only when A is
             # already exported (by the host's environment or an earlier `export A`)
-            env |= {name for name in own if name in os.environ or name in env or name in exported}
+            env |= {name for name in own if allexport or name in os.environ or name in env or name in exported}
+            assigned |= own
+            values.update({name: value for name, value in own_values.items() if "$" not in value})
             continue
+        words = [expand_variables(word, values) for word in words]
         head = os.path.basename(words[0])
         if head in ("export", "declare", "typeset", "readonly"):
             env |= {w.split("=", 1)[0] for w in words[1:] if "=" in w}
             if head == "export":
-                exported |= {w for w in words[1:] if w.isidentifier()}  # `export A`: a later `A=1` reaches the child
+                names = {w for w in words[1:] if w.isidentifier()}
+                exported |= names  # `export A`: a later `A=1` reaches the child
+                env |= names & assigned  # `A=1; export A`: it reaches the child now
+        elif head == "set":
+            for word in words[1:]:
+                if re.match(r"^-[A-Za-z]*a", word):
+                    allexport = True  # `set -a`: every later assignment is exported
+                elif re.match(r"^\+[A-Za-z]*a", word):
+                    allexport = False
+            if "allexport" in words[1:] and "-o" in words[1:]:
+                allexport = True
         elif head == "cd" and len(words) > 1:
             folder = os.path.normpath(os.path.join(folder, os.path.expanduser(words[1])))
         elif head in shellwords.SHELLS and depth < 4:
@@ -290,6 +314,7 @@ def makes_commit(where, git_dir, sub, rest, inline):
     return False
 
 
+KNOWN_SUBCOMMANDS = COMMITTING | {"checkout", "switch", "reset", "branch", "update-ref", "push", "fetch"}
 KEEP = object()  # a checkout or switch that leaves the branch where it was
 
 
@@ -302,13 +327,38 @@ def has_branch(where, git_dir, name):
         return False
 
 
-def resolves(where, git_dir, name):
+def rev_parse(where, git_dir, *args):
+    """The one-line output of `git rev-parse ARGS`, or None when git fails."""
     base = ["git", "--git-dir=" + git_dir] if git_dir else ["git", "-C", where]
     try:
-        return subprocess.run(base + ["rev-parse", "--verify", "--quiet", name + "^{commit}"], timeout=5,
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+        out = subprocess.run(base + ["rev-parse"] + list(args), timeout=5, stdout=subprocess.PIPE,
+                             stderr=subprocess.DEVNULL, universal_newlines=True)
     except (OSError, subprocess.SubprocessError):
-        return False
+        return None
+    return out.stdout.strip() if out.returncode == 0 and out.stdout.strip() else None
+
+
+def commit_of(where, git_dir, name):
+    """The commit a name resolves to, or None."""
+    return rev_parse(where, git_dir, "--verify", "--quiet", name + "^{commit}")
+
+
+def repo_key(where, git_dir):
+    """One key per repository (its absolute git dir), so a `cd` into a subfolder keeps the same HEAD."""
+    return git_dir or rev_parse(where, None, "--absolute-git-dir") or where
+
+
+def real_subcommand(where, git_dir, sub, rest, inline):
+    """(subcommand, rest) with a git alias of a built-in followed, so `git co exp/a` is a checkout."""
+    for _ in range(3):
+        if sub in KNOWN_SUBCOMMANDS:
+            break
+        value = dict(configured_aliases(where, git_dir), **inline).get(sub)
+        if not value or value.startswith("!"):
+            break
+        words = value.split()
+        sub, rest = words[0], words[1:] + list(rest)
+    return sub, rest
 
 
 def switch_target(where, git_dir, sub, rest):
@@ -329,6 +379,9 @@ def switch_target(where, git_dir, sub, rest):
             continue
         if word in ("-d", "--detach"):
             detach = True
+        elif word == "-":  # the previous branch
+            previous = rev_parse(where, git_dir, "--abbrev-ref", "@{-1}")
+            positional.append(previous or word)
         elif not word.startswith("-"):
             positional.append(word)
         i += 1
@@ -372,8 +425,11 @@ def ref_moves(where, git_dir, sub, rest, branch, frozen):
         targets = [spec.lstrip("+").split(":")[-1] for spec in positional[1:] if ":" in spec]
         return [name for name in frozen if name in targets or "refs/heads/" + name in targets]
     elif sub == "reset" and branch in frozen:
-        target = positional[0] if positional else "HEAD"
-        return [branch] if target != "HEAD" and resolves(where, git_dir, target) else []
+        # `reset COMMIT -- PATH`, `reset COMMIT PATH` and `reset -p` restore files: HEAD stays
+        paths = len(positional) > 1 or ("--" in rest and rest.index("--") < len(rest) - 1) \
+            or flags & {"-p", "--patch", "--pathspec-from-file"}
+        target = commit_of(where, git_dir, positional[0]) if positional and not paths else None
+        return [branch] if target and target != commit_of(where, git_dir, "HEAD") else []
     elif sub in ("checkout", "switch"):
         name, forced = switch_target(where, git_dir, sub, rest)
         return [name] if forced and name in frozen else []
@@ -489,7 +545,8 @@ def tool_hook(event, mode, root):
     if frozen and "git" in command:
         heads = {}  # repository -> the branch HEAD is on after a checkout or switch earlier in this command
         for where, git_dir, sub, rest, inline in git_calls(command, cwd):
-            key = git_dir or where
+            key = repo_key(where, git_dir)
+            sub, rest = real_subcommand(where, git_dir, sub, rest, inline)
             branch = heads[key] if key in heads else current_branch(where, git_dir)
             if branch in frozen and makes_commit(where, git_dir, sub, rest, inline):
                 problems.append("`git {}` on {}, which is frozen: a run answered that node. Add a child node "
@@ -629,8 +686,8 @@ def _stamp(path):
 
 def evaluator_hasher(root, deadline, skipped):
     """A hasher for `evaluator_drift` that stays inside the Stop budget. A file whose size and mtime match the last
-    hash it took is not read again. A file it cannot finish before `deadline` is added to `skipped` and left
-    unchecked (None). The cache is `loop_guard_hashes.json`, written by `save()`."""
+    hash it took is not read again. A file it cannot finish before `deadline` is added to `skipped`, left
+    unchecked (None) and remembered as too big for its size and mtime, so the next Stop skips it at no cost. The cache is `loop_guard_hashes.json`, written by `save()`."""
     import hashlib
     path = os.path.join(root, STATE_DIR, HASHES)
     try:
@@ -645,12 +702,19 @@ def evaluator_hasher(root, deadline, skipped):
         stat = os.stat(file)
         entry = cache.get(file)
         if isinstance(entry, list) and entry[:2] == [stat.st_size, stat.st_mtime_ns]:
+            if entry[2] is None:  # too big for one Stop, as it stands: do not spend the budget on it again
+                skipped.append(file)
             return entry[2]
+        if time.monotonic() > deadline:  # an earlier file used the budget: try this one at the next Stop
+            skipped.append(file)
+            return None
         digest = hashlib.sha256()
         with open(file, "rb") as handle:
             for chunk in iter(lambda: handle.read(1 << 20), b""):
                 if time.monotonic() > deadline:
                     skipped.append(file)
+                    cache[file] = [stat.st_size, stat.st_mtime_ns, None]
+                    changed.append(file)
                     return None
                 digest.update(chunk)
         cache[file] = [stat.st_size, stat.st_mtime_ns, digest.hexdigest()]
@@ -678,7 +742,8 @@ def stop_hook(event, mode, root, pending=None):
     deadline = time.monotonic() + STOP_BUDGET
     trees, module = trees_of(root)
     loop_lines, drift_lines, unhashed = [], [], []
-    hasher, save_hashes = evaluator_hasher(root, deadline, unhashed)
+    # hashing gets half the budget, so the method runs' stop-check still has time at every Stop
+    hasher, save_hashes = evaluator_hasher(root, time.monotonic() + STOP_BUDGET / 2, unhashed)
 
     def fresh(key, fingerprint):
         """True when this state was not reported before; queues it (or the clearing of the key) for recording."""
