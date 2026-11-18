@@ -13,7 +13,7 @@ A **primary source** owns the claim. A **lead** points to one. Follow every lead
 
 ## Tools
 
-- Papers: PubMed, Europe PMC and bioRxiv tools first, then web search. Read the abstract and the passage you cite. A preprint is `medium` at best, and its References line says preprint.
+- Papers: follow `lit-policy.md` (PubMed, bioRxiv and Consensus tools, one window, a retrieval log). Europe PMC and web search are fallbacks. Read the abstract and the passage you cite. A preprint is `medium` at best, and its References line says preprint.
 - Code and docs: fetch the page or file for the pinned version. A docs URL that says `stable` or `latest` is not a pin: find the versioned page, or note the date read.
 - Records: UniProt, Ensembl, Open Targets and similar tools. Copy the value and the record's release or date.
 

@@ -29,7 +29,7 @@ GROUPS = [
     ("I am exploring", ["prototype-analysis", "iterate", "package-loop", "plot-first", "check-first"]),
     ("Something looks wrong", ["diagnose-result", "verify", "track-changes"]),
     ("I want to report", ["analysis-report", "verify", "manuscript-audit"]),
-    ("I want the structure cleaner", ["improve-structure", "skill-style", "harden"]),
+    ("I want the structure cleaner", ["improve-structure", "skill-style", "harden", "reflect"]),
 ]
 
 # Typed words the gate answers, shown instead of the slash form.

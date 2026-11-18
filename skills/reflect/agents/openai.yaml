@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Reflect"
+  short_description: "Turn a work stretch into approved learnings"
+  default_prompt: "Use $mycelium-extra:reflect to review this work stretch, propose learnings and skill edits, and record the ones I accept in .living/learnings.md."
+policy:
+  allow_implicit_invocation: false

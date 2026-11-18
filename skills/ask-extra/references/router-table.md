@@ -58,3 +58,4 @@
 | `/mycelium-extra:improve-structure` | Review how one analysis folder or lab repo is organised and propose up to five deepening candidates, then hand the pick to grill. |
 | `/mycelium-extra:skill-style` | Write or audit a document an agent reads (skill, AGENTS.md, CLAUDE.md, reference, hook notice); includes a read-only audit of the plugin's skills. |
 | `/mycelium-extra:harden` | Ship one Mycelium learning's structural_mitigation_candidate as a real test, then mark the learning structural. |
+| `/mycelium-extra:reflect` | Turn a finished work stretch into proposed learnings and skill edits, then record the ones you accept in .living/learnings.md. |

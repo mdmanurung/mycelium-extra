@@ -2,7 +2,7 @@
 
     <plugin>/hooks/mxpy <plugin>/hooks/confirm_write.py prepare --kind KIND --target PATH [--target PATH ...] [--root DIR]
 
-KIND is verify-write, harden, decision-status or idea-triage. Each --target is a repository path the write will
+KIND is verify-write, harden, decision-status, idea-triage or reflect. Each --target is a repository path the write will
 touch (for verify-write, the analysis folder). Writes `.mycelium-extra/write-pending/<id>.json` and prints the
 line the user types as a prompt of its own. The gate, not this script, records the consent
 (`write-consent/<id>.json`); until it does, the gate denies the write. Cooperative, like `send packet`.
@@ -16,7 +16,7 @@ import time
 
 from stateio import write
 
-KINDS = ("verify-write", "harden", "decision-status", "idea-triage")
+KINDS = ("verify-write", "harden", "decision-status", "idea-triage", "reflect")
 
 
 def find_root(start):

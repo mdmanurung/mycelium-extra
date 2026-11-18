@@ -3,6 +3,8 @@
 Run: <skill-dir>/../../hooks/mxpy - <note.md> [--ids] < <skill-dir>/scripts/check_note.py
 Exit 0 when the note fits the format, 1 when it does not or cannot be read. Stdlib only.
 `--ids` also prints each DOI, PMID and arXiv id in the References section.
+A DOI, PMID or arXiv id on a References line must also appear in the `## Retrieval log` section
+(references/lit-policy.md), and that section needs a `Window:` line.
 """
 
 import re
@@ -17,6 +19,7 @@ SOURCE_ID = re.compile(r"\bS\d+\b")
 DOI = re.compile(r"\b10\.\d{4,9}/[^\s,;)>\]]+")
 PMID = re.compile(r"\bPMID:?\s*(\d+)", re.I)
 ARXIV = re.compile(r"\barXiv:?\s*(\d{4}\.\d{4,5})", re.I)
+LOG_SECTION = "Retrieval log"
 # A version, release, year or date. A bare number, a DOI, a PMID or an arXiv id does not count.
 VERSION = re.compile(r"\b(?:19|20)\d{2}\b|\b\d+\.\d+|\b(?:v|release|build|rel\.?)\s*\d+\b|\b[A-Z]{2,}\d{4,}\b", re.I)
 
@@ -26,6 +29,12 @@ def has_version(text):
     for pattern in (DOI, PMID, ARXIV):
         text = pattern.sub(" ", text)
     return bool(VERSION.search(text))
+
+
+def normal_id(kind, value):
+    """Lower-case form of an id, so a log line and a reference line compare equal."""
+    value = value.strip().rstrip(".,;:").lower()
+    return value
 
 
 def split_sections(lines):
@@ -101,6 +110,7 @@ def check(text):
         ids += [(ident, "doi", m.group().rstrip(".")) for m in DOI.finditer(rest)]
         ids += [(ident, "pmid", m.group(1)) for m in PMID.finditer(rest)]
         ids += [(ident, "arxiv", m.group(1)) for m in ARXIV.finditer(rest)]
+    problems += check_log(sections, ids)
     if "References" in sections and not defined:
         problems.append("`## References` defines no source (write lines that start `S1`, `S2`, ...)")
 
@@ -140,6 +150,32 @@ def check(text):
                     if ref not in defined:
                         problems.append("line {}: source {} is not defined in References".format(number, ref))
     return problems, ids
+
+
+def check_log(sections, ids):
+    """Problems with the retrieval log: a cited id the log never shows, or no Window line."""
+    problems = []
+    if LOG_SECTION not in sections:
+        if ids:
+            problems.append("missing section `## {}`: it must list each cited DOI, PMID and arXiv "
+                            "id ({})".format(LOG_SECTION, ", ".join(sorted({i[2] for i in ids}))))
+        return problems
+    start, rows = sections[LOG_SECTION]
+    if "References" in sections and start < sections["References"][0]:
+        problems.append("section `## {}` must come after `## References`".format(LOG_SECTION))
+    text = "\n".join(line for _, line in rows)
+    if not re.search(r"^\s*Window:[ \t]*\S", text, re.M | re.I):
+        problems.append("`## {}` has no `Window:` line (write `Window: none` when no window was set)".format(LOG_SECTION))
+    logged = {normal_id("doi", m.group()) for m in DOI.finditer(text)}
+    logged |= {m.group(1) for m in PMID.finditer(text)}
+    logged |= {m.group(1).lower() for m in ARXIV.finditer(text)}
+    for ident, kind, value in ids:
+        key = normal_id(kind, value)
+        if key in logged:
+            continue
+        problems.append("reference {} cites {} {}, which is not in the `## {}`".format(
+            ident, kind.upper() if kind != "arxiv" else "arXiv", value, LOG_SECTION))
+    return problems
 
 
 def main(argv):

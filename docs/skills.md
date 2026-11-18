@@ -30,6 +30,7 @@ This is a task map, not a list of commands to execute in sequence. Read the skil
 | Try variants on one fixed command and keep or drop each | `/mycelium-extra:iterate` |
 | Develop a package in small units, each ending on a green check | `/mycelium-extra:package-loop` |
 | Get a sourced answer in the background | `/mycelium-extra:research-note` |
+| Turn a finished stretch of work into approved learnings | `/mycelium-extra:reflect` |
 | Chart a program too big for one session | `/mycelium-extra:analysis-map` |
 | Walk through cluster setup steps only you can do | `/mycelium-extra:setup-wizard` |
 | Get the last message again in plain words | `/mycelium-extra:re-pitch` |
@@ -140,6 +141,10 @@ Runs a tree of experiments on one fixed command: a git branch per node, frozen o
 ## package-loop
 
 `iterate` for a package: the check (`R CMD check`, `devtools::check()`, `pytest`, `ruff`) is the readout, each node is one unit that ends green, and a blast-radius step runs before a release. `check_summary.py` turns check output into one readout line. See [package-loop](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/package-loop.md).
+
+## reflect
+
+Reviews one stretch of work, proposes learnings and skill edits, and appends the ones you accept to `.living/learnings.md` after you confirm. It edits no skill. See [reflect](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/reflect.md).
 
 ## prototype-analysis
 

@@ -37,6 +37,9 @@ class CheckNote(unittest.TestCase):
             "bad_missing_section.md": "missing section `## Not established`",
             "bad_unpinned_reference.md": "reference S1 has no version",
             "bad_long_answer.md": "format allows two",
+            "bad_no_log.md": "missing section `## Retrieval log`",
+            "bad_id_not_logged.md": "reference S2 cites DOI 10.1016/j.cell.2019.05.031, which is not in the `## Retrieval log`",
+            "bad_no_window.md": "has no `Window:` line",
         }
         for name, reason in cases.items():
             with self.subTest(name):
@@ -101,6 +104,47 @@ class CheckNote(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("cannot read", out)
 
+    def test_log_matches_ids_ignoring_case_and_trailing_punctuation(self):
+        code, out = self.edited("kept doi:10.1016/j.cell.2019.05.031", "kept DOI 10.1016/J.CELL.2019.05.031.")
+        self.assertEqual(code, 0, out)
+
+    def test_pmid_and_arxiv_must_be_logged(self):
+        base = "- S2 Stuart T, Comprehensive integration of single-cell data. Cell 2019. doi:10.1016/j.cell.2019.05.031"
+        pm = base + " PMID 31178118 arXiv:1907.12345"
+        code, out = self.edited(base, pm)
+        self.assertEqual(code, 1, out)
+        self.assertIn("cites PMID 31178118", out)
+        self.assertIn("cites arXiv 1907.12345", out)
+        code, out = self.edited("kept doi:10.1016/j.cell.2019.05.031", "kept doi:10.1016/j.cell.2019.05.031, PMID 31178118, 1907.12345 arXiv:1907.12345")
+        self.assertEqual(code, 0, out)
+        code, out = self.edited(base, pm.replace("arXiv:1907.12345", ""))
+        self.assertEqual(code, 1, out)
+        self.assertIn("cites PMID 31178118", out)
+
+    def test_doi_suffix_in_log_is_not_a_pmid(self):
+        base = "- S2 Stuart T, Comprehensive integration of single-cell data. Cell 2019. doi:10.1016/j.cell.2019.05.031"
+        code, out = self.edited(
+            "kept doi:10.1016/j.cell.2019.05.031",
+            "kept doi:10.1016/j.cell.2019.05.031, doi:10.1101/2020.01.01.123456",
+        )
+        self.assertEqual(code, 0, out)
+        code, out = self.edited(base, base + " PMID 123456")
+        self.assertEqual(code, 1, out)
+        self.assertIn("cites PMID 123456", out)
+
+    def test_log_before_references_fails(self):
+        with open(fixture("good.md"), encoding="utf-8") as handle:
+            text = handle.read()
+        a, b = text.index("## References"), text.index("## Retrieval log")
+        swapped = text[:a] + text[b:] + "\n" + text[a:b]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "n.md")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(swapped)
+            code, out = run(path)
+        self.assertEqual(code, 1, out)
+        self.assertIn("must come after `## References`", out)
+
     def test_ids_lists_identifiers(self):
         code, out = run(fixture("good.md"), "--ids")
         self.assertEqual(code, 0)
@@ -129,7 +173,7 @@ class SkillFiles(unittest.TestCase):
             self.assertIn(key + ":", text)
 
     def test_pointers_exist(self):
-        for name in ("agent-brief.md", "note-format.md", "sources.md"):
+        for name in ("agent-brief.md", "note-format.md", "sources.md", "lit-policy.md"):
             self.assertTrue(os.path.isfile(os.path.join(SKILL, "references", name)), name)
 
 

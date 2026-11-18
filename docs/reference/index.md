@@ -26,6 +26,7 @@ Every skill is a slash command in Claude Code (`/mycelium-extra:<name>`), a `$` 
 | [questionnaire](skills/questionnaire.md) | Turn questions only a PI or collaborator can answer into a file to send | `questionnaire-<slug>.md` |
 | [handoff](skills/handoff.md) | Write `HANDOFF.md` for a fresh session | `HANDOFF.md` |
 | [harden](skills/harden.md) | Ship a learning's check as a test | a test file and one `.living/learnings.md` entry, after you confirm |
+| [reflect](skills/reflect.md) | Turn a finished stretch of work into approved learnings | `.living/learnings.md` entries, after you confirm |
 
 ## Gate and files
 
