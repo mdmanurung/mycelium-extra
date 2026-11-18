@@ -28,7 +28,7 @@ The run command, the readout, the repair cap and the stop rule are impactful cho
 | `stop --reason user\|blocker\|rule` | Records that the loop ended. |
 | `status`, `summary`, `frozen` | Read the replay: nodes with state, one line per node, the frozen branches. `status --json` for raw output. |
 | `freeze-evaluator`, `check-evaluator`, `arena` | Method mode only. See the next section. |
-| `stop-check` | Exit 0: the stop rule is met or a stop is recorded. Exit 3: not yet, or a plan row (run command, readout, repair cap, stop rule) is missing. A node added after a recorded stop ends the stop. Exit 2: no tree, or a line that is not an event. |
+| `stop-check` | Exit 0: the stop rule is met or a stop is recorded. Exit 3: not yet, or a plan row (run command, readout, repair cap, stop rule) is missing. A stop rule given only as words (`--stop-rule` with no `--stop-after`) cannot be judged by `tree.py`: exit 3 until the user says it is met and `stop --reason rule` is recorded. A node added after a recorded stop ends the stop. Exit 2: no tree, or a line that is not an event. |
 
 The stop rule counts the answered nodes in a row, newest last, that were not `better`. It is met when the count reaches the number you set. `same` counts with `worse`.
 
@@ -41,15 +41,15 @@ Method mode has five user rows: the run command, the readout, the repair cap, th
 | Command | What it does |
 |---|---|
 | `add --kind baseline\|sanity\|candidate` | A node's role. The root is usually the baseline. A sanity node is a constant, shuffled-label or no-signal run. |
-| `freeze-evaluator [--file PATH ...]` | Writes SHA-256 hashes of the card and each file (a folder hashes every file in it except `__pycache__` and `.pyc`; a file added later shows as `added`) as an `evaluator` event. A second freeze needs `--refreeze --note`. |
+| `freeze-evaluator [--file PATH ...]` | Writes SHA-256 hashes of the card and each file (a folder hashes every file in it except `__pycache__` and `.pyc`; a file added later shows as `added`) as an `evaluator` event. A folder behind a symlink is followed; a dangling link is refused. A second freeze needs `--refreeze --note` and keeps the files and folders of the first. A card changed with `plan --card` after the freeze shows as drift until you refreeze. |
 | `check-evaluator` | Exit 0: every hashed file matches. Exit 3: one changed or is gone, or nothing is frozen. Exit 2: no tree. |
 | `arena SLUG SLUG ... --winner SLUG` | Records a comparison of sibling candidates on the rubric (`plan --rubric`, a `user` row). Refuses a rubric set after the siblings' first run. |
 
-Enforced by `tree.py`: no run before the evaluator is frozen; a run or an answer is refused while a hashed file differs; a candidate answer is refused until a baseline and a sanity node have run; only answered candidates count toward the floor; `stop --reason rule` is refused before the floor.
+Enforced by `tree.py`: no run before the evaluator is frozen; a run or an answer is refused while a hashed file differs; a candidate answer is refused until a baseline and a sanity node have run; only answered candidates count toward the floor; `stop --reason rule` is refused before the floor, also after another stop was recorded.
 
 ## State
 
-`<analysis>/plans/tree.jsonl`, one JSON event per line, appended and never edited. A node is frozen once it has an `answer` event; the replay ignores any later `add`, `run`, `repair` or `answer` for it. The commands take a file lock, and an unfinished last line from a killed writer is dropped on the next write. A run's status comes from the cited receipt, not from a second run store.
+`<analysis>/plans/tree.jsonl`, one JSON event per line, appended and never edited. A node is frozen once it has an `answer` event; the replay ignores any later `add`, `run`, `repair` or `answer` for it. The commands take a file lock, and an unfinished last line from a killed writer is dropped on the next write. A run's status comes from the cited receipt, not from a second run store. The run event records the status seen at run time, so a clone with no receipts file replays the same states; a receipt with no integer exit status gives `unknown`, which is neither `ran` nor `failed`.
 
 ## Loop guard (opt-in)
 

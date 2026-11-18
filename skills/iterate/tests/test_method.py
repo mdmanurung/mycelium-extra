@@ -233,6 +233,109 @@ class MethodTest(unittest.TestCase):
         self.assertIn("bench/splits/b.tsv", hashes)
         self.assertEqual(self.call("freeze-evaluator", "--file", "bench/nope", "--refreeze", "--note", "x")[0], 1)
 
+    def raw_events(self):
+        return tree.read_events(tree.tree_path(self.analysis))
+
+    def test_refreeze_without_file_keeps_the_protected_files_and_folders(self):
+        self.root()
+        os.makedirs(os.path.join(self.analysis, "bench", "data"))
+        self.write("bench/data/y.tsv", "1\n")
+        self.call("freeze-evaluator", "--file", "bench/score.py", "--file", "bench/data")
+        self.assertEqual(self.call("freeze-evaluator", "--refreeze", "--note", "card typo, user agreed")[0], 0)
+        event = self.raw_events()[-1]
+        self.assertIn("bench/score.py", event["hashes"])
+        self.assertEqual(event["folders"], ["bench/data"])
+        self.write("bench/score.py", "print('auc 0.9')\n")
+        self.assertEqual(self.call("check-evaluator")[0], 3)
+        self.call("freeze-evaluator", "--refreeze", "--note", "scorer fixed, user agreed")
+        self.write("bench/data/new.tsv", "2\n")
+        self.assertIn("new.tsv (added)", self.call("check-evaluator")[1])
+
+    def test_refreeze_reports_a_protected_file_that_is_gone(self):
+        self.root()
+        self.freeze()
+        os.remove(os.path.join(self.analysis, "bench", "score.py"))
+        code, text = self.call("freeze-evaluator", "--refreeze", "--note", "scorer retired, user agreed")
+        self.assertEqual(code, 0)
+        self.assertIn("bench/score.py", text)
+        self.assertIn("dropped", self.raw_events()[-1]["note"])
+
+    def test_symlinked_subfolder_is_hashed_and_watched(self):
+        self.root()
+        shared = os.path.join(self.tmp, "shared", "labels")
+        os.makedirs(shared)
+        with open(os.path.join(shared, "y.tsv"), "w") as handle:
+            handle.write("1\n")
+        os.symlink(shared, os.path.join(self.analysis, "bench", "labels"))
+        os.symlink("..", os.path.join(shared, "back"))  # a link back up must not loop
+        self.call("freeze-evaluator", "--file", "bench")
+        self.assertIn("bench/labels/y.tsv", self.raw_events()[-1]["hashes"])
+        self.assertEqual(self.call("check-evaluator")[0], 0)
+        with open(os.path.join(shared, "y.tsv"), "w") as handle:
+            handle.write("2\n")
+        self.assertIn("y.tsv (changed)", self.call("check-evaluator")[1])
+        with open(os.path.join(shared, "new.tsv"), "w") as handle:
+            handle.write("3\n")
+        self.assertIn("new.tsv (added)", self.call("check-evaluator")[1])
+
+    def test_card_changed_after_the_freeze_is_drift_until_refrozen(self):
+        self.root()
+        self.freeze()
+        self.write("bench/card2.md", "metric: f1\n")
+        self.assertEqual(self.call("plan", "--card", "bench/card2.md")[0], 0)
+        code, text = self.call("check-evaluator")
+        self.assertEqual(code, 3)
+        self.assertIn("card2.md (not frozen)", text)
+        self.assertEqual(self.call("run", "base", "--exit", "0")[0], 3)
+        self.assertEqual(self.call("freeze-evaluator", "--refreeze", "--note", "new card, user agreed")[0], 0)
+        self.assertEqual(self.call("check-evaluator")[0], 0)
+        self.write("bench/card2.md", "metric: auc\n")
+        self.assertEqual(self.call("check-evaluator")[0], 3)
+
+    def test_folder_card_watches_files_added_later(self):
+        self.root(card="bench")
+        self.call("freeze-evaluator")
+        self.assertEqual(self.raw_events()[-1]["folders"], ["bench"])
+        self.write("bench/extra.md", "x\n")
+        self.assertIn("extra.md (added)", self.call("check-evaluator")[1])
+
+    def test_rule_stop_is_refused_before_the_floor_even_after_another_stop(self):
+        self.root(floor="3")
+        self.freeze()
+        self.assertEqual(self.call("stop", "--reason", "rule")[0], 3)
+        self.assertEqual(self.call("stop", "--reason", "user")[0], 0)
+        code, text = self.call("stop", "--reason", "rule")
+        self.assertEqual(code, 3)
+        self.assertIn("floor is not met", text)
+        self.assertEqual([e["reason"] for e in self.raw_events() if e["ev"] == "stop"], ["user"])
+
+    def test_dangling_link_in_a_frozen_folder_is_exit_one_not_a_traceback(self):
+        self.root()
+        os.symlink(os.path.join(self.tmp, "nowhere"), os.path.join(self.analysis, "bench", "dead"))
+        code, text = self.call("freeze-evaluator", "--file", "bench")
+        self.assertEqual(code, 1)
+        self.assertIn("bench/dead", text)
+        self.assertFalse([e for e in self.raw_events() if e["ev"] == "evaluator"])
+
+    def test_add_a_kind_with_no_tree_is_a_refusal_not_a_traceback(self):
+        for kind in ("baseline", "sanity"):
+            self.assertEqual(self.call("add", "x", "--parent", "p", "--kind", kind)[0], 1)
+
+    def test_events_missing_a_required_field_make_the_tree_unreadable(self):
+        self.root()
+        self.freeze()
+        path = tree.tree_path(self.analysis)
+        for line in ('{"ev": "answer", "node": "base"}', '{"ev": "evaluator"}',
+                     '{"ev": "evaluator", "hashes": {}, "folders": 5}', '{"ev": "arena"}'):
+            with open(path, "a") as handle:
+                handle.write(line + "\n")
+            for command in ("status", "summary", "check-evaluator", "stop-check"):
+                self.assertEqual(self.call(command)[0], 2, (line, command))
+            with open(path) as handle:
+                kept = handle.readlines()[:-1]
+            with open(path, "w") as handle:
+                handle.writelines(kept)
+
 
 if __name__ == "__main__":
     unittest.main()

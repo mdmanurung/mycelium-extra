@@ -20,7 +20,7 @@ Then write the root node from the approved rows:
 <skill-dir>/../../hooks/mxpy - --analysis analysis/<name> add <slug> --run-cmd "<cmd>" --readout "<name>" --repair-cap <N> --stop-after <N> --stop-rule "<the row's words>" < <skill-dir>/scripts/tree.py
 ```
 
-Done when `tree.py status` shows all four rows and no `not set`. A missing row makes `stop-check` exit 3 and name the row to ask for. Once the user confirms a missing row, or a changed one such as a higher repair cap, record it with `tree.py plan --<row> ...`.
+Done when `tree.py status` shows all four rows and no `not set`. A stop rule of another shape (a metric target, a time budget) goes in `--stop-rule` with no `--stop-after`; `tree.py` cannot judge it, so `stop-check` exits 3 and says to ask the user. A missing row makes `stop-check` exit 3 and name the row to ask for. Once the user confirms a missing row, or a changed one such as a higher repair cap, record it with `tree.py plan --<row> ...`.
 
 ## 2. Make a node
 
@@ -28,7 +28,7 @@ One node is one git branch `exp/<slug>` in the analysis repo. Record it with `tr
 
 ## 3. Run it through the gate
 
-Commit the change on the node's branch, then run the fixed command as an explore run (`allow explore <plan hash>`). The gate pins the run command and data inputs; it does not pin node code, and `pin_scripts` re-pins an edited script with a notice. Record the run with `tree.py run <slug> --receipt <N>`, where N is the line of `.mycelium-extra/receipts.jsonl` the run wrote. With no gate, use `--exit <code>`. Done when `tree.py status` shows the run and its state, `ran` or `failed`.
+Commit the change on the node's branch, then run the fixed command as an explore run (`allow explore <plan hash>`). The gate pins the run command and data inputs; it does not pin node code, and `pin_scripts` re-pins an edited script with a notice. Record the run with `tree.py run <slug> --receipt <N>`, where N is the line of `.mycelium-extra/receipts.jsonl` the run wrote. With no gate, use `--exit <code>`. Done when `tree.py status` shows the run and its state: `ran`, `failed`, or `unknown` when the receipt has no integer exit status (ask the user how it ended; do not repair it).
 
 ## 4. Read the result from the log
 
