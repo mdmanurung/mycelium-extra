@@ -1,6 +1,6 @@
 # package-loop
 
-Develops a bioinformatics package as a loop of small units. Each unit is a node of an `iterate` tree and ends on a green check before the next starts. Ideas from pstack (cursor/plugins).
+Develops a bioinformatics package as a loop of small units. Each unit is a node of an `iterate` tree and ends on a green check before the next starts. Ideas from pstack (MIT, cursor/plugins).
 
 ## Synopsis
 

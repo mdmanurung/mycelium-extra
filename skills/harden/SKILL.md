@@ -18,7 +18,7 @@ Turn a learning the project keeps having to remember into a test that remembers 
 
 ## The correct ladder: fix at the highest level that works
 
-A repeated mistake is one that has happened twice. Before section 2, ask which level removes it, and take the highest that works. Say why each higher level did not work. Idea from pstack (cursor/plugins): correct.
+A repeated mistake is one that has happened twice. Before section 2, ask which level removes it, and take the highest that works. Say why each higher level did not work. Idea from pstack (MIT, cursor/plugins): correct.
 
 1. **Structure.** One owner for each piece of state, one supported way for each task, internals hidden so the wrong import fails, one source for any hand-synced list, old paths deleted so no agent copies them.
 2. **Types.** Make the bad state impossible to write (a class, an enum, a checked constructor).

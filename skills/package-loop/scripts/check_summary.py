@@ -74,7 +74,7 @@ def parse_pytest(lines):
         if m and PYTEST_COUNTS.search(m.group(1)) and not re.search(r"[^\d\w, ]", m.group(1)):
             counts = {}
             for n, word in PYTEST_COUNTS.findall(m.group(1)):
-                key = "errors" if word.startswith("error") else word
+                key = word + "s" if word in ("error", "warning") else word
                 counts[key] = counts.get(key, 0) + int(n)
             return counts, m.group(2)
     return None
@@ -105,7 +105,7 @@ def summarize(text, kind="auto", want_notes=False):
         if p:
             counts, secs = p
             order = ("failed", "errors", "passed", "skipped", "xfailed", "xpassed", "deselected", "rerun", "warnings")
-            shown = ["{} {}".format(counts[k], k) for k in order if k in counts]
+            shown = ["{} {}".format(counts[k], k[:-1] if counts[k] == 1 and k in ("errors", "warnings") else k) for k in order if k in counts]
             if "no tests ran" in counts:
                 shown = ["no tests ran"]
             parts.append("pytest: " + ", ".join(shown) + (" in {}s".format(secs) if secs else ""))

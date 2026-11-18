@@ -8,7 +8,7 @@ description: "Develop a bioinformatics package as a loop of small units, each en
 
 `iterate` with the package's own check as the readout. Each node is one unit of work that ends green before the next starts. Nodes, freezing, the repair cap and the stop rule come from `iterate`; read its `SKILL.md` first.
 
-Ideas from pstack (cursor/plugins; sequence-verifiable-units, test-behavior-not-implementation, blast-radius). No pstack text or code is copied.
+Ideas from pstack (MIT, cursor/plugins; sequence-verifiable-units, test-behavior-not-implementation, blast-radius). No pstack text or code is copied.
 
 ## 1. Fix the plan rows
 
@@ -23,9 +23,9 @@ Write the root node with `tree.py add` as `iterate` does. Done when `tree.py sta
 
 ## 2. One verifiable unit per node
 
-A node changes one behaviour through one seam, with the test that fails first and an expected value that does not come from the code under test. Start from a green baseline: run the check on the starting commit and record it as the root's run. Do not start the next node until this one ends green or is answered `worse` and dropped. Idea from pstack (cursor/plugins): sequence verifiable units.
+A node changes one behaviour through one seam, with the test that fails first and an expected value that does not come from the code under test. Start from a green baseline: run the check on the starting commit and record it as the root's run. Do not start the next node until this one ends green or is answered `worse` and dropped. Idea from pstack (MIT, cursor/plugins): sequence verifiable units.
 
-Write the test through the seam (an exported function, a public name), never through internals. A test that still passes when the behaviour breaks, or fails when only internals change, is fixed or deleted. Idea from pstack (cursor/plugins): test behavior, not implementation. The red-green loop is `/mattpocock-skills:tdd` where installed.
+Write the test through the seam (an exported function, a public name), never through internals. A test that still passes when the behaviour breaks, or fails when only internals change, is fixed or deleted. Idea from pstack (MIT, cursor/plugins): test behavior, not implementation. The red-green loop is `/mattpocock-skills:tdd` where installed.
 
 ## 3. Run the check and read one line
 
@@ -41,7 +41,7 @@ Quote the lines of the log that hold the counts. Every conclusion cites an inspe
 
 ## 4. Before a release: blast radius
 
-For each changed export, list its callers: `rg -n '\bname\(' .` plus `revdepcheck` where installed (R) or a search of dependent repos you own. Then find the one fact the change is safe because of, and prove it by running code: a script that calls the real function and fails loud if you are wrong. State how far each fact got: said, pointed at a line, walked step by step, or ran. Idea from pstack (cursor/plugins): blast radius.
+For each changed export, list its callers: `rg -n '\bname\(' .` plus `revdepcheck` where installed (R) or a search of dependent repos you own. Then find the one fact the change is safe because of, and prove it by running code: a script that calls the real function and fails loud if you are wrong. State how far each fact got: said, pointed at a line, walked step by step, or ran. Idea from pstack (MIT, cursor/plugins): blast radius.
 
 A new impactful choice that surfaces (a changed default, a dropped NOTE, a new dependency) is not a node. Stop and ask.
 

@@ -10,7 +10,7 @@ You type this skill; the agent does not start it on its own (`disable-model-invo
 
 ## The correct ladder
 
-Before a test is written, the skill asks which level removes the repeated mistake, and takes the highest that works: structure, then types, then a lint whose message names the fix, then a test, then docs. A docs-only fix leaves the learning `ambient-awareness`. Levels 1 to 3 change package or repository code only after you approve, never analysis code. Idea from pstack (cursor/plugins).
+Before a test is written, the skill asks which level removes the repeated mistake, and takes the highest that works: structure, then types, then a lint whose message names the fix, then a test, then docs. A docs-only fix leaves the learning `ambient-awareness`. Levels 1 to 3 change package or repository code only after you approve, never analysis code. Idea from pstack (MIT, cursor/plugins).
 
 ## Steps
 

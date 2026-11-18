@@ -17,6 +17,11 @@ def sample(name):
 
 
 class SummaryTest(unittest.TestCase):
+    def test_pytest_singular_counts(self):
+        self.assertEqual(cs.summarize("== 3 passed, 1 warning in 0.5s ==")[0], "pytest: 3 passed, 1 warning in 0.5s")
+        self.assertEqual(cs.summarize("== 1 error in 0.5s ==")[0], "pytest: 1 error in 0.5s")
+        self.assertEqual(cs.summarize("== 2 passed, 2 warnings in 0.5s ==")[0], "pytest: 2 passed, 2 warnings in 0.5s")
+
     def line(self, name, **kw):
         return cs.summarize(sample(name), **kw)[0]
 
