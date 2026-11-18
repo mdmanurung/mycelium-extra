@@ -48,7 +48,7 @@ Not on until invoked. There is no "off" command: delete `.mycelium-extra/gate.js
 
 ## What `--diagnose` reports
 
-Effective config (defaults merged with `gate.json`, invalid values flagged, unknown keys named), the events registered in `hooks.json` and `codex.json` (the OpenCode adapter is not checked), the Mycelium version and whether it is one mycelium-extra was tested with (0.6.0, 0.7.2), tool presence, the newest receipt's host and exit status, and the last gate error. Its closing note applies: a registration or a `gate.json` does not prove your host has enabled or trusted the hooks. Check `/hooks` in Codex or Claude Code and restart the session.
+Effective config (defaults merged with `gate.json`, invalid values flagged, unknown keys named; `loops` takes `off`, `warn` or `block`), the events registered in `hooks.json` and `codex.json` (the OpenCode adapter is not checked), the Mycelium version and whether it is one mycelium-extra was tested with (0.6.0, 0.7.2), tool presence, the newest receipt's host and exit status, and the last gate error. Its closing note applies: a registration or a `gate.json` does not prove your host has enabled or trusted the hooks. Check `/hooks` in Codex or Claude Code and restart the session.
 
 ## Confirmation
 

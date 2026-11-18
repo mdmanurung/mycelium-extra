@@ -17,6 +17,7 @@ To see the effective values, with invalid ones flagged, run `init --diagnose` ([
 | `gated_paths` | list of strings | `["analysis/**", "nbs/**"]` | globs relative to the project root | Scripts under these paths cannot run until an approved plan names them in its Step column. |
 | `gated_commands` | list of strings | `["sbatch", "snakemake", "nextflow"]` | command words | These launchers cannot run until an approved plan's table contains the command word. |
 | `approval_hours` | number | `24` | 0 or more | How long an approval covers runs. `0` expires every approval at once. Approval files are never deleted. |
+| `loops` | string | `"off"` | `"off"`, `"warn"` or `"block"` | Turns on the loop guard for the `iterate` skill's experiment tree (`plans/tree.jsonl`). `"block"` denies a `git commit` on a frozen `exp/*` branch and the fixed run command run behind an env var, and blocks the end of a turn once while the stop rule is not met. `"warn"` only notes them. Works with the gate on or off. Any other value is off. Read by `hooks/loop_guard.py`, not by the gate; `init --diagnose` flags an invalid value. |
 | `on_error` | string | `"allow"` | `"allow"` or `"deny"` | What the pre-run hook does when the gate itself breaks. `"allow"` fails open and says so. `"deny"` blocks every tool call the gate could not check, except one the host killed at its timeout. Anything else allows, with a notice. |
 | `pin_hash_mb` | number | `200` | 0 or more | Megabytes of input files hashed per hook call. Past it, a file is pinned by size and modification time. |
 | `pin_seconds` | number | `5` | 0 or more | Seconds the pin check may take. `0` skips hashing. A check cut short lets the run go ahead and names the inputs it did not re-check. |
@@ -39,7 +40,7 @@ To see the effective values, with invalid ones flagged, run `init --diagnose` ([
 - **`card_coverage`.** The shipped default changed from off to on in 0.14.0. Add `"card_coverage": false` to get the old card back.
 - **`lint_*` keys and `card_lint`.** They call scilintr when it is installed. When scilintr cannot check something, the gate says so and does not report a clean result. Paths of the linters come from `.mycelium-extra/tools.json` when `init --tools` recorded them, else `PATH`.
 - **`pin_hash_mb` and verify.** `verify` has its own budgets, `--hash-mb` (default 2000) and `--seconds` (default 120). They are command-line options of `verify`, not keys of `gate.json` ([verify](skills/verify.md)).
-- **Friction is opt-in.** `lint_before_run`, `lint_before_stop`, `checkpoint_steps`, `max_runs_per_approval`, `focus_notices`, `confirm_writes` and `on_error: "deny"` are all off or unset by default.
+- **Friction is opt-in.** `lint_before_run`, `lint_before_stop`, `loops`, `checkpoint_steps`, `max_runs_per_approval`, `focus_notices`, `confirm_writes` and `on_error: "deny"` are all off or unset by default.
 
 ### What the gate itself validates
 
