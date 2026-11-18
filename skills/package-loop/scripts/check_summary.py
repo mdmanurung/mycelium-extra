@@ -113,7 +113,7 @@ def summarize(text, kind="auto", want_notes=False):
     if kind in ("auto", "ruff"):
         k = parse_ruff(lines)
         if k is not None:
-            parts.append("ruff: clean" if k == 0 else "ruff: {} errors".format(k))
+            parts.append("ruff: clean" if k == 0 else "ruff: {} error{}".format(k, "" if k == 1 else "s"))
             bad = bad or k > 0
     return "; ".join(parts), (notes if want_notes else []), bad
 

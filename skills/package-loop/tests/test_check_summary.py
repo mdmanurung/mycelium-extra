@@ -65,6 +65,7 @@ class SummaryTest(unittest.TestCase):
     def test_ruff(self):
         self.assertEqual(self.line("ruff_found.txt"), "ruff: 2 errors")
         self.assertEqual(self.line("ruff_clean.txt"), "ruff: clean")
+        self.assertEqual(cs.summarize("Found 1 error.\n", kind="ruff")[0], "ruff: 1 error")
 
     def test_joined_parts(self):
         text = sample("pytest_quiet_pass.txt") + sample("ruff_clean.txt")
