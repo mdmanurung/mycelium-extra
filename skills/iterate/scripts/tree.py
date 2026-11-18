@@ -297,7 +297,13 @@ def evaluator_drift(tree, analysis):
             drift.append((path, "missing"))
         elif file_hash(path) != digest:
             drift.append((path, "changed"))
-    return drift
+    known = set(evaluator_files(tree, analysis))
+    base = os.path.abspath(analysis)
+    for folder in (tree.get("evaluator") or {}).get("folders") or []:
+        for member in folder_members(os.path.join(base, folder)):
+            if os.path.normpath(member) not in known:
+                drift.append((os.path.normpath(member), "added"))
+    return sorted(drift)
 
 
 def find_trees(root):
@@ -588,13 +594,22 @@ def cmd_stop(args):
     return 0
 
 
+def folder_members(path):
+    """Every file under a folder, leaving out __pycache__ and .pyc files that Python rewrites by itself."""
+    members = []
+    for top, dirs, files in os.walk(path):
+        dirs[:] = [d for d in dirs if d != "__pycache__"]
+        members += [os.path.join(top, f) for f in files if not f.endswith(".pyc")]
+    return members
+
+
 def expand_files(analysis, names):
     """[(relative path, absolute path)] for each named file; a folder gives every file under it. None on a bad name."""
     found = {}
     for name in names:
         path = os.path.normpath(os.path.join(analysis, name))
         if os.path.isdir(path):
-            members = [os.path.join(top, f) for top, _dirs, files in os.walk(path) for f in files]
+            members = folder_members(path)
         elif os.path.isfile(path):
             members = [path]
         else:
@@ -621,8 +636,11 @@ def cmd_freeze_evaluator(args):
     files, bad = expand_files(args.analysis, [card] + (args.file or []))
     if files is None:
         return fail("not a file or folder: " + bad)
+    base = os.path.abspath(args.analysis)
+    folders = sorted({os.path.relpath(os.path.join(base, n), base).replace(os.sep, "/")
+                      for n in (args.file or []) if os.path.isdir(os.path.join(base, n))})
     event = {"ev": "evaluator", "hashes": {rel: file_hash(path) for rel, path in sorted(files.items())},
-             "note": args.note or ""}
+             "folders": folders, "note": args.note or ""}
     append(args.analysis, event)
     print("evaluator frozen: {} file(s) hashed (SHA-256), card {}".format(len(files), card))
     return 0

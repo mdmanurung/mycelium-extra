@@ -41,7 +41,7 @@ Method mode has five user rows: the run command, the readout, the repair cap, th
 | Command | What it does |
 |---|---|
 | `add --kind baseline\|sanity\|candidate` | A node's role. The root is usually the baseline. A sanity node is a constant, shuffled-label or no-signal run. |
-| `freeze-evaluator [--file PATH ...]` | Writes SHA-256 hashes of the card and each file (a folder hashes every file in it) as an `evaluator` event. A second freeze needs `--refreeze --note`. |
+| `freeze-evaluator [--file PATH ...]` | Writes SHA-256 hashes of the card and each file (a folder hashes every file in it except `__pycache__` and `.pyc`; a file added later shows as `added`) as an `evaluator` event. A second freeze needs `--refreeze --note`. |
 | `check-evaluator` | Exit 0: every hashed file matches. Exit 3: one changed or is gone, or nothing is frozen. Exit 2: no tree. |
 | `arena SLUG SLUG ... --winner SLUG` | Records a comparison of sibling candidates on the rubric (`plan --rubric`, a `user` row). Refuses a rubric set after the siblings' first run. |
 

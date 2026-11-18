@@ -208,6 +208,21 @@ class MethodTest(unittest.TestCase):
         self.assertIn("mode method; iteration floor: 2; benchmark card: bench/card.md; evaluator: not frozen", text)
         self.assertIn("baseline", text)
 
+    def test_folder_freeze_skips_pycache_and_sees_added_files(self):
+        self.root()
+        os.makedirs(os.path.join(self.analysis, "bench", "splits", "__pycache__"))
+        self.write("bench/splits/a.tsv", "1\n")
+        self.write("bench/splits/__pycache__/a.pyc", "x")
+        self.call("freeze-evaluator", "--file", "bench/splits")
+        hashes = tree.read_events(tree.tree_path(self.analysis))[-1]["hashes"]
+        self.assertNotIn("bench/splits/__pycache__/a.pyc", hashes)
+        self.write("bench/splits/__pycache__/a.pyc", "y")
+        self.assertEqual(self.call("check-evaluator")[0], 0)
+        self.write("bench/splits/new.tsv", "3\n")
+        code, text = self.call("check-evaluator")
+        self.assertEqual(code, 3)
+        self.assertIn("new.tsv (added)", text)
+
     def test_folder_expands_to_its_files(self):
         self.root()
         os.makedirs(os.path.join(self.analysis, "bench", "splits"))
