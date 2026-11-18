@@ -306,8 +306,9 @@ export default {
         if (reason) throw new Error(reason)
         notice = toolNotice(reply)
       }
-      if (event.tool === "shell" && existsSync(paths.loop)) {
+      if (existsSync(paths.loop)) {
         // The loop guard (hooks/loop_guard.py) is separate from the gate and silent unless gate.json sets "loops".
+        // It reads shell calls (frozen branches, the fixed command) and edit, write and patch calls (the hashed evaluator).
         const loop = await runGate(loopPaths, "tool", toolEvent(event, cwd), TIMEOUTS.tool)
         const loopReason = loop && denyReason(loop)
         if (loopReason) throw new Error(loopReason)

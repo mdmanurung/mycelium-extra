@@ -477,3 +477,27 @@ test("the loop guard blocks one Stop per turn, then lets the repeat pass", async
   await new Promise((resolve) => setTimeout(resolve, 3000))
   assert.equal(calls.prompt.length, 1, "the turn after the steer must pass")
 })
+
+test("the loop guard refuses an edit, write or patch of a hashed evaluator file", async (t) => {
+  if (!PYTHON) return t.skip("needs python3.9+")
+  const repo = loopRepo("block")
+  const analysis = join(repo, "analysis", "demo")
+  mkdirSync(join(analysis, "bench"), { recursive: true })
+  const events = [
+    { ev: "add", node: "base", branch: "exp/base", parent: null, kind: "baseline", mode: "method",
+      run_cmd: "python bench/score.py", readout: "auc", repair_cap: 2, floor: 2, card: "bench/card.md" },
+    { ev: "evaluator", hashes: { "bench/card.md": "0".repeat(64), "bench/score.py": "1".repeat(64) } },
+  ]
+  writeFileSync(join(analysis, "plans", "tree.jsonl"), events.map((e) => JSON.stringify(e)).join("\n") + "\n")
+  const score = join(analysis, "bench", "score.py")
+  const { ctx, handlers } = fakeCtx(repo)
+  await plugin.setup(ctx)
+  await assert.rejects(handlers.before[0]({ tool: "edit", input: { filePath: score }, sessionID: "s", id: "e1" }),
+    /hashed evaluator/)
+  await assert.rejects(handlers.before[0]({ tool: "write", input: { filePath: score }, sessionID: "s", id: "e2" }),
+    /hashed evaluator/)
+  const patchText = "*** Begin Patch\n*** Update File: " + score + "\n@@\n-a\n+b\n*** End Patch\n"
+  await assert.rejects(handlers.before[0]({ tool: "patch", input: { patchText }, sessionID: "s", id: "e3" }),
+    /hashed evaluator/)
+  await handlers.before[0]({ tool: "edit", input: { filePath: join(analysis, "code", "x.py") }, sessionID: "s", id: "e4" })
+})
