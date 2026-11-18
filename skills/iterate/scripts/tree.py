@@ -114,20 +114,25 @@ def read_events(path):
     return events
 
 
-def find_receipts(start):
-    """The repository's receipts.jsonl: the nearest one at or above `start`, never above the repository root (the
-    first folder with a `.git` or a `.mycelium-extra`), so another project's receipts are never read."""
+def gate_root(start):
+    """The nearest folder at or above `start` that holds `.mycelium-extra/gate.json`: the gate's own root rule
+    (`find_root` in hooks/gate.py), so the receipts read here are the ones the gate wrote. None when there is none."""
     path = os.path.abspath(start)
     while True:
-        candidate = os.path.join(path, RECEIPTS)
-        if os.path.isfile(candidate):
-            return candidate
-        if any(os.path.exists(os.path.join(path, marker)) for marker in (".git", ".mycelium-extra")):
-            return None
+        if os.path.isfile(os.path.join(path, ".mycelium-extra", "gate.json")):
+            return path
         parent = os.path.dirname(path)
         if parent == path:
             return None
         path = parent
+
+
+def find_receipts(start):
+    """The receipts.jsonl of the gate root above `start`, or None when there is no gate root or it has no receipts
+    file. No other folder is searched, so another project's receipts are never read."""
+    root = gate_root(start)
+    candidate = os.path.join(root, RECEIPTS) if root else None
+    return candidate if candidate and os.path.isfile(candidate) else None
 
 
 def receipt_line(analysis, number):
@@ -564,7 +569,10 @@ def cmd_run(args):
              "run_id": args.run_id, "receipt": args.receipt, "exit": args.exit,
              "readout_value": args.readout_value, "log": args.log}
     if args.receipt is not None and receipt_line(args.analysis, args.receipt) is None:
-        return fail("receipt line {} not found in {}".format(args.receipt, find_receipts(args.analysis) or RECEIPTS))
+        root = gate_root(args.analysis)
+        where = os.path.join(root, RECEIPTS) if root else "no .mycelium-extra/gate.json in {} or any folder above it".format(
+            os.path.abspath(args.analysis))
+        return fail("receipt line {} not found: {}".format(args.receipt, where))
     status = run_status(args.analysis, event)
     event["seen_status"] = status
     if args.receipt is not None:

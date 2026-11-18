@@ -159,6 +159,8 @@ class TreeTest(unittest.TestCase):
     def test_run_cites_a_receipt_line(self):
         state = os.path.join(self.tmp, ".mycelium-extra")
         os.makedirs(state)
+        with open(os.path.join(state, "gate.json"), "w") as handle:
+            handle.write("{}")
         with open(os.path.join(state, "receipts.jsonl"), "w") as handle:
             handle.write(json.dumps({"exit_status": 1}) + "\n" + json.dumps({"exit_status": 0}) + "\n")
         self.root()
@@ -265,9 +267,12 @@ class TreeTest(unittest.TestCase):
         codes = sorted((proc.communicate(), proc.returncode)[1] for proc in procs)
         self.assertEqual(codes, [0] + [3] * 5)
 
-    def receipts(self, *statuses):
-        state = os.path.join(self.tmp, ".mycelium-extra")
+    def receipts(self, *statuses, gate=True, base=None):
+        state = os.path.join(base or self.tmp, ".mycelium-extra")
         os.makedirs(state, exist_ok=True)
+        if gate:
+            with open(os.path.join(state, "gate.json"), "w") as handle:
+                handle.write("{}")
         with open(os.path.join(state, "receipts.jsonl"), "w") as handle:
             for status in statuses:
                 handle.write(json.dumps({"exit_status": status}) + "\n")
@@ -306,19 +311,41 @@ class TreeTest(unittest.TestCase):
         self.assertEqual((nodes["a"]["state"], nodes["b"]["state"]), ("ran", "failed"))
         self.assertEqual(self.call("answer", "a", "--outcome", "better", "--summary", "s")[0], 0)
 
-    def test_receipts_of_a_folder_above_the_repository_are_not_read(self):
-        outer = self.receipts(1)  # an unrelated project's receipts, one folder above the repository
-        repo = os.path.join(self.tmp, "repo")
-        self.analysis = os.path.join(repo, "analysis", "demo")
+    def nested_analysis(self, *parts):
+        self.analysis = os.path.join(self.tmp, *parts, "analysis", "demo")
         os.makedirs(self.analysis)
-        os.makedirs(os.path.join(repo, ".mycelium-extra"))  # the repository's own receipts are gone
         self.root()
         self.call("add", "c", "--parent", "base")
+
+    def test_receipts_are_read_from_the_gate_root_through_a_git_repo_below_it(self):
+        self.receipts(1, 0)  # G: the gate root holds gate.json and the receipts
+        os.makedirs(os.path.join(self.tmp, "sub", ".git"))  # the analysis sits in a nested git repository
+        self.nested_analysis("sub")
+        self.assertEqual(self.call("run", "c", "--receipt", "2")[0], 0)
+        self.assertEqual(tree.load(self.analysis)["nodes"]["c"]["state"], "ran")
+
+    def test_receipts_are_read_when_the_gate_root_is_not_a_git_repo(self):
+        self.receipts(1)  # H: a plain workspace folder is the gate root, the analysis is a git repo below it
+        os.makedirs(os.path.join(self.tmp, "ws", "repo", ".git"))
+        self.nested_analysis("ws", "repo")
+        self.assertEqual(self.call("run", "c", "--receipt", "1")[0], 0)
+        self.assertEqual(tree.load(self.analysis)["nodes"]["c"]["state"], "failed")
+
+    def test_a_stray_state_folder_without_gate_json_does_not_hide_the_gate_root(self):
+        self.receipts(0)  # I: an empty .mycelium-extra in the analysis folder, the real one at the root
+        self.nested_analysis("repo")
+        os.makedirs(os.path.join(self.analysis, ".mycelium-extra"))
+        self.assertEqual(self.call("run", "c", "--receipt", "1")[0], 0)
+
+    def test_receipts_with_no_gate_root_are_not_read_and_the_error_names_the_folder(self):
+        outer = self.receipts(1, gate=False)  # F: an unrelated folder's receipts, no gate.json anywhere
+        self.nested_analysis("repo")
         code, text = self.call("run", "c", "--receipt", "1")
         self.assertEqual(code, 1, text)
         self.assertEqual(tree.load(self.analysis)["nodes"]["c"]["state"], "new")
         self.assertIsNone(tree.find_receipts(self.analysis))
         self.assertTrue(os.path.isfile(outer))
+        self.assertIn(self.analysis, text)
 
     def test_old_run_event_with_no_receipt_is_unknown_not_failed(self):
         self.root()
