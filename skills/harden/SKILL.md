@@ -16,6 +16,18 @@ Turn a learning the project keeps having to remember into a test that remembers 
 - A candidate that places its check in analysis code ("In `analysis/.../x.py`, assert ...") still qualifies when the check reads a file a test can read too: show it with "(check moves to a test)". If it checks a value only the running script holds, skip it and say why: it belongs to a grill plan and a re-run.
 - Show at most five, newest first: date, title, the candidate in one line. The user picks one. If none qualifies, say so and stop.
 
+## The correct ladder: fix at the highest level that works
+
+A repeated mistake is one that has happened twice. Before section 2, ask which level removes it, and take the highest that works. Say why each higher level did not work. Idea from pstack (MIT, cursor/plugins): correct.
+
+1. **Structure.** One owner for each piece of state, one supported way for each task, internals hidden so the wrong import fails, one source for any hand-synced list, old paths deleted so no agent copies them.
+2. **Types.** Make the bad state impossible to write (a class, an enum, a checked constructor).
+3. **A lint whose message names the fix.** The error names the file, function or type to use instead. Where the bad pattern is already common, fail only when a change adds more.
+4. **A test.** Sections 2 to 4 below. It tests behaviour through a public name, and it must fail on the real past mistake.
+5. **Docs or an agent rule, last.** Only for judgment calls: nothing fails when a reader skips them.
+
+Levels 1 to 3 change package or repository code. Make that change only when the user approves it, and never in analysis code, which belongs to a grill plan and a re-run. When the choice is level 4, go on. The learning becomes `structural` only for a level 1 to 4 fix that ships and is proved on the reproduction (section 3); a docs-only fix leaves it `ambient-awareness`.
+
 ## 2. Place the test
 
 - Follow the repository's test setup: `pytest.ini`, `[tool.pytest]` in `pyproject.toml`, `tests/testthat/`, or existing `test_*.py` files and how they are run (check `README`, `AGENTS.md`, `CLAUDE.md`).

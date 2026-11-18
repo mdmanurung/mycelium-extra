@@ -28,6 +28,7 @@ This is a task map, not a list of commands to execute in sequence. Read the skil
 | Fix the words of an analysis, log exploratory loops | `/mycelium-extra:glossary` |
 | Test a method or panel before a plan commits to it | `/mycelium-extra:prototype-analysis` |
 | Try variants on one fixed command and keep or drop each | `/mycelium-extra:iterate` |
+| Develop a package in small units, each ending on a green check | `/mycelium-extra:package-loop` |
 | Get a sourced answer in the background | `/mycelium-extra:research-note` |
 | Chart a program too big for one session | `/mycelium-extra:analysis-map` |
 | Walk through cluster setup steps only you can do | `/mycelium-extra:setup-wizard` |
@@ -135,6 +136,10 @@ Fixes the terms of one analysis in `GLOSSARY.md` and logs each exploratory loop 
 ## iterate
 
 Runs a tree of experiments on one fixed command: a git branch per node, frozen once a run answers it, repaired in place up to a cap you set, stopped by a rule you set. The optional `loops` key in `gate.json` turns on a guard. See [iterate](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/iterate.md).
+
+## package-loop
+
+`iterate` for a package: the check (`R CMD check`, `devtools::check()`, `pytest`, `ruff`) is the readout, each node is one unit that ends green, and a blast-radius step runs before a release. `check_summary.py` turns check output into one readout line. See [package-loop](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/package-loop.md).
 
 ## prototype-analysis
 

@@ -8,6 +8,10 @@ You type this skill; the agent does not start it on its own (`disable-model-invo
 
 `/mycelium-extra:harden` (Codex: `$mycelium-extra:harden`). No script and no flags. One learning per run.
 
+## The correct ladder
+
+Before a test is written, the skill asks which level removes the repeated mistake, and takes the highest that works: structure, then types, then a lint whose message names the fix, then a test, then docs. A docs-only fix leaves the learning `ambient-awareness`. Levels 1 to 3 change package or repository code only after you approve, never analysis code. Idea from pstack (MIT, cursor/plugins).
+
 ## Steps
 
 1. **Find a candidate.** Requires `.living/learnings.md`. Greps for `structural_mitigation_candidate`; keeps entries whose `mitigation_type` is not `structural` and whose candidate names a concrete check (a function, file, column or assertion). Shows at most five, newest first; you pick one. A candidate placed in analysis code qualifies only if a test can read the same file; it is marked "(check moves to a test)".

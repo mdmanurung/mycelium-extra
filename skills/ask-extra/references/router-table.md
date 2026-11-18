@@ -31,6 +31,7 @@
 |---|---|
 | `/mycelium-extra:prototype-analysis` | Build a throwaway prototype that answers one analytic question: does a method behave sensibly, or what should a panel look like. |
 | `/mycelium-extra:iterate` | Run a tree of experiments on one fixed command, one git branch per node, until a stop rule you chose is met. |
+| `/mycelium-extra:package-loop` | Develop a bioinformatics package as a loop of small units, each ending on a green check. |
 | `/mycelium-extra:plot-first` | Make saved, inspected plots the evidence for analysis conclusions; every conclusion links a figure, and an interpretive table needs a stated reason. |
 | `/mycelium-extra:check-first` | Write the check that would catch a wrong result before the analysis code, one step at a time. |
 

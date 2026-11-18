@@ -1,0 +1,17 @@
+══ Checking demo ═════════════════════════════════════════════════════════════
+── R CMD check results ───────────────────────────────────────── demo 0.1.0 ────
+Duration: 41.2s
+
+❯ checking examples ... ERROR
+  Running examples in ‘demo-Ex.R’ failed
+  The error most likely occurred in:
+  > aggregate_pseudobulk(counts, meta)
+  Error: donor column missing
+
+❯ checking R code for possible problems ... NOTE
+  aggregate_pseudobulk: no visible binding for global variable ‘donor’
+
+❯ checking for future file timestamps ... NOTE
+  unable to verify current time
+
+1 error ✖ | 0 warnings ✔ | 2 notes ✖
