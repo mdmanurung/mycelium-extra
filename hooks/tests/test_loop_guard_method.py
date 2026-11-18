@@ -34,9 +34,9 @@ class Base(unittest.TestCase):
         with open(os.path.join(self.root, STATE_DIR, "gate.json"), "w") as handle:
             json.dump({} if value is None else {"loops": value}, handle)
 
-    def hook(self, action, **event):
+    def hook(self, action, extra_env=None, **event):
         event.setdefault("cwd", self.root)
-        env = dict(os.environ, MYCELIUM_TUSOSKILL_SCRIPT=self.script)
+        env = dict(os.environ, MYCELIUM_TUSOSKILL_SCRIPT=self.script, **(extra_env or {}))
         out = subprocess.run([sys.executable, GUARD, action], input=json.dumps(event), stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, universal_newlines=True, env=env)
         self.assertEqual(out.returncode, 0, out.stderr)
@@ -63,6 +63,10 @@ class EvaluatorTest(Base):
         out = subprocess.run([sys.executable, TREE, "--analysis", self.analysis] + list(args),
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
+
+    def write_score(self, text):
+        with open(self.score, "w") as handle:
+            handle.write(text)
 
     def edit(self, tool, path, key="file_path", **extra):
         return self.hook("tool", tool_name=tool, tool_input={key: path}, **extra)
@@ -125,6 +129,59 @@ class EvaluatorTest(Base):
         self.assertIn("frozen evaluator changed", reply["reason"])
         self.assertIn("bench/score.py changed", reply["reason"])
         self.assertEqual(self.hook("stop", session_id="s3"), {})
+
+    def test_a_second_drift_of_the_same_file_is_reported_again(self):
+        self.write_score("print(99)\n")
+        self.assertIn("frozen evaluator changed", self.hook("stop", session_id="s")["reason"])
+        self.tree("freeze-evaluator", "--file", "bench/score.py", "--refreeze", "--note", "user agreed")
+        self.assertNotIn("frozen evaluator changed", self.hook("stop", session_id="s2").get("reason", ""))
+        self.write_score("print(100)\n")
+        self.assertIn("frozen evaluator changed", self.hook("stop", session_id="s3")["reason"])
+        self.write_score("print(101)\n")  # a third edit with no refreeze in between is a new drift as well
+        self.assertIn("frozen evaluator changed", self.hook("stop", session_id="s4")["reason"])
+
+    def test_a_state_noted_under_warn_is_still_blocked_under_block(self):
+        self.loops("warn")
+        self.write_score("print(99)\n")
+        note = self.hook("stop", session_id="s")["systemMessage"]
+        self.assertIn("research loop is not finished", note)
+        self.assertIn("frozen evaluator changed", note)
+        self.assertEqual(self.hook("stop", session_id="s2"), {})
+        self.loops("block")
+        reply = self.hook("stop", session_id="s3")
+        self.assertEqual(reply["decision"], "block")
+        self.assertIn("frozen evaluator changed", reply["reason"])
+
+    def test_hashing_stays_inside_the_stop_budget(self):
+        self.write_score("print(99)\n")
+        reply = self.hook("stop", extra_env={"MYCELIUM_LOOP_STOP_BUDGET": "0"}, session_id="s")
+        self.assertIn("no time to hash", reply["reason"])
+        self.assertIn("bench/score.py", reply["reason"])
+        self.assertNotIn("frozen evaluator changed", reply["reason"])
+        self.assertEqual(self.hook("stop", extra_env={"MYCELIUM_LOOP_STOP_BUDGET": "0"}, session_id="s2"), {})
+        reply = self.hook("stop", session_id="s3")  # with time to spare the file is hashed and the drift reported
+        self.assertIn("frozen evaluator changed", reply["reason"])
+        cache = os.path.join(self.root, STATE_DIR, "loop_guard_hashes.json")
+        with open(cache) as handle:
+            self.assertIn(self.score, json.load(handle))
+        self.assertEqual(self.hook("stop", session_id="s4"), {})  # the cached hash is used while size and mtime hold
+
+    def test_a_state_is_recorded_only_after_the_reply_is_decided(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("loop_guard_under_test", GUARD)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        sys.path.insert(0, os.path.dirname(GUARD))
+        self.addCleanup(sys.path.remove, os.path.dirname(GUARD))
+        pending = []
+        reply = module.stop_hook({"cwd": self.root}, "block", self.root, pending)
+        seen = os.path.join(self.root, STATE_DIR, "loop_guard_seen.json")
+        self.assertEqual(reply["decision"], "block")
+        self.assertFalse(os.path.exists(seen))  # a hook killed before it prints loses nothing
+        self.assertTrue(pending)
+        module.record_seen(self.root, pending)
+        self.assertTrue(os.path.exists(seen))
+        self.assertEqual(module.stop_hook({"cwd": self.root}, "block", self.root, []), {})
 
 
 class BridgeTest(Base):

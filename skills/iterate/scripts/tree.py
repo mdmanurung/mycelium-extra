@@ -289,14 +289,18 @@ def evaluator_files(tree, analysis):
     return {os.path.normpath(os.path.join(base, rel)): digest for rel, digest in (event.get("hashes") or {}).items()}
 
 
-def evaluator_drift(tree, analysis):
-    """[(path, "changed" or "missing")] for each hashed file that no longer matches its recorded hash."""
+def evaluator_drift(tree, analysis, hasher=file_hash):
+    """[(path, "changed" or "missing")] for each hashed file that no longer matches its recorded hash.
+    `hasher(path)` gives a file's hash; one that returns None (the loop guard, out of time or with a cached hash)
+    leaves that file unchecked, so it is not listed."""
     drift = []
     for path, digest in sorted(evaluator_files(tree, analysis).items()):
         if not os.path.isfile(path):
             drift.append((path, "missing"))
-        elif file_hash(path) != digest:
-            drift.append((path, "changed"))
+        else:
+            now = hasher(path)
+            if now is not None and now != digest:
+                drift.append((path, "changed"))
     known = set(evaluator_files(tree, analysis))
     base = os.path.abspath(analysis)
     for folder in (tree.get("evaluator") or {}).get("folders") or []:

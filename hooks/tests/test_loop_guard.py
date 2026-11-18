@@ -47,15 +47,15 @@ class LoopGuardTest(unittest.TestCase):
         self.tree("answer", "a", "--outcome", "worse", "--summary", "no gain")
         self.git("checkout", "-q", "-b", "exp/a")
 
-    def hook(self, action, **event):
+    def hook(self, action, env=None, **event):
         event.setdefault("cwd", self.root)
         out = subprocess.run([sys.executable, GUARD, action], input=json.dumps(event), stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE, universal_newlines=True)
+                             stderr=subprocess.PIPE, universal_newlines=True, env=env)
         self.assertEqual(out.returncode, 0, out.stderr)
         return json.loads(out.stdout) if out.stdout.strip() else {}
 
-    def bash(self, command, **extra):
-        return self.hook("tool", tool_name="Bash", tool_input={"command": command}, **extra)
+    def bash(self, command, env=None, **extra):
+        return self.hook("tool", env=env, tool_name="Bash", tool_input={"command": command}, **extra)
 
     def denied(self, reply):
         return reply.get("hookSpecificOutput", {}).get("permissionDecision") == "deny"
@@ -192,6 +192,76 @@ class LoopGuardTest(unittest.TestCase):
         self.assertEqual(self.hook("stop", session_id="s")["decision"], "block")
         self.assertEqual(self.tree("stop", "--reason", "user")[0], 0)
         self.assertEqual(self.hook("stop", session_id="s"), {})
+
+    def test_checkout_in_the_command_sets_the_branch_the_commit_lands_on(self):
+        self.freeze_a()  # HEAD is exp/a, which is frozen
+        for command in ("git checkout main && git commit -m x", "git checkout -b exp/b && git commit -m x",
+                        "git switch -c exp/c exp/a && git commit -am x", "git switch main && git merge exp/a",
+                        "git checkout main; git pull", "git -C . switch main && git -C . commit -m x"):
+            self.assertEqual(self.bash(command), {}, command)
+        self.assertTrue(self.denied(self.bash("git commit -m x && git checkout main && git commit -m y")))
+        self.git("checkout", "-q", "main")  # now the frozen branch is entered first
+        for command in ("git checkout exp/a && git commit --allow-empty -m x", "git switch exp/a; git commit -m x",
+                        "git checkout exp/a && git checkout main && git checkout exp/a && git commit -m x"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+        for command in ("git checkout exp/a && git checkout main && git commit -m x",
+                        "git checkout exp/a -- f.txt && git commit -m x", "git checkout nope && git commit -m x",
+                        "git switch --detach && git commit -m x"):
+            self.assertEqual(self.bash(command), {}, command)
+
+    def test_ref_moves_of_a_frozen_branch_are_denied(self):
+        self.freeze_a()
+        self.git("checkout", "-q", "main")
+        for command in ("git branch -f exp/a HEAD", "git update-ref refs/heads/exp/a HEAD", "git push . HEAD:exp/a",
+                        "git fetch . main:exp/a", "git fetch . +main:refs/heads/exp/a", "git checkout -B exp/a",
+                        "git switch -C exp/a main", "git branch -D exp/a", "git branch -m exp/a gone",
+                        "git checkout main && git branch -f exp/a main"):
+            reply = self.bash(command)
+            self.assertTrue(self.denied(reply), command)
+            self.assertIn("exp/a", reply["hookSpecificOutput"]["permissionDecisionReason"])
+        for command in ("git branch -f other exp/a", "git branch --list", "git branch -c exp/a copy",
+                        "git push origin HEAD:exp/a", "git update-ref refs/heads/other HEAD", "git reset --hard"):
+            self.assertEqual(self.bash(command), {}, command)
+        self.git("checkout", "-q", "exp/a")
+        self.assertTrue(self.denied(self.bash("git reset --soft main")))
+        for command in ("git reset", "git reset HEAD", "git reset --hard", "git reset -- f.txt"):
+            self.assertEqual(self.bash(command), {}, command)
+
+    def test_wrappers_and_launchers_do_not_hide_a_commit_or_an_env_prefix(self):
+        self.freeze_a()
+        for command in ("env -i git commit -m x", "sudo -u me git commit -m x", "time -p git commit -m x",
+                        "xargs git commit -m x", "srun git commit -m x", "uv run git commit -m x",
+                        "conda run -n e git commit -m x", "apptainer exec img.sif git commit -m x",
+                        "bash <<'EOF'\ngit commit -m x\nEOF", "timeout -s KILL 5 git commit -m x"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+        self.git("checkout", "-q", "main")
+        for command in ("env -i SEED=2 python code/run.py", "SEED=2 srun python code/run.py",
+                        "SEED=2 conda run -n e python code/run.py", "SEED=2 uv run python code/run.py",
+                        "SEED=2 apptainer exec img.sif python code/run.py", "SEED=2 python -u code/run.py",
+                        "cd code && SEED=2 python run.py", "SEED=2 python %s/code/run.py" % self.root):
+            self.assertTrue(self.denied(self.bash(command)), command)
+        for command in ("srun python code/run.py", "cd code && python other.py", "SEED=2 srun python code/other.py"):
+            self.assertEqual(self.bash(command), {}, command)
+
+    def test_a_bare_shell_variable_is_not_an_env_var_of_the_run(self):
+        self.freeze_a()
+        self.git("checkout", "-q", "main")
+        for command in ("LOG=run.log && python code/run.py 2>&1 | tee $LOG", "OUT=results/x; python code/run.py > $OUT",
+                        "i=0; python code/run.py", "x=$(date +%s); python code/run.py; echo $x",
+                        "rc=0; git status; python code/run.py", "(A=1; true); python code/run.py"):
+            self.assertEqual(self.bash(command), {}, command)
+        exported = dict(os.environ, MX_TEST_EXPORTED="1")
+        self.assertTrue(self.denied(self.bash("MX_TEST_EXPORTED=2; python code/run.py", env=exported)))  # reaches the child
+        self.assertTrue(self.denied(self.bash("export MX_LATER; MX_LATER=2; python code/run.py")))
+        self.assertTrue(self.denied(self.bash("export A=1; python code/run.py")))
+
+    def test_git_calls_that_commit_nothing_pass_on_a_frozen_branch(self):
+        self.freeze_a()
+        for command in ("git commit --dry-run", "git commit --help", "git pull --help", "git commit -h",
+                        "git merge --abort", "git rebase --quit"):
+            self.assertEqual(self.bash(command), {}, command)
+        self.assertTrue(self.denied(self.bash("git commit -m --help")))  # a message, not an option
+        self.assertTrue(self.denied(self.bash("git commit -m x")))
 
 
 if __name__ == "__main__":

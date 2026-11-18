@@ -5,13 +5,16 @@ approval gate is on or off, and it is separate from hooks/gate.py. State is the 
 <analysis>/plans/tree.jsonl, which skills/iterate/scripts/tree.py writes.
 
   PreToolUse Bash  a git call that commits (commit, merge, cherry-pick, revert, rebase, am, pull, or an alias
-                   of one) on a frozen exp/* branch, or the fixed run command (the root node's run command)
+                   of one) on a frozen exp/* branch (HEAD is followed through a checkout or switch earlier in
+                   the command), a call that moves a frozen branch (branch -f/-m/-d, update-ref, push . or
+                   fetch . into it, checkout -B, switch -C, reset), or the fixed run command (the root node's run command)
                    run with env vars set in front of it: denied under "block", noted under "warn".
   PreToolUse       Write, Edit, MultiEdit, NotebookEdit (apply_patch on Codex; edit, write and patch on OpenCode)
   edit tools       that name a file the method tree's `freeze-evaluator` hashed: denied under "block", noted under
                    "warn". Only these tools are checked; `tree.py check-evaluator` and the Stop hook catch the rest.
   Stop             a tree whose `stop-check` exits 3 (the stop rule or iteration floor is not met, nothing recorded
-                   as a stop), a hashed evaluator file that changed, or a tusoskill run (a state/state.json of its
+                   as a stop), a hashed evaluator file that changed (hashed inside the Stop budget, with a
+                   size+mtime cache), or a tusoskill run (a state/state.json of its
                    shape) whose own `stop-check` exits 3: blocked once per state under "block" (skipped when
                    stop_hook_active), noted under "warn". A turn that left the state unchanged since the last
                    report is not stopped again. The tusoskill script is found at
@@ -37,7 +40,8 @@ BASH_TOOLS = ("Bash", "shell", "exec_command", "shell_command")
 SEEN = "loop_guard_seen.json"
 EDIT_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit", "apply_patch", "write", "edit", "patch")
 PATCH_FILE = re.compile(r"^\*\*\* (?:Add File|Update File|Delete File|Move to):\s*(.+?)\s*$", re.M)
-STOP_BUDGET = 7  # seconds for the whole Stop handler; hooks.json and codex.json allow 10
+STOP_BUDGET = float(os.environ.get("MYCELIUM_LOOP_STOP_BUDGET", 7))  # seconds for the whole Stop handler; hooks.json and codex.json allow 10
+HASHES = "loop_guard_hashes.json"  # size, mtime and sha256 of each evaluator file the Stop handler hashed
 TUSO_TIMEOUT = 8  # seconds for one stop-check
 TUSO_ENV = "MYCELIUM_TUSOSKILL_SCRIPT"
 TUSO_SCRIPT = os.path.join("~", ".claude", "skills", "tusoskill", "scripts", "biomni_method_state.py")
@@ -112,11 +116,19 @@ def command_of(event):
 
 
 # Words that open or close a compound command, wrappers that run the next command, and git's own options.
-OPENERS = {"{", "}", "(", ")", "if", "then", "else", "elif", "fi", "do", "done", "while", "until", "!", "time",
-           "sudo"}
-PREFIX_WRAPPERS = {"env", "command", "nohup", "exec", "nice", "setsid", "timeout", "stdbuf", "ionice"}
-WRAPPER_VALUE_FLAGS = {"-u", "--unset", "-C", "--chdir", "-n", "--adjustment", "-k", "--kill-after", "-s",
-                       "--signal", "-i", "-o", "-e"}
+OPENERS = {"{", "}", "(", ")", "if", "then", "else", "elif", "fi", "do", "done", "while", "until", "!"}
+# Wrappers that run the next command. Their options that take a value (the value is not the command) come from
+# the gate's tables in hooks/shellwords.py, plus the ones listed here.
+PREFIX_WRAPPERS = {"env", "command", "nohup", "exec", "nice", "setsid", "timeout", "stdbuf", "ionice", "sudo", "time",
+                   "srun", "xargs", "uv", "uvx", "conda", "mamba", "micromamba", "pixi"}
+RUN_SUBCOMMAND = {"uv", "conda", "mamba", "micromamba", "pixi"}  # `uv run CMD`, `conda run -n e CMD`
+EXTRA_VALUE_FLAGS = {
+    "timeout": {"-k", "--kill-after", "-s", "--signal"}, "nice": {"-n", "--adjustment"},
+    "stdbuf": {"-i", "-o", "-e", "--input", "--output", "--error"},
+    "sudo": {"-u", "-g", "-h", "-p", "-C", "-D", "-r", "-t", "-U", "-R", "-T", "--user", "--group", "--host",
+             "--prompt", "--close-from", "--chdir", "--role", "--type", "--other-user", "--chroot", "--command-timeout"},
+    "time": {"-f", "--format", "-o", "--output"},
+}
 GIT_VALUE_OPTIONS = {"--git-dir", "--work-tree", "--namespace", "--super-prefix", "--config-env", "--attr-source"}
 # Subcommands that put a commit on the branch that is checked out.
 COMMITTING = {"commit", "merge", "cherry-pick", "revert", "rebase", "am", "pull"}
@@ -125,13 +137,24 @@ HARMLESS_ENV = {"PYTHONUNBUFFERED", "PYTHONDONTWRITEBYTECODE", "PYTHONIOENCODING
                 "TERM", "CUDA_VISIBLE_DEVICES"}
 
 
-def simple_commands(command, folder, env=frozenset(), depth=0):
-    """Yield (words, folder, env) for each simple command: wrappers and block words stripped, `sh -c` bodies
-    followed, `cd` tracked. `env` is the set of variable names assigned in front of the command, by `env`, by
-    an earlier `export`, or by an outer command."""
+def wrapper_value_flags(wrapper):
     import shellwords
-    env = set(env)
-    for tokens in shellwords.segments(command):
+    return shellwords.WRAPPER_OPTIONS.get(wrapper, (set(), set()))[0] | EXTRA_VALUE_FLAGS.get(wrapper, set())
+
+
+def simple_commands(command, folder, env=frozenset(), depth=0):
+    """Yield (words, folder, env) for each simple command: wrappers and block words stripped, `sh -c` bodies,
+    shell heredocs and container `exec` commands followed, `cd` tracked, and a `( ... )` subshell scoped. `env` is
+    the set of variable names assigned in front of the command, by `env`, by an earlier `export`, by a bare
+    assignment of a variable that is already exported, or by an outer command."""
+    import shellwords
+    env, exported, stack = set(env), set(), []
+    for tokens, opened, closed, heredocs, _before in shellwords.scoped_segments(command):
+        for _ in range(closed):
+            if stack:
+                folder, env = stack.pop()
+        for _ in range(opened):
+            stack.append((folder, set(env)))
         words, own = list(tokens), set()
         while words:
             word = words[0]
@@ -141,32 +164,51 @@ def simple_commands(command, folder, env=frozenset(), depth=0):
             elif word in OPENERS:
                 words.pop(0)
             elif os.path.basename(word) in PREFIX_WRAPPERS:
+                wrapper = os.path.basename(word)
                 words.pop(0)
+                if wrapper in RUN_SUBCOMMAND and words[:1] == ["run"]:
+                    words.pop(0)
+                values = wrapper_value_flags(wrapper)
                 while words and (words[0].startswith("-") or shellwords.DURATION.match(words[0])
-                                 or (word == "env" and shellwords.is_assignment(words[0]))):
+                                 or (wrapper == "env" and shellwords.is_assignment(words[0]))):
                     if shellwords.is_assignment(words[0]):
                         own.add(words[0].split("=", 1)[0])
-                    value = words[0] in WRAPPER_VALUE_FLAGS
+                    value = words[0] in values
                     words.pop(0)
                     if value and words:
                         words.pop(0)
             else:
                 break
         if not words:
-            env |= own  # a bare `A=1` sets a shell variable for the commands after it
+            # a bare `A=1` sets a shell variable for the commands after it; the child sees it only when A is
+            # already exported (by the host's environment or an earlier `export A`)
+            env |= {name for name in own if name in os.environ or name in env or name in exported}
             continue
         head = os.path.basename(words[0])
         if head in ("export", "declare", "typeset", "readonly"):
             env |= {w.split("=", 1)[0] for w in words[1:] if "=" in w}
+            if head == "export":
+                exported |= {w for w in words[1:] if w.isidentifier()}  # `export A`: a later `A=1` reaches the child
         elif head == "cd" and len(words) > 1:
             folder = os.path.normpath(os.path.join(folder, os.path.expanduser(words[1])))
         elif head in shellwords.SHELLS and depth < 4:
+            inline = False
             for i, word in enumerate(words[1:], 1):
                 if shellwords.SHELL_C.match(word) and i + 1 < len(words):
+                    inline = True
                     yield from simple_commands(words[i + 1], folder, env | own, depth + 1)
                     break
+            if not inline and any(heredocs):  # `bash <<'EOF' ... EOF` runs the heredoc as a script
+                yield from simple_commands("\n".join(heredocs), folder, env | own, depth + 1)
         elif head == "eval" and depth < 4:
             yield from simple_commands(" ".join(words[1:]), folder, env | own, depth + 1)
+        elif head in shellwords.CONTAINERS and depth < 4:  # `apptainer exec IMG CMD`: CMD runs with the host's env
+            import shlex
+            for j, word in enumerate(words[1:], 1):
+                if os.path.basename(word) == "git" or shellwords.RUNNERS.match(os.path.basename(word)):
+                    yield from simple_commands(" ".join(shlex.quote(w) for w in words[j:]), folder, env | own,
+                                               depth + 1)
+                    break
         yield words, folder, env | own
 
 
@@ -208,9 +250,31 @@ def configured_aliases(where, git_dir):
     return {pair[0][6:]: pair[1] if len(pair) > 1 else "" for pair in pairs}
 
 
+# Options whose next word is a value, so a value like `--help` in a commit message is not an option.
+VALUE_OPTIONS = {"-m", "-F", "-C", "-c", "-S", "--message", "--file", "--author", "--date", "--reuse-message",
+                 "--reedit-message", "-X", "-s", "--strategy", "--strategy-option", "--onto", "-x", "--exec"}
+# Options that make a commit, merge, rebase or pull end without a commit: abort, usage text, preview.
+NO_COMMIT_OPTIONS = {"--abort", "--quit", "--dry-run", "--help", "-h"}
+
+
+def options_of(rest):
+    """The option words of a git call, up to `--`, without the values of options that take one."""
+    found, skip = set(), False
+    for word in rest:
+        if skip:
+            skip = False
+        elif word == "--":
+            break
+        elif word in VALUE_OPTIONS:
+            skip = True
+        elif word.startswith("-"):
+            found.add(word)
+    return found
+
+
 def makes_commit(where, git_dir, sub, rest, inline):
     """True when this git call puts a commit on the checked-out branch, through an alias too."""
-    if "--abort" in rest or "--quit" in rest:
+    if options_of(rest) & NO_COMMIT_OPTIONS:
         return False
     for _ in range(3):  # an alias may name another alias
         if sub in COMMITTING:
@@ -226,18 +290,120 @@ def makes_commit(where, git_dir, sub, rest, inline):
     return False
 
 
-def same_command(words, fixed):
-    """True when `words` start with the fixed command, with python/python3 and `./x` spelled alike."""
-    import re
+KEEP = object()  # a checkout or switch that leaves the branch where it was
+
+
+def has_branch(where, git_dir, name):
+    base = ["git", "--git-dir=" + git_dir] if git_dir else ["git", "-C", where]
+    try:
+        return subprocess.run(base + ["show-ref", "--verify", "--quiet", "refs/heads/" + name], timeout=5,
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def resolves(where, git_dir, name):
+    base = ["git", "--git-dir=" + git_dir] if git_dir else ["git", "-C", where]
+    try:
+        return subprocess.run(base + ["rev-parse", "--verify", "--quiet", name + "^{commit}"], timeout=5,
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def switch_target(where, git_dir, sub, rest):
+    """(branch, forced) HEAD is on after a `git checkout` or `git switch`: the new branch's name, None when HEAD is
+    detached, or KEEP when the branch does not change (a path checkout, or a name that is not a local branch).
+    `forced` is true for -B, -C and --force-create, which reset a branch that exists."""
+    create, forced, detach, positional = None, False, False, []
+    i = 0
+    while i < len(rest):
+        word = rest[i]
+        if word == "--":
+            if sub == "checkout" and positional and not create:
+                return KEEP, False  # `git checkout BRANCH -- path` restores files
+            break
+        if word in ("-b", "-c", "--create", "--orphan", "-B", "-C", "--force-create") and i + 1 < len(rest):
+            create, forced = rest[i + 1], word in ("-B", "-C", "--force-create")
+            i += 2
+            continue
+        if word in ("-d", "--detach"):
+            detach = True
+        elif not word.startswith("-"):
+            positional.append(word)
+        i += 1
+    if create:
+        return create, forced
+    if detach:
+        return None, False
+    if positional and has_branch(where, git_dir, positional[0]):
+        return positional[0], False
+    return KEEP, False
+
+
+def ref_moves(where, git_dir, sub, rest, branch, frozen):
+    """Frozen branches this git call moves, rewrites, renames or deletes without committing: `branch -f`, `-m`, `-d`,
+    `update-ref`, `push .` and `fetch .` into the branch, a `reset` of the checked-out frozen branch to another
+    commit, and `checkout -B` or `switch -C` of it. Not covered: `rebase BASE exp/a` from another branch,
+    `symbolic-ref`, `git worktree`, and writes to `.git` by other tools."""
+    flags, positional = set(), []
+    for word in rest:
+        if word == "--":
+            break
+        if word.startswith("--"):
+            flags.add(word.split("=", 1)[0])
+        elif word.startswith("-") and len(word) > 1:
+            flags |= {"-" + letter for letter in word[1:]}
+        else:
+            positional.append(word)
+    if sub == "branch":
+        if flags & {"-m", "-M", "--move", "-d", "-D", "--delete"}:
+            hit = [name for name in positional if name in frozen]
+            if flags & {"-m", "-M", "--move"} and len(positional) == 1 and branch in frozen:
+                hit.append(branch)  # `git branch -m NEW` renames the checked-out branch
+            return hit
+        if flags & {"-c", "-C", "--copy"}:
+            return [positional[-1]] if positional and positional[-1] in frozen else []
+        if flags & {"-f", "--force"}:
+            return [positional[0]] if positional and positional[0] in frozen else []
+    elif sub == "update-ref":
+        return [name for name in frozen if "refs/heads/" + name in positional]
+    elif sub in ("push", "fetch") and positional[:1] == ["."]:
+        targets = [spec.lstrip("+").split(":")[-1] for spec in positional[1:] if ":" in spec]
+        return [name for name in frozen if name in targets or "refs/heads/" + name in targets]
+    elif sub == "reset" and branch in frozen:
+        target = positional[0] if positional else "HEAD"
+        return [branch] if target != "HEAD" and resolves(where, git_dir, target) else []
+    elif sub in ("checkout", "switch"):
+        name, forced = switch_target(where, git_dir, sub, rest)
+        return [name] if forced and name in frozen else []
+    return []
+
+
+PYTHON = re.compile(r"^python[\d.]*$")
+PYTHON_VALUE_FLAGS = {"-X", "-W"}
+
+
+def same_command(words, fixed, folder=".", cwd="."):
+    """True when `words` start with the fixed command, with python/python3 and `./x` spelled alike, an interpreter
+    option such as `python -u` skipped, and a script path read from the folder the command runs in (`cd code &&
+    python run.py`) or as an absolute path."""
+    words = list(words)
+    if len(fixed) > 1 and PYTHON.match(os.path.basename(words[0])) and PYTHON.match(fixed[0]) \
+            and not fixed[1].startswith("-"):
+        while len(words) > 1 and words[1].startswith("-"):
+            del words[1:3 if words[1] in PYTHON_VALUE_FLAGS else 2]
     if len(words) < len(fixed):
         return False
     for given, planned in zip(words, fixed):
         if given == planned:
             continue
-        if re.match(r"^python[\d.]*$", os.path.basename(given)) and re.match(r"^python[\d.]*$", planned):
+        if PYTHON.match(os.path.basename(given)) and PYTHON.match(planned):
             continue
-        if "/" in given or "/" in planned:
+        if "/" in given or "/" in planned or (os.path.splitext(given)[1] and os.path.splitext(planned)[1]):
             if os.path.normpath(given) == os.path.normpath(planned):
+                continue
+            if os.path.abspath(os.path.join(folder, given)) == os.path.abspath(os.path.join(cwd, planned)):
                 continue
         return False
     return True
@@ -245,7 +411,8 @@ def same_command(words, fixed):
 
 def env_runs(command, run_cmd, cwd="."):
     """The variable names run in front of `run_cmd` (`VAR=1 cmd`, `env VAR=1 cmd`, an earlier `export`, `sh -c`,
-    `nohup`), without the harmless display and device ones. Empty when there are none."""
+    `nohup`, `srun`, `uv run`, `conda run`, a container `exec`), without the harmless display and device ones.
+    Empty when there are none."""
     import shlex
     try:
         fixed = shlex.split(run_cmd)
@@ -254,8 +421,8 @@ def env_runs(command, run_cmd, cwd="."):
     if not fixed:
         return set()
     names = set()
-    for words, _folder, env in simple_commands(command, cwd):
-        if same_command(words, fixed):
+    for words, folder, env in simple_commands(command, cwd):
+        if same_command(words, fixed, folder, cwd):
             names |= env - HARMLESS_ENV
     return names
 
@@ -320,12 +487,21 @@ def tool_hook(event, mode, root):
             frozen[branch] = analysis
     problems = []
     if frozen and "git" in command:
+        heads = {}  # repository -> the branch HEAD is on after a checkout or switch earlier in this command
         for where, git_dir, sub, rest, inline in git_calls(command, cwd):
-            branch = current_branch(where, git_dir)
+            key = git_dir or where
+            branch = heads[key] if key in heads else current_branch(where, git_dir)
             if branch in frozen and makes_commit(where, git_dir, sub, rest, inline):
                 problems.append("`git {}` on {}, which is frozen: a run answered that node. Add a child node "
                                 "(`tree.py add SLUG --parent ...`), branch from it and commit there.".format(
                                     sub, branch))
+            for name in ref_moves(where, git_dir, sub, rest, branch, frozen):
+                problems.append("`git {}` moves {}, which is frozen: a run answered that node, so its branch stays "
+                                "as it was. Add a child node (`tree.py add SLUG --parent ...`) and branch "
+                                "from it.".format(sub, name))
+            if sub in ("checkout", "switch"):
+                moved, _forced = switch_target(where, git_dir, sub, rest)
+                heads[key] = branch if moved is KEEP else moved
     for analysis, tree in trees:
         run_cmd = (tree["plan"] or {}).get("run_cmd")
         names = env_runs(command, run_cmd, cwd) if run_cmd and "=" in command else set()
@@ -400,7 +576,7 @@ def _run_fingerprint(run):
         return None
 
 
-def tusoskill_lines(root, deadline=None):
+def tusoskill_lines(root, deadline=None, tag=""):
     """(messages, unchecked, slow) for the tusoskill runs. A run is checked once per state (fingerprint of its state
     folder), so a Stop with nothing changed does not rerun its stop-check. Each check gets at most TUSO_TIMEOUT
     seconds and none starts after `deadline` (a time.monotonic() value); runs not started are listed in `unchecked`
@@ -414,6 +590,7 @@ def tusoskill_lines(root, deadline=None):
     for run in tusoskill_runs(root):
         where = os.path.relpath(run, root) or "."
         key, fingerprint = "{}:tusoskill".format(where), _run_fingerprint(run)
+        fingerprint = None if fingerprint is None else fingerprint + tag  # a state noted under warn is new under block
         if fingerprint is None or seen_before(root, key, fingerprint, record=False):
             continue
         left = None if deadline is None else deadline - time.monotonic()
@@ -445,30 +622,103 @@ def tusoskill_lines(root, deadline=None):
     return out, unchecked, slow
 
 
-def stop_hook(event, mode, root):
+def _stamp(path):
+    stat = os.stat(path)
+    return (stat.st_size, stat.st_mtime_ns)
+
+
+def evaluator_hasher(root, deadline, skipped):
+    """A hasher for `evaluator_drift` that stays inside the Stop budget. A file whose size and mtime match the last
+    hash it took is not read again. A file it cannot finish before `deadline` is added to `skipped` and left
+    unchecked (None). The cache is `loop_guard_hashes.json`, written by `save()`."""
+    import hashlib
+    path = os.path.join(root, STATE_DIR, HASHES)
+    try:
+        with open(path, encoding="utf-8") as handle:
+            cache = json.load(handle)
+    except (OSError, ValueError):
+        cache = {}
+    cache = cache if isinstance(cache, dict) else {}
+    changed = []
+
+    def hasher(file):
+        stat = os.stat(file)
+        entry = cache.get(file)
+        if isinstance(entry, list) and entry[:2] == [stat.st_size, stat.st_mtime_ns]:
+            return entry[2]
+        digest = hashlib.sha256()
+        with open(file, "rb") as handle:
+            for chunk in iter(lambda: handle.read(1 << 20), b""):
+                if time.monotonic() > deadline:
+                    skipped.append(file)
+                    return None
+                digest.update(chunk)
+        cache[file] = [stat.st_size, stat.st_mtime_ns, digest.hexdigest()]
+        changed.append(file)
+        return cache[file][2]
+
+    def save():
+        if changed:
+            try:
+                with open(path, "w", encoding="utf-8") as handle:
+                    json.dump(cache, handle)
+            except OSError:
+                pass
+
+    return hasher, save
+
+
+def stop_hook(event, mode, root, pending=None):
+    """The Stop reply. Reported states are not recorded here: they go to `pending` as (key, fingerprint) pairs, which
+    `main` records once the reply is out, so a hook the host kills mid-run loses nothing. A fingerprint of None
+    clears the key. Fingerprints carry the mode, so a state noted under "warn" is still new under "block"."""
     if event.get("stop_hook_active"):
         return {}  # one block per turn
+    pending = [] if pending is None else pending
     deadline = time.monotonic() + STOP_BUDGET
     trees, module = trees_of(root)
-    loop_lines, drift_lines = [], []
+    loop_lines, drift_lines, unhashed = [], [], []
+    hasher, save_hashes = evaluator_hasher(root, deadline, unhashed)
+
+    def fresh(key, fingerprint):
+        """True when this state was not reported before; queues it (or the clearing of the key) for recording."""
+        pending.append((key, fingerprint))
+        return fingerprint is not None and not seen_before(root, key, fingerprint, record=False)
+
     for analysis, tree in trees:
         where = os.path.relpath(analysis, root) or "."
         try:
             stat = os.stat(module.tree_path(analysis))
-            fingerprint = "{}:{}".format(stat.st_size, stat.st_mtime_ns)
+            fingerprint = "{}:{}:{}".format(stat.st_size, stat.st_mtime_ns, mode)
         except OSError:
             continue
         code, message = module.stop_check(tree)
         # a tree is reported once per state: a turn that did not touch the loop is not stopped again
-        if code == 3 and not seen_before(root, where, fingerprint):
+        if code == 3 and fresh(where, fingerprint):
             loop_lines.append("{}: {}".format(where, message))
-        drift = [(os.path.relpath(path, root), why) for path, why in module.evaluator_drift(tree, analysis)]
-        if drift and not seen_before(root, where + ":evaluator", json.dumps(drift)):
-            drift_lines.append("{}: the frozen evaluator changed ({}). Results since then are not comparable to the "
-                               "baseline. Restore the file, or ask the user and re-freeze with `tree.py "
-                               "freeze-evaluator --refreeze --note ...`.".format(
-                                   where, ", ".join("{} {}".format(p, why) for p, why in drift)))
-    bridge, unchecked, slow = tusoskill_lines(root, deadline)
+        before = len(unhashed)
+        drift = [(os.path.relpath(path, root), why) for path, why in module.evaluator_drift(tree, analysis, hasher)]
+        if drift:
+            # the file's size and mtime join the key, so a second edit of the same file is a new drift
+            marks = [(path, why) + (_stamp(os.path.join(root, path)) if why == "changed" else ())
+                     for path, why in drift]
+            if fresh(where + ":evaluator", json.dumps([marks, mode])):
+                drift_lines.append("{}: the frozen evaluator changed ({}). Results since then are not comparable to "
+                                   "the baseline. Restore the file, or ask the user and re-freeze with `tree.py "
+                                   "freeze-evaluator --refreeze --note ...`.".format(
+                                       where, ", ".join("{} {}".format(p, why) for p, why in drift)))
+        elif len(unhashed) == before:
+            pending.append((where + ":evaluator", None))  # checked and clean: a later drift is reported again
+        if len(unhashed) > before:
+            names = sorted(os.path.relpath(path, root) for path in unhashed[before:])
+            if fresh(where + ":evaluator-unchecked", json.dumps([names, mode])):
+                drift_lines.append("{}: the Stop hook had no time to hash these frozen evaluator files: {}. They are "
+                                   "not checked here. Run `tree.py check-evaluator` yourself before you report "
+                                   "results.".format(where, ", ".join(names)))
+        else:
+            pending.append((where + ":evaluator-unchecked", None))
+    save_hashes()
+    bridge, unchecked, slow = tusoskill_lines(root, deadline, ":" + mode)
     if slow:
         bridge.append("the stop-check of these method runs took longer than the hook allows, so it is skipped until "
                       "their state changes: {}. Run tusoskill's `stop-check` for them yourself before you finish."
@@ -488,6 +738,29 @@ def stop_hook(event, mode, root):
     return {"systemMessage": text}
 
 
+def record_seen(root, pending):
+    """Write the states `stop_hook` queued: a fingerprint is recorded, None clears the key."""
+    path = os.path.join(root, STATE_DIR, SEEN)
+    try:
+        with open(path, encoding="utf-8") as handle:
+            seen = json.load(handle)
+    except (OSError, ValueError):
+        seen = {}
+    seen = seen if isinstance(seen, dict) else {}
+    before = dict(seen)
+    for key, fingerprint in pending:
+        if fingerprint is None:
+            seen.pop(key, None)
+        else:
+            seen[key] = fingerprint
+    if seen != before:
+        try:
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(seen, handle)
+        except OSError:
+            pass
+
+
 def main(argv):
     args = list(argv)
     if args[:1] == ["--host"]:
@@ -502,11 +775,17 @@ def main(argv):
         if mode == "off":
             return 0
         sys.path.insert(0, HERE)
-        reply = (tool_hook if action == "tool" else stop_hook)(event, mode, root)
+        pending = []
+        reply = tool_hook(event, mode, root) if action == "tool" else stop_hook(event, mode, root, pending)
     except Exception:
         return 0
     if reply:
         print(json.dumps(reply))
+        sys.stdout.flush()
+    try:
+        record_seen(root, pending)  # after the reply is out
+    except Exception:
+        pass
     return 0
 
 
