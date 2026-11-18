@@ -255,6 +255,63 @@ class CheckNote(unittest.TestCase):
         code, out = self.ref(self.BASE + " PMIDs 31178118, 31178119", self.LOGGED + " PMID 31178118, 31178119")
         self.assertEqual(code, 0, out)
 
+    def test_one_normalisation_covers_markdown_quotes_and_url_tails(self):
+        doi = "10.1016/j.cell.2019.05.031"
+        for log in ("kept _DOI_", "kept \u201cDOI\u201d", "kept {DOI}", "kept ~~DOI~~", "|kept|DOI|", "kept DOI!",
+                    "kept DOI \u2014 see", "kept **DOI**"):
+            with self.subTest(log):
+                code, out = self.ref(self.BASE, log.replace("DOI", "doi:" + doi))
+                self.assertEqual(code, 0, out)
+        code, out = self.ref("- S2 Stuart T 2019 doi:10.1002/a_b", "kept doi:10.1002/a\\_b")
+        self.assertEqual(code, 0, out)
+        urls = {"https://www.biorxiv.org/content/10.64898/2025.12.01.691234v1": "10.64898/2025.12.01.691234",
+                "https://doi.org/" + doi + "/": doi, "https://doi.org/" + doi + "&x=1": doi,
+                "_https://doi.org/" + doi + "_": doi,
+                "https://www.biorxiv.org/content/10.1101/2020.01.01.123456v1/": "10.1101/2020.01.01.123456",
+                "https://www.biorxiv.org/content/10.1101/2020.01.01.123456v1.full.pdf+html":
+                    "10.1101/2020.01.01.123456",
+                "https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0012345&type=printable":
+                    "10.1371/journal.pone.0012345",
+                "https://peerj.com/articles/10.7717/peerj.1234/supp-1": "10.7717/peerj.1234",
+                "https://onlinelibrary.wiley.com/doi/full/10.1002/abc.123/full": "10.1002/abc.123",
+                "https://link.springer.com/article/10.1007/s00018-020-1/figures/1": "10.1007/s00018-020-1"}
+        for url, wanted in urls.items():
+            with self.subTest(url):
+                code, out = self.ref("- S2 Stuart T 2019, " + url, "kept doi:" + wanted)
+                self.assertEqual(code, 0, out)
+
+    def test_pmid_forms_and_lists(self):
+        tails = {"PMID: **31178119**": 0, "**PMID** 31178119": 0, "**PMID:** 31178119": 0, "PMID `31178119`": 0,
+                 "PMID [31178119](https://x.org)": 0, "PMID #31178119": 0, "PubMed ID 31178119": 0,
+                 "https://pubmed.ncbi.nlm.nih.gov/31178119/": 0, "PMID 31178118/31178119": 0,
+                 "PMIDs 31178117, 31178118, and 31178119": 0, "PMIDs:\n  - 31178118\n  - 31178119": 0,
+                 "PMID 31178118, 20190613 2019": 0, "PMID 31178118, 12345678 2019": 1}
+        for tail, wanted in tails.items():
+            with self.subTest(tail):
+                code, out = self.ref(self.BASE + " " + tail.replace("\n", "\n  "),
+                                     self.LOGGED + " PMID 31178117, 31178118, 31178119")
+                self.assertEqual(code, wanted, out)
+        code, out = self.ref(self.BASE + " PMID 31178118", self.LOGGED + " PMID 31178118, 20190613 retrieved")
+        self.assertEqual(code, 0, out)
+        code, out = self.ref(self.BASE + " PMID 20190613", self.LOGGED + " PMID 31178118, 20190613 retrieved")
+        self.assertEqual(code, 1, out)
+
+    def test_a_bioRxiv_version_is_stripped_for_any_doi_prefix_but_not_on_other_hosts(self):
+        url = "https://www.biorxiv.org/content/10.64898/2025.12.01.691234v1"
+        code, out = self.ref("- S2 Stuart T 2025, " + url, "kept doi:10.64898/2025.12.01.691234")
+        self.assertEqual(code, 0, out)
+        self.assertIn("ID S2 doi 10.64898/2025.12.01.691234\n", out)
+        code, out = self.ref("- S2 Stuart T 2025, https://x.org/doi/10.64898/2025.12.01.691234v1",
+                             "kept doi:10.64898/2025.12.01.691234")
+        self.assertEqual(code, 1, out)
+
+    def test_a_url_doi_with_an_unlisted_suffix_does_not_match_the_logged_doi(self):
+        for url, doi in (("https://x.org/doi/10.1234/a/b", "10.1234/a"),
+                         ("https://x.org/10.1111/j.1365-2958.2010.07165.x", "10.1111/j.1365-2958.2010.07165")):
+            with self.subTest(url):
+                code, out = self.ref("- S2 Stuart T 2019, " + url, "kept doi:" + doi)
+                self.assertEqual(code, 1, out)
+
     def test_verify_skips_the_retrieval_log(self):
         import importlib.util
         spec = importlib.util.spec_from_file_location(

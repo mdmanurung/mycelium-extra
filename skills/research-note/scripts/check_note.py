@@ -17,69 +17,104 @@ EMPTY = {"", "-", "--", "?", "tbd", "todo", "n/a", "na", "none yet"}
 UNSUPPORTED = "unsupported: no source"
 REF_LINE = re.compile(r"^\s*(?:[-*]\s*)?\[?(S\d+)\]?[:.)\s]\s*(.*)$")
 SOURCE_ID = re.compile(r"\bS\d+\b")
-# Parentheses stay in a DOI (`10.1016/S0140-6736(20)30183-5`); `clean_doi` drops an unbalanced `)`.
-DOI = re.compile(r"\b10\.\d{4,9}/[^\s,;>\]\"'`*<]+")
-# `PMID 1`, `PMID: 1`, `PMID 1, PMID 2`, and a list `PMID 1, 2`, `PMIDs 1 2` whose bare numbers have 7 to 9 digits, so
-# a year, a page or a count after a PMID (`PMID 31178118, 2019`, `, 12 co-authors`) is not read as another PMID.
-PMID = re.compile(r"\bPMIDs?\s*[:=]?\s*(\d+(?:(?:\s*[,;&]\s*|\s+and\s+|\s+)(?:PMID\s*[:=]?\s*\d+|\d{7,9}\b))*)", re.I)
-PMID_LABELLED = re.compile(r"\bPMIDs?\s*[:=]?\s*\d+", re.I)
+# Parentheses stay in a DOI (`10.1016/S0140-6736(20)30183-5`); `clean_doi` drops an unbalanced `)`. A table bar, a
+# brace and a dash end the match.
+DOI = re.compile(r"\b10\.\d{4,9}/[^\s,;>\]\"'`*<|{}\u2013\u2014]+")
+TRAILING = ".,;:!?-"
+# `PMID 1`, `PubMed ID: 1`, `PMID 1, PMID 2`, and a list `PMID 1, 2`, `PMIDs 1 2`, `PMIDs 1/2`, `PMIDs 1, 2, and 3`.
+# `pmids_in` keeps a bare number after the first only when it has 7 to 9 digits and is not a date (8 digits that
+# start 19 or 20), so a year, a page or a count (`PMID 31178118, 2019`, `, 12 co-authors`) ends the list.
+PMID_LABEL = r"(?:PMIDs?|PubMed\s+IDs?)"
+PMID_SEP = r"(?:\s*[,;&/]\s*(?:and\s+)?|\s+and\s+|\s+|\s*[-\u2022]\s+)"
+PMID = re.compile(r"\b" + PMID_LABEL + r"[\s:=#\[(]*\d+(?:" + PMID_SEP + r"(?:" + PMID_LABEL + r"[\s:=#\[(]*)?\d+)*", re.I)
+PMID_LABELLED = re.compile(r"\b" + PMID_LABEL + r"[\s:=#\[(]*\d+", re.I)
+PMID_URL = re.compile(r"\bpubmed\.ncbi\.nlm\.nih\.gov/(\d+)|\bncbi\.nlm\.nih\.gov/pubmed/(\d+)", re.I)
 ARXIV_ID = r"(\d{4}\.\d{4,5}|[a-z-]+(?:\.[a-z]{2})?/\d{7})(?:v\d+)?"
-ARXIV = re.compile(r"\barXiv\s*[:=]?\s*" + ARXIV_ID + r"|\barxiv\.org/(?:abs|pdf)/" + ARXIV_ID, re.I)
+ARXIV = re.compile(r"\barXiv\s*[:=]?\s*" + ARXIV_ID + r"|\barxiv\.org/(?:abs|pdf|html)/" + ARXIV_ID, re.I)
 LOG_SECTION = "Retrieval log"
 # A version, release, year or date. A bare number, a DOI, a PMID or an arXiv id does not count.
 VERSION = re.compile(r"\b(?:19|20)\d{2}\b|\b\d+\.\d+|\b(?:v|release|build|rel\.?)\s*\d+\b|\b[A-Z]{2,}\d{4,}\b", re.I)
+# The suffixes a publisher URL adds after a DOI (lit-policy.md): a file extension, a view segment, a figure or
+# supplement segment, and the publisher's own article number (6 digits or more). Nothing else matches a logged DOI.
+URL_SUFFIX = re.compile(r"(?:\.(?:full|pdf|abstract|html|xml|epub|full-text|supplementary-material))+|(?:/(?:full|"
+                        r"abstract|epdf|pdf|pdfdirect|references|citedby|figures?(?:/\d+)?|suppl?(?:info)?(?:-\d+)?|"
+                        r"\d{6,}))+")
+
+
+def normalise(text):
+    """One cleaning step for a reference line and a log line, before any id is read: Markdown emphasis, code and
+    strike markers (`*`, `_`, backtick, `~`, and a backslash before `_`), curly and straight quotes, and braces.
+    A `*`, `_` or `~` between two letters or digits stays, so a DOI such as `10.1002/a_b` keeps its underscore."""
+    text = re.sub(r"\\(?=_)", "", text)
+    text = re.sub("[`{}\"'\u2018\u2019\u201c\u201d]", "", text)
+    return re.sub(r"(?<![A-Za-z0-9])[*_~]+|[*_~]+(?![A-Za-z0-9])", "", text)
 
 
 def has_version(text):
     """True when the text names a version, release, year or date outside its identifiers."""
-    for pattern in (DOI, PMID_LABELLED, ARXIV):
+    text = normalise(text)
+    for pattern in (DOI, PMID_URL, PMID_LABELLED, ARXIV):
         text = pattern.sub(" ", text)
     return bool(VERSION.search(text))
 
 
-def clean_doi(raw):
-    """A matched DOI without the punctuation around it: a query or fragment, a trailing `.,;:`, and a
+def clean_doi(raw, in_url=False, preprint=False):  # `in_url`: any URL, so a `&` starts the next query part
+    """A matched DOI without what surrounds it: a query or fragment (and `&...` inside a URL), a trailing `.,;:!?-`
+    or `/`, a bioRxiv or medRxiv version suffix (`v1`, `v2.full`) when the DOI came from one of their URLs, and a
     closing `)` that no opening one balances."""
-    out = re.split(r"[?#]", raw, 1)[0].rstrip(".,;:")
+    out = re.split(r"[?#&]" if in_url else r"[?#]", raw, 1)[0].rstrip(TRAILING + "/")
+    if preprint:
+        out = re.sub(r"(?<=\d)v\d+(?:[./+].*)?$", "", out)
     while out.endswith(")") and out.count(")") > out.count("("):
-        out = out[:-1].rstrip(".,;:")
+        out = out[:-1].rstrip(TRAILING + "/")
     return out
 
 
+def pmids_in(region):
+    """The PMIDs of one matched list: the first number, each `PMID`-labelled number, and each bare 7 to 9 digit
+    number that is not a date, up to the first number that is none of these."""
+    found = []
+    for label, number in re.findall(r"(" + PMID_LABEL + r")?[\s:=#\[(]*(\d+)", region, re.I):
+        if found and not label and (not re.fullmatch(r"\d{7,9}", number) or re.fullmatch(r"(?:19|20)\d{6}", number)):
+            break
+        found.append(number)
+    return found
+
+
 def find_ids(text):
-    """[(kind, value, in_url)] for each DOI, PMID and arXiv id in the text. `in_url` marks a DOI inside a
-    publisher URL (not doi.org), where the match may run on into a version or path suffix."""
+    """[(kind, value, in_url)] for each DOI, PMID and arXiv id in the text, read after `normalise`. `in_url` marks a
+    DOI inside a publisher URL (not doi.org), where the match may run on into a path suffix."""
+    text = normalise(text)
     found = []
     for m in DOI.finditer(text):
         token = text[max(text.rfind(" ", 0, m.start()), text.rfind("\n", 0, m.start())) + 1:m.start()]
         in_url = "://" in token and "doi.org" not in token
-        value = clean_doi(m.group())
-        if in_url and value.startswith("10.1101/"):  # bioRxiv and medRxiv URLs end in `v1` or `v1.full`
-            value = re.sub(r"v\d+(?:\.[a-z-]+)*$", "", value)
-        found.append(("doi", value, in_url))
+        preprint = in_url and re.search(r"(?:bio|med)rxiv\.org", token, re.I) is not None
+        found.append(("doi", clean_doi(m.group(), "://" in token, preprint), in_url))
     for m in PMID.finditer(text):
-        found += [("pmid", d, False) for d in re.findall(r"\d+", m.group(1))]
+        found += [("pmid", d, False) for d in pmids_in(m.group())]
+    for m in PMID_URL.finditer(text):
+        found.append(("pmid", m.group(1) or m.group(2), False))
     for m in ARXIV.finditer(text):
         found.append(("arxiv", (m.group(1) or m.group(2)).lower(), False))
     return found
 
 
 def logged(kind, value, in_url, pool):
-    """The logged id that matches, or None. A DOI taken from a publisher URL also matches a logged DOI that is a
-    prefix of it followed by a path segment (`.../gkaa1100/6012345`) or a file extension (`.full`, `.full.pdf`)."""
+    """The logged id that matches, or None. A DOI matches the exact logged DOI. One taken from a publisher URL also
+    matches a logged DOI followed by a suffix in `URL_SUFFIX` (`.full`, `/full`, `/figures/1`, `/6012345`)."""
     if (kind, value) in pool:
         return value
     if kind == "doi" and in_url:
         for k, v in sorted(pool, key=lambda pair: -len(pair[1])):
-            if k == "doi" and value.startswith(v) and re.fullmatch(r"(?:/[a-z0-9]+)+|(?:\.[a-z]+)+", value[len(v):]):
+            if k == "doi" and value.startswith(v) and URL_SUFFIX.fullmatch(value[len(v):]):
                 return v
     return None
 
 
 def normal_id(kind, value):
     """Lower-case form of an id, so a log line and a reference line compare equal."""
-    value = value.strip().rstrip(".,;:").lower()
-    return value
+    return value.strip().rstrip(TRAILING + "/").lower()
 
 
 def split_sections(lines):
