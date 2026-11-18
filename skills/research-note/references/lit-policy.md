@@ -40,7 +40,7 @@ Difficulty: 5 (two methods compared), 1 follow-up round
 - Round 2, gap "<gap>", bioRxiv search_preprints: 8 results; kept doi:10.1101/2020.01.01.123456
 ```
 
-Every DOI, PMID and arXiv id on a `References` line must appear in this log. When the log exists, `scripts/check_note.py` fails the note for a missing id or `Window:` line. A note with no log gets a warning, so older notes still pass. A reference with only a URL or file path (docs, source code) needs no log entry.
+Every DOI, PMID and arXiv id on a `References` line must appear in this log. When the log exists, `scripts/check_note.py` fails the note for a missing id or `Window:` line. A note with no log gets a warning, so older notes still pass. A reference with only a URL or file path (docs, source code) needs no log entry. A DOI inside a publisher URL matches the bare DOI in the log. `verify --resolve-citations` skips this section, because a log line has no title or author to match.
 
 ## Do not
 

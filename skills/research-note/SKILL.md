@@ -33,7 +33,7 @@ When the agent finishes, run the format check:
 <skill-dir>/../../hooks/mxpy - <note> < <skill-dir>/scripts/check_note.py
 ```
 
-Then check the citations. With an approved plan hash, `verify` resolves every DOI, PMID and arXiv id in the note against Crossref, NCBI and arXiv. Read only its `## Citations` section:
+Then check the citations. With an approved plan hash, `verify` resolves every DOI, PMID and arXiv id in the note against Crossref, NCBI and arXiv. It skips the `## Retrieval log`. Read only its `## Citations` section:
 
 ```bash
 <skill-dir>/../../hooks/mxpy - --plugin-root <skill-dir>/../.. report <hash> --claims <note> --resolve-citations < <skill-dir>/../verify/scripts/verify.py
