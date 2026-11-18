@@ -37,6 +37,13 @@ Fixes from a Fable review of 0.33.0-0.36.0.
 - `check_note.py` matches a DOI inside a publisher URL (bioRxiv `v1`/`v1.full`, OUP path, `?query`) against the bare DOI in the log.
 - `check_note.py` reads ids on wrapped reference lines, old-style and `arxiv.org/abs/` arXiv ids, `PMID=` and PMID lists, and ignores backticks, bold and quotes around an id.
 - README: `handoff-resume` is no longer called the only skill with hooks, since `iterate` registers `hooks/loop_guard.py`.
+- `tree.py`: `find_receipts` stops at the repository root (the first folder with `.git` or `.mycelium-extra`), so `run NODE --receipt N` no longer reads another project's receipts file and records a false `failed`.
+- Loop guard: `git reset` on a frozen branch is denied only when it moves the branch. `reset HEAD~1 -- f`, `reset HEAD~1 f`, `reset -p`, `reset --hard exp/a` and `reset --hard @` pass again.
+- Loop guard: HEAD is tracked per repository, so `git checkout exp/a && cd sub && git commit` and `git -C sub checkout exp/a && git commit` are denied. A git alias of `checkout` or `switch`, a `$VAR` set earlier in the command and `git switch -` (the previous branch) are followed too.
+- Loop guard: `SEED=2; export SEED; python code/run.py` and `set -a; SEED=2; python code/run.py` are denied, because the variable reaches the run.
+- Loop guard: the Stop hook hashes evaluator files for at most half of its budget, so a method run's stop-check is no longer starved by a big file. A file it cannot hash in that time is remembered by size and mtime and skipped at no cost at later Stops. Limit: a file changed with the same size and mtime is silent at Stop; `tree.py check-evaluator` still exits 3.
+- `check_note.py`: a PMID list continues only with a labelled `PMID n` or a bare number of 7 to 9 digits, so `PMID 31178118 2019`, `PMID 31178118, 12 co-authors` and a log line `kept PMID 31178118, 10 results` no longer add phantom PMIDs or hide a missing year. `has_version` strips only the labelled PMID.
+- `check_note.py`: a DOI taken from a publisher URL matches a logged DOI only when it adds a path segment (`.../gkaa1100/6012345`) or a file extension (`.full.pdf`). `10.1002/abc.123.456`, `abcv2` and `...30183-5` no longer match a logged shorter DOI, and `--ids` prints the logged DOI for the OUP form.
 
 ## [0.36.0] - 2026-11-18
 
