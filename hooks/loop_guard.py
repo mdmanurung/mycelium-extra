@@ -695,8 +695,10 @@ def _stamp(path):
 
 def evaluator_hasher(root, deadline, skipped):
     """A hasher for `evaluator_drift` that stays inside the Stop budget. A file whose size and mtime match the last
-    hash it took is not read again. A file it cannot finish before `deadline` is added to `skipped`, left
-    unchecked (None) and remembered as too big for its size and mtime, so the next Stop skips it at no cost. The cache is `loop_guard_hashes.json`, written by `save()`."""
+    hash it took is not read again. A file it cannot finish before `deadline` is added to `skipped` and left
+    unchecked (None). When it was the first file to hash, so it had the whole budget, it is also remembered as too
+    big for its size and mtime and the next Stop skips it at no cost; any other file stays unmarked and is hashed
+    first at the next Stop. The cache is `loop_guard_hashes.json`, written by `save()`."""
     import hashlib
     path = os.path.join(root, STATE_DIR, HASHES)
     try:
@@ -705,7 +707,7 @@ def evaluator_hasher(root, deadline, skipped):
     except (OSError, ValueError):
         cache = {}
     cache = cache if isinstance(cache, dict) else {}
-    changed = []
+    changed, started = [], []
 
     def hasher(file):
         stat = os.stat(file)
@@ -717,13 +719,16 @@ def evaluator_hasher(root, deadline, skipped):
         if time.monotonic() > deadline:  # an earlier file used the budget: try this one at the next Stop
             skipped.append(file)
             return None
+        alone = not started  # the first file to hash has the whole budget; a later one shares what is left
+        started.append(file)
         digest = hashlib.sha256()
         with open(file, "rb") as handle:
             for chunk in iter(lambda: handle.read(1 << 20), b""):
                 if time.monotonic() > deadline:
                     skipped.append(file)
-                    cache[file] = [stat.st_size, stat.st_mtime_ns, None]
-                    changed.append(file)
+                    if alone:  # it could not finish with the whole budget: too big for any Stop
+                        cache[file] = [stat.st_size, stat.st_mtime_ns, None]
+                        changed.append(file)
                     return None
                 digest.update(chunk)
         cache[file] = [stat.st_size, stat.st_mtime_ns, digest.hexdigest()]
@@ -785,7 +790,10 @@ def stop_hook(event, mode, root, pending=None):
             pending.append((where + ":evaluator", None))  # checked and clean: a later drift is reported again
         if len(unhashed) > before:
             names = sorted(os.path.relpath(path, root) for path in unhashed[before:])
-            if fresh(where + ":evaluator-unchecked", json.dumps([names, mode])):
+            # one state blocks once: the tree and the evaluator files' size and mtime, not the list of unhashed files
+            state = [fingerprint] + [_stamp(path) for path in module.evaluator_files(tree, analysis)
+                                     if os.path.exists(path)]
+            if fresh(where + ":evaluator-unchecked", json.dumps([state, mode])):
                 drift_lines.append("{}: the Stop hook had no time to hash these frozen evaluator files: {}. They are "
                                    "not checked here. Run `tree.py check-evaluator` yourself before you report "
                                    "results.".format(where, ", ".join(names)))

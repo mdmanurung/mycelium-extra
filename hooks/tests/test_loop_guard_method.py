@@ -203,6 +203,68 @@ class EvaluatorTest(Base):
         self.assertIsNotNone(hasher(small))  # the small file is hashed now
         self.assertEqual(skipped, [big])
 
+    def test_only_a_file_that_had_the_whole_budget_is_marked_too_big(self):
+        guard = self.load_guard()
+        first, second = os.path.join(self.root, "a.bin"), os.path.join(self.root, "b.bin")
+        with open(first, "wb") as handle:
+            handle.write(b"x" * (1 << 20))
+        with open(second, "wb") as handle:
+            handle.write(b"y" * (3 << 20))
+        clock = [0.0]
+
+        def tick():
+            clock[0] += 1.0
+            return clock[0]
+
+        self.addCleanup(setattr, guard.time, "monotonic", guard.time.monotonic)
+        guard.time.monotonic = tick
+        skipped = []
+        hasher, save = guard.evaluator_hasher(self.root, 4.5, skipped)  # a.bin takes 2 ticks, b.bin runs out inside
+        self.assertIsNotNone(hasher(first))
+        self.assertIsNone(hasher(second))
+        save()
+        cache = os.path.join(self.root, STATE_DIR, "loop_guard_hashes.json")
+        with open(cache) as handle:
+            self.assertNotIn(second, json.load(handle))  # shared the budget: not too big, just late
+        hasher, save = guard.evaluator_hasher(self.root, 1000.0, [])
+        self.assertIsNotNone(hasher(second))  # hashed first at the next Stop
+        clock[0] = 0.0
+        skipped = []
+        hasher, save = guard.evaluator_hasher(self.root, 1.5, skipped)  # alone with the whole budget, still too big
+        os.remove(cache)
+        self.assertIsNone(hasher(second))
+        save()
+        with open(cache) as handle:
+            self.assertIsNone(json.load(handle)[second][2])
+
+    def test_the_unhashed_note_blocks_once_per_state_whatever_files_are_unhashed(self):
+        guard = self.load_guard()
+        files = list(guard.trees_of(self.root)[1].evaluator_files(guard.trees_of(self.root)[0][0][1],
+                                                                  guard.trees_of(self.root)[0][0][0]))
+        self.assertGreater(len(files), 1)
+        module = guard.trees_of(self.root)[1]
+        skip = [set(files), set(files[:1])]  # the second Stop gets one more file hashed
+
+        def stub(root, deadline, skipped):
+            gone = skip.pop(0)
+
+            def hasher(file):
+                if file in gone:
+                    skipped.append(file)
+                    return None
+                return module.file_hash(file)
+            return hasher, lambda: None
+
+        self.addCleanup(setattr, guard, "evaluator_hasher", guard.evaluator_hasher)
+        guard.evaluator_hasher = stub
+        replies = []
+        for _ in range(2):
+            pending = []
+            replies.append(guard.stop_hook({"cwd": self.root}, "block", self.root, pending))
+            guard.record_seen(self.root, pending)
+        self.assertIn("no time to hash", replies[0]["reason"])
+        self.assertEqual(replies[1], {})
+
     def test_a_state_is_recorded_only_after_the_reply_is_decided(self):
         import importlib.util
         spec = importlib.util.spec_from_file_location("loop_guard_under_test", GUARD)
