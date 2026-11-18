@@ -175,6 +175,17 @@ class LoopGuardTest(unittest.TestCase):
                         "env PYTHONHASHSEED_OK=1 python code/other.py"):
             self.assertEqual(self.bash(command), {}, command)
 
+    def test_two_trees_sharing_a_run_command_give_one_sentence(self):
+        for name in ("one", "two"):
+            analysis = os.path.join(self.root, "analysis", name)
+            out = subprocess.run([sys.executable, TREE, "--analysis", analysis, "add", "base", "--run-cmd",
+                                  "python code/run.py", "--readout", "auc", "--repair-cap", "2", "--stop-after",
+                                  "3", "--stop-rule", "s"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertEqual(out.returncode, 0, out.stderr)
+        reply = self.bash("A=1 python code/run.py")
+        reason = reply["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertEqual(reason.count("the fixed run command"), 1)
+
     def test_block_flow_end_to_end(self):
         self.freeze_a()
         self.assertTrue(self.denied(self.bash("git commit -m x")))

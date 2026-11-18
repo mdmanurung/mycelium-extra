@@ -28,6 +28,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -36,6 +37,8 @@ BASH_TOOLS = ("Bash", "shell", "exec_command", "shell_command")
 SEEN = "loop_guard_seen.json"
 EDIT_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit", "apply_patch", "write", "edit", "patch")
 PATCH_FILE = re.compile(r"^\*\*\* (?:Add File|Update File|Delete File|Move to):\s*(.+?)\s*$", re.M)
+STOP_BUDGET = 7  # seconds for the whole Stop handler; hooks.json and codex.json allow 10
+TUSO_TIMEOUT = 8  # seconds for one stop-check
 TUSO_ENV = "MYCELIUM_TUSOSKILL_SCRIPT"
 TUSO_SCRIPT = os.path.join("~", ".claude", "skills", "tusoskill", "scripts", "biomni_method_state.py")
 SKIP_FOLDERS = {"data", "node_modules", "renv", "venv", "env"}
@@ -331,11 +334,13 @@ def tool_hook(event, mode, root):
                             "committed code or config, never in env vars. Put the value in a config file, "
                             "commit it on the node's branch and run the command as planned.".format(
                                 run_cmd, ", ".join(sorted(names))))
+    problems = list(dict.fromkeys(problems))  # two trees sharing a run command give one sentence
     return respond(problems, mode) if problems else {}
 
 
-def seen_before(root, key, fingerprint):
-    """True when this tree state was already reported. Records it otherwise, so a state is reported once."""
+def seen_before(root, key, fingerprint, record=True):
+    """True when this tree state was already reported. Records it otherwise (unless `record` is false), so a state
+    is reported once."""
     path = os.path.join(root, STATE_DIR, SEEN)
     try:
         with open(path, encoding="utf-8") as handle:
@@ -346,6 +351,8 @@ def seen_before(root, key, fingerprint):
         seen = {}
     if seen.get(key) == fingerprint:
         return True
+    if not record:
+        return False
     seen[key] = fingerprint
     try:
         with open(path, "w", encoding="utf-8") as handle:
@@ -382,20 +389,44 @@ def _subfolders(path):
         return []
 
 
-def tusoskill_lines(root):
-    """(key, fingerprint, message) for each tusoskill run whose own stop-check exits 3. Nothing when its script is
-    absent or a state file does not have its shape; its code is run, never copied."""
+def _run_fingerprint(run):
+    """Size and mtime of every file in the run's state folder (state.json, ledgers, blocker), or None."""
+    folder = os.path.join(run, "state")
+    try:
+        names = sorted(n for n in os.listdir(folder) if os.path.isfile(os.path.join(folder, n)))
+        return ";".join("{}:{}:{}".format(n, os.stat(os.path.join(folder, n)).st_size,
+                                          os.stat(os.path.join(folder, n)).st_mtime_ns) for n in names)
+    except OSError:
+        return None
+
+
+def tusoskill_lines(root, deadline=None):
+    """(messages, unchecked) for the tusoskill runs. A run is checked once per state (fingerprint of its state
+    folder), so a Stop with nothing changed does not rerun its stop-check. Each check gets at most TUSO_TIMEOUT
+    seconds and none starts after `deadline` (a time.monotonic() value); runs left out are listed in `unchecked`.
+    Nothing when its script is absent or a state file does not have its shape; its code is run, never copied."""
     script = os.path.expanduser(os.environ.get(TUSO_ENV) or TUSO_SCRIPT)
     if not os.path.isfile(script):
-        return []
-    out = []
+        return [], []
+    out, unchecked = [], []
     for run in tusoskill_runs(root):
+        where = os.path.relpath(run, root) or "."
+        key, fingerprint = "{}:tusoskill".format(where), _run_fingerprint(run)
+        if fingerprint is None or seen_before(root, key, fingerprint, record=False):
+            continue
+        left = None if deadline is None else deadline - time.monotonic()
+        if left is not None and left <= 0:
+            unchecked.append(where)
+            continue
         try:
             check = subprocess.run([sys.executable, script, "stop-check", "--root", run], capture_output=True,
-                                   text=True, timeout=8)
-            stat = os.stat(os.path.join(run, "state", "state.json"))
+                                   text=True, timeout=TUSO_TIMEOUT if left is None else min(TUSO_TIMEOUT, left))
+        except subprocess.TimeoutExpired:
+            unchecked.append(where)
+            continue
         except (OSError, subprocess.SubprocessError):
             continue
+        seen_before(root, key, fingerprint)  # checked in this state, whatever it said
         if check.returncode != 3:
             continue
         try:
@@ -403,19 +434,18 @@ def tusoskill_lines(root):
             audit = report.get("self_audit_line") if isinstance(report, dict) else None
         except ValueError:
             audit = None
-        where = os.path.relpath(run, root) or "."
-        out.append(("{}:tusoskill".format(where), "{}:{}".format(stat.st_size, stat.st_mtime_ns),
-                    "{}: the method run's own stop gate says keep iterating ({}). Start the next candidate. Only "
-                    "the user ends it early: when the user says to stop, run `python {} record-blocker --root {} "
-                    "--kind user --detail \"<the user's words>\"`. The user can also set \"loops\" to \"warn\" "
-                    "in .mycelium-extra/gate.json.".format(where, audit or (check.stdout.strip()[:120] or "exit 3"),
-                                                             script, run)))
-    return out
+        out.append("{}: the method run's own stop gate says keep iterating ({}). Start the next candidate. Only "
+                   "the user ends it early: when the user says to stop, run `python {} record-blocker --root {} "
+                   "--kind user --detail \"<the user's words>\"`. The user can also set \"loops\" to \"warn\" "
+                   "in .mycelium-extra/gate.json.".format(where, audit or (check.stdout.strip()[:120] or "exit 3"),
+                                                           script, run))
+    return out, unchecked
 
 
 def stop_hook(event, mode, root):
     if event.get("stop_hook_active"):
         return {}  # one block per turn
+    deadline = time.monotonic() + STOP_BUDGET
     trees, module = trees_of(root)
     loop_lines, drift_lines = [], []
     for analysis, tree in trees:
@@ -435,7 +465,10 @@ def stop_hook(event, mode, root):
                                "baseline. Restore the file, or ask the user and re-freeze with `tree.py "
                                "freeze-evaluator --refreeze --note ...`.".format(
                                    where, ", ".join("{} {}".format(p, why) for p, why in drift)))
-    bridge = [text for key, fingerprint, text in tusoskill_lines(root) if not seen_before(root, key, fingerprint)]
+    bridge, unchecked = tusoskill_lines(root, deadline)
+    if unchecked:
+        bridge.append("the time budget ran out before these method runs were checked: {}. They are checked at the "
+                      "next Stop.".format(", ".join(unchecked)))
     parts = []
     if loop_lines:
         parts.append("the research loop is not finished. " + " ".join(loop_lines) + " " + ESCAPES)

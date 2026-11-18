@@ -194,6 +194,47 @@ class BridgeTest(Base):
         shutil.copytree(os.path.join(FIXTURE, "state"), os.path.join(nested, "state"))
         self.assertIn("analysis/m2", self.hook("stop", session_id="s")["reason"])
 
+    def test_an_unchanged_state_is_not_rechecked(self):
+        counter = os.path.join(self.root, "calls.txt")
+        stub = os.path.join(self.root, "counting.py")
+        with open(stub, "w") as handle:
+            handle.write("import sys\nopen({!r}, 'a').write('x')\nprint('{{}}')\nsys.exit(3)\n".format(counter))
+        BridgeTest.script = stub
+        self.addCleanup(setattr, BridgeTest, "script", STUB)
+        self.assertEqual(self.hook("stop", session_id="s")["decision"], "block")
+        self.assertEqual(self.hook("stop", session_id="s2"), {})
+        self.assertEqual(self.hook("stop", session_id="s3"), {})
+        with open(counter) as handle:
+            self.assertEqual(handle.read(), "x")
+        with open(os.path.join(self.run_dir, "state", "ledger.jsonl"), "w") as handle:
+            handle.write("{}\n")  # a ledger write is a state change
+        self.assertEqual(self.hook("stop", session_id="s4")["decision"], "block")
+
+    def test_runs_past_the_deadline_are_named_not_run(self):
+        sys.path.insert(0, os.path.join(PLUGIN, "hooks"))
+        import loop_guard
+        os.environ["MYCELIUM_TUSOSKILL_SCRIPT"] = STUB
+        self.addCleanup(os.environ.pop, "MYCELIUM_TUSOSKILL_SCRIPT")
+        lines, unchecked = loop_guard.tusoskill_lines(self.root, deadline=0)  # long past
+        self.assertEqual((lines, unchecked), ([], ["method"]))
+        lines, unchecked = loop_guard.tusoskill_lines(self.root)  # not recorded as checked, so it runs now
+        self.assertEqual(len(lines), 1)
+        self.assertEqual(unchecked, [])
+
+    def test_a_slow_check_is_cut_off_and_named(self):
+        sys.path.insert(0, os.path.join(PLUGIN, "hooks"))
+        import loop_guard
+        stub = os.path.join(self.root, "slow.py")
+        with open(stub, "w") as handle:
+            handle.write("import time\ntime.sleep(30)\n")
+        os.environ["MYCELIUM_TUSOSKILL_SCRIPT"] = stub
+        self.addCleanup(os.environ.pop, "MYCELIUM_TUSOSKILL_SCRIPT")
+        import time
+        start = time.monotonic()
+        lines, unchecked = loop_guard.tusoskill_lines(self.root, deadline=time.monotonic() + 1)
+        self.assertLess(time.monotonic() - start, 5)
+        self.assertEqual((lines, unchecked), ([], ["method"]))
+
 
 if __name__ == "__main__":
     unittest.main()
