@@ -29,13 +29,33 @@ Write the test through the seam (an exported function, a public name), never thr
 
 ## 3. Run the check and read one line
 
-Run the approved command through the gate, saving its output: `<cmd> 2>&1 | tee checks/<slug>.log`. Then:
+Run the approved command with its output in a log, and read its exit status in the same Bash call, because the shell does not keep it for the next call:
+
+```bash
+<cmd> > checks/<slug>.log 2>&1; echo "check exit: $?"
+```
+
+Do not pipe the command to `tee`. A pipe returns `tee`'s status, so a crashed check reads as exit 0. To watch the output while it runs, use `set -o pipefail; <cmd> 2>&1 | tee checks/<slug>.log; echo "check exit: ${PIPESTATUS[0]}"`.
+
+Then read the log:
 
 ```bash
 <skill-dir>/../../hooks/mxpy - --notes checks/<slug>.log < <skill-dir>/scripts/check_summary.py
 ```
 
-It prints one line, for example `rcheck: 0 ERROR, 1 WARNING, 2 NOTE` or `pytest: 2 failed, 10 passed in 1.23s`. Pass that line to `tree.py run <slug> --receipt <N> --readout-value "<line>" --log checks/<slug>.log`. `--notes` also lists the NOTE headings, so you can match them to the approved failing-NOTE row. The script never decides which NOTE fails; with `--exit-code` it exits 1 only for an ERROR, a failed test or a ruff finding. Exit 2 means no summary was found: the run answers nothing, so repair it.
+It prints one line, for example `rcheck: 0 ERROR, 1 WARNING, 2 NOTE`, `testthat: FAIL 0, WARN 0, SKIP 0, PASS 12` or `pytest: 2 failed, 10 passed in 1.23s`. `--notes` also lists the NOTE headings of the counted check run, so you can match them to the approved failing-NOTE row. The script never decides which NOTE fails.
+
+Record the run with the exit status you printed. The check commands are not gated analysis runs, so the gate writes no receipt for them and there is no `--receipt` line to cite. Use `--exit`:
+
+```bash
+tree.py run <slug> --exit <check exit> --readout-value "<line>" --log checks/<slug>.log
+```
+
+Cite `--receipt <N>` only when the gate did write a receipt line for that exact command, and the command was not piped.
+
+Exit codes of `check_summary.py`: 0 parsed, 2 no summary found. With `--exit-code` it exits 1 for an ERROR, a failed or errored test, no tests (pytest `no tests ran` or every test deselected, testthat with `PASS 0`), a ruff finding, or an R CMD check log with no `Status:` line (a check cut short). It exits 1 for no tests on purpose: a run that tested nothing is not green.
+
+When the summary exits 2 and the check exit is not 0, the run failed: run `tree.py repair`. When the check exited 0 but no summary was found, `tree.py repair` refuses the node because the run counts as `ok`. Do not answer the node. Fix the command or the log capture, then record a new run with `tree.py run`, and ask the user if the second run also gives no summary.
 
 Quote the lines of the log that hold the counts. Every conclusion cites an inspected figure (`/mycelium-extra:plot-first`) or is written `unsupported: no inspected figure`.
 

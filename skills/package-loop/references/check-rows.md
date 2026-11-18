@@ -20,7 +20,8 @@ Run the check once on the starting commit and list its NOTE headings (`check_sum
 | Part | Where it comes from |
 |---|---|
 | `ERROR`, `WARNING`, `NOTE` counts | `R CMD check` or `devtools::check()` output |
+| `FAIL`, `WARN`, `SKIP`, `PASS` counts | the `[ FAIL n | WARN n | SKIP n | PASS n ]` line of `testthat::test_local()` |
 | `failed`, `passed`, `errors` counts | the pytest summary line |
 | `ruff: N errors` | the `ruff check` summary |
 
-`check_summary.py` prints counts only. The row says which count, or which combination, makes a node `better`, `same` or `worse`.
+An `R CMD check` log with no `Status:` line was cut short, so the line says so and `--exit-code` exits 1. `check_summary.py` prints counts only. The row says which count, or which combination, makes a node `better`, `same` or `worse`.
