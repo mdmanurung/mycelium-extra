@@ -134,7 +134,7 @@ Fixes the terms of one analysis in `GLOSSARY.md` and logs each exploratory loop 
 
 ## iterate
 
-Runs a tree of experiments on one fixed command: a git branch per node, frozen once a run answers it, repaired in place up to a cap you set, stopped by a rule you set. The optional `loops` key in `gate.json` turns on a guard. See [iterate](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/iterate.md).
+Runs a tree of experiments on one fixed command: a git branch per node, frozen once a run answers it, repaired in place up to a cap you set, stopped by a rule you set. Method mode adds a frozen evaluator, a baseline and sanity check, an iteration floor and an optional arena step. The optional `loops` key in `gate.json` turns on a guard. See [iterate](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/iterate.md).
 
 ## prototype-analysis
 
