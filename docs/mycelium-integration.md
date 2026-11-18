@@ -153,7 +153,7 @@ A brief item about a check or output that one approved plan had and the next one
 Extra's planning and data checks are read-only. Scaffolding writes only the new
 analysis folder; verification writes only its `provenance/` after confirmation.
 `decision-status` appends a confirmed resolution; `harden` updates one confirmed
-learning after demonstrating its test. `idea` writes under `todo/` only (one item
+learning after demonstrating its test; `reflect` appends accepted learnings to `.living/learnings.md` after you confirm. `idea` writes under `todo/` only (one item
 file and one registry row, with no questions asked), and `idea-triage` annotates
 those items and sets a picked item's Status. Extra does not replace Mycelium's memory
 or code review. Independent plan review advises; only your approval authorizes runs.

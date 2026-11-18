@@ -57,6 +57,7 @@ Claude Code and OpenCode: `/mycelium-extra:<skill>`. Codex: `$mycelium-extra:<sk
 | `glossary` (you) | Fixes an analysis's terms and logs exploratory loops. |
 | `iterate` (you) | Runs a tree of experiments on one fixed command, with a stop rule you approve. |
 | `prototype-analysis` (you) | Builds a throwaway prototype that answers one analytic question before a plan row commits to it. |
+| `reflect` (you) | Proposes learnings and skill edits from a finished stretch of work and records the ones you accept in `.living/learnings.md`. |
 | `research-note` (you) | Sends a sourced question to a background agent that writes one cited note. |
 | `analysis-map` (you) | Charts a program too big for one session as decision tickets and resolves them one at a time. |
 | `setup-wizard` (you) | Generates a bash wizard for cluster setup steps only you can do. |
