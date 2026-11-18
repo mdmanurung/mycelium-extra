@@ -35,7 +35,7 @@ Every skill is a slash command in Claude Code (`/mycelium-extra:<name>`), a `$` 
 | Page | What it covers |
 |---|---|
 | [Gate](gate.md) | hook events on each host, typed commands, every allow, deny and notice, what the gate does not trace |
-| [gate.json](gate-json.md) | all 18 settings with default, type and validation |
+| [gate.json](gate-json.md) | all 19 settings with default, type and validation |
 | [State files](state-files.md) | every file under `.mycelium-extra/` and `provenance/`, who writes and reads it, and the proposed 1.x compatibility surface |
 
 ## Reading the "confirmation" lines

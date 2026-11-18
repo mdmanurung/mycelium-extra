@@ -10,7 +10,7 @@
 
 To see the effective values, with invalid ones flagged, run `init --diagnose` ([init](skills/init.md)). It reads and writes nothing.
 
-## The 18 keys
+## The 19 keys
 
 | Key | Type | Default | Accepts | What it does |
 |---|---|---|---|---|

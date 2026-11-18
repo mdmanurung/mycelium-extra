@@ -401,14 +401,16 @@ def _run_fingerprint(run):
 
 
 def tusoskill_lines(root, deadline=None):
-    """(messages, unchecked) for the tusoskill runs. A run is checked once per state (fingerprint of its state
+    """(messages, unchecked, slow) for the tusoskill runs. A run is checked once per state (fingerprint of its state
     folder), so a Stop with nothing changed does not rerun its stop-check. Each check gets at most TUSO_TIMEOUT
-    seconds and none starts after `deadline` (a time.monotonic() value); runs left out are listed in `unchecked`.
+    seconds and none starts after `deadline` (a time.monotonic() value); runs not started are listed in `unchecked`
+    and are tried at the next Stop. A run whose check timed out is listed in `slow` and recorded as seen, so a slow
+    check costs the budget once per state, not on every Stop.
     Nothing when its script is absent or a state file does not have its shape; its code is run, never copied."""
     script = os.path.expanduser(os.environ.get(TUSO_ENV) or TUSO_SCRIPT)
     if not os.path.isfile(script):
-        return [], []
-    out, unchecked = [], []
+        return [], [], []
+    out, unchecked, slow = [], [], []
     for run in tusoskill_runs(root):
         where = os.path.relpath(run, root) or "."
         key, fingerprint = "{}:tusoskill".format(where), _run_fingerprint(run)
@@ -422,7 +424,8 @@ def tusoskill_lines(root, deadline=None):
             check = subprocess.run([sys.executable, script, "stop-check", "--root", run], capture_output=True,
                                    text=True, timeout=TUSO_TIMEOUT if left is None else min(TUSO_TIMEOUT, left))
         except subprocess.TimeoutExpired:
-            unchecked.append(where)
+            seen_before(root, key, fingerprint)
+            slow.append(where)
             continue
         except (OSError, subprocess.SubprocessError):
             continue
@@ -439,7 +442,7 @@ def tusoskill_lines(root, deadline=None):
                    "--kind user --detail \"<the user's words>\"`. The user can also set \"loops\" to \"warn\" "
                    "in .mycelium-extra/gate.json.".format(where, audit or (check.stdout.strip()[:120] or "exit 3"),
                                                            script, run))
-    return out, unchecked
+    return out, unchecked, slow
 
 
 def stop_hook(event, mode, root):
@@ -465,7 +468,11 @@ def stop_hook(event, mode, root):
                                "baseline. Restore the file, or ask the user and re-freeze with `tree.py "
                                "freeze-evaluator --refreeze --note ...`.".format(
                                    where, ", ".join("{} {}".format(p, why) for p, why in drift)))
-    bridge, unchecked = tusoskill_lines(root, deadline)
+    bridge, unchecked, slow = tusoskill_lines(root, deadline)
+    if slow:
+        bridge.append("the stop-check of these method runs took longer than the hook allows, so it is skipped until "
+                      "their state changes: {}. Run tusoskill's `stop-check` for them yourself before you finish."
+                      .format(", ".join(slow)))
     if unchecked:
         bridge.append("the time budget ran out before these method runs were checked: {}. They are checked at the "
                       "next Stop.".format(", ".join(unchecked)))

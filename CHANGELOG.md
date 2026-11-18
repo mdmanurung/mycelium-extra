@@ -19,10 +19,11 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ### Fixed
 
-- `loop_guard.py`: the Stop handler has a 7 s total budget (the hook timeout is 10 s). Tusoskill runs not checked in time are named in the message. A tusoskill run is checked once per state of its `state/` folder, so an unchanged run is not rerun at every Stop.
+- `loop_guard.py`: the Stop handler has a 7 s total budget (the hook timeout is 10 s). Tusoskill runs not checked in time are named in the message. A tusoskill run is checked once per state of its `state/` folder, so an unchanged run is not rerun at every Stop. A check that times out is recorded too, so it costs the budget once per state, and the message says to run it by hand.
 - `loop_guard.py`: two trees that share a run command no longer repeat the same deny sentence.
 - `research-note`: a note with no `## Retrieval log` gets a warning instead of a failure, so 0.32.1 notes still pass.
 - `package-loop`: `check_summary.py` writes `ruff: 1 error`, not `1 errors`.
+- docs: `gate-json.md`, the reference index and `state-files.md` count 19 keys, matching the table.
 
 ## [0.35.0] - 2026-11-18
 

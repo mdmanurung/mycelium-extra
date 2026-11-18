@@ -215,11 +215,11 @@ class BridgeTest(Base):
         import loop_guard
         os.environ["MYCELIUM_TUSOSKILL_SCRIPT"] = STUB
         self.addCleanup(os.environ.pop, "MYCELIUM_TUSOSKILL_SCRIPT")
-        lines, unchecked = loop_guard.tusoskill_lines(self.root, deadline=0)  # long past
-        self.assertEqual((lines, unchecked), ([], ["method"]))
-        lines, unchecked = loop_guard.tusoskill_lines(self.root)  # not recorded as checked, so it runs now
+        lines, unchecked, slow = loop_guard.tusoskill_lines(self.root, deadline=0)  # long past
+        self.assertEqual((lines, unchecked, slow), ([], ["method"], []))
+        lines, unchecked, slow = loop_guard.tusoskill_lines(self.root)  # not recorded as checked, so it runs now
         self.assertEqual(len(lines), 1)
-        self.assertEqual(unchecked, [])
+        self.assertEqual((unchecked, slow), ([], []))
 
     def test_a_slow_check_is_cut_off_and_named(self):
         sys.path.insert(0, os.path.join(PLUGIN, "hooks"))
@@ -231,9 +231,13 @@ class BridgeTest(Base):
         self.addCleanup(os.environ.pop, "MYCELIUM_TUSOSKILL_SCRIPT")
         import time
         start = time.monotonic()
-        lines, unchecked = loop_guard.tusoskill_lines(self.root, deadline=time.monotonic() + 1)
+        lines, unchecked, slow = loop_guard.tusoskill_lines(self.root, deadline=time.monotonic() + 1)
         self.assertLess(time.monotonic() - start, 5)
-        self.assertEqual((lines, unchecked), ([], ["method"]))
+        self.assertEqual((lines, unchecked, slow), ([], [], ["method"]))
+        # the timed-out state is recorded, so an unchanged run does not cost the budget again
+        start = time.monotonic()
+        self.assertEqual(loop_guard.tusoskill_lines(self.root, deadline=time.monotonic() + 1), ([], [], []))
+        self.assertLess(time.monotonic() - start, 0.5)
 
 
 if __name__ == "__main__":
