@@ -23,7 +23,7 @@ A plain file, for example `bench/card.md`, with these lines:
 - the protected files: the scorer, the split lists, the labels;
 - what a candidate may change.
 
-`tree.py` reads none of it. It hashes the card and the files you pass with `--file`, so write the protected files into the `freeze-evaluator` call yourself. A folder is hashed file by file.
+`tree.py` reads none of it. It hashes the card and the files you pass with `--file`, so write the protected files into the `freeze-evaluator` call yourself. A folder is hashed file by file, including folders behind a symlink; a dangling link in a folder is refused. A card that is a folder is watched like any other folder.
 
 ## Order of work
 
@@ -35,7 +35,7 @@ A plain file, for example `bench/card.md`, with these lines:
 
 ## Changing the evaluator
 
-A hashed file is the user's. The loop guard refuses an edit through Write, Edit, MultiEdit, NotebookEdit or apply_patch (`loops: block`), and notes it under `warn`. Shell commands that write the file are not caught there; `check-evaluator` and the turn-end check catch the change by hash. To change it on purpose, ask the user, make the change, then run `freeze-evaluator --refreeze --note "<what changed, user agreed>"`. Results from before the change are not comparable: say so in the next summary.
+A hashed file is the user's. The loop guard refuses an edit through Write, Edit, MultiEdit, NotebookEdit or apply_patch (`loops: block`), and notes it under `warn`. Shell commands that write the file are not caught there; `check-evaluator` and the turn-end check catch the change by hash. To change it on purpose, ask the user, make the change, then run `freeze-evaluator --refreeze --note "<what changed, user agreed>"`. A refreeze keeps every file and folder the earlier freeze hashed (add more with `--file`) and hashes them again; one that is gone is dropped and named in the output and the note. A benchmark card changed with `plan --card` after the freeze counts as drift until you refreeze. Results from before the change are not comparable: say so in the next summary.
 
 ## Arena step
 
