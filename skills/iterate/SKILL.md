@@ -1,7 +1,7 @@
 ---
 name: iterate
 disable-model-invocation: true
-description: "Run a tree of experiments on one fixed command, one git branch per node, until a stop rule you chose is met. Use for try, measure, keep-or-drop loops on an analysis; not for one planned run."
+description: "Run a tree of experiments on one fixed command, one git branch per node, until a stop rule you chose is met. Use for try, measure, keep-or-drop loops on an analysis; `--mode method` adds a frozen evaluator for benchmark work. Not for one planned run."
 ---
 
 # Mycelium Extra: Iterate
@@ -50,11 +50,24 @@ Run `tree.py stop-check` before ending a turn. Exit 0: the stop rule is met or a
 
 Promote the winner with `grill`'s promote-explore path: a full plan, a re-run under approval, then `verify`. Explore results are not reportable.
 
+## 7. Method mode
+
+For a method built against a benchmark, add the root with `--mode method`. Read `references/method-mode.md` first. It swaps the stop rule for an iteration floor and adds four steps.
+
+- **Card and freeze.** A benchmark card fixes the metric, the splits and the protected files. `tree.py freeze-evaluator --file <path> ...` writes SHA-256 hashes of the card and those files. `check-evaluator` compares them. No node runs before the freeze, and a run or an answer is refused while a hashed file differs.
+- **Baseline and sanity.** Add a node `--kind baseline` and one `--kind sanity` (constant output, shuffled labels or no signal). A candidate counts toward the floor only after both have run.
+- **Floor.** The iteration floor is a `user` row. `tree.py stop-check` exits 3 until that many candidates are answered. Only the user ends the loop sooner.
+- **Arena (optional).** For sibling candidates, fix a rubric first (a `user` row), run them, then `tree.py arena A B --winner A`. A rubric set after the runs is refused. Idea from pstack's `arena` (MIT, cursor/plugins).
+
+Ideas from tusoskill, rewritten here with no copied code or text. If the repo also holds a `state/state.json` from the tusoskill skill, the loop guard runs that skill's own `stop-check` at turn end. See the loop guard below.
+
 ## The loop guard
 
-`"loops": "off" | "warn" | "block"` in `.mycelium-extra/gate.json` (default `off`) turns on `hooks/loop_guard.py`. It works with the gate on or off. It refuses (`block`) or notes (`warn`) a commit-making git call (`commit`, `merge`, `cherry-pick`, `revert`, `rebase`, `am`, `pull`, or an alias) on a frozen branch, and the fixed command run behind an env var other than display and device ones. At turn end it blocks once per tree state while `stop-check` exits 3. Ask the user whether to stop; record `tree.py stop --reason user` only when the user says so. The user can also set `"loops": "warn"`.
+`"loops": "off" | "warn" | "block"` in `.mycelium-extra/gate.json` (default `off`) turns on `hooks/loop_guard.py`. It works with the gate on or off. It refuses (`block`) or notes (`warn`) a commit-making git call (`commit`, `merge`, `cherry-pick`, `revert`, `rebase`, `am`, `pull`, or an alias) on a frozen branch, and the fixed command run behind an env var other than display and device ones. At turn end it blocks once per tree state while `stop-check` exits 3, and when a hashed evaluator file changed. A Write, Edit, MultiEdit, NotebookEdit or apply_patch call on a hashed evaluator file is refused (`block`) or noted (`warn`). With a tusoskill `state/state.json` in the repo, the turn-end check also runs that skill's `biomni_method_state.py stop-check` and blocks while it exits 3. It stays silent when the script is absent. Ask the user whether to stop; record `tree.py stop --reason user` only when the user says so. The user can also set `"loops": "warn"`. For the tusoskill bridge the message names `record-blocker --kind user`, which you run only when the user says to stop.
 
 ## Boundaries
 
 - Writes `plans/tree.jsonl` only through `tree.py`. Never edit a line.
+- Never edits a hashed evaluator file. A change needs the user and `freeze-evaluator --refreeze --note`.
+- Reads tusoskill only through its command line. Copies nothing from it.
 - Approves nothing and does not change the plan. `glossary`'s `ITERATIONS.md` is for loops with no metric; this tree is for loops with one.

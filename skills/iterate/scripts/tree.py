@@ -1,19 +1,28 @@
 """Experiment tree for the iterate skill: an append-only event log and the questions it answers.
 
 Run: <skill-dir>/../../hooks/mxpy - [--analysis DIR] <command> [options] < <skill-dir>/scripts/tree.py
-The log is <analysis>/plans/tree.jsonl, one JSON event per line: add, plan, run, answer, repair, stop.
+The log is <analysis>/plans/tree.jsonl, one JSON event per line: add, plan, run, answer, repair, stop,
+evaluator, arena.
 Nothing edits or deletes a line; every view is a replay. A node added after a stop ends the stop. Stdlib only, Python 3.9+.
 
 Commands
   plan [--run-cmd C] [--readout R] [--repair-cap N] [--stop-after N] [--stop-rule TEXT]
         sets or changes plan rows on the root, after the user confirms them (each change is a logged event)
-  add SLUG [--parent P] [--question T]   a node, branch exp/SLUG. The root also takes the plan rows:
+  add SLUG [--parent P] [--question T] [--kind candidate|baseline|sanity]   a node, branch exp/SLUG.
+        The root also takes the plan rows:
         [--run-cmd C] [--readout R] [--repair-cap N] [--stop-after N] [--stop-rule TEXT]
+        and, for method mode: [--mode method] [--floor N] [--card PATH] [--rubric TEXT]
   run SLUG (--receipt N | --exit CODE) [--commit SHA] [--run-id ID] [--readout-value V] [--log PATH]
   answer SLUG --outcome better|same|worse --summary T [--figure PATH ...]   freezes the node
   repair SLUG [--note T]                 a failed run is repaired in place, up to the cap
   stop --reason user|blocker|rule [--note T]
   status [--json]   summary   frozen   stop-check
+Method mode (root added with --mode method)
+  freeze-evaluator [--file PATH ...] [--refreeze --note T]   SHA-256 of the benchmark card and each file
+  check-evaluator                        exit 0 every hashed file matches, 3 one changed or is gone, 2 no tree
+  arena SLUG SLUG ... --winner SLUG [--note T]   sibling candidates judged on the rubric fixed before their runs
+A method tree stops at the iteration floor, counted in answered candidates; a baseline and a sanity node
+(add --kind) must have run first, and the evaluator must be frozen before any run.
 
 Exit codes. stop-check: 0 stop rule met or a stop recorded, 3 not yet, 2 no tree or an unreadable one.
 Other commands: 0 done, 1 usage or bad input, 3 refused (a frozen node, the repair cap, a missing plan row).
@@ -23,6 +32,7 @@ defaults here: when one is missing, the command says so and exits 3, and the age
 
 import argparse
 import contextlib
+import hashlib
 import json
 import os
 import re
@@ -34,11 +44,15 @@ sys.dont_write_bytecode = True
 TREE = os.path.join("plans", "tree.jsonl")
 RECEIPTS = os.path.join(".mycelium-extra", "receipts.jsonl")
 SLUG = re.compile(r"^[a-z0-9]([a-z0-9._-]*[a-z0-9_-])?$")
-EVENTS = ("add", "run", "answer", "repair", "stop", "plan")
-PLAN_KEYS = ("run_cmd", "readout", "repair_cap", "stop_after", "stop_rule")
+EVENTS = ("add", "run", "answer", "repair", "stop", "plan", "evaluator", "arena")
+PLAN_KEYS = ("run_cmd", "readout", "repair_cap", "stop_after", "stop_rule", "mode", "floor", "card", "rubric")
+METHOD_KEYS = ("floor", "card", "rubric")
+RESEARCH_KEYS = ("stop_after", "stop_rule")
+MODES = ("research", "method")
+KINDS = ("candidate", "baseline", "sanity")
 TEXT_KEYS = ("node", "parent", "branch", "question", "run_cmd", "readout", "stop_rule", "note", "summary", "outcome",
-             "reason", "commit", "run_id", "readout_value", "log")
-INT_KEYS = ("repair_cap", "stop_after", "receipt", "exit")
+             "reason", "commit", "run_id", "readout_value", "log", "mode", "card", "rubric", "kind", "winner")
+INT_KEYS = ("repair_cap", "stop_after", "receipt", "exit", "floor")
 OUTCOMES = ("better", "same", "worse")
 REASONS = ("user", "blocker", "rule")
 NO_FIGURE = "unsupported: no inspected figure"
@@ -61,8 +75,13 @@ def well_formed(event):
     if any(event.get(key) is not None and (isinstance(event[key], bool) or not isinstance(event[key], int))
            for key in INT_KEYS):
         return False
-    figures = event.get("figures")
-    return figures is None or (isinstance(figures, list) and all(isinstance(item, str) for item in figures))
+    for key in ("figures", "nodes"):
+        value = event.get(key)
+        if value is not None and not (isinstance(value, list) and all(isinstance(item, str) for item in value)):
+            return False
+    hashes = event.get("hashes")
+    return hashes is None or (isinstance(hashes, dict) and all(
+        isinstance(k, str) and isinstance(v, str) for k, v in hashes.items()))
 
 
 def tree_path(analysis):
@@ -129,42 +148,57 @@ def run_status(analysis, event):
 
 
 def replay(events, analysis="."):
-    """The tree the events describe: {"root": id|None, "plan": {...}, "nodes": {id: node}, "stops": [...]}.
+    """The tree the events describe: {"root": id|None, "plan": {...}, "nodes": {id: node}, "stops": [...], ...}.
 
     The log is append-only, so the replay enforces what the commands check: a second `add` of a slug, and any
     run, repair or answer on a frozen node, are ignored. A stop ends the loop until a node is added after it.
+    Method mode adds the latest `evaluator` event, the `arena` events, the sequence number of the event that set
+    the rubric, and, per answer, `counted`: a candidate answered after a baseline and a sanity node had run.
     """
     nodes, stops, root, plan, answers = {}, [], None, {}, []
-    for event in events:
+    evaluator, arenas, rubric_seq, ready = None, [], None, {"baseline": False, "sanity": False}
+    for seq, event in enumerate(events):
         kind, slug = event["ev"], event.get("node")
         if kind == "add":
             if slug in nodes:
                 continue
             nodes[slug] = {"id": slug, "branch": event.get("branch") or "exp/" + slug, "parent": event.get("parent"),
-                           "question": event.get("question") or "", "runs": [], "repairs": 0, "answer": None,
-                           "state": "new"}
+                           "kind": event.get("kind") or "candidate", "question": event.get("question") or "",
+                           "runs": [], "repairs": 0, "answer": None, "state": "new"}
             stops = []
             if event.get("parent") is None and root is None:
                 root = slug
                 plan = {key: event.get(key) for key in PLAN_KEYS}
+                rubric_seq = seq if event.get("rubric") else None
         elif kind == "plan":
             if root is not None:
                 plan.update({key: event[key] for key in PLAN_KEYS if event.get(key) is not None})
+                if event.get("rubric") is not None:
+                    rubric_seq = seq
         elif kind == "stop":
             stops.append(event)
+        elif kind == "evaluator":
+            evaluator = event
+        elif kind == "arena":
+            arenas.append(event)
         elif slug in nodes and nodes[slug]["state"] != "frozen":
             node = nodes[slug]
             if kind == "run":
-                node["runs"].append(dict(event, status=run_status(analysis, event)))
+                node["runs"].append(dict(event, status=run_status(analysis, event), seq=seq))
                 node["state"] = "ran" if node["runs"][-1]["status"] == "ok" else "failed"
+                if node["state"] == "ran" and node["kind"] in ready:
+                    ready[node["kind"]] = True
             elif kind == "repair":
                 node["repairs"] += 1
                 node["state"] = "repairing"
             elif kind == "answer":
                 node["answer"] = event
                 node["state"] = "frozen"
-                answers.append(event)
-    return {"root": root, "plan": plan, "nodes": nodes, "stops": stops, "answers": answers}
+                method = plan.get("mode") == "method"
+                counted = not method or (node["kind"] == "candidate" and all(ready.values()))
+                answers.append(dict(event, counted=counted))
+    return {"root": root, "plan": plan, "nodes": nodes, "stops": stops, "answers": answers, "evaluator": evaluator,
+            "arenas": arenas, "rubric_seq": rubric_seq, "ready": ready}
 
 
 def load(analysis):
@@ -178,26 +212,40 @@ def frozen_branches(tree):
     return [node["branch"] for node in tree["nodes"].values() if node["state"] == "frozen"]
 
 
+def is_method(plan):
+    return plan.get("mode") == "method"
+
+
 def missing_rows(plan):
-    """Names of the four impactful plan rows the root does not hold yet (the stop rule needs its count and its words)."""
-    rows = (("run command", plan.get("run_cmd")), ("readout", plan.get("readout")),
-            ("repair cap", plan.get("repair_cap")),
-            ("stop rule", plan.get("stop_after") if plan.get("stop_rule") else None))
+    """Names of the impactful plan rows the root does not hold yet.
+
+    Research mode needs the run command, readout, repair cap and stop rule (the rule needs its count and its
+    words). Method mode swaps the stop rule for the iteration floor and the benchmark card.
+    """
+    rows = [("run command", plan.get("run_cmd")), ("readout", plan.get("readout")),
+            ("repair cap", plan.get("repair_cap"))]
+    if is_method(plan):
+        rows += [("iteration floor", plan.get("floor")), ("benchmark card", plan.get("card"))]
+    else:
+        rows.append(("stop rule", plan.get("stop_after") if plan.get("stop_rule") else None))
     return [name for name, value in rows if value in (None, "")]
 
 
 def stop_check(tree):
-    """(code, message): 0 when a stop is recorded or the stop rule is met, 3 otherwise."""
+    """(code, message): 0 when a stop is recorded or the stop rule (research) or floor (method) is met, 3 otherwise."""
     if tree["stops"]:
         last = tree["stops"][-1]
         return 0, "stopped: reason {}{}".format(last.get("reason"), " (" + last["note"] + ")" if last.get("note") else "")
     if tree["root"] is None:
         return 3, "the tree has no root node; add one with the run command, readout, repair cap and stop rule. " + ASK
     plan = tree["plan"]
-    limit = plan.get("stop_after")
     missing = missing_rows(plan)
     if missing:
         return 3, "the root node has no {}. {}".format(", ".join(missing), ASK)
+    open_nodes = [n["id"] for n in tree["nodes"].values() if n["state"] != "frozen"]
+    if is_method(plan):
+        return method_stop_check(tree, plan, open_nodes)
+    limit = plan.get("stop_after")
     streak = 0
     for answer in reversed(tree["answers"]):
         if answer.get("outcome") == "better":
@@ -205,9 +253,51 @@ def stop_check(tree):
         streak += 1
     if streak >= limit:
         return 0, "stop rule met: the last {} answered nodes were not better".format(streak)
-    open_nodes = [n["id"] for n in tree["nodes"].values() if n["state"] != "frozen"]
     return 3, "stop rule not met: {} of {} answered nodes in a row were not better; open nodes: {}".format(
         streak, limit, ", ".join(open_nodes) or "none")
+
+
+def method_stop_check(tree, plan, open_nodes):
+    """Method mode: the floor counts answered candidates that came after a frozen evaluator, a baseline and a sanity run."""
+    if tree["evaluator"] is None:
+        return 3, "the evaluator is not frozen. Run freeze-evaluator before any node runs."
+    absent = [name for name, done in tree["ready"].items() if not done]
+    if absent:
+        return 3, "no {} node has run yet. Add one (add --kind ...) and run it before candidates count.".format(
+            " or ".join(absent))
+    done = sum(1 for answer in tree["answers"] if answer["counted"])
+    if done >= plan["floor"]:
+        return 0, "iteration floor met: {} of {} candidates answered".format(done, plan["floor"])
+    return 3, "iteration floor not met: {} of {} candidates answered; open nodes: {}".format(
+        done, plan["floor"], ", ".join(open_nodes) or "none")
+
+
+def file_hash(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def evaluator_files(tree, analysis):
+    """{absolute path: recorded hash} for the files the latest evaluator freeze hashed."""
+    event = tree.get("evaluator")
+    if not event:
+        return {}
+    base = os.path.abspath(analysis)
+    return {os.path.normpath(os.path.join(base, rel)): digest for rel, digest in (event.get("hashes") or {}).items()}
+
+
+def evaluator_drift(tree, analysis):
+    """[(path, "changed" or "missing")] for each hashed file that no longer matches its recorded hash."""
+    drift = []
+    for path, digest in sorted(evaluator_files(tree, analysis).items()):
+        if not os.path.isfile(path):
+            drift.append((path, "missing"))
+        elif file_hash(path) != digest:
+            drift.append((path, "changed"))
+    return drift
 
 
 def find_trees(root):
@@ -298,11 +388,26 @@ def need_tree(args):
 
 
 def bad_numbers(event):
-    """A message when the repair cap is below 0 (0 means no repairs) or the stop-after count is below 1."""
-    for key, floor in (("repair_cap", 0), ("stop_after", 1)):
+    """A message when the repair cap is below 0 (0 means no repairs) or the stop-after or floor count is below 1."""
+    for key, floor in (("repair_cap", 0), ("stop_after", 1), ("floor", 1)):
         if event.get(key) is not None and event[key] < floor:
             return "--{} must be {} or more".format(key.replace("_", "-"), floor)
     return ""
+
+
+def wrong_mode_rows(plan, event):
+    """A message when `event` sets a row the plan's mode does not use: floor, card and rubric are method rows;
+    the stop count and stop rule are research rows."""
+    method = is_method(plan) or event.get("mode") == "method"
+    unused = RESEARCH_KEYS if method else METHOD_KEYS
+    given = [key for key in unused if event.get(key) is not None]
+    if not given:
+        return ""
+    if method:
+        return "{} apply to research mode; a method tree stops at its iteration floor".format(
+            ", ".join("--" + key.replace("_", "-") for key in given))
+    return "{} are for method mode (root added with --mode method)".format(
+        ", ".join("--" + key.replace("_", "-") for key in given))
 
 
 def cmd_plan(args):
@@ -311,10 +416,13 @@ def cmd_plan(args):
         return code
     if tree["root"] is None:
         return fail("the tree has no root node yet; use add SLUG with the plan rows", 3)
-    event = {"ev": "plan", "run_cmd": args.run_cmd, "readout": args.readout, "repair_cap": args.repair_cap,
-             "stop_after": args.stop_after, "stop_rule": args.stop_rule}
-    if all(event[key] is None for key in PLAN_KEYS):
-        return fail("give at least one of --run-cmd --readout --repair-cap --stop-after --stop-rule")
+    event = dict({"ev": "plan"}, **{key: getattr(args, key) for key in PLAN_KEYS if key != "mode"})
+    if all(event[key] is None for key in PLAN_KEYS if key != "mode"):
+        return fail("give at least one of --run-cmd --readout --repair-cap --stop-after --stop-rule "
+                    "--floor --card --rubric")
+    wrong = wrong_mode_rows(tree["plan"], event)
+    if wrong:
+        return fail(wrong)
     bad = bad_numbers(event)
     if bad:
         return fail(bad)
@@ -337,22 +445,34 @@ def cmd_add(args):
     if args.slug in tree["nodes"]:
         return fail("node exists: " + args.slug)
     event = {"ev": "add", "node": args.slug, "branch": "exp/" + args.slug, "question": args.question or ""}
-    plan_args = {"run_cmd": args.run_cmd, "readout": args.readout, "repair_cap": args.repair_cap,
-                 "stop_after": args.stop_after, "stop_rule": args.stop_rule}
+    plan_args = {key: getattr(args, key) for key in PLAN_KEYS}
+    if args.kind != "candidate":
+        event["kind"] = args.kind
     if args.parent is None:
         if tree["root"] is not None:
             return fail("the tree has a root already ({}); give --parent".format(tree["root"]))
         event.update(plan_args)
         event["parent"] = None
+        event["mode"] = args.mode or "research"
+        wrong = wrong_mode_rows({"mode": event["mode"]}, event)
+        if wrong:
+            return fail(wrong)
     else:
+        if args.mode is not None:
+            return fail("only the root holds the mode; children inherit it")
+        if args.kind != "candidate" and not is_method(tree["plan"]):
+            return fail("--kind {} is for method mode (root added with --mode method)".format(args.kind))
         if args.parent not in tree["nodes"]:
             return fail("unknown parent: " + args.parent)
         if any(value is not None for value in plan_args.values()):
-            return fail("only the root holds the run command, readout, repair cap and stop rule; children inherit them")
+            return fail("only the root holds the plan rows (run command, readout, repair cap, stop rule or "
+                        "floor, card, rubric); children inherit them")
         event["parent"] = args.parent
     bad = bad_numbers(event)
     if bad:
         return fail(bad)
+    if args.parent is None and args.kind != "candidate" and event["mode"] != "method":
+        return fail("--kind {} is for method mode (add --mode method)".format(args.kind))
     append(args.analysis, event)
     note = ""
     if args.parent is None:
@@ -370,6 +490,19 @@ def get_node(args, tree):
     return node
 
 
+def method_refusal(args, tree):
+    """In method mode a run or an answer needs a frozen evaluator that still matches its hashes."""
+    if not is_method(tree["plan"]):
+        return ""
+    if tree["evaluator"] is None:
+        return "the evaluator is not frozen. Run freeze-evaluator (benchmark card and protected files) first."
+    drift = evaluator_drift(tree, args.analysis)
+    if drift:
+        return "the evaluator changed since it was frozen: {}. Restore it, or ask the user and re-freeze.".format(
+            ", ".join("{} ({})".format(os.path.relpath(path, args.analysis), why) for path, why in drift))
+    return ""
+
+
 def cmd_run(args):
     tree, code = need_tree(args)
     if code:
@@ -381,6 +514,9 @@ def cmd_run(args):
         return fail("node {} is frozen: a run answered it. Add a child node instead.".format(args.slug), 3)
     if args.receipt is None and args.exit is None:
         return fail("give --receipt N (a line of .mycelium-extra/receipts.jsonl) or --exit CODE")
+    blocked = method_refusal(args, tree)
+    if blocked:
+        return fail(blocked, 3)
     event = {"ev": "run", "node": args.slug, "commit": args.commit or git_head(args.analysis),
              "run_id": args.run_id, "receipt": args.receipt, "exit": args.exit,
              "readout_value": args.readout_value, "log": args.log}
@@ -404,6 +540,12 @@ def cmd_answer(args):
     if not node["runs"] or node["runs"][-1]["status"] != "ok":
         return fail("node {} has no successful run. A failed run answers nothing: repair it, then run again.".format(
             args.slug), 3)
+    blocked = method_refusal(args, tree)
+    if blocked:
+        return fail(blocked, 3)
+    if is_method(tree["plan"]) and node["kind"] == "candidate" and not all(tree["ready"].values()):
+        return fail("no {} node has run yet. A candidate counts only after a baseline and a sanity node ran.".format(
+            " or ".join(name for name, done in tree["ready"].items() if not done)), 3)
     append(args.analysis, {"ev": "answer", "node": args.slug, "outcome": args.outcome, "summary": args.summary,
                            "figures": args.figure or []})
     print("answered {} ({}); branch exp/{} is frozen".format(args.slug, args.outcome, args.slug))
@@ -439,14 +581,100 @@ def cmd_stop(args):
     tree, code = need_tree(args)
     if code:
         return code
+    if args.reason == "rule" and is_method(tree["plan"]) and stop_check(tree)[0] != 0:
+        return fail("the iteration floor is not met, so the stop rule has not fired: " + stop_check(tree)[1], 3)
     append(args.analysis, {"ev": "stop", "reason": args.reason, "note": args.note or ""})
     print("stop recorded: " + args.reason)
+    return 0
+
+
+def expand_files(analysis, names):
+    """[(relative path, absolute path)] for each named file; a folder gives every file under it. None on a bad name."""
+    found = {}
+    for name in names:
+        path = os.path.normpath(os.path.join(analysis, name))
+        if os.path.isdir(path):
+            members = [os.path.join(top, f) for top, _dirs, files in os.walk(path) for f in files]
+        elif os.path.isfile(path):
+            members = [path]
+        else:
+            return None, name
+        for member in members:
+            found[os.path.relpath(member, analysis).replace(os.sep, "/")] = member
+    return found, None
+
+
+def cmd_freeze_evaluator(args):
+    tree, code = need_tree(args)
+    if code:
+        return code
+    if not is_method(tree["plan"]):
+        return fail("freeze-evaluator is for method mode (root added with --mode method)", 3)
+    card = tree["plan"].get("card")
+    if not card:
+        return fail("the root has no benchmark card. " + ASK, 3)
+    if tree["evaluator"] is not None and not args.refreeze:
+        return fail("the evaluator is frozen already. Ask the user; to change it, give --refreeze and --note "
+                    "(the change is logged).", 3)
+    if args.refreeze and not args.note:
+        return fail("--refreeze needs --note: say what changed and that the user agreed")
+    files, bad = expand_files(args.analysis, [card] + (args.file or []))
+    if files is None:
+        return fail("not a file or folder: " + bad)
+    event = {"ev": "evaluator", "hashes": {rel: file_hash(path) for rel, path in sorted(files.items())},
+             "note": args.note or ""}
+    append(args.analysis, event)
+    print("evaluator frozen: {} file(s) hashed (SHA-256), card {}".format(len(files), card))
+    return 0
+
+
+def cmd_check_evaluator(args):
+    tree, code = need_tree(args)
+    if code:
+        return code
+    if tree["evaluator"] is None:
+        print("the evaluator is not frozen")
+        return 3
+    drift = evaluator_drift(tree, args.analysis)
+    if drift:
+        print("evaluator changed: " + ", ".join("{} ({})".format(os.path.relpath(p, args.analysis), why)
+                                                for p, why in drift))
+        return 3
+    print("evaluator unchanged: {} file(s) match".format(len(tree["evaluator"]["hashes"])))
+    return 0
+
+
+def cmd_arena(args):
+    tree, code = need_tree(args)
+    if code:
+        return code
+    if not is_method(tree["plan"]):
+        return fail("arena is for method mode (root added with --mode method)", 3)
+    if not tree["plan"].get("rubric") or tree["rubric_seq"] is None:
+        return fail("no rubric is recorded on the root. Fix it before the runs. " + ASK, 3)
+    names = list(dict.fromkeys(args.slugs))
+    if len(names) < 2 or args.winner not in names:
+        return fail("give two or more sibling nodes and a --winner among them")
+    unknown = [name for name in names if name not in tree["nodes"]]
+    if unknown:
+        return fail("unknown node: " + ", ".join(unknown))
+    nodes = [tree["nodes"][name] for name in names]
+    if len({node["parent"] for node in nodes}) != 1 or any(node["kind"] != "candidate" for node in nodes):
+        return fail("an arena compares sibling candidates (one parent, kind candidate)", 3)
+    early = [node["id"] for node in nodes if any(run["seq"] < tree["rubric_seq"] for run in node["runs"])]
+    if early:
+        return fail("the rubric was set after the runs of {}. A rubric fixed after the runs judges nothing."
+                    .format(", ".join(early)), 3)
+    append(args.analysis, {"ev": "arena", "nodes": names, "winner": args.winner, "note": args.note or ""})
+    print("arena recorded: {} won over {}".format(args.winner, ", ".join(n for n in names if n != args.winner)))
     return 0
 
 
 def node_line(node):
     last = node["runs"][-1] if node["runs"] else {}
     parts = [node["id"], "[" + node["state"] + "]", "branch " + node["branch"]]
+    if node.get("kind", "candidate") != "candidate":
+        parts.append(node["kind"])
     if last.get("readout_value"):
         parts.append("readout " + str(last["readout_value"]))
     if last.get("log"):
@@ -466,17 +694,22 @@ def cmd_status(args):
         return code
     stop_code, stop_message = stop_check(tree)
     if args.json:
-        out = {"root": tree["root"], "plan": tree["plan"], "stop": {"met": stop_code == 0, "message": stop_message},
+        out = {"root": tree["root"], "plan": tree["plan"], "evaluator": tree["evaluator"], "arenas": tree["arenas"], "stop": {"met": stop_code == 0, "message": stop_message},
                "nodes": list(tree["nodes"].values())}
         print(json.dumps(out, indent=1, sort_keys=True))
         return 0
     plan = tree["plan"]
-    print("run command: {}; readout: {}; repair cap: {}; stop after: {}".format(
-        plan.get("run_cmd") or "not set", plan.get("readout") or "not set",
-        plan.get("repair_cap", "not set") if plan.get("repair_cap") is not None else "not set",
-        plan.get("stop_after") if plan.get("stop_after") is not None else "not set"))
+    unset = lambda key: plan[key] if plan.get(key) is not None else "not set"  # noqa: E731
+    print("run command: {}; readout: {}; repair cap: {}; {}".format(
+        plan.get("run_cmd") or "not set", plan.get("readout") or "not set", unset("repair_cap"),
+        "mode method; iteration floor: {}; benchmark card: {}; evaluator: {}; rubric: {}".format(
+            unset("floor"), unset("card"),
+            "{} file(s) hashed".format(len(tree["evaluator"]["hashes"])) if tree["evaluator"] else "not frozen",
+            plan.get("rubric") or "not set") if is_method(plan) else "stop after: {}".format(unset("stop_after"))))
     if plan.get("stop_rule"):
         print("stop rule: " + plan["stop_rule"])
+    for arena in tree["arenas"]:
+        print("arena: {} won over {}".format(arena["winner"], ", ".join(n for n in arena["nodes"] if n != arena["winner"])))
     for node in tree["nodes"].values():
         print(("  " if node["parent"] else "") + node_line(node) + ("" if not node["parent"] else "; parent " + node["parent"]))
     print(stop_message)
@@ -524,6 +757,11 @@ def parser():
     add.add_argument("--repair-cap", type=int)
     add.add_argument("--stop-after", type=int)
     add.add_argument("--stop-rule")
+    add.add_argument("--mode", choices=MODES)
+    add.add_argument("--floor", type=int)
+    add.add_argument("--card")
+    add.add_argument("--rubric")
+    add.add_argument("--kind", choices=KINDS, default="candidate")
     run = sub.add_parser("run")
     run.add_argument("slug")
     run.add_argument("--receipt", type=int)
@@ -547,15 +785,26 @@ def parser():
     status.add_argument("--json", action="store_true")
     plan = sub.add_parser("plan")
     for flag, kind in (("--run-cmd", str), ("--readout", str), ("--repair-cap", int), ("--stop-after", int),
-                       ("--stop-rule", str)):
+                       ("--stop-rule", str), ("--floor", int), ("--card", str), ("--rubric", str)):
         plan.add_argument(flag, type=kind)
+    plan.set_defaults(mode=None)
+    freeze = sub.add_parser("freeze-evaluator")
+    freeze.add_argument("--file", action="append")
+    freeze.add_argument("--refreeze", action="store_true")
+    freeze.add_argument("--note")
+    arena = sub.add_parser("arena")
+    arena.add_argument("slugs", nargs="+", metavar="SLUG")
+    arena.add_argument("--winner", required=True)
+    arena.add_argument("--note")
+    sub.add_parser("check-evaluator")
     for name in ("summary", "frozen", "stop-check"):
         sub.add_parser(name)
     return top
 
 
 COMMANDS = {"plan": cmd_plan, "add": cmd_add, "run": cmd_run, "answer": cmd_answer, "repair": cmd_repair, "stop": cmd_stop,
-            "status": cmd_status, "summary": cmd_summary, "frozen": cmd_frozen, "stop-check": cmd_stop_check}
+            "status": cmd_status, "summary": cmd_summary, "frozen": cmd_frozen, "stop-check": cmd_stop_check,
+            "freeze-evaluator": cmd_freeze_evaluator, "check-evaluator": cmd_check_evaluator, "arena": cmd_arena}
 
 
 def main(argv=None):
@@ -563,7 +812,7 @@ def main(argv=None):
         args = parser().parse_args(argv)
     except SystemExit as stop:
         return 1 if stop.code else 0
-    if args.command in ("add", "plan", "run", "answer", "repair", "stop"):
+    if args.command in ("add", "plan", "run", "answer", "repair", "stop", "freeze-evaluator", "arena"):
         if args.command == "add":
             os.makedirs(os.path.dirname(tree_path(args.analysis)), exist_ok=True)
         with locked(args.analysis):
