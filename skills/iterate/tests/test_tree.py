@@ -265,6 +265,71 @@ class TreeTest(unittest.TestCase):
         codes = sorted((proc.communicate(), proc.returncode)[1] for proc in procs)
         self.assertEqual(codes, [0] + [3] * 5)
 
+    def receipts(self, *statuses):
+        state = os.path.join(self.tmp, ".mycelium-extra")
+        os.makedirs(state, exist_ok=True)
+        with open(os.path.join(state, "receipts.jsonl"), "w") as handle:
+            for status in statuses:
+                handle.write(json.dumps({"exit_status": status}) + "\n")
+        return os.path.join(state, "receipts.jsonl")
+
+    def test_stop_rule_in_words_is_a_plan_row_the_tree_cannot_judge(self):
+        code, text = self.root(**{"stop-after": None, "stop-rule": "stop when AUC > 0.9"})
+        self.assertEqual(code, 0)
+        self.assertNotIn("missing", text)
+        status = self.call("status")[1]
+        self.assertNotIn("not set", status)
+        self.assertIn("stop rule: stop when AUC > 0.9", status)
+        code, text = self.call("stop-check")
+        self.assertEqual(code, 3)
+        self.assertIn("cannot judge", text)
+        self.assertIn("Ask the user", text)
+        self.assertNotIn("has no stop rule", text)
+        self.answer("a", "better")
+        self.assertEqual(self.call("stop-check")[0], 3)
+        self.assertEqual(self.call("stop", "--reason", "rule")[0], 0)
+        self.assertEqual(self.call("stop-check")[0], 0)
+
+    def test_stop_count_without_words_is_still_a_missing_row(self):
+        code, text = self.root(**{"stop-rule": None})
+        self.assertIn("missing plan rows: stop rule", text)
+
+    def test_run_status_is_kept_when_the_receipts_file_is_gone(self):
+        path = self.receipts(0, 1)
+        self.root()
+        self.call("add", "a", "--parent", "base")
+        self.call("add", "b", "--parent", "base")
+        self.call("run", "a", "--receipt", "1")
+        self.call("run", "b", "--receipt", "2")
+        os.remove(path)
+        nodes = tree.load(self.analysis)["nodes"]
+        self.assertEqual((nodes["a"]["state"], nodes["b"]["state"]), ("ran", "failed"))
+        self.assertEqual(self.call("answer", "a", "--outcome", "better", "--summary", "s")[0], 0)
+
+    def test_old_run_event_with_no_receipt_is_unknown_not_failed(self):
+        self.root()
+        self.call("add", "a", "--parent", "base")
+        self.append_raw(json.dumps({"ev": "run", "node": "a", "receipt": 4}) + "\n")
+        self.assertEqual(tree.load(self.analysis)["nodes"]["a"]["state"], "unknown")
+        self.assertIn("[unknown]", self.call("status")[1])
+
+    def test_receipt_without_an_integer_exit_status_is_unknown_and_spends_no_repair(self):
+        self.receipts("unknown")
+        self.root()
+        self.call("add", "a", "--parent", "base")
+        code, text = self.call("run", "a", "--receipt", "1", "--exit", "0")
+        self.assertEqual(code, 0)
+        self.assertIn("recorded for a: unknown", text)
+        self.assertEqual(tree.load(self.analysis)["nodes"]["a"]["state"], "unknown")
+        self.assertIn("[unknown]", self.call("status")[1])
+        self.assertEqual(self.call("repair", "a")[0], 3)
+        code, text = self.call("answer", "a", "--outcome", "better", "--summary", "s")
+        self.assertEqual(code, 3)
+        self.assertIn("unknown exit status", text)
+        self.assertEqual(tree.load(self.analysis)["nodes"]["a"]["repairs"], 0)
+        self.assertEqual(self.call("run", "a", "--exit", "0")[0], 0)
+        self.assertEqual(self.call("answer", "a", "--outcome", "better", "--summary", "s")[0], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
