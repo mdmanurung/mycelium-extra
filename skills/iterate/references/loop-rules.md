@@ -15,7 +15,7 @@ State the counting rule when you show the stop row, so the user knows `same` cou
 
 ## What the tree keeps
 
-`plans/tree.jsonl` holds five event kinds, appended and never edited: `add`, `run`, `answer`, `repair`, `stop`. A run cites a line of `.mycelium-extra/receipts.jsonl`, so the exit status comes from the gate's receipt and not from a second store. A node is `frozen` once an `answer` event exists. Replaying the file gives every view.
+`plans/tree.jsonl` holds six event kinds, appended and never edited: `add`, `plan`, `run`, `answer`, `repair`, `stop`. A run cites a line of `.mycelium-extra/receipts.jsonl`, so the exit status comes from the gate's receipt and not from a second store. A node is `frozen` once an `answer` event exists. Replaying the file gives every view.
 
 ## Reading results
 

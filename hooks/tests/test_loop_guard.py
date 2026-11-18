@@ -40,7 +40,8 @@ class LoopGuardTest(unittest.TestCase):
         return out.returncode, out.stdout
 
     def freeze_a(self):
-        self.tree("add", "base", "--run-cmd", "python code/run.py", "--repair-cap", "2", "--stop-after", "3")
+        self.tree("add", "base", "--run-cmd", "python code/run.py", "--readout", "auc",
+                  "--repair-cap", "2", "--stop-after", "3", "--stop-rule", "stop after 3 not better")
         self.tree("add", "a", "--parent", "base")
         self.tree("run", "a", "--exit", "0")
         self.tree("answer", "a", "--outcome", "worse", "--summary", "no gain")
@@ -102,7 +103,8 @@ class LoopGuardTest(unittest.TestCase):
         first = self.hook("stop", session_id="s")
         self.assertEqual(first["decision"], "block")
         self.assertIn("tree.py", first["reason"])
-        self.assertIn("--reason user", first["reason"])
+        self.assertNotIn("--reason", first["reason"])  # the agent is not handed a self-escape
+        self.assertIn("Ask the user", first["reason"])
         self.assertIn("warn", first["reason"])
         self.assertEqual(self.hook("stop", session_id="s", stop_hook_active=True), {})
 
@@ -139,6 +141,46 @@ class LoopGuardTest(unittest.TestCase):
                              input=json.dumps({"tool_name": "shell", "tool_input": {"command": "git commit -m x"},
                                                "cwd": self.root}), stdout=subprocess.PIPE)
         self.assertTrue(self.denied(json.loads(out.stdout)))
+
+    def test_stop_blocks_once_per_tree_state_not_every_turn(self):
+        self.freeze_a()
+        self.assertEqual(self.hook("stop", session_id="s1")["decision"], "block")
+        self.assertEqual(self.hook("stop", session_id="s2"), {})  # a later turn that left the tree alone
+        self.tree("add", "b", "--parent", "base")
+        self.assertEqual(self.hook("stop", session_id="s3")["decision"], "block")
+
+    def test_commit_forms_on_a_frozen_branch(self):
+        self.freeze_a()
+        for command in ("sh -c 'git commit -m x'", 'bash -c "git commit -m x"', "{ git commit -m x; }",
+                        "if true; then git commit -m x; fi", "env X=1 git commit -m x", "command git commit -m x",
+                        "nohup git commit -m x", "git --git-dir .git commit -m x", "git --git-dir=.git commit",
+                        "git merge other", "git cherry-pick HEAD", "git revert HEAD", "git rebase main",
+                        "git am p.patch", "git -c alias.x=commit x -m y", "export A=1; git commit -m x"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+        self.git("config", "alias.ci", "commit")
+        self.git("config", "alias.sh", "!git commit")
+        self.assertTrue(self.denied(self.bash("git ci -m x")))
+        self.assertTrue(self.denied(self.bash("git sh -m x")))
+        for command in ("git status", "git log", "git merge --abort", "git diff && echo commit"):
+            self.assertEqual(self.bash(command), {}, command)
+
+    def test_env_on_fixed_command(self):
+        self.freeze_a()
+        self.git("checkout", "-q", "main")
+        for command in ("export A=1; python code/run.py", "A=1 python ./code/run.py", "A=1 python3 code/run.py",
+                        "A=1 nohup python code/run.py", "A=1 sh -c 'python code/run.py'",
+                        "A=1 python  code/run.py", "PYTHONUNBUFFERED=1 SEED=2 python code/run.py"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+        for command in ("PYTHONUNBUFFERED=1 python code/run.py", "CUDA_VISIBLE_DEVICES=0 python code/run.py",
+                        "env PYTHONHASHSEED_OK=1 python code/other.py"):
+            self.assertEqual(self.bash(command), {}, command)
+
+    def test_block_flow_end_to_end(self):
+        self.freeze_a()
+        self.assertTrue(self.denied(self.bash("git commit -m x")))
+        self.assertEqual(self.hook("stop", session_id="s")["decision"], "block")
+        self.assertEqual(self.tree("stop", "--reason", "user")[0], 0)
+        self.assertEqual(self.hook("stop", session_id="s"), {})
 
 
 if __name__ == "__main__":

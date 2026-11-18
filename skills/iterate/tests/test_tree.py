@@ -30,7 +30,8 @@ class TreeTest(unittest.TestCase):
         return code, out.getvalue()
 
     def root(self, **plan):
-        rows = {"run-cmd": "python code/run.py", "readout": "auc", "repair-cap": "2", "stop-after": "3"}
+        rows = {"run-cmd": "python code/run.py", "readout": "auc", "repair-cap": "2", "stop-after": "3",
+                "stop-rule": "stop after 3 not better"}
         rows.update(plan)
         args = ["add", "base"]
         for key, value in rows.items():
@@ -174,6 +175,95 @@ class TreeTest(unittest.TestCase):
             result = subprocess.run(["/bin/sh", mxpy, "-", "--analysis", self.analysis, "stop-check"], stdin=source,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.assertEqual(result.returncode, 2, result.stderr)
+
+    def append_raw(self, text):
+        with open(os.path.join(self.analysis, "plans", "tree.jsonl"), "a") as handle:
+            handle.write(text)
+
+    def test_replay_ignores_events_that_break_a_frozen_node(self):
+        self.root()
+        self.answer("a", "worse")
+        self.append_raw(json.dumps({"ev": "add", "node": "a", "parent": "base"}) + "\n")
+        self.append_raw(json.dumps({"ev": "run", "node": "a", "exit": 1}) + "\n")
+        self.append_raw(json.dumps({"ev": "answer", "node": "a", "outcome": "better", "summary": "x"}) + "\n")
+        node = tree.load(self.analysis)["nodes"]["a"]
+        self.assertEqual((node["state"], node["answer"]["outcome"], len(node["runs"])), ("frozen", "worse", 1))
+        self.assertEqual(tree.frozen_branches(tree.load(self.analysis)), ["exp/a"])
+
+    def test_plan_fills_rows_the_root_lacked(self):
+        self.root(**{"run-cmd": None, "readout": None, "repair-cap": None})
+        self.assertEqual(self.call("stop-check")[0], 3)
+        self.assertEqual(self.call("plan")[0], 1)
+        code, text = self.call("plan", "--run-cmd", "python code/run.py", "--readout", "auc", "--repair-cap", "0")
+        self.assertEqual(code, 0, text)
+        self.assertEqual(self.call("add", "a", "--parent", "base")[0], 0)
+        plan = tree.load(self.analysis)["plan"]
+        self.assertEqual((plan["run_cmd"], plan["repair_cap"], plan["stop_after"]), ("python code/run.py", 0, 3))
+        self.assertEqual(self.call("plan", "--repair-cap", "5")[0], 0)
+        self.assertEqual(tree.load(self.analysis)["plan"]["repair_cap"], 5)
+
+    def test_readout_and_stop_rule_words_are_required_rows(self):
+        self.root(readout=None)
+        self.assertIn("readout", self.call("stop-check")[1])
+        shutil.rmtree(os.path.join(self.analysis, "plans"))
+        code, text = self.root(**{"stop-rule": None})
+        self.assertIn("stop rule", text)
+        self.assertEqual(self.call("stop-check")[0], 3)
+
+    def test_slug_must_make_a_git_branch(self):
+        self.root()
+        for slug in ("a..b", "x.lock", "x.", "_x", ".x"):
+            self.assertEqual(self.call("add", slug, "--parent", "base")[0], 1, slug)
+        self.assertEqual(self.call("add", "v1.2_x-y", "--parent", "base")[0], 0)
+
+    def test_repair_cap_zero_means_no_repairs(self):
+        self.root(**{"repair-cap": "0"})
+        self.call("add", "a", "--parent", "base")
+        self.call("run", "a", "--exit", "1")
+        self.assertEqual(self.call("repair", "a")[0], 3)
+        self.assertEqual(self.call("add", "b", "--parent", "base", "--repair-cap", "-1")[0], 1)
+
+    def test_repair_needs_a_run_between_repairs(self):
+        self.root(**{"repair-cap": "3"})
+        self.call("add", "a", "--parent", "base")
+        self.call("run", "a", "--exit", "1")
+        self.assertEqual(self.call("repair", "a")[0], 0)
+        self.assertEqual(self.call("repair", "a")[0], 3)
+        self.assertEqual(tree.load(self.analysis)["nodes"]["a"]["repairs"], 1)
+
+    def test_a_node_added_after_a_stop_resumes_the_loop(self):
+        self.root()
+        self.call("stop", "--reason", "user")
+        self.assertEqual(self.call("stop-check")[0], 0)
+        self.call("add", "c", "--parent", "base")
+        self.assertEqual(self.call("stop-check")[0], 3)
+
+    def test_bad_field_types_are_exit_two_not_a_traceback(self):
+        self.root()
+        for event in ({"ev": "run", "node": ["a"]}, {"ev": "add", "node": "z", "stop_after": "3"},
+                      {"ev": "stop", "note": 5}, {"ev": "answer", "node": "a", "figures": [1]}):
+            shutil.copy(os.path.join(self.analysis, "plans", "tree.jsonl"), os.path.join(self.tmp, "good"))
+            self.append_raw(json.dumps(event) + "\n")
+            self.assertEqual(self.call("stop-check")[0], 2, event)
+            self.assertEqual(self.call("status")[0], 2, event)
+            shutil.copy(os.path.join(self.tmp, "good"), os.path.join(self.analysis, "plans", "tree.jsonl"))
+
+    def test_unfinished_last_line_is_dropped_and_the_log_recovers(self):
+        self.root()
+        self.append_raw('{"ev": "run", "node": "ba')
+        self.assertEqual(self.call("stop-check")[0], 3)
+        self.assertEqual(self.call("add", "a", "--parent", "base")[0], 0)
+        with open(os.path.join(self.analysis, "plans", "tree.jsonl")) as handle:
+            self.assertEqual([json.loads(line)["ev"] for line in handle], ["add", "add"])
+
+    def test_concurrent_answers_record_one(self):
+        self.root()
+        self.call("add", "a", "--parent", "base")
+        self.call("run", "a", "--exit", "0")
+        procs = [subprocess.Popen([sys.executable, SCRIPT, "--analysis", self.analysis, "answer", "a", "--outcome",
+                                   "better", "--summary", str(n)], stdout=subprocess.PIPE) for n in range(6)]
+        codes = sorted((proc.communicate(), proc.returncode)[1] for proc in procs)
+        self.assertEqual(codes, [0] + [3] * 5)
 
 
 if __name__ == "__main__":

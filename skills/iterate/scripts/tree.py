@@ -1,10 +1,12 @@
 """Experiment tree for the iterate skill: an append-only event log and the questions it answers.
 
 Run: <skill-dir>/../../hooks/mxpy - [--analysis DIR] <command> [options] < <skill-dir>/scripts/tree.py
-The log is <analysis>/plans/tree.jsonl, one JSON event per line: add, run, answer, repair, stop.
-Nothing edits or deletes a line; every view is a replay. Stdlib only, Python 3.9+.
+The log is <analysis>/plans/tree.jsonl, one JSON event per line: add, plan, run, answer, repair, stop.
+Nothing edits or deletes a line; every view is a replay. A node added after a stop ends the stop. Stdlib only, Python 3.9+.
 
 Commands
+  plan [--run-cmd C] [--readout R] [--repair-cap N] [--stop-after N] [--stop-rule TEXT]
+        sets or changes plan rows on the root, after the user confirms them (each change is a logged event)
   add SLUG [--parent P] [--question T]   a node, branch exp/SLUG. The root also takes the plan rows:
         [--run-cmd C] [--readout R] [--repair-cap N] [--stop-after N] [--stop-rule TEXT]
   run SLUG (--receipt N | --exit CODE) [--commit SHA] [--run-id ID] [--readout-value V] [--log PATH]
@@ -20,6 +22,7 @@ defaults here: when one is missing, the command says so and exits 3, and the age
 """
 
 import argparse
+import contextlib
 import json
 import os
 import re
@@ -30,7 +33,12 @@ import time
 sys.dont_write_bytecode = True
 TREE = os.path.join("plans", "tree.jsonl")
 RECEIPTS = os.path.join(".mycelium-extra", "receipts.jsonl")
-SLUG = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+SLUG = re.compile(r"^[a-z0-9]([a-z0-9._-]*[a-z0-9_-])?$")
+EVENTS = ("add", "run", "answer", "repair", "stop", "plan")
+PLAN_KEYS = ("run_cmd", "readout", "repair_cap", "stop_after", "stop_rule")
+TEXT_KEYS = ("node", "parent", "branch", "question", "run_cmd", "readout", "stop_rule", "note", "summary", "outcome",
+             "reason", "commit", "run_id", "readout_value", "log")
+INT_KEYS = ("repair_cap", "stop_after", "receipt", "exit")
 OUTCOMES = ("better", "same", "worse")
 REASONS = ("user", "blocker", "rule")
 NO_FIGURE = "unsupported: no inspected figure"
@@ -41,6 +49,22 @@ class TreeError(Exception):
     """The log cannot be read as a tree."""
 
 
+def valid_slug(slug):
+    """A slug that also makes a valid git branch name `exp/<slug>` (no `..`, no `.lock` ending)."""
+    return bool(SLUG.match(slug)) and ".." not in slug and not slug.endswith(".lock")
+
+
+def well_formed(event):
+    """True when every field the replay reads has the type it expects."""
+    if any(event.get(key) is not None and not isinstance(event[key], str) for key in TEXT_KEYS):
+        return False
+    if any(event.get(key) is not None and (isinstance(event[key], bool) or not isinstance(event[key], int))
+           for key in INT_KEYS):
+        return False
+    figures = event.get("figures")
+    return figures is None or (isinstance(figures, list) and all(isinstance(item, str) for item in figures))
+
+
 def tree_path(analysis):
     return os.path.join(analysis, TREE)
 
@@ -49,16 +73,19 @@ def read_events(path):
     """Events in file order. A line that is not a JSON object raises TreeError: a gap is not a pass."""
     events = []
     with open(path, encoding="utf-8") as handle:
-        for number, line in enumerate(handle, 1):
-            if not line.strip():
-                continue
-            try:
-                event = json.loads(line)
-            except ValueError:
-                event = None
-            if not isinstance(event, dict) or event.get("ev") not in ("add", "run", "answer", "repair", "stop"):
-                raise TreeError("{} line {} is not a tree event".format(path, number))
-            events.append(event)
+        lines = handle.readlines()
+    for number, line in enumerate(lines, 1):
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            event = None
+        if event is None and number == len(lines) and not line.endswith("\n"):
+            break  # a writer was killed mid-line: the unfinished last line is not an event yet
+        if not isinstance(event, dict) or event.get("ev") not in EVENTS or not well_formed(event):
+            raise TreeError("{} line {} is not a tree event".format(path, number))
+        events.append(event)
     return events
 
 
@@ -102,20 +129,30 @@ def run_status(analysis, event):
 
 
 def replay(events, analysis="."):
-    """The tree the events describe: {"root": id|None, "plan": {...}, "nodes": {id: node}, "stops": [...]}."""
+    """The tree the events describe: {"root": id|None, "plan": {...}, "nodes": {id: node}, "stops": [...]}.
+
+    The log is append-only, so the replay enforces what the commands check: a second `add` of a slug, and any
+    run, repair or answer on a frozen node, are ignored. A stop ends the loop until a node is added after it.
+    """
     nodes, stops, root, plan, answers = {}, [], None, {}, []
     for event in events:
         kind, slug = event["ev"], event.get("node")
         if kind == "add":
+            if slug in nodes:
+                continue
             nodes[slug] = {"id": slug, "branch": event.get("branch") or "exp/" + slug, "parent": event.get("parent"),
                            "question": event.get("question") or "", "runs": [], "repairs": 0, "answer": None,
                            "state": "new"}
+            stops = []
             if event.get("parent") is None and root is None:
                 root = slug
-                plan = {key: event.get(key) for key in ("run_cmd", "readout", "repair_cap", "stop_after", "stop_rule")}
+                plan = {key: event.get(key) for key in PLAN_KEYS}
+        elif kind == "plan":
+            if root is not None:
+                plan.update({key: event[key] for key in PLAN_KEYS if event.get(key) is not None})
         elif kind == "stop":
             stops.append(event)
-        elif slug in nodes:
+        elif slug in nodes and nodes[slug]["state"] != "frozen":
             node = nodes[slug]
             if kind == "run":
                 node["runs"].append(dict(event, status=run_status(analysis, event)))
@@ -131,11 +168,22 @@ def replay(events, analysis="."):
 
 
 def load(analysis):
-    return replay(read_events(tree_path(analysis)), analysis)
+    try:
+        return replay(read_events(tree_path(analysis)), analysis)
+    except (TypeError, KeyError, AttributeError, ValueError) as problem:
+        raise TreeError("{} holds an event the replay cannot read ({})".format(tree_path(analysis), problem))
 
 
 def frozen_branches(tree):
     return [node["branch"] for node in tree["nodes"].values() if node["state"] == "frozen"]
+
+
+def missing_rows(plan):
+    """Names of the four impactful plan rows the root does not hold yet (the stop rule needs its count and its words)."""
+    rows = (("run command", plan.get("run_cmd")), ("readout", plan.get("readout")),
+            ("repair cap", plan.get("repair_cap")),
+            ("stop rule", plan.get("stop_after") if plan.get("stop_rule") else None))
+    return [name for name, value in rows if value in (None, "")]
 
 
 def stop_check(tree):
@@ -144,11 +192,10 @@ def stop_check(tree):
         last = tree["stops"][-1]
         return 0, "stopped: reason {}{}".format(last.get("reason"), " (" + last["note"] + ")" if last.get("note") else "")
     if tree["root"] is None:
-        return 3, "the tree has no root node; add one with the run command, repair cap and stop rule. " + ASK
+        return 3, "the tree has no root node; add one with the run command, readout, repair cap and stop rule. " + ASK
     plan = tree["plan"]
     limit = plan.get("stop_after")
-    rows = (("run command", plan.get("run_cmd")), ("repair cap", plan.get("repair_cap")), ("stop rule", limit))
-    missing = [name for name, value in rows if value in (None, "")]
+    missing = missing_rows(plan)
     if missing:
         return 3, "the root node has no {}. {}".format(", ".join(missing), ASK)
     streak = 0
@@ -192,11 +239,37 @@ def analysis_of(tree_file):
 
 
 def append(analysis, event):
+    """Add one line. An unfinished last line (a writer killed mid-write) is dropped first; it was never an event."""
     path = tree_path(analysis)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     event = dict(event, ts=int(time.time()))
+    line = json.dumps(event, sort_keys=True) + "\n"
+    if os.path.isfile(path):
+        with open(path, "rb+") as handle:
+            data = handle.read()
+            if data and not data.endswith(b"\n"):
+                cut = data.rfind(b"\n") + 1
+                try:
+                    json.loads(data[cut:].decode("utf-8"))
+                    handle.write(b"\n")
+                except ValueError:
+                    handle.truncate(cut)
     with open(path, "a", encoding="utf-8") as handle:
-        handle.write(json.dumps(event, sort_keys=True) + "\n")
+        handle.write(line)
+
+
+@contextlib.contextmanager
+def locked(analysis):
+    """Hold an exclusive lock on the log while a command checks the tree and appends, so two calls cannot both pass."""
+    try:
+        import fcntl
+        handle = open(tree_path(analysis) + ".lock", "a")
+    except (ImportError, OSError):
+        yield
+        return
+    with handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        yield
 
 
 def git_head(analysis):
@@ -224,6 +297,33 @@ def need_tree(args):
         return None, fail("tree unreadable: {}".format(problem), 2)
 
 
+def bad_numbers(event):
+    """A message when the repair cap is below 0 (0 means no repairs) or the stop-after count is below 1."""
+    for key, floor in (("repair_cap", 0), ("stop_after", 1)):
+        if event.get(key) is not None and event[key] < floor:
+            return "--{} must be {} or more".format(key.replace("_", "-"), floor)
+    return ""
+
+
+def cmd_plan(args):
+    tree, code = need_tree(args)
+    if code:
+        return code
+    if tree["root"] is None:
+        return fail("the tree has no root node yet; use add SLUG with the plan rows", 3)
+    event = {"ev": "plan", "run_cmd": args.run_cmd, "readout": args.readout, "repair_cap": args.repair_cap,
+             "stop_after": args.stop_after, "stop_rule": args.stop_rule}
+    if all(event[key] is None for key in PLAN_KEYS):
+        return fail("give at least one of --run-cmd --readout --repair-cap --stop-after --stop-rule")
+    bad = bad_numbers(event)
+    if bad:
+        return fail(bad)
+    append(args.analysis, event)
+    missing = missing_rows(replay(read_events(tree_path(args.analysis)), args.analysis)["plan"])
+    print("plan rows set on {}{}".format(tree["root"], "; still missing: " + ", ".join(missing) if missing else ""))
+    return 0
+
+
 def cmd_add(args):
     tree, code = (None, 0)
     if os.path.isfile(tree_path(args.analysis)):
@@ -231,8 +331,9 @@ def cmd_add(args):
         if code:
             return code
     tree = tree or {"root": None, "nodes": {}}
-    if not SLUG.match(args.slug):
-        return fail("slug must be lowercase letters, digits, '.', '_' or '-': " + args.slug)
+    if not valid_slug(args.slug):
+        return fail("slug must make a git branch name exp/SLUG: lowercase letters, digits, '.', '_' or '-', "
+                    "starting and ending with a letter, digit, '_' or '-', no '..', not ending in '.lock': " + args.slug)
     if args.slug in tree["nodes"]:
         return fail("node exists: " + args.slug)
     event = {"ev": "add", "node": args.slug, "branch": "exp/" + args.slug, "question": args.question or ""}
@@ -249,15 +350,15 @@ def cmd_add(args):
         if any(value is not None for value in plan_args.values()):
             return fail("only the root holds the run command, readout, repair cap and stop rule; children inherit them")
         event["parent"] = args.parent
-    for key in ("repair_cap", "stop_after"):
-        if event.get(key) is not None and event[key] < 1:
-            return fail("--{} must be 1 or more".format(key.replace("_", "-")))
+    bad = bad_numbers(event)
+    if bad:
+        return fail(bad)
     append(args.analysis, event)
     note = ""
     if args.parent is None:
-        missing = [name for name, value in (("run command", args.run_cmd), ("repair cap", args.repair_cap),
-                                            ("stop rule", args.stop_after)) if value is None]
-        note = "; missing plan rows: {}. {}".format(", ".join(missing), ASK) if missing else ""
+        missing = missing_rows(event)
+        note = "; missing plan rows: {}. {} Set them later with the plan command.".format(
+            ", ".join(missing), ASK) if missing else ""
     print("added {} (branch exp/{}){}".format(args.slug, args.slug, note))
     return 0
 
@@ -320,11 +421,14 @@ def cmd_repair(args):
         return fail("node {} is frozen; add a child node instead".format(args.slug), 3)
     if not node["runs"] or node["runs"][-1]["status"] == "ok":
         return fail("node {} has no failed run to repair".format(args.slug), 3)
+    if node["state"] == "repairing":
+        return fail("node {} was repaired and has not run since. Run it again before the next repair.".format(
+            args.slug), 3)
     cap = tree["plan"].get("repair_cap")
     if not isinstance(cap, int):
         return fail("no repair cap is recorded on the root node. " + ASK, 3)
     if node["repairs"] >= cap:
-        return fail("node {} has used its {} repairs. Ask the user: raise the cap in the plan, drop the node, "
+        return fail("node {} has used its {} repairs. Ask the user: raise the cap (the plan command), drop the node, "
                     "or stop.".format(args.slug, cap), 3)
     append(args.analysis, {"ev": "repair", "node": args.slug, "note": args.note or ""})
     print("repair {} of {} recorded for {}".format(node["repairs"] + 1, cap, args.slug))
@@ -441,12 +545,16 @@ def parser():
     stop.add_argument("--note")
     status = sub.add_parser("status")
     status.add_argument("--json", action="store_true")
+    plan = sub.add_parser("plan")
+    for flag, kind in (("--run-cmd", str), ("--readout", str), ("--repair-cap", int), ("--stop-after", int),
+                       ("--stop-rule", str)):
+        plan.add_argument(flag, type=kind)
     for name in ("summary", "frozen", "stop-check"):
         sub.add_parser(name)
     return top
 
 
-COMMANDS = {"add": cmd_add, "run": cmd_run, "answer": cmd_answer, "repair": cmd_repair, "stop": cmd_stop,
+COMMANDS = {"plan": cmd_plan, "add": cmd_add, "run": cmd_run, "answer": cmd_answer, "repair": cmd_repair, "stop": cmd_stop,
             "status": cmd_status, "summary": cmd_summary, "frozen": cmd_frozen, "stop-check": cmd_stop_check}
 
 
@@ -455,6 +563,11 @@ def main(argv=None):
         args = parser().parse_args(argv)
     except SystemExit as stop:
         return 1 if stop.code else 0
+    if args.command in ("add", "plan", "run", "answer", "repair", "stop"):
+        if args.command == "add":
+            os.makedirs(os.path.dirname(tree_path(args.analysis)), exist_ok=True)
+        with locked(args.analysis):
+            return COMMANDS[args.command](args)
     return COMMANDS[args.command](args)
 
 
