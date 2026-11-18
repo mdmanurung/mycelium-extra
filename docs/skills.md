@@ -27,6 +27,7 @@ This is a task map, not a list of commands to execute in sequence. Read the skil
 | Review how an analysis folder is organised | `/mycelium-extra:improve-structure` |
 | Fix the words of an analysis, log exploratory loops | `/mycelium-extra:glossary` |
 | Test a method or panel before a plan commits to it | `/mycelium-extra:prototype-analysis` |
+| Try variants on one fixed command and keep or drop each | `/mycelium-extra:iterate` |
 | Get a sourced answer in the background | `/mycelium-extra:research-note` |
 | Chart a program too big for one session | `/mycelium-extra:analysis-map` |
 | Walk through cluster setup steps only you can do | `/mycelium-extra:setup-wizard` |
@@ -130,6 +131,10 @@ Read-only review of how an analysis folder or lab repo is organised. Shows up to
 ## glossary
 
 Fixes the terms of one analysis in `GLOSSARY.md` and logs each exploratory loop in `ITERATIONS.md`. Approves and runs nothing. See [glossary](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/glossary.md).
+
+## iterate
+
+Runs a tree of experiments on one fixed command: a git branch per node, frozen once a run answers it, repaired in place up to a cap you set, stopped by a rule you set. The optional `loops` key in `gate.json` turns on a guard. See [iterate](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/iterate.md).
 
 ## prototype-analysis
 

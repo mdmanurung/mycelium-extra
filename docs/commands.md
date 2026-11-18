@@ -55,6 +55,7 @@ Claude Code and OpenCode: `/mycelium-extra:<skill>`. Codex: `$mycelium-extra:<sk
 | `diagnose-result` (you) | Finds why a result looks wrong, unstable or slow, or why a step fails. |
 | `improve-structure` (you) | Read-only review of how an analysis is organised; hands your pick to `grill`. |
 | `glossary` (you) | Fixes an analysis's terms and logs exploratory loops. |
+| `iterate` (you) | Runs a tree of experiments on one fixed command, with a stop rule you approve. |
 | `prototype-analysis` (you) | Builds a throwaway prototype that answers one analytic question before a plan row commits to it. |
 | `research-note` (you) | Sends a sourced question to a background agent that writes one cited note. |
 | `analysis-map` (you) | Charts a program too big for one session as decision tickets and resolves them one at a time. |
