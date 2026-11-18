@@ -48,6 +48,10 @@ When an analysis repository loads the package from a working copy, name the copy
 
 Each run receipt then records the package's commit and whether it had uncommitted changes. `verify report` lists them under Packages in development. Keep the gate on in the analysis repository: a switched-off gate writes no receipts.
 
+## Build the package in small units
+
+To grow a package over several steps, type `/mycelium-extra:package-loop`. It makes each unit a node of an `iterate` tree and ends the unit on a green check (R CMD check, pytest or ruff) before the next one starts. `/mycelium-extra:iterate` is the general form: one fixed command, one git branch per variant, and a stop rule you set. Set `"loops"` to `"warn"` or `"block"` in `gate.json` to have the loop guard enforce the frozen branches and the stop rule. See [package-loop](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/package-loop.md) and [iterate](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/iterate.md).
+
 ## Reference
 
 [gate](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/gate.md#typed-commands) · [gate.json](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/gate-json.md) · [grill](https://github.com/mdmanurung/mycelium-extra/blob/main/docs/reference/skills/grill.md) · [what is not guaranteed](../concepts/not-guaranteed.md)

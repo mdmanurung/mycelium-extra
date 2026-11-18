@@ -26,6 +26,8 @@ Every skill is a slash command in Claude Code (`/mycelium-extra:<name>`), a `$` 
 | [questionnaire](skills/questionnaire.md) | Turn questions only a PI or collaborator can answer into a file to send | `questionnaire-<slug>.md` |
 | [handoff](skills/handoff.md) | Write `HANDOFF.md` for a fresh session | `HANDOFF.md` |
 | [harden](skills/harden.md) | Ship a learning's check as a test | a test file and one `.living/learnings.md` entry, after you confirm |
+| [iterate](skills/iterate.md) | Run a tree of experiments on one fixed command until a stop rule you chose is met | `plans/tree.jsonl`, `exp/<slug>` git branches |
+| [package-loop](skills/package-loop.md) | Develop a package as a loop of small units, each ending on a green check | nodes of an `iterate` tree |
 | [reflect](skills/reflect.md) | Turn a finished stretch of work into approved learnings | `.living/learnings.md` entries, after you confirm |
 
 ## Gate and files
@@ -33,7 +35,7 @@ Every skill is a slash command in Claude Code (`/mycelium-extra:<name>`), a `$` 
 | Page | What it covers |
 |---|---|
 | [Gate](gate.md) | hook events on each host, typed commands, every allow, deny and notice, what the gate does not trace |
-| [gate.json](gate-json.md) | all 17 settings with default, type and validation |
+| [gate.json](gate-json.md) | all 18 settings with default, type and validation |
 | [State files](state-files.md) | every file under `.mycelium-extra/` and `provenance/`, who writes and reads it, and the proposed 1.x compatibility surface |
 
 ## Reading the "confirmation" lines

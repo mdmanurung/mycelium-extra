@@ -30,6 +30,7 @@ The `.jsonl` logs and `explore.log` only grow. Nothing trims them.
 | `denies.jsonl` | gate | nothing | one line per denied tool call | No |
 | `gate-errors.jsonl` | gate hook entry point (`gate_run.py`) | `verify` (a gap in the plan's window), `init --diagnose` | internal gate errors | Not listed; `verify` reads it, so decide at 1.0 |
 | `gate-errors.seen.json` | gate hook entry point (`gate_run.py`) | the same entry point | which gate errors recent sessions already showed (event, error, outcome, host; a few sessions, oldest stamps evicted), so a broken gate's message is shown once per hour per kind, not on every tool call. `gate-errors.jsonl` still gets a line for every error | Not listed; safe to delete |
+| `loop_guard_seen.json` | `loop_guard.py` (Stop) | the same hook | which research-tree states, evaluator drifts and tusoskill run states the loop guard already reported (state fingerprint per key), so each is reported once and an unchanged tusoskill run is not rechecked | No |
 | `explore-grants/<session>.json` | gate, on `allow explore` | gate | the session's explore permission, with its scope if bounded | No |
 | `explore.log` | gate | gate (Stop notice) | one line per explore run | No |
 | `hints.json` | gate, on `hints on` | gate | the hints switch | No: hint rules are not frozen |
@@ -42,6 +43,14 @@ The `.jsonl` logs and `explore.log` only grow. Nothing trims them.
 | `review-consent/<digest>.json` | gate, on your `send packet` | `review_packet.py verify` | your consent to send one prepared packet (`mycelium-extra.review-consent.v1`) | Yes (v1) |
 | `track-changes/<analysis>/snapshot.json` | `track_changes.py` | you, `grill` (via `brief.md`), the next `track_changes.py` run (its `reports` headings) | the machine-readable change snapshot (`mycelium-extra.track-changes.v1`); `reports` keeps each `reports/*.qmd`'s `##`/`###` headings so the next snapshot can report dropped sections | Yes |
 | `track-changes/<analysis>/brief.md`, `report.html` | `track_changes.py` | you, `grill`, `handoff` (as pointers) | the review brief and the offline report | Format yes, wording and layout no |
+
+## `<analysis>/plans/` (the `iterate` tree)
+
+The `iterate` skill's experiment tree lives in the analysis folder, not under `.mycelium-extra/`. The loop guard reads it when `loops` is `warn` or `block`.
+
+| Path | Written by | Read by | Holds | Proposed 1.x |
+|---|---|---|---|---|
+| `plans/tree.jsonl` | `tree.py` (`add`, `run`, `answer`, `freeze-evaluator` and the other subcommands) | `tree.py`, the loop guard | the append-only event log of the tree: nodes, runs, answers, the plan and the stop rule. The evaluator freeze is an `evaluator` event in this file (SHA-256 per card and file); no separate hash file exists. | No |
 
 ## `provenance/` (in an analysis folder)
 

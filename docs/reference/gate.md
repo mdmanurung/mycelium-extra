@@ -6,7 +6,7 @@ The gate is off in a repository until `.mycelium-extra/gate.json` exists ([init]
 
 ## Hook events
 
-All hooks start through `hooks/py.sh --hook hooks/gate_run.py <event>`. `py.sh` uses `MYCELIUM_EXTRA_PYTHON` if set, else `python3` when it is 3.9 or later (hooks skip that probe), else the newest `python3.N` on `PATH` (3.14 down to 3.9). The gate needs Python 3.9 or later.
+The gate's hooks start through `hooks/py.sh --hook hooks/gate_run.py <event>`. The loop guard starts through `hooks/py.sh --hook hooks/loop_guard.py tool|stop`, a separate entry that reads only the `loops` setting (see the loop guard rows below). `py.sh` uses `MYCELIUM_EXTRA_PYTHON` if set, else `python3` when it is 3.9 or later (hooks skip that probe), else the newest `python3.N` on `PATH` (3.14 down to 3.9). The gate needs Python 3.9 or later.
 
 ### Claude Code (`hooks/hooks.json`)
 
@@ -18,10 +18,12 @@ All hooks start through `hooks/py.sh --hook hooks/gate_run.py <event>`. `py.sh` 
 | `PostToolUse` | `Write\|Edit\|MultiEdit\|NotebookEdit` | `post` | 20 s |
 | `PostToolUseFailure` | `Bash` | `post` | 20 s |
 | `Stop` | none | `stop` | 30 s |
+| `PreToolUse` | `Bash\|Write\|Edit\|MultiEdit\|NotebookEdit` | `loop_guard.py tool` | 10 s |
+| `Stop` | none | `loop_guard.py stop` | 10 s |
 
 ### Codex (`hooks/codex.json`)
 
-The same events with `--host codex`, except that there is no `PostToolUseFailure`. Tool matchers are `Bash|apply_patch|exec_command|shell_command|shell` for `PreToolUse`, and `Bash|exec_command|shell_command|shell` and `apply_patch` as two `PostToolUse` entries; the launcher remaps each shell name to `Bash`. Timeouts are the same as above. Codex needs enabled and trusted hooks, and CLI 0.160.0 or later. In 0.160.0 the post hook gives no exit status, so every Codex receipt records exit status `unknown` and `verify` reports a gap. A failed `Bash` or `apply_patch` call therefore never reads as a pass: when Codex sends the post event it is receipted `unknown`, and when it sends none the planned step has no receipt at all. Neither is recorded as a completed run (Claude Code, which does send `PostToolUseFailure`, records the exit code when the message carries one).
+The same events with `--host codex`, except that there is no `PostToolUseFailure`. Tool matchers are `Bash|apply_patch|exec_command|shell_command|shell` for `PreToolUse`, and `Bash|exec_command|shell_command|shell` and `apply_patch` as two `PostToolUse` entries; the launcher remaps each shell name to `Bash`. Timeouts are the same as above. The loop guard is registered as well: `loop_guard.py --host codex tool` on the same `PreToolUse` matcher and `loop_guard.py --host codex stop` on `Stop`, each with a 10 s timeout. Codex needs enabled and trusted hooks, and CLI 0.160.0 or later. In 0.160.0 the post hook gives no exit status, so every Codex receipt records exit status `unknown` and `verify` reports a gap. A failed `Bash` or `apply_patch` call therefore never reads as a pass: when Codex sends the post event it is receipted `unknown`, and when it sends none the planned step has no receipt at all. Neither is recorded as a completed run (Claude Code, which does send `PostToolUseFailure`, records the exit code when the message carries one).
 
 ### OpenCode (`opencode/index.js`)
 
@@ -33,6 +35,8 @@ A plugin adapter, not a hooks file. It is loaded through the `plugins` setting (
 | the same tools, after execution | `PostToolUse` (20 s); a failed call becomes `PostToolUseFailure`; the shell result's `metadata.exit` becomes the exit code |
 | session prompt | `UserPromptSubmit` (10 s) |
 | end of a turn (`session.execution.succeeded`, `.failed`, `.interrupted`, or `session.idle`) | `Stop` (30 s), on the last assistant text |
+| the same tool calls, before execution | the loop guard's `tool` check (`loop_guard.py`, 10 s), run after the gate's own check |
+| end of a turn | the loop guard's `stop` check (`loop_guard.py`, a 7 s budget inside the host's timeout) |
 
 Differences you will see on OpenCode: a deny is a thrown error; a notice is appended to the tool result or posted as a synthetic session message; a blocked prompt (a card, `focus status`) is shown to you directly and the agent's copy of the prompt is replaced by the reply, so the card reaches you through the session. A `Stop` block becomes a steering prompt. The adapter keeps only events from its own folder, because the OpenCode event stream is shared across locations. Qualified on OpenCode 2.0.32.
 
