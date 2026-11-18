@@ -47,7 +47,7 @@ A rejected alternative with a load-bearing reason (it was tried and failed, or i
 
 ## 4. Log an exploratory loop
 
-Use this when the work is exploratory and no metric judges it. Read `references/iteration-log.md`, then:
+Use this when the work is exploratory and no metric judges it. A loop that has a metric and a fixed run command belongs in the experiment tree (`/mycelium-extra:iterate`, `plans/tree.jsonl`) instead. Read `references/iteration-log.md`, then:
 
 1. Create `plans/ITERATIONS.md` from `templates/ITERATIONS.md` if it is missing. Never edit an earlier entry; add to the next one.
 2. Draft one entry with the user: the question; `[SHAPE]`; `[PLOT]` with the path of each saved figure you or the user opened (none: `unsupported: no inspected figure`); `[FINDING]` with a claim level (description, association, prediction, causation, mechanism), never above what the design supports; what would change their mind, as an observable pattern written before the next look; the result of the previous loop's test; and `[NEXT]`.

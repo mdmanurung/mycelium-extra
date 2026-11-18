@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Iterate"
+  short_description: "Run a tree of experiments on one fixed command"
+  default_prompt: "Use $mycelium-extra:iterate to run a tree of experiments on one fixed command, with a git branch per node and a stop rule I approve."
+policy:
+  allow_implicit_invocation: false

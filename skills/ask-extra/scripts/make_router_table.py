@@ -26,7 +26,7 @@ GROUPS = [
         "I am starting something",
         ["new-analysis", "grill", "analysis-map", "research-note", "glossary", "questionnaire", "setup-wizard", "repo-setup", "init", "idea-triage"],
     ),
-    ("I am exploring", ["prototype-analysis", "plot-first", "check-first"]),
+    ("I am exploring", ["prototype-analysis", "iterate", "plot-first", "check-first"]),
     ("Something looks wrong", ["diagnose-result", "verify", "track-changes"]),
     ("I want to report", ["analysis-report", "verify", "manuscript-audit"]),
     ("I want the structure cleaner", ["improve-structure", "skill-style", "harden"]),

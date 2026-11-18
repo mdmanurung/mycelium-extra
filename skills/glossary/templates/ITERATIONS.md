@@ -1,6 +1,6 @@
 # {Analysis name}: iterations
 
-One entry per exploratory loop, newest at the bottom. There is no score field on purpose: a number would make loops look more settled than they are. Entries are appended; to change an old one, add a line to the next entry.
+One entry per exploratory loop, newest at the bottom. A loop with a metric and a fixed run command is kept in `plans/tree.jsonl` instead (`/mycelium-extra:iterate`). There is no score field on purpose: a number would make loops look more settled than they are. Entries are appended; to change an old one, add a line to the next entry.
 
 ## Stopping rule
 
