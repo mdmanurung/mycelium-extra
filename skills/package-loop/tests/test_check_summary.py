@@ -41,7 +41,7 @@ class SummaryTest(unittest.TestCase):
 
     def test_note_count_falls_back_to_check_lines(self):
         text = "* checking R code ... NOTE\nx\n* checking docs ... NOTE\n* checking tests ... WARNING\n"
-        self.assertEqual(cs.summarize(text)[0], "rcheck: 0 ERROR, 1 WARNING, 2 NOTE")
+        self.assertTrue(cs.summarize(text)[0].startswith("rcheck: 0 ERROR, 1 WARNING, 2 NOTE (no Status line"))
 
     def test_note_headings(self):
         notes = cs.summarize(sample("rcmdcheck_notes.txt"), want_notes=True)[1]
@@ -81,6 +81,80 @@ class SummaryTest(unittest.TestCase):
 
     def test_warnings_and_notes_do_not_set_bad(self):
         self.assertFalse(cs.summarize(sample("rcmdcheck_notes.txt"))[2])
+
+
+class FableFixTest(unittest.TestCase):
+    def test_build_failure_is_not_clean(self):
+        text = "* checking for file './DESCRIPTION' ... OK\n* creating vignettes ... ERROR\n"
+        line, _, bad = cs.summarize(text)
+        self.assertIn("1 ERROR", line)
+        self.assertTrue(bad)
+
+    def test_killed_check_without_status_is_bad(self):
+        text = "* checking for file './DESCRIPTION' ... OK\n* checking package namespace information ... OK\n"
+        line, _, bad = cs.summarize(text)
+        self.assertIn("no Status line", line)
+        self.assertTrue(bad)
+
+    def test_tests_error_on_own_line_counts(self):
+        text = "* checking tests ...\n  Running 'testthat.R'\n ERROR\n"
+        line, _, bad = cs.summarize(text)
+        self.assertTrue(line.startswith("rcheck: 1 ERROR"))
+        self.assertTrue(bad)
+
+    def test_status_line_log_is_complete(self):
+        self.assertNotIn("no Status line", self.line_of("rcmdcheck_ok.txt"))
+
+    def line_of(self, name):
+        return cs.summarize(sample(name))[0]
+
+    def test_testthat_summary(self):
+        line, _, bad = cs.summarize("[ FAIL 1 | WARN 0 | SKIP 0 | PASS 7 ]\nError: Test failures\n")
+        self.assertEqual(line, "testthat: FAIL 1, WARN 0, SKIP 0, PASS 7")
+        self.assertTrue(bad)
+        line, _, bad = cs.summarize("[ FAIL 0 | WARN 1 | SKIP 0 | PASS 8 ]\n")
+        self.assertEqual(line, "testthat: FAIL 0, WARN 1, SKIP 0, PASS 8")
+        self.assertFalse(bad)
+
+    def test_testthat_with_no_tests_is_bad(self):
+        self.assertTrue(cs.summarize("[ FAIL 0 | WARN 0 | SKIP 0 | PASS 0 ]\n")[2])
+
+    def test_last_devtools_summary_wins(self):
+        clean = "0 errors \u2714 | 0 warnings \u2714 | 0 notes \u2714\n"
+        err = "1 error  \u2716 | 0 warnings \u2714 | 0 notes \u2714\n"
+        self.assertEqual(cs.summarize(clean + err)[0], "rcheck: 1 ERROR, 0 WARNING, 0 NOTE")
+        self.assertTrue(cs.summarize(clean + err)[2])
+        self.assertEqual(cs.summarize(err + clean)[0], "rcheck: 0 ERROR, 0 WARNING, 0 NOTE")
+
+    def test_all_deselected_is_bad(self):
+        line, _, bad = cs.summarize("============ 2 deselected in 0.03s ============\n")
+        self.assertEqual(line, "pytest: 2 deselected in 0.03s")
+        self.assertTrue(bad)
+        self.assertFalse(cs.summarize("== 3 passed, 2 deselected in 0.03s ==\n")[2])
+
+    def test_ruff_fix_summary(self):
+        self.assertEqual(cs.summarize("Found 3 errors (1 fixed, 2 remaining).\n")[0], "ruff: 2 errors")
+        self.assertTrue(cs.summarize("Found 3 errors (1 fixed, 2 remaining).\n")[2])
+        self.assertEqual(cs.summarize("Found 1 error (1 fixed, 0 remaining).\n")[0], "ruff: clean")
+        text = "== 5 passed in 0.10s ==\nFound 3 errors (1 fixed, 2 remaining).\n"
+        self.assertEqual(cs.summarize(text)[0], "pytest: 5 passed in 0.10s; ruff: 2 errors")
+
+    def test_notes_come_from_the_counted_run(self):
+        first = "* checking A ... NOTE\nStatus: 1 NOTE\n"
+        second = "* checking B ... NOTE\n* checking C ... NOTE\nStatus: 2 NOTEs\n"
+        line, notes, _ = cs.summarize(first + second, want_notes=True)
+        self.assertEqual(line, "rcheck: 0 ERROR, 0 WARNING, 2 NOTE")
+        self.assertEqual(notes, ["checking B", "checking C"])
+
+    def test_old_pytest_seconds(self):
+        line, _, bad = cs.summarize("===== 3 passed in 0.12 seconds =====\n")
+        self.assertEqual(line, "pytest: 3 passed in 0.12s")
+        self.assertFalse(bad)
+        self.assertTrue(cs.summarize("===== 1 failed, 2 passed in 0.12 seconds =====\n")[2])
+
+    def test_kind_testthat(self):
+        self.assertEqual(cs.summarize("[ FAIL 0 | WARN 0 | SKIP 0 | PASS 3 ]", kind="testthat")[0],
+                         "testthat: FAIL 0, WARN 0, SKIP 0, PASS 3")
 
 
 class CliTest(unittest.TestCase):

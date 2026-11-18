@@ -26,7 +26,11 @@ A repeated mistake is one that has happened twice. Before section 2, ask which l
 4. **A test.** Sections 2 to 4 below. It tests behaviour through a public name, and it must fail on the real past mistake.
 5. **Docs or an agent rule, last.** Only for judgment calls: nothing fails when a reader skips them.
 
-Levels 1 to 3 change package or repository code. Make that change only when the user approves it, and never in analysis code, which belongs to a grill plan and a re-run. When the choice is level 4, go on. The learning becomes `structural` only for a level 1 to 4 fix that ships and is proved on the reproduction (section 3); a docs-only fix leaves it `ambient-awareness`.
+Levels 1 to 3 change package or repository code. Make that change only when the user approves it, and never in analysis code, which belongs to a grill plan and a re-run. When the choice is level 4, go on with sections 2 to 4.
+
+For a level 1 to 3 fix, show the user the change (the files and the diff) and the reproduction of the past mistake, and make the change only after a yes. Then prove it on the reproduction: before the change the mistake goes through, and after it the wrong import fails, the bad state cannot be written, or the lint fires with its message. Show both results. If the mistake still goes through after the change, revert the change, stop, and leave the entry `ambient-awareness`. Then go to section 4, and record the changed file (or the lint rule) in place of a test path.
+
+The learning becomes `structural` only for a level 1 to 4 fix that ships and is proved on the reproduction (section 3 for a test); a docs-only fix leaves it `ambient-awareness`.
 
 ## 2. Place the test
 
@@ -50,9 +54,9 @@ For a data learning (a column, a sample count, a file format), the test may read
 
 ## 4. Record, after the user confirms
 
-Show the test path, both runs, and the exact edit, then ask. After the user confirms, edit only that entry:
+Show the test path (or the changed files), both runs, and the exact edit, then ask. After the user confirms, edit only that entry:
 
 - `**mitigation_type**: structural`
-- Append to the `**structural_mitigation_candidate**:` line: ` Shipped: \`<test path>\` (YYYY-MM-DD).`
+- Append to the `**structural_mitigation_candidate**:` line: ` Shipped: \`<test path, or the changed file or lint rule for a level 1 to 3 fix>\` (YYYY-MM-DD).`
 
-Change no other field or entry. Do not commit. This confirmation is the agent's instruction, not a gate rule: nothing enforces it, unless `.mycelium-extra/gate.json` sets `confirm_writes` to true. Then, before writing the test file (section 3), run `<skill-dir>/../../hooks/mxpy <skill-dir>/../../hooks/confirm_write.py prepare --kind harden --target <test path> --target .living/learnings.md`, show the user the `confirm write <id>` line, and write either file only after they type it: the gate denies both before. If Mycelium's Stop hook asks for `.living/` updates afterwards, follow it. End with one line: the learning, the test path, and how to run it.
+Change no other field or entry. Do not commit. This confirmation is the agent's instruction, not a gate rule: nothing enforces it, unless `.mycelium-extra/gate.json` sets `confirm_writes` to true. Then, before writing the test file (section 3), run `<skill-dir>/../../hooks/mxpy <skill-dir>/../../hooks/confirm_write.py prepare --kind harden --target <test path or changed file> --target .living/learnings.md`, show the user the `confirm write <id>` line, and write either file only after they type it: the gate denies both before. If Mycelium's Stop hook asks for `.living/` updates afterwards, follow it. End with one line: the learning, the test path (or the changed file), and how to run it.
