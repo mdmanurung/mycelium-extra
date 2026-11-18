@@ -23,7 +23,7 @@
         ]
       },
       {
-        "matcher": "Bash|exec_command|shell_command|shell",
+        "matcher": "Bash|apply_patch|exec_command|shell_command|shell",
         "hooks": [
           {
             "type": "command",

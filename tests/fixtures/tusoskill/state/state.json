@@ -1,0 +1,11 @@
+{
+  "run_id": "fixture-run",
+  "task": "method development",
+  "primary_metric": "auc",
+  "metric_direction": "higher",
+  "mode": "metric",
+  "iteration": 3,
+  "max_iterations": 50,
+  "best_candidate_id": null,
+  "best_score": null
+}

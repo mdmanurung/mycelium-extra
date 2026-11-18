@@ -7,9 +7,16 @@ approval gate is on or off, and it is separate from hooks/gate.py. State is the 
   PreToolUse Bash  a git call that commits (commit, merge, cherry-pick, revert, rebase, am, pull, or an alias
                    of one) on a frozen exp/* branch, or the fixed run command (the root node's run command)
                    run with env vars set in front of it: denied under "block", noted under "warn".
-  Stop             a tree whose `stop-check` exits 3 (the stop rule is not met, nothing recorded as a stop):
-                   blocked once per tree state under "block" (skipped when stop_hook_active), noted under
-                   "warn". A turn that left the tree unchanged since the last report is not stopped again.
+  PreToolUse       Write, Edit, MultiEdit, NotebookEdit (apply_patch on Codex; edit, write and patch on OpenCode)
+  edit tools       that name a file the method tree's `freeze-evaluator` hashed: denied under "block", noted under
+                   "warn". Only these tools are checked; `tree.py check-evaluator` and the Stop hook catch the rest.
+  Stop             a tree whose `stop-check` exits 3 (the stop rule or iteration floor is not met, nothing recorded
+                   as a stop), a hashed evaluator file that changed, or a tusoskill run (a state/state.json of its
+                   shape) whose own `stop-check` exits 3: blocked once per state under "block" (skipped when
+                   stop_hook_active), noted under "warn". A turn that left the state unchanged since the last
+                   report is not stopped again. The tusoskill script is found at
+                   ~/.claude/skills/tusoskill/scripts/biomni_method_state.py, or at $MYCELIUM_TUSOSKILL_SCRIPT;
+                   when it is absent the bridge is silent.
 
 Usage: loop_guard.py [--host codex|opencode] tool|stop    (event JSON on stdin; hooks.json calls this)
 A hook must never break the session: any error means no reply.
@@ -18,6 +25,7 @@ A hook must never break the session: any error means no reply.
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -26,6 +34,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 STATE_DIR = ".mycelium-extra"
 BASH_TOOLS = ("Bash", "shell", "exec_command", "shell_command")
 SEEN = "loop_guard_seen.json"
+EDIT_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit", "apply_patch", "write", "edit", "patch")
+PATCH_FILE = re.compile(r"^\*\*\* (?:Add File|Update File|Delete File|Move to):\s*(.+?)\s*$", re.M)
+TUSO_ENV = "MYCELIUM_TUSOSKILL_SCRIPT"
+TUSO_SCRIPT = os.path.join("~", ".claude", "skills", "tusoskill", "scripts", "biomni_method_state.py")
+SKIP_FOLDERS = {"data", "node_modules", "renv", "venv", "env"}
 ESCAPES = ("Only the user ends the loop. Ask the user whether to continue or stop, and record a stop (the "
            "iterate skill's `tree.py stop`) only when the user says so. The user can also set \"loops\" to "
            "\"warn\" in .mycelium-extra/gate.json.")
@@ -244,7 +257,53 @@ def env_runs(command, run_cmd, cwd="."):
     return names
 
 
+def edit_targets(event):
+    """Absolute paths a file-edit tool call names, or [] for any other tool."""
+    name = event.get("tool_name", "").split("__")[-1].split(".")[-1]
+    if name not in EDIT_TOOLS:
+        return []
+    data = event.get("tool_input") if isinstance(event.get("tool_input"), dict) else {}
+    found = [data[key] for key in ("file_path", "filePath", "path", "notebook_path")
+             if isinstance(data.get(key), str) and data[key]]
+    for key in ("command", "patch", "patchText", "input"):
+        if isinstance(data.get(key), str):
+            found += PATCH_FILE.findall(data[key])
+    base = event.get("cwd") or os.getcwd()
+    return [os.path.realpath(os.path.join(base, os.path.expanduser(path))) for path in found]
+
+
+def evaluator_problems(event, root):
+    """One message per hashed evaluator file the edit call names."""
+    paths = edit_targets(event)
+    if not paths:
+        return []
+    trees, module = trees_of(root)
+    problems = []
+    for analysis, tree in trees:
+        hashed = {os.path.realpath(path): path for path in module.evaluator_files(tree, analysis)}
+        for path in paths:
+            if path in hashed:
+                problems.append("{} is a hashed evaluator file of {}: it was frozen so the benchmark cannot move "
+                                "under the candidates. Do not edit it. If the user wants it changed, the user "
+                                "sets \"loops\" to \"warn\" for that edit, and you then re-freeze with "
+                                "`tree.py freeze-evaluator --refreeze --note \"<what changed, user agreed>\"`.".format(
+                                    os.path.relpath(hashed[path], root), os.path.relpath(analysis, root) or "."))
+    return problems
+
+
+def respond(problems, mode):
+    text = "loop guard: " + " ".join(problems)
+    if mode == "block":
+        return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+                                       "permissionDecisionReason": text + " The user can set \"loops\" to "
+                                       "\"warn\" or \"off\" in .mycelium-extra/gate.json."}}
+    return {"systemMessage": text, "hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": text}}
+
+
 def tool_hook(event, mode, root):
+    if edit_targets(event):
+        problems = evaluator_problems(event, root)
+        return respond(problems, mode) if problems else {}
     command = command_of(event)
     if not command or ("git" not in command and "=" not in command):
         return {}
@@ -272,14 +331,7 @@ def tool_hook(event, mode, root):
                             "committed code or config, never in env vars. Put the value in a config file, "
                             "commit it on the node's branch and run the command as planned.".format(
                                 run_cmd, ", ".join(sorted(names))))
-    if not problems:
-        return {}
-    text = "loop guard: " + " ".join(problems)
-    if mode == "block":
-        return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
-                                       "permissionDecisionReason": text + " The user can set \"loops\" to "
-                                       "\"warn\" or \"off\" in .mycelium-extra/gate.json."}}
-    return {"systemMessage": text, "hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": text}}
+    return respond(problems, mode) if problems else {}
 
 
 def seen_before(root, key, fingerprint):
@@ -303,27 +355,94 @@ def seen_before(root, key, fingerprint):
     return False
 
 
+def tusoskill_runs(root):
+    """Run folders within three levels of `root` whose state/state.json has tusoskill's shape: a run id and the
+    integer counters `iteration` and `max_iterations`."""
+    found, level = [], [os.path.abspath(root)]
+    for _ in range(3):
+        for folder in level:
+            try:
+                with open(os.path.join(folder, "state", "state.json"), encoding="utf-8") as handle:
+                    state = json.load(handle)
+            except (OSError, ValueError):
+                continue
+            ints = [state.get(k) for k in ("iteration", "max_iterations")] if isinstance(state, dict) else []
+            if len(ints) == 2 and all(isinstance(v, int) and not isinstance(v, bool) for v in ints) \
+                    and isinstance(state.get("run_id"), str):
+                found.append(folder)
+        level = [os.path.join(f, d) for f in level for d in _subfolders(f)]
+    return found
+
+
+def _subfolders(path):
+    try:
+        return sorted(n for n in os.listdir(path)
+                      if not n.startswith(".") and n not in SKIP_FOLDERS and os.path.isdir(os.path.join(path, n)))
+    except OSError:
+        return []
+
+
+def tusoskill_lines(root):
+    """(key, fingerprint, message) for each tusoskill run whose own stop-check exits 3. Nothing when its script is
+    absent or a state file does not have its shape; its code is run, never copied."""
+    script = os.path.expanduser(os.environ.get(TUSO_ENV) or TUSO_SCRIPT)
+    if not os.path.isfile(script):
+        return []
+    out = []
+    for run in tusoskill_runs(root):
+        try:
+            check = subprocess.run([sys.executable, script, "stop-check", "--root", run], capture_output=True,
+                                   text=True, timeout=8)
+            stat = os.stat(os.path.join(run, "state", "state.json"))
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if check.returncode != 3:
+            continue
+        try:
+            report = json.loads(check.stdout)
+            audit = report.get("self_audit_line") if isinstance(report, dict) else None
+        except ValueError:
+            audit = None
+        where = os.path.relpath(run, root) or "."
+        out.append(("{}:tusoskill".format(where), "{}:{}".format(stat.st_size, stat.st_mtime_ns),
+                    "{}: the method run's own stop gate says keep iterating ({}). Start the next candidate. Only "
+                    "the user ends it early: when the user says to stop, run `python {} record-blocker --root {} "
+                    "--kind user --detail \"<the user's words>\"`. The user can also set \"loops\" to \"warn\" "
+                    "in .mycelium-extra/gate.json.".format(where, audit or (check.stdout.strip()[:120] or "exit 3"),
+                                                             script, run)))
+    return out
+
+
 def stop_hook(event, mode, root):
     if event.get("stop_hook_active"):
         return {}  # one block per turn
     trees, module = trees_of(root)
-    lines = []
+    loop_lines, drift_lines = [], []
     for analysis, tree in trees:
-        code, message = module.stop_check(tree)
-        if code != 3:
-            continue
         where = os.path.relpath(analysis, root) or "."
         try:
             stat = os.stat(module.tree_path(analysis))
             fingerprint = "{}:{}".format(stat.st_size, stat.st_mtime_ns)
         except OSError:
             continue
+        code, message = module.stop_check(tree)
         # a tree is reported once per state: a turn that did not touch the loop is not stopped again
-        if not seen_before(root, where, fingerprint):
-            lines.append("{}: {}".format(where, message))
-    if not lines:
+        if code == 3 and not seen_before(root, where, fingerprint):
+            loop_lines.append("{}: {}".format(where, message))
+        drift = [(os.path.relpath(path, root), why) for path, why in module.evaluator_drift(tree, analysis)]
+        if drift and not seen_before(root, where + ":evaluator", json.dumps(drift)):
+            drift_lines.append("{}: the frozen evaluator changed ({}). Results since then are not comparable to the "
+                               "baseline. Restore the file, or ask the user and re-freeze with `tree.py "
+                               "freeze-evaluator --refreeze --note ...`.".format(
+                                   where, ", ".join("{} {}".format(p, why) for p, why in drift)))
+    bridge = [text for key, fingerprint, text in tusoskill_lines(root) if not seen_before(root, key, fingerprint)]
+    parts = []
+    if loop_lines:
+        parts.append("the research loop is not finished. " + " ".join(loop_lines) + " " + ESCAPES)
+    parts += drift_lines + bridge
+    if not parts:
         return {}
-    text = "loop guard: the research loop is not finished. " + " ".join(lines) + " " + ESCAPES
+    text = "loop guard: " + " ".join(parts)
     if mode == "block":
         return {"decision": "block", "reason": text}
     return {"systemMessage": text}
