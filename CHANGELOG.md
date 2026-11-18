@@ -49,6 +49,7 @@ Fixes from a Fable review of 0.33.0-0.36.0.
 - Loop guard: the Stop hook hashes evaluator files for at most half of its budget, so a method run's stop-check is no longer starved by a big file. A file it cannot hash in that time is remembered by size and mtime and skipped at no cost at later Stops. Limit: a file changed with the same size and mtime is silent at Stop; `tree.py check-evaluator` still exits 3.
 - `check_note.py`: a PMID list continues only with a labelled `PMID n` or a bare number of 7 to 9 digits, so `PMID 31178118 2019`, `PMID 31178118, 12 co-authors` and a log line `kept PMID 31178118, 10 results` no longer add phantom PMIDs or hide a missing year. `has_version` strips only the labelled PMID.
 - `check_note.py`: a DOI taken from a publisher URL matches a logged DOI only when it adds a path segment (`.../gkaa1100/6012345`) or a file extension (`.full.pdf`). `10.1002/abc.123.456`, `abcv2` and `...30183-5` no longer match a logged shorter DOI, and `--ids` prints the logged DOI for the OUP form.
+- `check_note.py`: a bioRxiv or medRxiv URL ending in `vN` inside parentheses or a Markdown link loses its version, so a correctly logged DOI passes.
 
 ## [0.36.0] - 2026-11-18
 

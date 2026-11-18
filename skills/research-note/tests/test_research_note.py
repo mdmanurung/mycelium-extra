@@ -305,6 +305,13 @@ class CheckNote(unittest.TestCase):
                              "kept doi:10.64898/2025.12.01.691234")
         self.assertEqual(code, 1, out)
 
+    def test_a_bioRxiv_version_in_parentheses_or_a_link_is_stripped(self):
+        for ref in ("- S2 Stuart T 2020, [preprint](https://www.biorxiv.org/content/10.1101/2020.01.01.123456v1)",
+                    "- S2 Stuart T 2020 (https://www.biorxiv.org/content/10.1101/2020.01.01.123456v1).",
+                    "- S2 Stuart T 2020 (bioRxiv, https://www.medrxiv.org/content/10.1101/2020.01.01.123456v2)"):
+            code, out = self.ref(ref, "kept doi:10.1101/2020.01.01.123456")
+            self.assertEqual(code, 0, out)
+
     def test_a_url_doi_with_an_unlisted_suffix_does_not_match_the_logged_doi(self):
         for url, doi in (("https://x.org/doi/10.1234/a/b", "10.1234/a"),
                          ("https://x.org/10.1111/j.1365-2958.2010.07165.x", "10.1111/j.1365-2958.2010.07165")):

@@ -63,10 +63,10 @@ def clean_doi(raw, in_url=False, preprint=False):  # `in_url`: any URL, so a `&`
     or `/`, a bioRxiv or medRxiv version suffix (`v1`, `v2.full`) when the DOI came from one of their URLs, and a
     closing `)` that no opening one balances."""
     out = re.split(r"[?#&]" if in_url else r"[?#]", raw, 1)[0].rstrip(TRAILING + "/")
-    if preprint:
-        out = re.sub(r"(?<=\d)v\d+(?:[./+].*)?$", "", out)
     while out.endswith(")") and out.count(")") > out.count("("):
         out = out[:-1].rstrip(TRAILING + "/")
+    if preprint:  # after the `)` is dropped, so `...123456v1)` from a Markdown link loses its version too
+        out = re.sub(r"(?<=\d)v\d+(?:[./+].*)?$", "", out)
     return out
 
 
