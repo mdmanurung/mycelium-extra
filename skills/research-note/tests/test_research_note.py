@@ -37,7 +37,6 @@ class CheckNote(unittest.TestCase):
             "bad_missing_section.md": "missing section `## Not established`",
             "bad_unpinned_reference.md": "reference S1 has no version",
             "bad_long_answer.md": "format allows two",
-            "bad_no_log.md": "missing section `## Retrieval log`",
             "bad_id_not_logged.md": "reference S2 cites DOI 10.1016/j.cell.2019.05.031, which is not in the `## Retrieval log`",
             "bad_no_window.md": "has no `Window:` line",
         }
@@ -46,6 +45,13 @@ class CheckNote(unittest.TestCase):
                 code, out = run(fixture(name))
                 self.assertEqual(code, 1, out)
                 self.assertIn(reason, out)
+
+    def test_a_note_with_no_retrieval_log_warns_and_passes(self):
+        code, out = run(fixture("bad_no_log.md"))
+        self.assertEqual(code, 0, out)
+        self.assertIn("WARN no `## Retrieval log` section", out)
+        self.assertIn("10.1016/j.cell.2019.05.031", out)
+        self.assertNotIn("FAIL", out)
 
     def test_unsupported_row_needs_low_confidence(self):
         with open(fixture("good.md"), encoding="utf-8") as handle:

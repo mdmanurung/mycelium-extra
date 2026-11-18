@@ -24,7 +24,7 @@ The script checks a finished note against the format and exits 0 or 1. `--ids` a
 
 ## The note
 
-Sections in order: Question, Answer (two lines at most), Evidence, Not established, Next step, References, and a Retrieval log when a reference has a DOI, PMID or arXiv id. A `Pinned:` line under the title lists the versions and releases the answer holds for. The Evidence table has the columns Claim, Source, Quote or value, Confidence. Every Source cell names a reference id and a location, or is `unsupported: no source` with confidence `low`. Each reference line carries a version, release, year or date.
+Sections in order: Question, Answer (two lines at most), Evidence, Not established, Next step, References, and a Retrieval log (a warning when missing) when a reference has a DOI, PMID or arXiv id. A `Pinned:` line under the title lists the versions and releases the answer holds for. The Evidence table has the columns Claim, Source, Quote or value, Confidence. Every Source cell names a reference id and a location, or is `unsupported: no source` with confidence `low`. Each reference line carries a version, release, year or date.
 
 Where it goes: `analysis/<name>/plans/research/<slug>.md` for a question about one analysis, else the repo's existing notes folder (`notes/`, `docs/notes/`, `research/`), else `notes/research/`. The skill says which.
 
@@ -40,7 +40,7 @@ For a question that needs papers, the note agent follows `references/lit-policy.
 - It ranks 5 to 15 candidates, then reads 3 to 5. It quotes only text it read and never writes an id from memory.
 - The backends are the PubMed, bioRxiv and Consensus MCP tools. A missing backend is named in Not established.
 
-The note ends with a `## Retrieval log` that has a `Window:` line and one line per search. `check_note.py` fails a note whose cited DOI, PMID or arXiv id is not in that log. It proves the id came from a tool result. It does not prove the paper says what the note claims.
+The note ends with a `## Retrieval log` that has a `Window:` line and one line per search. `check_note.py` fails a note whose cited DOI, PMID or arXiv id is not in that log, and warns when a note has no log. It proves the id came from a tool result. It does not prove the paper says what the note claims.
 
 ## Citation check
 
@@ -63,7 +63,7 @@ Off until you invoke it. It adds no hook, no prompt text and no SessionStart out
 | Step | Kind |
 |---|---|
 | Note shape: sections, no empty cell, defined reference ids, pinned references | Enforced by `check_note.py`, run by the skill |
-| Each cited DOI, PMID and arXiv id is in the retrieval log, and the log names a window | Enforced by `check_note.py` |
+| Each cited DOI, PMID and arXiv id is in the retrieval log, and the log names a window | Enforced by `check_note.py` when a log exists; a missing log is a warning |
 | One window, the difficulty budget, rank then read | The agent's instruction |
 | Citation resolution | Enforced by `verify` when a plan hash exists |
 | That a quote is real and supports the claim | The agent's instruction; you spot-check |

@@ -3,8 +3,9 @@
 Run: <skill-dir>/../../hooks/mxpy - <note.md> [--ids] < <skill-dir>/scripts/check_note.py
 Exit 0 when the note fits the format, 1 when it does not or cannot be read. Stdlib only.
 `--ids` also prints each DOI, PMID and arXiv id in the References section.
-A DOI, PMID or arXiv id on a References line must also appear in the `## Retrieval log` section
-(references/lit-policy.md), and that section needs a `Window:` line.
+A note with no `## Retrieval log` section gets a WARN line for each cited DOI, PMID or arXiv id, and still
+exits 0 (the 0.32.1 behaviour). When the section exists (references/lit-policy.md), it needs a `Window:` line,
+come after References, and list every cited id; a miss is a FAIL.
 """
 
 import re
@@ -59,7 +60,8 @@ def is_rule(line):
 
 
 def check(text):
-    """Return (problems, ids): problems is a list of strings, ids a list of (S-id, kind, value)."""
+    """Return (problems, ids, warnings): problems and warnings are lists of strings, ids a list of
+    (S-id, kind, value)."""
     problems, ids = [], []
     lines = text.split("\n")
     sections = split_sections(lines)
@@ -110,7 +112,8 @@ def check(text):
         ids += [(ident, "doi", m.group().rstrip(".")) for m in DOI.finditer(rest)]
         ids += [(ident, "pmid", m.group(1)) for m in PMID.finditer(rest)]
         ids += [(ident, "arxiv", m.group(1)) for m in ARXIV.finditer(rest)]
-    problems += check_log(sections, ids)
+    log_problems, warnings = check_log(sections, ids)
+    problems += log_problems
     if "References" in sections and not defined:
         problems.append("`## References` defines no source (write lines that start `S1`, `S2`, ...)")
 
@@ -149,17 +152,18 @@ def check(text):
                 for ref in refs:
                     if ref not in defined:
                         problems.append("line {}: source {} is not defined in References".format(number, ref))
-    return problems, ids
+    return problems, ids, warnings
 
 
 def check_log(sections, ids):
-    """Problems with the retrieval log: a cited id the log never shows, or no Window line."""
+    """(problems, warnings) for the retrieval log. No log is a warning; a log that misses a cited id or the Window
+    line is a problem."""
     problems = []
     if LOG_SECTION not in sections:
         if ids:
-            problems.append("missing section `## {}`: it must list each cited DOI, PMID and arXiv "
-                            "id ({})".format(LOG_SECTION, ", ".join(sorted({i[2] for i in ids}))))
-        return problems
+            return [], ["no `## {}` section: add one that lists each cited DOI, PMID and arXiv id ({})".format(
+                LOG_SECTION, ", ".join(sorted({i[2] for i in ids})))]
+        return [], []
     start, rows = sections[LOG_SECTION]
     if "References" in sections and start < sections["References"][0]:
         problems.append("section `## {}` must come after `## References`".format(LOG_SECTION))
@@ -175,7 +179,7 @@ def check_log(sections, ids):
             continue
         problems.append("reference {} cites {} {}, which is not in the `## {}`".format(
             ident, kind.upper() if kind != "arxiv" else "arXiv", value, LOG_SECTION))
-    return problems
+    return problems, []
 
 
 def main(argv):
@@ -192,7 +196,9 @@ def main(argv):
     except (OSError, UnicodeDecodeError) as error:
         print("cannot read {}: {}".format(args[0], error))
         return 1
-    problems, ids = check(text)
+    problems, ids, warnings = check(text)
+    for warning in warnings:
+        print("WARN " + warning)
     for problem in problems:
         print("FAIL " + problem)
     if "--ids" in argv:

@@ -9,14 +9,20 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 ### Added
 
 - `research-note`: `references/lit-policy.md`, a paper retrieval policy for the note agent. It rates difficulty to set 0, 1 or 2 follow-up rounds, uses one date window for every call, dedupes by id then DOI then normalised title, ranks 5 to 15 candidates and reads 3 to 5, quotes only text it read and never invents an id. The backends are the PubMed, bioRxiv and Consensus MCP tools. The note agent runs the searches itself. The date window is the user's choice, and `none` is allowed. Idea from OpenResearch orx-lit-review (MIT, alphaXiv).
-- `research-note`: notes end with a `## Retrieval log`. `check_note.py` now fails a note when a cited DOI, PMID or arXiv id is not in the log, when the log has no `Window:` line, or when the log comes before `## References`. A note with no such id needs no log.
+- `research-note`: notes end with a `## Retrieval log`. When a log exists, `check_note.py` fails a note whose cited DOI, PMID or arXiv id is not in the log, whose log has no `Window:` line, or whose log comes before `## References`. A note with no log gets a warning and still passes, as in 0.32.1.
 - `reflect`: a user-invoked skill that reads a work stretch (conversation, `logs/decisions.tsv`, the `tree.jsonl` summary, existing learnings), proposes learnings and skill edits, and records the accepted learnings in `.living/learnings.md` after you confirm. It edits no skill and never writes conventions. Idea from pstack `reflect` (MIT, cursor/plugins).
 - `hooks/confirm_write.py`: `reflect` is a new `--kind`.
 
 ### Changed
 
-- Existing notes that cite a DOI, PMID or arXiv id need a `## Retrieval log` to pass `check_note.py`.
 - `research-note`: a PMID counts as logged only when the log writes `PMID <number>`. A bare number, such as a DOI suffix, no longer matches.
+
+### Fixed
+
+- `loop_guard.py`: the Stop handler has a 7 s total budget (the hook timeout is 10 s). Tusoskill runs not checked in time are named in the message. A tusoskill run is checked once per state of its `state/` folder, so an unchanged run is not rerun at every Stop.
+- `loop_guard.py`: two trees that share a run command no longer repeat the same deny sentence.
+- `research-note`: a note with no `## Retrieval log` gets a warning instead of a failure, so 0.32.1 notes still pass.
+- `package-loop`: `check_summary.py` writes `ruff: 1 error`, not `1 errors`.
 
 ## [0.35.0] - 2026-11-18
 
