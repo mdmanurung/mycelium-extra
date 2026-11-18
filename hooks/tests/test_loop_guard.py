@@ -299,6 +299,65 @@ class LoopGuardTest(unittest.TestCase):
                         "set -a; set +a; SEED=2; python code/run.py", "set -e; SEED=2; python code/run.py"):
             self.assertEqual(self.bash(command), {}, command)
 
+    def test_a_wrapper_before_a_variable_word_or_a_subshell_is_still_read(self):
+        self.freeze_a()  # HEAD is exp/a
+        for command in ('timeout 10 git commit -m "$MSG"', 'env GIT_AUTHOR_NAME=x git commit -m "fix $ISSUE"',
+                        "time true; (git commit -m x)"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+        self.git("checkout", "-q", "main")
+        for command in ("SEED=2 timeout 3600 python code/run.py --out $OUT",
+                        "SEED=2 srun -n 1 python code/run.py --tag $TAG", "time true; (SEED=2 python code/run.py)"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+
+    def test_an_error_inside_the_hook_denies_only_a_git_call_or_the_run_command_under_block(self):
+        import contextlib
+        import io
+        from unittest import mock
+        sys.path.insert(0, os.path.join(PLUGIN, "hooks"))
+        import loop_guard
+        self.freeze_a()
+
+        def run(command, loops):
+            self.loops(loops)
+            event = {"cwd": self.root, "tool_name": "Bash", "tool_input": {"command": command}}
+            stdin = io.TextIOWrapper(io.BytesIO(json.dumps(event).encode()))
+            out, err = io.StringIO(), io.StringIO()
+            with mock.patch.object(loop_guard, "tool_hook", side_effect=ValueError("boom")), \
+                    mock.patch.object(sys, "stdin", stdin), contextlib.redirect_stdout(out), \
+                    contextlib.redirect_stderr(err):
+                loop_guard.main(["tool"])
+            self.assertIn("boom", err.getvalue())
+            return json.loads(out.getvalue()) if out.getvalue().strip() else {}
+
+        for command in ("git commit -m x", "python code/run.py --x"):
+            reply = run(command, "block")
+            self.assertTrue(self.denied(reply), command)
+            self.assertIn("could not parse this command", reply["hookSpecificOutput"]["permissionDecisionReason"])
+            self.assertEqual(run(command, "warn"), {})
+        self.assertEqual(run("ls -l", "block"), {})
+
+    def test_dash_is_the_branch_before_the_last_checkout_in_the_same_command(self):
+        self.freeze_a()  # HEAD exp/a, previous branch: main (from freeze_a's checkout -b: none), set it
+        self.git("checkout", "-q", "main")
+        self.git("checkout", "-q", "exp/a")  # HEAD exp/a, @{-1} main
+        for command in ("git checkout main; git checkout -; git commit -m x",
+                        "git checkout main && git switch - && git commit -m x"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+        self.git("checkout", "-q", "main")
+        self.git("checkout", "-q", "exp/a")
+        self.git("checkout", "-q", "main")  # HEAD main, @{-1} exp/a
+        self.assertEqual(self.bash("git checkout exp/a; git checkout -; git commit -m x"), {})
+        self.assertTrue(self.denied(self.bash("git checkout - && git commit -m x")))
+
+    def test_declare_x_exports_and_a_subshell_keeps_its_own_exports(self):
+        self.freeze_a()
+        self.git("checkout", "-q", "main")
+        for command in ("SEED=2; declare -x SEED; python code/run.py", "SEED=2; typeset -x SEED; python code/run.py"):
+            self.assertTrue(self.denied(self.bash(command)), command)
+        for command in ("(set -a; true); SEED=2; python code/run.py", "(export SEED); SEED=2; python code/run.py",
+                        "SEED=2; declare SEED; python code/run.py"):
+            self.assertEqual(self.bash(command), {}, command)
+
     def test_git_calls_that_commit_nothing_pass_on_a_frozen_branch(self):
         self.freeze_a()
         for command in ("git commit --dry-run", "git commit --help", "git pull --help", "git commit -h",

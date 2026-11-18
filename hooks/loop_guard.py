@@ -158,12 +158,13 @@ def simple_commands(command, folder, env=frozenset(), depth=0):
     import shellwords
     env, exported, stack = set(env), set(), []
     values, assigned, allexport = {}, set(), False  # literal values of bare assignments; shell-only variable names
+    # a `( ... )` subshell keeps its own exports, assignments and `set -a`; they end with it
     for tokens, opened, closed, heredocs, _before in shellwords.scoped_segments(command):
         for _ in range(closed):
             if stack:
-                folder, env, values = stack.pop()
+                folder, env, values, exported, assigned, allexport = stack.pop()
         for _ in range(opened):
-            stack.append((folder, set(env), dict(values)))
+            stack.append((folder, set(env), dict(values), set(exported), set(assigned), allexport))
         words, own, own_values = list(tokens), set(), {}
         while words:
             word = words[0]
@@ -179,12 +180,12 @@ def simple_commands(command, folder, env=frozenset(), depth=0):
                 words.pop(0)
                 if wrapper in RUN_SUBCOMMAND and words[:1] == ["run"]:
                     words.pop(0)
-                values = wrapper_value_flags(wrapper)
+                value_flags = wrapper_value_flags(wrapper)
                 while words and (words[0].startswith("-") or shellwords.DURATION.match(words[0])
                                  or (wrapper == "env" and shellwords.is_assignment(words[0]))):
                     if shellwords.is_assignment(words[0]):
                         own.add(words[0].split("=", 1)[0])
-                    value = words[0] in values
+                    value = words[0] in value_flags
                     words.pop(0)
                     if value and words:
                         words.pop(0)
@@ -201,7 +202,8 @@ def simple_commands(command, folder, env=frozenset(), depth=0):
         head = os.path.basename(words[0])
         if head in ("export", "declare", "typeset", "readonly"):
             env |= {w.split("=", 1)[0] for w in words[1:] if "=" in w}
-            if head == "export":
+            if head == "export" or (head in ("declare", "typeset") and any(
+                    re.match(r"^-[A-Za-z]*x", w) for w in words[1:] if w.startswith("-"))):
                 names = {w for w in words[1:] if w.isidentifier()}
                 exported |= names  # `export A`: a later `A=1` reaches the child
                 env |= names & assigned  # `A=1; export A`: it reaches the child now
@@ -361,10 +363,14 @@ def real_subcommand(where, git_dir, sub, rest, inline):
     return sub, rest
 
 
-def switch_target(where, git_dir, sub, rest):
+UNSET = object()  # no checkout earlier in the command, so `-` is read from the repository
+
+
+def switch_target(where, git_dir, sub, rest, previous=UNSET):
     """(branch, forced) HEAD is on after a `git checkout` or `git switch`: the new branch's name, None when HEAD is
     detached, or KEEP when the branch does not change (a path checkout, or a name that is not a local branch).
-    `forced` is true for -B, -C and --force-create, which reset a branch that exists."""
+    `forced` is true for -B, -C and --force-create, which reset a branch that exists. `-` is `previous` when the
+    command checked out a branch before, else the repository's `@{-1}` now."""
     create, forced, detach, positional = None, False, False, []
     i = 0
     while i < len(rest):
@@ -380,8 +386,8 @@ def switch_target(where, git_dir, sub, rest):
         if word in ("-d", "--detach"):
             detach = True
         elif word == "-":  # the previous branch
-            previous = rev_parse(where, git_dir, "--abbrev-ref", "@{-1}")
-            positional.append(previous or word)
+            back = rev_parse(where, git_dir, "--abbrev-ref", "@{-1}") if previous is UNSET else previous
+            positional.append(back or word)
         elif not word.startswith("-"):
             positional.append(word)
         i += 1
@@ -394,7 +400,7 @@ def switch_target(where, git_dir, sub, rest):
     return KEEP, False
 
 
-def ref_moves(where, git_dir, sub, rest, branch, frozen):
+def ref_moves(where, git_dir, sub, rest, branch, frozen, previous=UNSET):
     """Frozen branches this git call moves, rewrites, renames or deletes without committing: `branch -f`, `-m`, `-d`,
     `update-ref`, `push .` and `fetch .` into the branch, a `reset` of the checked-out frozen branch to another
     commit, and `checkout -B` or `switch -C` of it. Not covered: `rebase BASE exp/a` from another branch,
@@ -431,7 +437,7 @@ def ref_moves(where, git_dir, sub, rest, branch, frozen):
         target = commit_of(where, git_dir, positional[0]) if positional and not paths else None
         return [branch] if target and target != commit_of(where, git_dir, "HEAD") else []
     elif sub in ("checkout", "switch"):
-        name, forced = switch_target(where, git_dir, sub, rest)
+        name, forced = switch_target(where, git_dir, sub, rest, previous)
         return [name] if forced and name in frozen else []
     return []
 
@@ -543,7 +549,8 @@ def tool_hook(event, mode, root):
             frozen[branch] = analysis
     problems = []
     if frozen and "git" in command:
-        heads = {}  # repository -> the branch HEAD is on after a checkout or switch earlier in this command
+        heads, backs = {}, {}  # repository -> the branch HEAD is on, and the one before it, after a checkout or switch
+        # earlier in this command
         for where, git_dir, sub, rest, inline in git_calls(command, cwd):
             key = repo_key(where, git_dir)
             sub, rest = real_subcommand(where, git_dir, sub, rest, inline)
@@ -552,13 +559,15 @@ def tool_hook(event, mode, root):
                 problems.append("`git {}` on {}, which is frozen: a run answered that node. Add a child node "
                                 "(`tree.py add SLUG --parent ...`), branch from it and commit there.".format(
                                     sub, branch))
-            for name in ref_moves(where, git_dir, sub, rest, branch, frozen):
+            back = backs.get(key, UNSET)
+            for name in ref_moves(where, git_dir, sub, rest, branch, frozen, back):
                 problems.append("`git {}` moves {}, which is frozen: a run answered that node, so its branch stays "
                                 "as it was. Add a child node (`tree.py add SLUG --parent ...`) and branch "
                                 "from it.".format(sub, name))
             if sub in ("checkout", "switch"):
-                moved, _forced = switch_target(where, git_dir, sub, rest)
-                heads[key] = branch if moved is KEEP else moved
+                moved, _forced = switch_target(where, git_dir, sub, rest, back)
+                if moved is not KEEP:
+                    heads[key], backs[key] = moved, branch
     for analysis, tree in trees:
         run_cmd = (tree["plan"] or {}).get("run_cmd")
         names = env_runs(command, run_cmd, cwd) if run_cmd and "=" in command else set()
@@ -826,11 +835,29 @@ def record_seen(root, pending):
             pass
 
 
+def unparsed_reply(event, root):
+    """Under `block`, a deny for a command the guard could not read, when it holds a git call or the fixed run
+    command; None otherwise."""
+    command = command_of(event)
+    if not command:
+        return None
+    risky = re.search(r"(?<![\w.-])git(?![\w-])", command) is not None
+    if not risky:
+        trees, _module = trees_of(root)
+        risky = any((tree["plan"] or {}).get("run_cmd") and tree["plan"]["run_cmd"] in command
+                    for _analysis, tree in trees)
+    if not risky:
+        return None
+    return respond(["could not parse this command."], "block")
+
+
 def main(argv):
     args = list(argv)
     if args[:1] == ["--host"]:
         args = args[2:]
     action = args[-1] if args else ""
+    event = root = None
+    mode, pending, reply = "off", [], None
     try:
         event = json.loads(sys.stdin.buffer.read().decode("utf-8", "replace"))
         if not isinstance(event, dict) or action not in ("tool", "stop"):
@@ -840,10 +867,16 @@ def main(argv):
         if mode == "off":
             return 0
         sys.path.insert(0, HERE)
-        pending = []
         reply = tool_hook(event, mode, root) if action == "tool" else stop_hook(event, mode, root, pending)
-    except Exception:
-        return 0
+    except Exception as err:
+        print("loop guard: {}: {}".format(type(err).__name__, err), file=sys.stderr)
+        try:
+            if action == "tool" and mode == "block" and isinstance(event, dict):
+                reply = unparsed_reply(event, root)
+        except Exception:
+            reply = None
+        if reply is None:
+            return 0
     if reply:
         print(json.dumps(reply))
         sys.stdout.flush()
