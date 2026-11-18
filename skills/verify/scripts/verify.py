@@ -2057,6 +2057,7 @@ PMID = re.compile(r"\bPMID:?\s*(\d{4,9})\b", re.I)
 ARXIV = re.compile(r"\barXiv:\s*(\d{4}\.\d{4,5})(?:v\d+)?\b", re.I)
 REFERENCE_HEADING = re.compile(r"^#{1,6}\s*(?:references|bibliography|literature cited|works cited)\s*$",
                                re.I | re.M)
+LOG_HEADING = re.compile(r"^#{1,6}\s*retrieval log\s*$", re.I | re.M)
 REFERENCE_LINE = re.compile(r"^\s*(?:[-*]\s+|\d+[.)]\s+)?\S.*\(\d{4}[a-z]?\)")
 CITATION_DELAY = 1.0  # seconds between requests: Crossref, NCBI and arXiv each ask for about one
 MAX_LOOKUP_BYTES = 200000
@@ -2090,13 +2091,19 @@ def trim_identifier(raw):
 def citations_in_text(text, doc):
     """One entry per citation: `{"doc", "line", "text", "kind", "id"}`. `kind` is `doi`, `pmid` or
     `arxiv` when the line carries an identifier, and `none` for a reference-shaped line under a
-    reference heading that carries none (those cannot be resolved, only listed)."""
+    reference heading that carries none (those cannot be resolved, only listed). A `## Retrieval log`
+    section (research-note) is skipped: its lines record what a search returned, with no title or author
+    to match, so each would report a false `mismatch` for an id the References section already checks."""
     starts = [m.start() for m in SECTION_HEADING.finditer(text)]
+    logs = [(m.start(), min([s for s in starts if s > m.start()] or [len(text)]))
+            for m in LOG_HEADING.finditer(text)]
     sections = [(m.start(), min([s for s in starts if s > m.start()] or [len(text)]))
                 for m in REFERENCE_HEADING.finditer(text)]
     entries, offset = [], 0
     for lineno, line in enumerate(text.split("\n"), 1):
         here, offset = offset, offset + len(line) + 1
+        if any(a <= here < b for a, b in logs):
+            continue
         found = [("doi", trim_identifier(m.group())) for m in DOI.finditer(line)]
         found += [("pmid", m.group(1)) for m in PMID.finditer(line)]
         found += [("arxiv", m.group(1)) for m in ARXIV.finditer(line)]

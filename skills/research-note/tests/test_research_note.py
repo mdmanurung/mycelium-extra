@@ -151,6 +151,95 @@ class CheckNote(unittest.TestCase):
         self.assertEqual(code, 1, out)
         self.assertIn("must come after `## References`", out)
 
+    BASE = "- S2 Stuart T, Comprehensive integration of single-cell data. Cell 2019. doi:10.1016/j.cell.2019.05.031"
+    LOGGED = "kept doi:10.1016/j.cell.2019.05.031"
+
+    def ref(self, line, log=None):
+        with open(fixture("good.md"), encoding="utf-8") as handle:
+            text = handle.read().replace(self.BASE, line)
+        if log:
+            text = text.replace(self.LOGGED, log)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "n.md")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(text)
+            return run(path, "--ids")
+
+    def test_parenthesised_doi_is_not_cut_at_the_bracket(self):
+        lancet = "- S2 Stuart T, Lancet 2020. doi:10.1016/S0140-6736(20)30183-5"
+        code, out = self.ref(lancet, "kept doi:10.1016/S0140-6736(20)30211-7")
+        self.assertEqual(code, 1, out)
+        self.assertIn("cites DOI 10.1016/S0140-6736(20)30183-5", out)
+        code, out = self.ref(lancet, "kept doi:10.1016/S0140-6736(20)30183-5")
+        self.assertEqual(code, 0, out)
+        self.assertIn("ID S2 doi 10.1016/S0140-6736(20)30183-5", out)
+        code, out = self.ref("- S2 Stuart T 2020 (doi:10.1016/j.cell.2019.05.031)")
+        self.assertEqual(code, 0, out)
+        self.assertIn("ID S2 doi 10.1016/j.cell.2019.05.031\n", out)
+
+    def test_doi_inside_a_url_matches_the_bare_logged_doi(self):
+        cases = {
+            "https://www.biorxiv.org/content/10.1101/2020.01.01.123456v1": "10.1101/2020.01.01.123456",
+            "https://www.biorxiv.org/content/10.1101/2020.01.01.123456v1.full": "10.1101/2020.01.01.123456",
+            "https://academic.oup.com/nar/article/doi/10.1093/nar/gkaa1100/6012345": "10.1093/nar/gkaa1100",
+            "https://doi.org/10.1016/j.cell.2019.05.031?via=ihub": "10.1016/j.cell.2019.05.031",
+        }
+        for url, doi in cases.items():
+            with self.subTest(url):
+                code, out = self.ref("- S2 Stuart T 2019, " + url, "kept doi:" + doi)
+                self.assertEqual(code, 0, out)
+                code, out = self.ref("- S2 Stuart T 2019, " + url, "kept doi:10.9999/other.1")
+                self.assertEqual(code, 1, out)
+
+    def test_ids_on_wrapped_lines_and_other_spellings_must_be_logged(self):
+        cases = {
+            "- S2 Stuart T, Title. Cell\n  2019. doi:10.1016/j.cell.2019.99.999": "cites DOI 10.1016/j.cell.2019.99.999",
+            "- S2 Stuart T 2019 arXiv:hep-th/9901001": "cites arXiv hep-th/9901001",
+            "- S2 Stuart T 2019 https://arxiv.org/abs/1907.12345": "cites arXiv 1907.12345",
+            "- S2 Stuart T 2019 PMID=31178119": "cites PMID 31178119",
+        }
+        for line, reason in cases.items():
+            with self.subTest(line):
+                code, out = self.ref(line)
+                self.assertEqual(code, 1, out)
+                self.assertIn(reason, out)
+                self.assertIn("ID S2 ", out)
+
+    def test_markdown_and_pmid_lists_do_not_hide_a_logged_id(self):
+        base = self.LOGGED
+        for log in ("kept **10.1016/j.cell.2019.05.031**", 'kept "10.1016/j.cell.2019.05.031"',
+                    "kept `10.1016/j.cell.2019.05.031`"):
+            with self.subTest(log):
+                code, out = self.ref(self.BASE, log)
+                self.assertEqual(code, 0, out)
+        code, out = self.ref("- S2 Stuart T 2019 `10.1016/j.cell.2019.05.031`")
+        self.assertEqual(code, 0, out)
+        self.assertIn("ID S2 doi 10.1016/j.cell.2019.05.031\n", out)
+        for log in (base + " PMID 31178118, 31178119", base + " PMIDs 31178118 31178119"):
+            with self.subTest(log):
+                code, out = self.ref(self.BASE + " PMID 31178119", log)
+                self.assertEqual(code, 0, out)
+        code, out = self.ref(self.BASE + " PMID 31178119", base + " PMID 31178118 2019")
+        self.assertEqual(code, 1, out)
+        code, out = self.ref(self.BASE + " arXiv:1907.12345", base + " https://arxiv.org/abs/1907.12345")
+        self.assertEqual(code, 0, out)
+        code, out = self.ref(self.BASE + ":")
+        self.assertIn("ID S2 doi 10.1016/j.cell.2019.05.031\n", out)
+
+    def test_verify_skips_the_retrieval_log(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "verify_for_research_note", os.path.join(SKILL, "..", "verify", "scripts", "verify.py"))
+        verify = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(verify)
+        with open(fixture("good.md"), encoding="utf-8") as handle:
+            text = handle.read()
+        found = verify.citations_in_text(text, "good.md")
+        self.assertEqual([(e["kind"], e["id"]) for e in found], [("doi", "10.1016/j.cell.2019.05.031")])
+        self.assertIn("Stuart", found[0]["text"])
+        after = verify.citations_in_text(text + "\n## Next\n\nSee doi:10.1000/x\n", "good.md")
+        self.assertEqual([e["id"] for e in after], ["10.1016/j.cell.2019.05.031", "10.1000/x"])
+
     def test_ids_lists_identifiers(self):
         code, out = run(fixture("good.md"), "--ids")
         self.assertEqual(code, 0)
