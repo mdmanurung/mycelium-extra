@@ -431,3 +431,49 @@ test("a blocked prompt reaches the human through a synthetic message", async () 
   assert.deepEqual(calls.synthetic, [{ sessionID: "s9", text: "no pending plan abcd1234" }])
   assert.match(prompt.text, /handled the user's message/)
 })
+
+/** A git repo on branch exp/a with loops set and a tree whose only node is answered and frozen. */
+function loopRepo(mode) {
+  const repo = mkdtempSync(join(tmpdir(), "mx-loop-"))
+  spawnSync("git", ["-C", repo, "init", "-q", "-b", "exp/a"])
+  mkdirSync(join(repo, ".mycelium-extra"), { recursive: true })
+  writeFileSync(join(repo, ".mycelium-extra", "gate.json"), JSON.stringify({ loops: mode }))
+  mkdirSync(join(repo, "analysis", "demo", "plans"), { recursive: true })
+  const events = [
+    { ev: "add", node: "a", branch: "exp/a", parent: null, run_cmd: "python code/run.py", repair_cap: 2, stop_after: 3 },
+    { ev: "run", node: "a", exit: 0 },
+    { ev: "answer", node: "a", outcome: "worse", summary: "no gain", figures: [] },
+  ]
+  writeFileSync(join(repo, "analysis", "demo", "plans", "tree.jsonl"), events.map((e) => JSON.stringify(e)).join("\n") + "\n")
+  return repo
+}
+
+test("the loop guard refuses a commit on a frozen branch and the fixed command with an env var", async (t) => {
+  if (!PYTHON) return t.skip("needs python3.9+")
+  const { ctx, handlers } = fakeCtx(loopRepo("block"))
+  await plugin.setup(ctx)
+  await assert.rejects(
+    handlers.before[0]({ tool: "shell", input: { command: "git commit -m x" }, sessionID: "s", id: "c1" }), /frozen/)
+  await assert.rejects(
+    handlers.before[0]({ tool: "shell", input: { command: "SEED=2 python code/run.py" }, sessionID: "s", id: "c2" }),
+    /env/)
+  await handlers.before[0]({ tool: "shell", input: { command: "git status" }, sessionID: "s", id: "c3" })
+})
+
+test("the loop guard blocks one Stop per turn, then lets the repeat pass", async (t) => {
+  if (!PYTHON) return t.skip("needs python3.9+")
+  const repo = loopRepo("block")
+  const stream = streamCtx()
+  const { ctx, calls } = fakeCtx(repo, stream)
+  await plugin.setup(ctx)
+  const end = (text) => {
+    stream.push({ type: "session.text.ended", location: { directory: repo }, data: { sessionID: "mine", text } })
+    stream.push({ type: "session.execution.succeeded", data: { sessionID: "mine" } })
+  }
+  end("first")
+  assert.equal(await waitFor(() => calls.prompt.length > 0, 30000), true, "the loop block never reached the model")
+  assert.match(calls.prompt[0].text, /research loop is not finished/)
+  end("second")
+  await new Promise((resolve) => setTimeout(resolve, 3000))
+  assert.equal(calls.prompt.length, 1, "the turn after the steer must pass")
+})

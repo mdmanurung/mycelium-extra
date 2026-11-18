@@ -252,7 +252,9 @@ export default {
   async setup(ctx) {
     const derived = dirname(dirname(fileURLToPath(import.meta.url)))
     const root = (ctx.options && ctx.options.root) || derived
-    const paths = { root, py: join(root, "hooks", "py.sh"), gate: join(root, "hooks", "gate_run.py") }
+    const paths = { root, py: join(root, "hooks", "py.sh"), gate: join(root, "hooks", "gate_run.py"),
+      loop: join(root, "hooks", "loop_guard.py") }
+    const loopPaths = { ...paths, gate: paths.loop }
     if (!existsSync(paths.py) || !existsSync(paths.gate)) {
       console.error("mycelium-extra: hooks not found under " + root +
         "; set the plugin option root to the mycelium-extra checkout.")
@@ -304,6 +306,14 @@ export default {
         if (reason) throw new Error(reason)
         notice = toolNotice(reply)
       }
+      if (event.tool === "shell" && existsSync(paths.loop)) {
+        // The loop guard (hooks/loop_guard.py) is separate from the gate and silent unless gate.json sets "loops".
+        const loop = await runGate(loopPaths, "tool", toolEvent(event, cwd), TIMEOUTS.tool)
+        const loopReason = loop && denyReason(loop)
+        if (loopReason) throw new Error(loopReason)
+        const loopNotice = loop && toolNotice(loop)
+        if (loopNotice) notice = [notice, loopNotice].filter(Boolean).join("\n\n")
+      }
       if (notice) {
         while (notes.size > 64) notes.delete(notes.keys().next().value) // drop the oldest: a before without an after (rejected permission) must not leak
         notes.set(event.id, notice)
@@ -340,7 +350,9 @@ export default {
       } catch { /* the session may have been removed */ }
     }
 
+    const loopBlocked = new Set() // sessions whose turn the loop guard already blocked once
     await ctx.session.hook("prompt", async (event) => {
+      loopBlocked.delete(event.sessionID)
       if (!gated(place)) return
       const payload = { prompt: event.prompt.text, cwd: place, session_id: event.sessionID }
       const reply = await runGate(paths, "prompt", payload, TIMEOUTS.prompt)
@@ -393,9 +405,33 @@ export default {
 
     async function stop(sessionID, text) {
       if (!gated(place)) return
+      if (await gateStop(sessionID, text)) return
+      await loopStop(sessionID)
+    }
+
+    // The loop guard's Stop: one block per turn, so the repeat after its own steer passes with stop_hook_active.
+    async function loopStop(sessionID) {
+      if (!existsSync(paths.loop)) return
+      const active = loopBlocked.has(sessionID)
+      const reply = await runGate(loopPaths, "stop",
+        { cwd: place, session_id: sessionID, stop_hook_active: active }, TIMEOUTS.stop)
+      if (!reply) return
+      if (reply.decision === "block") {
+        loopBlocked.add(sessionID)
+        try {
+          await ctx.session.prompt({ sessionID, text: reply.reason, delivery: "steer" })
+        } catch { /* the session may have been removed */ }
+        return
+      }
+      loopBlocked.delete(sessionID)
+      if (typeof reply.systemMessage === "string" && reply.systemMessage) await tell(sessionID, reply.systemMessage)
+    }
+
+    // Returns true when the gate blocked the turn (a steer prompt was sent).
+    async function gateStop(sessionID, text) {
       const reply = await runGate(paths, "stop",
         { last_assistant_message: text, cwd: place, session_id: sessionID }, TIMEOUTS.stop)
-      if (!reply) return tell(sessionID, gateFailure("stop"))
+      if (!reply) { await tell(sessionID, gateFailure("stop")); return false }
       const output = hookOutput(reply)
       const notice = reply.systemMessage || output.additionalContext
       if (reply.decision === "block") {
@@ -405,10 +441,11 @@ export default {
           await ctx.session.prompt({ sessionID, text: reply.reason || notice,
             delivery: "steer" })
         } catch { /* the session may have been removed */ }
-        return
+        return true
       }
       // Approval cards and explore notices must reach the user.
       if (typeof notice === "string" && notice) await tell(sessionID, notice)
+      return false
     }
 
     return () => controller.abort()

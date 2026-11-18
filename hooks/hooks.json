@@ -26,6 +26,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then sh \"${CLAUDE_PLUGIN_ROOT}/hooks/py.sh\" --hook \"${CLAUDE_PLUGIN_ROOT}/hooks/loop_guard.py\" tool; fi",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -83,6 +93,11 @@
           {
             "type": "command",
             "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then sh \"${CLAUDE_PLUGIN_ROOT}/hooks/py.sh\" --hook \"${CLAUDE_PLUGIN_ROOT}/hooks/resume_run.py\" --hook stop; fi",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "if [ -n \"${CLAUDE_PLUGIN_ROOT:-}\" ]; then sh \"${CLAUDE_PLUGIN_ROOT}/hooks/py.sh\" --hook \"${CLAUDE_PLUGIN_ROOT}/hooks/loop_guard.py\" stop; fi",
             "timeout": 10
           }
         ]

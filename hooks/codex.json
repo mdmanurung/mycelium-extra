@@ -21,6 +21,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "Bash|exec_command|shell_command|shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then sh \"${PLUGIN_ROOT}/hooks/py.sh\" --hook \"${PLUGIN_ROOT}/hooks/loop_guard.py\" --host codex tool; fi",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -52,6 +62,11 @@
             "type": "command",
             "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then sh \"${PLUGIN_ROOT}/hooks/py.sh\" --hook \"${PLUGIN_ROOT}/hooks/gate_run.py\" --host codex stop; fi",
             "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "if [ -n \"${PLUGIN_ROOT:-}\" ]; then sh \"${PLUGIN_ROOT}/hooks/py.sh\" --hook \"${PLUGIN_ROOT}/hooks/loop_guard.py\" --host codex stop; fi",
+            "timeout": 10
           }
         ]
       }
