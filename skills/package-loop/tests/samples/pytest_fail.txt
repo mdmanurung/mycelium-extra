@@ -1,0 +1,9 @@
+============================= test session starts ==============================
+collected 13 items
+
+tests/test_pseudobulk.py ......F.F....                                   [100%]
+
+=========================== short test summary info ============================
+FAILED tests/test_pseudobulk.py::test_order - AssertionError
+FAILED tests/test_pseudobulk.py::test_missing_level - KeyError: 'donor'
+=================== 2 failed, 10 passed, 1 skipped in 1.23s ====================

@@ -1,0 +1,6 @@
+* checking for file ‘demo/DESCRIPTION’ ... OK
+* checking examples ... OK
+* checking tests ... OK
+* DONE
+
+Status: OK

@@ -1,0 +1,20 @@
+* using log directory ‘/tmp/demo.Rcheck’
+* using R version 4.4.1 (2024-06-14)
+* checking for file ‘demo/DESCRIPTION’ ... OK
+* checking DESCRIPTION meta-information ... OK
+* checking R code for possible problems ... [6s/7s] NOTE
+aggregate_pseudobulk: no visible binding for global variable ‘donor’
+Undefined global functions or variables:
+  donor
+* checking examples ... [3s/3s] WARNING
+Found the following significant warnings:
+  Warning: 'x' is deprecated.
+* checking for future file timestamps ... NOTE
+unable to verify current time
+* checking tests ... OK
+* DONE
+
+Status: 1 WARNING, 2 NOTEs
+See
+  ‘/tmp/demo.Rcheck/00check.log’
+for details.

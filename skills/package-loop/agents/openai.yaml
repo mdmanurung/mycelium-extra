@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mycelium Extra Package Loop"
+  short_description: "Develop a package in small units, each ending on a green check"
+  default_prompt: "Use $mycelium-extra:package-loop to develop this package one verifiable unit at a time, with the check command and NOTE rules I approve."
+policy:
+  allow_implicit_invocation: false
