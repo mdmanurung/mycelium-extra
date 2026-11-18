@@ -4,6 +4,19 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-11-18
+
+Ideas from the pstack plugin (MIT, `cursor/plugins`; see the `Idea from` lines in each skill), adapted to the plan gate.
+
+### Added
+
+- **package-loop:** a user-invoked skill that is `iterate` with a package check as the readout. The run command, the readout, which NOTEs count as failures, the repair cap and the stop rule are `user` plan rows. Each node is one verifiable unit that ends green; a blast-radius step runs before a release. Ideas from pstack (MIT): sequence-verifiable-units, test-behavior-not-implementation, blast-radius.
+- **package-loop:** `scripts/check_summary.py` turns `R CMD check` and `devtools::check()` output (ERROR, WARNING, NOTE counts), the pytest summary line and the `ruff check` summary into one readout line for `tree.py run --readout-value`. `--notes` lists NOTE headings; `--exit-code` exits 1 only for an ERROR, a failed test or a ruff finding. Tested on saved outputs.
+
+### Changed
+
+- **harden:** a correct ladder runs before a test is written: structure, types, a lint whose message names the fix, a test, then docs, taking the highest level that works. Idea from pstack (MIT): correct.
+
 ## [0.33.0] - 2026-11-18
 
 A research loop: a tree of experiments on one fixed command.
