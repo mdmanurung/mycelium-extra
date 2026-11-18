@@ -121,6 +121,17 @@ class CheckNote(unittest.TestCase):
         self.assertEqual(code, 1, out)
         self.assertIn("cites PMID 31178118", out)
 
+    def test_doi_suffix_in_log_is_not_a_pmid(self):
+        base = "- S2 Stuart T, Comprehensive integration of single-cell data. Cell 2019. doi:10.1016/j.cell.2019.05.031"
+        code, out = self.edited(
+            "kept doi:10.1016/j.cell.2019.05.031",
+            "kept doi:10.1016/j.cell.2019.05.031, doi:10.1101/2020.01.01.123456",
+        )
+        self.assertEqual(code, 0, out)
+        code, out = self.edited(base, base + " PMID 123456")
+        self.assertEqual(code, 1, out)
+        self.assertIn("cites PMID 123456", out)
+
     def test_log_before_references_fails(self):
         with open(fixture("good.md"), encoding="utf-8") as handle:
             text = handle.read()

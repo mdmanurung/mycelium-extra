@@ -169,10 +169,9 @@ def check_log(sections, ids):
     logged = {normal_id("doi", m.group()) for m in DOI.finditer(text)}
     logged |= {m.group(1) for m in PMID.finditer(text)}
     logged |= {m.group(1).lower() for m in ARXIV.finditer(text)}
-    numbers = set(re.findall(r"\b\d{5,9}\b", text))
     for ident, kind, value in ids:
         key = normal_id(kind, value)
-        if key in logged or (kind == "pmid" and key in numbers):
+        if key in logged:
             continue
         problems.append("reference {} cites {} {}, which is not in the `## {}`".format(
             ident, kind.upper() if kind != "arxiv" else "arXiv", value, LOG_SECTION))
