@@ -1,0 +1,331 @@
+{
+  "mined.jsonl": {
+    "errors": 0,
+    "failures": [],
+    "false_deny": 0,
+    "false_pass": 0,
+    "families": {
+      "mined": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 567,
+        "n_run": 248
+      }
+    },
+    "n": 567,
+    "n_run": 248
+  },
+  "seeds.jsonl": {
+    "errors": 0,
+    "failures": [
+      {
+        "command": "mpirun -n 4 python analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "mpi-launcher",
+        "id": "s05",
+        "runs": true
+      },
+      {
+        "command": "mpiexec -n 2 python analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "mpi-launcher",
+        "id": "s06",
+        "runs": true
+      },
+      {
+        "command": "torchrun --nproc_per_node 2 analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "mpi-launcher",
+        "id": "s07",
+        "runs": true
+      },
+      {
+        "command": "accelerate launch analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "mpi-launcher",
+        "id": "s08",
+        "runs": true
+      },
+      {
+        "command": "sudo -u bob python analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "privilege",
+        "id": "s09",
+        "runs": true
+      },
+      {
+        "command": "doas python analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "privilege",
+        "id": "s10",
+        "runs": true
+      },
+      {
+        "command": "runuser -u bob -- python analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "privilege",
+        "id": "s11",
+        "runs": true
+      },
+      {
+        "command": "su bob -c 'python analysis/a.py'",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "privilege",
+        "id": "s12",
+        "runs": true
+      },
+      {
+        "command": "flock /tmp/lock python analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "process-tool",
+        "id": "s13",
+        "runs": true
+      },
+      {
+        "command": "numactl --cpunodebind=0 python analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "process-tool",
+        "id": "s14",
+        "runs": true
+      },
+      {
+        "command": "taskset -c 0-3 python analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "process-tool",
+        "id": "s15",
+        "runs": true
+      },
+      {
+        "command": "strace -f python analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "process-tool",
+        "id": "s16",
+        "runs": true
+      },
+      {
+        "command": "perf stat python analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "process-tool",
+        "id": "s17",
+        "runs": true
+      },
+      {
+        "command": "script -q -c 'python analysis/a.py' /dev/null",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "process-tool",
+        "id": "s18",
+        "runs": true
+      },
+      {
+        "command": "systemd-run --user python analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "process-tool",
+        "id": "s19",
+        "runs": true
+      },
+      {
+        "command": "git bisect run python analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "git-exec",
+        "id": "s20",
+        "runs": true
+      },
+      {
+        "command": "git rebase -x 'python analysis/a.py' HEAD~2",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "git-exec",
+        "id": "s21",
+        "runs": true
+      },
+      {
+        "command": "builtin exec python analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "shell-builtin",
+        "id": "s22",
+        "runs": true
+      },
+      {
+        "command": "pypy3 analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "interpreter",
+        "id": "s23",
+        "runs": true
+      },
+      {
+        "command": "ipython analysis/a.py",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "interpreter",
+        "id": "s24",
+        "runs": true
+      },
+      {
+        "command": "python -c 'import analysis.a'",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "import-run",
+        "id": "s25",
+        "runs": true
+      },
+      {
+        "command": "python -c 'from analysis import a'",
+        "error": null,
+        "false_deny": [],
+        "false_pass": [
+          "analysis/a.py"
+        ],
+        "family": "import-run",
+        "id": "s26",
+        "runs": true
+      }
+    ],
+    "false_deny": 0,
+    "false_pass": 22,
+    "families": {
+      "benign": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 8,
+        "n_run": 0
+      },
+      "control-positive": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 4,
+        "n_run": 4
+      },
+      "git-exec": {
+        "false_deny": 0,
+        "false_pass": 2,
+        "n": 2,
+        "n_run": 2
+      },
+      "import-run": {
+        "false_deny": 0,
+        "false_pass": 2,
+        "n": 3,
+        "n_run": 3
+      },
+      "interpreter": {
+        "false_deny": 0,
+        "false_pass": 2,
+        "n": 2,
+        "n_run": 2
+      },
+      "mpi-launcher": {
+        "false_deny": 0,
+        "false_pass": 4,
+        "n": 4,
+        "n_run": 4
+      },
+      "privilege": {
+        "false_deny": 0,
+        "false_pass": 4,
+        "n": 4,
+        "n_run": 4
+      },
+      "process-tool": {
+        "false_deny": 0,
+        "false_pass": 7,
+        "n": 7,
+        "n_run": 7
+      },
+      "python-operand": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 2,
+        "n_run": 2
+      },
+      "shell-builtin": {
+        "false_deny": 0,
+        "false_pass": 1,
+        "n": 1,
+        "n_run": 1
+      }
+    },
+    "n": 37,
+    "n_run": 29
+  }
+}

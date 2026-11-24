@@ -1,0 +1,43 @@
+{"id": "s01", "family": "control-positive", "command": "python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s02", "family": "control-positive", "command": "srun python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s03", "family": "control-positive", "command": "nohup python analysis/a.py &", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s04", "family": "control-positive", "command": "env FOO=1 python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s05", "family": "mpi-launcher", "command": "mpirun -n 4 python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s06", "family": "mpi-launcher", "command": "mpiexec -n 2 python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s07", "family": "mpi-launcher", "command": "torchrun --nproc_per_node 2 analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s08", "family": "mpi-launcher", "command": "accelerate launch analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s09", "family": "privilege", "command": "sudo -u bob python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s10", "family": "privilege", "command": "doas python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s11", "family": "privilege", "command": "runuser -u bob -- python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s12", "family": "privilege", "command": "su bob -c 'python analysis/a.py'", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s13", "family": "process-tool", "command": "flock /tmp/lock python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s14", "family": "process-tool", "command": "numactl --cpunodebind=0 python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s15", "family": "process-tool", "command": "taskset -c 0-3 python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s16", "family": "process-tool", "command": "strace -f python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s17", "family": "process-tool", "command": "perf stat python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s18", "family": "process-tool", "command": "script -q -c 'python analysis/a.py' /dev/null", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s19", "family": "process-tool", "command": "systemd-run --user python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s20", "family": "git-exec", "command": "git bisect run python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s21", "family": "git-exec", "command": "git rebase -x 'python analysis/a.py' HEAD~2", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s22", "family": "shell-builtin", "command": "builtin exec python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s23", "family": "interpreter", "command": "pypy3 analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s24", "family": "interpreter", "command": "ipython analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s25", "family": "import-run", "command": "python -c 'import analysis.a'", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s26", "family": "import-run", "command": "python -c 'from analysis import a'", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s27", "family": "import-run", "command": "python -c \"import runpy; runpy.run_path('analysis/a.py')\"", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s28", "family": "python-operand", "command": "python analysis/a.txt", "cwd": ".", "expect": ["analysis/a.txt"], "label": "hand"}
+{"id": "s29", "family": "python-operand", "command": "python analysis/sub", "cwd": ".", "expect": ["analysis/sub"], "label": "hand"}
+{"id": "s30", "family": "benign", "command": "mpirun -n 4 hostname", "cwd": ".", "expect": [], "label": "hand"}
+{"id": "s31", "family": "benign", "command": "sudo ls analysis", "cwd": ".", "expect": [], "label": "hand"}
+{"id": "s32", "family": "benign", "command": "strace -c ls analysis", "cwd": ".", "expect": [], "label": "hand"}
+{"id": "s33", "family": "benign", "command": "cat analysis/a.py", "cwd": ".", "expect": [], "label": "hand"}
+{"id": "s34", "family": "benign", "command": "python --version", "cwd": ".", "expect": [], "label": "hand"}
+{"id": "s35", "family": "benign", "command": "git log -- analysis/a.py", "cwd": ".", "expect": [], "label": "hand"}
+{"id": "s36", "family": "benign", "command": "flock /tmp/lock echo done", "cwd": ".", "expect": [], "label": "hand"}
+{"id": "s37", "family": "benign", "command": "python scripts/ok.py", "cwd": ".", "expect": [], "label": "hand"}
+{"id": "s38", "family": "no-runner-launcher", "command": "mpirun -n 4 ./analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "hand"}
+{"id": "s39", "family": "no-runner-launcher", "command": "valgrind ./analysis/run.sh", "cwd": ".", "expect": ["analysis/run.sh"], "label": "hand"}
+{"id": "s40", "family": "no-runner-launcher", "command": "chrt 10 analysis/run.sh", "cwd": ".", "expect": ["analysis/run.sh"], "label": "hand"}
+{"id": "s41", "family": "benign-option-value", "command": "shellcheck -s bash analysis/run.sh", "cwd": ".", "expect": [], "label": "hand"}
+{"id": "s42", "family": "benign-option-value", "command": "bat -l python analysis/a.py", "cwd": ".", "expect": [], "label": "hand"}
+{"id": "s43", "family": "benign-option-value", "command": "pygmentize -l python analysis/a.py", "cwd": ".", "expect": [], "label": "hand"}

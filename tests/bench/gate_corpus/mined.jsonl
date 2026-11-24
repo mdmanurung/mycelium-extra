@@ -1,0 +1,567 @@
+{"id": "m0001", "family": "mined", "command": " echo analysis/x.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0002", "family": "mined", "command": " python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0003", "family": "mined", "command": "(cd D); cmd", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_shellwords.py"}
+{"id": "m0004", "family": "mined", "command": "(cd analysis && python x.py)", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0005", "family": "mined", "command": "(cd analysis; python x.py)", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0006", "family": "mined", "command": "(cd analysis; true); python x.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0007", "family": "mined", "command": ". analysis/env.sh", "cwd": ".", "expect": ["analysis/env.sh"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0008", "family": "mined", "command": "A=1 nohup python code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0009", "family": "mined", "command": "A=1 python  code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0010", "family": "mined", "command": "A=1 python ./code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0011", "family": "mined", "command": "A=1 python code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0012", "family": "mined", "command": "A=1 python3 code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0013", "family": "mined", "command": "A=1 sh -c 'python code/run.py'", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0014", "family": "mined", "command": "B=exp/a; git checkout $B && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0015", "family": "mined", "command": "B=exp/a; git checkout ${B} && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0016", "family": "mined", "command": "B=main; git checkout $B && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0017", "family": "mined", "command": "CDPATH=. cd analysis && python x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0018", "family": "mined", "command": "CUDA_VISIBLE_DEVICES=0 python code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0019", "family": "mined", "command": "FOO=/tmp/x python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0020", "family": "mined", "command": "MX_TEST_EXPORTED=2; python code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0021", "family": "mined", "command": "MYCELIUM_EXTRA_EXPLORE=1 bash analysis/x/run.sh", "cwd": ".", "expect": ["analysis/x/run.sh"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0022", "family": "mined", "command": "MYCELIUM_EXTRA_EXPLORE=1 python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0023", "family": "mined", "command": "MYCELIUM_EXTRA_EXPLORE=1 python analysis/x.py && sbatch job.sh", "cwd": ".", "expect": ["analysis/x.py", "cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0024", "family": "mined", "command": "MYCELIUM_EXTRA_EXPLORE=1 python3 analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0025", "family": "mined", "command": "MYCELIUM_EXTRA_EXPLORE=1 python3 analysis/y.py", "cwd": ".", "expect": ["analysis/y.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0026", "family": "mined", "command": "N=3; echo $N; python code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0027", "family": "mined", "command": "OUT=results/x; python code/run.py > $OUT", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0028", "family": "mined", "command": "PYTHONUNBUFFERED=1 python code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0029", "family": "mined", "command": "R --file=analysis/x.R", "cwd": ".", "expect": ["analysis/x.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0030", "family": "mined", "command": "R CMD BATCH analysis/x.R", "cwd": ".", "expect": ["analysis/x.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0031", "family": "mined", "command": "Rscript", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0032", "family": "mined", "command": "Rscript $'analysis/x.R'", "cwd": ".", "expect": ["analysis/x.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0033", "family": "mined", "command": "Rscript $'tools/y.R'", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0034", "family": "mined", "command": "Rscript $SCRIPT", "cwd": ".", "expect": ["$SCRIPT"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0035", "family": "mined", "command": "Rscript -e \"setwd('analysis'); source('x.R')\"", "cwd": ".", "expect": ["analysis"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0036", "family": "mined", "command": "Rscript -e \"setwd('tools'); source('y.R')\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0037", "family": "mined", "command": "Rscript -e \"source('analysis/x.R')\"", "cwd": ".", "expect": ["analysis/x.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0038", "family": "mined", "command": "Rscript analysis/x.R", "cwd": ".", "expect": ["analysis/x.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0039", "family": "mined", "command": "Rscript analysis/x/fit.R", "cwd": ".", "expect": ["analysis/x/fit.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_mycelium.py"}
+{"id": "m0040", "family": "mined", "command": "Rscript analysis/x/run.R --n 3", "cwd": ".", "expect": ["analysis/x/run.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0041", "family": "mined", "command": "Rscript nbs/cyto/03_surv/timing.R", "cwd": ".", "expect": ["nbs/cyto/03_surv/timing.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0042", "family": "mined", "command": "Rscript nbs/cyto/05_cox/rob.R", "cwd": ".", "expect": ["nbs/cyto/05_cox/rob.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0043", "family": "mined", "command": "Rscript nbs/cyto/06_sig/old.R", "cwd": ".", "expect": ["nbs/cyto/06_sig/old.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0044", "family": "mined", "command": "Rscript nbs/cyto/08_focus/code/fit.R", "cwd": ".", "expect": ["nbs/cyto/08_focus/code/fit.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0045", "family": "mined", "command": "Rscript nbs/cyto/13_vax/code/", "cwd": ".", "expect": ["nbs/cyto/13_vax/code"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0046", "family": "mined", "command": "Rscript nbs/cyto/13_vax/code/05_extra.R", "cwd": ".", "expect": ["nbs/cyto/13_vax/code/05_extra.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0047", "family": "mined", "command": "Rscript nbs/study/a.R", "cwd": ".", "expect": ["nbs/study/a.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0048", "family": "mined", "command": "S=analysis; python3 $S/y/01.py", "cwd": ".", "expect": ["$S/y/01.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0049", "family": "mined", "command": "SEED=2 conda run -n e python code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0050", "family": "mined", "command": "SEED=2 python %s/code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0051", "family": "mined", "command": "SEED=2 python -u code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0052", "family": "mined", "command": "SEED=2 python code/other.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0053", "family": "mined", "command": "SEED=2 python code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0054", "family": "mined", "command": "SEED=2 srun -n 1 python code/run.py --tag $TAG", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0055", "family": "mined", "command": "SEED=2 srun python code/other.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0056", "family": "mined", "command": "SEED=2 srun python code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0057", "family": "mined", "command": "SEED=2 timeout 3600 python code/run.py --out $OUT", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0058", "family": "mined", "command": "SEED=2 uv run python code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0059", "family": "mined", "command": "bash", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0060", "family": "mined", "command": "bash $JOB", "cwd": ".", "expect": ["$JOB"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0061", "family": "mined", "command": "bash -c \"git commit -m x\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0062", "family": "mined", "command": "bash -c \"rm .mycelium-extra/gate.json\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0063", "family": "mined", "command": "bash -c 'rm alias/gate.json'", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0064", "family": "mined", "command": "bash -c -l", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0065", "family": "mined", "command": "bash -ce", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0066", "family": "mined", "command": "bash -ec", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0067", "family": "mined", "command": "bash -l -c", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0068", "family": "mined", "command": "bash -lc", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0069", "family": "mined", "command": "bash -lc \"python analysis/x.py\"", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0070", "family": "mined", "command": "bash -lc 'git clean -fdx'", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0071", "family": "mined", "command": "bash -lc 'python analysis/x.py &'", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0072", "family": "mined", "command": "bash -lc 'python analysis/x.py; true'", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0073", "family": "mined", "command": "bash -lc 'python3 $f'", "cwd": ".", "expect": ["$f"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0074", "family": "mined", "command": "bash -xc", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0075", "family": "mined", "command": "bash <<< 'python analysis/x.py'", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0076", "family": "mined", "command": "bash analysis/x/run.sh", "cwd": ".", "expect": ["analysis/x/run.sh"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0077", "family": "mined", "command": "bash analysis/x/run.sh -n", "cwd": ".", "expect": ["analysis/x/run.sh"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0078", "family": "mined", "command": "cat $'a\\tb'", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_shellwords.py"}
+{"id": "m0079", "family": "mined", "command": "cat .mycelium-extra/gate.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0080", "family": "mined", "command": "cat .mycelium-extra/gate.json > /tmp/g.json 2>&1", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0081", "family": "mined", "command": "cat alias/gate.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0082", "family": "mined", "command": "cat analysis/x.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0083", "family": "mined", "command": "cat analysis/x.py | python", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0084", "family": "mined", "command": "cd \"$PWD/analysis/demo\" && python step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0085", "family": "mined", "command": "cd \"$ROOT\" && python3 analysis/y/01.py", "cwd": ".", "expect": ["analysis/y/01.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0086", "family": "mined", "command": "cd \"$X\" && python step.py", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0087", "family": "mined", "command": "cd $(dirname analysis/demo/a) && python step.py", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0088", "family": "mined", "command": "cd $(dirname analysis/y/a) && python3 01.py", "cwd": ".", "expect": ["01.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0089", "family": "mined", "command": "cd -- analysis && python x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0090", "family": "mined", "command": "cd -L analysis && python x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0091", "family": "mined", "command": "cd -P -- analysis && python x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0092", "family": "mined", "command": "cd -P -- tools && python y.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0093", "family": "mined", "command": "cd -P analysis && python x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0094", "family": "mined", "command": "cd . && git -C . commit --amend", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0095", "family": "mined", "command": "cd .mycelium-extra && rm gate.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0096", "family": "mined", "command": "cd analy*s && python x.py", "cwd": ".", "expect": ["x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0097", "family": "mined", "command": "cd analysis && python x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0098", "family": "mined", "command": "cd analysis/a && python run.py; cd ../b && python run.py", "cwd": ".", "expect": ["analysis/a/run.py", "analysis/b/run.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0099", "family": "mined", "command": "cd analysis/demo && python step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0100", "family": "mined", "command": "cd analysis/x && Rscript run.R --n 3", "cwd": ".", "expect": ["analysis/x/run.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0101", "family": "mined", "command": "cd analysis/x && Rscript run.R --n 4", "cwd": ".", "expect": ["analysis/x/run.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0102", "family": "mined", "command": "cd analysis/x && python fit.py --model original --threads 4", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0103", "family": "mined", "command": "cd analysis/x && quarto render reports/static.qmd --to html", "cwd": ".", "expect": ["analysis/x/html", "analysis/x/render", "analysis/x/reports/static.qmd"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0104", "family": "mined", "command": "cd code && SEED=2 python run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0105", "family": "mined", "command": "cd code && python other.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0106", "family": "mined", "command": "cd sub && git checkout exp/a && cd .. && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0107", "family": "mined", "command": "command -V snakemake && echo ok", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0108", "family": "mined", "command": "command -v sbatch", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0109", "family": "mined", "command": "command git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0110", "family": "mined", "command": "command sbatch job.sh", "cwd": ".", "expect": ["cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0111", "family": "mined", "command": "conda", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0112", "family": "mined", "command": "conda activate scanpy", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0113", "family": "mined", "command": "conda env list", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0114", "family": "mined", "command": "conda run --cwd \"$PWD/analysis/demo\" python step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0115", "family": "mined", "command": "conda run --cwd \"$X\" ls", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0116", "family": "mined", "command": "conda run --cwd \"$X\" python step.py", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0117", "family": "mined", "command": "conda run --cwd /tmp python y.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0118", "family": "mined", "command": "conda run --cwd analysis/demo bash -c \"python step.py\"", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0119", "family": "mined", "command": "conda run --no-capture-output grep -rn python analysis/", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0120", "family": "mined", "command": "conda run --no-capture-output python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0121", "family": "mined", "command": "conda run --prefix=/tmp/env python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0122", "family": "mined", "command": "conda run -n e git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0123", "family": "mined", "command": "conda run -n env1 ", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0124", "family": "mined", "command": "conda run -n scanpy python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0125", "family": "mined", "command": "conda run -n synthetic python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0126", "family": "mined", "command": "conda run -n x ls", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0127", "family": "mined", "command": "conda run -p /p python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0128", "family": "mined", "command": "conda run -p /tmp/env ls", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0129", "family": "mined", "command": "conda run -p /tmp/env python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0130", "family": "mined", "command": "echo \"$(python analysis/x.py)\"", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0131", "family": "mined", "command": "echo \"a\\\"\" ; python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0132", "family": "mined", "command": "echo \"import os; os.remove('.mycelium-extra/gate.json')\" | python3", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0133", "family": "mined", "command": "echo \"open('analysis/x.py','w')\" | python3", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0134", "family": "mined", "command": "echo $'hi'", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0135", "family": "mined", "command": "echo $'it\\'s caf\u00e9'", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0136", "family": "mined", "command": "echo $'python analys\\151s/x.py'", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0137", "family": "mined", "command": "echo $(date)", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0138", "family": "mined", "command": "echo $(echo \")\")", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0139", "family": "mined", "command": "echo $(echo \")\"); python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0140", "family": "mined", "command": "echo $(echo ')'); python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0141", "family": "mined", "command": "echo $f", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0142", "family": "mined", "command": "echo 'Rscript analysis/x.R' | bash", "cwd": ".", "expect": ["analysis/x.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0143", "family": "mined", "command": "echo 'python analysis/x.py' | grep python", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0144", "family": "mined", "command": "echo '{}' > alias/gate.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0145", "family": "mined", "command": "echo `date`", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0146", "family": "mined", "command": "echo analysis/x.py | xargs python", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0147", "family": "mined", "command": "echo hello | grep bash", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0148", "family": "mined", "command": "echo hi &> .mycelium-extra/receipts.jsonl", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0149", "family": "mined", "command": "echo hi 1>&2 .mycelium-extra/receipts.jsonl", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0150", "family": "mined", "command": "echo hi > .mycelium-extra/x.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0151", "family": "mined", "command": "echo hi >& .mycelium-extra/receipts.jsonl", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0152", "family": "mined", "command": "echo hi >| .mycelium-extra/receipts.jsonl", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0153", "family": "mined", "command": "echo hi >| /tmp/notes.txt", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0154", "family": "mined", "command": "echo start && x=$(python analysis/x.py) && echo done", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0155", "family": "mined", "command": "echo x | tee -a .mycelium-extra/receipts.jsonl", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0156", "family": "mined", "command": "echo x | xargs echo", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0157", "family": "mined", "command": "echo x | xargs rm", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0158", "family": "mined", "command": "echo {} > .mycelium-extra/approvals/a.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0159", "family": "mined", "command": "echo {} >.mycelium-extra/approvals/a.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0160", "family": "mined", "command": "env --chdir=\"$X\" python step.py", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0161", "family": "mined", "command": "env --chdir=$PWD/analysis/demo python step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0162", "family": "mined", "command": "env --chdir=%s python analysis/x.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0163", "family": "mined", "command": "env --chdir=.mycelium-extra touch off.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0164", "family": "mined", "command": "env --ignore-environment grep -n python analysis/demo/step.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0165", "family": "mined", "command": "env -C \"$(pwd)/analysis/demo\" python step.py", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0166", "family": "mined", "command": "env -C \"$ANALYSIS/demo\" python step.py", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0167", "family": "mined", "command": "env -C \"$HOME/analysis/demo\" python step.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0168", "family": "mined", "command": "env -C \"$PWD\" ls", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0169", "family": "mined", "command": "env -C \"$PWD/analysis/$NAME\" python step.py", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0170", "family": "mined", "command": "env -C \"$PWD/analysis/demo\" python step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0171", "family": "mined", "command": "env -C \"$PWD/demo\" python step.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0172", "family": "mined", "command": "env -C \"$PWD/tools\" python y.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0173", "family": "mined", "command": "env -C \"$PWD/x\" ls", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0174", "family": "mined", "command": "env -C \"$PWDX/a\" python step.py", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0175", "family": "mined", "command": "env -C \"$WORK\" ", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0176", "family": "mined", "command": "env -C \"$X\" -C sub python step.py", "cwd": ".", "expect": ["sub/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0177", "family": "mined", "command": "env -C \"$X\" -S \"python step.py\"", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0178", "family": "mined", "command": "env -C \"$X\" bash -c \"python step.py\"", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0179", "family": "mined", "command": "env -C \"$X\" cat analysis/x.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0180", "family": "mined", "command": "env -C \"$X\" command -v python", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0181", "family": "mined", "command": "env -C \"$X\" grep -rn python .", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0182", "family": "mined", "command": "env -C \"$X\" ls", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0183", "family": "mined", "command": "env -C \"$X\" python", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0184", "family": "mined", "command": "env -C \"$X\" python -c \"print(1)\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0185", "family": "mined", "command": "env -C \"$X\" python analysis/other.py", "cwd": ".", "expect": ["analysis/other.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0186", "family": "mined", "command": "env -C \"$X\" python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0187", "family": "mined", "command": "env -C \"$X\" sbatch --wrap='python step.py'", "cwd": ".", "expect": ["cmd:sbatch", "step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0188", "family": "mined", "command": "env -C \"$X\" snakemake -j 4", "cwd": ".", "expect": ["cmd:snakemake"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0189", "family": "mined", "command": "env -C \"$X/demo\" python step.py", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0190", "family": "mined", "command": "env -C \"${PWD:-.}/analysis\" python step.py", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0191", "family": "mined", "command": "env -C \"${PWD}/analysis/demo\" python step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0192", "family": "mined", "command": "env -C $HOME/x python y.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0193", "family": "mined", "command": "env -C $PWD/analysis/demo python step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0194", "family": "mined", "command": "env -C %s python analysis/demo/step.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0195", "family": "mined", "command": "env -C %s python analysis/x.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0196", "family": "mined", "command": "env -C .mycelium-extra touch off.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0197", "family": "mined", "command": "env -C /tmp python tools/y.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0198", "family": "mined", "command": "env -C `pwd`/analysis/demo python step.py", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0199", "family": "mined", "command": "env -C analysis python x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0200", "family": "mined", "command": "env -C analysis touch off.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0201", "family": "mined", "command": "env -C analysis/demo -S \"python step.py\"", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0202", "family": "mined", "command": "env -C analysis/demo bash -c \"python run.py\"", "cwd": ".", "expect": ["analysis/demo/run.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0203", "family": "mined", "command": "env -C analysis/demo bash -c \"python step.py\"", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0204", "family": "mined", "command": "env -C analysis/demo python step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0205", "family": "mined", "command": "env -C analysis/demo sbatch --wrap='python step.py'", "cwd": ".", "expect": ["analysis/demo/step.py", "cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0206", "family": "mined", "command": "env -C analysis/x Rscript run.R --n 3", "cwd": ".", "expect": ["analysis/x/run.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0207", "family": "mined", "command": "env -C ~/analysis/demo python step.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0208", "family": "mined", "command": "env -S 'python analysis/x.py'", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0209", "family": "mined", "command": "env -i /usr/bin/bash -lc", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0210", "family": "mined", "command": "env -i SEED=2 python code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0211", "family": "mined", "command": "env -i git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0212", "family": "mined", "command": "env -i grep -n python analysis/demo/step.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0213", "family": "mined", "command": "env -i python analysis/demo/step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0214", "family": "mined", "command": "env -u HOME", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0215", "family": "mined", "command": "env -u HOME python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0216", "family": "mined", "command": "env A=/tmp/a B=/tmp/b python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0217", "family": "mined", "command": "env FOO=1 python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0218", "family": "mined", "command": "env GIT_AUTHOR_NAME=x git commit -m \"fix $ISSUE\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0219", "family": "mined", "command": "env PYTHONHASHSEED_OK=1 python code/other.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0220", "family": "mined", "command": "env SEED=2 python code/run.py --x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0221", "family": "mined", "command": "env VAR=/tmp/x python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0222", "family": "mined", "command": "env VAR=/tmp/x true", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0223", "family": "mined", "command": "env X=1 git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0224", "family": "mined", "command": "env bash -lc", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0225", "family": "mined", "command": "find . -delete", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0226", "family": "mined", "command": "find . -name '*.pyc' -delete", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0227", "family": "mined", "command": "find . -type f", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0228", "family": "mined", "command": "find . -type f -delete", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0229", "family": "mined", "command": "find .mycelium-extra -name '*.json' -delete", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0230", "family": "mined", "command": "find analysis -delete", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0231", "family": "mined", "command": "find analysis -name '*.py'", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0232", "family": "mined", "command": "find analysis -name '*.py' -exec python {} \\;", "cwd": ".", "expect": ["{}"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0233", "family": "mined", "command": "for f in .mycelium-extra/approvals/*; do rm \"$f\"; done", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0234", "family": "mined", "command": "for f in 1 2; do echo $f; done", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0235", "family": "mined", "command": "for f in a; do python3 $f; done", "cwd": ".", "expect": ["$f"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0236", "family": "mined", "command": "for f in analysis/x.py; do python3 $f; done", "cwd": ".", "expect": ["$f"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0237", "family": "mined", "command": "for f in analysis/y/*.py; do python3 $f; done", "cwd": ".", "expect": ["$f"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0238", "family": "mined", "command": "for i in 1 2; do python3 analysis/x.py; done", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0239", "family": "mined", "command": "for i in 1 2; do python3 analysis/y/01.py; done", "cwd": ".", "expect": ["analysis/y/01.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0240", "family": "mined", "command": "git --git-dir .git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0241", "family": "mined", "command": "git --git-dir=.git commit", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0242", "family": "mined", "command": "git -C . clean -fdx", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0243", "family": "mined", "command": "git -C . switch main && git -C . commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0244", "family": "mined", "command": "git -C sub checkout exp/a && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0245", "family": "mined", "command": "git -c alias.go=checkout go exp/a && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0246", "family": "mined", "command": "git -c alias.x=commit x -m y", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0247", "family": "mined", "command": "git add analysis/x.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0248", "family": "mined", "command": "git am p.patch", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0249", "family": "mined", "command": "git branch --list", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0250", "family": "mined", "command": "git branch -D exp/a", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0251", "family": "mined", "command": "git branch -c exp/a copy", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0252", "family": "mined", "command": "git branch -f exp/a HEAD", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0253", "family": "mined", "command": "git branch -f other exp/a", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0254", "family": "mined", "command": "git branch -m exp/a gone", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0255", "family": "mined", "command": "git check-ignore -v .mycelium-extra/gate.json || echo NOT-ignored", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0256", "family": "mined", "command": "git checkout - && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0257", "family": "mined", "command": "git checkout -B exp/a", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0258", "family": "mined", "command": "git checkout -b exp/b && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0259", "family": "mined", "command": "git checkout exp/a && cd sub && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0260", "family": "mined", "command": "git checkout exp/a && git checkout main && git checkout exp/a && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0261", "family": "mined", "command": "git checkout exp/a && git checkout main && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0262", "family": "mined", "command": "git checkout exp/a && git commit --allow-empty -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0263", "family": "mined", "command": "git checkout exp/a && git swm && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0264", "family": "mined", "command": "git checkout exp/a -- f.txt && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0265", "family": "mined", "command": "git checkout exp/a; git checkout -; git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0266", "family": "mined", "command": "git checkout main && git branch -f exp/a main", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0267", "family": "mined", "command": "git checkout main && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0268", "family": "mined", "command": "git checkout main && git switch - && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0269", "family": "mined", "command": "git checkout main; git checkout -; git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0270", "family": "mined", "command": "git checkout main; git pull", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0271", "family": "mined", "command": "git checkout nope && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0272", "family": "mined", "command": "git cherry-pick HEAD", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0273", "family": "mined", "command": "git ci -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0274", "family": "mined", "command": "git clean -fd", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0275", "family": "mined", "command": "git clean -fdX", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0276", "family": "mined", "command": "git clean -fdx", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0277", "family": "mined", "command": "git clean -fdx -e .mycelium-extra", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0278", "family": "mined", "command": "git clean -fdx analysis/", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0279", "family": "mined", "command": "git clean -fdxn", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0280", "family": "mined", "command": "git clean -ffdx", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0281", "family": "mined", "command": "git clean -n -x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0282", "family": "mined", "command": "git clean -x -f", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0283", "family": "mined", "command": "git clean -xfd", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0284", "family": "mined", "command": "git co exp/a && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0285", "family": "mined", "command": "git commit --dry-run", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0286", "family": "mined", "command": "git commit --help", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0287", "family": "mined", "command": "git commit -h", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0288", "family": "mined", "command": "git commit -m \"fix \\\"quote\\\"\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0289", "family": "mined", "command": "git commit -m \"fix \\\"quote\\\"\" && python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0290", "family": "mined", "command": "git commit -m --help", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0291", "family": "mined", "command": "git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0292", "family": "mined", "command": "git commit -m x && git checkout main && git commit -m y", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0293", "family": "mined", "command": "git diff && echo commit", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0294", "family": "mined", "command": "git fetch . +main:refs/heads/exp/a", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0295", "family": "mined", "command": "git fetch . main:exp/a", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0296", "family": "mined", "command": "git log", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0297", "family": "mined", "command": "git log --oneline <hash>..HEAD", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0298", "family": "mined", "command": "git merge --abort", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0299", "family": "mined", "command": "git merge other", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0300", "family": "mined", "command": "git pull --help", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0301", "family": "mined", "command": "git push . HEAD:exp/a", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0302", "family": "mined", "command": "git push origin HEAD:exp/a", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0303", "family": "mined", "command": "git rebase --quit", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0304", "family": "mined", "command": "git rebase main", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0305", "family": "mined", "command": "git reset", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0306", "family": "mined", "command": "git reset -- f.txt", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0307", "family": "mined", "command": "git reset --hard", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0308", "family": "mined", "command": "git reset --hard @", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0309", "family": "mined", "command": "git reset --hard HEAD", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0310", "family": "mined", "command": "git reset --hard HEAD~1", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0311", "family": "mined", "command": "git reset --hard exp/a", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0312", "family": "mined", "command": "git reset --soft main", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0313", "family": "mined", "command": "git reset -p HEAD~1", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0314", "family": "mined", "command": "git reset HEAD", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0315", "family": "mined", "command": "git reset HEAD~1", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0316", "family": "mined", "command": "git reset HEAD~1 -- f.txt", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0317", "family": "mined", "command": "git reset HEAD~1 f.txt", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0318", "family": "mined", "command": "git revert HEAD", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0319", "family": "mined", "command": "git sh -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0320", "family": "mined", "command": "git stash", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0321", "family": "mined", "command": "git stash -a", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0322", "family": "mined", "command": "git stash -a -- analysis/", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0323", "family": "mined", "command": "git stash -u", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0324", "family": "mined", "command": "git stash list", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0325", "family": "mined", "command": "git stash push --all", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0326", "family": "mined", "command": "git stash push -a -- ':!.mycelium-extra'", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0327", "family": "mined", "command": "git stash push -a -m wip", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0328", "family": "mined", "command": "git status", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0329", "family": "mined", "command": "git switch - && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0330", "family": "mined", "command": "git switch --detach && git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0331", "family": "mined", "command": "git switch -C exp/a main", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0332", "family": "mined", "command": "git switch -c exp/c exp/a && git commit -am x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0333", "family": "mined", "command": "git switch exp/a; git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0334", "family": "mined", "command": "git switch main && git merge exp/a", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0335", "family": "mined", "command": "git update-ref refs/heads/exp/a HEAD", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0336", "family": "mined", "command": "git update-ref refs/heads/other HEAD", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0337", "family": "mined", "command": "ionice", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0338", "family": "mined", "command": "ionice --class idle", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0339", "family": "mined", "command": "ionice -c 3", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0340", "family": "mined", "command": "ionice -c2 -n7", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0341", "family": "mined", "command": "ionice -t", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0342", "family": "mined", "command": "julia", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_shellwords.py"}
+{"id": "m0343", "family": "mined", "command": "julia analysis/x/fit.jl", "cwd": ".", "expect": ["analysis/x/fit.jl"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_mycelium.py"}
+{"id": "m0344", "family": "mined", "command": "jupyter nbconvert --execute nbs/a/c/y.ipynb", "cwd": ".", "expect": ["nbs/a/c/y.ipynb"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0345", "family": "mined", "command": "jupyter nbconvert --to notebook --execute --inplace nbs/n.ipynb", "cwd": ".", "expect": ["nbs/n.ipynb"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0346", "family": "mined", "command": "jupyter nbconvert --to notebook --execute nbs/n.ipynb", "cwd": ".", "expect": ["nbs/n.ipynb"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0347", "family": "mined", "command": "make -C .mycelium-extra x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0348", "family": "mined", "command": "make -C tools", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0349", "family": "mined", "command": "nextflow", "cwd": ".", "expect": ["cmd:nextflow"], "label": "current output at 789d7d6", "source": "hooks/tests/test_shellwords.py"}
+{"id": "m0350", "family": "mined", "command": "nextflow run analysis/x/main.nf", "cwd": ".", "expect": ["cmd:nextflow"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_mycelium.py"}
+{"id": "m0351", "family": "mined", "command": "nextflow run main.nf -params-file params.yaml -profile slurm -resume -with-trace", "cwd": ".", "expect": ["cmd:nextflow"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0352", "family": "mined", "command": "nohup git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0353", "family": "mined", "command": "perl -e 'open F,\">.mycelium-extra/off.json\"'", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0354", "family": "mined", "command": "perl analysis/x/fit.pl", "cwd": ".", "expect": ["analysis/x/fit.pl"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_mycelium.py"}
+{"id": "m0355", "family": "mined", "command": "pushd analysis/demo && python step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0356", "family": "mined", "command": "pushd analysis/y && python3 01.py", "cwd": ".", "expect": ["analysis/y/01.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0357", "family": "mined", "command": "pushd analysis; true; popd; python x.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0358", "family": "mined", "command": "pushd tools && python3 y.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0359", "family": "mined", "command": "python", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0360", "family": "mined", "command": "python ", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0361", "family": "mined", "command": "python \"analysis/my script.py\"", "cwd": ".", "expect": ["analysis/my script.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0362", "family": "mined", "command": "python $'analys\\151s/x.py'", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0363", "family": "mined", "command": "python $'tools/\\170.py'", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0364", "family": "mined", "command": "python 'a b.py' && echo \"x y\" | cat", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_shellwords.py"}
+{"id": "m0365", "family": "mined", "command": "python -W ignore analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0366", "family": "mined", "command": "python -c \"$(cat analysis/x.py)\"", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0367", "family": "mined", "command": "python -c \"import os;os.mknod('.mycelium-extra/off.json')\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0368", "family": "mined", "command": "python -m analysis.x", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0369", "family": "mined", "command": "python -m snakemake.cli", "cwd": ".", "expect": ["cmd:snakemake"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0370", "family": "mined", "command": "python -u analysis/x/fit.py --threads 1", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0371", "family": "mined", "command": "python ./analysis/x/fit.py --model original --threads 4", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0372", "family": "mined", "command": "python /tmp/elsewhere/y.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0373", "family": "mined", "command": "python analysis/a.py", "cwd": ".", "expect": ["analysis/a.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0374", "family": "mined", "command": "python analysis/a/02_fit.py", "cwd": ".", "expect": ["analysis/a/02_fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0375", "family": "mined", "command": "python analysis/a/04_plot.py", "cwd": ".", "expect": ["analysis/a/04_plot.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0376", "family": "mined", "command": "python analysis/approved.py", "cwd": ".", "expect": ["analysis/approved.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0377", "family": "mined", "command": "python analysis/b.py", "cwd": ".", "expect": ["analysis/b.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0378", "family": "mined", "command": "python analysis/b04/run.py", "cwd": ".", "expect": ["analysis/b04/run.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0379", "family": "mined", "command": "python analysis/b04_v3/run.py", "cwd": ".", "expect": ["analysis/b04_v3/run.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0380", "family": "mined", "command": "python analysis/c.py", "cwd": ".", "expect": ["analysis/c.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0381", "family": "mined", "command": "python analysis/demo/step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0382", "family": "mined", "command": "python analysis/hidden.py", "cwd": ".", "expect": ["analysis/hidden.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0383", "family": "mined", "command": "python analysis/my/other.py", "cwd": ".", "expect": ["analysis/my/other.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0384", "family": "mined", "command": "python analysis/new.py", "cwd": ".", "expect": ["analysis/new.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0385", "family": "mined", "command": "python analysis/other.py", "cwd": ".", "expect": ["analysis/other.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0386", "family": "mined", "command": "python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0387", "family": "mined", "command": "python analysis/x.py &", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0388", "family": "mined", "command": "python analysis/x.py && python analysis/y.py", "cwd": ".", "expect": ["analysis/x.py", "analysis/y.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0389", "family": "mined", "command": "python analysis/x.py '&'", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0390", "family": "mined", "command": "python analysis/x.py | cat", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0391", "family": "mined", "command": "python analysis/x.py; python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0392", "family": "mined", "command": "python analysis/x.py; true", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0393", "family": "mined", "command": "python analysis/x/fit.py", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0394", "family": "mined", "command": "python analysis/x/fit.py && python analysis/y/other.py", "cwd": ".", "expect": ["analysis/x/fit.py", "analysis/y/other.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0395", "family": "mined", "command": "python analysis/x/fit.py --model $(cat model.txt)", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0396", "family": "mined", "command": "python analysis/x/fit.py --model $MODEL", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0397", "family": "mined", "command": "python analysis/x/fit.py --model alternative", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0398", "family": "mined", "command": "python analysis/x/fit.py --model b", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0399", "family": "mined", "command": "python analysis/x/fit.py --model original", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0400", "family": "mined", "command": "python analysis/x/fit.py --model original --threads 16", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0401", "family": "mined", "command": "python analysis/x/fit.py --model original --threads 4", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0402", "family": "mined", "command": "python analysis/x/fit.py --model original --threads 4 --alpha 0.1", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0403", "family": "mined", "command": "python analysis/x/fit.py --model original --threads 4 < other.tsv", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0404", "family": "mined", "command": "python analysis/x/fit.py --model original --threads 4 extra.tsv", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0405", "family": "mined", "command": "python analysis/x/fit.py --model original --threads 8", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0406", "family": "mined", "command": "python analysis/x/fit.py --model original --threads=8", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0407", "family": "mined", "command": "python analysis/x/fit.py --model original --verbose extra.tsv", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0408", "family": "mined", "command": "python analysis/x/fit.py --threads 4", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0409", "family": "mined", "command": "python analysis/x/other.py", "cwd": ".", "expect": ["analysis/x/other.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0410", "family": "mined", "command": "python analysis/x/plot.py --dpi 300", "cwd": ".", "expect": ["analysis/x/plot.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0411", "family": "mined", "command": "python analysis/x/tests/check.py", "cwd": ".", "expect": ["analysis/x/tests/check.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0412", "family": "mined", "command": "python analysis/x/tests/check.py --extra", "cwd": ".", "expect": ["analysis/x/tests/check.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0413", "family": "mined", "command": "python analysis/y.py", "cwd": ".", "expect": ["analysis/y.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0414", "family": "mined", "command": "python analysis/y/other.py", "cwd": ".", "expect": ["analysis/y/other.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0415", "family": "mined", "command": "python bench/score.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard_method.py"}
+{"id": "m0416", "family": "mined", "command": "python code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0417", "family": "mined", "command": "python code/run.py --x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0418", "family": "mined", "command": "python hidden.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_shellwords.py"}
+{"id": "m0419", "family": "mined", "command": "python tools/plot.py analysis/b04/outputs/numbers.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0420", "family": "mined", "command": "python tools/y.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0421", "family": "mined", "command": "python tools/y.py --out=.mycelium-extra/x.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0422", "family": "mined", "command": "python tools/y.py --out=outputs/x.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0423", "family": "mined", "command": "python x.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0424", "family": "mined", "command": "python3", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_shellwords.py"}
+{"id": "m0425", "family": "mined", "command": "python3 ", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0426", "family": "mined", "command": "python3 \"$MYC/skills/core/scripts/upsert_registry_row.py\" .living/log/LOG_REGISTRY.md s1 \"| read .mycelium-extra/receipts.jsonl |\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0427", "family": "mined", "command": "python3 $(ls analysis/y/*.py | head -1)", "cwd": ".", "expect": ["$(ls analysis/y/*.py | head -1)"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0428", "family": "mined", "command": "python3 $CLAUDE_PLUGIN_ROOT/hooks/x.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0429", "family": "mined", "command": "python3 $HOME/tool.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0430", "family": "mined", "command": "python3 - --contract /tmp/c.json < /plugin/check.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0431", "family": "mined", "command": "python3 - < analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0432", "family": "mined", "command": "python3 -c \"exec(open('analysis/x.py').read())\"", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0433", "family": "mined", "command": "python3 -c \"from pathlib import Path; Path('.mycelium-extra/gate.json').rename('y')\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0434", "family": "mined", "command": "python3 -c \"from pathlib import Path; Path('x').replace('.mycelium-extra/gate.json')\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0435", "family": "mined", "command": "python3 -c \"import anndata; print(anndata.read_h5ad('analysis/x/data/a.h5ad'))\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0436", "family": "mined", "command": "python3 -c \"import os; open('notes.txt','w').write(os.path.join('x', '.mycelium-extra'))\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0437", "family": "mined", "command": "python3 -c \"import os; open('notes.txt','w').write(os.path.join(os.getcwd(), '.mycelium-extra'))\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0438", "family": "mined", "command": "python3 -c \"import os; open(os.path.join('x', '.mycelium-extra', 'g.json'),'w').write('x')\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0439", "family": "mined", "command": "python3 -c \"import os; os.chdir('analysis'); exec(open('x.py').read())\"", "cwd": ".", "expect": ["analysis"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0440", "family": "mined", "command": "python3 -c \"import os; os.rename('x', '.mycelium-extra/gate.json')\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0441", "family": "mined", "command": "python3 -c \"import os; os.replace('x', '.mycelium-extra/gate.json')\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0442", "family": "mined", "command": "python3 -c \"import os; os.system('rm .mycelium-extra/gate.json')\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0443", "family": "mined", "command": "python3 -c \"import os; p = os.path.join(os.getcwd(), '.mycelium-extra'); open(p + '/gate.json','w').write('x')\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0444", "family": "mined", "command": "python3 -c \"import os; print(os.listdir('nbs/sub'))\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0445", "family": "mined", "command": "python3 -c \"import pathlib; print(pathlib.Path('.mycelium-extra/gate.json').read_text().replace(' ', ''))\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0446", "family": "mined", "command": "python3 -c \"import sys; sys.path.insert(0, 'analysis/lib'); import fit\"", "cwd": ".", "expect": ["analysis/lib"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0447", "family": "mined", "command": "python3 -c \"open('.mycelium-extra/approvals/x.json','w').write('{}')\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0448", "family": "mined", "command": "python3 -c \"open('.mycelium-extra/gate.json', 'w').write('{}')\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0449", "family": "mined", "command": "python3 -c \"open('n.txt','w').write(open('.mycelium-extra/gate.json').read()); import os; os.remove('.mycelium-extra/gate.json')\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0450", "family": "mined", "command": "python3 -c \"print($X)\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0451", "family": "mined", "command": "python3 -c \"print('.mycelium-extra/x'.replace('x', 'y'))\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0452", "family": "mined", "command": "python3 -c \"t = open('.mycelium-extra/gate.json').read().replace('a', 'b'); print(t)\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0453", "family": "mined", "command": "python3 -m pip list", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0454", "family": "mined", "command": "python3 -m pytest tests", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0455", "family": "mined", "command": "python3 -m sbatch", "cwd": ".", "expect": ["cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0456", "family": "mined", "command": "python3 -m snakemake", "cwd": ".", "expect": ["cmd:snakemake"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0457", "family": "mined", "command": "python3 <<< \"exec(open('analysis/x.py').read())\"", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0458", "family": "mined", "command": "python3 `ls analysis/y/*.py`", "cwd": ".", "expect": ["`ls"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0459", "family": "mined", "command": "python3 analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0460", "family": "mined", "command": "python3 analysis/x/fit.py --model original --threads 4", "cwd": ".", "expect": ["analysis/x/fit.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0461", "family": "mined", "command": "python3 tools/x.py .mycelium-extra/approvals/a.json", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0462", "family": "mined", "command": "python3 tools/y.py $(ls)", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0463", "family": "mined", "command": "python3 tools/y.py --out $OUT", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0464", "family": "mined", "command": "python3.11", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_shellwords.py"}
+{"id": "m0465", "family": "mined", "command": "quarto render analysis/x/01.R", "cwd": ".", "expect": ["analysis/x/01.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0466", "family": "mined", "command": "quarto render analysis/x/reports/live.qmd", "cwd": ".", "expect": ["analysis/x/reports/live.qmd"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0467", "family": "mined", "command": "quarto render analysis/x/reports/none.qmd", "cwd": ".", "expect": ["analysis/x/reports/none.qmd"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0468", "family": "mined", "command": "quarto render analysis/x/reports/static.qmd", "cwd": ".", "expect": ["analysis/x/reports/static.qmd"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0469", "family": "mined", "command": "quarto render analysis/x/reports/static.qmd analysis/x/reports/live.qmd", "cwd": ".", "expect": ["analysis/x/reports/live.qmd", "analysis/x/reports/static.qmd"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0470", "family": "mined", "command": "quarto run analysis/x/reports/static.qmd", "cwd": ".", "expect": ["analysis/x/reports/static.qmd"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0471", "family": "mined", "command": "sbatch", "cwd": ".", "expect": ["cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0472", "family": "mined", "command": "sbatch --chdir analysis/a --wrap='python x.py'", "cwd": ".", "expect": ["analysis/a/x.py", "cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0473", "family": "mined", "command": "sbatch --chdir=analysis/a --wrap='python ../x.py'", "cwd": ".", "expect": ["analysis/x.py", "cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0474", "family": "mined", "command": "sbatch --chdir=analysis/a --wrap='python x.py'", "cwd": ".", "expect": ["analysis/a/x.py", "cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0475", "family": "mined", "command": "sbatch --parsable --wrap='module load R; python analysis/x.py'", "cwd": ".", "expect": ["analysis/x.py", "cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0476", "family": "mined", "command": "sbatch --wrap='cat analysis/x.py'", "cwd": ".", "expect": ["cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0477", "family": "mined", "command": "sbatch --wrap='echo hello'", "cwd": ".", "expect": ["cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0478", "family": "mined", "command": "sbatch --wrap='python analysis/a/x.py'", "cwd": ".", "expect": ["analysis/a/x.py", "cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0479", "family": "mined", "command": "sbatch --wrap='python analysis/other.py'", "cwd": ".", "expect": ["analysis/other.py", "cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0480", "family": "mined", "command": "sbatch --wrap='python analysis/x.py'", "cwd": ".", "expect": ["analysis/x.py", "cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0481", "family": "mined", "command": "sbatch --wrap='python x.py' -D analysis", "cwd": ".", "expect": ["analysis/x.py", "cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0482", "family": "mined", "command": "sbatch -D \"$X\" --wrap='python step.py'", "cwd": ".", "expect": ["cmd:sbatch", "step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0483", "family": "mined", "command": "sbatch -D analysis --wrap='python x.py'", "cwd": ".", "expect": ["analysis/x.py", "cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0484", "family": "mined", "command": "sbatch -D analysis/a --wrap='python x.py'", "cwd": ".", "expect": ["analysis/a/x.py", "cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0485", "family": "mined", "command": "sbatch -Danalysis/a --wrap 'python x.py'", "cwd": ".", "expect": ["analysis/a/x.py", "cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0486", "family": "mined", "command": "sbatch -o logs/%j.out job.sh", "cwd": ".", "expect": ["cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0487", "family": "mined", "command": "sbatch analysis/x/job.sh", "cwd": ".", "expect": ["cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0488", "family": "mined", "command": "sbatch job 4242", "cwd": ".", "expect": ["cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0489", "family": "mined", "command": "sbatch job.sh", "cwd": ".", "expect": ["cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0490", "family": "mined", "command": "sbatch job.sh; sbatch other.sh", "cwd": ".", "expect": ["cmd:sbatch"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0491", "family": "mined", "command": "sbatch_lines", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0492", "family": "mined", "command": "setsid", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0493", "family": "mined", "command": "setsid --wait", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0494", "family": "mined", "command": "setsid -f", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0495", "family": "mined", "command": "setsid ionice -c 3", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0496", "family": "mined", "command": "sh -c 'git commit -m x'", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0497", "family": "mined", "command": "sh -ec", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0498", "family": "mined", "command": "sh /plugin/hooks/mxpy ", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0499", "family": "mined", "command": "sh /plugin/hooks/py.sh ", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0500", "family": "mined", "command": "sh analysis/py.sh", "cwd": ".", "expect": ["analysis/py.sh"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0501", "family": "mined", "command": "sh hooks/py.sh - --plugin-root . write abcd1234 --analysis-dir analysis/a < skills/verify/scripts/verify.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0502", "family": "mined", "command": "snakemake", "cwd": ".", "expect": ["cmd:snakemake"], "label": "current output at 789d7d6", "source": "hooks/tests/test_shellwords.py"}
+{"id": "m0503", "family": "mined", "command": "snakemake --configfile config/c.yaml --report report.html -j 4", "cwd": ".", "expect": ["cmd:snakemake"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0504", "family": "mined", "command": "snakemake --cores 1 Snakefile", "cwd": ".", "expect": ["cmd:snakemake"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0505", "family": "mined", "command": "snakemake --cores 1 step_rule --config atlas_run=out smoke=smoke 2>&1", "cwd": ".", "expect": ["cmd:snakemake"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0506", "family": "mined", "command": "snakemake -j 4", "cwd": ".", "expect": ["cmd:snakemake"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0507", "family": "mined", "command": "snakemake -n", "cwd": ".", "expect": ["cmd:snakemake"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0508", "family": "mined", "command": "snakemake -s analysis/x/Snakefile", "cwd": ".", "expect": ["cmd:snakemake"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0509", "family": "mined", "command": "source", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0510", "family": "mined", "command": "source $ENVFILE", "cwd": ".", "expect": ["$ENVFILE"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0511", "family": "mined", "command": "source analysis/env.sh", "cwd": ".", "expect": ["analysis/env.sh"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0512", "family": "mined", "command": "source('analysis/x.R')", "cwd": ".", "expect": ["analysis/x.R"], "label": "current output at 789d7d6", "source": "hooks/tests/test_shellwords.py"}
+{"id": "m0513", "family": "mined", "command": "srun --exclusive grep -rn python analysis/", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0514", "family": "mined", "command": "srun --exclusive python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0515", "family": "mined", "command": "srun --mpi=pmix --unknown python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0516", "family": "mined", "command": "srun --unknown1 x --unknown2 y python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0517", "family": "mined", "command": "srun --unknown1 x true", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0518", "family": "mined", "command": "srun -D \"$PWD/analysis/demo\" python step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0519", "family": "mined", "command": "srun -D \"$X\" hostname", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0520", "family": "mined", "command": "srun -D \"$X\" python step.py", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0521", "family": "mined", "command": "srun -D analysis python x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0522", "family": "mined", "command": "srun -D analysis/demo bash -c \"python run.py\"", "cwd": ".", "expect": ["analysis/demo/run.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0523", "family": "mined", "command": "srun -D analysis/demo python step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0524", "family": "mined", "command": "srun -p gpu -c 4 python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0525", "family": "mined", "command": "srun -q --unknown x python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0526", "family": "mined", "command": "srun git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0527", "family": "mined", "command": "srun python code/run.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0528", "family": "mined", "command": "stdbuf -oL grep -rn python analysis/", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0529", "family": "mined", "command": "stdbuf -oL grep python analysis/", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0530", "family": "mined", "command": "stdbuf -oL python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0531", "family": "mined", "command": "time -p git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0532", "family": "mined", "command": "time ls", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0533", "family": "mined", "command": "time true; (SEED=2 python code/run.py)", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0534", "family": "mined", "command": "time true; (git commit -m x)", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0535", "family": "mined", "command": "timeout -s KILL 5 git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0536", "family": "mined", "command": "timeout -s KILL 5 python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0537", "family": "mined", "command": "timeout -sKILL 5 python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0538", "family": "mined", "command": "timeout 0.5 python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0539", "family": "mined", "command": "timeout 1.5s python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0540", "family": "mined", "command": "timeout 10 git commit -m \"$MSG\"", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0541", "family": "mined", "command": "timeout 2m python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0542", "family": "mined", "command": "timeout 5s true", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0543", "family": "mined", "command": "timeout 60 python analysis/x.py 2>&1 | tail", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0544", "family": "mined", "command": "timeout 600 ", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0545", "family": "mined", "command": "timeout 90 python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate_scan_fixes.py"}
+{"id": "m0546", "family": "mined", "command": "uv run --directory \"$PWD/analysis/demo\" python step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0547", "family": "mined", "command": "uv run --directory \"$X\" pytest", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0548", "family": "mined", "command": "uv run --directory \"$X\" python step.py", "cwd": ".", "expect": ["step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0549", "family": "mined", "command": "uv run --directory . python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0550", "family": "mined", "command": "uv run --directory analysis/demo bash -c \"python step.py\"", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0551", "family": "mined", "command": "uv run --frozen pytest -k python analysis/demo", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0552", "family": "mined", "command": "uv run --frozen python analysis/demo/step.py", "cwd": ".", "expect": ["analysis/demo/step.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0553", "family": "mined", "command": "uv run --help", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0554", "family": "mined", "command": "uv run --isolated --no-project pytest python analysis/demo", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0555", "family": "mined", "command": "uv run --locked --no-sync grep -n python analysis/demo/step.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0556", "family": "mined", "command": "uv run --no-project --python 3.12 python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0557", "family": "mined", "command": "uv run --not-an-option value cat analysis/x.py", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0558", "family": "mined", "command": "uv run --not-an-option value python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0559", "family": "mined", "command": "uv run --project . python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0560", "family": "mined", "command": "uv run --project envdir python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0561", "family": "mined", "command": "uv run --python 3.12 python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0562", "family": "mined", "command": "uv run --with pandas ls", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0563", "family": "mined", "command": "uv run -p 3.12 --with pandas python analysis/x.py", "cwd": ".", "expect": ["analysis/x.py"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0564", "family": "mined", "command": "uv run git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0565", "family": "mined", "command": "while read f; do python3 \"$f\"; done < list", "cwd": ".", "expect": ["$f"], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}
+{"id": "m0566", "family": "mined", "command": "xargs git commit -m x", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_loop_guard.py"}
+{"id": "m0567", "family": "mined", "command": "zsh -lc", "cwd": ".", "expect": [], "label": "current output at 789d7d6", "source": "hooks/tests/test_gate.py"}

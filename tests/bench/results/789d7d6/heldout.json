@@ -1,0 +1,71 @@
+{
+  "gate_heldout.jsonl": {
+    "errors": 0,
+    "false_deny": 2,
+    "false_pass": 12,
+    "families": {
+      "batch-workflow": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 6,
+        "n_run": 3
+      },
+      "compound-shell": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 6,
+        "n_run": 3
+      },
+      "git-exec": {
+        "false_deny": 0,
+        "false_pass": 3,
+        "n": 6,
+        "n_run": 3
+      },
+      "import-run": {
+        "false_deny": 1,
+        "false_pass": 0,
+        "n": 6,
+        "n_run": 3
+      },
+      "interpreter": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 6,
+        "n_run": 3
+      },
+      "mpi-launcher": {
+        "false_deny": 0,
+        "false_pass": 3,
+        "n": 6,
+        "n_run": 3
+      },
+      "privilege": {
+        "false_deny": 0,
+        "false_pass": 3,
+        "n": 6,
+        "n_run": 3
+      },
+      "process-tool": {
+        "false_deny": 0,
+        "false_pass": 3,
+        "n": 6,
+        "n_run": 3
+      },
+      "python-operand": {
+        "false_deny": 1,
+        "false_pass": 0,
+        "n": 6,
+        "n_run": 3
+      },
+      "shell-builtin": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 6,
+        "n_run": 3
+      }
+    },
+    "n": 60,
+    "n_run": 30
+  }
+}
