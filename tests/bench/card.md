@@ -14,7 +14,7 @@ The pair (false passes, false denies), compared false passes first, then false d
 
 | Split | File | Cases | Use |
 |---|---|---|---|
-| dev, seeds | `tests/bench/gate_corpus/seeds.jsonl` | 43, hand-labelled (s38-s43 added after round 1 from reading the code, not from held-out) | the score each candidate is ranked on |
+| dev, seeds | `tests/bench/gate_corpus/seeds.jsonl` | 51, hand-labelled (s38-s51 added after round 1 from reading the code and the grill answers, not from held-out) | the score each candidate is ranked on |
 | dev, mined | `tests/bench/gate_corpus/mined.jsonl` | 567, labelled with the output at `789d7d6` | regression anchor: must stay at 0 and 0 unless a label change is reviewed |
 | held-out | `/exports/para-lipg-hpc/mdmanurung/mycelium-extra-heldout/gate_heldout.jsonl` | 60 (30 run, 30 benign, 10 families), sha256 `6339a398bcb8603482e256a2c6e73d515fa712a5f1e28e0f24d2a10abecfea02` | scored `--sealed` at baseline and at the end of a round only |
 
@@ -43,9 +43,10 @@ Classifier latency is not a guardrail (C5): it measured median 0.09 ms and p95 0
 |---|---|---|---|---|
 | dev seeds (s01-s37) | 37 | 29 | 22 | 0 |
 | dev seeds (all 43) | 43 | 32 | 25 | 0 |
+| dev seeds (all 51) | 51 | 37 | 29 | 0 |
 | dev mined | 567 | 248 | 0 | 0 |
 | held-out | 60 | 30 | 12 | 2 |
 
 Figure: `tests/bench/results/789d7d6/gate_by_family.png` (37 seeds), with source data `gate_by_family.tsv` beside it, drawn by `tests/bench/plot_gate_baseline.R`.
 
-Every sealed look is logged in `tests/bench/results/heldout_looks.log`. Round 1 looked three times before the log existed, without tuning on the result. No `freeze-evaluator` ran before round 1; the freeze runs before round 2.
+Every sealed look is logged in `tests/bench/results/heldout_looks.log`. Round 1 looked three times before the log existed, without tuning on the result. No freeze ran before round 1. Round 2 is frozen by the sha256 manifest `tests/bench/results/freeze-round2.sha256`; the `iterate` tree freeze comes with B7.

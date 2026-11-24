@@ -41,3 +41,11 @@
 {"id": "s41", "family": "benign-option-value", "command": "shellcheck -s bash analysis/run.sh", "cwd": ".", "expect": [], "label": "hand"}
 {"id": "s42", "family": "benign-option-value", "command": "bat -l python analysis/a.py", "cwd": ".", "expect": [], "label": "hand"}
 {"id": "s43", "family": "benign-option-value", "command": "pygmentize -l python analysis/a.py", "cwd": ".", "expect": [], "label": "hand"}
+{"id": "s44", "family": "no-runner-launcher", "command": "sudo ./analysis/run.sh", "cwd": ".", "expect": ["analysis/run.sh"], "label": "hand"}
+{"id": "s45", "family": "no-runner-launcher", "command": "doas ./analysis/run.sh", "cwd": ".", "expect": ["analysis/run.sh"], "label": "hand"}
+{"id": "s46", "family": "no-runner-launcher", "command": "perf stat ./analysis/run.sh", "cwd": ".", "expect": ["analysis/run.sh"], "label": "hand"}
+{"id": "s47", "family": "no-runner-launcher", "command": "flock /tmp/lock ./analysis/run.sh", "cwd": ".", "expect": ["analysis/run.sh"], "label": "hand"}
+{"id": "s48", "family": "no-runner-launcher", "command": "taskset -c 0 ./analysis/run.sh", "cwd": ".", "expect": ["analysis/run.sh"], "label": "hand"}
+{"id": "s49", "family": "benign", "command": "sudo cat analysis/a.py", "cwd": ".", "expect": [], "label": "hand"}
+{"id": "s50", "family": "benign-option-value", "command": "highlight --syntax python analysis/a.py", "cwd": ".", "expect": [], "label": "hand"}
+{"id": "s51", "family": "benign-option-value", "command": "source-highlight -s python -i analysis/a.py", "cwd": ".", "expect": [], "label": "hand"}

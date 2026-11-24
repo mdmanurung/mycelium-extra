@@ -1,0 +1,100 @@
+{
+  "mined.jsonl": {
+    "errors": 0,
+    "failures": [],
+    "false_deny": 0,
+    "false_pass": 0,
+    "families": {
+      "mined": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 567,
+        "n_run": 248
+      }
+    },
+    "n": 567,
+    "n_run": 248
+  },
+  "seeds.jsonl": {
+    "errors": 0,
+    "failures": [],
+    "false_deny": 0,
+    "false_pass": 0,
+    "families": {
+      "benign": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 9,
+        "n_run": 0
+      },
+      "benign-option-value": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 5,
+        "n_run": 0
+      },
+      "control-positive": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 4,
+        "n_run": 4
+      },
+      "git-exec": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 2,
+        "n_run": 2
+      },
+      "import-run": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 3,
+        "n_run": 3
+      },
+      "interpreter": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 2,
+        "n_run": 2
+      },
+      "mpi-launcher": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 4,
+        "n_run": 4
+      },
+      "no-runner-launcher": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 8,
+        "n_run": 8
+      },
+      "privilege": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 4,
+        "n_run": 4
+      },
+      "process-tool": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 7,
+        "n_run": 7
+      },
+      "python-operand": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 2,
+        "n_run": 2
+      },
+      "shell-builtin": {
+        "false_deny": 0,
+        "false_pass": 0,
+        "n": 1,
+        "n_run": 1
+      }
+    },
+    "n": 51,
+    "n_run": 37
+  }
+}

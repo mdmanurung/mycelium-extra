@@ -1,1 +1,2 @@
 2026-11-24	(before this log existed)	gate_heldout.jsonl	round 1 looked 3 times: baseline at 789d7d6 twice (text, json), candidate b6 three times (2 text, 1 json); no tuning on it
+2026-11-24T02:28:46	/exports/para-lipg-hpc/mdmanurung/mx-bench-b6/hooks	gate_heldout.jsonl	n=60 false_pass=1 false_deny=2
