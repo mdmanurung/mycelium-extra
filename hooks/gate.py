@@ -69,6 +69,7 @@ DEFAULTS = {
 SCAN_SECONDS = 5  # reading approvals; the PreToolUse hook is killed at 10 s. gate.json `scan_seconds` sets it
 SCAN_SECONDS_DEFAULT = 5
 SCAN_SECONDS_MAX = 8  # the hook is killed at 10 s; leave room to answer
+TOOL_HASH_SECONDS = 8  # pin re-checks in one PreToolUse call, whatever `pin_seconds` says: a killed hook lets the call through
 SCAN_MEMO = {}  # one approvals scan per process and folder state; every approval write path clears it
 SCAN_NOTE = {}  # what the last timed-out scan saw, for the SCAN_TIMEOUT message
 LAUNCH_SECONDS = 24 * 3600  # a launch record older than this belongs to a call that never reported back
@@ -259,11 +260,13 @@ def append_line(path, record):
         handle.write(prefix + line)
 
 
-def hash_budget(config):
-    """Bytes this hook call may still read to hash files, and when it must stop.
-    Hooks time out at 10-20 s, and data often sits on a network filesystem."""
-    return {"bytes": float(config["pin_hash_mb"]) * 1024 * 1024,
-            "deadline": time.time() + float(config["pin_seconds"])}
+def hash_budget(config, most=None):
+    """Bytes this hook call may still read to hash files, and when it must stop: `pin_seconds`, or `most`
+    seconds when that is shorter. Hooks time out at 10-30 s, and data often sits on a network filesystem."""
+    seconds = float(config["pin_seconds"])
+    if most is not None:
+        seconds = min(seconds, most)
+    return {"bytes": float(config["pin_hash_mb"]) * 1024 * 1024, "deadline": time.time() + seconds}
 
 
 def listing(items, limit=10):
@@ -295,24 +298,27 @@ def sha256_file(path, deadline=None):
 def fingerprint(path, budget, pin=None):
     """Fingerprint a file or folder. A file gets a sha256 while the byte and time
     budget last, else size and mtime; given the pin it is compared with, it is
-    hashed only if the pin was and the sizes still match."""
+    hashed only if the pin was and the sizes still match. When the budget runs out before such a re-hash,
+    the record says so (`unhashed`) and compares by size and mtime in nanoseconds."""
     try:
         info = os.stat(path)
     except OSError:
         return {"missing": True}
     if os.path.isdir(path):
         return folder_fingerprint(path, budget)
-    if path.endswith(".ipynb") and info.st_size <= budget["bytes"]:
+    if path.endswith(".ipynb") and info.st_size <= budget["bytes"] and time.time() < budget["deadline"]:
         text = notebook_code(path)  # executing a notebook rewrites its outputs, not its code
         if text is not None:
             return {"size": len(text), "mtime": int(info.st_mtime), "sha256": sha256(text).hexdigest()}
-    record = {"size": info.st_size, "mtime": int(info.st_mtime)}
+    record = {"size": info.st_size, "mtime": int(info.st_mtime), "mtime_ns": info.st_mtime_ns}
     wanted = pin is None or ("sha256" in pin and pin.get("size") == info.st_size)
     if wanted and info.st_size <= budget["bytes"] and time.time() < budget["deadline"]:
         digest = sha256_file(path, budget["deadline"])
         if digest:
             record["sha256"] = digest
             budget["bytes"] -= info.st_size
+    if pin is not None and wanted and "sha256" not in record:
+        record["unhashed"] = "byte limit" if info.st_size > budget["bytes"] else "time limit"
     return record
 
 
@@ -403,6 +409,8 @@ def unchanged(pin, now):
         return False
     if "sha256" in pin and "sha256" in now:
         return pin["sha256"] == now["sha256"]
+    if "mtime_ns" in pin and "mtime_ns" in now:  # pins from before 0.36.3 hold whole seconds only
+        return pin["mtime_ns"] == now["mtime_ns"]
     return pin.get("mtime") == now.get("mtime")
 
 
@@ -1067,6 +1075,7 @@ def valid_fingerprint(pin):
     return (isinstance(pin.get("size"), int) and pin["size"] >= 0
             and isinstance(pin.get("mtime"), (int, float))
             and (not isinstance(pin["mtime"], float) or math.isfinite(pin["mtime"]))
+            and ("mtime_ns" not in pin or isinstance(pin["mtime_ns"], int) and not isinstance(pin["mtime_ns"], bool))
             and ("sha256" not in pin or isinstance(pin["sha256"], str)
                  and re.fullmatch(r"[0-9a-f]{64}", pin["sha256"]) is not None))
 
@@ -2740,7 +2749,12 @@ def changed_pins(root, pins, budget, cache):
         if pin.get("skipped") or now.get("skipped"):
             unchecked.append(rel)
         elif not unchanged(pin, now):
-            changes.append("{}: {} -> {}".format(rel, describe(pin), describe(now)))
+            was, is_now = describe(pin), describe(now)
+            if was == is_now and "mtime_ns" in pin and "mtime_ns" in now:  # an edit within the same second
+                was, is_now = ("{} (+{} ns)".format(d, r["mtime_ns"] % 10 ** 9) for d, r in ((was, pin), (is_now, now)))
+            changes.append("{}: {} -> {}".format(rel, was, is_now))
+        elif now.get("unhashed"):  # same size and mtime, but its sha256 was not re-read: say so
+            unchecked.append(rel)
     return changes, unchecked
 
 
@@ -3244,7 +3258,7 @@ def on_tool(event, root, config):
     blocked, stale, unchecked = [], [], []
     repins, firsts = [], []
     scripts_on, notice = script_pinning(config)
-    budget, cache = hash_budget(config), {}
+    budget, cache = hash_budget(config, TOOL_HASH_SECONDS), {}
     limit, limit_notice = run_limit(config)
     capped = []
     granted = explore_granted(root, event.get("session_id"))
@@ -3376,7 +3390,8 @@ def on_tool(event, root, config):
         messages = []
         if unchecked:  # fail open, but say so
             messages.append("mycelium-extra gate: pinned inputs not re-checked before this run "
-                            "(time limit, `pin_seconds`): {}.".format(listing(unchecked)))
+                            "(time or size limit, `pin_seconds` up to {} s, `pin_hash_mb`; an unhashed file "
+                            "matched by size and mtime): {}.".format(TOOL_HASH_SECONDS, listing(unchecked)))
         if notice and approvals is not None:  # a gated run was checked
             messages.append(notice)
         if limit_notice and approvals is not None:
@@ -4126,9 +4141,11 @@ def prompt_commands(event, root, config):
     if freeze:  # answered here, like `card`: the user reads the card, the agent does not
         entry, shown = freeze_entry(root, config, freeze.group(1).lower())
         if entry:
-            path = state_path(root, "pending", safe_session(event.get("session_id")) + ".json")
-            kept = [p for p in read_json(path, []) if isinstance(p, dict) and p.get("hash") != entry["hash"]]
-            write_json(path, (kept + [entry])[-10:])
+            session = safe_session(event.get("session_id"))
+            path = state_path(root, "pending", session + ".json")
+            with state_lock(root, "pending-" + session):  # the lock on_stop holds: a parallel stop's plan is kept
+                kept = [p for p in read_json(path, []) if isinstance(p, dict) and p.get("hash") != entry["hash"]]
+                write_json(path, (kept + [entry])[-10:])
         return {"decision": "block", "reason": shown}
     match = APPROVE.match(prompt)
     steps, steps_notice = checkpoint_steps(config)

@@ -1593,12 +1593,16 @@ class GateTest(unittest.TestCase):
     def test_hash_budget_falls_back_to_size_and_mtime(self):
         self.config({"pin_hash_mb": 0})
         path = self.write("data/big.tsv", "aaaa")
-        stamp = os.stat(path).st_mtime
+        stamp = os.stat(path).st_mtime_ns
         digest, _ = self.approve(self.inputs_plan("data/big.tsv"))
         self.assertNotIn("sha256", self.approval(digest)["pins"]["data/big.tsv"])
         self.write("data/big.tsv", "bbbb")
-        os.utime(path, (stamp, stamp))
-        self.assertIsNone(self.bash("python analysis/x.py"), "size+mtime cannot see this edit")
+        os.utime(path, ns=(stamp, stamp))
+        self.assertIsNone(self.bash("python analysis/x.py"), "size+mtime cannot see an edit that restores the mtime")
+        os.utime(path, ns=(stamp, stamp + 1000))  # the same second, a later nanosecond (0.36.3)
+        reason = self.bash("python analysis/x.py")["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertIn("ns) -> size 4", reason)
+        os.utime(path, ns=(stamp, stamp))
         self.write("data/big.tsv", "bbbbb")
         self.assertTrue(self.denied(self.bash("python analysis/x.py")))
 
