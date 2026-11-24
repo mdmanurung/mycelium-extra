@@ -4,6 +4,20 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.36.2] - 2026-11-24
+
+A gate fix found and measured by a new benchmark (roadmap 19).
+
+### Fixed
+
+- The gate now checks a covered script started through a launcher it did not name: `mpirun`, `mpiexec`, `torchrun`, `accelerate launch`, `sudo -u`, `doas`, `runuser`, `su -c`, `flock`, `numactl`, `taskset`, `strace`, `perf`, `script -c`, `systemd-run`, `valgrind`, `chrt`, `git bisect run`, `git rebase -x` and `builtin exec`. Before, these ran unapproved.
+- `python -c 'import analysis.a'` and `from analysis import a` count as running `analysis/a.py`. `pypy`, `ipython`, `torchrun`, `deepspeed` and `accelerate` are runners.
+- Readers stay allowed when a runner name appears as an option value: `bat -l python`, `pygmentize`, `highlight`, `shellcheck -s bash`, `source-highlight`, as do `echo`, `grep`, `git log` and `pytest`.
+
+### Added
+
+- `tests/bench/`: a scorer for the gate's command classifier, 51 hand-labelled dev cases, 567 regression cases mined from the hook tests, a sealed held-out set outside the tree, and a benchmark card. Dev false passes went from 22 of 29 to 0 of 37; held-out from 12 of 30 to 1 of 30.
+
 ## [0.36.1] - 2026-11-18
 
 Fixes from a Fable review of 0.33.0-0.36.0.
