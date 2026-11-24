@@ -4,6 +4,16 @@ All notable changes to mycelium-extra are listed here, newest first. The format 
 
 ## [Unreleased]
 
+## [0.36.3] - 2026-11-24
+
+Fault-injection fixes for three hook review findings (roadmap 19, row B8).
+
+### Fixed
+
+- A slow pin re-check can no longer outrun the PreToolUse hook's 10 s timeout, which let the call through. A Bash call stops re-hashing at 8 s whatever `pin_seconds` says; a file it could not re-hash is compared by size and mtime and named as not re-checked.
+- `freeze <hash>` no longer drops a plan that a parallel stop of the same session adds.
+- A same-size edit to an input pinned without a sha256 is caught even within the same second: pins now record the mtime in nanoseconds. Pins written before 0.36.3 still compare by whole seconds.
+
 ## [0.36.2] - 2026-11-24
 
 A gate fix found and measured by a new benchmark (roadmap 19).
