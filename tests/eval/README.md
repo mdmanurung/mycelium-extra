@@ -28,6 +28,9 @@ Each adjudication file is one run and records `host`, `host_version`, `model`, `
 
 ## Development versus held-out
 
+The gate classifier benchmark in `tests/bench/` follows the same split rules with a sealed held-out file outside the tree; see `tests/bench/card.md`. It is deterministic and needs no model run, so it is not part of this scaffold.
+
+
 Development cases may be used to design and tune the workflow. Held-out cases must not be read, run or described to the implementer or to any agent before the comparison they are reserved for. Development variants reuse existing `tests/e2e/defects.py` cases, except `dev-s07` (a missing-package control), which is not built yet; held-out variants are new mutations (a `to_be_authored:` prefix in the key's `workspace_variant`) so that the product has not been fitted to them. If a held-out case is used for tuning, it is development from then on: say so and write a new held-out case. `score.py` reports the two splits separately and never pools them.
 
 ## Keeping answer keys out of the agent

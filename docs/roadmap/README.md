@@ -91,7 +91,7 @@ Every task uses these fields, under a `### <ID>: <title>` heading:
 - [16-outside-skills-2026-11.md](16-outside-skills-2026-11.md): Pocock, Codex and ericmjl skills; A1 to A3 done in `0.20.0`, B1 to B5 in `0.21.0`; C1 to C5 (package development) in `0.22.0`.
 - [17-design-skills-2026-11.md](17-design-skills-2026-11.md): DESIGN.md tokens, `handoff test`, viewer hardening, slop-lint and the artifact evaluation page; B1 to B6 and C1 to C2 in `0.23.0`, C3 parked.
 - [18-analysis-layout.md](18-analysis-layout.md): one analysis layout for every skill (step folders that a rerun overwrites, `logs/CHANGES.md`, resolver, Outputs index, status words, routing; legacy run folders still read); D0 to D9 for `0.24.0`, D10 for `0.25.0`.
-- [19-benchmark-refinement.md](19-benchmark-refinement.md): review of 0.36.1 and a draft plan to refine the gate against a frozen command-classifier benchmark, then a tusoskill run; B0 to B9 and choices C1 to C5 await approval.
+- [19-benchmark-refinement.md](19-benchmark-refinement.md): review of 0.36.1 and the plan to refine the gate against a frozen command-classifier benchmark, approved 2026-11-24. B0 to B6 and B8 shipped in 0.36.2 and 0.36.3; B7 (tusoskill run) waits on a dev set the fixes do not already score perfectly; B9 is todo.
 
 
 ## Updating this roadmap

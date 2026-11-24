@@ -2,7 +2,7 @@
 
 [Back to roadmap](README.md)
 
-Objective: review the package at `789d7d6` (0.36.1), then improve it against a frozen, deterministic benchmark instead of reviewer opinion. A later tusoskill run uses the same benchmark as its evaluator. Status: **approved 2026-11-24** (user: "Approve all", rows B0-B9 and choices C1-C5 as recommended).
+Objective: review the package at `789d7d6` (0.36.1), then improve it against a frozen, deterministic benchmark instead of reviewer opinion. A later tusoskill run uses the same benchmark as its evaluator. Status: **approved 2026-11-24** (user: "Approve all", rows B0-B9 and choices C1-C5 as recommended). Shipped: `0.36.2` (B1-B6) and `0.36.3` (B8), pushed 2026-11-24 at `5e0e37a`, CI and docs build green.
 
 Statuses: `todo`, `in progress`, `built`, `done`, `parked`, `dropped: <reason>`, `blocked: <question for the user>`.
 
@@ -67,10 +67,10 @@ The first benchmark is the gate's command classifier. `analyse_command` is pure 
 | B2 | Seal a held-out corpus | A fresh agent writes `tests/bench/gate_corpus/heldout.jsonl` from the launcher and shell families only. The implementer never opens it; the scorer prints counts only | see choice C2 | file hash recorded in the benchmark card before B3 | built: sha256 6339a398… |
 | B3 | Baseline on `789d7d6`; figure by `tests/bench/plot_gate_baseline.R` | Score dev and held-out separately, never pooled | `repo: tests/eval/README.md` (no pooling) | figure of false pass and false deny by command family, saved and inspected, cited by path | built: `tests/bench/results/789d7d6/` |
 | B4 | Freeze the evaluator | Hash `tests/bench/` in an `iterate --mode method` card. Editable: `hooks/shellwords.py` and the parsing section of `hooks/gate.py` only | `repo: skills/iterate/references/method-mode.md:35-39` | loop guard blocks writes to hashed files | built: `tests/bench/card.md`; freeze runs when the tree starts |
-| B5 | Guardrails for every candidate | full suite green; gate-diff with no unrecorded difference; defects 83/83 (latency: see C5) | see choice C5 | each candidate's ledger row records all four | todo |
-| B6 | Fix rounds, ranked by what B3 fails | Each reviewer finding becomes a corpus case first; fixes go in a worktree, never the live checkout | `repo: HANDOFF.md` dead ends | dev and held-out counts per round | built: rounds 1-2 land as `0.36.2`; dev 0/37 false pass, 0/14 false deny; held-out 1/30 and 2/30, adjudication open |
-| B7 | tusoskill run on B4's card | after B6 shows the loop works by hand | see choice C4 | tusoskill `stop-check` plus held-out score at the end only | todo |
-| B8 | Fault-injection tests for findings 1, 3, 4 | timeout sum, freeze against stop, same-second pin | `default: they are not classification and need their own tests` | each test red on `789d7d6`, green after its fix | built: `hooks/tests/test_gate_faults.py`, lands as `0.36.3` |
+| B5 | Guardrails for every candidate | full suite green; gate-diff with no unrecorded difference; defects 83/83 (latency: see C5) | see choice C5 | each candidate's ledger row records all four | done: run for rounds 1-2 and B8 (suite, gate-diff, ablations 17/17, audit 150/150) |
+| B6 | Fix rounds, ranked by what B3 fails | Each reviewer finding becomes a corpus case first; fixes go in a worktree, never the live checkout | `repo: HANDOFF.md` dead ends | dev and held-out counts per round | done: rounds 1-2 shipped in `0.36.2`; dev 0/37 false pass, 0/14 false deny; held-out 1/30 and 2/30, adjudication open |
+| B7 | tusoskill run on B4's card | after B6 shows the loop works by hand | see choice C4 | tusoskill `stop-check` plus held-out score at the end only | blocked: dev scores 0 and 0 after round 2, so a run has nothing to improve. Park it, or write new seed families first? |
+| B8 | Fault-injection tests for findings 1, 3, 4 | timeout sum, freeze against stop, same-second pin | `default: they are not classification and need their own tests` | each test red on `789d7d6`, green after its fix | done: `hooks/tests/test_gate_faults.py`, shipped in `0.36.3` |
 | B9 | Second benchmark: skill text burden | description bytes, SKILL.md lines against the 150 limit, missing "not for" lines | `default: deterministic, already partly in tests/test_skill_frontmatter.py` | guardrail only, no tusoskill run | todo |
 
 Seed cases for B1, from the hooks review, so B1 does not restart from the six reproduced above. False-pass seeds (a covered script behind each): `mpiexec`, `accelerate launch`, `flock`, `numactl`, `taskset`, `strace`, `perf`, `doas`, `runuser -u`, `su -c '…'`, `script -c '…'`, `systemd-run`, `git bisect run`, `git rebase -x '…'`, `builtin exec`, `pypy3`, `ipython`, `python -c 'from analysis import a'`, `runpy.run_path("analysis/"+"a.py")`. False-deny seeds: `python analysis/a.txt`, `python analysis/a.pyc`, `python analysis/`.
@@ -118,5 +118,5 @@ No `.living/` exists here, so the approved answers to C1-C5 are recorded in the 
 | Option-value denies | Add `bat`, `pygmentize`, `highlight`, `shellcheck`, `source-highlight` to the reader list |
 | Held-out adjudication | Once, after the last B6 round; then a fresh held-out set before B7 |
 | Landing | Benchmark files first; the fix after round 2 |
-| Version | `0.36.2` for the fix |
+| Version | `0.36.2` for the fix; B8 shipped as `0.36.3` |
 | B7 | Asked after round 2 is scored |

@@ -88,6 +88,16 @@ Each stage prints its name. The run checks that:
 
 The `new-analysis --migrate` tests (`skills/new-analysis/tests/test_migrate.py`) use the trimmed run-folder analysis in `tests/fixtures/migrate/`. They copy it to a temporary folder first, and the real `04-timepoint-hto` is never touched. Where Snakemake is on PATH, they also dry-run `Snakefile.new` with `-n`.
 
+### Gate classifier benchmark
+
+`tests/bench/` scores the gate's command classifier (`gate.analyse_command`) against labelled commands: a false pass is a covered run it misses, a false deny is a benign command it gates. [`tests/bench/card.md`](../tests/bench/card.md) is the authority: metric, splits, protected files, guardrails and the baseline. Score the dev corpora with:
+
+```bash
+python3.12 tests/bench/score_gate.py tests/bench/gate_corpus/seeds.jsonl tests/bench/gate_corpus/mined.jsonl
+```
+
+The mined anchors must stay at 0 and 0. The held-out set lies outside the tree and is scored only with `--sealed`, at the end of a round; every sealed look is logged in `tests/bench/results/heldout_looks.log`. A classifier change adds a seed case first and records its dev and held-out counts in [roadmap 19](roadmap/19-benchmark-refinement.md). `tests/bench/plot_gate_baseline.R <dir>` draws the per-family figure for a results folder. Hook faults that are not classification (time limits, lock races, pin precision) are tested by fault injection in `hooks/tests/test_gate_faults.py`.
+
 ### Parallel test runner
 
 `python3.12 tests/run_suite.py` runs the CI test files as parallel shards and prints one line per shard with its seconds. Each hook call starts a Python that recompiles `gate.py` or `verify.py`, so the 30-minute files are slow because of process spawns. On four cores the gain comes from running files and shards side by side, not from threads.
@@ -138,6 +148,10 @@ The plan card's `Coverage` line and the `approve` wording were not behind these 
 #### Oracle check for 0.28.0, 2026-11-13
 
 The 0.28.0 gate edits are the post-run notice (M1) and the `planning_line` write at approval (M3). `gate_diff.py --base 267d9e24... --expect hooks/tests/gate_diff_expected.json` on python3.11 reports 95 of 173 identical and 78 listed differences, each matching the oracle exactly. No case is new, missing or changed, so the oracle file is unchanged. No fixed or fuzz case runs `bash run.sh`, `snakemake` or `sbatch` with the notice on, and none sets `.living/` with an analysis doc, so neither edit shows. The regression tests are `hooks/tests/test_gate_mycelium.py` and `test_runs_mycelium_misses_get_a_post_action_reminder` in `hooks/tests/test_gate.py`.
+
+#### Oracle regeneration for 0.36.3, 2026-11-24
+
+The B8 fixes made 45 of the 78 listed differences change, all in one way. File pins and receipt lockfile records now hold an `mtime_ns` key (fixed at `1700000000000000000` in the harness), and nothing else differs. Against 0.36.2 (`gate_diff.py --base afda6d3`), 128 of 173 cases are identical and the other 45 differ in state only; no exit status or output changed. The oracle was rewritten with `--write-expect`. Its JSON matches the old one in every case once `mtime_ns` is removed, and the same 78 cases are listed. The regression tests are in `hooks/tests/test_gate_faults.py`. This before and after was shown to the user in the 0.36.3 report before the push.
 
 ## Gate module map
 
