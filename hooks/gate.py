@@ -40,9 +40,9 @@ if _HERE not in sys.path:
 # The shell tokenizer and the plan-table reader live in their own modules; every public name is re-exported
 # here, so `gate.tokenize`, `gate.plan_table` and the rest keep working for tests and other modules.
 from shellwords import (  # noqa: F401
-    CONTAINERS, DURATION, HEAD_SKIP, LAUNCHERS, LOADS_FOLDER, MYCELIUM_SEES, PATHLIKE, PLUGIN_ROOT_VAR, RUNNERS,
-    SCRIPT_EXT, SHELL_C, SHELLS, VALUE_FLAGS, WRAPPER_FLAGS, WRAPPER_OPTIONS, WRAPPERS, UnknownFolder,
-    ansi_literal, cd_target, gated_rel, is_assignment, is_separator, move_folder, operand_exists, paths_in_text,
+    CONTAINERS, DIRECT_LAUNCHERS, DURATION, HEAD_SKIP, LAUNCHERS, LOADS_FOLDER, MYCELIUM_SEES, NON_EXEC, PATHLIKE, PAYLOAD_FLAGS,
+    PLUGIN_ROOT_VAR, PY_IMPORT, RUNNERS, SCRIPT_EXT, SHELL_C, SHELLS, VALUE_FLAGS, WRAPPER_FLAGS, WRAPPER_OPTIONS, WRAPPERS, UnknownFolder,
+    ansi_literal, cd_target, gated_rel, imported_modules, is_assignment, is_separator, move_folder, operand_exists, paths_in_text,
     reads_code, repo_relative, scoped_segments, segments, split_option, substitutions, tokenize)
 from plantable import (  # noqa: F401
     MAX_SCRIPT_PINS, SOURCE_CITATION, TABLE_ROW, TABLE_RULE, covered_scripts, names_command, path_in_plan,
@@ -485,6 +485,9 @@ def _classify(tokens, root, cwd, config, info=None):
             if later:  # the wrapper's unknown options held values; the runner after them is the command
                 unknown, i = False, later[0]
                 continue
+        launched = unknown_launcher(tokens, i, config)
+        if launched:
+            return explore, "recurse", [launched], cwd
         return explore, None, [], cwd
     if i >= len(tokens):
         return explore, None, [], cwd
@@ -607,6 +610,47 @@ def _classify(tokens, root, cwd, config, info=None):
         return explore, (word if paths else None), paths, cwd
     rel = script_rel(head, "/" in head)
     return explore, (head if rel else None), ([rel] if rel else []), cwd
+
+
+def unknown_launcher(tokens, i, config):
+    """The command line an unknown program at tokens[i] launches, or None. A runner or gated command later in
+    its words (`mpirun -n 4 python x.py`, `git bisect run python x.py`), or a runner inside a payload option's
+    value (`su -c 'python x.py'`, `git rebase -x 'python x.py'`), is read as launched; a program in NON_EXEC
+    runs none of its operands. This is C3 as the user settled it (roadmap 19, grill Q1 and Q5): a runner word or
+    payload follows, or a program in DIRECT_LAUNCHERS names a script before any reader. Any other covered
+    script straight after an unknown program is not read as run."""
+    import shlex
+    word = os.path.basename(tokens[i])
+    rest = tokens[i + 1:]
+    if word == "git":  # git runs a command only through these forms
+        if rest[:2] == ["bisect", "run"]:
+            return " ".join(shlex.quote(t) for t in rest[2:]) or None
+        if rest[:2] == ["submodule", "foreach"]:
+            return rest[-1] if len(rest) > 2 else None
+        payload = [rest[k + 1] for k, t in enumerate(rest[:-1]) if t in ("-x", "--exec")]
+        payload += [t.split("=", 1)[1] for t in rest if t.startswith("--exec=")]
+        return payload[0] if payload and rest[:1] == ["rebase"] else None
+    if word in NON_EXEC:
+        return None
+    for k, token in enumerate(rest):
+        flag, inline = split_option(token, PAYLOAD_FLAGS)
+        value = inline if inline is not None else (rest[k + 1] if flag and k + 1 < len(rest) else None)
+        if value and any(RUNNERS.match(os.path.basename(t)) or os.path.basename(t) in config["gated_commands"]
+                         for t in value.split()):
+            return value
+    for k, token in enumerate(rest):
+        name = os.path.basename(token)
+        if (RUNNERS.match(name) and name not in ("source", ".")) or name in config["gated_commands"]:
+            return " ".join(shlex.quote(t) for t in rest[k:])
+    if word in DIRECT_LAUNCHERS:
+        if word == "perf" and rest[:1] in (["stat"], ["record"], ["trace"]):
+            rest = rest[1:]  # perf's own subcommand, not a reader (`perf stat ./x.sh`)
+        for k, token in enumerate(rest):
+            if os.path.basename(token) in NON_EXEC:
+                return None
+            if not token.startswith("-") and SCRIPT_EXT.search(token):
+                return " ".join(shlex.quote(t) for t in rest[k:])
+    return None
 
 
 def static_quarto(root, rel):

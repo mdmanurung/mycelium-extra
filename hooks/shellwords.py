@@ -12,7 +12,8 @@ import re
 
 
 RUNNERS = re.compile(
-    r"^(python[\d.]*|Rscript|R|bash|sh|zsh|jupyter|papermill|quarto|julia|perl|node|source|\.)$")
+    r"^(python[\d.]*|pypy[\d.]*|ipython[\d.]*|Rscript|R|bash|sh|zsh|jupyter|papermill|quarto|julia|perl|node"
+    r"|torchrun|deepspeed|accelerate|source|\.)$")
 LAUNCHERS = ("py.sh", "mxpy")  # the plugin's Python launcher, as hooks/py.sh and as hooks/mxpy
 SHELLS = {"bash", "sh", "zsh", "dash", "ksh", "fish", "csh", "tcsh"}
 CONTAINERS = {"apptainer", "singularity", "docker", "podman"}  # `exec IMAGE CMD`: CMD is read as if run directly
@@ -83,6 +84,25 @@ WRAPPER_FLAGS = {
            "--refresh", "--managed-python", "--no-managed-python", "--no-python-downloads", "-q", "--quiet",
            "-v", "--verbose", "--system-certs", "--offline", "--no-progress", "--no-config", "-h", "--help"},
 }
+# Programs that read, list, edit or search their operands and run none of them. An unknown program
+# before a runner (`mpirun -n 4 python x.py`, `sudo -u bob python x.py`) is read as a launcher of that
+# runner; these are not (`echo python x.py`, `grep -rn python x/`).
+NON_EXEC = {"echo", "printf", "grep", "egrep", "fgrep", "rg", "ag", "ack", "cat", "less", "more", "head", "tail",
+            "man", "which", "type", "whereis", "whatis", "apropos", "help", "ls", "wc", "sed", "awk", "sort", "uniq",
+            "cut", "tr", "diff", "cmp", "stat", "file", "touch", "chmod", "chown", "ln", "cp", "mv", "rm", "mkdir",
+            "tar", "zip", "unzip", "gzip", "md5sum", "sha256sum", "sha1sum", "du", "vim", "vi", "nvim", "nano",
+            "emacs", "code", "tee", "test", "[", "[[", "true", "false", "pip", "pip3", "apt", "apt-get", "yum",
+            "dnf", "brew", "module", "ml", "alias", "unalias", "export", "set", "unset", "declare", "local",
+            "readonly", "history", "git", "gh", "hg", "svn", "curl", "wget", "ssh-add",
+            "pytest", "py.test",  # `pytest -k python analysis/demo` stays a test run (hooks/tests/test_gate.py:2707)
+            "bat", "pygmentize", "highlight", "shellcheck", "source-highlight"}  # take a language name as a value
+# Programs that run a script named straight after their own options (`valgrind ./analysis/run.sh`,
+# `chrt 10 analysis/run.sh`); the scan stops at a reader (`sudo cat analysis/a.py`). Roadmap 19, grill Q5.
+DIRECT_LAUNCHERS = {"valgrind", "chrt", "mpirun", "mpiexec", "horovodrun", "strace", "ltrace", "perf", "numactl",
+                    "taskset", "flock", "sudo", "doas", "runuser", "systemd-run"}
+# Options of a launcher whose value is a whole command line (`su -c CMD`, `script -c CMD`, `flock -c CMD`,
+# `git rebase -x CMD`); any program's `-c` that holds a runner is read this way.
+PAYLOAD_FLAGS = {"-c", "--command", "-x", "--exec"}
 HEAD_SKIP = {"sudo", "do", "then", "else", "elif", "!", "{", "if", "while", "until", "function", "coproc"}
 DURATION = re.compile(r"^\d+(?:\.\d+)?[smhd]?$")  # a `timeout` duration: 5, 1.5s, 2m, 1h
 PATHLIKE = re.compile(r"[\w./~-]+")
@@ -272,10 +292,30 @@ def gated_rel(root, cwd, token, config):
     return None
 
 
+PY_IMPORT = re.compile(r"(?:^|[;\n]|\s)(?:import\s+([\w.]+(?:\s*,\s*[\w.]+)*)|from\s+([\w.]+)\s+import\s+([\w\s,]+))")
+
+
+def imported_modules(text):
+    """Module paths (`a/b`) that inline Python code imports: `import a.b`, `from a import b, c`."""
+    names = []
+    for plain, package, members in PY_IMPORT.findall(text):
+        if plain:
+            names += [name.strip() for name in plain.split(",")]
+        else:
+            names += [package + "." + member.strip() for member in members.split(",") if member.strip()]
+            names.append(package)
+    return [name.replace(".", "/") for name in names if name]
+
+
 def paths_in_text(root, cwd, text, config):
-    """Gated scripts named in inline code; any gated path if the code imports from or moves into a folder."""
+    """Gated scripts named in inline code; any gated path if the code imports from or moves into a folder.
+    An imported module counts when its file exists (`import analysis.a` runs `analysis/a.py`)."""
     loads = LOADS_FOLDER.search(text) is not None
     found = []
+    for module in imported_modules(text):
+        rel = gated_rel(root, cwd, module + ".py", config)
+        if rel and os.path.isfile(os.path.join(root, rel)):
+            found.append(rel)
     for word in PATHLIKE.findall(text):
         # after a folder change a bare name names a folder too (`setwd("analysis")`); otherwise it needs a path shape
         rel = gated_rel(root, cwd, word, config) if (loads or "/" in word or "." in word) else None
